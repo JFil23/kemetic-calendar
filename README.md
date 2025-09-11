@@ -1,16 +1,33 @@
-# mobile
+# Kemetic Calendar (Flutter)
 
-A new Flutter project.
+A lightweight Flutter app that shows today in the **Ancient Kemetic (Egyptian) calendar** and a simple month view. It converts between Gregorian and Kemetic dates, highlights the current day, and lets you add sample events (local, in-memory) for any Kemetic day.
 
-## Getting Started
+## ✨ Features
 
-This project is a starting point for a Flutter application.
+- Kemetic ↔︎ Gregorian conversion (with seasons & epagomenal days)
+- Clean month grid (30-day months, 7 columns)
+- Tap a day to add a **sample local event** (stored in memory)
+- State management with **provider**
+- Unit tests for the converter
 
-A few resources to get you started if this is your first Flutter project:
+## 📱 Screenshots
+_(add later)_
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 🧱 Tech
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- Flutter & Dart
+- `provider` for app state
+- `intl` for formatting
+
+## 📦 Project structure
+
+lib/
+├─ core/
+│ └─ kemetic_converter.dart # Date math & models
+├─ data/
+│ ├─ models.dart # Event model
+│ └─ local_events_repo.dart # In-memory events + provider
+├─ features/
+│ └─ calendar/
+│ └─ calendar_page.dart # Month grid UI
+└─ main.dart # App entry; wires Provider + CalendarPage
