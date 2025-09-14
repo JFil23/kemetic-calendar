@@ -1,74 +1,129 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../core/kemetic_converter.dart';
-import 'models.dart';
+import '../data/models.dart';
 
-class LocalEventsRepo with ChangeNotifier {
-  final _items = <Event>[];
-  final _conv = KemeticConverter();
+/// Simple device-only store for events.
+/// Keeps everything in memory and mirrors to `SharedPreferences` as a JSON list.
+class LocalEventsRepo extends ChangeNotifier {
+  static const _prefsKey = 'events.v1';
 
-  List<Event> onKemeticDay(int year, int month, int day) =>
-      _items.where((e) => e.kYear == year && e.kMonth == month && e.kDay == day).toList();
+  final List<Event> _events = [];
+  bool _ready = false;
 
-  /// Adds a quick sample event (handy for testing with long-press in grid).
-  void addSampleForDate(DateTime localGregorianMidnight) {
-    final kd = _conv.fromGregorian(localGregorianMidnight);
-    final id = 'e_${_items.length + 1}';
-    final start = localGregorianMidnight.add(const Duration(hours: 10)).toUtc();
-    final end = start.add(const Duration(hours: 1));
-    _items.add(Event(
-      id: id,
-      ownerId: 'local',
-      title: 'Sample on ${kd.monthName} ${kd.day}',
-      notes: null,
-      allDay: false,
-      startUtc: start,
-      endUtc: end,
-      timeZone: 'UTC',
-      kYear: kd.year,
-      kMonth: kd.month,
-      kDay: kd.day,
-      isEpagomenal: kd.epagomenal,
-      kSeason: kd.season,
-    ));
-    notifyListeners();
+  bool get isReady => _ready;
+  List<Event> get all => List.unmodifiable(_events);
+
+  /// Call once at app start.
+  Future<void> init() async => _load();
+
+  /* ------------------------ queries ------------------------ */
+
+  /// Return all events on a Kemetic day.
+  List<Event> onKemeticDay(int kYear, int kMonth, int kDay, {bool epagomenal = false}) {
+    return _events
+        .where((e) =>
+    e.kYear == kYear &&
+        e.kDay == kDay &&
+        e.isEpagomenal == epagomenal &&
+        (epagomenal ? e.kMonth == 0 : e.kMonth == kMonth))
+        .toList()
+      ..sort((a, b) => a.category.index.compareTo(b.category.index));
   }
 
-  /// Adds a custom event with title + optional notes.
+  /* ------------------------ mutations ------------------------ */
+
   void addEvent({
     required DateTime startUtc,
     required int kYear,
     required int kMonth,
     required int kDay,
-    String? title,
-    String? notes,
-    bool allDay = true,
+    required String? title,
+    required String? notes,
+    required bool allDay,
+    required EventCategory category,
+    required bool isEpagomenal,
   }) {
-    final id = 'e_${_items.length + 1}';
-    final endUtc = allDay
-        ? startUtc.add(const Duration(hours: 23, minutes: 59))
-        : startUtc.add(const Duration(hours: 1));
-
-    _items.add(Event(
-      id: id,
-      ownerId: 'local',
-      title: title ?? 'Untitled',
-      notes: notes,
-      allDay: allDay,
+    final e = Event(
+      id: _newId(),
       startUtc: startUtc,
-      endUtc: endUtc,
-      timeZone: 'UTC',
       kYear: kYear,
-      kMonth: kMonth,
+      kMonth: isEpagomenal ? 0 : kMonth,
       kDay: kDay,
-      isEpagomenal: false,
-      kSeason: kemeticSeasonsByMonth[kMonth]!,
-    ));
+      title: (title == null || title.trim().isEmpty) ? '(Untitled)' : title.trim(),
+      notes: (notes == null || notes.trim().isEmpty) ? null : notes.trim(),
+      allDay: allDay,
+      category: category,
+      isEpagomenal: isEpagomenal,
+    );
+    _events.add(e);
+    _save();
     notifyListeners();
   }
 
-  /// Removes an event by ID.
-  void removeEvent(String id) {
-    _items.removeWhere((e) => e.id == id);
+  void updateEvent(String id, Event updated) {
+    final i = _events.indexWhere((e) => e.id == id);
+    if (i == -1) return;
+    _events[i] = updated;
+    _save();
     notifyListeners();
   }
+
+  void removeEvent(String id) {
+    _events.removeWhere((e) => e.id == id);
+    _save();
+    notifyListeners();
+  }
+
+  /// Debug helper the UI can call on long-press to seed a quick note for a Gregorian date.
+  Future<void> addSampleForDate(DateTime gMidnightLocal) async {
+    final kd = KemeticConverter().fromGregorian(gMidnightLocal);
+    addEvent(
+      startUtc: gMidnightLocal.toUtc(),
+      kYear: kd.year,
+      kMonth: kd.epagomenal ? 0 : kd.month,
+      kDay: kd.day,
+      title: 'Sample',
+      notes: '…',
+      allDay: true,
+      category: EventCategory.other,
+      isEpagomenal: kd.epagomenal,
+    );
+  }
+
+  /* ------------------------ persistence ------------------------ */
+
+  Future<void> _load() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final raw = sp.getString(_prefsKey);
+      if (raw != null && raw.isNotEmpty) {
+        final list = (jsonDecode(raw) as List).cast<Object?>().toList();
+        _events
+          ..clear()
+          ..addAll(list.map((o) => Event.fromMap((o as Map).cast<String, Object?>())));
+      }
+    } catch (_) {
+      // ignore corrupt store
+    } finally {
+      _ready = true;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _save() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final list = _events.map((e) => e.toMap()).toList(growable: false);
+      await sp.setString(_prefsKey, jsonEncode(list));
+    } catch (_) {
+      // ignore i/o errors in local demo app
+    }
+  }
+
+  /* ------------------------ utilities ------------------------ */
+
+  String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
 }
