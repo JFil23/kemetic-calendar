@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Kemetic Calendar">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Kemetic Calendar">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <title>Kemetic Calendar</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#6B5AED">
+</head>
+<body>
+<script>
+  // 👇 request persistent storage on Safari
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persist().then(function (granted) {
+      console.log('Persistent storage granted:', granted);
+    });
+  }
+</script>
+<script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
