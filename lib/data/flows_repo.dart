@@ -93,12 +93,19 @@ class FlowsRepo {
     return _client
         .from('flows')
         .stream(primaryKey: ['id'])
-        .eq('user_id', user.id)
         .order('updated_at', ascending: false)
-        .order('start_date', ascending: true) // secondary tiebreaker if you like
-        .map((rows) =>
-        rows.cast<Map<String, dynamic>>().map(FlowRow.fromRow).toList());
+        .order('start_date', ascending: true)
+        .map((rows) => rows
+        .cast<Map<String, dynamic>>()
+        .map(FlowRow.fromRow)
+        .where((f) =>
+    f.userId == user.id && // guard if RLS is loose
+        f.active == true &&
+        f.endDate == null)
+        .toList());
   }
+
+
   Future<FlowRow> upsert({
     int? id, // null → insert; non-null → update
     required String name,
@@ -199,7 +206,22 @@ class FlowsRepo {
     await _client.from(_kFlows).delete().eq('id', id);
     _log('delete ✓');
   }
+  Future<List<FlowRow>> fetchAll() async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw StateError('No user session.');
+    }
 
+    _log('fetchAll');
+    final rows = await _client
+        .from(_kFlows)
+        .select()
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false);
+
+    _log('fetchAll ✓ ${rows.length} rows');
+    return (rows as List).map((r) => FlowRow.fromRow(r as Map<String, dynamic>)).toList();
+  }
   Future<List<FlowRow>> listMyFlows({int limit = 200}) async {
     final user = _client.auth.currentUser;
     if (user == null) return const [];
@@ -207,8 +229,12 @@ class FlowsRepo {
         .from(_kFlows)
         .select()
         .eq('user_id', user.id)
+        .eq('active', true)
+        .filter('end_date', 'is', null)
         .order('updated_at', ascending: false)
         .limit(limit) as List<dynamic>;
     return rows.cast<Map<String, dynamic>>().map(FlowRow.fromRow).toList();
   }
+
+
 }

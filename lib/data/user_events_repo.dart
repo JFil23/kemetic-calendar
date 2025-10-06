@@ -1,11 +1,8 @@
 // lib/data/user_events_repo.dart
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-
-
-
 
 const _kTable = 'user_events';
 
@@ -36,7 +33,6 @@ class UserEvent {
   });
 
   factory UserEvent.fromRow(Map<String, dynamic> row) {
-    // Supabase returns ISO strings for timestamptz in Flutter
     DateTime _parseTs(dynamic v) =>
         v == null ? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true) : DateTime.parse(v as String);
 
@@ -54,7 +50,7 @@ class UserEvent {
 
   Map<String, dynamic> toInsert({required String userId}) {
     return {
-      'user_id': userId, // RLS guard + explicit ownership
+      'user_id': userId,
       'client_event_id': clientEventId,
       'title': title,
       'detail': detail,
@@ -120,7 +116,8 @@ class UserEventsRepo {
     }
   }
 
-  /// Create or update by client_event_id (safe to call repeatedly).
+  /// Create or update by client_event_id (idempotent).
+  /// IMPORTANT: we now conflict on `(user_id, client_event_id)` to match the DB unique index.
   Future<UserEvent> upsertByClientId({
     required String clientEventId,
     required String title,
@@ -129,6 +126,7 @@ class UserEventsRepo {
     String? location,
     bool allDay = false,
     DateTime? endsAtUtc,
+    int? flowLocalId,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) throw StateError('No user session. Please sign in.');
@@ -142,14 +140,15 @@ class UserEventsRepo {
       'all_day': allDay,
       'starts_at': startsAtUtc.toIso8601String(),
       if (endsAtUtc != null) 'ends_at': endsAtUtc.toIso8601String(),
+      if (flowLocalId != null) 'flow_local_id': flowLocalId,
     };
 
-    // Uses the unique constraint on client_event_id
     _log('upsert(client_event_id=$clientEventId) → $payload');
     try {
       final row = await _client
           .from(_kTable)
-          .upsert(payload, onConflict: 'client_event_id') // idempotent
+      // ⬇️ match the DB: unique(user_id, client_event_id)
+          .upsert(payload, onConflict: 'user_id,client_event_id')
           .select()
           .single();
       _log('upsert ✓ id=${row['id']}');
@@ -206,6 +205,7 @@ class UserEventsRepo {
       rethrow;
     }
   }
+
   Future<void> deleteByClientId(String clientEventId) async {
     _log('deleteByClientId($clientEventId)');
     try {
@@ -217,28 +217,79 @@ class UserEventsRepo {
     }
   }
 
-  Future<void> deleteByFlowId(int flowId) async {
-    _log('deleteByFlowId(flowId=$flowId)');
+  /// Delete Ma’at-generated events by flow id. Optionally from a given date forward.
+  Future<void> deleteByFlowId(int flowId, {DateTime? fromDate}) async {
+    _log('deleteByFlowId(flowId=$flowId, fromDate=$fromDate)');
     try {
-      await _client.from(_kTable).delete().like('client_event_id', 'maat:%:$flowId:%');
+      // 1) delete events explicitly tagged with flow_local_id
+      var q1 = _client.from(_kTable).delete().eq('flow_local_id', flowId);
+      if (fromDate != null) {
+        q1 = q1.gte('starts_at', fromDate.toUtc().toIso8601String());
+      }
+      await q1;
+
+      // 2) also delete Ma’at-generated events in the flow’s date window (handles legacy rows with no flow_local_id)
+      DateTime? startDate;
+      DateTime? endDateInclusive; // end date as stored (date at 00:00)
+      final rows = await _client
+          .from('flows')
+          .select('start_date,end_date')
+          .eq('id', flowId)
+          .limit(1);
+      if (rows is List && rows.isNotEmpty) {
+        final row = rows.first as Map<String, dynamic>;
+        startDate = row['start_date'] == null ? null : DateTime.parse(row['start_date'] as String).toUtc();
+        endDateInclusive = row['end_date'] == null ? null : DateTime.parse(row['end_date'] as String).toUtc();
+      }
+
+      // Build a half-open time window: [windowStart, windowEndExclusive)
+      // so the entire last day is *included* even if your events are at 16:00 UTC.
+      final windowStart = (fromDate ?? startDate)?.toUtc();
+      final windowEndExclusive = endDateInclusive == null
+          ? null
+          : endDateInclusive.toUtc().add(const Duration(days: 1)); // next day at 00:00Z
+
+      final user = _client.auth.currentUser;
+      if (user != null && (windowStart != null || windowEndExclusive != null)) {
+        var q2 = _client
+            .from(_kTable)
+            .delete()
+            .eq('user_id', user.id)
+            .like('client_event_id', 'maat:%');
+        if (windowStart != null) {
+          q2 = q2.gte('starts_at', windowStart.toIso8601String());
+        }
+        if (windowEndExclusive != null) {
+          q2 = q2.lt('starts_at', windowEndExclusive.toIso8601String());
+        }
+        await q2;
+      }
+
       _log('deleteByFlowId ✓');
     } on PostgrestException catch (e) {
       _log('deleteByFlowId ✗ ${e.code} ${e.message}');
       rethrow;
+    } catch (e) {
+      _log('deleteByFlowId ✗ $e');
+      rethrow;
     }
   }
-  Future<void> insertMany(List<Map<String, dynamic>> rows) async {
+
+
+
+  /// Bulk idempotent upsert for Ma’at note batches (deterministic client_event_id).
+  Future<void> upsertManyDeterministic(List<Map<String, dynamic>> rows) async {
     if (rows.isEmpty) return;
     try {
-      await _client.from(_kTable).insert(rows);
+      await _client.from(_kTable).upsert(rows, onConflict: 'user_id,client_event_id');
       if (kDebugMode) {
-        debugPrint('[user_events] insertMany ✓ ${rows.length} rows');
+        debugPrint('[user_events] upsertManyDeterministic ✓ ${rows.length} rows');
       }
     } on PostgrestException catch (e) {
-      _log('insertMany ✗ ${e.code} ${e.message}');
+      _log('upsertManyDeterministic ✗ ${e.code} ${e.message}');
       rethrow;
     } catch (e) {
-      _log('insertMany ✗ $e');
+      _log('upsertManyDeterministic ✗ $e');
       rethrow;
     }
   }
@@ -257,17 +308,47 @@ class UserEventsRepo {
   }
 
   /// Typed list for a quick sanity read.
-  Future<List<UserEvent>> listTyped({int limit = 200}) async {
+  Future<List<({
+  String title,
+  String? detail,
+  String? location,
+  bool allDay,
+  DateTime startsAtUtc,
+  DateTime? endsAtUtc,
+  int? flowLocalId,
+  })>> getAllEvents({int limit = 500}) async {
     final user = _client.auth.currentUser;
-    if (user == null) throw StateError('No user session. Please sign in.');
+    if (user == null) return [];
+
     final rows = await _client
         .from(_kTable)
-        .select()
+        .select('id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,flows!left(id,active,end_date)')
         .eq('user_id', user.id)
-        .order('starts_at')
+        .order('starts_at', ascending: true)
         .limit(limit);
-    return (rows as List).cast<Map<String, dynamic>>().map(UserEvent.fromRow).toList();
+
+    final filtered = (rows as List).cast<Map<String, dynamic>>().where((row) {
+      final int? fid = (row['flow_local_id'] as num?)?.toInt();
+      if (fid == null) return true; // keep unassigned notes
+      final Map<String, dynamic>? flow = row['flows'] as Map<String, dynamic>?;
+      if (flow == null) return false; // hidden/missing flow
+      final bool active = (flow['active'] as bool?) ?? false;
+      final bool ended = flow['end_date'] != null;
+      return active && !ended; // only active + not-ended flows
+    }).map((row) => (
+    title: row['title'] as String,
+    detail: row['detail'] as String?,
+    location: row['location'] as String?,
+    allDay: (row['all_day'] as bool?) ?? false,
+    startsAtUtc: DateTime.parse(row['starts_at'] as String),
+    endsAtUtc: row['ends_at'] == null ? null : DateTime.parse(row['ends_at'] as String),
+    flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+    )).toList();
+
+    return filtered;
   }
+
+
 
   /// Minimal event telemetry to `app_events`.
   Future<void> track({
@@ -279,7 +360,7 @@ class UserEventsRepo {
     _log('track("$event")');
     try {
       await _client.from('app_events').insert({
-        'user_id': user?.id, // trigger will backfill from JWT if omitted
+        'user_id': user?.id,
         'email': user?.email,
         'event': event,
         'properties': properties ?? const <String, dynamic>{},
@@ -288,6 +369,90 @@ class UserEventsRepo {
     } catch (e) {
       _log('track ✗ $e');
       // swallow—telemetry should not block UX
+    }
+  }
+
+  /// Server → client events for the signed-in user.
+  
+
+
+  /// Upsert a flow (jsonb rules). Returns server id.
+  Future<int> upsertFlow({
+    int? id,
+    required String name,
+    required int color,
+    required bool active,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? notes,
+    required String rules,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw StateError('No user session');
+
+    final payload = {
+      'user_id': user.id,
+      'name': name,
+      'color': color,
+      'active': active,
+      'start_date': startDate?.toIso8601String(),
+      'end_date': endDate?.toIso8601String(),
+      'notes': notes,
+      'rules': jsonDecode(rules),
+    };
+
+    if (id != null && id > 0) {
+      payload['id'] = id;
+    }
+
+    _log('upsertFlow → $payload');
+    final result = await _client.from('flows').upsert(payload).select().single();
+    final savedId = (result['id'] as num).toInt();
+    _log('upsertFlow ✓ id=$savedId');
+    return savedId;
+  }
+
+  /// Fetch all flows for the signed-in user.
+  Future<List<({
+  int id,
+  String name,
+  int color,
+  bool active,
+  DateTime? startDate,
+  DateTime? endDate,
+  String? notes,
+  String rules
+  })>> getAllFlows() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return [];
+
+    final res = await _client
+        .from('flows')
+        .select()
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false);
+
+    return (res as List).map((row) => (
+    id: (row['id'] as num).toInt(),
+    name: row['name'] as String,
+    color: (row['color'] as num).toInt(),
+    active: row['active'] as bool,
+    startDate: row['start_date'] == null ? null : DateTime.parse(row['start_date'] as String),
+    endDate: row['end_date'] == null ? null : DateTime.parse(row['end_date'] as String),
+    notes: row['notes'] as String?,
+    rules: jsonEncode(row['rules']),
+    )).toList();
+  }
+
+  /// Delete a single flow row.
+  Future<void> deleteFlow(int flowId) async {
+    _log('deleteFlow($flowId)');
+    try {
+      await _client.from('flows').delete().eq('id', flowId);
+      _log('deleteFlow ✓');
+    } on PostgrestException catch (e) {
+      _log('deleteFlow ✗ ${e.code} ${e.message}');
+      rethrow;
     }
   }
 }

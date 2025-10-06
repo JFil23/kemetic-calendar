@@ -1028,26 +1028,141 @@ class _CalendarPageState extends State<CalendarPage> {
     if (list.isEmpty) _notes.remove(k);
     setState(() {});
   }
+  final Map<int, int> _flowLocalIdAliases = {}; // ⬅︎ unique: alias map for serverId→localId
 
   // Flows — add/remove/toggle
+  // >>> FIND-ME: PATCH-2 _saveNewFlow AFTER
   void _saveNewFlow(_Flow flow) {
-    flow.id = _nextFlowId++;
+    final localId = _nextFlowId++;
+    flow.id = localId;
     _flows.add(flow);
     setState(() {});
+
+    // Save to Supabase in background, then unify IDs (server id replaces local)
+    Future.microtask(() async {
+      try {
+        final repo = UserEventsRepo(Supabase.instance.client);
+        final rulesJson = jsonEncode(flow.rules.map(ruleToJson).toList());
+
+        final savedId = await repo.upsertFlow(
+          id: null, // let server assign id
+          name: flow.name,
+          color: flow.color.value,
+          active: flow.active,
+          startDate: flow.start,
+          endDate: flow.end,
+          notes: flow.notes,
+          rules: rulesJson,
+        );
+        final now = DateTime.now().toUtc();
+        final today = DateTime.utc(now.year, now.month, now.day);
+        if (flow.active == false) {
+          await repo.deleteByFlowId(savedId, fromDate: today);
+          await repo.deleteFlow(savedId);
+        }
+
+
+
+
+        if (savedId != localId) {
+          // 1) update the in-memory flow id
+          final idx = _flows.indexWhere((f) => f.id == localId);
+          if (idx >= 0) {
+            _flows[idx].id = savedId;
+          }
+          // 2) re-stamp any notes that used the local id to now use the server id
+          _rekeyNotesFlowId(localId, savedId);
+
+          // 3) keep nextFlowId monotonic
+          if (savedId >= _nextFlowId) _nextFlowId = savedId + 1;
+
+          if (mounted) setState(() {});
+        }
+      } catch (e) {
+        debugPrint('Background flow sync failed: $e');
+      }
+    });
   }
+
+
+
+
+  void _rekeyNotesFlowId(int fromId, int toId) {
+    // Walk the in-memory notes map and change any note.flowId == fromId to toId
+    _notes.updateAll((_, list) {
+      return list.map((n) {
+        if ((n.flowId ?? -1) == fromId) {
+          // ⬇︎ REPLACE copyWith: build a new _Note with updated flowId
+          return _Note(
+            title: n.title,
+            detail: n.detail,
+            location: n.location,
+            allDay: n.allDay,
+            start: n.start,
+            end: n.end,
+            flowId: toId,
+          ); // ⬆︎ end manual rebuild
+
+        }
+        return n;
+      }).toList();
+    });
+  }
+
 
   void _toggleFlowActive(int flowId, bool active) {
     final idx = _flows.indexWhere((f) => f.id == flowId);
     if (idx >= 0) {
       _flows[idx].active = active;
       setState(() {});
+
+      Future.microtask(() async {
+        try {
+          final repo = UserEventsRepo(Supabase.instance.client);
+          final f = _flows[idx];
+          final rulesJson = jsonEncode(f.rules.map(ruleToJson).toList());
+          await repo.upsertFlow(
+            id: f.id,
+            name: f.name,
+            color: f.color.value,
+            active: active,
+            startDate: f.start,
+            endDate: f.end,
+            notes: f.notes,
+            rules: rulesJson,
+          );
+        } catch (_) {}
+      });
     }
   }
 
+
   void _deleteFlow(int flowId) {
+    // prune notes tied to this flow from the in-memory map
+    final keysToPrune = <String>[];
+    _notes.forEach((k, list) {
+      list.removeWhere((n) => n.flowId == flowId);
+      if (list.isEmpty) keysToPrune.add(k);
+    });
+    for (final k in keysToPrune) {
+      _notes.remove(k);
+    }
+
     _flows.removeWhere((f) => f.id == flowId);
     setState(() {});
+
+    Future.microtask(() async {
+      try {
+        final repo = UserEventsRepo(Supabase.instance.client);
+        await repo.deleteByFlowId(flowId);
+        await repo.deleteFlow(flowId);
+        await _loadFromDisk();
+
+      } catch (_) {}
+    });
   }
+
+
 
   String _formatTimeOfDay(TimeOfDay t) {
     final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
@@ -1429,8 +1544,14 @@ class _CalendarPageState extends State<CalendarPage> {
       color: template.color,
       active: true,
       rules: [
-        _RuleDates(dates: dates),
+        _RuleDates(
+          dates: dates,
+          allDay: false,
+          start: const TimeOfDay(hour: 9, minute: 0),
+          end: const TimeOfDay(hour: 10, minute: 0),
+        ),
       ],
+
       start: firstG,
       end: firstG.add(const Duration(days: 9)),
       // Encode meta so we can recognize in preview/end:
@@ -1493,42 +1614,79 @@ class _CalendarPageState extends State<CalendarPage> {
   /// End a Ma’at flow instance:
   /// - removes any *linked* notes from today forward
   /// - sets the flow inactive
-  void _endFlow(int flowId) {
+  //// === FLOW LIFECYCLE: END FLOW ===
+  Future<void> _endFlow(int flowId) async {
+    // Normalize "today" for forward-only cleanup
     final today = DateUtils.dateOnly(DateTime.now());
 
-    // 1) Remove notes with this flowId for today & future.
-    final keysToPrune = <String>[];
+    // 1) Prune in-memory notes on/after today for this flow
+    final _keysToPrune = <String>[];
     _notes.forEach((k, list) {
-      final parts = k.split('-'); // ky-km-kd
+      final parts = k.split('-'); // format: ky-km-kd
       if (parts.length != 3) return;
       final ky = int.tryParse(parts[0]) ?? 0;
       final km = int.tryParse(parts[1]) ?? 0;
       final kd = int.tryParse(parts[2]) ?? 0;
       final g = KemeticMath.toGregorian(ky, km, kd);
-      if (g.isBefore(today)) return;
-
-      list.removeWhere((n) => n.flowId == flowId);
-      if (list.isEmpty) keysToPrune.add(k);
+      if (!g.isBefore(today)) {
+        list.removeWhere((n) => (n.flowId ?? -1) == flowId);
+        if (list.isEmpty) _keysToPrune.add(k);
+      }
     });
-    for (final k in keysToPrune) {
+    for (final k in _keysToPrune) {
       _notes.remove(k);
     }
 
-    // 2) Mark flow inactive.
+    // 2) Mark the flow inactive in memory so UI updates immediately
     final idx = _flows.indexWhere((f) => f.id == flowId);
     if (idx >= 0) {
-      _flows[idx].active = false;
+      final f = _flows[idx];
+      _flows[idx] = _Flow(
+        id: f.id,
+        name: f.name,
+        color: f.color,
+        active: false,
+        rules: f.rules,
+        start: f.start,
+        end: f.end,
+        notes: f.notes,
+      );
     }
+    if (mounted) setState(() {});
 
-    () async {
-      try {
-        final repo = UserEventsRepo(Supabase.instance.client);
-        await repo.deleteByFlowId(flowId);
-      } catch (_) {}
-    }();
+    // 3) Persist: set flow inactive, then delete its future notes and the flow row
+    final repo = UserEventsRepo(Supabase.instance.client);
+    try {
+      if (idx >= 0) {
+        final f = _flows[idx];
+        final rulesJson = jsonEncode(f.rules.map(ruleToJson).toList());
+        await repo.upsertFlow(
+          id: f.id,
+          name: f.name,
+          color: f.color.value,
+          active: false,
+          startDate: f.start,
+          endDate: f.end,
+          notes: f.notes,
+          rules: rulesJson,
+        );
+      }
+    } catch (_) {}
 
-    setState(() {});
+    try {
+      await repo.deleteByFlowId(flowId, fromDate: today);
+    } catch (_) {}
+
+    try {
+      await repo.deleteFlow(flowId);
+      await _loadFromDisk();
+    } catch (_) {}
   }
+//// === END END FLOW ===
+
+
+
+
 
 
   /* ───── Day Sheet ───── */
@@ -2245,59 +2403,267 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   Future<void> _loadFromDisk() async {
-    await _Storage.instance.init();
-    setState(() {
-      // assumes you already keep these in-state; if your notes map lives elsewhere, remove it.
-      _flows = List<_Flow>.from(_Storage.instance.flows);
-      // if you have a getter _getNotes(...) backed by a map, refresh that map here if needed
-      // e.g., _notesMap = Map<String, List<_Note>>.from(_Storage.instance.notesByDay);
-    });
+    print('=== _loadFromDisk START ===');
 
+    try {
+      final repo = UserEventsRepo(Supabase.instance.client);
+
+      // Flow-first: clear, load flows, then events; join only to known active flows
+      _notes.clear();
+      _flows.clear();
+
+      // Load flows -> into _flows list
+      final serverFlows = await repo.getAllFlows();
+      for (final f in serverFlows) {
+        final flow = _Flow(
+          id: f.id,
+          name: f.name,
+          color: Color(f.color),
+          active: f.active,
+          rules: _parseRules(f.rules),
+          start: f.startDate,
+          end: f.endDate,
+          notes: f.notes,
+        );
+        _flows.add(flow);
+        if (flow.id >= _nextFlowId) _nextFlowId = flow.id + 1;
+      }
+      final Set<int> activeFlowIds = _flows.where((f) => f.active && f.end == null).map((f) => f.id).toSet();
+
+      // Load events -> into _notes map (skip events whose flow is not active/known)
+      final serverEvents = await repo.getAllEvents();
+
+      print('[_loadFromDisk] events fetched: ${serverEvents.length}, activeFlowIds size: ${activeFlowIds.length}');
+
+      // Fallback: if flows weren't hydrated (RLS/ordering), rehydrate locally to avoid gray paint
+      Set<int> _activeIds = activeFlowIds;
+      if (_activeIds.isEmpty) {
+        try {
+          final fallbackFlows = await repo.getAllFlows();
+          _activeIds = fallbackFlows.where((f) => f.active && f.endDate == null).map((f) => f.id).toSet();
+          print('[_loadFromDisk] fallback activeFlowIds size: ${_activeIds.length}');
+        } catch (_) {}
+      }
+
+      int _added = 0;
+      final Map<int, _Flow> _flowIndex = { for (final f in _flows) f.id: f };
+      for (final evt in serverEvents) {
+        final bool flowKnown = evt.flowLocalId == null
+            ? true
+            : (() {
+          final f = _flowIndex[evt.flowLocalId!];
+          return f != null && f.active && f.end == null;
+        })();
+        if (!flowKnown) continue;
+        final localTime = evt.startsAtUtc.toLocal();
+        final k = KemeticMath.fromGregorian(localTime);
+
+        final note = _Note(
+          title: evt.title,
+          detail: evt.detail,
+          location: evt.location,
+          allDay: evt.allDay,
+          start: evt.allDay ? null : TimeOfDay.fromDateTime(localTime),
+          end: evt.endsAtUtc == null ? null : TimeOfDay.fromDateTime(evt.endsAtUtc!.toLocal()),
+          flowId: evt.flowLocalId,
+        );
+
+        final key = _kKey(k.kYear, k.kMonth, k.kDay);
+        final list = _notes.putIfAbsent(key, () => <_Note>[]);
+        if (!list.any((n) => n.title == note.title && n.start == note.start)) {
+          list.add(note);
+          _added++;
+        }
+      }
+      print('[_loadFromDisk] notes joined/added: $_added');
+
+      setState(() {});
+    } catch (e, stackTrace) {
+      print('Supabase sync FAILED: $e');
+      print('Stack: $stackTrace');
+    }
+
+    print('=== _loadFromDisk END ===');
   }
+
+  Map<String, dynamic> ruleToJson(_FlowRule r) {
+    if (r is _RuleWeek) {
+      return {
+        'type': 'week',
+        'weekdays': r.weekdays.toList(),
+        'allDay': r.allDay,
+        if (r.start != null) 'startHour': r.start!.hour,
+        if (r.start != null) 'startMinute': r.start!.minute,
+        if (r.end != null) 'endHour': r.end!.hour,
+        if (r.end != null) 'endMinute': r.end!.minute,
+      };
+    }
+    if (r is _RuleDecan) {
+      return {
+        'type': 'decan',
+        'months': r.months.toList(),
+        'decans': r.decans.toList(),
+        'daysInDecan': r.daysInDecan.toList(),
+        'allDay': r.allDay,
+        if (r.start != null) 'startHour': r.start!.hour,
+        if (r.start != null) 'startMinute': r.start!.minute,
+        if (r.end != null) 'endHour': r.end!.hour,
+        if (r.end != null) 'endMinute': r.end!.minute,
+      };
+    }
+    if (r is _RuleDates) {
+      return {
+        'type': 'dates',
+        'dates': r.dates.map((d) => d.millisecondsSinceEpoch).toList(),
+        'allDay': r.allDay,
+        if (r.start != null) 'startHour': r.start!.hour,
+        if (r.start != null) 'startMinute': r.start!.minute,
+        if (r.end != null) 'endHour': r.end!.hour,
+        if (r.end != null) 'endMinute': r.end!.minute,
+      };
+    }
+    throw ArgumentError('Unknown rule type');
+  }
+
+  _FlowRule ruleFromJson(Map<String, dynamic> j) {
+    final allDay = (j['allDay'] ?? true) as bool;
+    TimeOfDay? start;
+    TimeOfDay? end;
+
+    if (j['startHour'] != null && j['startMinute'] != null) {
+      start = TimeOfDay(
+        hour: (j['startHour'] as num).toInt(),
+        minute: (j['startMinute'] as num).toInt(),
+      );
+    }
+    if (j['endHour'] != null && j['endMinute'] != null) {
+      end = TimeOfDay(
+        hour: (j['endHour'] as num).toInt(),
+        minute: (j['endMinute'] as num).toInt(),
+      );
+    }
+
+    switch (j['type']) {
+      case 'week':
+        return _RuleWeek(
+          weekdays: {...(j['weekdays'] as List).map((e) => (e as num).toInt())},
+          allDay: allDay,
+          start: start,
+          end: end,
+        );
+      case 'decan':
+        return _RuleDecan(
+          months: {...(j['months'] as List).map((e) => (e as num).toInt())},
+          decans: {...(j['decans'] as List).map((e) => (e as num).toInt())},
+          daysInDecan: {...(j['daysInDecan'] as List).map((e) => (e as num).toInt())},
+          allDay: allDay,
+          start: start,
+          end: end,
+        );
+      case 'dates':
+        return _RuleDates(
+          dates: {
+            for (final n in (j['dates'] as List))
+              DateUtils.dateOnly(
+                DateTime.fromMillisecondsSinceEpoch((n as num).toInt()),
+              ),
+          },
+          allDay: allDay,
+          start: start,
+          end: end,
+        );
+    }
+    throw ArgumentError('Unknown rule type ${j['type']}');
+  }
+
+  List<_FlowRule> _parseRules(String rulesJson) {
+    if (rulesJson.isEmpty) return [];
+    try {
+      final parsed = jsonDecode(rulesJson) as List;
+      return parsed.map((j) => ruleFromJson(j as Map<String, dynamic>)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
 
 // Persist flows + planned notes coming back from Flow Studio
   // AFTER
   Future<void> _persistFlowStudioResult(_FlowStudioResult r) async {
+    final repo = UserEventsRepo(Supabase.instance.client);
+
     // 1) Deletes take precedence
     if (r.deleteFlowId != null) {
-      await _Storage.instance.deleteFlow(r.deleteFlowId!); // also prunes its notes
-      setState(() {
-        _flows = List<_Flow>.from(_Storage.instance.flows);
-      });
+      await repo.deleteByFlowId(r.deleteFlowId!);
+      _flows.removeWhere((f) => f.id == r.deleteFlowId);
+      setState(() {});
       return;
     }
 
     // 2) Save/create flow if provided
     _Flow? saved;
     if (r.savedFlow != null) {
-      if (r.savedFlow!.id <= 0) {
-        saved = await _Storage.instance.createFlow(r.savedFlow!);
+      final rulesJson = jsonEncode(r.savedFlow!.rules.map(ruleToJson).toList());
+
+      final savedId = await repo.upsertFlow(
+        id: r.savedFlow!.id > 0 ? r.savedFlow!.id : null,
+        name: r.savedFlow!.name,
+        color: r.savedFlow!.color.value,
+        active: r.savedFlow!.active,
+        startDate: r.savedFlow!.start,
+        endDate: r.savedFlow!.end,
+        notes: r.savedFlow!.notes,
+        rules: rulesJson,
+      );
+
+      final now = DateTime.now().toUtc();
+      final today = DateTime.utc(now.year, now.month, now.day);
+
+      if (r.savedFlow!.active == false) {
+        await repo.deleteByFlowId(savedId, fromDate: today);
+        await repo.deleteFlow(savedId);
+      }
+
+
+
+
+      saved = _Flow(
+        id: savedId,
+        name: r.savedFlow!.name,
+        color: r.savedFlow!.color,
+        active: r.savedFlow!.active,
+        rules: r.savedFlow!.rules,
+        start: r.savedFlow!.start,
+        end: r.savedFlow!.end,
+        notes: r.savedFlow!.notes,
+      );
+
+      final idx = _flows.indexWhere((f) => f.id == savedId);
+      if (idx >= 0) {
+        _flows[idx] = saved;
       } else {
-        await _Storage.instance.updateFlow(r.savedFlow!);
-        saved = r.savedFlow!;
+        _flows.add(saved);
+        if (savedId >= _nextFlowId) _nextFlowId = savedId + 1;
       }
     }
-    final flowId = saved?.id ?? r.savedFlow?.id ?? -1;
 
-    // 3) Persist planned notes (tag them with the flow id when possible)
+    // 3) Apply planned notes locally
+    final flowId = saved?.id ?? r.savedFlow?.id ?? -1;
     for (final p in r.plannedNotes) {
-      final n = _Note(
-        title: p.note.title,
-        detail: p.note.detail,
+      _addNote(
+        p.ky, p.km, p.kd,
+        p.note.title, p.note.detail,
         location: p.note.location,
         allDay: p.note.allDay,
         start: p.note.start,
         end: p.note.end,
         flowId: flowId >= 0 ? flowId : p.note.flowId,
       );
-      await _Storage.instance.upsertNote(p.ky, p.km, p.kd, n);
     }
 
-    // 4) Refresh in-memory flows
-    setState(() {
-      _flows = List<_Flow>.from(_Storage.instance.flows);
-    });
+    setState(() {});
   }
+
 
 
   @override
@@ -6245,227 +6611,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     );
   }
 }
-// ---------- Minimal JSON helpers (no extra deps) ----------
-String _todEncode(TimeOfDay? t) => t == null ? '' : '${t.hour}:${t.minute}';
-TimeOfDay? _todDecode(String s) {
-  if (s.isEmpty) return null;
-  final p = s.split(':');
-  final h = int.tryParse(p[0]); final m = int.tryParse(p[1]);
-  if (h == null || m == null) return null;
-  return TimeOfDay(hour: h, minute: m);
-}
-int _dtEncode(DateTime? d) => d == null ? -1 : DateUtils.dateOnly(d).millisecondsSinceEpoch;
-DateTime? _dtDecode(int ms) => ms < 0 ? null : DateUtils.dateOnly(DateTime.fromMillisecondsSinceEpoch(ms));
 
-// Note JSON (standalone functions so we don’t touch class definitions)
-Map<String, dynamic> noteToJson(_Note n) => {
-  'title': n.title,
-  'detail': n.detail,
-  'location': n.location,
-  'allDay': n.allDay,
-  'start': _todEncode(n.start),
-  'end': _todEncode(n.end),
-  'flowId': n.flowId,
-};
-_Note noteFromJson(Map<String, dynamic> j) => _Note(
-  title: j['title'] ?? '',
-  detail: j['detail'],
-  location: j['location'],
-  allDay: (j['allDay'] ?? false) as bool,
-  start: _todDecode(j['start'] ?? ''),
-  end: _todDecode(j['end'] ?? ''),
-  flowId: (j['flowId'] as num?)?.toInt(),
-);
-
-// Rule JSON (works with your existing _RuleWeek/_RuleDecan/_RuleDates types)
-Map<String, dynamic> ruleToJson(_FlowRule r) {
-  if (r is _RuleWeek) {
-    return {
-      'type': 'week',
-      'weekdays': r.weekdays.toList(),
-      'allDay': r.allDay,
-    };
-  }
-  if (r is _RuleDecan) {
-    return {
-      'type': 'decan',
-      'months': r.months.toList(),
-      'decans': r.decans.toList(),
-      'daysInDecan': r.daysInDecan.toList(),
-      'allDay': r.allDay,
-    };
-  }
-  if (r is _RuleDates) {
-    return {
-      'type': 'dates',
-      'dates': r.dates.map((d) => _dtEncode(d)).toList(),
-    };
-  }
-  throw ArgumentError('Unknown rule type');
-}
-_FlowRule ruleFromJson(Map<String, dynamic> j) {
-  switch (j['type']) {
-    case 'week':
-      return _RuleWeek(
-        weekdays: {...(j['weekdays'] as List).map((e) => (e as num).toInt())},
-        allDay: (j['allDay'] ?? true) as bool,
-      );
-    case 'decan':
-      return _RuleDecan(
-        months: {...(j['months'] as List).map((e) => (e as num).toInt())},
-        decans: {...(j['decans'] as List).map((e) => (e as num).toInt())},
-        daysInDecan: {...(j['daysInDecan'] as List).map((e) => (e as num).toInt())},
-        allDay: (j['allDay'] ?? true) as bool,
-      );
-    case 'dates':
-      return _RuleDates(
-        dates: {
-          for (final n in (j['dates'] as List)) DateUtils.dateOnly(_dtDecode(n as int)!),
-        },
-      );
-  }
-  throw ArgumentError('Unknown rule type ${j['type']}');
-}
-
-// Flow JSON (standalone; does not change your _Flow class)
-Map<String, dynamic> flowToJson(_Flow f) => {
-  'id': f.id,
-  'name': f.name,
-  'color': f.color.value,
-  'active': f.active,
-  'rules': f.rules.map(ruleToJson).toList(),
-  'start': _dtEncode(f.start),
-  'end': _dtEncode(f.end),
-  'notes': f.notes,
-};
-_Flow flowFromJson(Map<String, dynamic> j) => _Flow(
-  id: (j['id'] as num).toInt(),
-  name: j['name'] ?? '',
-  color: Color((j['color'] as num).toInt()),
-  active: (j['active'] ?? true) as bool,
-  rules: (j['rules'] as List).map<_FlowRule>((e) => ruleFromJson(e as Map<String, dynamic>)).toList(),
-  start: _dtDecode((j['start'] as num?)?.toInt() ?? -1),
-  end: _dtDecode((j['end'] as num?)?.toInt() ?? -1),
-  notes: j['notes'],
-);
-
-// Whole-app snapshot
-class _Snapshot {
-  final Map<String, List<_Note>> notesByDay;
-  final List<_Flow> flows;
-  final int nextFlowId;
-  _Snapshot({required this.notesByDay, required this.flows, required this.nextFlowId});
-
-  Map<String, dynamic> toJson() => {
-    'v': 1,
-    'notes': { for (final e in notesByDay.entries) e.key: e.value.map(noteToJson).toList() },
-    'flows': flows.map(flowToJson).toList(),
-    'nextFlowId': nextFlowId,
-  };
-  static _Snapshot fromJson(Map<String, dynamic> j) {
-    final Map<String, List<_Note>> notes = {};
-    final nmap = (j['notes'] as Map?) ?? {};
-    nmap.forEach((k, v) {
-      notes[k as String] = (v as List).map<_Note>((x) => noteFromJson(x as Map<String, dynamic>)).toList();
-    });
-    final flows = ((j['flows'] as List?) ?? const []).map<_Flow>((x) => flowFromJson(x as Map<String, dynamic>)).toList();
-    final nextId = (j['nextFlowId'] as num?)?.toInt() ?? ((flows.isEmpty) ? 1 : (flows.map((f)=>f.id).reduce((a,b)=>a>b?a:b)+1));
-    return _Snapshot(notesByDay: notes, flows: flows, nextFlowId: nextId);
-  }
-}
-
-// File-backed storage (maat_state.json next to the executable)
-class _Storage {
-  _Storage._();
-  static final _Storage instance = _Storage._();
-
-  late File _file;
-  _Snapshot _snap = _Snapshot(notesByDay: {}, flows: [], nextFlowId: 1);
-  bool _ready = false;
-
-  Future<void> _ensureReady() async {
-    if (_ready) return;
-    final dir = await getApplicationSupportDirectory();
-    _file = File('${dir.path}/maat_state.json');
-    if (await _file.exists()) {
-      try {
-        final j = jsonDecode(await _file.readAsString()) as Map<String, dynamic>;
-        _snap = _Snapshot.fromJson(j);
-      } catch (_) {
-        try { await _file.rename('${_file.path}.corrupt'); } catch (_) {}
-        await _file.writeAsString(jsonEncode(_snap.toJson()));
-      }
-    } else {
-      await _file.writeAsString(jsonEncode(_snap.toJson()));
-    }
-    _ready = true;
-  }
-
-  Future<void> _persist() async {
-    await _file.writeAsString(jsonEncode(_snap.toJson()));
-  }
-
-  // public getters
-  Map<String, List<_Note>> get notesByDay => _snap.notesByDay;
-  List<_Flow> get flows => _snap.flows;
-  int get nextFlowId => _snap.nextFlowId;
-
-  // ops
-  Future<void> init() async => _ensureReady();
-
-  Future<void> upsertNote(int ky, int km, int kd, _Note note) async {
-    await _ensureReady();
-    final key = '$ky-$km-$kd';
-    final list = _snap.notesByDay.putIfAbsent(key, () => <_Note>[]);
-    list.add(note);
-    await _persist();
-  }
-
-  Future<void> replaceNotesForDay(int ky, int km, int kd, List<_Note> notes) async {
-    await _ensureReady();
-    _snap.notesByDay['$ky-$km-$kd'] = List<_Note>.from(notes);
-    await _persist();
-  }
-
-  Future<void> removeNotesByFlow(int flowId) async {
-    await _ensureReady();
-    _snap.notesByDay.updateAll((_, list) => list.where((n) => (n.flowId ?? -1) != flowId).toList());
-    await _persist();
-  }
-
-  Future<_Flow> createFlow(_Flow f) async {
-    await _ensureReady();
-    final id = _snap.nextFlowId;
-    final withId = _Flow(
-      id: id,
-      name: f.name,
-      color: f.color,
-      active: f.active,
-      rules: f.rules,
-      start: f.start,
-      end: f.end,
-      notes: f.notes,
-    );
-    _snap.flows.add(withId);
-    _snap = _Snapshot(notesByDay: _snap.notesByDay, flows: _snap.flows, nextFlowId: id + 1);
-    await _persist();
-    return withId;
-  }
-
-  Future<void> updateFlow(_Flow f) async {
-    await _ensureReady();
-    final i = _snap.flows.indexWhere((x) => x.id == f.id);
-    if (i >= 0) _snap.flows[i] = f;
-    await _persist();
-  }
-
-  Future<void> deleteFlow(int id) async {
-    await _ensureReady();
-    _snap.flows.removeWhere((f) => f.id == id);
-    await removeNotesByFlow(id);
-    await _persist();
-  }
-}
 
 /* ---------------- Flow Preview Page (read-only) ---------------- */
 
@@ -7839,4 +7985,3 @@ class _Note {
     this.flowId, // <— NEW
   });
 }
-
