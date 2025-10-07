@@ -798,6 +798,14 @@ class CalendarPage extends StatefulWidget {
 }
 
 class _CalendarPageState extends State<CalendarPage> {
+
+  int _dataVersion = 0;
+  void _bumpDataVersion() {
+    // why: force landscape PageView child to reconstruct once when data hydrates
+    if (!mounted) return;
+    setState(() => _dataVersion++);
+  }
+
   /* ───── today + notes + flows state ───── */
 
   late final ({int kYear, int kMonth, int kDay}) _today =
@@ -2140,25 +2148,101 @@ class _CalendarPageState extends State<CalendarPage> {
                                   ),
                                   IconButton(
                                     icon: const Icon(Icons.delete_outline, color: _silver),
-                                    onPressed: () {
+                                    onPressed: () async {
                                       final deletedTitle = n.title;
-                                      final cid = 'note:${selYear}-${selMonth}-${selDay}:${deletedTitle.hashCode}';
-                                      () async {
-                                        try {
-                                          final repo = UserEventsRepo(Supabase.instance.client);
-                                          await repo.deleteByClientId(cid);
-                                        } catch (_) {}
-                                      }();
 
-                                      _deleteNote(selYear, selMonth, selDay, i);
-                                      Navigator.pop(sheetCtx);
-                                      _openDaySheet(
-                                        ctx,
-                                        selYear,
-                                        selMonth,
-                                        selDay,
-                                        allowDateChange: allowDateChange,
-                                      );
+                                      // Immediate optimistic UI update
+                                      setState(() {
+                                        _deleteNote(selYear, selMonth, selDay, i);
+                                      });
+
+                                      // Close the current sheet if it is open (no reopen to avoid stale context crash)
+                                      if (Navigator.canPop(sheetCtx)) {
+                                        Navigator.pop(sheetCtx);
+                                      }
+
+                                      // Try all historical client_event_id formats we’ve used
+                                      final cids = <String>{
+                                        'note:${selYear}-${selMonth}-${selDay}:${deletedTitle.hashCode}',
+                                        'ky=$selYear-km=$selMonth-kd=$selDay|t=$deletedTitle',
+                                        if (n.start != null)
+                                          'note:${selYear}-${selMonth}-${selDay}:${deletedTitle}:${n.start!.hour.toString().padLeft(2, '0')}${n.start!.minute.toString().padLeft(2, '0')}',
+                                      };
+
+                                      try {
+                                        final repo = UserEventsRepo(Supabase.instance.client);
+                                        for (final id in cids) {
+                                          try {
+                                            await repo.deleteByClientId(id);
+                                          } catch (_) {}
+                                        }
+
+                                        // Fallbacks to ensure server row is removed (see Patch B below)
+                                        try {
+                                          final client = Supabase.instance.client;
+
+                                          // Build a Gregorian day window for the Kemetic date
+                                          final gStart = KemeticMath.toGregorian(selYear, selMonth, selDay);
+                                          final dayStart = DateTime.utc(gStart.year, gStart.month, gStart.day);
+                                          final dayEnd = dayStart.add(const Duration(days: 1));
+
+                                          // 1) Find by title (no user filter, catches orphan rows)
+                                          final byTitle = await client
+                                              .from('user_events')
+                                              .select('id, client_event_id, title, starts_at_utc')
+                                              .ilike('title', '%${deletedTitle.trim()}%');
+
+                                          // 2) Find by client_event_id containing title (handles custom CIDs)
+                                          final byCid = await client
+                                              .from('user_events')
+                                              .select('id, client_event_id, title, starts_at_utc')
+                                              .ilike('client_event_id', '%${deletedTitle.trim()}%');
+
+                                          // 3) Find by starts_at_utc day window (no title assumption)
+                                          final byDay = await client
+                                              .from('user_events')
+                                              .select('id, client_event_id, title, starts_at_utc')
+                                              .gte('starts_at_utc', dayStart.toIso8601String())
+                                              .lt('starts_at_utc', dayEnd.toIso8601String());
+
+                                          // Consolidate rows (dedupe by id)
+                                          final rows = <Map<String, dynamic>>[
+                                            ...((byTitle as List?)?.cast<Map<String, dynamic>>() ?? const []),
+                                            ...((byCid as List?)?.cast<Map<String, dynamic>>() ?? const []),
+                                            ...((byDay as List?)?.cast<Map<String, dynamic>>() ?? const []),
+                                          ];
+                                          final seen = <int>{};
+
+                                          // Also try exact known legacy CIDs, best-effort
+                                          final exactCids = <String>{
+                                            'ky=$selYear-km=$selMonth-kd=$selDay|t=$deletedTitle',
+                                            'note:${selYear}-${selMonth}-${selDay}:${deletedTitle}',
+                                            'note:${selYear}-${selMonth}-${selDay}:${deletedTitle.hashCode}',
+                                          };
+                                          for (final cid in exactCids) {
+                                            try {
+                                              await client.from('user_events').delete().eq('client_event_id', cid);
+                                            } catch (_) {}
+                                          }
+
+                                          // Log & delete by primary key id
+                                          for (final r in rows) {
+                                            final id = r['id'];
+                                            if (id is int && !seen.contains(id)) {
+                                              seen.add(id);
+                                              print('[delete-note][final] id=$id flowLocalId=${r['flow_local_id']} ceid=${r['client_event_id']} t=${r['title']} s=${r['starts_at']}');
+                                              try {
+                                                await client.from('user_events').delete().eq('id', id);
+                                              } catch (_) {}
+                                            }
+                                          }
+
+                                        } catch (_) {}
+
+
+// Reload from server truth
+                                        await _loadFromDisk(); // rehydrate from server truth so ghosts don’t return
+                                      } catch (_) {}
                                     },
                                   ),
                                 ],
@@ -2278,28 +2362,8 @@ class _CalendarPageState extends State<CalendarPage> {
                               end: endTime,
                             );
 // user_events: upsert
-                            try {
-                              final repo = UserEventsRepo(Supabase.instance.client);
-                              final gForEvent = KemeticMath.toGregorian(selYear, selMonth, selDay);
+                            // (removed legacy duplicate upsert here; canonical upsert kept later)
 
-                              final startsAtUtc = (allDay
-                                  ? DateTime(gForEvent.year, gForEvent.month, gForEvent.day, 9, 0)
-                                  : DateTime(gForEvent.year, gForEvent.month, gForEvent.day, startTime!.hour, startTime!.minute)).toUtc();
-
-                              final endsAtUtc = (allDay || endTime == null)
-                                  ? null
-                                  : DateTime(gForEvent.year, gForEvent.month, gForEvent.day, endTime!.hour, endTime!.minute).toUtc();
-
-                              await repo.upsertByClientId(
-                                clientEventId: 'ky=$selYear-km=$selMonth-kd=$selDay|t=$t',
-                                title: t,
-                                startsAtUtc: startsAtUtc,
-                                detail: (d.isEmpty) ? null : d,
-                                location: (loc.isEmpty) ? null : loc,
-                                allDay: allDay,
-                                endsAtUtc: endsAtUtc,
-                              );
-                            } catch (_) {}
 
                             // Compute when to alert
                             final gDay = KemeticMath.toGregorian(selYear, selMonth, selDay);
@@ -2309,23 +2373,8 @@ class _CalendarPageState extends State<CalendarPage> {
                                 gDay.year, gDay.month, gDay.day, startTime!.hour, startTime!.minute);
 
                             // sync manual note to Supabase (fire-and-forget)
-                            (() async {
-                              try {
-                                final repo = UserEventsRepo(Supabase.instance.client);
-                                final cid = 'note:${selYear}-${selMonth}-${selDay}:${t.hashCode}';
-                                await repo.upsertByClientId(
-                                  clientEventId: cid,
-                                  title: t,
-                                  startsAtUtc: scheduledAt.toUtc(),
-                                  detail: d.isEmpty ? null : d,
-                                  location: loc.isEmpty ? null : loc,
-                                  allDay: allDay,
-                                  endsAtUtc: (!allDay && endTime != null)
-                                      ? DateTime(gDay.year, gDay.month, gDay.day, endTime!.hour, endTime!.minute).toUtc()
-                                      : null,
-                                );
-                              } catch (_) {}
-                            })();
+// (removed legacy duplicate upsert here; canonical upsert kept below)
+
 
                             // Build a simple text body: Location (if any) + Details (if any)
                             final bodyLines = <String>[
@@ -2346,8 +2395,8 @@ class _CalendarPageState extends State<CalendarPage> {
                             try {
                               final repo = UserEventsRepo(Supabase.instance.client);
 
-                              // stable client_event_id so re-saves don't duplicate
-                              final cid = 'note:${selYear}-${selMonth}-${selDay}:${t}:${allDay ? 'allday' : '${startTime!.hour.toString().padLeft(2, '0')}${startTime!.minute.toString().padLeft(2, '0') }'}';
+                              // Canonical client_event_id (one row per note per day)
+                              final cid = 'ky=$selYear-km=$selMonth-kd=$selDay|t=$t';
 
                               final endsAtUtc = (allDay || endTime == null)
                                   ? null
@@ -2365,6 +2414,7 @@ class _CalendarPageState extends State<CalendarPage> {
                             } catch (e) {
                               // non-fatal; keep UX flowing
                             }
+
 
                             Navigator.pop(sheetCtx);
                             _openDaySheet(
@@ -2473,6 +2523,9 @@ class _CalendarPageState extends State<CalendarPage> {
         if (!list.any((n) => n.title == note.title && n.start == note.start)) {
           list.add(note);
           _added++;
+          try {
+            print('[loader] joined title=${evt.title} starts=${evt.startsAtUtc.toIso8601String()} ky=${k.kYear} km=${k.kMonth} kd=${k.kDay}');
+          } catch (_) {}
         }
       }
       print('[_loadFromDisk] notes joined/added: $_added');
@@ -2484,6 +2537,7 @@ class _CalendarPageState extends State<CalendarPage> {
     }
 
     print('=== _loadFromDisk END ===');
+    _bumpDataVersion();
   }
 
   Map<String, dynamic> ruleToJson(_FlowRule r) {
@@ -2679,6 +2733,7 @@ class _CalendarPageState extends State<CalendarPage> {
       final ky = _lastViewKy ?? kToday.kYear;
       final km = _lastViewKm ?? kToday.kMonth;
       return _LandscapePager(
+        dataVersion: _dataVersion,
         initialYear: ky,
         initialMonth: km,
         showGregorian: _showGregorian,
@@ -3427,6 +3482,26 @@ class _MonthCard extends StatelessWidget {
     );
   }
 }
+@visibleForTesting
+int filteredNoteCountForDay({
+  required int kMonth,
+  required int day,
+  required List<_FlowOccurrence> Function(int kMonth, int kDay) flowsGetter,
+  required List<_Note> Function(int kMonth, int kDay) notesGetter,
+}) {
+  final flows = flowsGetter(kMonth, day);
+  final activeFlowIds = <int>{for (final o in flows) o.flow.id};
+
+  final notes = notesGetter(kMonth, day);
+  var count = 0;
+  for (final n in notes) {
+    final fid = n.flowId;
+    if (fid == null || activeFlowIds.contains(fid)) {
+      count++;
+    }
+  }
+  return count;
+}
 
 class _DecanRow extends StatelessWidget {
   final int kYear; // to compute Gregorian numbers
@@ -3462,7 +3537,12 @@ class _DecanRow extends StatelessWidget {
         final day = decanIndex * 10 + (j + 1); // 1..30
         final isToday = isMonthToday && (todayDay == day);
 
-        final noteCount = notesGetter(kMonth, day).length;
+        final noteCount = filteredNoteCountForDay(
+          kMonth: kMonth,
+          day: day,
+          flowsGetter: flowsGetter,
+          notesGetter: notesGetter,
+        );
         final flows = flowsGetter(kMonth, day);
 
         // Unique colors for dots (cap to 3)
@@ -3681,7 +3761,12 @@ class _EpagomenalCard extends StatelessWidget {
                   final n = i + 1; // 1..5 or 1..6
                   final isToday = isMonthToday && (todayDay == n);
 
-                  final noteCount = notesGetter(13, n).length;
+                  final noteCount = filteredNoteCountForDay(
+                    kMonth: 13,
+                    day: n,
+                    flowsGetter: flowsGetter,
+                    notesGetter: notesGetter,
+                  );
                   final flows = flowsGetter(13, n);
                   final flowColors = <Color>[];
                   for (final occ in flows) {
@@ -3863,6 +3948,7 @@ class _LandscapePager extends StatefulWidget {
   final List<_Note> Function(int ky, int km, int day) notesGetter;
   final VoidCallback onRequestJumpToToday;
   final void Function(int ky, int km, int? day, int? minute)? onViewportChanged;
+  final int dataVersion;
 
   const _LandscapePager({
     super.key,
@@ -3874,6 +3960,7 @@ class _LandscapePager extends StatefulWidget {
     required this.notesGetter,
     required this.onRequestJumpToToday,
     this.onViewportChanged,
+    required this.dataVersion,
   });
 
   @override
@@ -3921,7 +4008,34 @@ class _LandscapePagerState extends State<_LandscapePager> {
             ? const <String>['—','—','—']
             : widget.decanNamesForMonth(km);
 
+        // Build a stable flow lookup from all days in this Kemetic month via flowsGetter.
+        final Map<int, FlowInfo> _stableFlowLookup = <int, FlowInfo>{};
+        final int lastDay = (km == 13)
+            ? (KemeticMath.isLeapKemeticYear(ky) ? 6 : 5)
+            : 30;
+        for (int d = 1; d <= lastDay; d++) {
+          final List<_FlowOccurrence> occs = widget.flowsGetter(ky, km, d);
+          for (final _FlowOccurrence occ in occs) {
+            final int fid = occ.flow.id;
+            // Insert once; later days won’t override.
+            _stableFlowLookup.putIfAbsent(fid, () => FlowInfo(name: occ.flow.name, color: occ.flow.color));
+          }
+        }
+
+        final int _monthNoteCount = (() {
+          int c = 0;
+          final int lastDay = (km == 13)
+              ? (KemeticMath.isLeapKemeticYear(ky) ? 6 : 5)
+              : 30;
+          for (int d = 1; d <= lastDay; d++) {
+            c += widget.notesGetter(ky, km, d).length;
+          }
+          return c;
+        })();
+
         return _LandscapeGridPage(
+          key: ValueKey('land-$ky-$km-${widget.dataVersion}-${_stableFlowLookup.length}-$_monthNoteCount'),
+          hydrated: widget.dataVersion > 0,
           kYear: ky,
           kMonth: km,
           monthLabel: monthLabel,
@@ -3933,27 +4047,35 @@ class _LandscapePagerState extends State<_LandscapePager> {
           onViewportChanged: (viewKy, viewKm, viewDay, minute) {
             widget.onViewportChanged?.call(ky, km, viewDay, minute);
           },
+          flowLookup: _stableFlowLookup,
         );
       },
     );
   }
+}
+class FlowInfo {
+  final String name;
+  final Color color;
+  const FlowInfo({required this.name, required this.color});
 }
 
 class _LandscapeGridPage extends StatefulWidget {
   final int kYear;
   final int kMonth;
   final String monthLabel; // already sans parenthetical
+  final bool hydrated; // data has finished hydrating at least once
   final bool showGregorian;
   final List<String> decanNames;
   final List<_FlowOccurrence> Function(int kMonth, int day) flowsGetter;
   final List<_Note> Function(int kMonth, int day) notesGetter;
   final VoidCallback onRequestJumpToToday;
   final void Function(int ky, int km, int? day, int? minute)? onViewportChanged;
-
-
+  final Map<int, FlowInfo> flowLookup;
 
   const _LandscapeGridPage({
     super.key,
+    this.flowLookup = const <int, FlowInfo>{},
+    required this.hydrated,
     required this.kYear,
     required this.kMonth,
     required this.monthLabel,
@@ -3964,6 +4086,7 @@ class _LandscapeGridPage extends StatefulWidget {
     required this.onRequestJumpToToday,
     this.onViewportChanged,
   });
+
 
 
   @override
@@ -4315,15 +4438,28 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
 
   List<Widget> _buildEventsForDay(int day, double colW) {
     final occ = widget.flowsGetter(widget.kMonth, day);
-    final notes = widget.notesGetter(widget.kMonth, day);
+// Hide notes on the very first landscape frame until hydration completes once.
+// Prevents stale gray blocks flashing before flows/notes rehydrate.
+    final notes = widget.hydrated
+        ? widget.notesGetter(widget.kMonth, day)
+        : const <_Note>[];
+
 
     final allItems = <({String title, Color color, int startMin, int endMin})>[];
 
     // Build a quick lookup for flow color/name by id from today's occurrences.
     // If a note references a flowId that doesn't appear in occ today, we'll treat it as standalone (gray).
-    final Map<int, ({String name, Color color})> flowInfoById = {
-      for (final o in occ) o.flow.id : (name: o.flow.name, color: o.flow.color)
+    final Map<int, FlowInfo> flowInfoById = {
+      for (final o in occ) o.flow.id : FlowInfo(name: o.flow.name, color: o.flow.color)
     };
+    flowInfoById.addAll(widget.flowLookup);
+
+    final Map<int, FlowInfo> mergedFlowInfo =
+    Map<int, FlowInfo>.from(flowInfoById)..addAll(widget.flowLookup);
+
+
+
+    final Set<int> _activeFlowIdsToday = { for (final o in occ) o.flow.id };
 
     // Emit only notes (timed). If a note belongs to a flow, color it as the flow and show two lines:
     // Flow name (header)
@@ -4334,9 +4470,12 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
       final sMin = _minuteOf(n.start);
       final eMin = n.end != null ? _minuteOf(n.end) : (sMin + 60);
 
-      final int? fid = n.flowId; // link from your model
-      if (fid != null && flowInfoById.containsKey(fid)) {
-        final info = flowInfoById[fid]!;
+      final int? fid = n.flowId;
+      if (fid != null && !_activeFlowIdsToday.contains(fid)) {
+        continue;
+      }
+      if (fid != null && mergedFlowInfo.containsKey(fid)) {
+        final info = mergedFlowInfo[fid]!;
         allItems.add((
         title: '${info.name}\n${n.title ?? ''}',
         color: info.color,
@@ -4344,7 +4483,6 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
         endMin: eMin,
         ));
       } else {
-        // Standalone note (no flow) -> gray, single line
         allItems.add((
         title: n.title ?? '',
         color: const Color(0xFFC8CCD2),
@@ -4352,6 +4490,7 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
         endMin: eMin,
         ));
       }
+      flowInfoById.addAll(widget.flowLookup);
     }
 
 

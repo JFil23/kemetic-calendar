@@ -373,7 +373,7 @@ class UserEventsRepo {
   }
 
   /// Server → client events for the signed-in user.
-  
+
 
 
   /// Upsert a flow (jsonb rules). Returns server id.
