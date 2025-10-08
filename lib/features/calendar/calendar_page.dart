@@ -1364,6 +1364,47 @@ class _CalendarPageState extends State<CalendarPage> {
           payload: '{}',
         );
       }
+
+      // Persist planned notes to Supabase for custom flows.  Without this, notes
+      // created via applyFlowStudioResult (e.g. editing an existing flow) would
+      // vanish after a restart.  Use the same stable clientEventId and
+      // detail prefix logic as in _persistFlowStudioResult.
+      try {
+        final repo2 = UserEventsRepo(Supabase.instance.client);
+        for (final p in edited.plannedNotes) {
+          final n = p.note;
+          final int sMin = n.start != null ? (n.start!.hour * 60 + n.start!.minute) : 9 * 60;
+          final String tSlug = n.title.replaceAll(RegExp(r'[^\w\s]'), '').trim();
+          final String cid = 'ky=${p.ky}-km=${p.km}-kd=${p.kd}|s=$sMin|t=$tSlug';
+          final gDay = KemeticMath.toGregorian(p.ky, p.km, p.kd);
+          final DateTime startsAt = DateTime(
+            gDay.year,
+            gDay.month,
+            gDay.day,
+            n.start?.hour ?? 9,
+            n.start?.minute ?? 0,
+          );
+          DateTime? endsAt;
+          if (n.allDay == false && n.end != null) {
+            endsAt = DateTime(gDay.year, gDay.month, gDay.day, n.end!.hour, n.end!.minute);
+          }
+          final int noteFlowId = (n.flowId ?? finalFlowId) ?? -1;
+          final String prefix = noteFlowId >= 0 ? 'flowLocalId=${noteFlowId};' : '';
+          final String? det = n.detail;
+          final String detailPayload = prefix + (det?.trim() ?? '');
+          await repo2.upsertByClientId(
+            clientEventId: cid,
+            title: n.title,
+            startsAtUtc: startsAt.toUtc(),
+            detail: detailPayload.isEmpty ? null : detailPayload,
+            location: (n.location ?? '').trim().isEmpty ? null : n.location!.trim(),
+            allDay: n.allDay,
+            endsAtUtc: endsAt?.toUtc(),
+          );
+        }
+      } catch (e) {
+        debugPrint('persist planned notes (apply) failed: $e');
+      }
     }
   }
 
@@ -2084,7 +2125,7 @@ class _CalendarPageState extends State<CalendarPage> {
                       ],
 
                       // Existing notes
-                      if (dayNotes.isEmpty)
+                      if ((_dataVersion > 0) && dayNotes.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),
                           child: _GlossyText(
@@ -2478,7 +2519,7 @@ class _CalendarPageState extends State<CalendarPage> {
         _flows.add(flow);
         if (flow.id >= _nextFlowId) _nextFlowId = flow.id + 1;
       }
-      final Set<int> activeFlowIds = _flows.where((f) => f.active && f.end == null).map((f) => f.id).toSet();
+      final Set<int> activeFlowIds = _flows.where((f) => f.active).map((f) => f.id).toSet();
 
       // Load events -> into _notes map (skip events whose flow is not active/known)
       final serverEvents = await repo.getAllEvents();
@@ -2490,32 +2531,62 @@ class _CalendarPageState extends State<CalendarPage> {
       if (_activeIds.isEmpty) {
         try {
           final fallbackFlows = await repo.getAllFlows();
-          _activeIds = fallbackFlows.where((f) => f.active && f.endDate == null).map((f) => f.id).toSet();
+          _activeIds = fallbackFlows.where((f) => f.active).map((f) => f.id).toSet();
           print('[_loadFromDisk] fallback activeFlowIds size: ${_activeIds.length}');
         } catch (_) {}
       }
 
       int _added = 0;
+      // Map for quick lookup of flows by id
       final Map<int, _Flow> _flowIndex = { for (final f in _flows) f.id: f };
+
       for (final evt in serverEvents) {
-        final bool flowKnown = evt.flowLocalId == null
-            ? true
-            : (() {
-          final f = _flowIndex[evt.flowLocalId!];
-          return f != null && f.active && f.end == null;
-        })();
-        if (!flowKnown) continue;
+        // Extract a flow id from the event.  Prefer the server-provided
+        // flowLocalId if it maps to an active flow.  Otherwise, look for a
+        // custom flow marker embedded in the detail string ("flowLocalId=N;").
+        // If a marker is found, use that id even if the server flow id is
+        // unknown.  This allows custom-flow notes to retain their color
+        // association across restarts without requiring an explicit
+        // flowLocalId field in the DB schema.
+        int? flowId = evt.flowLocalId;
+        String? detailStr = evt.detail;
+        // Detect and extract flow id prefix from detail, e.g. "flowLocalId=42;Rest of detail"
+        if (detailStr != null && detailStr.startsWith('flowLocalId=')) {
+          final semi = detailStr.indexOf(';');
+          if (semi > 0) {
+            final idPart = detailStr.substring('flowLocalId='.length, semi);
+            final parsed = int.tryParse(idPart);
+            if (parsed != null) {
+              flowId = parsed;
+            }
+            // Strip the prefix so it never shows up in the UI
+            detailStr = detailStr.substring(semi + 1);
+          }
+        }
+        if (flowId != null) {
+          final f = _flowIndex[flowId];
+          if (f == null || !f.active) {
+            // Flow not known or inactive → keep note but mark as standalone
+            flowId = null;
+            if (kDebugMode) {
+              // Debug logging to understand when unresolved flows occur
+              debugPrint('[loader] unresolved or inactive flowLocalId=${evt.flowLocalId} → treating as standalone');
+            }
+          }
+        }
+
         final localTime = evt.startsAtUtc.toLocal();
         final k = KemeticMath.fromGregorian(localTime);
 
         final note = _Note(
           title: evt.title,
-          detail: evt.detail,
+          // Use the stripped detail string when present; otherwise the original.
+          detail: detailStr ?? evt.detail,
           location: evt.location,
           allDay: evt.allDay,
           start: evt.allDay ? null : TimeOfDay.fromDateTime(localTime),
           end: evt.endsAtUtc == null ? null : TimeOfDay.fromDateTime(evt.endsAtUtc!.toLocal()),
-          flowId: evt.flowLocalId,
+          flowId: flowId,
         );
 
         final key = _kKey(k.kYear, k.kMonth, k.kDay);
@@ -2705,14 +2776,70 @@ class _CalendarPageState extends State<CalendarPage> {
     final flowId = saved?.id ?? r.savedFlow?.id ?? -1;
     for (final p in r.plannedNotes) {
       _addNote(
-        p.ky, p.km, p.kd,
-        p.note.title, p.note.detail,
+        p.ky,
+        p.km,
+        p.kd,
+        p.note.title,
+        p.note.detail,
         location: p.note.location,
         allDay: p.note.allDay,
         start: p.note.start,
         end: p.note.end,
         flowId: flowId >= 0 ? flowId : p.note.flowId,
       );
+    }
+
+    // Persist planned notes to Supabase. Without persistence, custom-flow
+    // notes disappear after a restart. We embed the flow id into the detail
+    // string (prefix 'flowLocalId=N;') so that the loader can restore the
+    // association later. A stable clientEventId is derived from the Kemetic
+    // date, start time (in minutes), and a slug of the title. This ensures
+    // each note upsert overwrites itself and avoids duplicates. The flow id
+    // used here is the final saved id when available, otherwise the
+    // provisional id or null.
+    if (r.plannedNotes.isNotEmpty) {
+      try {
+        final repo2 = UserEventsRepo(Supabase.instance.client);
+        for (final p in r.plannedNotes) {
+          final n = p.note;
+          // Use start minutes or default 9:00 (540) for all-day or null start.
+          final int sMin = n.start != null ? (n.start!.hour * 60 + n.start!.minute) : 9 * 60;
+          // Slugify the title: remove non-word chars and trim.
+          final String tSlug = n.title.replaceAll(RegExp(r'[^\w\s]'), '').trim();
+          final String cid = 'ky=${p.ky}-km=${p.km}-kd=${p.kd}|s=$sMin|t=$tSlug';
+          final gDay = KemeticMath.toGregorian(p.ky, p.km, p.kd);
+          final DateTime startsAt = DateTime(
+            gDay.year,
+            gDay.month,
+            gDay.day,
+            n.start?.hour ?? 9,
+            n.start?.minute ?? 0,
+          );
+          DateTime? endsAt;
+          if (n.allDay == false && n.end != null) {
+            endsAt = DateTime(gDay.year, gDay.month, gDay.day, n.end!.hour, n.end!.minute);
+          } else {
+            endsAt = null;
+          }
+          // Determine which flow id to mark. Use the saved flow id if
+          // available, otherwise fall back to the note's own flowId.
+          final int noteFlowId = flowId >= 0 ? flowId : (n.flowId ?? -1);
+          final String prefix = noteFlowId >= 0 ? 'flowLocalId=${noteFlowId};' : '';
+          final String? det = n.detail;
+          final String detailPayload = prefix + (det?.trim() ?? '');
+          await repo2.upsertByClientId(
+            clientEventId: cid,
+            title: n.title,
+            startsAtUtc: startsAt.toUtc(),
+            detail: detailPayload.isEmpty ? null : detailPayload,
+            location: (n.location ?? '').trim().isEmpty ? null : n.location!.trim(),
+            allDay: n.allDay,
+            endsAtUtc: endsAt?.toUtc(),
+          );
+        }
+      } catch (e) {
+        debugPrint('persist custom-flow notes failed: $e');
+      }
     }
 
     setState(() {});
@@ -2734,6 +2861,7 @@ class _CalendarPageState extends State<CalendarPage> {
       final km = _lastViewKm ?? kToday.kMonth;
       return _LandscapePager(
         dataVersion: _dataVersion,
+        hydrated: _dataVersion > 0,
         initialYear: ky,
         initialMonth: km,
         showGregorian: _showGregorian,
@@ -3490,9 +3618,14 @@ int filteredNoteCountForDay({
   required List<_Note> Function(int kMonth, int kDay) notesGetter,
 }) {
   final flows = flowsGetter(kMonth, day);
-  final activeFlowIds = <int>{for (final o in flows) o.flow.id};
-
   final notes = notesGetter(kMonth, day);
+
+  final hasFlowBacked = notes.any((n) => n.flowId != null);
+  if (flows.isEmpty && hasFlowBacked) {
+    return 0;
+  }
+
+  final activeFlowIds = <int>{for (final o in flows) o.flow.id};
   var count = 0;
   for (final n in notes) {
     final fid = n.flowId;
@@ -3502,6 +3635,7 @@ int filteredNoteCountForDay({
   }
   return count;
 }
+
 
 class _DecanRow extends StatelessWidget {
   final int kYear; // to compute Gregorian numbers
@@ -3844,6 +3978,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     _currentDecanIndex = widget.decanIndex;
   }
 
+
   @override
   Widget build(BuildContext context) {
     final infoTitle = _currentDecanIndex == null
@@ -3949,6 +4084,8 @@ class _LandscapePager extends StatefulWidget {
   final VoidCallback onRequestJumpToToday;
   final void Function(int ky, int km, int? day, int? minute)? onViewportChanged;
   final int dataVersion;
+  final bool hydrated;
+
 
   const _LandscapePager({
     super.key,
@@ -3961,6 +4098,8 @@ class _LandscapePager extends StatefulWidget {
     required this.onRequestJumpToToday,
     this.onViewportChanged,
     required this.dataVersion,
+    required this.hydrated,
+
   });
 
   @override
@@ -4023,6 +4162,7 @@ class _LandscapePagerState extends State<_LandscapePager> {
         }
 
         final int _monthNoteCount = (() {
+          if (widget.dataVersion == 0) return 0;
           int c = 0;
           final int lastDay = (km == 13)
               ? (KemeticMath.isLeapKemeticYear(ky) ? 6 : 5)
@@ -4034,15 +4174,17 @@ class _LandscapePagerState extends State<_LandscapePager> {
         })();
 
         return _LandscapeGridPage(
+          hydrated: widget.hydrated,
           key: ValueKey('land-$ky-$km-${widget.dataVersion}-${_stableFlowLookup.length}-$_monthNoteCount'),
-          hydrated: widget.dataVersion > 0,
           kYear: ky,
           kMonth: km,
           monthLabel: monthLabel,
           showGregorian: widget.showGregorian,
           decanNames: decans,
           flowsGetter: (m, d) => widget.flowsGetter(ky, m, d),
-          notesGetter: (m, d) => widget.notesGetter(ky, m, d),
+          notesGetter: (m, d) => (widget.dataVersion > 0)
+              ? widget.notesGetter(ky, m, d)
+              : const <_Note>[],
           onRequestJumpToToday: widget.onRequestJumpToToday,
           onViewportChanged: (viewKy, viewKm, viewDay, minute) {
             widget.onViewportChanged?.call(ky, km, viewDay, minute);
@@ -4096,6 +4238,8 @@ class _LandscapeGridPage extends StatefulWidget {
 class _LandscapeGridPageState extends State<_LandscapeGridPage> {
   // Tuned to resemble your screenshot
   static const double _rowH = 64;      // hour row height
+  bool _notesHydrated = false;
+  bool _allowNotes = false;
   static const double _gutterW = 56;   // time gutter width
   static const double _headerH = 58;   // day number + decan
   static const double _daySepW = 1;    // day separator line
@@ -4153,6 +4297,7 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
   @override
   void initState() {
     super.initState();
+    _notesHydrated = widget.hydrated;
     _hHeader.addListener(() {
       if (_syncingH) return;
       _syncingH = true;
@@ -4180,6 +4325,16 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
       _syncingV = false;
     });
   }
+  @override
+  void didUpdateWidget(covariant _LandscapeGridPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.hydrated != widget.hydrated) {
+      setState(() {
+        _notesHydrated = widget.hydrated;
+        _allowNotes = widget.hydrated;
+      });
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -4204,6 +4359,11 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_allowNotes && widget.hydrated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _allowNotes = true);
+      });
+    }
     final int dayCount = (widget.kMonth == 13)
         ? (KemeticMath.isLeapKemeticYear(widget.kYear) ? 6 : 5)
         : 30;
@@ -4404,7 +4564,14 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
                             height: _rowH * 24,
                             child: Stack(
                               clipBehavior: Clip.none,
-                              children: _buildEventsForDay(days[i], colW),
+                              children: (_allowNotes &&
+                                  widget.hydrated &&
+                                  (
+                                      widget.flowsGetter(widget.kMonth, days[i]).isNotEmpty ||
+                                          widget.notesGetter(widget.kMonth, days[i]).isNotEmpty
+                                  ))
+                                  ? _buildEventsForDay(days[i], colW)
+                                  : const [],
                             ),
                           ),
                       ],
@@ -4437,52 +4604,99 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
 
 
   List<Widget> _buildEventsForDay(int day, double colW) {
+    // gate the very first frame: no events/notes before hydration
+    if (!_notesHydrated || !widget.hydrated) {
+      return const [];
+    }
+
+    // resolve flow occurrences and notes for this day.  In landscape we bind
+    // notes to flows by matching either the stored flowId or the time window.
+    // Unlike the original implementation, we do **not** suppress notes when
+    // there are no flows or when the flowId does not match the current
+    // occurrences; instead we always retrieve notes for the day.
+
     final occ = widget.flowsGetter(widget.kMonth, day);
-// Hide notes on the very first landscape frame until hydration completes once.
-// Prevents stale gray blocks flashing before flows/notes rehydrate.
-    final notes = widget.hydrated
-        ? widget.notesGetter(widget.kMonth, day)
-        : const <_Note>[];
+
+    final notes = widget.notesGetter(widget.kMonth, day);
+
+
 
 
     final allItems = <({String title, Color color, int startMin, int endMin})>[];
 
-    // Build a quick lookup for flow color/name by id from today's occurrences.
-    // If a note references a flowId that doesn't appear in occ today, we'll treat it as standalone (gray).
-    final Map<int, FlowInfo> flowInfoById = {
-      for (final o in occ) o.flow.id : FlowInfo(name: o.flow.name, color: o.flow.color)
-    };
-    flowInfoById.addAll(widget.flowLookup);
-
-    final Map<int, FlowInfo> mergedFlowInfo =
-    Map<int, FlowInfo>.from(flowInfoById)..addAll(widget.flowLookup);
-
-
-
-    final Set<int> _activeFlowIdsToday = { for (final o in occ) o.flow.id };
-
-    // Emit only notes (timed). If a note belongs to a flow, color it as the flow and show two lines:
-    // Flow name (header)
-    // Note title (detail)
+    // For each timed note, attempt to match it to a flow occurrence.  We
+    // consider the stored flowId, overlapping time windows, or the sole
+    // occurrence for the day.  If no match is found, the note will be
+    // rendered as a standalone (gray) note.
     for (final n in notes) {
-      if (n.allDay == true) continue; // all-day handled by sticky layer
+      // Skip all-day events here; they are rendered by the all-day layer.
+      if (n.allDay == true) continue;
 
+      // Compute start and end times in minutes since midnight.
       final sMin = _minuteOf(n.start);
       final eMin = n.end != null ? _minuteOf(n.end) : (sMin + 60);
 
-      final int? fid = n.flowId;
-      if (fid != null && !_activeFlowIdsToday.contains(fid)) {
-        continue;
+      _FlowOccurrence? matched;
+
+      // First, try to match by stored flowId.
+      if (n.flowId != null) {
+        for (final o in occ) {
+          if (o.flow.id == n.flowId) {
+            matched = o;
+            break;
+          }
+        }
       }
-      if (fid != null && mergedFlowInfo.containsKey(fid)) {
-        final info = mergedFlowInfo[fid]!;
+
+      // If no match by id, try to match by overlapping time window or all-day.
+      // We restrict this fallback to non-custom flows (e.g. Ma'at).  A custom
+      // flow should never capture notes unless their flowId matches.  The
+      // heuristic for detecting a Ma'at (built‑in) flow is that the flow's
+      // notes contain a 'maat=' token.  This mirrors the existing logic in
+      // other parts of the app (see notesDecode).
+      if (matched == null) {
+        for (final o in occ) {
+          final String? notesStr = o.flow.notes;
+          final bool isMaatFlow = notesStr != null && notesStr.contains('maat=');
+          if (!isMaatFlow) {
+            // Skip custom flows for time‑based matching.
+            continue;
+          }
+          // All‑day Ma'at occurrences take precedence.
+          if (o.allDay) {
+            matched = o;
+            break;
+          }
+          final fs = o.start != null ? _minuteOf(o.start) : null;
+          final fe = o.end != null ? _minuteOf(o.end) : null;
+          if (fs != null && fe != null && sMin >= fs && eMin <= fe) {
+            matched = o;
+            break;
+          }
+        }
+      }
+
+      // If still no match and exactly one flow occurs today, assign to it,
+      // but only if that sole flow is a Ma'at flow.  This prevents
+      // standalone notes from being erroneously colored by custom flows.
+      if (matched == null && occ.length == 1) {
+        final only = occ.first;
+        final String? notesStr = only.flow.notes;
+        final bool isMaatFlow = notesStr != null && notesStr.contains('maat=');
+        if (isMaatFlow) {
+          matched = only;
+        }
+      }
+
+      if (matched != null) {
         allItems.add((
-        title: '${info.name}\n${n.title ?? ''}',
-        color: info.color,
+        title: '${matched.flow.name}\n${n.title ?? ''}',
+        color: matched.flow.color,
         startMin: sMin,
         endMin: eMin,
         ));
       } else {
+        // Standalone note (no flow association).
         allItems.add((
         title: n.title ?? '',
         color: const Color(0xFFC8CCD2),
@@ -4490,9 +4704,7 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
         endMin: eMin,
         ));
       }
-      flowInfoById.addAll(widget.flowLookup);
     }
-
 
     if (allItems.isEmpty) return const [];
 
