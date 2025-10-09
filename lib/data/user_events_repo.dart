@@ -217,7 +217,7 @@ class UserEventsRepo {
     }
   }
 
-  /// Delete Ma’at-generated events by flow id. Optionally from a given date forward.
+  /// Delete Ma'at-generated events by flow id. Optionally from a given date forward.
   Future<void> deleteByFlowId(int flowId, {DateTime? fromDate}) async {
     _log('deleteByFlowId(flowId=$flowId, fromDate=$fromDate)');
     try {
@@ -228,7 +228,7 @@ class UserEventsRepo {
       }
       await q1;
 
-      // 2) also delete Ma’at-generated events in the flow’s date window (handles legacy rows with no flow_local_id)
+      // 2) also delete Ma'at-generated events in the flow's date window (handles legacy rows with no flow_local_id)
       DateTime? startDate;
       DateTime? endDateInclusive; // end date as stored (date at 00:00)
       final rows = await _client
@@ -275,9 +275,7 @@ class UserEventsRepo {
     }
   }
 
-
-
-  /// Bulk idempotent upsert for Ma’at note batches (deterministic client_event_id).
+  /// Bulk idempotent upsert for Ma'at note batches (deterministic client_event_id).
   Future<void> upsertManyDeterministic(List<Map<String, dynamic>> rows) async {
     if (rows.isEmpty) return;
     try {
@@ -308,7 +306,9 @@ class UserEventsRepo {
   }
 
   /// Typed list for a quick sanity read.
+  /// ✅ FIXED: Added clientEventId to return type
   Future<List<({
+  String? clientEventId,  // ✅ ADDED THIS LINE
   String title,
   String? detail,
   String? location,
@@ -336,6 +336,7 @@ class UserEventsRepo {
       final bool ended = flow['end_date'] != null;
       return active && !ended; // only active + not-ended flows
     }).map((row) => (
+    clientEventId: row['client_event_id'] as String?,  // ✅ ADDED THIS LINE
     title: row['title'] as String,
     detail: row['detail'] as String?,
     location: row['location'] as String?,
@@ -347,8 +348,6 @@ class UserEventsRepo {
 
     return filtered;
   }
-
-
 
   /// Minimal event telemetry to `app_events`.
   Future<void> track({
@@ -371,10 +370,6 @@ class UserEventsRepo {
       // swallow—telemetry should not block UX
     }
   }
-
-  /// Server → client events for the signed-in user.
-
-
 
   /// Upsert a flow (jsonb rules). Returns server id.
   Future<int> upsertFlow({
