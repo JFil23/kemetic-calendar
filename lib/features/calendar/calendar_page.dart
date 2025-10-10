@@ -1715,15 +1715,12 @@ class _CalendarPageState extends State<CalendarPage> {
       final f = edited.savedFlow!;
       final editFlowId = f.id >= 0 ? f.id : null;
       if (editFlowId != null) {
-        final idx = _flows.indexWhere((e) => e.id == editFlowId);
-        if (idx >= 0) {
-          _flows[idx] = f..id = editFlowId;
-          finalFlowId = editFlowId; // <-- capture id for existing flow
-          setState(() {});
-        }
+        // ✅ FIX: Persist to database when editing existing flow
+        await _persistFlowStudioResult(edited);
+        finalFlowId = editFlowId;
       } else {
         _saveNewFlow(f);
-        finalFlowId = f.id; // <-- id assigned inside _saveNewFlow
+        finalFlowId = f.id; // id assigned inside _saveNewFlow
       }
     }
 
@@ -2921,6 +2918,11 @@ class _CalendarPageState extends State<CalendarPage> {
           notes: f.notes,
         );
         _flows.add(flow);
+        // 🔍 DEBUG: Log what color came from database for ALL custom flows
+        // Log flows with ID greater than 156 to catch all user-created flows
+        if (kDebugMode && f.id > 156) {
+          debugPrint('[loadFlows] Flow ${f.id} "${f.name}" loaded with color=${f.color} (0x${f.color.toRadixString(16)})');
+        }
         if (flow.id >= _nextFlowId) _nextFlowId = flow.id + 1;
       }
       final Set<int> activeFlowIds =
@@ -4652,6 +4654,17 @@ class _LandscapePagerState extends State<_LandscapePager> {
 
         // ✅ CHANGED: Use cached lookup instead of rebuilding each time
         final Map<int, FlowInfo> _stableFlowLookup = _cachedFlowLookup;
+        // 🔧 NEW: Create a key based on the actual flow IDs for stable widget keys
+        final String flowIdsKey = ((_stableFlowLookup.keys.toList()..sort()).join(','));
+        // 🔍 DEBUG: Log flow and lookup state during landscape build
+        if (kDebugMode) {
+          debugPrint('═══ LANDSCAPE BUILD: Month $km ═══');
+          debugPrint('[landscape] allActiveFlows.length = ${widget.allActiveFlows.length}');
+          debugPrint('[landscape] allActiveFlows IDs = ${widget.allActiveFlows.map((f) => f.id).toList()}');
+          debugPrint('[landscape] _stableFlowLookup keys = ${_stableFlowLookup.keys.toList()}');
+          debugPrint('[landscape] _stableFlowLookup: ${_stableFlowLookup.map((k, v) => MapEntry(k, v.name))}');
+          debugPrint('[landscape] dataVersion = ${widget.dataVersion}');
+        }
 
         final int _monthNoteCount = (() {
           if (widget.dataVersion == 0) return 0;
@@ -4667,7 +4680,8 @@ class _LandscapePagerState extends State<_LandscapePager> {
 
         return _LandscapeGridPage(
           hydrated: widget.hydrated,
-          key: ValueKey('land-$ky-$km-${widget.dataVersion}-${_stableFlowLookup.length}-$_monthNoteCount'),
+          // Build a stable key that includes actual flow IDs, not just the count
+          key: ValueKey('land-$ky-$km-${widget.dataVersion}-$flowIdsKey-$_monthNoteCount'),
           kYear: ky,
           kMonth: km,
           monthLabel: monthLabel,
@@ -5131,6 +5145,18 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
     // This ensures we have ALL active flows, not just those with occurrences today
     final Map<int, FlowInfo> allFlows = widget.flowLookup;
 
+    // 🔍 DEBUG: Log note and flow state for this day (only for day 24 to reduce noise)
+    if (kDebugMode && day == 24) {
+      debugPrint('─── RENDERING Day $day ───');
+      debugPrint('[render] notes.length = ${notes.length}');
+      debugPrint('[render] allFlows keys = ${allFlows.keys.toList()}');
+      for (final n in notes) {
+        if (n.flowId != null) {
+          debugPrint('[render] Note "${n.title}" flowId=${n.flowId}, inLookup=${allFlows.containsKey(n.flowId)}');
+        }
+      }
+    }
+
     // Build timed note events with flow matching
     for (final n in notes) {
       // Skip all-day events here; they are rendered elsewhere
@@ -5149,10 +5175,13 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
             break;
           }
         }
-
         // 🔧 NEW: If no occurrence match but we have the flow in our lookup, use that
         if (matched == null && allFlows.containsKey(n.flowId)) {
           final flowInfo = allFlows[n.flowId]!;
+          // 🔍 DEBUG: Log successful lookup match
+          if (kDebugMode && day == 24) {
+            debugPrint('[render] ✅ Matched "${n.title}" flowId=${n.flowId} to ${flowInfo.name} (${flowInfo.color})');
+          }
           // Create a synthetic title and use the flow's color
           eventItems.add(_EventItem(
             title: '${flowInfo.name}\n${n.title ?? ''}',
@@ -5161,6 +5190,11 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
             endMin: eMin,
           ));
           continue; // Skip the rest of the matching logic
+        } else if (matched == null) {
+          // 🔍 DEBUG: Log failed lookup match (flowId not found in allFlows)
+          if (kDebugMode && day == 24) {
+            debugPrint('[render] ❌ FAILED to match "${n.title}" flowId=${n.flowId} (not in lookup!)');
+          }
         }
       }
 
@@ -5186,6 +5220,10 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
 
       // Add the event with appropriate styling
       if (matched != null) {
+        // 🔍 DEBUG: Log when matched to an occurrence
+        if (kDebugMode && day == 24) {
+          debugPrint('[render] Matched "${n.title}" to occurrence: ${matched.flow.name} (${matched.flow.color})');
+        }
         eventItems.add(_EventItem(
           title: '${matched.flow.name}\n${n.title ?? ''}',
           color: matched.flow.color,
@@ -5193,6 +5231,10 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
           endMin: eMin,
         ));
       } else {
+        // 🔍 DEBUG: Log unmatched note (rendered gray)
+        if (kDebugMode && day == 24) {
+          debugPrint('[render] Unmatched "${n.title}" → rendering as gray');
+        }
         // Standalone note (gray)
         eventItems.add(_EventItem(
           title: n.title ?? '',
@@ -5205,8 +5247,14 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
 
     if (eventItems.isEmpty) return const [];
 
-    // Sort by start time
-    eventItems.sort((a, b) => a.startMin.compareTo(b.startMin));
+    // ✅ NEW: Sort by start time, then by title for stable/consistent ordering
+    // This ensures events at the same time always appear in the same left-right order
+    eventItems.sort((a, b) {
+      final int timeCompare = a.startMin.compareTo(b.startMin);
+      if (timeCompare != 0) return timeCompare;
+      // Secondary sort by title for deterministic ordering across restarts
+      return a.title.compareTo(b.title);
+    });
 
     // ═══════════════════════════════════════════════════════════════════════
     // Group events by hour and calculate columns per hour (from previous fix)
