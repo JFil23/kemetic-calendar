@@ -41,8 +41,9 @@ Future<void> main() async {
     ),
   );
 
-
-
+  // 🚨 Initialize notifications
+  // Ensures notification channels and platform-specific setup happen before the app builds.
+  await Notify.init();
 
   // Web/PWA boot hardening (iOS PWA friendly)
   await _completeWebOAuthIfNeeded();   // 1) exchange ?code once

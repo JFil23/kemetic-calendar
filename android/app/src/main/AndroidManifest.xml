@@ -6,6 +6,14 @@
     <!-- Exact alarms only if you use them -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
+    <!-- Additional permissions required for proper notification handling -->
+    <!-- Allows the app to keep the CPU on while handling notifications -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Allows the app to receive events after the device boots so scheduled notifications persist -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Allows the device to vibrate when a notification is delivered -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <application
         android:label="Kemetic Calendar"
         android:icon="@mipmap/ic_launcher">

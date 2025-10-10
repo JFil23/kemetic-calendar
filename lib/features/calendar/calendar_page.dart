@@ -98,51 +98,133 @@ const List<String> _gregMonthNames = [
 const Map<int, String> _monthInfo = {
   1: '''
 Month 1 – Tekh (Toth)
-In Kemet this month was named for the netjeru Djehuty (Thoth), the ibis-headed scribe of the gods. Myth tells how Djehuty healed the wedjat, restoring Auset’s (Isis’s) son Heru’s (Horus’s) eye after Set’s attack; that act of reassembling wholeness made him the pattern for surveyors who stretched ropes across the floodplain to re-establish farm boundaries when the inundation receded. Farmers re-marked fields and recorded shares so each household received its due, echoing Djehuty’s role as master of measurement and timekeeping. In temples, priests recited hymns to Ma’at and opened new tally scrolls. Children learned the “Eye of Heru” fractions used for grain rations and wages, weaving myth into mathematics. The night sky reminded everyone of Djehuty’s wisdom: circumpolar stars—the Imperishables—were sighted with merkhets to align buildings and altars. Ma’at’s balance here is literal and social: cords drawn taut, scales true, voices honest.
+The first month of Akhet — Thoth — opens with the Nile’s swelling. The river bursts its banks, dissolving boundaries — a living metaphor for the chaos before order.
+As waters spread, temple astronomer-priests rose before dawn to watch Sopdet’s (Sirius’s) heliacal rising and proclaim the renewal of the year. This was an ideal alignment: the civil first of Thoth did not always meet that dawn, yet the vigil framed the year’s beginning. These were not abstract rituals — every farmer depended on them. The measurements determined when seed could be sown, when canals would be ready, and how far temples might be safe from the flood. The scribe’s stylus, not the soldier’s spear, kept civilization alive.
+As the architect of cosmic measure, Thoth counts the days, names the stars, and fixes the span of the gods themselves. When creation first stirred and Ra’s words set the world alight, Thoth recorded the command. He did not speak creation — he remembered it. His writing preserved the pattern of Maʿat so that time could repeat without decay. Thoth’s month began with careful thought: the mind setting the tone for a balanced year.
 ''',
   2: '''
 Month 2 – Menkhet (Paopi)
-This month drew its name from the beautiful feast of Ipet (Opet), a hippopotamus-bodied goddess of fertility who was seen as the protective mother of Ausar in Thebes. The Opet festival, “that of Opet,” celebrated Amun-Ra’s journey from Karnak to Luxor; her barque procession carried life and fertility along the Nile. Stories told how Ipet nursed the infant Ausar and sheltered Amun, and these motifs found expression in women’s songs as they ferried early greens to market. Musicians played sistrums and drums, invoking the goddess’s joy. Herds were combed and adorned, a nod to Ipet’s hybrid form that blended hippo ferocity with nurturing tenderness. People lined canals with palm-wreaths; families offered bread and beer to the god as his statue passed. By night, the festival’s candles mirrored star reflections on the river, linking the sky’s procession to the earthly one.
+If Thoth’s month teaches order through understanding, Paopi teaches order through movement. The ancients named this month Paopi; in reflection it bears the title Menkhet — the Carrying — for its spirit of motion and renewal. The world has been measured; now it must be carried forward.
+The word mnḫt appears in Old Kingdom agricultural records and means “to bring” or “to carry.” It evokes both the physical act of transport — bearing the first loads of mud and seed — and the spiritual duty of carrying Maʿat forward into the year.
+The Nile, still full from the southern rains, moved like a goddess in motion — Hapi herself — and humanity’s task was to join her current, not resist it.
+The Kemite did not see work as drudgery but as sacred rhythm. Every basket lifted, every pole balanced on a shoulder, was an offering.
+In mythology, Paopi’s current belonged to the Hathoric cycle — Hathor as Mistress of the West guiding sun and soul across the celestial river. The “bringings” of this month included tribute from each nome — baskets of fish, papyrus, wild herbs, and early lotus flowers. Women wore garlands of blue lotus, symbols of rebirth rising from water; men poured milk and beer into the current, feeding the flood that feeds us.
+In the Coffin Texts, Thoth proclaims that he bears Maʿat before the gods. In Paopi, all people mirror that act — carrying balance through deeds. The flood is still too deep to sow, yet everyone is moving, preparing, connecting. Life is fluid but purposeful. The harmony of Maʿat is not stillness; it is motion in right proportion. In these processions, the community became one body; every shoulder lifting together embodied harmony.
 ''',
   3: '''
 Month 3 – Hathor (Athyr)
-In Kemet this month took its name from Hathor (Het-Heru), the cow-headed goddess of love, music, and ecstatic joy. Her myth is dual: she nurtures as “Great One of Many Names” and yet transforms into the lioness Sekhmet when Ra’s wrath threatens mankind. To recall how she was appeased with red beer and dancing, communities held beer-rituals: vats of barley brew were mixed with pomegranate juice, poured onto temple courts, and dancers in cow-horn crowns stamped the earth until the goddess “remembered” mercy. Singing accompanied weaving and pottery, reflecting Hathor’s role as patron of artisans and miners (“Mistress of Turquoise”). At night, people looked for the glow of Sopdet (Sirius), a star associated with Hathor, and when its heliacal rising approached, miners prepared for Sinai expeditions. Trade caravans set out under her protection, for she was also “Lady of Byblos.” In homes, new love songs were composed and mothers sang lullabies, weaving joy into daily labor.
+Hathor — goddess of beauty and the celestial cow — teaches that pleasure is not the opposite of discipline; it perfects it. The laughter of the goddess is the same energy that turns seed to sprout and sorrow to song. To live her month rightly was to dance after toil, to honor beauty without waste, and to recognize that the sweetness of life is part of its order.
+By this time — roughly May 19 to June17 in the resynced solar calendar — the floodwaters have begun to settle and the land glistens green. The joy of Hathor kept morale high after the hardships of the inundation, reminding all that work done in harmony and gratitude is sacred. Women wove garlands of lotus and papyrus; men brewed sweet beer colored with pomegranate.
+At Dendera, ḥmwt-nṯr ḥwt-ḥr — “Servants of the Goddess” — led processions where polished mirrors flashed sunlight to honor her golden face. In village shrines, couples sought fertility and artists sought inspiration. Beauty was not vanity; it was the outward sign of inner balance, proof that joy and order can coexist.
+ḥwt-ḥr means “House of Horus.” In the sky she is the great golden cow whose body forms the heavens, within whose belly the sun and stars travel. As the cow-sky upholds the stars, so joy upholds creation. Every heart that delights in truth becomes, for a moment, a House of Horus.
 ''',
   4: '''
 Month 4 – Ka-Her-Ka (Koiak / Khoiak)
-This month honored Ausar (Osiris), also called Ka-Her-Ka (“Soul upon Soul”), whose story of murder, dismemberment, and resurrection underpins Kemetic notions of renewal. Set’s treachery, Aset’s (Isis’s) patient search, and the stitching of Ausar’s body into the first mummy were ritually reenacted. At festivals of Khoiak, priests planted “Osiris beds”—wooden molds shaped like the god, filled with barley seeds and mud—symbolizing life emerging from death. Families copied the rite in small bowls at home. Villagers raised djed pillars and sang dirges that turned to praises when the green shoots appeared. The Nile’s receding flood mirrored this myth: black silt awaited seeds just as Ausar’s body awaited reassembly. Cattle were driven out to graze new pastures; artisans carved funerary furniture with renewed devotion. In the sky, the belt of Sah (Orion)—thought to be Ausar’s backbone—reminded watchers that even in the darkest season, resurrection is written among the stars.
+Ka-ḥer-ka translates literally as “Ka upon Ka,” the doubling of vital essence. In Kemetic theology, the Ka (vital spirit) is the sustaining life-force present in gods, kings, humans, and even places.
+By this time — roughly June 9 to July 8 in the resynced solar calendar (March 20 = Thoth 1) — the floodwaters drew back, revealing the dark silt called kemet — the very word that named the country itself. Farmers pressed seed into the soft ground, oxen dragged simple wooden plows, and children scattered manure and ash.
+To sow seed was to imitate the burial of Asar (Osiris) — a sacred promise that death would give way to life.
+Families sang lines like:
+“As Asar sleeps, so shall the earth awaken.”
+The Kemite did not seek to escape death — they sought to understand it as part of the whole. To bury unjustly, to hoard grain, or to forget one’s ancestors was to sever the cycle and create isfet. To plant honestly, to mourn truthfully, to give offerings from gratitude — these were acts of divine alignment.
+In this unity of labor and reverence, Maʿat became daily life — balance between what is gone and what is growing.
+Scribes recorded flood heights and grain inventories — not as bureaucracy but as sacred measure, ensuring that the year’s balance matched heaven’s. Children were told stories of  Asar’s (Osiris’) patience: how he endured darkness without fear because he trusted the order of things. To live rightly was to live that same patience — to plant, to trust, to wait.
+On clear nights of this month, the sky over Kemet transformed. Orion (Sah) and Sirius (Sopdet) gleamed low over the horizon — divine reminders of Asar (Osiris) and Aset (Isis) watching over the new-sown fields. The temple ceilings of Dendera and Abydos show this sky in motion. Priests used merkhets (sighting rods) to align their water clocks with the rising decans.
+Each decan marked ten nights of Asar’s (Osiris’) journey through the Duat. The star priests — called “watchers of hours” — noted each rising, saying, “He sails the hidden waters.”
+Thus the heavens became a mirror of the god’s resurrection. As Asar (Osiris) traversed the underworld, the earth sprouted, and the stars themselves declared the triumph of Maʿat.
 ''',
   5: '''
 Month 5 – Šef-Bedet (Tybi)
-Traditionally this month was associated with Amun-Khem, a hidden aspect of Amun-Ra, and with the protective cobra goddess Renenutet. Texts note Tybi is named for Amso Khem, a form of Amun; but farmers also honored Renenutet, “mistress of provisions,” who determined each household’s fortune. Myth says Renenutet’s gaze fixed the amount of grain allotted to each man; her serpentine form taught watchfulness. Fields at this time were thick with young wheat and flax; families weeded by hand and set up scare strings, singing to keep birds away. Small clay cobras were placed on boundary stones as guardians. In the temples, priests burned incense to Amso Khem, asking the hidden god to bless the seeds. The jackal’s quiet patience, often linked to the wisdom of Anpu (Anubis), was also admired now: like the jackal awaiting his meal, farmers waited for the right moment to harvest. The overlapping symbols—cobra, hidden ram, jackal—reminded everyone that wisdom is the art of timing.
+The name Šef-Bedet (šf-bdt) appears in the Old Kingdom temple lists of Edfu and Dendera, as well as in agricultural texts from the Middle Kingdom. It translates roughly to “The Nourisher” or “She Who Feeds with Grain.” The word šf means “to feed or provide,” while bdt denotes “offering, sustenance, or bread.”
+This month’s name embodied the first task of the reborn world: to feed life into form. The Kemite worldview held that every being — human, animal, river, or star — has a right to sustenance. To feed another was to feed Maʿat herself.
+This compassion was not sentiment but cosmic maintenance. The villages, newly rebuilt after the flood, glowed with fresh whitewash. The world itself looked washed clean — and in that cleanliness, gratitude arose naturally. The floodplain was now firm enough to walk upon. Farmers rose before dawn to water seedlings with clay jars, ensuring even irrigation.
+They sang short invocations like:
+“The earth drinks — and I drink with her.”
+Children followed behind, scattering handfuls of ashes and fish bones as fertilizer. Women shaped the first loaves from the previous year’s grain and offered them to Renenutet, saying, “What was given returns.”
+The house of life — the temple’s scribal school — reopened its lessons. Students copied hymns to Thoth and accounts of the flood level, connecting the intellectual and agricultural rhythms into one continuous practice of order. In every sense, this month was the first labor of reborn civilization.
+Where Thoth’s month (Tekh) had taught measure, and Ka-ḥer-ka had taught trust in transformation, Šef-Bedet taught the ethics of care. Šef-Bedet was a month of balance without struggle — of tending rather than striving. It reminded every Kemite that order is not achieved through dominance, but through gentle consistency.
 ''',
   6: '''
 Month 6 – Rekh-Wer (Meshir)
-The sixth month, Meshir, comes from Mechir, genius of the wind. In myth the netjeru of winds could be both beneficial and destructive: he cleared skies for Ra’s daily voyage yet could batter boats and homes. As the inundation ended, north winds blew across the delta, drying mud and hardening pathways. Villagers repaired dikes and levees and propped up reed roofs against gusts. Farmers cut channels for drainage; potters and brick-makers took advantage of the breeze to fire their wares. Priests told stories of the wind as a messenger delivering prayers to heaven. On clear nights the sky seemed crisp; watchers noted the shimmering of the decans and measured hours with merkhets, listening for the whistle of the wind as a natural accompaniment. Wisdom lay in respecting invisible forces: praising the wind when it cooled and building windbreaks when it threatened.
+The title rḫ-wr, “Great Knowing,” comes from the root rḫ, “to know, to perceive, to understand.” It is found in the Pyramid Texts (Utterance 600) and Coffin Texts, describing the divine faculty that “guides the tongue and keeps the world upright.” This month therefore represents awareness taking form — as crops strengthen and human minds turn toward planning, counting, and teaching.
+In every home, wisdom found practical expression. Women balanced granaries, recording storage and rationing grain fairly. Men taught apprentices the proper way to cut stone or carve wood. Elders gathered in the evenings to recite proverbs that began with the phrase, “He who knows Maʿat…” — a gentle reminder that to know is to live rightly, not merely to think.
+In temple schools, scribes studied arithmetic, surveying, and astronomy. The “stretching of the cord” ceremony was performed again to measure field boundaries — a literal act of restoring Maʿat through precision.
+At dusk, people poured small libations of water on the ground — symbolically “teaching” the soil, reminding it of the Nile’s rhythm, so that the roots would “remember the flood.” Every act of maintenance, from mending a canal to sharpening a sickle, was treated as sacred study — practice as prayer.
+Rekh-Wer was considered sacred to Thoth (ḏḥwty) and the solar goddess Sekhmet, for in this time, knowledge and power had to remain in balance. After the renewal of Asar (Osiris) and the nurturing of Renenutet, the sun began to climb again. Ra’s Eye — fiery and vigilant — looked upon the land. The scribes said that Thoth “measured her path” and “taught her restraint.” Thus, the month became a symbol of controlled strength: intellect governing energy, compassion guiding productivity. As a later teaching attributed to the Book of Maʿat expressed:
+“He who measures rightly keeps the balance of heaven and earth in his hand.”
 ''',
   7: '''
 Month 7 – Rekh-Nedjes (Paremhat / Phamenoth)
-Sources differ on this month’s name. Coptic tradition calls it “Month of Montu,” relating to Montu, the war-hawk; other sources associate it with the deified king Amenhotep I. Both stories emphasize energy and protection. Montu’s fierce aspect, a solar hawk radiating Ra’s destructive force, inspired myths of the god leading pharaohs into battle; Amenhotep I, as a revered ancestor, protected workers in the Theban necropolis. In Paremhat, crops were swelling and diseases from stagnant pools were common; healers invoked Montu’s strength against illness while mothers recited spells about the Horus-child healed by Aset. Men practised stick-fighting, echoing the war god’s training, while priests commemorated Amenhotep I with processions. Weather could be turbulent, with whirlwinds swirling dust; farmers built reeds to shield seedlings. At night, watchers looked for the fiery reddish decans thought to be Montu’s eyes. The overlapping figures—warrior hawk and beneficent king—conveyed that protection required both power and benevolence.
+The mythology of this month draws from the contests between Horus and Set following Asar’s (Osiris’) resurrection. The Two Lands were divided; judgment had to be tested through trial and endurance. Aset (Isis), embodying compassion, guided her son not to strike blindly but to learn restraint. In the Coffin Texts, Thoth tells Horus: “Patience is victory; Maʿat is not won by haste.”
+rḫ-nḏs, literally “small or lesser knowing,” did not imply ignorance but applied learning — the testing of what had been gained in Rekh-Wer. It was the month of the apprentice, the craftsman, the young crop facing its first heat. The Kemite saw this as a sacred stage of life: the soul leaving theory and entering the field.
+In inscriptions from Dendera and Esna, this month’s title is followed by epithets like “of the patient heart” and “of the watching eye. To know less was not to fall — it was to practice wisdom amid imperfection.
+In everyday life, this month felt slower, more introspective. The novelty of the new year had passed; now came the steady heartbeat of maintenance. The Kemite saw divinity in persistence — not the grand miracles of gods but the quiet miracle of one who tends what he began. Even the scribes noted fewer festivals; this was a time of personal discipline. Households cleaned tools, sharpened knives, and recopied old hymns so they would not fade — the renewal of memory as the renewal of order. The sages taught:
+“He who knows Maʿat must carry her in silence.
+The one who acts without shouting keeps the world from cracking.”
+Here lies the heart of the month — that wisdom untested is illusion. The people of Kemet lived this not as punishment, but as refinement: heat tempers metal; difficulty tempers truth. Through careful work and honest endurance, they honored Maʿat not in speech, but in motion — every furrow drawn straight, every measure fair, every rest deserved.
 ''',
   8: '''
 Month 8 – Renwet (Paremoude / Parmouti / Pharmuthi)
-This month is named for Renenutet (also called Renenet), the cobra-headed goddess of grain and nourishment. Her story is of a serpent mother who fed the child Ausar and later nursed the king, ensuring prosperity. During Parmouti, fields were filled with ripening barley and emmer; every family gave thanks to Renwet with loaves, milk, and honey on little reed shrines. Offerings were made at boundary stones and canal mouths to keep pests away. Farmers fashioned clay snakes with painted eyes and set them among the sheaves. Women wove papyrus cords with protective knots and recited hymns to the goddess who “counts days” and “assigns lifespans.” In the evening, the low hiss of the breeze through the grain was likened to her whisper. Snakes basking on warm banks reminded children that good fortune and danger coil together; treat both with respect and gratitude to keep Ma’at.
+Renwet (rnnt) takes its name directly from the goddess Renenutet, the serpent of nourishment and fate. Her name derives from rnn (“to nurse, to suckle”) and is interpreted as meaning “She Who Nurtures into Being.” Her image — a rearing cobra with a soft face — adorned every granary wall and harvest vessel. Her domain was twofold: the abundance of the earth and the destiny (šai) of every living being.
+The Kemite said that when a child was born, Renenutet whispered its true name into its ear — not the one given by parents, but the one known by the gods. Thus, she governed not only food but purpose itself. This was the busiest, most joyful time of the year. Laughter returned to the courtyards. The smell of bread, beer, and roasted fish filled the air. Workers were paid from temple granaries, and festivals lasted for days. Children played games of chance — symbolic rehearsals of Shai’s hand in life — while elders blessed them with sayings like:
+“May your name be long, may your Ka be rich, may Renenutet remember you.”
+Yet even amid joy, restraint remained sacred. Overindulgence was seen as offense to the goddess, for abundance must remain balanced. To hoard or waste was to anger Shai — to act against one’s own fate. To the Kemite, this was the final examination of the season: whether, after learning patience, endurance, and knowledge, one could live in humble gratitude. In Renwet, the cycle of Peret closed not with consumption, but with remembrance — returning the first share to the gods, to the ancestors, and to the poor.
+The month of Renwet embodies the highest wisdom of Maʿat: that gratitude is not emotion, but justice. The one who honors the source of nourishment sustains it; the one who forgets it invites loss. In this sense, Renenutet was both gentle and stern — her smile filled the silos, but her silence emptied them. Her teaching was simple:
+“Your destiny is what you nourish. Feed the world that feeds you.”
 ''',
   9: '''
 Month 9 – Pakhons (Pachons / Pashons)
-Named for Khonsu—the moon god whose name means “traveller”—this month was tied to lunar rhythms and night journeys. Legends tell how Khonsu played senet with Thoth, losing and winning light; he hunted in the desert, guiding travelers with his shining boat. Temple rituals timed offerings to the waxing and waning moon, and priests paired Khonsu’s hours with decan risings for precise night-watches. Farmers guarded maturing grain from thieves and pests, patrolling fields by moonlight and chanting the god’s titles to keep fear at bay. Tales of Khonsu healing a princess in Thebes made him a patron of medicine; healers brewed potions under his light. In games, children counted days by drawing crescents in the sand. The interplay of moving moon and fixed stars showed the community that time had multiple layers: lunar, stellar, and seasonal.
+Hnsw opens Shemu as the “traveler’s month” — radiant, demanding, alive. It reminds the Kemite that Maʿat is not a resting place, but a path — one walked beneath the eye of Ra, in heat, effort, and gratitude. The texts of the Amduat and Book of Gates describe how Ra, the Sun-God, travels through the sky by day and the Duat by night, sustaining the balance between light and darkness.
+Hnsw (The Traveller) refers to both the sun’s daily voyage and the movement of the people as the agricultural year neared completion. This month taught that life, too, must travel its course without resistance. The wise Kemite did not curse the heat; he understood it as Ra’s testing of the world’s endurance — the necessary fire that strengthens what has been tempered. Caravans of donkeys and boats moved along the river, carrying offerings to temples and food to cities. The people traveled under a blazing sky, yet found rhythm in the motion — as if imitating the sun’s steady crossing from horizon to horizon.
+Each journey, each trade, each pilgrimage was considered part of the “path of Ra” — every human journey a reflection of the cosmic voyage.
+The Nile shrank within its banks, leaving gleaming lines of salt on the soil. Fields that once swayed green now stood bare, drying for threshing. Work shifted to transportation and preservation — storing grain, pressing oil, drying fruit and fish. In Hnsw, travel itself became sacred. Families visiting relatives, merchants crossing nomes, and fishermen tracing the Nile’s edge all felt they were part of the same vast circulation that sustained Maʿat. Offerings were simple but radiant: bread baked in circular molds, golden beer, honey, and saffron oil — all colored like the sun. Each household was said to anoint their foreheads with oil at midday while reciting:
+“May my path follow the sun’s.
+May my heat be righteous, my light not blind.”
+This was the heart of Hnsw’s philosophy — that power without balance burns, but power guided by Maʿat illumines. Priests instructed meditation on Khepri, the scarab who rolls the sun each dawn, symbol of persistence through adversity. Children were taught to face the morning sun with open hands, to practice humility before its brilliance, and to remember that light must be carried, not hoarded.
+Hnsw taught that Maʿat does not stand still. Even balance moves — like the pendulum of Ra’s day and night. To live in Maʿat during the season of heat was to walk with the light without becoming consumed by it. The wise carried inner shade, knowing that endurance and humility are the highest forms of power.
+As an old maxim carved at Heliopolis said:
+“He who travels rightly leaves Maʿat behind him as footprints.”
 ''',
   10: '''
 Month 10 – Paoni (Payni)
-Paoni takes its name from the “Valley Festival” held at Thebes. During this feast, Amun’s statue in its barque crossed the Nile to visit ancestral tombs on the west bank, linking living and dead. Although not named for a single netjeru, the festival invoked Amun and Mut: their journey represented fertility and renewal. Villagers reenacted the crossing with small boats of bread and flowers; children sang and clapped along the riverbanks. Farmers cut grain and loaded it onto sledges for transport to storehouses. By night, drums echoed across the river as processions of lamps wound through the necropolis. The valley’s cliffs were lit up like a second dawn. Memory and harvest intertwined: visiting ancestor tombs reminded people that their labor sustained both present and past, and that Ma’at required honoring both. The crossing of the river also symbolized balancing the worlds of life and death.
+Ḥenti-ḥet (ḥnt-ḥtj) literally means “Foremost of Offerings.” The word ḥeti (offering) comes from the same root as ḥtp (peace), showing how the act of giving was synonymous with bringing harmony. As the land dried, people began making thank-offerings to Ra, Asar (Osiris), and Renenutet — not to request more abundance, but to acknowledge that what had been received was sufficient.
+To the Kemite, peace was not found in plenty but in knowing when to stop grasping.
+For common folk, life slowed to the rhythm of endurance. Travelers moved by night, carrying water skins and palm-leaf fans. The markets shifted to trade in dried goods and shade cloths. Storytellers and musicians filled the courtyards in the evenings, singing tales of Sekhmet’s laughter and Hathor’s sweetness — cooling the soul as the gods cooled the sky.
+Children learned from elders how to ration and repair, understanding that conservation was not scarcity but wisdom in rhythm with the desert. In the oldest solar hymns, this month corresponds to the time when Ra’s Eye blazes hottest and the gods retreat to shade.
+Mythically, it was said that the fiery Eye (personified as Sekhmet) once grew so fierce that she nearly destroyed humankind. To calm her, Ra commanded the fields to be filled with beer dyed red, which she drank, mistaking it for blood. Her rage softened into laughter — and the world survived.
+Thus, Ḥenti-ḥet celebrated the cooling of divine wrath, the restoration of proportion after excess. It was a warning that even light must rest, even gods must balance. Families made personal offerings of cool water, lotus petals, and milk. The poorest gave only breath — standing before the morning sun, exhaling slowly, saying:
+“May my heat cool yours.
+May my heart rest in Maʿat.”
+Under the eye of Ra, the Kemite learns the oldest truth of Maʿat: nothing truly belongs to us — not our strength, not our harvest, not even our breath. All must be offered back in harmony.
 ''',
   11: '''
 Month 11 – Epip (Epiphi)
-The eleventh month’s name is linked in later Coptic tradition to Apida or Apep (Apophis), the chaos serpent slain nightly by Heru and Ra. In Kemetic myth the endless battle between the sun-bark and Apep occurred in the underworld; each night Ra and his companions speared the serpent to allow dawn to return. At Epip, the land was dry and the last of the harvest gathered; desert storms threatened. Priests performed execration rituals: clay snakes inscribed with the serpent’s name were smashed and burned, symbolically aiding Ra’s victory. Children were taught the dangers of greed and gossip using stories of Apep’s coils strangling those who spoke ill. Farmers hardened granary walls against mice and watched for thieves, aware that chaos lurked in laziness. Stars twinkled sharply in the dust-free sky; watchers timed hours with decans, drawing strength from the idea that vigilance kept isfet (disorder) at bay. Epip’s lesson is that chaos never sleeps, so neither can order.
+Ipt-ḥmt (ỉpt-ḥmt), “Bringing Together of the Women,” is one of the most ancient month names in Kemet. It likely referred to renewal and reunion — the joining of sky and earth, of gods and ancestors, as the year neared its end. By the Middle Kingdom, it was often called Pa-Ipi, a shortened form used in temple and civil texts.
+In priestly theology, Ipt-ḥmt carried the same meaning later expressed as Ḥnsw ḥr kꜣ — the traveler’s reunion with the Ka, the merging of the living and the ancestral. The Kemite recognized that the year — like the soul — was moving toward death, only to rise again renewed. Offerings to the Ka of ancestors increased, and the living sought harmony with the unseen forces that sustained them.
+This was a month of reflection and gratitude. Families visited graves, shared meals in the fields, and retold stories of their ancestors’ virtues. It was said that the Ka grows stronger through remembrance — and that forgetting was a form of death.
+The air was filled with the scent of lotus and old incense; music slowed to soft flutes and hand drums. Nights were clear and deep — the Milky Way bright enough to guide travelers by its “River of Souls.” Farmers prayed for strength to rebuild; mothers whispered blessings over sleeping children, linking their breath to the rhythm of the river’s return.
+As the Nile prepared to rise again, the people turned their devotion to Asar (Osiris), who dies and returns eternally — the seed that becomes the stalk, the man who becomes god.
+The month taught that to live in Maʿat is to keep the line unbroken. The Kemite saw himself as one link in a living chain — not an isolated self, but a continuation of those before him. The ancestors were not gone; they were present in the Ka, woven into the body of the world. It reminded the Kemite that time itself is alive — that every cycle, every seed, every breath belongs to one vast current.
+By remembering the ancestors and tending the Ka, the people aligned themselves with the eternal rhythm of Maʿat — the order that never dies.
+This understanding dissolved fear of death. To die was to change form; to live rightly was to ensure one’s Ka would continue the journey. Hence the saying preserved at Abydos:
+“He who remembers, endures;
+He who is remembered, returns.”
 ''',
   12: '''
 Month 12 – Mesore (Mesori)
-The final month, Mesore, is known as “Birth of Ra.” It honors Ra-Horakhty (Ra-Horus of the Horizons), the composite god of the rising sun. Myths relate that after passing through the netherworld, Ra is reborn at dawn as a falcon emerging from the womb of Nut. In Mesore, the land baked; canals were dredged in anticipation of the next flood. Farmers cleaned tools, repaired granaries, and stored seed. Priests held ceremonies called “Opening of the Year” where they lifted solar disks and recited creation hymns. Children were brought to temple roofs before sunrise to witness Ra’s first spark; elders explained how each day’s dawn recapitulated the first day. The decans in the eastern sky seemed to walk backward as they approached the horizon, a hint of the upcoming inversion when the new year began. This month’s ethic is closure with confidence: finish tasks, rest, and trust that the sun, and life itself, will be reborn.
+In inscriptions from the Old Kingdom through the Middle Kingdom temple calendars, Mswt-Rꜥ, “The Birth of Ra,” was treated as the gestational month of the year — when both earth and gods prepared to bring forth. It was the month of waiting in balance, just before the five Heriu Renpet (epagomenal days), when the gods themselves would be born anew.
+The word msn (from msi, “to give birth”) forms the root of the month’s name and of later words such as Mswt (“births”) and personal names like Ms-nfrt (“Born of Beauty”). The Hebrew name Moshe (Moses) is linguistically related to this same Egyptian root — all echoing one creative act: emergence from the hidden into the seen.
+Mythologically, Mswt-Rꜥ belongs to Nut, the sky goddess who swallows the sun each evening and gives birth to him each morning.
+In this closing month, the myth expands: Nut becomes the cosmic womb preparing to deliver the divine children — Asar (Osiris), Horus the Elder, Set, Aset (Isis), and Nephthys — born during the Heriu Renpet.
+Texts from Dendera describe the sky “bent in labor,” the stars trembling with anticipation. The people saw in this cosmic image their own renewal: as Nut labored to bring forth the gods, the Nile too would soon “labor” to bring the flood.
+The atmosphere of this month was serene — like a long exhale. The air was hot and still, yet the people’s hearts felt light. Children were taught the “Counting of Years,” scratching tallies on potsherds to mark the completion of another cycle. The old told stories of floods past — both gentle and wild — to remind the young that life’s balance depends on reverence and readiness.
+The nights were filled with ritual songs called ḥeset en renpet — “praises of the year” — sung to Nut and Sopdet, thanking them for carrying the world faithfully through its circle of transformation.
+Temples across Kemet held the “Ritual of Sealing the Year.” Priests extinguished the perpetual lamps of the closing cycle, reciting:
+“The breath returns to the sky,
+The seed returns to the soil,
+The order stands — awaiting the dawn.”
+Only on the first day of the new year would the lamps be rekindled.
+Families performed their own versions of this rite — clearing altars, washing statues, repainting household shrines. Offerings of water, natron, and lotus symbolized purification; small clay figurines of frogs and scarabs represented fertility and transformation.
+Mswt-Rꜥ is the last breath of the solar year — the sacred pause before rebirth. It is both the grave and the womb, the place where silence becomes song again. In this month, the Kemite world stood still not from exhaustion, but from awe. For soon, the five luminous days — the births of the gods — would arrive, and life itself would begin anew.
 ''',
 };
 
@@ -819,7 +901,7 @@ class _CalendarPageState extends State<CalendarPage> {
   final Map<String, List<_Note>> _notes = {};
   List<_Flow> _flows = [];
   int _nextFlowId = 1;
-  int _nextAlarmId = 1; // for local notification IDs
+  // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
   final ScrollController _scrollCtrl = ScrollController();
 
   /* ───── ClientEventId utilities ───── */
@@ -1154,33 +1236,7 @@ class _CalendarPageState extends State<CalendarPage> {
       end: allDay ? null : end,
       flowId: flowId,
     ));
-    // schedule local notification for this note
-    final gDate = KemeticMath.toGregorian(kYear, kMonth, kDay);
-    final DateTime when = () {
-      if (!allDay && start != null) {
-        return DateTime(gDate.year, gDate.month, gDate.day, start!.hour, start!.minute);
-      }
-      // default 9:00 AM local if all-day or no start time
-      return DateTime(gDate.year, gDate.month, gDate.day, 9, 0);
-    }();
-// simple id: yyyymmdd + small hash to avoid collisions
-    final int id = int.parse(
-        '${gDate.year.toString().padLeft(4, '0')}${gDate.month.toString().padLeft(2, '0')}${gDate.day.toString().padLeft(2, '0')}'
-    ) ^ (title.hashCode & 0x3FFF);
-
-    final bodyLines = <String>[
-      if ((location ?? '').trim().isNotEmpty) location!.trim(),
-      if ((detail ?? '').trim().isNotEmpty) detail!.trim(),
-    ];
-    Notify.scheduleAlert(
-      id: id,
-      scheduledAt: when,
-      title: title,
-      body: bodyLines.isEmpty ? null : bodyLines.join('\n'),
-      payload: '{}',
-    );
-
-
+    // Do not schedule notifications here; scheduling is handled by the caller.
     setState(() {});
   }
 
@@ -1277,6 +1333,12 @@ class _CalendarPageState extends State<CalendarPage> {
         }
         try {
           await repo.deleteByClientId(cid);
+          // Cancel the notification for this event so it does not fire after deletion
+          try {
+            await Notify.cancelNotificationForEvent(cid);
+          } catch (_) {
+            // ignore cancellation errors
+          }
           removed = true;
           successfulCid = cid;
           if (kDebugMode) {
@@ -1320,6 +1382,12 @@ class _CalendarPageState extends State<CalendarPage> {
               final cid = evt.clientEventId;
               if (cid != null && cid.isNotEmpty) {
                 await repo.deleteByClientId(cid);
+                // Cancel the notification for this event so it does not fire after deletion
+                try {
+                  await Notify.cancelNotificationForEvent(cid);
+                } catch (_) {
+                  // ignore cancellation errors
+                }
                 removed = true;
                 successfulCid = cid;
                 if (kDebugMode) {
@@ -1413,6 +1481,12 @@ class _CalendarPageState extends State<CalendarPage> {
     }
     try {
       await repo.deleteByClientId(cid);
+      // Cancel the notification for this event so it does not fire after deletion
+      try {
+        await Notify.cancelNotificationForEvent(cid);
+      } catch (_) {
+        // ignore cancellation errors
+      }
       if (kDebugMode) {
         debugPrint('[delete-note] ✅ SUCCESS: Deleted with flowId=$flowId, CID=$cid');
       }
@@ -1715,12 +1789,15 @@ class _CalendarPageState extends State<CalendarPage> {
       final f = edited.savedFlow!;
       final editFlowId = f.id >= 0 ? f.id : null;
       if (editFlowId != null) {
-        // ✅ FIX: Persist to database when editing existing flow
-        await _persistFlowStudioResult(edited);
-        finalFlowId = editFlowId;
+        final idx = _flows.indexWhere((e) => e.id == editFlowId);
+        if (idx >= 0) {
+          _flows[idx] = f..id = editFlowId;
+          finalFlowId = editFlowId; // <-- capture id for existing flow
+          setState(() {});
+        }
       } else {
         _saveNewFlow(f);
-        finalFlowId = f.id; // id assigned inside _saveNewFlow
+        finalFlowId = f.id; // <-- id assigned inside _saveNewFlow
       }
     }
 
@@ -1759,8 +1836,22 @@ class _CalendarPageState extends State<CalendarPage> {
         ];
         final body = bodyLines.isEmpty ? null : bodyLines.join('\n');
 
-        await Notify.scheduleAlert(
-          id: _nextAlarmId++,
+        // Generate clientEventId for this flow event. Use the unified
+        // schema so that notifications persist across restarts and can be
+        // cancelled by CID. Determine the correct flow id to stamp:
+        final int noteFlowId = (n.flowId ?? finalFlowId) ?? -1;
+        final String flowCid = _buildCid(
+          ky: p.ky,
+          km: p.km,
+          kd: p.kd,
+          title: n.title,
+          startHour: (n.start ?? const TimeOfDay(hour: 9, minute: 0)).hour,
+          startMinute: (n.start ?? const TimeOfDay(hour: 9, minute: 0)).minute,
+          allDay: n.allDay,
+          flowId: noteFlowId,
+        );
+        await Notify.scheduleAlertWithPersistence(
+          clientEventId: flowCid,
           scheduledAt: when,
           title: n.title,
           body: body,
@@ -2177,6 +2268,30 @@ class _CalendarPageState extends State<CalendarPage> {
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[endFlow] ⚠️ Failed to delete notes: $e');
+      }
+    }
+
+    // Cancel all notifications for this flow's events
+    try {
+      final events = await repo.getAllEvents();
+      for (final evt in events) {
+        if (evt.flowLocalId == flowId || _flowIdFromCid(evt.clientEventId ?? '') == flowId) {
+          final String? cid = evt.clientEventId;
+          if (cid != null) {
+            try {
+              await Notify.cancelNotificationForEvent(cid);
+            } catch (_) {
+              // ignore cancellation errors
+            }
+          }
+        }
+      }
+      if (kDebugMode) {
+        debugPrint('[endFlow] ✔ Cancelled notifications for flowId=$flowId');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[endFlow] ⚠️ Failed to cancel notifications: $e');
       }
     }
     // Delete the flow itself
@@ -2813,9 +2928,24 @@ class _CalendarPageState extends State<CalendarPage> {
                             ];
                             final body = bodyLines.isEmpty ? null : bodyLines.join('\n');
 
-                            // Schedule the local notification
-                            await Notify.scheduleAlert(
-                              id: _nextAlarmId++,
+                            // Build canonical clientEventId for this manual note. Use unified
+                            // schema: include the Kemetic date, slugified title, optional start
+                            // time (or null for all-day), and flowId=-1 since manual notes are
+                            // not linked to a flow. This ensures that notifications persist
+                            // across app restarts and can be cancelled by CID.
+                            final String unifiedCid = _buildCid(
+                              ky: selYear,
+                              km: selMonth,
+                              kd: selDay,
+                              title: t,
+                              startHour: (allDay || startTime == null) ? null : startTime!.hour,
+                              startMinute: (allDay || startTime == null) ? null : startTime!.minute,
+                              allDay: allDay,
+                              flowId: -1,
+                            );
+                            // Schedule the local notification WITH PERSISTENCE
+                            await Notify.scheduleAlertWithPersistence(
+                              clientEventId: unifiedCid,
                               scheduledAt: scheduledAt,
                               title: t,
                               body: body,
@@ -3392,16 +3522,6 @@ class _CalendarPageState extends State<CalendarPage> {
             tooltip: 'Today',
             icon: const _GlossyIcon(Icons.calendar_today, gradient: _silverGloss),
             onPressed: _scrollToToday,
-          ),
-          IconButton(
-            tooltip: 'Test alert',
-            icon: const _GlossyIcon(Icons.notifications_active, gradient: _silverGloss),
-            onPressed: () => Notify.debugTestNow(),
-          ),
-          IconButton(
-            tooltip: 'Debug schedule (+10s)',
-            icon: const Icon(Icons.schedule),
-            onPressed: () => Notify.debugScheduleIn(seconds: 10),
           ),
           IconButton(
             tooltip: 'Search events',
