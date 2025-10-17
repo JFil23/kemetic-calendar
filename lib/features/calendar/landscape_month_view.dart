@@ -111,6 +111,25 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     return (kYear: ky, kMonth: km);
   }
 
+  void _jumpToToday() {
+    final now = DateTime.now();
+    final today = KemeticMath.fromGregorian(now);
+    
+    // Calculate which page shows today's month
+    final todayTotalMonths = (today.kYear * 13) + (today.kMonth - 1);
+    final initialTotalMonths = (widget.initialKy * 13) + (widget.initialKm - 1);
+    final delta = todayTotalMonths - initialTotalMonths;
+    final targetPage = _centerPage + delta;
+    
+    if (_pageController.hasClients) {
+      _pageController.animateToPage(
+        targetPage,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
   void _onPageChanged(int page) {
     // Optional: update state if you need to track current month
     // But don't use this for calculations!
@@ -137,6 +156,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           flowIndex: widget.flowIndex,
           getMonthName: widget.getMonthName,
           onManageFlows: widget.onManageFlows,
+          onJumpToToday: _jumpToToday,
         );
       },
     );
@@ -157,6 +177,7 @@ class LandscapeMonthGrid extends StatefulWidget {
   final Map<int, FlowData> flowIndex;
   final String Function(int km) getMonthName;
   final VoidCallback? onManageFlows;
+  final VoidCallback? onJumpToToday;
 
   const LandscapeMonthGrid({
     super.key,
@@ -168,6 +189,7 @@ class LandscapeMonthGrid extends StatefulWidget {
     required this.flowIndex,
     required this.getMonthName,
     this.onManageFlows,
+    this.onJumpToToday,
   });
 
   @override
@@ -291,6 +313,27 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
         elevation: 0,
         automaticallyImplyLeading: false, // No back/close button
         title: _buildMonthHeader(),
+        actions: [
+          // Flow Studio button
+          IconButton(
+            tooltip: 'Flow Studio',
+            icon: const Icon(Icons.view_timeline, color: _gold),
+            onPressed: widget.onManageFlows,
+          ),
+          // Today button
+          TextButton(
+            onPressed: widget.onJumpToToday,
+            child: const Text(
+              'Today',
+              style: TextStyle(
+                color: _gold, // Gold color (matching day view)
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Stack(
         children: [

@@ -268,66 +268,34 @@ class _DayViewPageState extends State<DayViewPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF000000), // True black
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0D0D0F),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Color(0xFFFFC145)), // Gold
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: _buildDayHeader(),
-        actions: [
-          // Today button
-          TextButton(
-            onPressed: () {
-              // Get today's date in BOTH calendars
-              final nowG = DateTime.now();
-              final todayGregorian = DateTime(nowG.year, nowG.month, nowG.day); // Date only
-              final today = KemeticMath.fromGregorian(todayGregorian);
-              
-              // Calculate offset using GREGORIAN ARITHMETIC (same as _dateForPage)
-              // _dateForPage does: _initialGregorian.add(Duration(days: offset))
-              // So reverse that: offset = (today - _initialGregorian) in days
-              final offsetDays = todayGregorian.difference(_initialGregorian).inDays;
-              final targetPage = _centerPage + offsetDays;
-              
-              // Jump to that page
-              _pageController.jumpToPage(targetPage);
-              
-              // Update state to reflect today
-              setState(() {
-                _currentKy = today.kYear;
-                _currentKm = today.kMonth;
-                _currentKd = today.kDay;
-                // DON'T update _initialGregorian - that's our anchor point!
-                // If we change it, all the other pages will shift too
-              });
-            },
-            child: const Text(
-              'Today',
-              style: TextStyle(color: Color(0xFFFFC145)), // Gold
+      body: Column(
+        children: [
+          // Custom Apple-style header
+          _buildAppleStyleHeader(),
+          
+          // Existing page view with timeline
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              onPageChanged: _onPageChanged,
+              itemBuilder: (context, index) {
+                final kDate = _dateForPage(index);
+                return DayViewGrid(
+                  key: ValueKey('${kDate.kYear}-${kDate.kMonth}-${kDate.kDay}'), // Add key
+                  ky: kDate.kYear,
+                  km: kDate.kMonth,
+                  kd: kDate.kDay,
+                  notes: widget.notesForDay(kDate.kYear, kDate.kMonth, kDate.kDay),
+                  showGregorian: widget.showGregorian,
+                  flowIndex: widget.flowIndex,
+                  initialScrollOffset: _savedScrollOffset,    // 🔧 NEW
+                  onScrollChanged: _onScrollChanged,          // 🔧 NEW
+                  onManageFlows: widget.onManageFlows, // NEW: Pass callback down
+                );
+              },
             ),
           ),
         ],
-      ),
-      body: PageView.builder(
-        controller: _pageController,
-        onPageChanged: _onPageChanged,
-        itemBuilder: (context, index) {
-          final kDate = _dateForPage(index);
-          return DayViewGrid(
-            key: ValueKey('${kDate.kYear}-${kDate.kMonth}-${kDate.kDay}'), // Add key
-            ky: kDate.kYear,
-            km: kDate.kMonth,
-            kd: kDate.kDay,
-            notes: widget.notesForDay(kDate.kYear, kDate.kMonth, kDate.kDay),
-            showGregorian: widget.showGregorian,
-            flowIndex: widget.flowIndex,
-            initialScrollOffset: _savedScrollOffset,    // 🔧 NEW
-            onScrollChanged: _onScrollChanged,          // 🔧 NEW
-            onManageFlows: widget.onManageFlows, // NEW: Pass callback down
-          );
-        },
       ),
     );
   }
@@ -345,8 +313,178 @@ class _DayViewPageState extends State<DayViewPage> {
     );
   }
 
+  Widget _buildAppleStyleHeader() {
+    final monthName = widget.getMonthName(_currentKm);
+    final dayCount = _currentKm == 13 
+      ? (KemeticMath.isLeapKemeticYear(_currentKy) ? 6 : 5)
+      : 30;
+    
+    // Get today's Kemetic date for highlighting
+    final now = DateTime.now();
+    final today = KemeticMath.fromGregorian(now);
+    
+    // 🔧 FIX 1: Get Gregorian year for the current Kemetic date
+    final currentGregorian = KemeticMath.toGregorian(_currentKy, _currentKm, _currentKd);
+    final gregorianYear = currentGregorian.year; // This is 2025
+    
+    return Container(
+      color: const Color(0xFF0D0D0F), // Dark surface
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // Top row: Close button, Month name, Flow Studio, Today
+            Container(
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                children: [
+                  // Close button
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Color(0xFFFFC145)),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  // Month name
+                  Expanded(
+                    child: Text(
+                      monthName,
+                      style: const TextStyle(
+                        color: Color(0xFFFFC145),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  // Flow Studio button
+                  IconButton(
+                    tooltip: 'Flow Studio',
+                    icon: const Icon(Icons.view_timeline, color: Color(0xFFFFC145)),
+                    onPressed: widget.onManageFlows,
+                  ),
+                  // Today button
+                  TextButton(
+                    onPressed: () {
+                      final now = DateTime.now();
+                      final todayGregorian = DateTime(now.year, now.month, now.day);
+                      final offsetDays = todayGregorian.difference(_initialGregorian).inDays;
+                      final targetPage = _centerPage + offsetDays;
+                      
+                      if (_pageController.hasClients) {
+                        _pageController.animateToPage(
+                          targetPage,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                        );
+                      }
+                    },
+                    child: const Text(
+                      'Today',
+                      style: TextStyle(
+                        color: Color(0xFFFFC145),
+                        fontSize: 17,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // 🔧 FIX 2: Mini calendar with auto-scroll
+            SizedBox(
+              height: 40,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                itemCount: dayCount,
+                // Auto-scroll to keep current day visible and centered
+                controller: ScrollController(
+                  initialScrollOffset: ((_currentKd - 5).clamp(0, (dayCount - 10).clamp(0, dayCount))).toDouble() * 40,
+                ),
+                itemBuilder: (context, index) {
+                  final day = index + 1;
+                  final isCurrentDay = day == _currentKd;
+                  final isToday = today.kYear == _currentKy && 
+                                 today.kMonth == _currentKm && 
+                                 today.kDay == day;
+                  
+                  return GestureDetector(
+                    onTap: () {
+                      final currentGregorian = KemeticMath.toGregorian(_currentKy, _currentKm, _currentKd);
+                      final targetGregorian = KemeticMath.toGregorian(_currentKy, _currentKm, day);
+                      final offsetDays = targetGregorian.difference(currentGregorian).inDays;
+                      final targetPage = _pageController.page!.round() + offsetDays;
+                      
+                      _pageController.animateToPage(
+                        targetPage,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOut,
+                      );
+                    },
+                    child: Container(
+                      width: 36,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: isCurrentDay
+                          ? Border.all(color: const Color(0xFFFFC145), width: 1.5)
+                          : null,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$day',
+                          style: TextStyle(
+                            color: isToday 
+                              ? const Color(0xFFFFC145)
+                              : (isCurrentDay 
+                                ? const Color(0xFFAAAAAA)
+                                : Colors.white54),
+                            fontSize: 16,
+                            fontWeight: isCurrentDay || isToday 
+                              ? FontWeight.w600 
+                              : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // 🔧 FIX 1: Full date with GREGORIAN year
+            Container(
+              padding: const EdgeInsets.only(bottom: 12),
+              alignment: Alignment.center,
+              child: Text(
+                // Show: "Renwet 2, 2025" (Kemetic date + Gregorian year)
+                '${monthName.split(' ').first} $_currentKd, $gregorianYear',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            
+            const Divider(height: 1, color: Color(0xFF1A1A1A)),
+          ],
+        ),
+      ),
+    );
+  }
+
   String _formatGregorianDate(DateTime date) {
     return '${date.month}/${date.day}/${date.year}';
+  }
+
+  String _getGregorianMonthName(int month) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1];
   }
 }
 
