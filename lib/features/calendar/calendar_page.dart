@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:convert' as json;
 import 'dart:convert';
+import 'day_view.dart';
 
 
 
@@ -1557,6 +1558,11 @@ class _CalendarPageState extends State<CalendarPage> {
           final idx = _flows.indexWhere((f) => f.id == localId);
           if (idx >= 0) {
             _flows[idx].id = savedId;
+            // Add debug logging
+            if (kDebugMode) {
+              debugPrint('[saveNewFlow] Remapped flow ID: $localId → $savedId');
+              debugPrint('[saveNewFlow] Flow "${_flows[idx].name}" color: ${_flows[idx].color.value.toRadixString(16)}');
+            }
           }
           // 2) re-stamp any notes that used the local id to now use the server id
           _rekeyNotesFlowId(localId, savedId);
@@ -1576,12 +1582,14 @@ class _CalendarPageState extends State<CalendarPage> {
 
 
   void _rekeyNotesFlowId(int fromId, int toId) {
+    // Collect all notes that need database updates
+    final List<({int ky, int km, int kd, _Note note})> notesToPersist = [];
+    
     // Walk the in-memory notes map and change any note.flowId == fromId to toId
-    _notes.updateAll((_, list) {
+    _notes.updateAll((key, list) {
       return list.map((n) {
         if ((n.flowId ?? -1) == fromId) {
-          // ⬇︎ REPLACE copyWith: build a new _Note with updated flowId
-          return _Note(
+          final updatedNote = _Note(
             title: n.title,
             detail: n.detail,
             location: n.location,
@@ -1589,12 +1597,82 @@ class _CalendarPageState extends State<CalendarPage> {
             start: n.start,
             end: n.end,
             flowId: toId,
-          ); // ⬆︎ end manual rebuild
-
+          );
+          
+          // Parse the key to get ky, km, kd
+          final parts = key.split('-');
+          if (parts.length == 3) {
+            final ky = int.tryParse(parts[0]);
+            final km = int.tryParse(parts[1]);
+            final kd = int.tryParse(parts[2]);
+            if (ky != null && km != null && kd != null) {
+              notesToPersist.add((ky: ky, km: km, kd: kd, note: updatedNote));
+            }
+          }
+          
+          return updatedNote;
         }
         return n;
       }).toList();
     });
+    
+    // Persist to database
+    if (notesToPersist.isNotEmpty) {
+      Future.microtask(() async {
+        try {
+          final repo = UserEventsRepo(Supabase.instance.client);
+          for (final item in notesToPersist) {
+            final gDay = KemeticMath.toGregorian(item.ky, item.km, item.kd);
+            final String cid = _buildCid(
+              ky: item.ky,
+              km: item.km,
+              kd: item.kd,
+              title: item.note.title,
+              startHour: item.note.start?.hour,
+              startMinute: item.note.start?.minute,
+              allDay: item.note.allDay,
+              flowId: toId,
+            );
+            final DateTime startsAt = DateTime(
+              gDay.year,
+              gDay.month,
+              gDay.day,
+              item.note.start?.hour ?? 9,
+              item.note.start?.minute ?? 0,
+            );
+            DateTime? endsAt;
+            if (item.note.allDay == false && item.note.end != null) {
+              endsAt = DateTime(
+                gDay.year,
+                gDay.month,
+                gDay.day,
+                item.note.end!.hour,
+                item.note.end!.minute,
+              );
+            }
+            final String prefix = toId >= 0 ? 'flowLocalId=$toId;' : '';
+            final String? det = item.note.detail;
+            final String detailPayload = prefix + (det?.trim() ?? '');
+            await repo.upsertByClientId(
+              clientEventId: cid,
+              title: item.note.title,
+              startsAtUtc: startsAt.toUtc(),
+              detail: detailPayload.isEmpty ? null : detailPayload,
+              location: (item.note.location ?? '').trim().isEmpty ? null : item.note.location!.trim(),
+              allDay: item.note.allDay,
+              endsAtUtc: endsAt?.toUtc(),
+            );
+          }
+          if (kDebugMode) {
+            debugPrint('[rekeyNotesFlowId] Updated ${notesToPersist.length} notes from flowId=$fromId to flowId=$toId in database');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('[rekeyNotesFlowId] Failed to persist flow ID updates: $e');
+          }
+        }
+      });
+    }
   }
 
 
@@ -2314,6 +2392,59 @@ class _CalendarPageState extends State<CalendarPage> {
 
 
 
+
+  /* ───── Day View Navigation ───── */
+
+  void _openDayView(BuildContext ctx, int kYear, int kMonth, int kDay) {
+    // Adapter: Convert _Note to NoteData
+    final notesForDayFn = (int y, int m, int d) {
+      final key = '$y-$m-$d';
+      final notes = _notes[key] ?? [];
+      return notes.map((n) => NoteData(
+        title: n.title,
+        detail: n.detail,
+        location: n.location,
+        allDay: n.allDay,
+        start: n.start,
+        end: n.end,
+        flowId: n.flowId,
+      )).toList();
+    };
+
+    // Adapter: Convert _Flow to FlowData
+    final flowIndex = <int, FlowData>{};
+    for (final f in _flows.where((f) => f.active)) {
+      flowIndex[f.id] = FlowData(
+        id: f.id,
+        name: f.name,
+        color: f.color,
+        active: f.active,
+      );
+    }
+
+    // Get month name function
+    final getMonthName = (int km) {
+      if (km == 13) return 'Heriu Renpet (ḥr.w rnpt)';
+      return _MonthCard.monthNames[km] ?? 'Month $km';
+    };
+
+    // Navigate to Day View
+    Navigator.push(
+      ctx,
+      MaterialPageRoute(
+        builder: (context) => DayViewPage(
+          initialKy: kYear,
+          initialKm: kMonth,
+          initialKd: kDay,
+          showGregorian: _showGregorian,
+          notesForDay: notesForDayFn,
+          flowIndex: flowIndex,
+          getMonthName: getMonthName,
+          onManageFlows: _openFlowsViewer, // Wire up to existing method
+        ),
+      ),
+    );
+  }
 
   /* ───── Day Sheet ───── */
 
@@ -3353,6 +3484,11 @@ class _CalendarPageState extends State<CalendarPage> {
         _flows.add(saved);
         if (savedId >= _nextFlowId) _nextFlowId = savedId + 1;
       }
+      
+      // Add verification logging
+      if (kDebugMode) {
+        debugPrint('[persistFlowStudio] Saved flow $savedId "${saved.name}" with color=${saved.color.value.toRadixString(16)} to database');
+      }
     }
 
     // 3) Apply planned notes locally
@@ -3692,7 +3828,7 @@ class _CalendarPageState extends State<CalendarPage> {
                   todayDay: null,
                   todayDayKey: null, // no anchor in past/future lists
                   monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
-                  onDayTap: (c, m, d) => _openDaySheet(c, kYear, m, d),
+                  onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
                   notesGetter: (m, d) => _getNotes(kYear, m, d),
                   flowsGetter: (m, d) => _getFlowOccurrences(kYear, m, d),
                   showGregorian: _showGregorian,
@@ -3711,7 +3847,7 @@ class _CalendarPageState extends State<CalendarPage> {
               todayDay: kToday.kDay,
               monthAnchorKeyProvider: (m) => keyForMonth(kToday.kYear, m),
               todayDayKey: _todayDayKey, // 🔑 pass day anchor
-              onDayTap: (c, m, d) => _openDaySheet(c, kToday.kYear, m, d),
+              onDayTap: (c, m, d) => _openDayView(c, kToday.kYear, m, d),
               notesGetter: (m, d) => _getNotes(kToday.kYear, m, d),
               flowsGetter: (m, d) => _getFlowOccurrences(kToday.kYear, m, d),
               showGregorian: _showGregorian,
@@ -3729,7 +3865,7 @@ class _CalendarPageState extends State<CalendarPage> {
                   todayDay: null,
                   todayDayKey: null,
                   monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
-                  onDayTap: (c, m, d) => _openDaySheet(c, kYear, m, d),
+                  onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
                   notesGetter: (m, d) => _getNotes(kYear, m, d),
                   flowsGetter: (m, d) => _getFlowOccurrences(kYear, m, d),
                   showGregorian: _showGregorian,
@@ -7024,6 +7160,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
   // Load an existing flow into the editor (best-effort reconstruction of rules)
   void _loadFlowForEdit(_Flow f) {
+    // Add debug logging
+    if (kDebugMode) {
+      debugPrint('[loadFlowForEdit] Loading flow ${f.id} "${f.name}" with color=${f.color.value.toRadixString(16)}');
+    }
+    
     setState(() {
       _editing = f;
       _nameCtrl.text = f.name;
@@ -7031,6 +7172,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
       final idx = _flowPalette.indexWhere((c) => c.value == f.color.value);
       _selectedColorIndex = idx >= 0 ? idx : 0;
+      
+      // Add debug logging for color not found
+      if (kDebugMode && idx < 0) {
+        debugPrint('[loadFlowForEdit] Color ${f.color.value.toRadixString(16)} not found in palette, defaulting to index 0');
+      }
 
       _startDate = f.start == null ? null : _dateOnly(f.start!);
       _endDate   = f.end   == null ? null : _dateOnly(f.end!);
