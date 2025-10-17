@@ -701,9 +701,10 @@ class _DayViewGridState extends State<DayViewGrid> {
       builder: (context) {
         return Container(
           padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Flow name badge
               if (flow != null) ...[
@@ -834,6 +835,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 ],
               ),
             ],
+            ),
           ),
         );
       },
