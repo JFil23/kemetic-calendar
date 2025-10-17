@@ -1789,12 +1789,9 @@ class _CalendarPageState extends State<CalendarPage> {
       final f = edited.savedFlow!;
       final editFlowId = f.id >= 0 ? f.id : null;
       if (editFlowId != null) {
-        final idx = _flows.indexWhere((e) => e.id == editFlowId);
-        if (idx >= 0) {
-          _flows[idx] = f..id = editFlowId;
-          finalFlowId = editFlowId; // <-- capture id for existing flow
-          setState(() {});
-        }
+        // ✅ FIX: Persist to database when editing existing flow
+        await _persistFlowStudioResult(edited);
+        finalFlowId = editFlowId;
       } else {
         _saveNewFlow(f);
         finalFlowId = f.id; // <-- id assigned inside _saveNewFlow
@@ -4999,6 +4996,10 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
     final gridW = colW * days.length + (_daySepW * (days.length - 1));
     final gridH = _rowH * 24 + (_hourSepH * 23);
 
+    if (!_notesHydrated) {
+      return _buildHydrationPlaceholder(context);
+    }
+
     // Capture center before rebuilds (e.g., rotate within grid)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_hGrid.hasClients || !_vGrid.hasClients) return;
@@ -5209,6 +5210,14 @@ class _LandscapeGridPageState extends State<_LandscapeGridPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildHydrationPlaceholder(BuildContext context) {
+    final bg = Theme.of(context).scaffoldBackgroundColor;
+    return Container(
+      color: bg,
+      child: const Center(child: CircularProgressIndicator()),
     );
   }
 
