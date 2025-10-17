@@ -8,6 +8,7 @@ import '../../model/entities.dart';
 import 'dart:io' show File, Directory;
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'landscape_month_view.dart';
 import 'dart:convert' as json;
 import 'dart:convert';
 import 'day_view.dart';
@@ -3593,25 +3594,29 @@ class _CalendarPageState extends State<CalendarPage> {
       _updateCenteredMonthWide();
       final ky = _lastViewKy ?? kToday.kYear;
       final km = _lastViewKm ?? kToday.kMonth;
-      return _LandscapePager(
-        dataVersion: _dataVersion,
-        hydrated: _dataVersion > 0,
-        initialYear: ky,
-        initialMonth: km,
+      return LandscapeMonthView(
+        initialKy: ky,
+        initialKm: km,
+        initialKd: null, // No specific day from main calendar
         showGregorian: _showGregorian,
-        decanNamesForMonth: (m) => _MonthCard.decans[m] ?? const ['I','II','III'],
-        flowsGetter: (y, m, d) => _getFlowOccurrences(y, m, d),
-        notesGetter: (y, m, d) => _getNotes(y, m, d),
-        onRequestJumpToToday: _scrollToToday,
-        onViewportChanged: (viewKy, viewKm, viewDay, viewMinute) {
-          _lastViewKy = viewKy;
-          _lastViewKm = viewKm;
-          _pendingCenterKy = viewKy;
-          _pendingCenterKm = viewKm;
-          _savedVerticalOffset = null;
+        notesForDay: (ky, km, kd) {
+          final notes = _getNotes(ky, km, kd);
+          return notes.map((n) => NoteData(
+            title: n.title,
+            detail: n.detail,
+            location: n.location,
+            allDay: n.allDay,
+            start: n.start,
+            end: n.end,
+            flowId: n.flowId,
+          )).toList();
         },
-        // Pass all active flows so the landscape pager can build a complete flow lookup
-        allActiveFlows: _flows.where((f) => f.active).toList(),
+        flowIndex: _buildFlowIndex(),
+        getMonthName: (km) {
+          if (km == 13) return 'Heriu Renpet (ḥr.w rnpt)';
+          return _MonthCard.monthNames[km] ?? 'Month $km';
+        },
+        onManageFlows: _openFlowsViewer,
       );
     } else {
       // Coming back to portrait
@@ -3877,6 +3882,20 @@ class _CalendarPageState extends State<CalendarPage> {
         ],
       ), //
     );
+  }
+
+  // Helper method to build flow index for landscape month view
+  Map<int, FlowData> _buildFlowIndex() {
+    final index = <int, FlowData>{};
+    for (final f in _flows.where((f) => f.active)) {
+      index[f.id] = FlowData(
+        id: f.id,
+        name: f.name,
+        color: f.color,
+        active: f.active,
+      );
+    }
+    return index;
   }
 }
 

@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'calendar_page.dart';
+import 'landscape_month_view.dart';
 
 // ========================================
 // EVENT LAYOUT ENGINE
@@ -249,6 +250,22 @@ class _DayViewPageState extends State<DayViewPage> {
 
   @override
   Widget build(BuildContext context) {
+    // PREVENT landscape day view - redirect to month view instead
+    final orientation = MediaQuery.of(context).orientation;
+    
+    if (orientation == Orientation.landscape) {
+      return LandscapeMonthView(
+        initialKy: _currentKy,
+        initialKm: _currentKm,
+        initialKd: _currentKd,
+        showGregorian: widget.showGregorian,
+        notesForDay: widget.notesForDay,
+        flowIndex: widget.flowIndex,
+        getMonthName: widget.getMonthName,
+        onManageFlows: widget.onManageFlows,
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF000000), // True black
       appBar: AppBar(
