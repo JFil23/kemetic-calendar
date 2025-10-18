@@ -187,6 +187,7 @@ class DayViewPage extends StatefulWidget {
   final Map<int, FlowData> flowIndex;
   final String Function(int km) getMonthName;
   final VoidCallback? onManageFlows; // NEW: Callback to open My Flows
+  final void Function(int ky, int km, int kd)? onAddNote;
 
   const DayViewPage({
     super.key,
@@ -198,6 +199,7 @@ class DayViewPage extends StatefulWidget {
     required this.flowIndex,
     required this.getMonthName,
     this.onManageFlows, // NEW
+    this.onAddNote, // 🔧 NEW
   });
 
   @override
@@ -212,6 +214,9 @@ class _DayViewPageState extends State<DayViewPage> {
   late DateTime _initialGregorian; // Added for stable date arithmetic
   static const int _centerPage = 5000;
   double? _savedScrollOffset; // Added for scroll persistence
+  
+  // 🔧 ADD THIS: Persistent scroll controller for mini calendar
+  late ScrollController _miniCalendarScrollController;
 
   @override
   void initState() {
@@ -221,11 +226,19 @@ class _DayViewPageState extends State<DayViewPage> {
     _currentKd = widget.initialKd;
     _initialGregorian = KemeticMath.toGregorian(_currentKy, _currentKm, _currentKd);
     _pageController = PageController(initialPage: _centerPage);
+    
+    // 🔧 Initialize mini calendar scroll controller with starting position
+    final dayCount = _currentKm == 13 
+        ? (KemeticMath.isLeapKemeticYear(_currentKy) ? 6 : 5)
+        : 30;
+    final initialScroll = ((_currentKd - 5).clamp(0, (dayCount - 10).clamp(0, dayCount))).toDouble() * 34; // 30 width + 4 margin
+    _miniCalendarScrollController = ScrollController(initialScrollOffset: initialScroll);
   }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _miniCalendarScrollController.dispose(); // 🔧 Don't forget to dispose
     super.dispose();
   }
 
@@ -242,10 +255,32 @@ class _DayViewPageState extends State<DayViewPage> {
       _currentKm = kDate.kMonth;
       _currentKd = kDate.kDay;
     });
+    
+    // 🔧 ADD THIS: Animate mini calendar when day changes
+    _scrollMiniCalendar();
   }
 
   void _onScrollChanged(double offset) {
     _savedScrollOffset = offset;
+  }
+
+  // 🔧 ADD THIS METHOD: Animates the mini calendar scroll
+  void _scrollMiniCalendar() {
+    if (!_miniCalendarScrollController.hasClients) return;
+    
+    final dayCount = _currentKm == 13 
+        ? (KemeticMath.isLeapKemeticYear(_currentKy) ? 6 : 5)
+        : 30;
+    
+    // Calculate target scroll position (keep current day around position 5)
+    final targetScroll = ((_currentKd - 5).clamp(0, (dayCount - 10).clamp(0, dayCount))).toDouble() * 34; // 30 width + 4 margin
+    
+    // Animate to the new position
+    _miniCalendarScrollController.animateTo(
+      targetScroll,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -291,6 +326,7 @@ class _DayViewPageState extends State<DayViewPage> {
                   initialScrollOffset: _savedScrollOffset,    // 🔧 NEW
                   onScrollChanged: _onScrollChanged,          // 🔧 NEW
                   onManageFlows: widget.onManageFlows, // NEW: Pass callback down
+                  onAddNote: widget.onAddNote,
                 );
               },
             ),
@@ -359,7 +395,41 @@ class _DayViewPageState extends State<DayViewPage> {
                   IconButton(
                     tooltip: 'Flow Studio',
                     icon: const Icon(Icons.view_timeline, color: Color(0xFFFFC145)),
+                    padding: const EdgeInsets.symmetric(horizontal: 4), // 🔧 Reduced padding
                     onPressed: widget.onManageFlows,
+                  ),
+                  // 🔧 NEW: Add note button
+                  IconButton(
+                    tooltip: 'New note',
+                    icon: const Icon(Icons.add, color: Color(0xFFFFC145)),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    onPressed: widget.onAddNote != null
+                        ? () {
+                            // ✅ NEW: Get fresh context at tap time
+                            final BuildContext btnContext = context;
+                            
+                            // Get current page index
+                            final currentPage = _pageController.page?.round() ?? 0;
+                            final offsetDays = currentPage - _centerPage;
+                            
+                            // Calculate current Kemetic date directly from PageController
+                            final currentGreg = _initialGregorian.add(Duration(days: offsetDays));
+                            final currentKemetic = KemeticMath.fromGregorian(currentGreg);
+                            
+                            // Log for debugging
+                            if (kDebugMode) {
+                              print('➕ ADD NOTE BUTTON TAPPED (from Day View)');
+                              print('   Context valid: ${btnContext.mounted}');
+                            }
+                            
+                            // Call the callback directly
+                            widget.onAddNote!(
+                              currentKemetic.kYear,
+                              currentKemetic.kMonth,
+                              currentKemetic.kDay,
+                            );
+                          }
+                        : null, // Disabled if no callback
                   ),
                   // Today button
                   TextButton(
@@ -389,17 +459,15 @@ class _DayViewPageState extends State<DayViewPage> {
               ),
             ),
             
-            // 🔧 FIX 2: Mini calendar with auto-scroll
+            // 🔧 FIXED: Mini calendar now uses persistent controller (smaller size, closer spacing)
             SizedBox(
-              height: 40,
+              height: 32, // Reduced from 40
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 itemCount: dayCount,
                 // Auto-scroll to keep current day visible and centered
-                controller: ScrollController(
-                  initialScrollOffset: ((_currentKd - 5).clamp(0, (dayCount - 10).clamp(0, dayCount))).toDouble() * 40,
-                ),
+                controller: _miniCalendarScrollController, // 🔧 Use persistent controller
                 itemBuilder: (context, index) {
                   final day = index + 1;
                   final isCurrentDay = day == _currentKd;
@@ -421,7 +489,7 @@ class _DayViewPageState extends State<DayViewPage> {
                       );
                     },
                     child: Container(
-                      width: 36,
+                      width: 30, // Reduced from 36
                       margin: const EdgeInsets.symmetric(horizontal: 2),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
@@ -438,7 +506,7 @@ class _DayViewPageState extends State<DayViewPage> {
                               : (isCurrentDay 
                                 ? const Color(0xFFAAAAAA)
                                 : Colors.white54),
-                            fontSize: 16,
+                            fontSize: 14, // Reduced from 16
                             fontWeight: isCurrentDay || isToday 
                               ? FontWeight.w600 
                               : FontWeight.normal,
@@ -451,7 +519,7 @@ class _DayViewPageState extends State<DayViewPage> {
               ),
             ),
             
-            const SizedBox(height: 12),
+            const SizedBox(height: 8), // Reduced from 12
             
             // 🔧 FIX 1: Full date with GREGORIAN year
             Container(
@@ -502,6 +570,7 @@ class DayViewGrid extends StatefulWidget {
   final double? initialScrollOffset;              // 🔧 NEW
   final void Function(double offset)? onScrollChanged; // 🔧 NEW
   final VoidCallback? onManageFlows; // NEW
+  final void Function(int ky, int km, int kd)? onAddNote;
 
   const DayViewGrid({
     super.key,
@@ -514,6 +583,7 @@ class DayViewGrid extends StatefulWidget {
     this.initialScrollOffset,     // 🔧 NEW
     this.onScrollChanged,          // 🔧 NEW
     this.onManageFlows, // NEW
+    this.onAddNote, // 🔧 NEW
   });
 
   @override

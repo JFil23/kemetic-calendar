@@ -1045,17 +1045,10 @@ class _CalendarPageState extends State<CalendarPage> {
 
   int? _lastViewKy;       // last centered Kemetic year
   int? _lastViewKm;       // last centered Kemetic month (1..13)
-  double? _savedVerticalOffset;
-  bool _pendingRestoreVertical = false;
-  int? _pendingCenterKy;
-  int? _pendingCenterKm;
-
-
-  void _captureVertical() {
-    if (_scrollCtrl.hasClients) {
-      _savedVerticalOffset = _scrollCtrl.offset;
-    }
-  }
+  
+  // Debug logging fields
+  int _buildCount = 0; // Track how many times build() is called
+  Orientation? _lastOrientation; // Track orientation changes
 
 
 // Find the month card whose vertical center is closest to the viewport center.
@@ -1174,6 +1167,10 @@ class _CalendarPageState extends State<CalendarPage> {
 
   @override
   void dispose() {
+    debugPrint('');
+    debugPrint('🗑️  _CalendarPageState DISPOSING');
+    debugPrint('   Total builds: $_buildCount');
+    debugPrint('');
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -1849,7 +1846,7 @@ class _CalendarPageState extends State<CalendarPage> {
           Navigator.of(context).pop(); // dismiss search
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            _openDaySheet(context, ky, km, kd);
+            _openDaySheet(ky, km, kd);
           });
         },
       ),
@@ -2442,6 +2439,7 @@ class _CalendarPageState extends State<CalendarPage> {
           flowIndex: flowIndex,
           getMonthName: getMonthName,
           onManageFlows: _openFlowsViewer, // Wire up to existing method
+          onAddNote: (ky, km, kd) => _openDaySheet(ky, km, kd, allowDateChange: true),
         ),
       ),
     );
@@ -2450,12 +2448,23 @@ class _CalendarPageState extends State<CalendarPage> {
   /* ───── Day Sheet ───── */
 
   void _openDaySheet(
-      BuildContext ctx,
       int kYear,
       int kMonth,
       int kDay, {
         bool allowDateChange = false,
       }) {
+    debugPrint('');
+    debugPrint('┌─────────────────────────────────────┐');
+    debugPrint('│ 📝 OPENING DAY SHEET                │');
+    debugPrint('├─────────────────────────────────────┤');
+    debugPrint('│ Date: $kYear/$kMonth/$kDay');
+    debugPrint('│ allowDateChange: $allowDateChange');
+    debugPrint('│ Context mounted: ${context.mounted}');
+    debugPrint('│ Context widget: ${context.widget.runtimeType}');
+    debugPrint('│ Build count: $_buildCount');
+    debugPrint('└─────────────────────────────────────┘');
+    debugPrint('');
+
     int selYear = kYear;
     int selMonth = kMonth;
     int selDay = kDay;
@@ -2479,10 +2488,14 @@ class _CalendarPageState extends State<CalendarPage> {
     TimeOfDay? startTime = const TimeOfDay(hour: 12, minute: 0);
     TimeOfDay? endTime = const TimeOfDay(hour: 13, minute: 0);
 
+    try {
+      debugPrint('🚀 Attempting to show modal bottom sheet...');
     showModalBottomSheet(
-      context: ctx,
+        context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF121214),
+        backgroundColor: Colors.transparent, // ✅ More stable like Flow Studio
+        isDismissible: true,
+        enableDrag: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -2719,7 +2732,13 @@ class _CalendarPageState extends State<CalendarPage> {
               );
             }
 
-            return Padding(
+            return Container(
+              height: media.size.height * 0.90,
+              decoration: const BoxDecoration(
+                color: Color(0xFF000000), // ✅ True black background
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: Padding(
               padding: EdgeInsets.only(
                 left: 16,
                 right: 16,
@@ -3119,7 +3138,6 @@ class _CalendarPageState extends State<CalendarPage> {
 
                             Navigator.pop(sheetCtx);
                             _openDaySheet(
-                              ctx,
                               selYear,
                               selMonth,
                               selDay,
@@ -3131,6 +3149,7 @@ class _CalendarPageState extends State<CalendarPage> {
                       ),
                     ],
                   ),
+                  ),
                 ),
               ),
             );
@@ -3138,6 +3157,16 @@ class _CalendarPageState extends State<CalendarPage> {
         );
       },
     );
+    
+    debugPrint('✅ Modal bottom sheet opened successfully');
+    
+    } catch (e, stackTrace) {
+      debugPrint('');
+      debugPrint('❌ ERROR OPENING DAY SHEET');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      debugPrint('');
+    }
   }
 
 
@@ -3584,16 +3613,43 @@ class _CalendarPageState extends State<CalendarPage> {
 
   @override
   Widget build(BuildContext context) {
-    final kToday = _today;
+    _buildCount++;
 
+    final kToday = _today;
     final size = MediaQuery.sizeOf(context);
-    final isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
+    final orientation = MediaQuery.orientationOf(context);
+    final isLandscape = orientation == Orientation.landscape;
     final useGrid = isLandscape || size.width >= 900;
 
+    // ========================================
+    // DEBUG: Log orientation changes
+    // ========================================
+    if (_lastOrientation != null && _lastOrientation != orientation) {
+      if (kDebugMode) {
+        print('\n' + '🔄'*30);
+        print('ORIENTATION CHANGED!');
+        print('From: $_lastOrientation → To: $orientation');
+        print('Navigator canPop: ${Navigator.canPop(context)}');
+        print('Modal route active: ${ModalRoute.of(context)?.isCurrent ?? false}');
+        print('🔄'*30 + '\n');
+      }
+    }
+    _lastOrientation = orientation;
+
     if (useGrid) {
+      debugPrint('📱 Rendering: LandscapeMonthView (build #$_buildCount)');
       _updateCenteredMonthWide();
       final ky = _lastViewKy ?? kToday.kYear;
       final km = _lastViewKm ?? kToday.kMonth;
+
+      if (kDebugMode) {
+        print('\n📱 [CALENDAR] Building LandscapeMonthView');
+        print('   initialKy: $ky');
+        print('   initialKm: $km');
+        print('   initialKd: null');
+        print('   onAddNote callback: ${_openDaySheet != null ? "PROVIDED" : "NULL"}');
+      }
+      
       return LandscapeMonthView(
         initialKy: ky,
         initialKm: km,
@@ -3617,30 +3673,17 @@ class _CalendarPageState extends State<CalendarPage> {
           return _MonthCard.monthNames[km] ?? 'Month $km';
         },
         onManageFlows: _openFlowsViewer,
-      );
-    } else {
-      // Coming back to portrait
-      if (_pendingCenterKy != null && _pendingCenterKm != null) {
-        final ky = _pendingCenterKy!;
-        final km = _pendingCenterKm!;
-        _pendingCenterKy = null;
-        _pendingCenterKm = null;
-        _centerMonth(ky, km);
-      } else if (_savedVerticalOffset != null) {
-        _pendingRestoreVertical = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_pendingRestoreVertical && _scrollCtrl.hasClients) {
-            _scrollCtrl.jumpTo(
-              _savedVerticalOffset!.clamp(0, _scrollCtrl.position.maxScrollExtent),
-            );
+        onAddNote: (ky, km, kd) {
+          if (kDebugMode) {
+            print('\n🎯 [CALLBACK] onAddNote received from landscape');
+            print('   Date: $ky-$km-$kd');
           }
-          _pendingRestoreVertical = false;
-        });
-      }
+          _openDaySheet(ky, km, kd, allowDateChange: true);
+        },
+      );
     }
 
-
-
+    debugPrint('📱 Rendering: Portrait Scaffold (build #$_buildCount)');
 
     return Scaffold(
       backgroundColor: _bg,
@@ -3807,7 +3850,6 @@ class _CalendarPageState extends State<CalendarPage> {
             tooltip: 'New note',
             icon: const _GlossyIcon(Icons.add, gradient: _goldGloss),
             onPressed: () => _openDaySheet(
-              context,
               kToday.kYear,
               kToday.kMonth,
               kToday.kDay,
@@ -4819,814 +4861,61 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
   }
 }
 
-class _LandscapePager extends StatefulWidget {
-  final int initialYear;
-  final int initialMonth; // 1..13
-  final bool showGregorian;
-  final List<String> Function(int km) decanNamesForMonth;
-  final List<_FlowOccurrence> Function(int ky, int km, int day) flowsGetter;
-  final List<_Note> Function(int ky, int km, int day) notesGetter;
-  final VoidCallback onRequestJumpToToday;
-  final void Function(int ky, int km, int? day, int? minute)? onViewportChanged;
-  final int dataVersion;
-  final bool hydrated;
 
-  // 🔧 NEW: List of all active flows passed down to build flow lookup.
-  final List<_Flow> allActiveFlows;
 
 
-  const _LandscapePager({
-    super.key,
-    required this.initialYear,
-    required this.initialMonth,
-    required this.showGregorian,
-    required this.decanNamesForMonth,
-    required this.flowsGetter,
-    required this.notesGetter,
-    required this.onRequestJumpToToday,
-    this.onViewportChanged,
-    required this.dataVersion,
-    required this.hydrated,
-    required this.allActiveFlows,
-
-  });
-
-  @override
-  State<_LandscapePager> createState() => _LandscapePagerState();
-}
-
-class _LandscapePagerState extends State<_LandscapePager> {
-  late final PageController _pageCtrl;
-  static const int _origin = 100000;
-  // 🔧 NEW: Cache flow lookup and rebuild when data changes
-  late Map<int, FlowInfo> _cachedFlowLookup;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageCtrl = PageController(initialPage: _origin);
-    // Initialize the cached flow lookup on first build
-    _cachedFlowLookup = _buildFlowLookup();
-  }
-
-  // 🔧 NEW: Rebuild lookup when allActiveFlows or dataVersion changes
-  @override
-  void didUpdateWidget(_LandscapePager oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.dataVersion != widget.dataVersion ||
-        oldWidget.allActiveFlows.length != widget.allActiveFlows.length) {
-      _cachedFlowLookup = _buildFlowLookup();
-    }
-  }
-
-  @override
-  void dispose() {
-    _pageCtrl.dispose();
-    super.dispose();
-  }
-
-  (int ky, int km) _addMonths(int baseY, int baseM, int delta) {
-    final zero = (baseY * 13) + (baseM - 1) + delta;
-    final ky = zero ~/ 13;
-    final km = (zero % 13) + 1;
-    return (ky, km);
-  }
-
-  // 🔧 NEW: Build flow lookup from current allActiveFlows
-  Map<int, FlowInfo> _buildFlowLookup() {
-    final Map<int, FlowInfo> lookup = {};
-    for (final flow in widget.allActiveFlows) {
-      if (flow.active) {
-        lookup[flow.id] = FlowInfo(
-          name: flow.name,
-          color: flow.color,
-        );
-      }
-    }
-    return lookup;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PageView.builder(
-      controller: _pageCtrl,
-      scrollDirection: Axis.horizontal,
-      allowImplicitScrolling: true,
-      itemBuilder: (_, index) {
-        final delta = index - _origin;
-        final (ky, km) = _addMonths(widget.initialYear, widget.initialMonth, delta);
-
-        final monthLabel = (km == 13)
-            ? 'Heriu Renpet (ḥr.w rnpt)'
-            : _MonthCard.monthNames[km].split(' ').first;
-
-        final decans = (km == 13)
-            ? const <String>['—','—','—']
-            : widget.decanNamesForMonth(km);
-
-        // ✅ CHANGED: Use cached lookup instead of rebuilding each time
-        final Map<int, FlowInfo> _stableFlowLookup = _cachedFlowLookup;
-        // 🔧 NEW: Create a key based on the actual flow IDs for stable widget keys
-        final String flowIdsKey = ((_stableFlowLookup.keys.toList()..sort()).join(','));
-        // 🔍 DEBUG: Log flow and lookup state during landscape build
-        if (kDebugMode) {
-          debugPrint('═══ LANDSCAPE BUILD: Month $km ═══');
-          debugPrint('[landscape] allActiveFlows.length = ${widget.allActiveFlows.length}');
-          debugPrint('[landscape] allActiveFlows IDs = ${widget.allActiveFlows.map((f) => f.id).toList()}');
-          debugPrint('[landscape] _stableFlowLookup keys = ${_stableFlowLookup.keys.toList()}');
-          debugPrint('[landscape] _stableFlowLookup: ${_stableFlowLookup.map((k, v) => MapEntry(k, v.name))}');
-          debugPrint('[landscape] dataVersion = ${widget.dataVersion}');
-        }
-
-        final int _monthNoteCount = (() {
-          if (widget.dataVersion == 0) return 0;
-          int c = 0;
-          final int lastDay = (km == 13)
-              ? (KemeticMath.isLeapKemeticYear(ky) ? 6 : 5)
-              : 30;
-          for (int d = 1; d <= lastDay; d++) {
-            c += widget.notesGetter(ky, km, d).length;
-          }
-          return c;
-        })();
-
-        return _LandscapeGridPage(
-          hydrated: widget.hydrated,
-          // Build a stable key that includes actual flow IDs, not just the count
-          key: ValueKey('land-$ky-$km-${widget.dataVersion}-$flowIdsKey-$_monthNoteCount'),
-          kYear: ky,
-          kMonth: km,
-          monthLabel: monthLabel,
-          showGregorian: widget.showGregorian,
-          decanNames: decans,
-          flowsGetter: (m, d) => widget.flowsGetter(ky, m, d),
-          notesGetter: (m, d) => (widget.dataVersion > 0)
-              ? widget.notesGetter(ky, m, d)
-              : const <_Note>[],
-          onRequestJumpToToday: widget.onRequestJumpToToday,
-          onViewportChanged: (viewKy, viewKm, viewDay, minute) {
-            widget.onViewportChanged?.call(ky, km, viewDay, minute);
-          },
-          flowLookup: _stableFlowLookup,
-        );
-      },
-    );
-  }
-}
-class FlowInfo {
-  final String name;
-  final Color color;
-  const FlowInfo({required this.name, required this.color});
-}
-
-class _LandscapeGridPage extends StatefulWidget {
-  final int kYear;
-  final int kMonth;
-  final String monthLabel; // already sans parenthetical
-  final bool hydrated; // data has finished hydrating at least once
-  final bool showGregorian;
-  final List<String> decanNames;
-  final List<_FlowOccurrence> Function(int kMonth, int day) flowsGetter;
-  final List<_Note> Function(int kMonth, int day) notesGetter;
-  final VoidCallback onRequestJumpToToday;
-  final void Function(int ky, int km, int? day, int? minute)? onViewportChanged;
-  final Map<int, FlowInfo> flowLookup;
-
-  const _LandscapeGridPage({
-    super.key,
-    this.flowLookup = const <int, FlowInfo>{},
-    required this.hydrated,
-    required this.kYear,
-    required this.kMonth,
-    required this.monthLabel,
-    required this.showGregorian,
-    required this.decanNames,
-    required this.flowsGetter,
-    required this.notesGetter,
-    required this.onRequestJumpToToday,
-    this.onViewportChanged,
-  });
-
-
-
-  @override
-  State<_LandscapeGridPage> createState() => _LandscapeGridPageState();
-}
-
-class _LandscapeGridPageState extends State<_LandscapeGridPage> {
-  // Tuned to resemble your screenshot
-  static const double _rowH = 64;      // hour row height
-  bool _notesHydrated = false;
-  bool _allowNotes = false;
-  static const double _gutterW = 56;   // time gutter width
-  static const double _headerH = 58;   // day number + decan
-  static const double _daySepW = 1;    // day separator line
-  static const double _hourSepH = 1;   // hour separator line
-  static const int _tracks = 3;        // side-by-side columns
-  static const double _trackGap = 2;
-
-  // Scroll controllers (kept in sync manually)
-  final ScrollController _hHeader = ScrollController();
-  final ScrollController _hGrid = ScrollController();
-  final ScrollController _vGutter = ScrollController();
-  final ScrollController _vGrid = ScrollController();
-
-  bool _syncingH = false;
-  bool _syncingV = false;
-  String _gregYearLabel() {
-    final yStart = KemeticMath.toGregorian(widget.kYear, widget.kMonth, 1).year;
-    final lastDay = (widget.kMonth == 13)
-        ? (KemeticMath.isLeapKemeticYear(widget.kYear) ? 6 : 5)
-        : 30;
-    final yEnd = KemeticMath.toGregorian(widget.kYear, widget.kMonth, lastDay).year;
-    return yStart == yEnd ? '$yStart' : '$yStart/$yEnd';
-  }
-  // Preserve center (day + minute fraction) within grid mode
-  double _centerFracX = 0.5; // 0..1 across the centered day
-  double _centerMinute = 12 * 60; // noon
-  void _emitCenterIfNeeded() {
-    if (widget.onViewportChanged == null) return;
-    if (!_hGrid.hasClients || !_vGrid.hasClients) return;
-    if (!mounted) return;
-
-    final width = MediaQuery.sizeOf(context).width;
-    final colW = ((width - _gutterW) / 5.0);
-    final vpW = width - _gutterW;
-    final centerX = _hGrid.offset + vpW / 2.0;
-    final dayIdx = (centerX / (colW + _daySepW)).clamp(0, 29).floor();
-    final day = dayIdx + 1;
-
-    final vpH = MediaQuery.sizeOf(context).height - _headerH;
-    final centerY = _vGrid.offset + vpH / 2.0;
-    final minute = (centerY / _rowH * 60.0).clamp(0, 24 * 60).round();
-
-    widget.onViewportChanged!(widget.kYear, widget.kMonth, day, minute);
-
-    String _gregYearLabel() {
-      final yStart = KemeticMath.toGregorian(widget.kYear, widget.kMonth, 1).year;
-      final lastDay = (widget.kMonth == 13)
-          ? (KemeticMath.isLeapKemeticYear(widget.kYear) ? 6 : 5)
-          : 30;
-      final yEnd = KemeticMath.toGregorian(widget.kYear, widget.kMonth, lastDay).year;
-      return yStart == yEnd ? '$yStart' : '$yStart/$yEnd';
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _notesHydrated = widget.hydrated;
-    _hHeader.addListener(() {
-      if (_syncingH) return;
-      _syncingH = true;
-      _hGrid.jumpTo(_hHeader.offset.clamp(0, _hGrid.position.maxScrollExtent));
-      _syncingH = false;
-    });
-    _hGrid.addListener(() {
-      if (_syncingH) return;
-      _syncingH = true;
-      _hHeader.jumpTo(_hGrid.offset.clamp(0, _hHeader.position.maxScrollExtent));
-      _emitCenterIfNeeded();
-      _syncingH = false;
-    });
-    _vGutter.addListener(() {
-      if (_syncingV) return;
-      _syncingV = true;
-      _vGrid.jumpTo(_vGutter.offset.clamp(0, _vGrid.position.maxScrollExtent));
-      _syncingV = false;
-    });
-    _vGrid.addListener(() {
-      if (_syncingV) return;
-      _syncingV = true;
-      _vGutter.jumpTo(_vGrid.offset.clamp(0, _vGutter.position.maxScrollExtent));
-      _emitCenterIfNeeded();
-      _syncingV = false;
-    });
-  }
-  @override
-  void didUpdateWidget(covariant _LandscapeGridPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.hydrated != widget.hydrated) {
-      setState(() {
-        _notesHydrated = widget.hydrated;
-        _allowNotes = widget.hydrated;
-      });
-    }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // After first layout, center the kept minute in view (no snap to today)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final vTarget = _centerMinute / 60.0 * _rowH - (MediaQuery.sizeOf(context).height - _headerH) / 2.0;
-      if (_vGrid.hasClients) _vGrid.jumpTo(vTarget.clamp(0, _vGrid.position.maxScrollExtent));
-      if (_vGutter.hasClients) _vGutter.jumpTo(_vGrid.offset);
-      _emitCenterIfNeeded();
-    });
-  }
-
-  @override
-  void dispose() {
-    _hHeader.dispose();
-    _hGrid.dispose();
-    _vGutter.dispose();
-    _vGrid.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_allowNotes && widget.hydrated) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _allowNotes = true);
-      });
-    }
-    final int dayCount = (widget.kMonth == 13)
-        ? (KemeticMath.isLeapKemeticYear(widget.kYear) ? 6 : 5)
-        : 30;
-    final days = List<int>.generate(dayCount, (i) => i + 1);
-    final width = MediaQuery.sizeOf(context).width;
-    final colW = ((width - _gutterW) / 5.0); // ~5 visible days on phones
-    final gridW = colW * days.length + (_daySepW * (days.length - 1));
-    final gridH = _rowH * 24 + (_hourSepH * 23);
-
-    if (!_notesHydrated) {
-      return _buildHydrationPlaceholder(context);
-    }
-
-    // Capture center before rebuilds (e.g., rotate within grid)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_hGrid.hasClients || !_vGrid.hasClients) return;
-      final vpW = width - _gutterW;
-      final centerX = _hGrid.offset + vpW / 2.0;
-      final dayIdx = (centerX / (colW + _daySepW)).clamp(0, days.length - 1);
-      _centerFracX = (centerX - (dayIdx.floor() * (colW + _daySepW))) / colW;
-      final vpH = MediaQuery.sizeOf(context).height - _headerH;
-      final centerY = _vGrid.offset + vpH / 2.0;
-      _centerMinute = (centerY / _rowH * 60.0).clamp(0, 24 * 60);
-    });
-
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF111215),
-        elevation: 0.5,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _GlossyText(
-              text: widget.monthLabel,
-              style: _titleGold,
-              gradient: _goldGloss,
-            ),
-            _GlossyText(
-              text: _gregYearLabel(),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.white),
-              gradient: _silverGloss,
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Close grid',
-            icon: const _GlossyIcon(Icons.view_agenda, gradient: _silverGloss),
-            onPressed: () => Navigator.of(context).maybePop(),
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              // Sticky header: day numbers + decan labels
-              SizedBox(
-                height: _headerH,
-                child: Row(
-                  children: [
-                    SizedBox(width: _gutterW), // corner spacer under title
-                    Expanded(
-                      child: Scrollbar(
-                        controller: _hHeader,
-                        child: SingleChildScrollView(
-                          controller: _hHeader,
-                          scrollDirection: Axis.horizontal,
-                          child: SizedBox(
-                            width: gridW,
-                            height: _headerH,
-                            child: Row(
-                              children: List.generate(days.length * 2 - 1, (i) {
-                                if (i.isOdd) {
-                                  return SizedBox(width: _daySepW, child: Container(color: Colors.white12));
-                                }
-                                final day = days[i ~/ 2];
-                                final decanIndex = ((day - 1) ~/ 10).clamp(0, widget.decanNames.length - 1);
-                                return SizedBox(
-                                  width: colW,
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text('$day', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-                                      const SizedBox(height: 2),
-                                      Text(widget.decanNames[decanIndex], style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                                    ],
-                                  ),
-                                );
-                              }),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1, color: Colors.white12),
-              // Grid area with sticky time gutter
-              Expanded(
-                child: Row(
-                  children: [
-                    // Time gutter (sticky)
-                    SizedBox(
-                      width: _gutterW,
-                      child: Scrollbar(
-                        controller: _vGutter,
-                        child: ListView.builder(
-                          controller: _vGutter,
-                          itemCount: 24 * 2 - 1,
-                          itemBuilder: (_, i) {
-                            if (i.isOdd) return SizedBox(height: _hourSepH, child: Container(color: Colors.white12));
-                            final hour = i ~/ 2;
-                            return SizedBox(
-                              height: _rowH,
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(right: 6),
-                                  child: Text(_fmtHour(hour), style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    // Main grid (H + V scroll)
-                    Expanded(
-                      child: Scrollbar(
-                        controller: _hGrid,
-                        child: SingleChildScrollView(
-                          controller: _hGrid,
-                          scrollDirection: Axis.horizontal,
-                          child: SizedBox(
-                            width: gridW,
-                            child: Stack(
-                              children: [
-                                Scrollbar(
-                                  controller: _vGrid,
-                                  child: ListView.builder(
-                                    controller: _vGrid,
-                                    itemCount: 24 * 2 - 1,
-                                    itemBuilder: (_, rowIdx) {
-                                      if (rowIdx.isOdd) {
-                                        return SizedBox(height: _hourSepH, child: Container(color: Colors.white12));
-                                      }
-                                      final hour = rowIdx ~/ 2;
-
-                                      return SizedBox(
-                                        height: _rowH,
-                                        child: Stack(
-                                          clipBehavior: Clip.none,
-                                          children: [
-                                            Row(
-                                              children: List.generate(days.length * 2 - 1, (i) {
-                                                if (i.isOdd) return SizedBox(width: _daySepW, child: Container(color: Colors.white12));
-                                                return SizedBox(width: colW);
-                                              }),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  ],
-                ),
-              ),
-            ],
-          ),
-          Positioned(
-            left: _gutterW,
-            top: _headerH + 1,
-            right: 0,
-            bottom: 0,
-            child: ClipRect(
-              child: IgnorePointer(
-                ignoring: false,
-                child: AnimatedBuilder(
-                  animation: Listenable.merge([_hGrid, _vGrid]),
-                  builder: (_, __) {
-                    if (!_hGrid.hasClients || !_vGrid.hasClients) return const SizedBox();
-
-                    return Stack(
-                      clipBehavior: Clip.hardEdge,
-                      children: [
-                        for (var i = 0; i < days.length; i++)
-                          Positioned(
-                            left: (i * (colW + _daySepW)) - _hGrid.offset,
-                            top: -_vGrid.offset,
-                            width: colW,
-                            height: _rowH * 24,
-                            child: Stack(
-                              clipBehavior: Clip.none,
-                              children: (_allowNotes &&
-                                  widget.hydrated &&
-                                  (
-                                      widget.flowsGetter(widget.kMonth, days[i]).isNotEmpty ||
-                                          widget.notesGetter(widget.kMonth, days[i]).isNotEmpty
-                                  ))
-                                  ? _buildEventsForDay(days[i], colW)
-                                  : const [],
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHydrationPlaceholder(BuildContext context) {
-    final bg = Theme.of(context).scaffoldBackgroundColor;
-    return Container(
-      color: bg,
-      child: const Center(child: CircularProgressIndicator()),
-    );
-  }
-
-  String _fmtHour(int h) {
-    if (h == 0) return '12 AM';
-    if (h < 12) return '$h AM';
-    if (h == 12) return '12 PM';
-    return '${h - 12} PM';
-  }
-
-  int _minuteOf(TimeOfDay? t) {
-    final h = t?.hour ?? 0;
-    final m = t?.minute ?? 0;
-    final v = h * 60 + m;
-    if (v < 0) return 0;
-    if (v > 24 * 60) return 24 * 60;
-    return v;
-  }
-
-  /// Assign columns to a list of events based on overlapping time ranges.
-  /// Returns a map from event index to column index (0-based).
-  Map<int, int> _assignColumns(List<_EventItem> events) {
-    final Map<int, int> columns = {};
-    final Map<int, int> activeColumns = {}; // column -> endMin
-    for (int i = 0; i < events.length; i++) {
-      final ev = events[i];
-      // Free columns that ended before this event starts
-      activeColumns.removeWhere((col, endTime) => endTime <= ev.startMin);
-      // Find first available column index
-      int col = 0;
-      while (activeColumns.containsKey(col)) {
-        col++;
-      }
-      columns[i] = col;
-      // Mark column as occupied until event.endMin
-      activeColumns[col] = ev.endMin;
-    }
-    return columns;
-  }
-
-
-  List<Widget> _buildEventsForDay(int day, double colW) {
-    // gate the very first frame: no events/notes before hydration
-    if (!_notesHydrated || !widget.hydrated) {
-      return const [];
-    }
-
-    // resolve flow occurrences and notes for this day
-    final occ = widget.flowsGetter(widget.kMonth, day);
-    final notes = widget.notesGetter(widget.kMonth, day);
-    final List<_EventItem> eventItems = [];
-
-    // 🔧 KEY FIX: Build a flow lookup map from widget.flowLookup instead of just occ
-    // This ensures we have ALL active flows, not just those with occurrences today
-    final Map<int, FlowInfo> allFlows = widget.flowLookup;
-
-    // 🔍 DEBUG: Log note and flow state for this day (only for day 24 to reduce noise)
-    if (kDebugMode && day == 24) {
-      debugPrint('─── RENDERING Day $day ───');
-      debugPrint('[render] notes.length = ${notes.length}');
-      debugPrint('[render] allFlows keys = ${allFlows.keys.toList()}');
-      for (final n in notes) {
-        if (n.flowId != null) {
-          debugPrint('[render] Note "${n.title}" flowId=${n.flowId}, inLookup=${allFlows.containsKey(n.flowId)}');
-        }
-      }
-    }
-
-    // Build timed note events with flow matching
-    for (final n in notes) {
-      // Skip all-day events here; they are rendered elsewhere
-      if (n.allDay == true) continue;
-      final int sMin = _minuteOf(n.start);
-      final int eMin = n.end != null ? _minuteOf(n.end) : (sMin + 60);
-
-      _FlowOccurrence? matched;
-
-      // First, match by stored flowId
-      if (n.flowId != null) {
-        // ✅ Try to match with flow occurrences first (for time-based matching)
-        for (final o in occ) {
-          if (o.flow.id == n.flowId) {
-            matched = o;
-            break;
-          }
-        }
-        // 🔧 NEW: If no occurrence match but we have the flow in our lookup, use that
-        if (matched == null && allFlows.containsKey(n.flowId)) {
-          final flowInfo = allFlows[n.flowId]!;
-          // 🔍 DEBUG: Log successful lookup match
-          if (kDebugMode && day == 24) {
-            debugPrint('[render] ✅ Matched "${n.title}" flowId=${n.flowId} to ${flowInfo.name} (${flowInfo.color})');
-          }
-          // Create a synthetic title and use the flow's color
-          eventItems.add(_EventItem(
-            title: '${flowInfo.name}\n${n.title ?? ''}',
-            color: flowInfo.color,
-            startMin: sMin,
-            endMin: eMin,
-          ));
-          continue; // Skip the rest of the matching logic
-        } else if (matched == null) {
-          // 🔍 DEBUG: Log failed lookup match (flowId not found in allFlows)
-          if (kDebugMode && day == 24) {
-            debugPrint('[render] ❌ FAILED to match "${n.title}" flowId=${n.flowId} (not in lookup!)');
-          }
-        }
-      }
-
-      // If no match, try to match Ma'at flows by overlapping time window
-      if (matched == null) {
-        for (final o in occ) {
-          final String? notesStr = o.flow.notes;
-          final bool isMaatFlow =
-              notesStr != null && notesStr.contains('maat=');
-          if (!isMaatFlow) continue;
-          if (o.allDay) {
-            matched = o;
-            break;
-          }
-          final fs = o.start != null ? _minuteOf(o.start) : null;
-          final fe = o.end != null ? _minuteOf(o.end) : null;
-          if (fs != null && fe != null && sMin >= fs && eMin <= fe) {
-            matched = o;
-            break;
-          }
-        }
-      }
-
-      // Add the event with appropriate styling
-      if (matched != null) {
-        // 🔍 DEBUG: Log when matched to an occurrence
-        if (kDebugMode && day == 24) {
-          debugPrint('[render] Matched "${n.title}" to occurrence: ${matched.flow.name} (${matched.flow.color})');
-        }
-        eventItems.add(_EventItem(
-          title: '${matched.flow.name}\n${n.title ?? ''}',
-          color: matched.flow.color,
-          startMin: sMin,
-          endMin: eMin,
-        ));
-      } else {
-        // 🔍 DEBUG: Log unmatched note (rendered gray)
-        if (kDebugMode && day == 24) {
-          debugPrint('[render] Unmatched "${n.title}" → rendering as gray');
-        }
-        // Standalone note (gray)
-        eventItems.add(_EventItem(
-          title: n.title ?? '',
-          color: const Color(0xFFC8CCD2),
-          startMin: sMin,
-          endMin: eMin,
-        ));
-      }
-    }
-
-    if (eventItems.isEmpty) return const [];
-
-    // ✅ NEW: Sort by start time, then by title for stable/consistent ordering
-    // This ensures events at the same time always appear in the same left-right order
-    eventItems.sort((a, b) {
-      final int timeCompare = a.startMin.compareTo(b.startMin);
-      if (timeCompare != 0) return timeCompare;
-      // Secondary sort by title for deterministic ordering across restarts
-      return a.title.compareTo(b.title);
-    });
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Group events by hour and calculate columns per hour (from previous fix)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    final List<Widget> widgets = [];
-    const double columnGap = 4.0;
-
-    // Group events by hour for independent column assignment
-    final Map<int, List<int>> eventsByHour = {};
-    for (int i = 0; i < eventItems.length; i++) {
-      final hourStart = eventItems[i].startMin ~/ 60;
-      (eventsByHour[hourStart] ??= []).add(i);
-    }
-
-    // Track which events have been positioned
-    final Set<int> positioned = {};
-
-    // Process each hour group independently
-    for (final hour in eventsByHour.keys) {
-      final indices = eventsByHour[hour]!;
-      final hourEvents = indices.map((i) => eventItems[i]).toList();
-
-      // Assign columns within this hour
-      final Map<int, int> localColAssignments = _assignColumns(hourEvents);
-      final int maxColsThisHour = localColAssignments.values.isEmpty
-          ? 1
-          : (localColAssignments.values.reduce((a, b) => a > b ? a : b) + 1);
-
-      // Calculate width for THIS hour's events
-      final double availableWidth =
-          colW - (columnGap * (maxColsThisHour - 1));
-      final double columnWidth = availableWidth / maxColsThisHour;
-
-      // Render events in this hour
-      for (int localIdx = 0; localIdx < hourEvents.length; localIdx++) {
-        final globalIdx = indices[localIdx];
-        if (positioned.contains(globalIdx)) continue;
-        positioned.add(globalIdx);
-
-        final _EventItem ev = hourEvents[localIdx];
-        final int col = localColAssignments[localIdx] ?? 0;
-
-        final double left = col * (columnWidth + columnGap);
-        final double top = (ev.startMin / 60.0) * _rowH;
-        final double height =
-            ((ev.endMin - ev.startMin) / 60.0) * _rowH;
-
-        widgets.add(
-          Positioned(
-            top: top,
-            left: left,
-            width: columnWidth,
-            height: height,
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: () {
-                final cal =
-                context.findAncestorStateOfType<_CalendarPageState>();
-                cal?._openDaySheet(
-                    context, widget.kYear, widget.kMonth, day);
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: ev.color,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: const EdgeInsets.all(6),
-                child: Text(
-                  ev.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      }
-    }
-
-    return widgets;
-  }
-}
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
+// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
 
 // ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
 

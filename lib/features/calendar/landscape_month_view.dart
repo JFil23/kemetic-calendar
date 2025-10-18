@@ -23,6 +23,7 @@ class LandscapeMonthView extends StatelessWidget {
   final Map<int, FlowData> flowIndex;
   final String Function(int km) getMonthName;
   final VoidCallback? onManageFlows;
+  final void Function(int ky, int km, int kd)? onAddNote;
 
   const LandscapeMonthView({
     super.key,
@@ -34,6 +35,7 @@ class LandscapeMonthView extends StatelessWidget {
     required this.flowIndex,
     required this.getMonthName,
     this.onManageFlows,
+    this.onAddNote, // 🔧 NEW
   });
 
   @override
@@ -47,6 +49,7 @@ class LandscapeMonthView extends StatelessWidget {
       flowIndex: flowIndex,
       getMonthName: getMonthName,
       onManageFlows: onManageFlows,
+      onAddNote: onAddNote, // 🔧 NEW: Pass it down
     );
   }
 }
@@ -65,6 +68,7 @@ class LandscapeMonthPager extends StatefulWidget {
   final Map<int, FlowData> flowIndex;
   final String Function(int km) getMonthName;
   final VoidCallback? onManageFlows;
+  final void Function(int ky, int km, int kd)? onAddNote;
 
   const LandscapeMonthPager({
     super.key,
@@ -76,6 +80,7 @@ class LandscapeMonthPager extends StatefulWidget {
     required this.flowIndex,
     required this.getMonthName,
     this.onManageFlows,
+    this.onAddNote, // 🔧 NEW
   });
 
   @override
@@ -96,6 +101,28 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(LandscapeMonthPager oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    if (kDebugMode) {
+      print('🔄 [PAGER] didUpdateWidget()');
+      print('   Old onAddNote: ${oldWidget.onAddNote != null ? "PROVIDED" : "NULL"}');
+      print('   New onAddNote: ${widget.onAddNote != null ? "PROVIDED" : "NULL"}');
+    }
+    
+    // When callback becomes available, force PageView to rebuild current page
+    if (oldWidget.onAddNote == null && widget.onAddNote != null) {
+      if (kDebugMode) {
+        print('⚡ [PAGER] Callback just arrived! Forcing rebuild...');
+      }
+      setState(() {
+        // This will cause PageView.builder to call itemBuilder again
+        // with the now-available callback
+      });
+    }
   }
 
   // Calculate which month to show based on page offset
@@ -130,24 +157,27 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     }
   }
 
-  void _onPageChanged(int page) {
-    // Optional: update state if you need to track current month
-    // But don't use this for calculations!
-    final month = _monthForPage(page);
-    setState(() {
-      // Just for display, not for calculations
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return PageView.builder(
+      key: ValueKey('landscape-pager-${widget.initialKy}-${widget.initialKm}-${widget.onAddNote?.hashCode ?? "null"}'),
       controller: _pageController,
-      onPageChanged: _onPageChanged,
       scrollDirection: Axis.horizontal,
       itemBuilder: (context, index) {
         final month = _monthForPage(index);
+        
+        if (kDebugMode) {
+          print('🔧 [PAGER] Creating LandscapeMonthGrid for page $index');
+          print('   Month: ${month.kYear}-${month.kMonth}');
+          print('   widget.onAddNote != null: ${widget.onAddNote != null}');
+          if (widget.onAddNote != null) {
+            print('   Callback hashCode: ${widget.onAddNote.hashCode}');
+          }
+        }
+        
         return LandscapeMonthGrid(
+          key: ValueKey('grid-${month.kYear}-${month.kMonth}-${widget.onAddNote?.hashCode ?? "null"}'),
           kYear: month.kYear,
           kMonth: month.kMonth,
           initialDay: index == _centerPage ? widget.initialDay : null,
@@ -157,6 +187,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           getMonthName: widget.getMonthName,
           onManageFlows: widget.onManageFlows,
           onJumpToToday: _jumpToToday,
+          onAddNote: widget.onAddNote, // ✅ MATCHES CONSTRUCTOR ORDER!
         );
       },
     );
@@ -178,6 +209,7 @@ class LandscapeMonthGrid extends StatefulWidget {
   final String Function(int km) getMonthName;
   final VoidCallback? onManageFlows;
   final VoidCallback? onJumpToToday;
+  final void Function(int ky, int km, int kd)? onAddNote;
 
   const LandscapeMonthGrid({
     super.key,
@@ -190,6 +222,7 @@ class LandscapeMonthGrid extends StatefulWidget {
     required this.getMonthName,
     this.onManageFlows,
     this.onJumpToToday,
+    this.onAddNote, // 🔧 NEW
   });
 
   @override
@@ -216,12 +249,22 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
   late ScrollController _vGutter;
   late ScrollController _vGrid;
 
+  // 🔍 NEW: Debug tracking
+  int _buttonTapCount = 0;
+  bool _isDisposed = false;
+
   bool _syncingH = false;
   bool _syncingV = false;
 
   @override
   void initState() {
     super.initState();
+    
+    if (kDebugMode) {
+      print('🟢 [LANDSCAPE] LandscapeMonthGrid initState()');
+      print('   kYear: ${widget.kYear}, kMonth: ${widget.kMonth}');
+      print('   onAddNote callback: ${widget.onAddNote != null ? "PROVIDED" : "NULL"}');
+    }
     
     _hHeader = ScrollController();
     _hGrid = ScrollController();
@@ -274,8 +317,14 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
     }
   }
 
+
   @override
   void dispose() {
+    _isDisposed = true;
+    if (kDebugMode) {
+      print('🔴 [LANDSCAPE] LandscapeMonthGrid dispose()');
+      print('   Button was tapped $_buttonTapCount times before disposal');
+    }
     _hHeader.dispose();
     _hGrid.dispose();
     _vGutter.dispose();
@@ -299,6 +348,13 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
 
   @override
   Widget build(BuildContext context) {
+    if (kDebugMode && _buttonTapCount == 0) {
+      print('🏗️  [LANDSCAPE] build() - FIRST TIME');
+      print('   Context: $context');
+      print('   Mounted: ${mounted}');
+      print('   Disposed: $_isDisposed}');
+    }
+    
     final width = MediaQuery.of(context).size.width;
     
     final dayCount = _getDaysInMonth();
@@ -318,7 +374,24 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
           IconButton(
             tooltip: 'Flow Studio',
             icon: const Icon(Icons.view_timeline, color: _gold),
+            padding: const EdgeInsets.symmetric(horizontal: 4), // 🔧 Reduced padding
             onPressed: widget.onManageFlows,
+          ),
+          // Add note button
+          IconButton(
+            tooltip: 'New note',
+            icon: const Icon(Icons.add, color: _gold),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            onPressed: widget.onAddNote != null
+                ? () {
+                    final now = DateTime.now();
+                    final today = KemeticMath.fromGregorian(now);
+                    final kd = (widget.kYear == today.kYear && widget.kMonth == today.kMonth) 
+                        ? today.kDay 
+                        : 1;
+                    widget.onAddNote!(widget.kYear, widget.kMonth, kd);
+                  }
+                : null,
           ),
           // Today button
           TextButton(
