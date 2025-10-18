@@ -70,13 +70,13 @@ const Gradient _whiteGloss = LinearGradient(
 const TextStyle _titleGold =
 TextStyle(fontSize: 22, fontWeight: FontWeight.w500, color: Colors.white);
 const TextStyle _monthTitleGold =
-TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.white);
+TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: Colors.white, height: 1.2);
 const TextStyle _rightSmall =
 TextStyle(fontSize: 12, fontWeight: FontWeight.w400, color: Colors.white);
 const TextStyle _seasonStyle =
 TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.white);
 const TextStyle _decanStyle =
-TextStyle(fontSize: 13, fontWeight: FontWeight.w400, color: Colors.white);
+TextStyle(fontSize: 12, fontWeight: FontWeight.w400, color: Colors.white);
 
 /* Gregorian month names (1-based) */
 const List<String> _gregMonthNames = [
@@ -632,7 +632,7 @@ class _SeasonHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(28, 16, 16, 8),
       child:
       _GlossyText(text: title, style: _seasonStyle, gradient: _goldGloss),
     );
@@ -3993,6 +3993,7 @@ class _YearSection extends StatelessWidget {
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
+        const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(2),
           kYear: kYear,
@@ -4006,6 +4007,7 @@ class _YearSection extends StatelessWidget {
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
+        const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(3),
           kYear: kYear,
@@ -4019,6 +4021,7 @@ class _YearSection extends StatelessWidget {
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
+        const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(4),
           kYear: kYear,
@@ -4032,6 +4035,7 @@ class _YearSection extends StatelessWidget {
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
+        const _GoldDivider(),
 
         const _SeasonHeader(title: 'Emergence season (Peret)'),
         _MonthCard(
@@ -4047,6 +4051,7 @@ class _YearSection extends StatelessWidget {
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
+        const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(6),
           kYear: kYear,
@@ -4060,6 +4065,7 @@ class _YearSection extends StatelessWidget {
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
+        const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(7),
           kYear: kYear,
@@ -4073,6 +4079,7 @@ class _YearSection extends StatelessWidget {
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
+        const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(8),
           kYear: kYear,
@@ -4086,6 +4093,7 @@ class _YearSection extends StatelessWidget {
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
+        const _GoldDivider(),
 
         const _SeasonHeader(title: 'Harvest season (Shemu)'),
         _MonthCard(
@@ -4101,6 +4109,7 @@ class _YearSection extends StatelessWidget {
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
+        const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(10),
           kYear: kYear,
@@ -4114,6 +4123,7 @@ class _YearSection extends StatelessWidget {
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
+        const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(11),
           kYear: kYear,
@@ -4127,6 +4137,7 @@ class _YearSection extends StatelessWidget {
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
+        const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(12),
           kYear: kYear,
@@ -4140,6 +4151,7 @@ class _YearSection extends StatelessWidget {
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
+        const _GoldDivider(),
 
         _EpagomenalCard(
           kYear: kYear,
@@ -4151,6 +4163,7 @@ class _YearSection extends StatelessWidget {
           onDayTap: (c, m, d) => onDayTap(c, 13, d),
           showGregorian: showGregorian,
         ),
+        const _GoldDivider(),
       ],
     );
   }
@@ -4291,7 +4304,7 @@ class _MonthCard extends StatelessWidget {
         color: const Color(0xFF121315),
         elevation: 0,
         shape: RoundedRectangleBorder(
-          side: const BorderSide(color: _cardBorderGold, width: 1.2),
+          side: BorderSide.none,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Padding(
@@ -4521,8 +4534,8 @@ class _DayChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final textStyle = const TextStyle(
       color: Colors.white,
-      fontWeight: FontWeight.w500,
-      fontSize: 12,
+      fontWeight: FontWeight.w400,
+      fontSize: 15.2,
     );
 
     final gradient =
@@ -4633,7 +4646,7 @@ class _EpagomenalCard extends StatelessWidget {
         color: const Color(0xFF121315),
         elevation: 0,
         shape: RoundedRectangleBorder(
-          side: const BorderSide(color: _cardBorderGold, width: 1.2),
+          side: BorderSide.none,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Padding(
@@ -8508,4 +8521,26 @@ class _Note {
     this.end,
     this.flowId, // <— NEW
   });
+}
+
+// ========================================
+// GOLD DIVIDER WIDGET
+// ========================================
+
+class _GoldDivider extends StatelessWidget {
+  const _GoldDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),  // 16px above and below
+      child: Center(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,  // 80% width, centered
+          height: 1,  // Thin line
+          color: _cardBorderGold,  // Gold color
+        ),
+      ),
+    );
+  }
 }
