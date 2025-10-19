@@ -1,16 +1,12 @@
+// lib/features/journal/journal_v2_toolbar.dart
+// Journal V2 Toolbar - Fixed for ScrollView
+
 import 'package:flutter/material.dart';
-import '../../core/feature_flags.dart';
 import 'journal_controller.dart';
 import 'journal_v2_document_model.dart';
 
-/// Editor modes for Journal V2
-enum JournalV2Mode {
-  type,      // Rich text editing
-  draw,      // Pen drawing
-  highlight, // Highlighter
-}
+enum JournalV2Mode { type, draw, highlight }
 
-/// Journal V2 Toolbar Widget
 class JournalV2Toolbar extends StatefulWidget {
   final JournalController controller;
   final Function(JournalV2Mode) onModeChanged;
@@ -18,6 +14,8 @@ class JournalV2Toolbar extends StatefulWidget {
   final VoidCallback onUndo;
   final VoidCallback onRedo;
   final VoidCallback onInsertChart;
+  final VoidCallback onClearDrawing;
+  final VoidCallback onClearHighlights;
   final bool canUndo;
   final bool canRedo;
 
@@ -29,6 +27,8 @@ class JournalV2Toolbar extends StatefulWidget {
     required this.onUndo,
     required this.onRedo,
     required this.onInsertChart,
+    required this.onClearDrawing,
+    required this.onClearHighlights,
     this.canUndo = false,
     this.canRedo = false,
   }) : super(key: key);
@@ -40,63 +40,29 @@ class JournalV2Toolbar extends StatefulWidget {
 class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
   JournalV2Mode _currentMode = JournalV2Mode.type;
   TextAttrs _currentAttrs = const TextAttrs();
-  DateTime? _lastSaved;
-  bool _isSaving = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // Listen to controller changes for save status
-    widget.controller.onDraftChanged = _onDraftChanged;
-  }
-
-  void _onDraftChanged() {
-    if (mounted) {
-      setState(() {
-        _lastSaved = DateTime.now();
-        _isSaving = false;
-      });
-    }
-  }
-
-  void _changeMode(JournalV2Mode mode) {
-    if (_currentMode == mode) return;
+  void _handleModeChange(JournalV2Mode mode) {
     setState(() => _currentMode = mode);
     widget.onModeChanged(mode);
   }
 
   void _toggleFormat(String format) {
-    final bool currentValue;
+    TextAttrs newAttrs;
     switch (format) {
       case 'bold':
-        currentValue = _currentAttrs.bold;
-        break;
-      case 'italic':
-        currentValue = _currentAttrs.italic;
-        break;
-      case 'underline':
-        currentValue = _currentAttrs.underline;
-        break;
-      case 'strikethrough':
-        currentValue = _currentAttrs.strikethrough;
-        break;
-      default:
-        return;
-    }
-    
-    // Now toggle the value
-    final TextAttrs newAttrs;
-    switch (format) {
-      case 'bold':
+        final currentValue = _currentAttrs.bold;
         newAttrs = _currentAttrs.copyWith(bold: !currentValue);
         break;
       case 'italic':
+        final currentValue = _currentAttrs.italic;
         newAttrs = _currentAttrs.copyWith(italic: !currentValue);
         break;
       case 'underline':
+        final currentValue = _currentAttrs.underline;
         newAttrs = _currentAttrs.copyWith(underline: !currentValue);
         break;
       case 'strikethrough':
+        final currentValue = _currentAttrs.strikethrough;
         newAttrs = _currentAttrs.copyWith(strikethrough: !currentValue);
         break;
       default:
@@ -110,110 +76,83 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Color(0xFF333333), width: 1),
-        ),
-      ),
+      padding: const EdgeInsets.all(12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Mode selector row
-          if (FeatureFlags.hasDrawing || FeatureFlags.hasRichText)
-            _buildModeSelector(),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildModeButton(JournalV2Mode.type, Icons.text_fields, 'Type'),
+              const SizedBox(width: 8),
+              _buildModeButton(JournalV2Mode.draw, Icons.brush, 'Draw'),
+              const SizedBox(width: 8),
+              _buildModeButton(JournalV2Mode.highlight, Icons.highlight, 'Highlight'),
+            ],
+          ),
           
-          // Format buttons row (only in Type mode with rich text enabled)
-          if (_currentMode == JournalV2Mode.type && FeatureFlags.hasRichText)
-            _buildFormatBar(),
+          // Format buttons row (only in Type mode)
+          if (_currentMode == JournalV2Mode.type) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildFormatButton('B', 'bold', _currentAttrs.bold, bold: true),
+                const SizedBox(width: 4),
+                _buildFormatButton('I', 'italic', _currentAttrs.italic, italic: true),
+                const SizedBox(width: 4),
+                _buildFormatButton('U', 'underline', _currentAttrs.underline, underline: true),
+                const SizedBox(width: 4),
+                _buildFormatButton('S', 'strikethrough', _currentAttrs.strikethrough, strikethrough: true),
+              ],
+            ),
+          ],
           
-          // Status bar
+          // Clear buttons row (only in Draw and Highlight modes)
+          if (_currentMode == JournalV2Mode.draw || _currentMode == JournalV2Mode.highlight) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildClearButton('Clear Drawing', Icons.brush, widget.onClearDrawing),
+                const SizedBox(width: 8),
+                _buildClearButton('Clear Highlights', Icons.highlight, widget.onClearHighlights),
+              ],
+            ),
+          ],
+          
+          // Status bar with undo/redo
+          const SizedBox(height: 8),
           _buildStatusBar(),
         ],
       ),
     );
   }
 
-  Widget _buildModeSelector() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          // Type mode
-          _buildModeButton(
-            mode: JournalV2Mode.type,
-            icon: Icons.text_fields,
-            label: 'Type',
-          ),
-          const SizedBox(width: 8),
-          
-          // Draw mode
-          if (FeatureFlags.hasDrawing)
-            _buildModeButton(
-              mode: JournalV2Mode.draw,
-              icon: Icons.brush,
-              label: 'Draw',
-            ),
-          const SizedBox(width: 8),
-          
-          // Highlight mode
-          if (FeatureFlags.hasDrawing)
-            _buildModeButton(
-              mode: JournalV2Mode.highlight,
-              icon: Icons.highlight,
-              label: 'Highlight',
-            ),
-          
-          const Spacer(),
-          
-          // Undo/Redo (only show if feature enabled)
-          if (FeatureFlags.hasRichText) ...[
-            IconButton(
-              icon: const Icon(Icons.undo),
-              color: widget.canUndo ? const Color(0xFFD4AF37) : const Color(0xFF666666),
-              onPressed: widget.canUndo ? widget.onUndo : null,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-            ),
-            IconButton(
-              icon: const Icon(Icons.redo),
-              color: widget.canRedo ? const Color(0xFFD4AF37) : const Color(0xFF666666),
-              onPressed: widget.canRedo ? widget.onRedo : null,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildModeButton({
-    required JournalV2Mode mode,
-    required IconData icon,
-    required String label,
-  }) {
+  Widget _buildModeButton(JournalV2Mode mode, IconData icon, String label) {
     final isActive = _currentMode == mode;
     
     return GestureDetector(
-      onTap: () => _changeMode(mode),
+      onTap: () => _handleModeChange(mode),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive 
-              ? const Color(0xFFD4AF37).withOpacity(0.15) 
-              : Colors.transparent,
+          color: isActive ? const Color(0xFF333333) : Colors.transparent,
+          border: Border.all(
+            color: isActive ? const Color(0xFFD4AF37) : const Color(0xFF666666),
+            width: 1.5,
+          ),
           borderRadius: BorderRadius.circular(8),
-          border: isActive
-              ? Border.all(color: const Color(0xFFD4AF37), width: 2)
-              : Border.all(color: const Color(0xFF333333), width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: 20,
               color: isActive ? const Color(0xFFD4AF37) : const Color(0xFF999999),
+              size: 18,
             ),
             const SizedBox(width: 6),
             Text(
@@ -230,43 +169,11 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
     );
   }
 
-  Widget _buildFormatBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          _buildFormatButton('B', 'bold', _currentAttrs.bold),
-          const SizedBox(width: 8),
-          _buildFormatButton('I', 'italic', _currentAttrs.italic, italic: true),
-          const SizedBox(width: 8),
-          _buildFormatButton('U', 'underline', _currentAttrs.underline, underline: true),
-          const SizedBox(width: 8),
-          _buildFormatButton('S', 'strikethrough', _currentAttrs.strikethrough, strikethrough: true),
-          
-          const Spacer(),
-          
-          // Insert chart button
-          if (FeatureFlags.hasCharts)
-            TextButton.icon(
-              onPressed: widget.onInsertChart,
-              icon: const Icon(Icons.insert_chart, size: 18, color: Color(0xFFD4AF37)),
-              label: const Text(
-                'Chart',
-                style: TextStyle(color: Color(0xFFD4AF37), fontSize: 14),
-              ),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildFormatButton(
     String label,
     String format,
     bool isActive, {
+    bool bold = false,
     bool italic = false,
     bool underline = false,
     bool strikethrough = false,
@@ -274,16 +181,15 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
     return GestureDetector(
       onTap: () => _toggleFormat(format),
       child: Container(
-        width: 36,
-        height: 36,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
-          color: isActive 
-              ? const Color(0xFFD4AF37).withOpacity(0.2) 
-              : const Color(0xFF1A1A1A),
+          color: isActive ? const Color(0xFF333333) : Colors.transparent,
+          border: Border.all(
+            color: isActive ? const Color(0xFFD4AF37) : const Color(0xFF666666),
+            width: 1.5,
+          ),
           borderRadius: BorderRadius.circular(6),
-          border: isActive
-              ? Border.all(color: const Color(0xFFD4AF37), width: 2)
-              : null,
         ),
         child: Center(
           child: Text(
@@ -291,11 +197,14 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
             style: TextStyle(
               color: isActive ? const Color(0xFFD4AF37) : const Color(0xFF999999),
               fontSize: 16,
-              fontWeight: FontWeight.w600,
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
               fontStyle: italic ? FontStyle.italic : FontStyle.normal,
-              decoration: underline 
-                  ? TextDecoration.underline 
-                  : (strikethrough ? TextDecoration.lineThrough : TextDecoration.none),
+              decoration: underline
+                  ? TextDecoration.underline
+                  : strikethrough
+                      ? TextDecoration.lineThrough
+                      : TextDecoration.none,
+              decorationColor: isActive ? const Color(0xFFD4AF37) : const Color(0xFF999999),
             ),
           ),
         ),
@@ -303,57 +212,133 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
     );
   }
 
-  Widget _buildStatusBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        children: [
-          if (_isSaving)
-            const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 12,
-                  height: 12,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF666666)),
-                  ),
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'Saving…',
-                  style: TextStyle(
-                    color: Color(0xFF666666),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            )
-          else if (_lastSaved != null)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.check_circle, size: 12, color: Color(0xFF666666)),
-                const SizedBox(width: 6),
-                Text(
-                  'Saved • ${_formatTime(_lastSaved!)}',
-                  style: const TextStyle(
-                    color: Color(0xFF666666),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+  Widget _buildClearButton(String label, IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          border: Border.all(
+            color: const Color(0xFF666666),
+            width: 1.5,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: const Color(0xFF999999),
+              size: 16,
             ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF999999),
+                fontSize: 12,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBar() {
+    final now = DateTime.now();
+    final hour = now.hour > 12 ? now.hour - 12 : (now.hour == 0 ? 12 : now.hour);
+    final minute = now.minute.toString().padLeft(2, '0');
+    final period = now.hour >= 12 ? 'PM' : 'AM';
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Saved indicator
+          const Icon(
+            Icons.check_circle,
+            color: Color(0xFF4CAF50),
+            size: 14,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'Saved • $hour:$minute $period',
+            style: const TextStyle(
+              color: Color(0xFF999999),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(width: 24),
+          // Undo/Redo buttons - now more prominent
+          _buildUndoRedoButtons(),
         ],
       ),
     );
   }
 
-  String _formatTime(DateTime time) {
-    final hour = time.hour == 0 ? 12 : (time.hour > 12 ? time.hour - 12 : time.hour);
-    final minute = time.minute.toString().padLeft(2, '0');
-    final period = time.hour >= 12 ? 'PM' : 'AM';
-    return '$hour:$minute $period';
+  Widget _buildUndoRedoButtons() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: widget.canUndo ? const Color(0xFFD4AF37) : const Color(0xFF444444),
+              width: 1.5,
+            ),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.canUndo ? widget.onUndo : null,
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Icon(
+                  Icons.undo,
+                  color: widget.canUndo ? const Color(0xFFD4AF37) : const Color(0xFF666666),
+                  size: 18,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: widget.canRedo ? const Color(0xFFD4AF37) : const Color(0xFF444444),
+              width: 1.5,
+            ),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.canRedo ? widget.onRedo : null,
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Icon(
+                  Icons.redo,
+                  color: widget.canRedo ? const Color(0xFFD4AF37) : const Color(0xFF666666),
+                  size: 18,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

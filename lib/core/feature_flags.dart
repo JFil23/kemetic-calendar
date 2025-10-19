@@ -21,7 +21,7 @@ class FeatureFlags {
   
   /// Enable drawing canvas (pen + highlighter + eraser)
   /// Set to TRUE to start Phase 3
-  static const bool enableDrawing = false;  // ← SET TO TRUE FOR PHASE 3
+  static const bool enableDrawing = true;  // ← PHASE 3 ENABLED
   
   /// Enable chart insertion
   /// Set to TRUE to start Phase 3
