@@ -1,19 +1,22 @@
-// lib/features/journal/journal_overlay.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'journal_controller.dart';
 import 'journal_constants.dart';
+import '../../core/feature_flags.dart';
+import 'journal_v2_toolbar.dart';
+import 'journal_v2_document_model.dart';
+import 'journal_v2_rich_text.dart';
+import 'journal_v2_drawing.dart';
 
 class JournalOverlay extends StatefulWidget {
   final JournalController controller;
-  final VoidCallback onClose;
   final bool isPortrait;
+  final VoidCallback onClose;
 
   const JournalOverlay({
     Key? key,
     required this.controller,
-    required this.onClose,
     required this.isPortrait,
+    required this.onClose,
   }) : super(key: key);
 
   @override
@@ -28,10 +31,20 @@ class _JournalOverlayState extends State<JournalOverlay>
   late ScrollController _scrollController;
   late FocusNode _focusNode;
 
-  double _dragOffset = 0.0;
-  bool _isDragging = false;
+  double _dragOffset = 0;
   int? _highlightStart;
   int? _highlightEnd;
+
+  // V2 ADDITIONS
+  JournalV2Toolbar? _toolbar;
+  bool _showToolbar = false;
+  JournalV2Mode _currentMode = JournalV2Mode.type;
+  TextAttrs _currentAttrs = const TextAttrs();
+  GlobalKey<RichTextEditorState>? _richTextEditorKey;
+  DrawingBlock? _currentDrawingBlock;
+  DrawingTool _currentDrawingTool = DrawingTool.pen;
+  Color _currentDrawingColor = Colors.white;
+  double _currentDrawingWidth = 2.0;
 
   @override
   void initState() {
@@ -56,6 +69,44 @@ class _JournalOverlayState extends State<JournalOverlay>
     // Listen to controller changes
     widget.controller.onDraftChanged = _onDraftChanged;
 
+    // V2: Initialize toolbar if enabled
+    if (FeatureFlags.isJournalV2Active) {
+      _showToolbar = FeatureFlags.hasRichText || FeatureFlags.hasDrawing || FeatureFlags.hasCharts;
+      
+      if (_showToolbar) {
+        _toolbar = JournalV2Toolbar(
+          controller: widget.controller,
+          onModeChanged: _onToolbarModeChanged,
+          onFormatChanged: _onFormatChanged,
+          onUndo: _onUndo,
+          onRedo: _onRedo,
+          onInsertChart: _onInsertChart,
+          canUndo: false,
+          canRedo: false,
+        );
+      }
+      
+      // Initialize rich text editor key if needed
+      if (FeatureFlags.hasRichText) {
+        _richTextEditorKey = GlobalKey<RichTextEditorState>();
+      }
+      
+      // Initialize drawing block if needed
+      if (FeatureFlags.hasDrawing && widget.controller.currentDocument != null) {
+        // Find or create drawing block
+        final doc = widget.controller.currentDocument!;
+        final drawingBlocks = doc.blocks.whereType<DrawingBlock>();
+        if (drawingBlocks.isNotEmpty) {
+          _currentDrawingBlock = drawingBlocks.first;
+        } else {
+          _currentDrawingBlock = DrawingBlock(
+            id: 'draw-${DateTime.now().millisecondsSinceEpoch}',
+            strokes: [],
+          );
+        }
+      }
+    }
+
     // Animate in
     _animationController.forward();
 
@@ -67,28 +118,11 @@ class _JournalOverlayState extends State<JournalOverlay>
     });
   }
 
-  @override
-  void dispose() {
-    _animationController.dispose();
-    _textController.dispose();
-    _scrollController.dispose();
-    _focusNode.dispose();
-    widget.controller.onDraftChanged = null;
-    super.dispose();
-  }
-
   void _onDraftChanged() {
-    if (!mounted) return;
-    
-    final newText = widget.controller.currentDraft;
-    if (_textController.text != newText) {
-      final selection = _textController.selection;
-      _textController.text = newText;
-      
-      // Restore cursor position if valid
-      if (selection.baseOffset <= newText.length) {
-        _textController.selection = selection;
-      }
+    if (mounted && !FeatureFlags.hasRichText) {
+      setState(() {
+        _textController.text = widget.controller.currentDraft;
+      });
     }
   }
 
@@ -96,103 +130,159 @@ class _JournalOverlayState extends State<JournalOverlay>
     widget.controller.updateDraft(text);
   }
 
-  Future<void> _close() async {
-    await widget.controller.forceSave();
-    
-    _animationController.reverse().then((_) {
-      if (mounted) {
-        widget.onClose();
+  // V2 TOOLBAR CALLBACKS
+
+  void _onToolbarModeChanged(JournalV2Mode mode) {
+    setState(() {
+      _currentMode = mode;
+      
+      // Update drawing tool based on mode
+      if (mode == JournalV2Mode.draw) {
+        _currentDrawingTool = DrawingTool.pen;
+      } else if (mode == JournalV2Mode.highlight) {
+        _currentDrawingTool = DrawingTool.highlighter;
       }
     });
+    
+    if (FeatureFlags.journalV2DebugMode) {
+      debugPrint('[JournalOverlay] Mode changed to: $mode');
+    }
+  }
+
+  void _onFormatChanged(TextAttrs attrs) {
+    if (!FeatureFlags.hasRichText) return;
+    
+    setState(() => _currentAttrs = attrs);
+    
+    // Apply formatting to rich text editor
+    _richTextEditorKey?.currentState?.applyFormat(attrs);
+    
+    if (FeatureFlags.journalV2DebugMode) {
+      debugPrint('[JournalOverlay] Format changed: $attrs');
+    }
+  }
+
+  void _onUndo() {
+    if (FeatureFlags.journalV2DebugMode) {
+      debugPrint('[JournalOverlay] Undo requested (not implemented yet)');
+    }
+    // TODO: Implement undo in Phase 4
+  }
+
+  void _onRedo() {
+    if (FeatureFlags.journalV2DebugMode) {
+      debugPrint('[JournalOverlay] Redo requested (not implemented yet)');
+    }
+    // TODO: Implement redo in Phase 4
+  }
+
+  void _onInsertChart() {
+    if (!FeatureFlags.hasCharts) return;
+    
+    if (FeatureFlags.journalV2DebugMode) {
+      debugPrint('[JournalOverlay] Chart insertion requested (not implemented yet)');
+    }
+    // TODO: Implement chart wizard in Phase 3
+  }
+
+  void _onRichTextChanged(ParagraphBlock block) {
+    if (!FeatureFlags.hasRichText || widget.controller.currentDocument == null) return;
+    
+    // Update document with new paragraph block
+    final doc = widget.controller.currentDocument!;
+    final blocks = List<JournalBlock>.from(doc.blocks);
+    
+    // Find and update the paragraph block
+    final index = blocks.indexWhere((b) => b is ParagraphBlock);
+    if (index >= 0) {
+      blocks[index] = block;
+    } else {
+      blocks.insert(0, block);
+    }
+    
+    final newDoc = JournalDocument(
+      version: doc.version,
+      blocks: blocks,
+      meta: doc.meta,
+    );
+    
+    widget.controller.updateDocument(newDoc);
+  }
+
+  void _onDrawingChanged(DrawingBlock block) {
+    if (!FeatureFlags.hasDrawing || widget.controller.currentDocument == null) return;
+    
+    setState(() => _currentDrawingBlock = block);
+    
+    // Update document with new drawing block
+    final doc = widget.controller.currentDocument!;
+    final blocks = List<JournalBlock>.from(doc.blocks);
+    
+    // Find and update the drawing block
+    final index = blocks.indexWhere((b) => b is DrawingBlock && b.id == block.id);
+    if (index >= 0) {
+      blocks[index] = block;
+    } else {
+      blocks.add(block);
+    }
+    
+    final newDoc = JournalDocument(
+      version: doc.version,
+      blocks: blocks,
+      meta: doc.meta,
+    );
+    
+    widget.controller.updateDocument(newDoc);
+  }
+
+  void _close() async {
+    // Save before closing
+    await widget.controller.forceSave();
+    
+    // Animate out
+    await _animationController.reverse();
+    
+    // Close overlay
+    if (mounted) {
+      widget.onClose();
+    }
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
-    if (!_isDragging) {
-      // Check if gesture is directionally dominant
-      final dx = details.delta.dx.abs();
-      final dy = details.delta.dy.abs();
-      
+    setState(() {
       if (widget.isPortrait) {
-        // Portrait: R→L close
-        if (details.delta.dx < 0 && dx > dy * kJournalSwipeDominance) {
-          setState(() => _isDragging = true);
-        }
+        // Portrait: R→L to close
+        _dragOffset += details.delta.dx;
+        if (_dragOffset > 0) _dragOffset = 0;
       } else {
-        // Landscape: Up close
-        if (details.delta.dy < 0 && dy > dx * kJournalSwipeDominance) {
-          setState(() => _isDragging = true);
-        }
+        // Landscape: up to close
+        _dragOffset += details.delta.dy;
+        if (_dragOffset > 0) _dragOffset = 0;
       }
-    }
-
-    if (_isDragging) {
-      setState(() {
-        if (widget.isPortrait) {
-          _dragOffset = (_dragOffset + details.delta.dx).clamp(
-            double.negativeInfinity,
-            0.0,
-          );
-        } else {
-          _dragOffset = (_dragOffset + details.delta.dy).clamp(
-            double.negativeInfinity,
-            0.0,
-          );
-        }
-      });
-    }
+    });
   }
 
   void _onPanEnd(DragEndDetails details) {
-    if (!_isDragging) return;
-
-    final size = MediaQuery.of(context).size;
     final threshold = widget.isPortrait
-        ? size.width * kJournalPortraitWidthFraction * kJournalCloseTravelFraction
-        : size.height * kJournalLandscapeHeightFraction * kJournalCloseTravelFraction;
+        ? kJournalPortraitCloseThreshold
+        : kJournalLandscapeCloseThreshold;
 
-    final velocity = widget.isPortrait
-        ? details.velocity.pixelsPerSecond.dx
-        : details.velocity.pixelsPerSecond.dy;
-
-    final shouldClose = _dragOffset.abs() >= threshold ||
-        velocity.abs() >= kJournalSwipeMinVelocity;
-
-    setState(() => _isDragging = false);
-
-    if (shouldClose) {
+    if (_dragOffset.abs() > threshold) {
       _close();
     } else {
-      // Spring back
-      setState(() => _dragOffset = 0.0);
+      setState(() => _dragOffset = 0);
     }
   }
 
-  /// Scroll to end and highlight appended content
-  Future<void> scrollToEndAndHighlight(int startPosition, int endPosition) async {
-    setState(() {
-      _highlightStart = startPosition;
-      _highlightEnd = endPosition;
-    });
-
-    // Scroll to bottom
-    await Future.delayed(const Duration(milliseconds: 100));
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
-
-    // Clear highlight after delay
-    Future.delayed(const Duration(milliseconds: kJournalHighlightDurationMs), () {
-      if (mounted) {
-        setState(() {
-          _highlightStart = null;
-          _highlightEnd = null;
-        });
-      }
-    });
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _textController.dispose();
+    _scrollController.dispose();
+    _focusNode.dispose();
+    widget.controller.onDraftChanged = null;
+    _toolbar = null;
+    super.dispose();
   }
 
   @override
@@ -248,6 +338,7 @@ class _JournalOverlayState extends State<JournalOverlay>
                   child: Column(
                     children: [
                       _buildHeader(),
+                      if (_showToolbar && _toolbar != null) _toolbar!,
                       Expanded(child: _buildEditor()),
                     ],
                   ),
@@ -296,41 +387,89 @@ class _JournalOverlayState extends State<JournalOverlay>
   Widget _buildEditor() {
     return Container(
       padding: const EdgeInsets.all(16),
-      child: Stack(
+      child: _buildEditorContent(),
+    );
+  }
+
+  Widget _buildEditorContent() {
+    // Phase 3: Drawing mode
+    if (FeatureFlags.hasDrawing && 
+        (_currentMode == JournalV2Mode.draw || _currentMode == JournalV2Mode.highlight)) {
+      return Stack(
         children: [
-          TextField(
-            controller: _textController,
-            focusNode: _focusNode,
-            scrollController: _scrollController,
-            maxLines: null,
-            expands: true,
-            textAlignVertical: TextAlignVertical.top,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              height: 1.5,
-            ),
-            decoration: const InputDecoration(
-              hintText: 'Write your day…',
-              hintStyle: TextStyle(
-                color: Color(0xFF666666),
-                fontSize: 16,
-              ),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
-            ),
-            onChanged: _handleTextChanged,
+          // Show text as background
+          Opacity(
+            opacity: 0.3,
+            child: _buildPlainTextEditor(),
           ),
-          if (_highlightStart != null && _highlightEnd != null)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Container(
-                  color: Color(kJournalHighlightColor),
-                ),
-              ),
+          // Drawing layer on top
+          if (_currentDrawingBlock != null)
+            DrawingCanvas(
+              initialBlock: _currentDrawingBlock!,
+              onChanged: _onDrawingChanged,
+              currentTool: _currentDrawingTool,
+              currentColor: _currentDrawingColor,
+              currentWidth: _currentDrawingWidth,
             ),
         ],
+      );
+    }
+    
+    // Phase 2: Rich text mode
+    if (FeatureFlags.hasRichText && _currentMode == JournalV2Mode.type) {
+      return _buildRichTextEditor();
+    }
+    
+    // Phase 1 / V1: Plain text mode
+    return _buildPlainTextEditor();
+  }
+
+  Widget _buildPlainTextEditor() {
+    return TextField(
+      controller: _textController,
+      focusNode: _focusNode,
+      scrollController: _scrollController,
+      maxLines: null,
+      expands: true,
+      textAlignVertical: TextAlignVertical.top,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 16,
+        height: 1.5,
       ),
+      decoration: const InputDecoration(
+        hintText: 'Write your day…',
+        hintStyle: TextStyle(
+          color: Color(0xFF666666),
+          fontSize: 16,
+        ),
+        border: InputBorder.none,
+        contentPadding: EdgeInsets.zero,
+      ),
+      onChanged: _handleTextChanged,
+    );
+  }
+
+  Widget _buildRichTextEditor() {
+    if (widget.controller.currentDocument == null) {
+      return _buildPlainTextEditor();
+    }
+    
+    // Get first paragraph block from document
+    final doc = widget.controller.currentDocument!;
+    final paragraphBlocks = doc.blocks.whereType<ParagraphBlock>();
+    final initialBlock = paragraphBlocks.isNotEmpty
+        ? paragraphBlocks.first
+        : ParagraphBlock(
+            id: 'p-${DateTime.now().millisecondsSinceEpoch}',
+            ops: [TextOp(insert: '\n')],
+          );
+    
+    return RichTextEditor(
+      key: _richTextEditorKey,
+      initialBlock: initialBlock,
+      onChanged: _onRichTextChanged,
+      currentAttrs: _currentAttrs,
     );
   }
 }

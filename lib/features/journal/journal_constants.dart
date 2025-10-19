@@ -55,3 +55,7 @@ const double kJournalLandscapeHeightFraction = 0.70;
 
 // Highlight color for appended content (pale gold)
 const int kJournalHighlightColor = 0x40D4AF37; // 25% opacity gold
+
+// Close thresholds for different orientations
+const double kJournalPortraitCloseThreshold = 0.33;
+const double kJournalLandscapeCloseThreshold = 0.33;
