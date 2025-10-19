@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Exact alarms only if you use them -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
     <!-- Additional permissions required for proper notification handling -->
     <!-- Allows the app to keep the CPU on while handling notifications -->
@@ -13,6 +14,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Allows the device to vibrate when a notification is delivered -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- REQUIRED for fullScreenIntent: true on Android 14+ (API 34+) -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application
         android:label="Kemetic Calendar"
@@ -41,6 +44,28 @@
                 <data
                     android:scheme="kemet.app"
                     android:host="login-callback" />
+            </intent-filter>
+
+            <!-- ICS File Import Support -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:mimeType="text/calendar" />
+                <data android:host="*" />
+            </intent-filter>
+            
+            <!-- Alternative intent filter for .ics file extension -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:host="*" />
+                <data android:pathPattern=".*\\.ics" />
             </intent-filter>
         </activity>
 

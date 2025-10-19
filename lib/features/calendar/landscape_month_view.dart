@@ -368,6 +368,8 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
         backgroundColor: _surface, // Dark surface (matching day view)
         elevation: 0,
         automaticallyImplyLeading: false, // No back/close button
+        centerTitle: false,
+        titleSpacing: 16,
         title: _buildMonthHeader(),
         actions: [
           // Flow Studio button

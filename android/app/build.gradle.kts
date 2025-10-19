@@ -11,16 +11,23 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        // keep Java 11 (works fine for this fix)
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        // Use JVM toolchain for Java 21 compatibility
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
 
         // Required by flutter_local_notifications and newer Android APIs
         isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = "21"
+    }
+    
+    // Configure JVM toolchain
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
     }
 
     defaultConfig {

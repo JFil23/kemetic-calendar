@@ -217,6 +217,9 @@ class _DayViewPageState extends State<DayViewPage> {
   
   // 🔧 ADD THIS: Persistent scroll controller for mini calendar
   late ScrollController _miniCalendarScrollController;
+  
+  // 🔧 NEW: Orientation tracking for bidirectional lock
+  Orientation? _lastOrientation;
 
   @override
   void initState() {
@@ -283,55 +286,76 @@ class _DayViewPageState extends State<DayViewPage> {
     );
   }
 
+  // 🔧 NEW: Convert Kemetic date to total days for navigation
+  int _kemeticToTotalDays(int ky, int km, int kd) {
+    // Approximate total days since epoch
+    return ky * 365 + (km - 1) * 30 + kd;
+  }
+
+
   @override
   Widget build(BuildContext context) {
-    // PREVENT landscape day view - redirect to month view instead
     final orientation = MediaQuery.of(context).orientation;
     
-    if (orientation == Orientation.landscape) {
-      return LandscapeMonthView(
-        initialKy: _currentKy,
-        initialKm: _currentKm,
-        initialKd: _currentKd,
-        showGregorian: widget.showGregorian,
-        notesForDay: widget.notesForDay,
-        flowIndex: widget.flowIndex,
-        getMonthName: widget.getMonthName,
-        onManageFlows: widget.onManageFlows,
-      );
+    // Track orientation changes for debugging
+    if (_lastOrientation != null && _lastOrientation != orientation) {
+      if (kDebugMode) {
+        print('\n📱 [DAY VIEW] Orientation changed: $_lastOrientation → $orientation');
+      }
     }
+    
+    _lastOrientation = orientation;
 
     return Scaffold(
       backgroundColor: const Color(0xFF000000), // True black
-      body: Column(
-        children: [
-          // Custom Apple-style header
-          _buildAppleStyleHeader(),
+      body: OrientationBuilder(
+        builder: (context, orientation) {
+          if (orientation == Orientation.landscape) {
+            return LandscapeMonthView(
+              initialKy: _currentKy,
+              initialKm: _currentKm,
+              initialKd: _currentKd,
+              showGregorian: widget.showGregorian,
+              notesForDay: widget.notesForDay,
+              flowIndex: widget.flowIndex,
+              getMonthName: widget.getMonthName,
+              onManageFlows: widget.onManageFlows,
+              onAddNote: widget.onAddNote,
+            );
+          }
           
-          // Existing page view with timeline
-          Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              onPageChanged: _onPageChanged,
-              itemBuilder: (context, index) {
-                final kDate = _dateForPage(index);
-                return DayViewGrid(
-                  key: ValueKey('${kDate.kYear}-${kDate.kMonth}-${kDate.kDay}'), // Add key
-                  ky: kDate.kYear,
-                  km: kDate.kMonth,
-                  kd: kDate.kDay,
-                  notes: widget.notesForDay(kDate.kYear, kDate.kMonth, kDate.kDay),
-                  showGregorian: widget.showGregorian,
-                  flowIndex: widget.flowIndex,
-                  initialScrollOffset: _savedScrollOffset,    // 🔧 NEW
-                  onScrollChanged: _onScrollChanged,          // 🔧 NEW
-                  onManageFlows: widget.onManageFlows, // NEW: Pass callback down
-                  onAddNote: widget.onAddNote,
-                );
-              },
-            ),
-          ),
-        ],
+          // Portrait day view
+          return Column(
+            children: [
+              // Custom Apple-style header
+              _buildAppleStyleHeader(),
+              
+              // Existing page view with timeline
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: _onPageChanged,
+                  itemBuilder: (context, index) {
+                    final kDate = _dateForPage(index);
+                    return DayViewGrid(
+                      key: ValueKey('${kDate.kYear}-${kDate.kMonth}-${kDate.kDay}'), // Add key
+                      ky: kDate.kYear,
+                      km: kDate.kMonth,
+                      kd: kDate.kDay,
+                      notes: widget.notesForDay(kDate.kYear, kDate.kMonth, kDate.kDay),
+                      showGregorian: widget.showGregorian,
+                      flowIndex: widget.flowIndex,
+                      initialScrollOffset: _savedScrollOffset,    // 🔧 NEW
+                      onScrollChanged: _onScrollChanged,          // 🔧 NEW
+                      onManageFlows: widget.onManageFlows, // NEW: Pass callback down
+                      onAddNote: widget.onAddNote,
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -921,7 +945,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0D0D0F),
+      backgroundColor: Color(0xFF000000),
       isScrollControlled: true,
       builder: (context) {
         return Container(

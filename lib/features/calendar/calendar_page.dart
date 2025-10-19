@@ -12,6 +12,7 @@ import 'landscape_month_view.dart';
 import 'dart:convert' as json;
 import 'dart:convert';
 import 'day_view.dart';
+import '../profile/profile_page.dart';
 
 
 
@@ -21,7 +22,7 @@ import 'day_view.dart';
 
 /* ───────────────────── Premium Dark Theme + Gloss ───────────────────── */
 
-const Color _bg = Color(0xFF0E0E10); // charcoal
+const Color _bg = Colors.black; // True black
 const Color _gold = Color(0xFFD4AF37);
 const Color _silver = Color(0xFFC8CCD2);
 const Color _cardBorderGold = _gold;
@@ -2020,7 +2021,7 @@ class _CalendarPageState extends State<CalendarPage> {
             return ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: Material(
-                color: const Color(0xFF121214),
+                color: Colors.black,
                 child: Column(
                   children: [
                     const SizedBox(height: 10),
@@ -2058,6 +2059,142 @@ class _CalendarPageState extends State<CalendarPage> {
     }
   }
 
+
+  // Flow Studio callback that opens the Flow Hub (same as main calendar)
+  VoidCallback _getFlowStudioCallback() {
+    return () {
+      _openFlowStudioSheet(
+        rootBuilder: (innerCtx) {
+          return _FlowHubPage(
+            openMyFlows: () {
+              Navigator.of(innerCtx).push(
+                MaterialPageRoute(
+                  builder: (ctx2) => _FlowsViewerPage(
+                    flows: _flows,
+                    fmtGregorian: (d) => d == null
+                        ? '--'
+                        : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
+                    onCreateNew: () async {
+                      final edited = await Navigator.of(innerCtx).push<_FlowStudioResult>(
+                        MaterialPageRoute(
+                          builder: (_) => _FlowStudioPage(
+                            existingFlows: _flows,
+                          ),
+                        ),
+                      );
+                      if (edited != null) await _persistFlowStudioResult(edited);
+                    },
+                    onEditFlow: (id) async {
+                      final edited = await Navigator.of(innerCtx).push<_FlowStudioResult>(
+                        MaterialPageRoute(
+                          builder: (_) => _FlowStudioPage(
+                            existingFlows: _flows,
+                            editFlowId: id,
+                          ),
+                        ),
+                      );
+                      if (edited != null) await _persistFlowStudioResult(edited);
+                    },
+                    openMaatFlows: () {
+                      Navigator.of(innerCtx).push(
+                        MaterialPageRoute(
+                          builder: (ctx3) => _MaatCategoriesPage(
+                            hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
+                            onPickTemplate: (tpl) {
+                              Navigator.of(ctx3).push(
+                                MaterialPageRoute(
+                                  builder: (ctx4) => _MaatFlowTemplateDetailPage(
+                                    template: tpl,
+                                    addInstance: ({
+                                      required _MaatFlowTemplate template,
+                                      required DateTime startDate,
+                                      required bool useKemetic,
+                                    }) {
+                                      final id = _addMaatFlowInstance(
+                                        template: template,
+                                        startDate: startDate,
+                                        useKemetic: useKemetic,
+                                      );
+                                      return id;
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                            onCreateNew: () async {
+                              final edited = await Navigator.of(innerCtx).push<_FlowStudioResult>(
+                                MaterialPageRoute(
+                                  builder: (_) => _FlowStudioPage(
+                                    existingFlows: _flows,
+                                  ),
+                                ),
+                              );
+                              if (edited != null) await _persistFlowStudioResult(edited);
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                    onEndFlow: (id) => _endFlow(id),
+                  ),
+                ),
+              );
+            },
+            openMaatFlows: () {
+              Navigator.of(innerCtx).push(
+                MaterialPageRoute(
+                  builder: (ctx3) => _MaatCategoriesPage(
+                    hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
+                    onPickTemplate: (tpl) {
+                      Navigator.of(ctx3).push(
+                        MaterialPageRoute(
+                          builder: (ctx4) => _MaatFlowTemplateDetailPage(
+                            template: tpl,
+                            addInstance: ({
+                              required _MaatFlowTemplate template,
+                              required DateTime startDate,
+                              required bool useKemetic,
+                            }) {
+                              final id = _addMaatFlowInstance(
+                                template: template,
+                                startDate: startDate,
+                                useKemetic: useKemetic,
+                              );
+                              return id;
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                    onCreateNew: () async {
+                      final edited = await Navigator.of(innerCtx).push<_FlowStudioResult>(
+                        MaterialPageRoute(
+                          builder: (_) => _FlowStudioPage(
+                            existingFlows: _flows,
+                          ),
+                        ),
+                      );
+                      if (edited != null) await _persistFlowStudioResult(edited);
+                    },
+                  ),
+                ),
+              );
+            },
+            onCreateNew: () async {
+              final edited = await Navigator.of(innerCtx).push<_FlowStudioResult>(
+                MaterialPageRoute(
+                  builder: (_) => _FlowStudioPage(
+                    existingFlows: _flows,
+                  ),
+                ),
+              );
+              if (edited != null) await _persistFlowStudioResult(edited);
+            },
+          );
+        },
+      );
+    };
+  }
 
   void _openFlowsViewer() {
     _openFlowStudioSheet(
@@ -2438,7 +2575,7 @@ class _CalendarPageState extends State<CalendarPage> {
           notesForDay: notesForDayFn,
           flowIndex: flowIndex,
           getMonthName: getMonthName,
-          onManageFlows: _openFlowsViewer, // Wire up to existing method
+          onManageFlows: _getFlowStudioCallback(),
           onAddNote: (ky, km, kd) => _openDaySheet(ky, km, kd, allowDateChange: true),
         ),
       ),
@@ -3672,7 +3809,7 @@ class _CalendarPageState extends State<CalendarPage> {
           if (km == 13) return 'Heriu Renpet (ḥr.w rnpt)';
           return _MonthCard.monthNames[km] ?? 'Month $km';
         },
-        onManageFlows: _openFlowsViewer,
+        onManageFlows: _getFlowStudioCallback(),
         onAddNote: (ky, km, kd) {
           if (kDebugMode) {
             print('\n🎯 [CALLBACK] onAddNote received from landscape');
@@ -3688,7 +3825,7 @@ class _CalendarPageState extends State<CalendarPage> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111215),
+        backgroundColor: Colors.black,
         elevation: 0.5,
         title: GestureDetector(
           onTap: () => setState(() => _showGregorian = !_showGregorian),
@@ -3712,138 +3849,7 @@ class _CalendarPageState extends State<CalendarPage> {
           IconButton(
             tooltip: 'Flow Studio',
             icon: const _GlossyIcon(Icons.view_timeline, gradient: _goldGloss),
-            onPressed: () {
-              _openFlowStudioSheet(
-                rootBuilder: (innerCtx) {
-                  return _FlowHubPage(
-                    openMyFlows: () {
-                      Navigator.of(innerCtx).push(
-                        MaterialPageRoute(
-                          builder: (ctx2) => _FlowsViewerPage(
-                            flows: _flows,
-                            fmtGregorian: (d) => d == null
-                                ? '--'
-                                : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
-                            onCreateNew: () async {
-                              final edited = await Navigator.of(innerCtx).push<_FlowStudioResult>(
-                                MaterialPageRoute(
-                                  builder: (_) => _FlowStudioPage(
-                                    existingFlows: _flows,
-                                  ),
-                                ),
-                              );
-                              if (edited != null) await _persistFlowStudioResult(edited);
-                            },
-                            onEditFlow: (id) async {
-                              final edited = await Navigator.of(innerCtx).push<_FlowStudioResult>(
-                                MaterialPageRoute(
-                                  builder: (_) => _FlowStudioPage(
-                                    existingFlows: _flows,
-                                    editFlowId: id,
-                                  ),
-                                ),
-                              );
-                              if (edited != null) await _persistFlowStudioResult(edited);
-                            },
-                            openMaatFlows: () {
-                              Navigator.of(innerCtx).push(
-                                MaterialPageRoute(
-                                  builder: (ctx3) => _MaatCategoriesPage(
-                                    hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
-                                    onPickTemplate: (tpl) {
-                                      Navigator.of(ctx3).push(
-                                        MaterialPageRoute(
-                                          builder: (ctx4) => _MaatFlowTemplateDetailPage(
-                                            template: tpl,
-                                            addInstance: ({
-                                              required _MaatFlowTemplate template,
-                                              required DateTime startDate,
-                                              required bool useKemetic,
-                                            }) {
-                                              final id = _addMaatFlowInstance(
-                                                template: template,
-                                                startDate: startDate,
-                                                useKemetic: useKemetic,
-                                              );
-                                              return id;
-                                            },
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    onCreateNew: () async {
-                                      final edited = await Navigator.of(innerCtx).push<_FlowStudioResult>(
-                                        MaterialPageRoute(
-                                          builder: (_) => _FlowStudioPage(
-                                            existingFlows: _flows,
-                                          ),
-                                        ),
-                                      );
-                                      if (edited != null) await _persistFlowStudioResult(edited);
-                                    },
-                                  ),
-                                ),
-                              );
-                            },
-                            onEndFlow: (id) => _endFlow(id),
-                          ),
-                        ),
-                      );
-                    },
-                    openMaatFlows: () {
-                      Navigator.of(innerCtx).push(
-                        MaterialPageRoute(
-                          builder: (ctx3) => _MaatCategoriesPage(
-                            hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
-                            onPickTemplate: (tpl) {
-                              Navigator.of(ctx3).push(
-                                MaterialPageRoute(
-                                  builder: (ctx4) => _MaatFlowTemplateDetailPage(
-                                    template: tpl,
-                                    addInstance: ({
-                                      required _MaatFlowTemplate template,
-                                      required DateTime startDate,
-                                      required bool useKemetic,
-                                    }) {
-                                      final id = _addMaatFlowInstance(
-                                        template: template,
-                                        startDate: startDate,
-                                        useKemetic: useKemetic,
-                                      );
-                                      return id;
-                                    },
-                                  ),
-                                ),
-                              );
-                            },
-                            onCreateNew: () async {
-                              final edited = await Navigator.of(innerCtx).push<_FlowStudioResult>(
-                                MaterialPageRoute(
-                                  builder: (_) => _FlowStudioPage(
-                                    existingFlows: _flows,
-                                  ),
-                                ),
-                              );
-                              if (edited != null) await _persistFlowStudioResult(edited);
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                    onCreateNew: () async {
-                      final edited = await Navigator.of(innerCtx).push<_FlowStudioResult>(
-                        MaterialPageRoute(
-                          builder: (_) => _FlowStudioPage(
-                            existingFlows: _flows,
-                          ),
-                        ),
-                      );
-                      if (edited != null) await _persistFlowStudioResult(edited);
-                    },
-                  );
-                },
-              );
-            },
+            onPressed: _getFlowStudioCallback(),
           ),
 
           IconButton(
@@ -3855,6 +3861,26 @@ class _CalendarPageState extends State<CalendarPage> {
               kToday.kDay,
               allowDateChange: true,
             ),
+          ),
+          // My Profile button
+          IconButton(
+            tooltip: 'My Profile',
+            icon: const _GlossyIcon(Icons.person, gradient: _goldGloss),
+            onPressed: () {
+              final userId = Supabase.instance.client.auth.currentUser?.id;
+              if (userId != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProfilePage(userId: userId, isMyProfile: true),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please log in to view your profile')),
+                );
+              }
+            },
           ),
         ],
       ),
@@ -4301,7 +4327,7 @@ class _MonthCard extends StatelessWidget {
       key: anchorKey,
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
       child: Card(
-        color: const Color(0xFF121315),
+        color: Colors.black,
         elevation: 0,
         shape: RoundedRectangleBorder(
           side: BorderSide.none,
@@ -4643,7 +4669,7 @@ class _EpagomenalCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
       child: Card(
-        color: const Color(0xFF121315),
+        color: Colors.black,
         elevation: 0,
         shape: RoundedRectangleBorder(
           side: BorderSide.none,
@@ -4798,7 +4824,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111215),
+        backgroundColor: Colors.black,
         elevation: 0.5,
         automaticallyImplyLeading: false,
         leading: IconButton(
@@ -5462,7 +5488,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     return showModalBottomSheet<DateTime>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF121214),
+      backgroundColor: Colors.black,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -5661,7 +5687,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     return showModalBottomSheet<DateTime>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF121214),
+      backgroundColor: Colors.black,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -5875,7 +5901,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF121214),
+      backgroundColor: Colors.black,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -6044,7 +6070,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             key: ValueKey(g.key),
             padding: const EdgeInsets.only(bottom: 12),
             child: Card(
-              color: const Color(0xFF121315),
+              color: Colors.black,
               elevation: 0,
               shape: RoundedRectangleBorder(
                 side: const BorderSide(color: _cardBorderGold, width: 1.0),
@@ -6312,7 +6338,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF121214),
+      backgroundColor: Colors.black,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -7030,7 +7056,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111215),
+        backgroundColor: Colors.black,
         elevation: 0.5,
         leading: IconButton(
           tooltip: 'Close',
@@ -7297,7 +7323,7 @@ class _FlowPreviewPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111215),
+        backgroundColor: Colors.black,
         elevation: 0.5,
         title: const Text('Flow', style: TextStyle(color: Colors.white)),
         actions: [
@@ -7512,7 +7538,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111215),
+        backgroundColor: Colors.black,
         elevation: 0.5,
         title: const Text('My Flows', style: TextStyle(color: Colors.white)),
         actions: [
@@ -7554,7 +7580,7 @@ class _FlowHubPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111215),
+        backgroundColor: Colors.black,
         elevation: 0.5,
         title: const Text('Flow Studio', style: TextStyle(color: Colors.white)),
         actions: [
@@ -7734,7 +7760,7 @@ class _MaatCategoriesPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111215),
+        backgroundColor: Colors.black,
         elevation: 0.5,
         title: const Text("Ma'at Flows", style: TextStyle(color: Colors.white)),
         actions: [
@@ -7794,7 +7820,7 @@ class _MaatFlowsListPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111215),
+        backgroundColor: Colors.black,
         elevation: 0.5,
         title: const Text("Kemetic Culture & History", style: TextStyle(color: Colors.white)),
         actions: [
@@ -7916,7 +7942,7 @@ class _MaatFlowTemplateDetailPageState extends State<_MaatFlowTemplateDetailPage
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF121214),
+      backgroundColor: Colors.black,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -8269,7 +8295,7 @@ class _MaatFlowTemplateDetailPageState extends State<_MaatFlowTemplateDetailPage
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111215),
+        backgroundColor: Colors.black,
         elevation: 0.5,
         title: Text(widget.template.title, style: const TextStyle(color: Colors.white)),
       ),
@@ -8388,7 +8414,7 @@ class _EventSearchDelegate extends SearchDelegate<void> {
     final base = Theme.of(context);
     return base.copyWith(
       appBarTheme: const AppBarTheme(
-        color: Color(0xFF111215),
+        color: Colors.black,
         elevation: 0.5,
       ),
       inputDecorationTheme: const InputDecorationTheme(

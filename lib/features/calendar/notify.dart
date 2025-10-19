@@ -4,9 +4,20 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// Timezone DB (we schedule in UTC)
+// Timezone DB (we schedule in LOCAL timezone)
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
+
+/// Notification types (prepare for Phase 1.1)
+enum NotificationType {
+  eventStart('event_start'),
+  reminder10min('reminder_10min'),
+  dailyReview('daily_review'),
+  flowStep('flow_step');
+  
+  final String value;
+  const NotificationType(this.value);
+}
 
 class Notify {
   static final _plugin = FlutterLocalNotificationsPlugin();
@@ -16,11 +27,23 @@ class Notify {
   static const _androidChannelDesc = 'Event notes and flow reminders';
 
   static bool _inited = false;
-  static int _nextNotificationId = 1000; // Start from 1000 to avoid conflicts
+  static final Set<String> _schedulingInProgress = {};
+
+  /// Generate stable notification ID from clientEventId
+  /// Hash-based approach prevents ID conflicts across app restarts
+  static int _generateStableNotificationId(String clientEventId) {
+    // Use hashCode for deterministic ID generation
+    // Modulo 1M to keep in safe range for iOS/Android
+    final hash = clientEventId.hashCode.abs() % 1000000;
+    
+    // Ensure ID is never 0 (some platforms don't like it)
+    return hash == 0 ? 1 : hash;
+  }
 
   static void _log(String msg) {
     if (kDebugMode) {
-      print('[Notify] $msg');
+      final timestamp = DateTime.now().toIso8601String();
+      print('[Notify $timestamp] $msg');
     }
   }
 
@@ -31,9 +54,51 @@ class Notify {
       return;
     }
 
-    // 1) Timezone DB; we'll schedule in UTC
+    // 1) Timezone DB; we'll schedule in LOCAL timezone
     tzdata.initializeTimeZones();
-    _log('Timezones initialized (using UTC for scheduling)');
+    
+    // Auto-detect timezone using DateTime offset
+    final nowLocal = DateTime.now();
+    final offset = nowLocal.timeZoneOffset;
+    
+    String detectedTimezone = 'America/Los_Angeles'; // Default fallback
+    
+    try {
+      final offsetHours = offset.inHours;
+      final offsetMinutes = offset.inMinutes.remainder(60);
+      
+      _log('🌍 Device timezone offset: ${offsetHours}h ${offsetMinutes}m');
+      
+      // Map common timezones by UTC offset
+      final timezoneMap = {
+        // US Timezones - Fixed DST handling
+        -8: 'America/Los_Angeles',  // PST (winter)
+        -7: 'America/Los_Angeles',  // PDT (summer) ← FIXED!
+        -6: 'America/Denver',        // MDT (summer) or CST (winter)
+        -5: 'America/Chicago',       // CDT (summer) or EST (winter)
+        -4: 'America/New_York',      // EDT (summer)
+        -10: 'Pacific/Honolulu',     // HST (no DST)
+        -9: 'America/Anchorage',     // AKST/AKDT
+        
+        // International
+        0: 'Europe/London',          // GMT/BST
+        1: 'Europe/Paris',           // CET/CEST
+        8: 'Asia/Singapore',         // SGT
+        9: 'Asia/Tokyo',             // JST
+        10: 'Australia/Sydney',      // AEST/AEDT
+      };
+      
+      detectedTimezone = timezoneMap[offsetHours] ?? 'America/Los_Angeles';
+      
+      _log('📍 Detected timezone: $detectedTimezone (offset: ${offsetHours}h)');
+      
+    } catch (e) {
+      _log('⚠️ Timezone detection failed: $e');
+      _log('   Using fallback: America/Los_Angeles');
+    }
+    
+    tz.setLocalLocation(tz.getLocation(detectedTimezone));
+    _log('Timezones initialized (will use LOCAL timezone: $detectedTimezone)');
 
     // 2) Android init
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -107,7 +172,9 @@ class Notify {
       details,
       payload: '{}',
     );
-    await pending();
+    // Show final state
+    final finalPending = await _plugin.pendingNotificationRequests();
+    _log('Final pending notifications: ${finalPending.length}');
   }
 
   /// Helper: schedule something a few seconds out (for your debug button).
@@ -130,53 +197,64 @@ class Notify {
     required String title,
     String? body,
     String? payload,
+    NotificationType type = NotificationType.eventStart,
   }) async {
     if (!_inited) {
       await init();
     }
 
-    final now = DateTime.now();
-    final safeWhen = scheduledAt.isAfter(now.add(const Duration(seconds: 3)))
-        ? scheduledAt
-        : now.add(const Duration(seconds: 5));
-
-    // Check if we already have a notification for this event
-    final existing = await _getNotificationByEventId(clientEventId);
-
-    int notificationId;
-    if (existing != null) {
-      // Update existing notification
-      notificationId = existing['notification_id'] as int;
-      _log('Updating existing notification $notificationId for event $clientEventId');
-
-      // Cancel old notification
-      await _plugin.cancel(notificationId);
-    } else {
-      // Generate new notification ID
-      notificationId = _nextNotificationId++;
-      _log('Creating new notification $notificationId for event $clientEventId');
+    // FIX #2: Prevent duplicate scheduling
+    if (_schedulingInProgress.contains(clientEventId)) {
+      _log('⚠️ Already scheduling notification for $clientEventId, skipping duplicate');
+      return;
     }
 
-    // Schedule the local notification
-    await _scheduleLocalNotification(
-      id: notificationId,
-      scheduledAt: safeWhen,
-      title: title,
-      body: body,
-      payload: payload ?? '{}',
-    );
+    try {
+      _schedulingInProgress.add(clientEventId);
 
-    // Persist to Supabase
-    await _persistNotificationToDatabase(
-      clientEventId: clientEventId,
-      notificationId: notificationId,
-      scheduledAt: safeWhen,
-      title: title,
-      body: body,
-      payload: payload ?? '{}',
-    );
+      final now = DateTime.now();
+      final safeWhen = scheduledAt.isAfter(now.add(const Duration(seconds: 3)))
+          ? scheduledAt
+          : now.add(const Duration(seconds: 5));
 
-    _log('✅ Notification scheduled and persisted: $title at $safeWhen');
+      // Generate stable notification ID from clientEventId
+      final notificationId = _generateStableNotificationId(clientEventId);
+
+      // Check if existing notification needs update
+      final existing = await _getNotificationByEventId(clientEventId);
+      if (existing != null) {
+        _log('Updating existing notification $notificationId for event $clientEventId');
+        // Cancel old notification
+        await _plugin.cancel(notificationId);
+      } else {
+        _log('Creating new notification $notificationId for event $clientEventId');
+      }
+
+      // Schedule the local notification
+      await _scheduleLocalNotification(
+        id: notificationId,
+        scheduledAt: safeWhen,
+        title: title,
+        body: body,
+        payload: payload ?? '{}',
+      );
+
+      // Persist to Supabase
+      await _persistNotificationToDatabase(
+        clientEventId: clientEventId,
+        notificationId: notificationId,
+        scheduledAt: safeWhen,
+        title: title,
+        body: body,
+        payload: payload ?? '{}',
+        type: type,
+      );
+
+      // Detailed logging happens in _scheduleLocalNotification()
+    } finally {
+      // Always remove from set, even if error occurs
+      _schedulingInProgress.remove(clientEventId);
+    }
   }
 
   /// **NEW**: Cancel notification for a specific event
@@ -203,6 +281,30 @@ class Notify {
       }
     } catch (e) {
       _log('⚠️ Error cancelling notification: $e');
+    }
+  }
+
+  /// Cancel notification when event is deleted (simplified version)
+  static Future<void> cancelNotification(String clientEventId) async {
+    if (!_inited) {
+      await init();
+    }
+
+    try {
+      // Generate the notification ID that would have been used
+      final notificationId = _generateStableNotificationId(clientEventId);
+      
+      _log('Canceling notification $notificationId for event $clientEventId');
+      
+      // Cancel from device
+      await _plugin.cancel(notificationId);
+      
+      // Mark as inactive in database
+      await _markNotificationInactive(clientEventId);
+      
+      _log('✅ Canceled notification for $clientEventId');
+    } catch (e) {
+      _log('⚠️ Error canceling notification: $e');
     }
   }
 
@@ -269,6 +371,7 @@ class Notify {
   }
 
   /// **PRIVATE**: Internal method to schedule local notification only
+  /// FIXED: Removed fullScreenIntent and showWhen for Android 15 compatibility
   static Future<void> _scheduleLocalNotification({
     required int id,
     required DateTime scheduledAt,
@@ -276,8 +379,15 @@ class Notify {
     String? body,
     String? payload,
   }) async {
-    final tzScheduled = tz.TZDateTime.from(scheduledAt, tz.UTC);
+    // Convert to timezone-aware datetime
+    final tzScheduled = tz.TZDateTime.from(scheduledAt, tz.local);
 
+    _log('Scheduling notification in LOCAL timezone: ${tz.local.name}');
+    _log('  UTC time: ${scheduledAt.toUtc()}');
+    _log('  Local time: $tzScheduled');
+    _log('  Will fire at: ${tzScheduled.toString()}');
+
+    // Android 15 compatible configuration - removed fullScreenIntent and showWhen
     const androidDetails = AndroidNotificationDetails(
       _androidChannelId,
       _androidChannelName,
@@ -291,18 +401,30 @@ class Notify {
       ticker: 'ticker',
     );
 
+    // iOS compatible configuration - removed presentAlert for consistency
     const iosDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
-
-    await _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tzScheduled,
-      details,
-      payload: payload,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    
+    const details = NotificationDetails(
+      android: androidDetails, 
+      iOS: iosDetails
     );
+
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        tzScheduled,
+        details,
+        payload: payload,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      );
+      
+      _log('✅ Notification $id scheduled successfully');
+    } catch (e) {
+      _log('❌ Error scheduling notification $id: $e');
+      rethrow;
+    }
   }
 
   /// **PRIVATE**: Persist notification to Supabase
@@ -313,6 +435,7 @@ class Notify {
     required String title,
     String? body,
     required String payload,
+    NotificationType type = NotificationType.eventStart,
   }) async {
     try {
       final client = Supabase.instance.client;
@@ -332,6 +455,7 @@ class Notify {
         'body': body,
         'payload': payload,
         'is_active': true,
+        'notification_type': type.value,
       }, onConflict: 'user_id,client_event_id');
 
       _log('Persisted notification to database: $clientEventId');
@@ -490,27 +614,182 @@ class Notify {
     _log('========================================');
   }
 
-  /// **NEW**: Clean up old notifications from database
-  /// Call periodically to remove inactive notifications older than 30 days
-  static Future<void> cleanupOldNotifications() async {
+  /// **DEBUG**: Cancel all pending notifications (for debugging)
+  static Future<void> debugCancelAll() async {
+    if (!_inited) await init();
+    
+    final pending = await _plugin.pendingNotificationRequests();
+    for (final notif in pending) {
+      await _plugin.cancel(notif.id);
+    }
+    
+    _log('🗑️ Cancelled ${pending.length} pending notifications');
+    
+    // Also mark all as inactive in database
     try {
       final client = Supabase.instance.client;
       final userId = client.auth.currentUser?.id;
-
-      if (userId == null) return;
-
-      final cutoff = DateTime.now().subtract(const Duration(days: 30));
-
-      await client
-          .from('scheduled_notifications')
-          .delete()
-          .eq('user_id', userId)
-          .eq('is_active', false)
-          .lt('updated_at', cutoff.toIso8601String());
-
-      _log('✅ Cleaned up old notifications');
+      
+      if (userId != null) {
+        await client
+            .from('scheduled_notifications')
+            .update({'is_active': false})
+            .eq('user_id', userId)
+            .eq('is_active', true);
+        
+        _log('✅ Marked all notifications inactive in database');
+      }
     } catch (e) {
-      _log('⚠️ Error cleaning up notifications: $e');
+      _log('⚠️ Error updating database: $e');
+    }
+    
+    // Show final state
+    final finalPending = await _plugin.pendingNotificationRequests();
+    _log('Final pending notifications: ${finalPending.length}');
+  }
+
+  /// **DEBUG**: Reschedule all from database (for debugging)
+  static Future<void> debugRescheduleAll() async {
+    if (!_inited) await init();
+    
+    _log('🔄 Force rescheduling all notifications...');
+    await rescheduleAllFromDatabase();
+    // Show final state
+    final finalPending = await _plugin.pendingNotificationRequests();
+    _log('Final pending notifications: ${finalPending.length}');
+  }
+
+  /// **DEBUG**: Dump database state (for debugging)
+  static Future<void> debugDumpDatabase() async {
+    try {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+      
+      if (userId == null) {
+        _log('❌ No user logged in');
+        return;
+      }
+      
+      final response = await client
+          .from('scheduled_notifications')
+          .select()
+          .eq('user_id', userId)
+          .order('scheduled_at', ascending: true);
+      
+      final notifications = response as List<dynamic>;
+      
+      _log('========================================');
+      _log('DATABASE NOTIFICATIONS: ${notifications.length}');
+      _log('========================================');
+      
+      if (notifications.isEmpty) {
+        _log('  (No notifications in database)');
+      } else {
+        for (final notif in notifications) {
+          _log('  ID: ${notif['notification_id']}');
+          _log('  Event: ${notif['client_event_id']}');
+          _log('  Type: ${notif['notification_type']}');
+          _log('  When: ${notif['scheduled_at']}');
+          _log('  Title: ${notif['title']}');
+          _log('  Active: ${notif['is_active']}');
+          _log('  ----------------------------------------');
+        }
+      }
+      _log('========================================');
+    } catch (e) {
+      _log('❌ Error dumping database: $e');
+    }
+  }
+
+  /// **DEBUG**: Compare device vs database (for debugging sync issues)
+  static Future<void> debugCompareDeviceAndDatabase() async {
+    _log('🔍 Starting device vs database comparison...');
+    _log('');
+    
+    // First show permissions
+    await debugCheckPermissions();
+    _log('');
+    
+    // Show database contents
+    await debugDumpDatabase();
+    _log('');
+    
+    // Get device notifications
+    final devicePending = await _plugin.pendingNotificationRequests();
+    final deviceIds = devicePending.map((n) => n.id).toSet();
+    
+    _log('========================================');
+    _log('DEVICE NOTIFICATIONS: ${devicePending.length}');
+    _log('========================================');
+    if (devicePending.isEmpty) {
+      _log('  (No notifications on device)');
+    } else {
+      for (final notif in devicePending) {
+        _log('  ID: ${notif.id}');
+        _log('  Title: ${notif.title}');
+        _log('  Body: ${notif.body}');
+        _log('  ----------------------------------------');
+      }
+    }
+    _log('========================================');
+    _log('');
+    
+    // Compare IDs
+    try {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) {
+        _log('⚠️ Cannot compare - no user logged in');
+        return;
+      }
+      
+      final dbNotifs = await client
+          .from('scheduled_notifications')
+          .select()
+          .eq('user_id', userId)
+          .eq('is_active', true);
+      
+      final dbIds = (dbNotifs as List).map((n) => n['notification_id'] as int).toSet();
+      
+      final onlyDevice = deviceIds.difference(dbIds);
+      final onlyDb = dbIds.difference(deviceIds);
+      final inBoth = deviceIds.intersection(dbIds);
+      
+      _log('========================================');
+      _log('SYNC COMPARISON RESULTS');
+      _log('========================================');
+      _log('✅ In both device & DB: ${inBoth.length}');
+      if (inBoth.isNotEmpty) {
+        _log('   IDs: $inBoth');
+      }
+      _log('');
+      _log('⚠️ Only on device: ${onlyDevice.length}');
+      if (onlyDevice.isNotEmpty) {
+        _log('   IDs: $onlyDevice');
+        _log('   → These notifications exist on device but not in database');
+        _log('   → May be old notifications or from deprecated scheduleAlert()');
+      }
+      _log('');
+      _log('⚠️ Only in database: ${onlyDb.length}');
+      if (onlyDb.isNotEmpty) {
+        _log('   IDs: $onlyDb');
+        _log('   → These notifications are in database but not scheduled on device');
+        _log('   → This is a sync problem - should reschedule');
+      }
+      _log('========================================');
+      
+      // Provide recommendation
+      if (onlyDevice.isEmpty && onlyDb.isEmpty) {
+        _log('✅ SYNC STATUS: PERFECT - All notifications synced correctly!');
+      } else if (onlyDb.isNotEmpty) {
+        _log('⚠️ SYNC STATUS: NEEDS RESCHEDULE - Run "Reschedule All" to fix');
+      } else if (onlyDevice.isNotEmpty) {
+        _log('⚠️ SYNC STATUS: ORPHANED NOTIFICATIONS - Run "Cancel All" then "Reschedule All"');
+      }
+      _log('========================================');
+      
+    } catch (e) {
+      _log('❌ Error comparing: $e');
     }
   }
 }

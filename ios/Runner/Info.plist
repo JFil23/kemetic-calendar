@@ -45,5 +45,49 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<!-- ICS File Import Support -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>iCalendar Event</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.apple.ical.ics</string>
+			</array>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+		</dict>
+	</array>
+	
+	<!-- Exported UTI for ICS files -->
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.calendar-event</string>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>iCalendar Event</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.apple.ical.ics</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>ics</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>text/calendar</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 </dict>
 </plist>
