@@ -13,6 +13,10 @@ import 'dart:convert' as json;
 import 'dart:convert';
 import 'day_view.dart';
 import '../profile/profile_page.dart';
+import '../journal/journal_controller.dart';
+import '../journal/journal_swipe_layer.dart';
+import '../../core/ui_guards.dart';
+import '../../main.dart';
 
 
 
@@ -907,6 +911,10 @@ class _CalendarPageState extends State<CalendarPage> {
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
   final ScrollController _scrollCtrl = ScrollController();
 
+  // Journal controller and state
+  late JournalController _journalController;
+  bool _journalInitialized = false;
+
   /* ───── ClientEventId utilities ───── */
   /// Build a canonical clientEventId from Kemetic date, title, time and flow id.
   /// This helper ensures that every note uses the same format when being persisted
@@ -1164,6 +1172,14 @@ class _CalendarPageState extends State<CalendarPage> {
         }
       }
     });
+
+    // Initialize journal controller
+    _journalController = JournalController(Supabase.instance.client);
+    _journalController.init().then((_) {
+      if (mounted) {
+        setState(() => _journalInitialized = true);
+      }
+    });
   }
 
   @override
@@ -1172,6 +1188,7 @@ class _CalendarPageState extends State<CalendarPage> {
     debugPrint('🗑️  _CalendarPageState DISPOSING');
     debugPrint('   Total builds: $_buildCount');
     debugPrint('');
+    _journalController.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -1837,6 +1854,7 @@ class _CalendarPageState extends State<CalendarPage> {
   /* ───── Search ───── */
 
   void _openSearch() {
+    UiGuards.disableJournalSwipe();
     showSearch(
       context: context,
       delegate: _EventSearchDelegate(
@@ -1851,7 +1869,9 @@ class _CalendarPageState extends State<CalendarPage> {
           });
         },
       ),
-    );
+    ).then((_) {
+      UiGuards.enableJournalSwipe();
+    });
   }
 
   /* ───── Flow Studio ───── */
@@ -2004,6 +2024,7 @@ class _CalendarPageState extends State<CalendarPage> {
   Future<void> _openFlowStudioSheet({
     required Widget Function(BuildContext innerCtx) rootBuilder,
   }) async {
+    UiGuards.disableJournalSwipe();
     final result = await showModalBottomSheet<_FlowStudioResult?>(
       context: context,
       isScrollControlled: true,
@@ -2057,6 +2078,8 @@ class _CalendarPageState extends State<CalendarPage> {
     if (result != null) {
       await _applyFlowStudioResult(result);
     }
+    
+    UiGuards.enableJournalSwipe();
   }
 
 
@@ -2564,6 +2587,7 @@ class _CalendarPageState extends State<CalendarPage> {
     };
 
     // Navigate to Day View
+    UiGuards.disableJournalSwipe();
     Navigator.push(
       ctx,
       MaterialPageRoute(
@@ -2579,7 +2603,9 @@ class _CalendarPageState extends State<CalendarPage> {
           onAddNote: (ky, km, kd) => _openDaySheet(ky, km, kd, allowDateChange: true),
         ),
       ),
-    );
+    ).then((_) {
+      UiGuards.enableJournalSwipe();
+    });
   }
 
   /* ───── Day Sheet ───── */
@@ -2627,7 +2653,8 @@ class _CalendarPageState extends State<CalendarPage> {
 
     try {
       debugPrint('🚀 Attempting to show modal bottom sheet...');
-    showModalBottomSheet(
+      UiGuards.disableJournalSwipe();
+      showModalBottomSheet(
         context: context,
       isScrollControlled: true,
         backgroundColor: Colors.transparent, // ✅ More stable like Flow Studio
@@ -3293,7 +3320,9 @@ class _CalendarPageState extends State<CalendarPage> {
           },
         );
       },
-    );
+    ).then((_) {
+      UiGuards.enableJournalSwipe();
+    });
     
     debugPrint('✅ Modal bottom sheet opened successfully');
     
@@ -3303,6 +3332,7 @@ class _CalendarPageState extends State<CalendarPage> {
       debugPrint('Error: $e');
       debugPrint('Stack trace: $stackTrace');
       debugPrint('');
+      UiGuards.enableJournalSwipe(); // Re-enable even on error
     }
   }
 
@@ -3751,6 +3781,7 @@ class _CalendarPageState extends State<CalendarPage> {
   @override
   Widget build(BuildContext context) {
     _buildCount++;
+    debugPrint('📔 Journal initialized: $_journalInitialized');
 
     final kToday = _today;
     final size = MediaQuery.sizeOf(context);
@@ -3869,12 +3900,15 @@ class _CalendarPageState extends State<CalendarPage> {
             onPressed: () {
               final userId = Supabase.instance.client.auth.currentUser?.id;
               if (userId != null) {
+                UiGuards.disableJournalSwipe();
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => ProfilePage(userId: userId, isMyProfile: true),
                   ),
-                );
+                ).then((_) {
+                  UiGuards.enableJournalSwipe();
+                });
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Please log in to view your profile')),
@@ -3884,71 +3918,94 @@ class _CalendarPageState extends State<CalendarPage> {
           ),
         ],
       ),
-      body: CustomScrollView(
-        controller: _scrollCtrl,
-        anchor: 0.5, // center the "center" sliver in the viewport
-        center: _centerKey, // current Kemetic year is the center
-        slivers: [
+      body: _buildBodyWithJournal(),
+    );
+  }
 
-          // PAST years
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-                  (ctx, i) {
-                final kYear = kToday.kYear - (i + 1);
-                return _YearSection(
-                  kYear: kYear,
-                  todayMonth: null,
-                  todayDay: null,
-                  todayDayKey: null, // no anchor in past/future lists
-                  monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
-                  onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
-                  notesGetter: (m, d) => _getNotes(kYear, m, d),
-                  flowsGetter: (m, d) => _getFlowOccurrences(kYear, m, d),
-                  showGregorian: _showGregorian,
-                );
-              },
-              childCount: 200, //
-            ),
-          ),
+  Widget _buildBodyWithJournal() {
+    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    debugPrint('🔧 _buildBodyWithJournal called: portrait=$isPortrait, initialized=$_journalInitialized');
+    
+    // Wait for journal to initialize before enabling swipe
+    if (!_journalInitialized) {
+      debugPrint('   Returning calendar scroll view (not initialized)');
+      return _buildCalendarScrollView();
+    }
+    
+    debugPrint('   Returning JournalSwipeLayer wrapper');
+    return JournalSwipeLayer(
+      controller: _journalController,
+      isPortrait: isPortrait,
+      child: _buildCalendarScrollView(),
+    );
+  }
 
-          // CENTER: current Kemetic year
-          SliverToBoxAdapter(
-            key: _centerKey,
-            child: _YearSection(
-              kYear: kToday.kYear,
-              todayMonth: kToday.kMonth,
-              todayDay: kToday.kDay,
-              monthAnchorKeyProvider: (m) => keyForMonth(kToday.kYear, m),
-              todayDayKey: _todayDayKey, // 🔑 pass day anchor
-              onDayTap: (c, m, d) => _openDayView(c, kToday.kYear, m, d),
-              notesGetter: (m, d) => _getNotes(kToday.kYear, m, d),
-              flowsGetter: (m, d) => _getFlowOccurrences(kToday.kYear, m, d),
-              showGregorian: _showGregorian,
-            ),
+  Widget _buildCalendarScrollView() {
+    final kToday = _today;
+    
+    return CustomScrollView(
+      controller: _scrollCtrl,
+      anchor: 0.5, // center the "center" sliver in the viewport
+      center: _centerKey, // current Kemetic year is the center
+      slivers: [
+        // PAST years
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+                (ctx, i) {
+              final kYear = kToday.kYear - (i + 1);
+              return _YearSection(
+                kYear: kYear,
+                todayMonth: null,
+                todayDay: null,
+                todayDayKey: null, // no anchor in past/future lists
+                monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
+                onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
+                notesGetter: (m, d) => _getNotes(kYear, m, d),
+                flowsGetter: (m, d) => _getFlowOccurrences(kYear, m, d),
+                showGregorian: _showGregorian,
+              );
+            },
+            childCount: 200, //
           ),
+        ),
 
-          // FUTURE years
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-                  (ctx, i) {
-                final kYear = kToday.kYear + (i + 1);
-                return _YearSection(
-                  kYear: kYear,
-                  todayMonth: null,
-                  todayDay: null,
-                  todayDayKey: null,
-                  monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
-                  onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
-                  notesGetter: (m, d) => _getNotes(kYear, m, d),
-                  flowsGetter: (m, d) => _getFlowOccurrences(kYear, m, d),
-                  showGregorian: _showGregorian,
-                );
-              },
-              childCount: 200, //
-            ),
+        // CENTER: current Kemetic year
+        SliverToBoxAdapter(
+          key: _centerKey,
+          child: _YearSection(
+            kYear: kToday.kYear,
+            todayMonth: kToday.kMonth,
+            todayDay: kToday.kDay,
+            monthAnchorKeyProvider: (m) => keyForMonth(kToday.kYear, m),
+            todayDayKey: _todayDayKey, // 🔑 pass day anchor
+            onDayTap: (c, m, d) => _openDayView(c, kToday.kYear, m, d),
+            notesGetter: (m, d) => _getNotes(kToday.kYear, m, d),
+            flowsGetter: (m, d) => _getFlowOccurrences(kToday.kYear, m, d),
+            showGregorian: _showGregorian,
           ),
-        ],
-      ), //
+        ),
+
+        // FUTURE years
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+                (ctx, i) {
+              final kYear = kToday.kYear + (i + 1);
+              return _YearSection(
+                kYear: kYear,
+                todayMonth: null,
+                todayDay: null,
+                todayDayKey: null,
+                monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
+                onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
+                notesGetter: (m, d) => _getNotes(kYear, m, d),
+                flowsGetter: (m, d) => _getFlowOccurrences(kYear, m, d),
+                showGregorian: _showGregorian,
+              );
+            },
+            childCount: 200, //
+          ),
+        ),
+      ],
     );
   }
 
