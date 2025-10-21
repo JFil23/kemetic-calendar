@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
+import '../../widgets/inbox_icon_with_badge.dart';
 
 class ProfilePage extends StatefulWidget {
   final String userId;
@@ -60,6 +61,9 @@ class _ProfilePageState extends State<ProfilePage> {
             fontWeight: FontWeight.w600,
           ),
         ),
+        actions: [
+          InboxIconWithBadge(),
+        ],
       ),
       body: _loading
           ? const Center(

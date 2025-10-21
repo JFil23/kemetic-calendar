@@ -6,6 +6,9 @@ class UserProfile {
   final String? displayName;
   final String? avatarUrl;
   final String? bio;
+  final String? location;
+  final bool isDiscoverable;
+  final bool allowIncomingShares;
   final int? activeFlowsCount;
   final int? totalFlowEventsCount;
   final DateTime? createdAt;
@@ -16,6 +19,9 @@ class UserProfile {
     this.displayName,
     this.avatarUrl,
     this.bio,
+    this.location,
+    this.isDiscoverable = true,
+    this.allowIncomingShares = true,
     this.activeFlowsCount,
     this.totalFlowEventsCount,
     this.createdAt,
@@ -28,6 +34,9 @@ class UserProfile {
       displayName: json['display_name'] as String?,
       avatarUrl: json['avatar_url'] as String?,
       bio: json['bio'] as String?,
+      location: json['location'] as String?,
+      isDiscoverable: json['is_discoverable'] as bool? ?? true,
+      allowIncomingShares: json['allow_incoming_shares'] as bool? ?? true,
       activeFlowsCount: json['active_flows_count'] as int?,
       totalFlowEventsCount: json['total_flow_events_count'] as int?,
       createdAt: json['created_at'] != null
@@ -43,6 +52,9 @@ class UserProfile {
       'display_name': displayName,
       'avatar_url': avatarUrl,
       'bio': bio,
+      'location': location,
+      'is_discoverable': isDiscoverable,
+      'allow_incoming_shares': allowIncomingShares,
       'created_at': createdAt?.toIso8601String(),
     };
   }

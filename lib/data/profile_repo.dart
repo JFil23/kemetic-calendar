@@ -48,6 +48,9 @@ class ProfileRepo {
     String? displayName,
     String? avatarUrl,
     String? bio,
+    String? location,
+    bool? isDiscoverable,
+    bool? allowIncomingShares,
   }) async {
     try {
       final userId = _client.auth.currentUser?.id;
@@ -58,6 +61,9 @@ class ProfileRepo {
       if (displayName != null) updates['display_name'] = displayName;
       if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
       if (bio != null) updates['bio'] = bio;
+      if (location != null) updates['location'] = location;
+      if (isDiscoverable != null) updates['is_discoverable'] = isDiscoverable;
+      if (allowIncomingShares != null) updates['allow_incoming_shares'] = allowIncomingShares;
       updates['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
       await _client

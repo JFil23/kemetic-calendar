@@ -17,6 +17,9 @@ import '../journal/journal_controller.dart';
 import '../journal/journal_swipe_layer.dart';
 import '../../core/ui_guards.dart';
 import '../../main.dart';
+import '../../data/share_repo.dart';
+import '../../data/share_models.dart';
+import '../../widgets/inbox_icon_with_badge.dart';
 
 
 
@@ -377,11 +380,11 @@ Gradient _glossFromColor(Color base) {
 /* ─────────── Flows (routines) – models & rules ─────────── */
 
 /// Rules attach their own time window (all-day or start/end).
-abstract class _FlowRule {
+abstract class FlowRule {
   final bool allDay;
   final TimeOfDay? start;
   final TimeOfDay? end;
-  const _FlowRule({this.allDay = true, this.start, this.end});
+  const FlowRule({this.allDay = true, this.start, this.end});
 
   /// True if rule hits for the given Kemetic date and its Gregorian equivalent.
   bool matches({
@@ -393,7 +396,7 @@ abstract class _FlowRule {
 }
 
 /// Kemetic Decan rule.
-class _RuleDecan extends _FlowRule {
+class _RuleDecan extends FlowRule {
   final Set<int> months; // 1..12
   final Set<int> decans; // 1..3
   final Set<int> daysInDecan; // 1..10 (optional)
@@ -418,7 +421,7 @@ class _RuleDecan extends _FlowRule {
 }
 
 /// Whole Kemetic month rule (1..13; 13 = epagomenal).
-class _RuleKemeticMonth extends _FlowRule {
+class _RuleKemeticMonth extends FlowRule {
   final Set<int> months;
   const _RuleKemeticMonth({
     required this.months,
@@ -433,7 +436,7 @@ class _RuleKemeticMonth extends _FlowRule {
 }
 
 /// Gregorian month rule (1..12).
-class _RuleGregorianMonth extends _FlowRule {
+class _RuleGregorianMonth extends FlowRule {
   final Set<int> months;
   const _RuleGregorianMonth({
     required this.months,
@@ -448,7 +451,7 @@ class _RuleGregorianMonth extends _FlowRule {
 }
 
 /// Gregorian weekday rule (Mon=1 .. Sun=7).
-class _RuleWeek extends _FlowRule {
+class _RuleWeek extends FlowRule {
   final Set<int> weekdays; // 1..7
   const _RuleWeek({
     required this.weekdays,
@@ -463,7 +466,7 @@ class _RuleWeek extends _FlowRule {
 }
 
 /// Explicit Gregorian dates rule (date-only). Used when customizing per decan/week.
-class _RuleDates extends _FlowRule {
+class _RuleDates extends FlowRule {
   final Set<DateTime> dates; // store as DateUtils.dateOnly
   const _RuleDates({required this.dates, super.allDay = true, super.start, super.end});
   @override
@@ -480,8 +483,9 @@ class _Flow {
   bool active;
   DateTime? start; // inclusive (Gregorian local)
   DateTime? end;   // inclusive (Gregorian local)
-  final List<_FlowRule> rules;
+  final List<FlowRule> rules;
   String? notes; // optional description
+  String? shareId; // NEW: Track original share if imported from inbox
   _Flow({
     required this.id,
     required this.name,
@@ -491,6 +495,7 @@ class _Flow {
     this.start,
     this.end,
     this.notes,
+    this.shareId, // Optional: null for user-created flows
   });
 }
 
@@ -882,6 +887,62 @@ GlobalKey keyForMonth(int ky, int km) => GlobalObjectKey('y${ky}m${km}');
 
 class CalendarPage extends StatefulWidget {
   const CalendarPage({super.key});
+  
+  // Global key for accessing calendar state from other pages
+  static final GlobalKey<_CalendarPageState> globalKey = GlobalKey<_CalendarPageState>();
+  
+  // Static method for parsing rules from JSON (used by inbox import)
+  static FlowRule ruleFromJson(Map<String, dynamic> j) {
+    final allDay = (j['allDay'] ?? true) as bool;
+    TimeOfDay? start;
+    TimeOfDay? end;
+
+    if (j['startHour'] != null && j['startMinute'] != null) {
+      start = TimeOfDay(
+        hour: (j['startHour'] as num).toInt(),
+        minute: (j['startMinute'] as num).toInt(),
+      );
+    }
+    if (j['endHour'] != null && j['endMinute'] != null) {
+      end = TimeOfDay(
+        hour: (j['endHour'] as num).toInt(),
+        minute: (j['endMinute'] as num).toInt(),
+      );
+    }
+
+    switch (j['type']) {
+      case 'week':
+        return _RuleWeek(
+          weekdays: {...(j['weekdays'] as List).map((e) => (e as num).toInt())},
+          allDay: allDay,
+          start: start,
+          end: end,
+        );
+      case 'decan':
+        return _RuleDecan(
+          months: {...(j['months'] as List).map((e) => (e as num).toInt())},
+          decans: {...(j['decans'] as List).map((e) => (e as num).toInt())},
+          daysInDecan: {...(j['daysInDecan'] as List).map((e) => (e as num).toInt())},
+          allDay: allDay,
+          start: start,
+          end: end,
+        );
+      case 'dates':
+        return _RuleDates(
+          dates: {
+            for (final n in (j['dates'] as List))
+              DateUtils.dateOnly(
+                DateTime.fromMillisecondsSinceEpoch((n as num).toInt()),
+              ),
+          },
+          allDay: allDay,
+          start: start,
+          end: end,
+        );
+    }
+    throw ArgumentError('Unknown rule type ${j['type']}');
+  }
+  
   @override
   State<CalendarPage> createState() => _CalendarPageState();
 }
@@ -3371,6 +3432,7 @@ class _CalendarPageState extends State<CalendarPage> {
           start: f.startDate,
           end: f.endDate,
           notes: f.notes,
+          shareId: f.shareId, // NEW: Load share_id
         );
         _flows.add(flow);
         // 🔍 DEBUG: Log what color came from database for ALL custom flows
@@ -3505,7 +3567,7 @@ class _CalendarPageState extends State<CalendarPage> {
     _bumpDataVersion();
   }
 
-  Map<String, dynamic> ruleToJson(_FlowRule r) {
+  Map<String, dynamic> ruleToJson(FlowRule r) {
     if (r is _RuleWeek) {
       return {
         'type': 'week',
@@ -3544,62 +3606,11 @@ class _CalendarPageState extends State<CalendarPage> {
     throw ArgumentError('Unknown rule type');
   }
 
-  _FlowRule ruleFromJson(Map<String, dynamic> j) {
-    final allDay = (j['allDay'] ?? true) as bool;
-    TimeOfDay? start;
-    TimeOfDay? end;
-
-    if (j['startHour'] != null && j['startMinute'] != null) {
-      start = TimeOfDay(
-        hour: (j['startHour'] as num).toInt(),
-        minute: (j['startMinute'] as num).toInt(),
-      );
-    }
-    if (j['endHour'] != null && j['endMinute'] != null) {
-      end = TimeOfDay(
-        hour: (j['endHour'] as num).toInt(),
-        minute: (j['endMinute'] as num).toInt(),
-      );
-    }
-
-    switch (j['type']) {
-      case 'week':
-        return _RuleWeek(
-          weekdays: {...(j['weekdays'] as List).map((e) => (e as num).toInt())},
-          allDay: allDay,
-          start: start,
-          end: end,
-        );
-      case 'decan':
-        return _RuleDecan(
-          months: {...(j['months'] as List).map((e) => (e as num).toInt())},
-          decans: {...(j['decans'] as List).map((e) => (e as num).toInt())},
-          daysInDecan: {...(j['daysInDecan'] as List).map((e) => (e as num).toInt())},
-          allDay: allDay,
-          start: start,
-          end: end,
-        );
-      case 'dates':
-        return _RuleDates(
-          dates: {
-            for (final n in (j['dates'] as List))
-              DateUtils.dateOnly(
-                DateTime.fromMillisecondsSinceEpoch((n as num).toInt()),
-              ),
-          },
-          allDay: allDay,
-          start: start,
-          end: end,
-        );
-    }
-    throw ArgumentError('Unknown rule type ${j['type']}');
-  }
-
-  List<_FlowRule> _parseRules(String rulesJson) {
+  List<FlowRule> _parseRules(String rulesJson) {
     if (rulesJson.isEmpty) return [];
     try {
       final parsed = jsonDecode(rulesJson) as List;
-      return parsed.map((j) => ruleFromJson(j as Map<String, dynamic>)).toList();
+      return parsed.map((j) => CalendarPage.ruleFromJson(j as Map<String, dynamic>)).toList();
     } catch (_) {
       return [];
     }
@@ -3705,77 +3716,108 @@ class _CalendarPageState extends State<CalendarPage> {
       );
     }
 
-    // Persist planned notes to Supabase. Without persistence, custom-flow
-    // notes disappear after a restart. Build a canonical clientEventId using
-    // _buildCid so that creation, deletion and migration all align on the
-    // same format. Also ensure the in-memory note carries the flow id being
-    // persisted to avoid mismatches when deleting.
-    if (r.plannedNotes.isNotEmpty) {
+    // Use shared scheduler for flow notes if we have a saved flow
+    if (saved != null && saved.active && saved.rules.isNotEmpty) {
       try {
-        final repo2 = UserEventsRepo(Supabase.instance.client);
-        for (final p in r.plannedNotes) {
-          final n = p.note;
-          // Determine the flow id to persist: use the final saved id if available,
-          // else fall back to the note's own flow id, or -1 for standalone.
-          final int noteFlowId = flowId >= 0 ? flowId : (n.flowId ?? -1);
-          // Create a copy of the note with the correct flow id stamped so
-          // deletion logic can reference n.flowId later.
-          final _Note persisted = _Note(
-            title: n.title,
-            detail: n.detail,
-            location: n.location,
-            allDay: n.allDay,
-            start: n.start,
-            end: n.end,
-            flowId: noteFlowId,
-          );
-          // Build canonical id using placement from p (ky/km/kd) and note fields.
-          final String cid = _buildCid(
-            ky: p.ky,
-            km: p.km,
-            kd: p.kd,
-            title: persisted.title,
-            startHour: persisted.start?.hour,
-            startMinute: persisted.start?.minute,
-            allDay: persisted.allDay,
-            flowId: noteFlowId,
-          );
-          final gDay = KemeticMath.toGregorian(p.ky, p.km, p.kd);
-          final DateTime startsAt = DateTime(
-            gDay.year,
-            gDay.month,
-            gDay.day,
-            persisted.start?.hour ?? 9,
-            persisted.start?.minute ?? 0,
-          );
-          DateTime? endsAt;
-          if (persisted.allDay == false && persisted.end != null) {
-            endsAt = DateTime(gDay.year, gDay.month, gDay.day, persisted.end!.hour, persisted.end!.minute);
-          } else {
-            endsAt = null;
-          }
-          // Preserve legacy detail prefix to indicate local flow id for older clients
-          final String prefix = noteFlowId >= 0 ? 'flowLocalId=${noteFlowId};' : '';
-          final String? det = persisted.detail;
-          final String detailPayload = prefix + (det?.trim() ?? '');
-          await repo2.upsertByClientId(
-            clientEventId: cid,
-            title: persisted.title,
-            startsAtUtc: startsAt.toUtc(),
-            detail: detailPayload.isEmpty ? null : detailPayload,
-            location: (persisted.location ?? '').trim().isEmpty ? null : persisted.location!.trim(),
-            allDay: persisted.allDay,
-            endsAtUtc: endsAt?.toUtc(),
-          );
-        }
+        await scheduleFlowNotes(
+          flowId: saved.id,
+          rules: saved.rules,
+          flowNotes: saved.notes,
+          startDate: saved.start,
+          endDate: saved.end,
+        );
       } catch (e) {
-        debugPrint('persist custom-flow notes failed: $e');
+        debugPrint('scheduleFlowNotes failed: $e');
       }
     }
 
     setState(() {});
   }
 
+  /// Schedules all note occurrences for a flow to the calendar
+  /// This is the shared logic used by both Flow Studio and Inbox imports
+  Future<void> scheduleFlowNotes({
+    required int flowId,
+    required List<FlowRule> rules,
+    required String? flowNotes,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final repo = UserEventsRepo(Supabase.instance.client);
+    final start = startDate ?? DateTime.now();
+    final end = endDate ?? start.add(const Duration(days: 90)); // Default 90 days
+    
+    if (kDebugMode) {
+      debugPrint('[scheduleFlowNotes] Starting for flowId=$flowId from $start to $end');
+    }
+    
+    // Clear existing scheduled notes for this flow
+    await repo.deleteByFlowId(flowId, fromDate: DateTime.now().toUtc());
+    
+    int scheduledCount = 0;
+    
+    // Schedule new notes
+    for (var date = start; date.isBefore(end); date = date.add(const Duration(days: 1))) {
+      final kDate = KemeticMath.fromGregorian(date);
+      
+      for (final rule in rules) {
+        if (rule.matches(ky: kDate.kYear, km: kDate.kMonth, kd: kDate.kDay, g: date)) {
+          final noteTitle = flowNotes ?? 'Flow Event';
+          final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
+          final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
+          
+          final cid = _buildCid(
+            ky: kDate.kYear,
+            km: kDate.kMonth,
+            kd: kDate.kDay,
+            title: noteTitle,
+            startHour: startHour,
+            startMinute: startMinute,
+            allDay: rule.allDay,
+            flowId: flowId,
+          );
+          
+          final startsAt = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            startHour,
+            startMinute,
+          );
+          
+          DateTime? endsAt;
+          if (!rule.allDay && rule.end != null) {
+            endsAt = DateTime(
+              date.year,
+              date.month,
+              date.day,
+              rule.end!.hour,
+              rule.end!.minute,
+            );
+          }
+          
+          // Preserve legacy detail prefix to indicate local flow id for older clients
+          final String prefix = 'flowLocalId=${flowId};';
+          final String detailPayload = prefix + (flowNotes?.trim() ?? '');
+          
+          await repo.upsertByClientId(
+            clientEventId: cid,
+            title: noteTitle,
+            startsAtUtc: startsAt.toUtc(),
+            detail: detailPayload.isEmpty ? null : detailPayload,
+            allDay: rule.allDay,
+            endsAtUtc: endsAt?.toUtc(),
+          );
+          
+          scheduledCount++;
+        }
+      }
+    }
+    
+    if (kDebugMode) {
+      debugPrint('[scheduleFlowNotes] Scheduled $scheduledCount notes for flowId=$flowId');
+    }
+  }
 
 
   @override
@@ -3854,6 +3896,7 @@ class _CalendarPageState extends State<CalendarPage> {
     debugPrint('📱 Rendering: Portrait Scaffold (build #$_buildCount)');
 
     return Scaffold(
+      key: CalendarPage.globalKey,
       backgroundColor: _bg,
       appBar: AppBar(
         backgroundColor: Colors.black,
@@ -3908,6 +3951,8 @@ class _CalendarPageState extends State<CalendarPage> {
                   ),
                 ).then((_) {
                   UiGuards.enableJournalSwipe();
+                  // ✅ Reload calendar when returning from profile (in case flows were imported)
+                  _loadFromDisk();
                 });
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -6250,7 +6295,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _endDate = t;
     }
 
-    final rules = <_FlowRule>[];
+    final rules = <FlowRule>[];
 
     if (_hasFullRange) {
       if (_splitByPeriod) {
@@ -6372,6 +6417,18 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       end: _endDate,
       notes: notes,
     );
+
+    // TEST THE EDGE FUNCTION:
+    try {
+      final result = await ShareRepo(Supabase.instance.client).shareFlow(
+        flowId: 207,
+        recipients: [ShareRecipient(type: ShareRecipientType.user, value: 'b247d1fc-2439-4bc7-aae9-f8bdeefb09af')],
+        suggestedSchedule: SuggestedSchedule(startDate: '2025-10-20', weekdays: [1,2,3,4,5], everyOtherDay: false, perWeek: null, timesByWeekday: {'1':'12:00'}),
+      );
+      print('SHARE TEST: $result');
+    } catch (e) {
+      print('SHARE ERROR: $e');
+    }
 
     Navigator.of(context, rootNavigator: true)
         .pop(_FlowStudioResult(savedFlow: flow, plannedNotes: planned));
@@ -7599,6 +7656,9 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
         elevation: 0.5,
         title: const Text('My Flows', style: TextStyle(color: Colors.white)),
         actions: [
+          InboxIconWithBadge(
+            onRefreshSync: () => setState(() {}),
+          ),
           IconButton(
             tooltip: 'New flow',
             icon: const Icon(Icons.add, color: _silver),

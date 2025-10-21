@@ -416,7 +416,8 @@ class UserEventsRepo {
   DateTime? startDate,
   DateTime? endDate,
   String? notes,
-  String rules
+  String rules,
+  String? shareId, // NEW: Include shareId
   })>> getAllFlows() async {
     final user = _client.auth.currentUser;
     if (user == null) return [];
@@ -436,6 +437,7 @@ class UserEventsRepo {
     endDate: row['end_date'] == null ? null : DateTime.parse(row['end_date'] as String),
     notes: row['notes'] as String?,
     rules: jsonEncode(row['rules']),
+    shareId: row['share_id'] as String?, // NEW: Include share_id
     )).toList();
   }
 
@@ -448,6 +450,46 @@ class UserEventsRepo {
     } on PostgrestException catch (e) {
       _log('deleteFlow ✗ ${e.code} ${e.message}');
       rethrow;
+    }
+  }
+
+  /// Update flow with share_id reference (for re-import tracking)
+  Future<void> updateFlowShareId({
+    required int flowId,
+    required String shareId,
+  }) async {
+    try {
+      await _client
+          .from('flows')
+          .update({'share_id': shareId})
+          .eq('id', flowId);
+      
+      if (kDebugMode) {
+        print('[UserEventsRepo] Updated flow $flowId with share_id: $shareId');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[UserEventsRepo] Error updating flow share_id: $e');
+      }
+      rethrow;
+    }
+  }
+
+  /// Get flow by share_id
+  Future<int?> getFlowIdByShareId(String shareId) async {
+    try {
+      final response = await _client
+          .from('flows')
+          .select('id')
+          .eq('share_id', shareId)
+          .maybeSingle();
+      
+      return response?['id'] as int?;
+    } catch (e) {
+      if (kDebugMode) {
+        print('[UserEventsRepo] Error getting flow by share_id: $e');
+      }
+      return null;
     }
   }
 }
