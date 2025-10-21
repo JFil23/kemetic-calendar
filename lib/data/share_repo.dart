@@ -40,35 +40,27 @@ class ShareRepo {
     }
   }
 
-  /// Resolve a share by ID or short link
+  /// Resolve a share link and get flow details for preview
   Future<Map<String, dynamic>> resolveShare({
     required String shareId,
     String? token,
-    String? shortLinkId,
   }) async {
     try {
-      final body = <String, dynamic>{};
-      
-      if (shortLinkId != null) {
-        body['short_link_id'] = shortLinkId;
-      } else {
-        body['share_id'] = shareId;
-        if (token != null) body['token'] = token;
-      }
-
       final response = await _client.functions.invoke(
         'resolve_share',
-        body: body,
+        body: {
+          'share_id': shareId,
+          if (token != null) 'token': token,
+        },
       );
 
-      if (response.data == null) {
-        throw Exception('No response from resolve_share function');
+      if (response.status != 200) {
+        throw Exception('Failed to resolve share: ${response.data}');
       }
 
       return response.data as Map<String, dynamic>;
     } catch (e) {
-      print('[ShareRepo] Error resolving share: $e');
-      rethrow;
+      throw Exception('Error resolving share: $e');
     }
   }
 

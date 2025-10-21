@@ -80,12 +80,14 @@ class ShareResult {
   final ShareRecipient recipient;
   final String status; // 'sent', 'failed', 'blocked'
   final String? shareId; // UUID of the share record
-  final String? error; // Error message if status is 'failed'
+  final String? shareUrl; // Share URL for external shares (email/phone)
+  final String? error; // Error message if status = 'failed'
 
   ShareResult({
     required this.recipient,
     required this.status,
     this.shareId,
+    this.shareUrl,
     this.error,
   });
 
@@ -94,6 +96,7 @@ class ShareResult {
       recipient: ShareRecipient.fromJson(json['recipient'] as Map<String, dynamic>),
       status: json['status'] as String,
       shareId: json['share_id'] as String?,
+      shareUrl: json['share_url'] as String?,
       error: json['error'] as String?,
     );
   }
@@ -103,6 +106,7 @@ class ShareResult {
       'recipient': recipient.toJson(),
       'status': status,
       'share_id': shareId,
+      'share_url': shareUrl,
       'error': error,
     };
   }

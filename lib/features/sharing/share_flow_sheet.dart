@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
 
@@ -25,10 +26,6 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
   List<Map<String, dynamic>> _searchResults = [];
   bool _searching = false;
   bool _sending = false;
-  
-  // Schedule preset
-  String _schedulePreset = 'weekdays';
-  SuggestedSchedule? _customSchedule;
 
   @override
   void dispose() {
@@ -134,18 +131,6 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                     ..._recipients.map((r) => _buildRecipientChip(r)),
                     const SizedBox(height: 24),
                   ],
-                  
-                  // Schedule preset
-                  Text(
-                    'Suggested Schedule',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSchedulePresets(),
                 ],
               ),
             ),
@@ -327,81 +312,6 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     );
   }
 
-  Widget _buildSchedulePresets() {
-    return Column(
-      children: [
-        _buildPresetOption(
-          'weekdays',
-          'Weekdays',
-          'Mon-Fri at 12:00 PM',
-        ),
-        const SizedBox(height: 8),
-        _buildPresetOption(
-          'everyother',
-          'Every Other Day',
-          'Starting tomorrow at 9:00 AM',
-        ),
-        const SizedBox(height: 8),
-        _buildPresetOption(
-          'custom',
-          'Custom',
-          'Set your own schedule',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPresetOption(String value, String title, String subtitle) {
-    final isSelected = _schedulePreset == value;
-    
-    return InkWell(
-      onTap: () => setState(() => _schedulePreset = value),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFD4AF37).withOpacity(0.1) : const Color(0xFF0D0D0F),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? const Color(0xFFD4AF37) : Colors.white.withOpacity(0.1),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-              color: isSelected ? const Color(0xFFD4AF37) : Colors.white.withOpacity(0.5),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _addRecipient(ShareRecipient recipient) {
     if (!_recipients.any((r) => r.value == recipient.value)) {
       setState(() => _recipients.add(recipient));
@@ -412,61 +322,14 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     setState(() => _recipients.remove(recipient));
   }
 
-  SuggestedSchedule _getScheduleFromPreset() {
-    final tomorrow = DateTime.now().add(const Duration(days: 1));
-    final tomorrowStr = tomorrow.toIso8601String().split('T')[0];
-
-    switch (_schedulePreset) {
-      case 'weekdays':
-        return SuggestedSchedule(
-          startDate: tomorrowStr,
-          weekdays: [1, 2, 3, 4, 5], // Mon-Fri
-          everyOtherDay: false,
-          perWeek: null,
-          timesByWeekday: {
-            '1': '12:00',
-            '2': '12:00',
-            '3': '12:00',
-            '4': '12:00',
-            '5': '12:00',
-          },
-        );
-      case 'everyother':
-        return SuggestedSchedule(
-          startDate: tomorrowStr,
-          weekdays: [0, 1, 2, 3, 4, 5, 6],
-          everyOtherDay: true,
-          perWeek: null,
-          timesByWeekday: {'0': '09:00'},
-        );
-      case 'custom':
-        return _customSchedule ?? SuggestedSchedule(
-          startDate: tomorrowStr,
-          weekdays: [1, 2, 3, 4, 5],
-          everyOtherDay: false,
-          perWeek: null,
-          timesByWeekday: {'0': '12:00'},
-        );
-      default:
-        return SuggestedSchedule(
-          startDate: tomorrowStr,
-          weekdays: [1, 2, 3, 4, 5],
-          everyOtherDay: false,
-          perWeek: null,
-          timesByWeekday: {'0': '12:00'},
-        );
-    }
-  }
-
   Future<void> _sendShares() async {
     setState(() => _sending = true);
 
     try {
-      final schedule = _getScheduleFromPreset();
       final results = await _repo.shareFlow(
         flowId: widget.flowId,
         recipients: _recipients,
-        suggestedSchedule: schedule,
+        suggestedSchedule: null,  // No schedule suggestion - Ma'at flows have their own
       );
 
       if (!mounted) return;
@@ -487,6 +350,62 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       );
 
       if (successCount > 0) {
+        // Collect share URLs for external shares
+        final shareUrls = results
+            .where((r) => r.shareUrl != null)
+            .map((r) => r.shareUrl!)
+            .toList();
+        
+        // If there are external shares, offer to share via system
+        if (shareUrls.isNotEmpty && mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: const Color(0xFF000000),
+              title: const Text(
+                'Share Links Generated',
+                style: TextStyle(color: Colors.white),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Created ${shareUrls.length} share ${shareUrls.length == 1 ? 'link' : 'links'} for email/phone recipients.',
+                    style: TextStyle(color: Colors.white.withOpacity(0.8)),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Would you like to share them now?',
+                    style: TextStyle(color: Colors.white.withOpacity(0.8)),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Not Now', style: TextStyle(color: Colors.white)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    // Share via system share sheet
+                    await Share.share(
+                      shareUrls.join('\n\n'),
+                      subject: 'Check out this flow from Ma\'at',
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD4AF37),
+                    foregroundColor: Colors.black,
+                  ),
+                  child: const Text('Share'),
+                ),
+              ],
+            ),
+          );
+        }
+        
         Navigator.pop(context, true);
       }
     } catch (e) {

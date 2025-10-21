@@ -49,6 +49,11 @@ dependencies:
   # For receiving shared ICS files
   receive_sharing_intent: ^1.5.3
   file_picker: ^8.0.0+1
+  
+  # Flow sharing system
+  go_router: ^13.0.0
+  share_plus: ^7.2.1
+  url_launcher: ^6.2.0
 
 
 

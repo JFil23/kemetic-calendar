@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_links/app_links.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import 'package:go_router/go_router.dart';
 
 import 'data/user_events_repo.dart';
 import 'features/calendar/notify.dart';
@@ -15,6 +16,8 @@ import 'features/calendar/calendar_page.dart';
 import 'features/calendar/ics_preview_card.dart';
 import 'utils/ics_parser.dart';
 import 'core/kemetic_converter.dart';
+import 'features/sharing/share_preview_page.dart';
+import 'features/inbox/inbox_page.dart';
 
 import 'utils/hive_local_storage_web.dart';
 import 'core/theme/app_theme.dart';
@@ -150,16 +153,50 @@ class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
   }
 }
 
+/* ───────────────────────── Router Configuration ───────────────────────── */
+
+final _router = GoRouter(
+  initialLocation: '/',
+  routes: [
+    GoRoute(
+      path: '/',
+      builder: (context, state) => const AuthGate(),
+    ),
+    GoRoute(
+      path: '/inbox',
+      builder: (context, state) {
+        final shareId = state.uri.queryParameters['share'];
+        if (shareId != null) {
+          // Redirect to share preview if share parameter exists
+          return SharePreviewPage(
+            shareId: shareId,
+            token: state.uri.queryParameters['token'],
+          );
+        }
+        return const InboxPage();
+      },
+    ),
+    GoRoute(
+      path: '/share/:shareId',
+      builder: (context, state) {
+        return SharePreviewPage(
+          shareId: state.pathParameters['shareId']!,
+          token: state.uri.queryParameters['token'],
+        );
+      },
+    ),
+  ],
+);
+
 /* ───────────────────────── App Widgets ───────────────────────── */
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      navigatorObservers: [routeObserver, TelemetryRouteObserver()],
-      home: const AuthGate(),
+      routerConfig: _router,
     );
   }
 }

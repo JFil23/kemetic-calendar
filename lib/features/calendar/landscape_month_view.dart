@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart'; // For KemeticMath
+import '../sharing/share_flow_sheet.dart';
 
 // ========================================
 // MAIN LANDSCAPE MONTH VIEW WIDGET
@@ -752,23 +753,86 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Flow name badge (if available)
+                // Header row with flow badge and menu
                 if (flow != null) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: flow.color.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: flow.color, width: 1),
-                    ),
-                    child: Text(
-                      flow.name,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: flow.color,
-                        fontWeight: FontWeight.w500,
+                  Row(
+                    children: [
+                      // Flow name badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: flow.color.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: flow.color, width: 1),
+                        ),
+                        child: Text(
+                          flow.name,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: flow.color,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
-                    ),
+                      const Spacer(),
+                      // 3-dot menu
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, color: Color(0xFFD4AF37)),
+                        tooltip: 'Event options',
+                        onSelected: (value) async {
+                          if (value == 'edit') {
+                            Navigator.pop(context);
+                            if (widget.onManageFlows != null) {
+                              widget.onManageFlows!();
+                            }
+                          } else if (value == 'share') {
+                            Navigator.pop(context);
+                            final result = await showModalBottomSheet<bool>(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (context) => ShareFlowSheet(
+                                flowId: flow.id,
+                                flowTitle: flow.name,
+                              ),
+                            );
+                            
+                            if (result == true && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Flow shared successfully!'),
+                                  backgroundColor: Color(0xFFD4AF37),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, color: Color(0xFFD4AF37)),
+                                SizedBox(width: 12),
+                                Text('Edit Flow', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'share',
+                            child: Row(
+                              children: [
+                                Icon(Icons.share, color: Color(0xFFD4AF37)),
+                                SizedBox(width: 12),
+                                Text('Share Flow', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        ],
+                        color: const Color(0xFF000000),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                 ],
