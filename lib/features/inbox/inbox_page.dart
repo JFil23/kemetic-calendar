@@ -96,10 +96,34 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Future<void> _onItemTap(InboxShareItem item) async {
-    // Mark as viewed when opened
+    // Mark as viewed immediately
     if (item.viewedAt == null) {
       try {
         await _shareRepo.markViewed(item.shareId, isFlow: item.isFlow);
+        
+        // Update local state manually (no copyWith method)
+        final index = _items.indexWhere((i) => i.shareId == item.shareId);
+        if (index != -1) {
+          setState(() {
+            _items[index] = InboxShareItem(
+              shareId: item.shareId,
+              kind: item.kind,
+              recipientId: item.recipientId,
+              senderId: item.senderId,
+              senderHandle: item.senderHandle,
+              senderName: item.senderName,
+              senderAvatar: item.senderAvatar,
+              payloadId: item.payloadId,
+              title: item.title,
+              createdAt: item.createdAt,
+              viewedAt: DateTime.now(), // ✅ Mark as viewed
+              importedAt: item.importedAt,
+              suggestedSchedule: item.suggestedSchedule,
+              eventDate: item.eventDate,
+              payloadJson: item.payloadJson,
+            );
+          });
+        }
       } catch (e) {
         print('Failed to mark as viewed: $e');
       }
@@ -119,7 +143,9 @@ class _InboxPageState extends State<InboxPage> {
     );
 
     // Refresh inbox if flow was imported
-    if (result == true) {
+    if (result is int) {  // ✅ Only reload if flow was imported
+      // Small delay to let database update propagate
+      await Future.delayed(const Duration(milliseconds: 300));
       await _loadInboxItems();
     }
   }
@@ -445,7 +471,7 @@ class _InboxPageState extends State<InboxPage> {
                               ),
                             ),
                           ),
-                        if (isUnread && !isImported) ...[
+                        if (isUnread) ...[
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -857,43 +883,12 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
   }
 
   Widget _buildActionButtons() {
-    // NEW: Check cache for actual import status
-    final isAlreadyImported = widget.importStatusCache[widget.item.shareId] ?? false;
-
     return Column(
       children: [
         SizedBox(
           width: double.infinity,
           height: 56,
-          child: ElevatedButton(
-            onPressed: _isImporting ? null : _handleImport,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD4AF37),
-              foregroundColor: Colors.black,
-              minimumSize: const Size(double.infinity, 56),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: _isImporting
-                ? const SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-                    ),
-                  )
-                : Text(
-                    widget.item.isFlow
-                        ? 'Import Flow to Calendar'
-                        : 'Import Event to Calendar',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-          ),
+          child: _buildImportButton(),
         ),
         const SizedBox(height: 12),
         SizedBox(
@@ -918,6 +913,52 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildImportButton() {
+    return FutureBuilder<int?>(
+      future: UserEventsRepo(Supabase.instance.client).getFlowIdByShareId(widget.item.shareId),
+      builder: (context, snapshot) {
+        final flowId = snapshot.data;
+        final isImported = flowId != null; // Flow exists in user's flows
+        
+        return ElevatedButton(
+          onPressed: _isImporting || isImported ? null : _handleImport,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: isImported 
+              ? const Color(0xFF4A4A4A)  // Visible medium grey
+              : const Color(0xFFD4AF37),
+            foregroundColor: isImported 
+              ? const Color(0xFFAAAAAA)  // Light grey text
+              : Colors.black,
+            minimumSize: const Size(double.infinity, 56),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: _isImporting
+              ? const SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                  ),
+                )
+              : Text(
+                  isImported 
+                      ? 'Already Imported'
+                      : (widget.item.isFlow
+                          ? 'Import Flow to Calendar'
+                          : 'Import Event to Calendar'),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+        );
+      },
     );
   }
 

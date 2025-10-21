@@ -2167,6 +2167,8 @@ class _CalendarPageState extends State<CalendarPage> {
                         ),
                       );
                       if (edited != null) await _persistFlowStudioResult(edited);
+                      // ✅ Refresh calendar data after flow operations
+                      await _loadFromDisk();
                     },
                     onEditFlow: (id) async {
                       final edited = await Navigator.of(innerCtx).push<_FlowStudioResult>(
@@ -2178,6 +2180,8 @@ class _CalendarPageState extends State<CalendarPage> {
                         ),
                       );
                       if (edited != null) await _persistFlowStudioResult(edited);
+                      // ✅ Refresh calendar data after flow operations
+                      await _loadFromDisk();
                     },
                     openMaatFlows: () {
                       Navigator.of(innerCtx).push(
@@ -2297,6 +2301,8 @@ class _CalendarPageState extends State<CalendarPage> {
               ),
             );
             if (edited != null) await _persistFlowStudioResult(edited);
+            // ✅ Refresh calendar data after flow operations
+            await _loadFromDisk();
           },
           onEditFlow: (id) async {
             final edited = await Navigator.of(innerCtx).push<_FlowStudioResult>(
@@ -2308,6 +2314,8 @@ class _CalendarPageState extends State<CalendarPage> {
               ),
             );
             if (edited != null) await _persistFlowStudioResult(edited);
+            // ✅ Refresh calendar data after flow operations
+            await _loadFromDisk();
           },
           openMaatFlows: () {
             Navigator.of(innerCtx).push(
