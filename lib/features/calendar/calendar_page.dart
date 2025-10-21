@@ -18,6 +18,7 @@ import '../journal/journal_swipe_layer.dart';
 import '../../core/ui_guards.dart';
 import '../../main.dart';
 import '../../data/share_repo.dart';
+import '../sharing/share_flow_sheet.dart';
 import '../../data/share_models.dart';
 import '../../widgets/inbox_icon_with_badge.dart';
 
@@ -7458,9 +7459,39 @@ class _FlowPreviewPage extends StatelessWidget {
               onPressed: onEndMaatFlow,
               child: const Text('End Flow'),
             ),
-          TextButton(
-            onPressed: onEdit,
-            child: const Text('Edit', style: TextStyle(color: Colors.white)),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Color(0xFFD4AF37)), // ⋮ vertical dots
+            tooltip: 'Flow options',
+            onSelected: (value) {
+              if (value == 'edit') {
+                onEdit();
+              } else if (value == 'share') {
+                _openShareSheet(context, flow);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, color: Color(0xFFD4AF37)),
+                    SizedBox(width: 12),
+                    Text('Edit Flow', style: TextStyle(color: Colors.white)),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'share',
+                child: Row(
+                  children: [
+                    Icon(Icons.share, color: Color(0xFFD4AF37)),
+                    SizedBox(width: 12),
+                    Text('Share Flow', style: TextStyle(color: Colors.white)),
+                  ],
+                ),
+              ),
+            ],
+            color: const Color(0xFF000000), // True black
           ),
         ],
 
@@ -7517,6 +7548,28 @@ class _FlowPreviewPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static Future<void> _openShareSheet(BuildContext context, _Flow flow) async {
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ShareFlowSheet(
+        flowId: flow.id,
+        flowTitle: flow.name,
+      ),
+    );
+    
+    if (result == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Flow shared successfully!'),
+          backgroundColor: Color(0xFFD4AF37),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 }
 
