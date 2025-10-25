@@ -145,7 +145,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       controller: _searchController,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
-        hintText: 'Search by @handle or enter email/phone',
+        hintText: 'Search by @handle or enter email/phone (press Enter)',
         hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
         prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.5)),
         filled: true,
@@ -164,6 +164,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
         ),
       ),
       onChanged: _onSearchChanged,
+      onSubmitted: _handleSubmit,  // ⭐ ADD THIS LINE
     );
   }
 
@@ -179,8 +180,8 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     setState(() => _searching = true);
 
     // Check if it's an email or phone
-    if (query.contains('@')) {
-      // Email
+    if (query.contains('@') && _isValidEmail(query)) {
+      // Don't auto-add yet - wait for Enter key
       setState(() {
         _searchResults = [];
         _searching = false;
@@ -188,8 +189,8 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       return;
     }
 
-    if (RegExp(r'^\d+$').hasMatch(query)) {
-      // Phone number
+    if (RegExp(r'^\+?\d{10,}$').hasMatch(query.replaceAll(RegExp(r'[\s\-\(\)]'), ''))) {
+      // Don't auto-add yet - wait for Enter key
       setState(() {
         _searchResults = [];
         _searching = false;
@@ -197,7 +198,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       return;
     }
 
-    // Search for handles
+    // Search for handles (if it starts with @ or looks like a username)
     final results = await _repo.searchUsers(query);
     if (mounted) {
       setState(() {
@@ -205,6 +206,47 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
         _searching = false;
       });
     }
+  }
+
+  // Add this helper method
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$').hasMatch(email);
+  }
+
+  void _handleSubmit(String query) {
+    if (query.isEmpty) return;
+
+    // Check if it's a valid email
+    if (query.contains('@') && _isValidEmail(query)) {
+      final recipient = ShareRecipient(
+        type: ShareRecipientType.email,
+        value: query.trim(),
+      );
+      _addRecipient(recipient);
+      _searchController.clear();
+      setState(() {
+        _searchResults = [];
+      });
+      return;
+    }
+
+    // Check if it's a valid phone number
+    final cleanedPhone = query.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    if (RegExp(r'^\+?\d{10,}$').hasMatch(cleanedPhone)) {
+      final recipient = ShareRecipient(
+        type: ShareRecipientType.phone,
+        value: cleanedPhone,
+      );
+      _addRecipient(recipient);
+      _searchController.clear();
+      setState(() {
+        _searchResults = [];
+      });
+      return;
+    }
+
+    // If it's a handle search result, ignore Enter key
+    // (user should tap the result instead)
   }
 
   Widget _buildSearchResults() {
@@ -323,92 +365,98 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
   }
 
   Future<void> _sendShares() async {
+    print('[ShareFlowSheet] _sendShares() called');
+    print('[ShareFlowSheet] Recipients: ${_recipients.length}');
+    
+    if (_recipients.isEmpty) {
+      print('[ShareFlowSheet] No recipients, returning');
+      return;
+    }
+
     setState(() => _sending = true);
+    print('[ShareFlowSheet] Set _sending = true');
 
     try {
+      print('[ShareFlowSheet] Calling shareFlow...');
       final results = await _repo.shareFlow(
         flowId: widget.flowId,
         recipients: _recipients,
         suggestedSchedule: null,  // No schedule suggestion - Ma'at flows have their own
       );
 
-      if (!mounted) return;
+      print('[ShareFlowSheet] shareFlow returned ${results.length} results');
+      print('[ShareFlowSheet] Results: $results');
 
-      // Count successes
-      final successCount = results.where((r) => r.status == 'sent').length;
+      if (!mounted) {
+        print('[ShareFlowSheet] Widget not mounted, returning');
+        return;
+      }
+
+      // Count successes - check for shareUrl instead of status
+      final successCount = results.where((r) => r.shareUrl != null).length;
       final failCount = results.length - successCount;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            successCount > 0
-                ? 'Shared with $successCount ${successCount == 1 ? 'person' : 'people'}!'
-                : 'Failed to share. Please try again.',
-          ),
-          backgroundColor: successCount > 0 ? const Color(0xFFD4AF37) : Colors.red,
-        ),
-      );
+      
+      print('[ShareFlowSheet] Success count: $successCount');
+      print('[ShareFlowSheet] Fail count: $failCount');
 
       if (successCount > 0) {
+        print('[ShareFlowSheet] ✅ At least one share succeeded');
+        
         // Collect share URLs for external shares
         final shareUrls = results
             .where((r) => r.shareUrl != null)
             .map((r) => r.shareUrl!)
             .toList();
         
-        // If there are external shares, offer to share via system
-        if (shareUrls.isNotEmpty && mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              backgroundColor: const Color(0xFF000000),
-              title: const Text(
-                'Share Links Generated',
-                style: TextStyle(color: Colors.white),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Created ${shareUrls.length} share ${shareUrls.length == 1 ? 'link' : 'links'} for email/phone recipients.',
-                    style: TextStyle(color: Colors.white.withOpacity(0.8)),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Would you like to share them now?',
-                    style: TextStyle(color: Colors.white.withOpacity(0.8)),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Not Now', style: TextStyle(color: Colors.white)),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    // Share via system share sheet
-                    await Share.share(
-                      shareUrls.join('\n\n'),
-                      subject: 'Check out this flow from Ma\'at',
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD4AF37),
-                    foregroundColor: Colors.black,
-                  ),
-                  child: const Text('Share'),
-                ),
-              ],
+        print('[ShareFlowSheet] Share URLs: ${shareUrls.length}');
+        print('[ShareFlowSheet] URLs: $shareUrls');
+        
+        // Show success snackbar FIRST
+        if (mounted) {
+          print('[ShareFlowSheet] Showing success snackbar...');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Shared with $successCount person(s)!'),
+              backgroundColor: const Color(0xFFD4AF37),
             ),
           );
         }
         
-        Navigator.pop(context, true);
+        // Open system share dialog and WAIT for it to complete
+        if (shareUrls.isNotEmpty && mounted) {
+          print('[ShareFlowSheet] Opening system share dialog with ${shareUrls.length} URLs...');
+          
+          await Share.share(
+            shareUrls.join('\n\n'),
+            subject: 'Check out this Ma\'at flow!',
+          );
+          
+          print('[ShareFlowSheet] System share dialog completed');
+        } else {
+          print('[ShareFlowSheet] No share URLs or not mounted, skipping dialog');
+        }
+        
+        // THEN close the sheet AFTER share dialog completes
+        if (mounted) {
+          print('[ShareFlowSheet] Closing sheet...');
+          Navigator.pop(context, true);
+        }
+      } else {
+        print('[ShareFlowSheet] ❌ No successful shares');
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to share. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('[ShareFlowSheet] ❌ ERROR: $e');
+      print('[ShareFlowSheet] Stack trace: $stackTrace');
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -419,6 +467,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       }
     } finally {
       if (mounted) {
+        print('[ShareFlowSheet] Setting _sending = false');
         setState(() => _sending = false);
       }
     }

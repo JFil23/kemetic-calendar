@@ -31,6 +31,9 @@ const SUPABASE_URL = String.fromEnvironment('SUPABASE_URL');
 const SUPABASE_ANON_KEY = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 Future<void> main() async {
+  print('🔍 SUPABASE_URL: $SUPABASE_URL');
+  print('🔍 Has ANON_KEY: ${SUPABASE_ANON_KEY.isNotEmpty}');
+  
   WidgetsFlutterBinding.ensureInitialized();
 
 

@@ -15,6 +15,9 @@ class ShareRepo {
     required List<ShareRecipient> recipients,
     SuggestedSchedule? suggestedSchedule,
   }) async {
+    print('[ShareRepo] Current user: ${_client.auth.currentUser?.id}');
+    print('[ShareRepo] Current session: ${_client.auth.currentSession?.accessToken != null}');
+    
     try {
       final response = await _client.functions.invoke(
         'create_flow_share',
@@ -25,15 +28,58 @@ class ShareRepo {
         },
       );
 
+      // Parse response
+      print('[ShareRepo] Raw response: ${response.data}');
+
       if (response.data == null) {
-        throw Exception('No response from create_flow_share function');
+        print('[ShareRepo] ERROR: response.data is null');
+        throw Exception('Edge Function returned null response');
       }
 
-      final results = (response.data['results'] as List)
-          .map((r) => ShareResult.fromJson(r as Map<String, dynamic>))
-          .toList();
+      final data = response.data as Map<String, dynamic>;
+      print('[ShareRepo] Response data keys: ${data.keys}');
 
-      return results;
+      // Safe cast with null check - try both 'shares' and 'results'
+      final sharesList = (data['shares'] as List<dynamic>?) ?? 
+                        (data['results'] as List<dynamic>?) ?? [];
+      print('[ShareRepo] Shares list length: ${sharesList.length}');
+
+      if (sharesList.isEmpty) {
+        print('[ShareRepo] WARNING: Empty shares list in response');
+        return [];
+      }
+
+      return sharesList.map((item) {
+        print('[ShareRepo] Processing share item: $item');
+        
+        // Handle both direct ShareResult.fromJson and manual parsing
+        if (item is Map<String, dynamic>) {
+          // Try ShareResult.fromJson first
+          try {
+            return ShareResult.fromJson(item);
+          } catch (e) {
+            print('[ShareRepo] ShareResult.fromJson failed, parsing manually: $e');
+            
+            final recipientData = item['recipient'] as Map<String, dynamic>;
+            
+            return ShareResult(
+              recipient: ShareRecipient(
+                type: ShareRecipientType.values.firstWhere(
+                  (t) => t.toString().split('.').last == recipientData['type'],
+                  orElse: () => ShareRecipientType.email,
+                ),
+                value: recipientData['value'] as String,
+              ),
+              status: item['status'] as String? ?? 'sent',
+              shareId: item['share_id'] as String?,
+              shareUrl: item['share_url'] as String?,
+              error: item['error'] as String?,
+            );
+          }
+        }
+        
+        throw Exception('Invalid share item format: $item');
+      }).toList();
     } catch (e) {
       print('[ShareRepo] Error sharing flow: $e');
       rethrow;

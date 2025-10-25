@@ -94,7 +94,7 @@ class ShareResult {
   factory ShareResult.fromJson(Map<String, dynamic> json) {
     return ShareResult(
       recipient: ShareRecipient.fromJson(json['recipient'] as Map<String, dynamic>),
-      status: json['status'] as String,
+      status: json['status'] as String? ?? 'sent',
       shareId: json['share_id'] as String?,
       shareUrl: json['share_url'] as String?,
       error: json['error'] as String?,
@@ -110,6 +110,9 @@ class ShareResult {
       'error': error,
     };
   }
+
+  bool get isSuccess => error == null && shareUrl != null;
+  bool get isError => error != null;
 }
 
 /// Unified inbox item for shared flows and events
