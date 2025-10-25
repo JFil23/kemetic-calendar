@@ -2,6 +2,7 @@
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'profile_model.dart';
+import 'share_models.dart';
 
 class ProfileRepo {
   final SupabaseClient _client;
@@ -99,6 +100,82 @@ class ProfileRepo {
       print('[ProfileRepo] Error checking handle: $e');
       return false;
     }
+  }
+
+  /// Search for users by handle (for @handle search in ShareFlowSheet)
+  Future<List<UserSearchResult>> searchUsersByHandle(String query) async {
+    try {
+      final cleanQuery = query.startsWith('@') ? query.substring(1) : query;
+      if (cleanQuery.isEmpty || cleanQuery.length < 2) {
+        return [];
+      }
+
+      print('[ProfileRepo] Searching for handles matching: $cleanQuery');
+
+      final response = await _client
+          .from('profiles')
+          .select('id, handle, display_name, avatar_url, email')
+          .ilike('handle', '$cleanQuery%')
+          .eq('allow_incoming_shares', true)
+          .limit(10);
+
+      print('[ProfileRepo] Search returned ${response.length} results');
+
+      return (response as List).map((json) {
+        return UserSearchResult(
+          userId: json['id'] as String,
+          handle: json['handle'] as String,
+          displayName: json['display_name'] as String?,
+          avatarUrl: json['avatar_url'] as String?,
+          email: json['email'] as String?,
+        );
+      }).toList();
+    } catch (e) {
+      print('[ProfileRepo] Error searching users: $e');
+      return [];
+    }
+  }
+
+  /// Check if current user has completed their profile
+  Future<bool> hasCompletedProfile() async {
+    try {
+      final profile = await getMyProfile();
+      return profile != null && 
+             profile.handle != null && 
+             profile.handle!.isNotEmpty &&
+             profile.displayName != null &&
+             profile.displayName!.isNotEmpty;
+    } catch (e) {
+      print('[ProfileRepo] Error checking profile completion: $e');
+      return false;
+    }
+  }
+}
+
+/// User search result for @handle search
+class UserSearchResult {
+  final String userId;
+  final String handle;
+  final String? displayName;
+  final String? avatarUrl;
+  final String? email;
+
+  UserSearchResult({
+    required this.userId,
+    required this.handle,
+    this.displayName,
+    this.avatarUrl,
+    this.email,
+  });
+
+  String get name => displayName ?? '@$handle';
+
+  /// Convert to ShareRecipient
+  ShareRecipient toRecipient() {
+    return ShareRecipient(
+      type: ShareRecipientType.user,
+      value: userId,
+    );
   }
 }
 

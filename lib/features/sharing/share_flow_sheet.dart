@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'dart:async';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
+import '../../data/profile_repo.dart';
 
 class ShareFlowSheet extends StatefulWidget {
   final int flowId;
@@ -20,16 +22,20 @@ class ShareFlowSheet extends StatefulWidget {
 
 class _ShareFlowSheetState extends State<ShareFlowSheet> {
   final _repo = ShareRepo(Supabase.instance.client);
+  final _profileRepo = ProfileRepo(Supabase.instance.client);
   final _searchController = TextEditingController();
   
   List<ShareRecipient> _recipients = [];
-  List<Map<String, dynamic>> _searchResults = [];
+  String _searchQuery = '';
+  List<UserSearchResult> _searchResults = [];
   bool _searching = false;
   bool _sending = false;
+  Timer? _searchDebounce;
 
   @override
   void dispose() {
     _searchController.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
   }
 
@@ -169,7 +175,15 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
   }
 
   Future<void> _onSearchChanged(String query) async {
-    if (query.isEmpty) {
+    setState(() {
+      _searchQuery = query;
+      _searching = true;
+    });
+
+    // Cancel previous search
+    _searchDebounce?.cancel();
+
+    if (query.trim().isEmpty) {
       setState(() {
         _searchResults = [];
         _searching = false;
@@ -177,32 +191,45 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       return;
     }
 
-    setState(() => _searching = true);
-
-    // Check if it's an email or phone
-    if (query.contains('@') && _isValidEmail(query)) {
-      // Don't auto-add yet - wait for Enter key
+    // Check if it's an email
+    if (_isValidEmail(query)) {
+      print('[ShareFlowSheet] Detected email: $query');
       setState(() {
         _searchResults = [];
         _searching = false;
       });
+      // Email will be added when user presses Enter (handled by _handleSubmit)
       return;
     }
 
-    if (RegExp(r'^\+?\d{10,}$').hasMatch(query.replaceAll(RegExp(r'[\s\-\(\)]'), ''))) {
-      // Don't auto-add yet - wait for Enter key
+    // Check if it's a @handle search
+    if (query.startsWith('@') && query.length >= 2) {
+      print('[ShareFlowSheet] Searching for handle: $query');
+      
+      _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
+        try {
+          final results = await _profileRepo.searchUsersByHandle(query);
+          
+          if (mounted) {
+            setState(() {
+              _searchResults = results;
+              _searching = false;
+            });
+          }
+        } catch (e) {
+          print('[ShareFlowSheet] Search error: $e');
+          if (mounted) {
+            setState(() {
+              _searchResults = [];
+              _searching = false;
+            });
+          }
+        }
+      });
+    } else {
+      // Not an email or handle - clear results
       setState(() {
         _searchResults = [];
-        _searching = false;
-      });
-      return;
-    }
-
-    // Search for handles (if it starts with @ or looks like a username)
-    final results = await _repo.searchUsers(query);
-    if (mounted) {
-      setState(() {
-        _searchResults = results;
         _searching = false;
       });
     }
@@ -251,59 +278,43 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
 
   Widget _buildSearchResults() {
     return Container(
+      margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D0D0F),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.3)),
       ),
-      child: Column(
-        children: _searchResults.map((user) {
-          final alreadyAdded = _recipients.any(
-            (r) => r.type == ShareRecipientType.user && r.value == user['id'],
-          );
-          
+      child: ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _searchResults.length,
+        itemBuilder: (context, index) {
+          final user = _searchResults[index];
           return ListTile(
-            leading: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF1A1A1A),
-                border: Border.all(color: const Color(0xFFD4AF37)),
+            leading: CircleAvatar(
+              backgroundColor: const Color(0xFFD4AF37),
+              child: Text(
+                user.handle[0].toUpperCase(),
+                style: const TextStyle(color: Colors.black),
               ),
-              child: user['avatar_url'] != null
-                  ? ClipOval(
-                      child: Image.network(user['avatar_url'], fit: BoxFit.cover),
-                    )
-                  : Center(
-                      child: Text(
-                        user['handle'][0].toUpperCase(),
-                        style: const TextStyle(
-                          color: Color(0xFFD4AF37),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
             ),
             title: Text(
-              user['display_name'] ?? user['handle'],
-              style: const TextStyle(color: Colors.white),
+              '@${user.handle}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-            subtitle: Text(
-              '@${user['handle']}',
-              style: TextStyle(color: Colors.white.withOpacity(0.6)),
-            ),
-            trailing: alreadyAdded
-                ? Icon(Icons.check_circle, color: const Color(0xFFD4AF37))
-                : IconButton(
-                    icon: const Icon(Icons.add_circle_outline, color: Color(0xFFD4AF37)),
-                    onPressed: () => _addRecipient(ShareRecipient(
-                      type: ShareRecipientType.user,
-                      value: user['id'],
-                    )),
-                  ),
+            subtitle: user.displayName != null
+                ? Text(
+                    user.displayName!,
+                    style: TextStyle(color: Colors.grey[400]),
+                  )
+                : null,
+            trailing: const Icon(Icons.add, color: Color(0xFFD4AF37)),
+            onTap: () => _addUserToRecipients(user),
           );
-        }).toList(),
+        },
       ),
     );
   }
@@ -312,11 +323,20 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     String displayText = recipient.value;
     if (recipient.type == ShareRecipientType.user) {
       // Find display name from search results
-      final user = _searchResults.firstWhere(
-        (u) => u['id'] == recipient.value,
-        orElse: () => {},
-      );
-      displayText = user['display_name'] ?? '@${user['handle'] ?? 'user'}';
+      UserSearchResult user;
+      try {
+        user = _searchResults.firstWhere(
+          (u) => u.userId == recipient.value,
+        );
+      } catch (e) {
+        // User not found in search results, create a default
+        user = UserSearchResult(
+          userId: recipient.value,
+          handle: 'user',
+          displayName: null,
+        );
+      }
+      displayText = user.displayName ?? '@${user.handle}';
     }
 
     return Container(
@@ -358,6 +378,25 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     if (!_recipients.any((r) => r.value == recipient.value)) {
       setState(() => _recipients.add(recipient));
     }
+  }
+
+  void _addUserToRecipients(UserSearchResult user) {
+    // Check if already added
+    if (_recipients.any((r) => r.type == ShareRecipientType.user && r.value == user.userId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${user.name} already added')),
+      );
+      return;
+    }
+
+    setState(() {
+      _recipients.add(user.toRecipient());
+      _searchController.clear();
+      _searchQuery = '';
+      _searchResults = [];
+    });
+
+    print('[ShareFlowSheet] Added user: ${user.handle}');
   }
 
   void _removeRecipient(ShareRecipient recipient) {

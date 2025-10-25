@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../../widgets/inbox_icon_with_badge.dart';
+import 'edit_profile_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final String userId;
@@ -243,14 +244,21 @@ class _ProfilePageState extends State<ProfilePage> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {
-          // TODO: Navigate to profile edit page (Phase 1.5)
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile editing coming in Phase 1.5'),
-              backgroundColor: Color(0xFFD4AF37),
+        onPressed: () async {
+          // Navigate to edit profile page
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EditProfilePage(
+                initialProfile: _profile!,
+              ),
             ),
           );
+          
+          // Reload profile data if updated
+          if (result == true) {
+            await _loadProfile();
+          }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFD4AF37), // Gold
