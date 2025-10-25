@@ -437,6 +437,76 @@ class JournalController {
     return await appendToToday(content);
   }
 
+  /// Load journal entry for a specific date
+  /// Used when opening an entry from the archive
+  Future<void> loadDate(DateTime date) async {
+    try {
+      _log('loadDate: loading entry for ${_formatDate(date)}');
+      
+      // Update current date
+      _currentDate = date;
+      final dateKey = _formatDate(date);
+      
+      // Try to load from server first
+      final entry = await _repo.getByDate(date);
+      
+      if (entry != null) {
+        _log('loadDate: found entry with ${entry.body.length} chars');
+        
+        // Check if it's a V2 document or plain text
+        if (entry.body.startsWith('{') && entry.body.contains('"version"')) {
+          // V2 document format
+          try {
+            final docJson = jsonDecode(entry.body) as Map<String, dynamic>;
+            _currentDocument = JournalDocument.fromJson(docJson);
+            _currentDraft = _documentToPlainText(_currentDocument!);
+            _isDocumentMode = true;
+            _log('loadDate: loaded V2 document');
+          } catch (e) {
+            _log('loadDate: failed to parse document, falling back to plain text: $e');
+            _currentDraft = entry.body;
+            _currentDocument = null;
+            _isDocumentMode = false;
+          }
+        } else {
+          // Plain text format (V1)
+          _currentDraft = entry.body;
+          _currentDocument = null;
+          _isDocumentMode = false;
+          _log('loadDate: loaded V1 plain text');
+        }
+      } else {
+        // No entry found for this date
+        _log('loadDate: no entry found for $dateKey');
+        _currentDraft = '';
+        _currentDocument = null;
+        _isDocumentMode = FeatureFlags.isJournalV2Active;
+      }
+      
+      // Update local storage tracking
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('lastOpenDay', dateKey);
+      
+      _hasUnsavedChanges = false;
+      onDraftChanged?.call();
+      
+      _log('loadDate: ✓ loaded entry for $dateKey');
+    } catch (e) {
+      _log('loadDate error: $e');
+      // On error, show empty entry
+      _currentDraft = '';
+      _currentDocument = null;
+    }
+  }
+
+  /// Helper to format date as 'yyyy-mm-dd'
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Get the currently loaded date
+  DateTime? get currentDate => _currentDate;
+
   /// Dispose controller
   void dispose() {
     _autosaveTimer?.cancel();

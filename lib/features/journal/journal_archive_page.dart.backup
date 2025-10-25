@@ -1,0 +1,486 @@
+// lib/features/journal/journal_archive_page.dart
+//
+// Journal Archive - COMPLETELY FIXED VERSION
+// - Parses V2 document JSON to extract text
+// - Uses callback instead of Navigator.pop
+// - Matches app visual theme
+// - Shows in same journal window
+
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import '../../data/journal_repo.dart';
+import 'journal_controller.dart';
+import 'journal_v2_document_model.dart';
+
+class JournalArchivePage extends StatefulWidget {
+  final JournalRepo repo;
+  final JournalController controller;
+  final bool isPortrait;
+  final VoidCallback onClose; // NEW: Callback to close archive
+
+  const JournalArchivePage({
+    Key? key,
+    required this.repo,
+    required this.controller,
+    required this.isPortrait,
+    required this.onClose, // NEW: Required callback
+  }) : super(key: key);
+
+  @override
+  State<JournalArchivePage> createState() => _JournalArchivePageState();
+}
+
+class _JournalArchivePageState extends State<JournalArchivePage> {
+  List<JournalEntry> _entries = [];
+  bool _loading = true;
+  String? _error;
+  JournalEntry? _selectedEntry;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEntries();
+  }
+
+  Future<void> _loadEntries() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final entries = await widget.repo.listRecent(days: 365);
+      
+      if (mounted) {
+        setState(() {
+          _entries = entries;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[JournalArchive] Error loading entries: $e');
+      }
+      
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load journal entries';
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  void _viewEntry(JournalEntry entry) {
+    setState(() {
+      _selectedEntry = entry;
+    });
+  }
+
+  void _closeEntryView() {
+    setState(() {
+      _selectedEntry = null;
+    });
+  }
+
+  Future<void> _editEntry(JournalEntry entry) async {
+    // FIXED: Use callback instead of Navigator.pop()
+    widget.onClose();
+    
+    // Load this entry into the journal controller
+    await widget.controller.loadDate(entry.gregDate);
+  }
+
+  String _formatDate(DateTime date) {
+    final months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    final weekdays = [
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    ];
+    
+    final weekday = weekdays[date.weekday - 1];
+    final month = months[date.month - 1];
+    
+    return '$weekday, $month ${date.day}, ${date.year}';
+  }
+
+  // FIXED: Properly extract text from V2 document JSON using JournalDocument
+  String _extractTextFromBody(String body) {
+    // Check if it's V2 document format (JSON with version field)
+    if (body.trim().startsWith('{') && body.contains('"version"')) {
+      try {
+        final docMap = jsonDecode(body) as Map<String, dynamic>;
+        final document = JournalDocument.fromJson(docMap);
+        return document.toPlainText();
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[JournalArchive] Failed to parse V2 document: $e');
+        }
+        return 'Unable to parse entry';
+      }
+    }
+    
+    // Plain text (V1 format)
+    return body.trim();
+  }
+
+  String _getPreviewText(String body, {int maxLength = 100}) {
+    final text = _extractTextFromBody(body);
+    
+    if (text.isEmpty) {
+      return 'Empty entry';
+    }
+    
+    if (text.length <= maxLength) {
+      return text;
+    }
+    
+    return '${text.substring(0, maxLength)}...';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // If viewing a specific entry, show entry detail view
+    if (_selectedEntry != null) {
+      return _buildEntryDetailView(_selectedEntry!);
+    }
+    
+    // Otherwise show entry list
+    return _buildEntryListView();
+  }
+
+  Widget _buildEntryListView() {
+    return Container(
+      color: Colors.black, // True black background
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            _buildHeader(),
+            
+            // Content
+            Expanded(
+              child: _buildContent(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: const BoxDecoration(
+        color: Colors.black,
+        border: Border(
+          bottom: BorderSide(
+            color: Color(0xFF333333),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Back button - FIXED: Use callback instead of Navigator.pop
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Color(0xFFD4AF37), size: 24),
+            onPressed: widget.onClose,
+            tooltip: 'Back to today',
+          ),
+          // Title
+          const Expanded(
+            child: Text(
+              'Journal Archive',
+              style: TextStyle(
+                color: Color(0xFFD4AF37),
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          // Refresh button
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xFFD4AF37), size: 22),
+            onPressed: _loadEntries,
+            tooltip: 'Refresh',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFFD4AF37),
+          strokeWidth: 3,
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 48,
+                color: Color(0xFF666666),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                style: const TextStyle(
+                  color: Color(0xFF999999),
+                  fontSize: 16,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: _loadEntries,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0D0D0F),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Color(0xFFD4AF37), width: 1),
+                  ),
+                  child: const Text(
+                    'Try Again',
+                    style: TextStyle(
+                      color: Color(0xFFD4AF37),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_entries.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.book_outlined,
+                size: 64,
+                color: Color(0xFF333333),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'No journal entries yet',
+                style: TextStyle(
+                  color: Color(0xFF999999),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Start writing to see your entries here',
+                style: TextStyle(
+                  color: Color(0xFF666666),
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show list of entries
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      itemCount: _entries.length,
+      itemBuilder: (context, index) {
+        final entry = _entries[index];
+        return _buildEntryCard(entry);
+      },
+    );
+  }
+
+  Widget _buildEntryCard(JournalEntry entry) {
+    final text = _extractTextFromBody(entry.body);
+    final charCount = text.length;
+    final preview = _getPreviewText(entry.body);
+    
+    return GestureDetector(
+      onTap: () => _viewEntry(entry),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D0D0F), // Surface color from app theme
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Date
+            Text(
+              _formatDate(entry.gregDate),
+              style: const TextStyle(
+                color: Color(0xFFD4AF37), // Gold from app theme
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+              ),
+            ),
+            
+            const SizedBox(height: 10),
+            
+            // Preview text
+            Text(
+              preview,
+              style: const TextStyle(
+                color: Colors.white, // White text for readability
+                fontSize: 14,
+                height: 1.5,
+                letterSpacing: 0.2,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            
+            const SizedBox(height: 10),
+            
+            // Metadata
+            Row(
+              children: [
+                Icon(
+                  Icons.text_fields,
+                  size: 13,
+                  color: Colors.white.withOpacity(0.5),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '$charCount characters',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.5),
+                    fontSize: 12,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEntryDetailView(JournalEntry entry) {
+    final text = _extractTextFromBody(entry.body);
+    
+    return Container(
+      color: Colors.black,
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: const BoxDecoration(
+                color: Colors.black,
+                border: Border(
+                  bottom: BorderSide(
+                    color: Color(0xFF333333),
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  // Back button
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Color(0xFFD4AF37), size: 24),
+                    onPressed: _closeEntryView,
+                    tooltip: 'Back to list',
+                  ),
+                  // Date
+                  Expanded(
+                    child: Text(
+                      _formatDate(entry.gregDate),
+                      style: const TextStyle(
+                        color: Color(0xFFD4AF37),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  // Edit button
+                  GestureDetector(
+                    onTap: () => _editEntry(entry),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D0D0F),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Color(0xFFD4AF37), width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.edit, size: 16, color: Color(0xFFD4AF37)),
+                          SizedBox(width: 6),
+                          Text(
+                            'Edit',
+                            style: TextStyle(
+                              color: Color(0xFFD4AF37),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              ),
+            ),
+            
+            // Entry content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  text.isEmpty ? 'Empty entry' : text,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    height: 1.7,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

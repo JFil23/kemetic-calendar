@@ -2146,8 +2146,15 @@ class _CalendarPageState extends State<CalendarPage> {
 
 
   // Flow Studio callback that opens the Flow Hub (same as main calendar)
-  VoidCallback _getFlowStudioCallback() {
-    return () {
+  void Function(int? flowId) _getFlowStudioCallback() {
+    return (int? flowId) {
+      // If flowId provided, go directly to that flow
+      if (flowId != null) {
+        _openFlowEditorDirectly(flowId);
+        return;
+      }
+      
+      // Otherwise open Flow Hub as before
       _openFlowStudioSheet(
         rootBuilder: (innerCtx) {
           return _FlowHubPage(
@@ -2225,6 +2232,11 @@ class _CalendarPageState extends State<CalendarPage> {
                       );
                     },
                     onEndFlow: (id) => _endFlow(id),
+                    onImportFlow: (importedFlowId) async {
+                      if (importedFlowId != null) {
+                        await _loadFromDisk();
+                      }
+                    },
                   ),
                 ),
               );
@@ -2283,6 +2295,17 @@ class _CalendarPageState extends State<CalendarPage> {
         },
       );
     };
+  }
+
+  void _openFlowEditorDirectly(int flowId) {
+    _openFlowStudioSheet(
+      rootBuilder: (innerCtx) {
+        return _FlowStudioPage(
+          existingFlows: _flows,
+          editFlowId: flowId,
+        );
+      },
+    );
   }
 
   void _openFlowsViewer() {
@@ -2359,6 +2382,11 @@ class _CalendarPageState extends State<CalendarPage> {
             );
           },
           onEndFlow: (id) => _endFlow(id),
+          onImportFlow: (importedFlowId) async {
+            if (importedFlowId != null) {
+              await _loadFromDisk();
+            }
+          },
         );
       },
     );
@@ -2669,7 +2697,7 @@ class _CalendarPageState extends State<CalendarPage> {
           notesForDay: notesForDayFn,
           flowIndex: flowIndex,
           getMonthName: getMonthName,
-          onManageFlows: _getFlowStudioCallback(),
+          onManageFlows: (flowId) => _getFlowStudioCallback()(flowId),
           onAddNote: (ky, km, kd) => _openDaySheet(ky, km, kd, allowDateChange: true),
         ),
       ),
@@ -3932,7 +3960,7 @@ class _CalendarPageState extends State<CalendarPage> {
           IconButton(
             tooltip: 'Flow Studio',
             icon: const _GlossyIcon(Icons.view_timeline, gradient: _goldGloss),
-            onPressed: _getFlowStudioCallback(),
+            onPressed: () => _getFlowStudioCallback()(null),
           ),
 
           IconButton(
@@ -7616,6 +7644,7 @@ class _FlowsViewerPage extends StatefulWidget {
     required this.onEditFlow,
     required this.openMaatFlows,
     required this.onEndFlow,
+    this.onImportFlow,
   });
 
   final List<_Flow> flows;
@@ -7624,6 +7653,7 @@ class _FlowsViewerPage extends StatefulWidget {
   final void Function(int flowId) onEditFlow;
   final VoidCallback openMaatFlows; // <-- NEW
   final void Function(int flowId) onEndFlow;
+  final Future<void> Function(int? importedFlowId)? onImportFlow;
 
   @override
   State<_FlowsViewerPage> createState() => _FlowsViewerPageState();
@@ -7719,6 +7749,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
         actions: [
           InboxIconWithBadge(
             onRefreshSync: () => setState(() {}),
+            onImportFlow: widget.onImportFlow,
           ),
           IconButton(
             tooltip: 'New flow',

@@ -10,6 +10,9 @@ import 'journal_v2_document_model.dart';
 import 'journal_v2_rich_text.dart';
 import 'journal_v2_drawing.dart';
 import 'journal_undo_system.dart';
+import 'journal_archive_page.dart';
+import '../../data/journal_repo.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class JournalOverlay extends StatefulWidget {
   final JournalController controller;
@@ -42,6 +45,9 @@ class _JournalOverlayState extends State<JournalOverlay>
   JournalV2Mode _currentMode = JournalV2Mode.type;
   TextAttrs _currentAttrs = const TextAttrs();
   GlobalKey<RichTextEditorState>? _richTextEditorKey;
+  
+  // Archive state
+  bool _showingArchive = false;
   DrawingBlock? _currentDrawingBlock;
   DrawingTool _currentDrawingTool = DrawingTool.pen;
   
@@ -128,6 +134,19 @@ class _JournalOverlayState extends State<JournalOverlay>
       if (mounted) {
         widget.onClose();
       }
+    });
+  }
+
+  // ARCHIVE METHODS
+  void _openArchive() {
+    setState(() {
+      _showingArchive = true;
+    });
+  }
+
+  void _closeArchive() {
+    setState(() {
+      _showingArchive = false;
     });
   }
 
@@ -427,6 +446,16 @@ class _JournalOverlayState extends State<JournalOverlay>
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     
+    // Show archive if requested
+    if (_showingArchive) {
+      return JournalArchivePage(
+        repo: JournalRepo(Supabase.instance.client),
+        controller: widget.controller,
+        isPortrait: widget.isPortrait,
+        onClose: _closeArchive, // FIXED: Add callback to close archive
+      );
+    }
+    
     return GestureDetector(
       onTap: _close,
       child: Material(
@@ -506,6 +535,13 @@ class _JournalOverlayState extends State<JournalOverlay>
             ),
           ),
           const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.history, color: Color(0xFFD4AF37)),
+            onPressed: _openArchive,
+            tooltip: 'View archive',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
           IconButton(
             icon: const Icon(Icons.close, color: Color(0xFFD4AF37)),
             onPressed: _close,

@@ -187,7 +187,7 @@ class DayViewPage extends StatefulWidget {
   final List<NoteData> Function(int ky, int km, int kd) notesForDay;
   final Map<int, FlowData> flowIndex;
   final String Function(int km) getMonthName;
-  final VoidCallback? onManageFlows; // NEW: Callback to open My Flows
+  final void Function(int?)? onManageFlows; // NEW: Callback to open My Flows
   final void Function(int ky, int km, int kd)? onAddNote;
 
   const DayViewPage({
@@ -421,7 +421,7 @@ class _DayViewPageState extends State<DayViewPage> {
                     tooltip: 'Flow Studio',
                     icon: const Icon(Icons.view_timeline, color: Color(0xFFFFC145)),
                     padding: const EdgeInsets.symmetric(horizontal: 4), // 🔧 Reduced padding
-                    onPressed: widget.onManageFlows,
+                    onPressed: widget.onManageFlows != null ? () => widget.onManageFlows!(null) : null,
                   ),
                   // 🔧 NEW: Add note button
                   IconButton(
@@ -594,7 +594,7 @@ class DayViewGrid extends StatefulWidget {
   final Map<int, FlowData> flowIndex;
   final double? initialScrollOffset;              // 🔧 NEW
   final void Function(double offset)? onScrollChanged; // 🔧 NEW
-  final VoidCallback? onManageFlows; // NEW
+  final void Function(int? flowId)? onManageFlows; // NEW
   final void Function(int ky, int km, int kd)? onAddNote;
 
   const DayViewGrid({
@@ -985,7 +985,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                         if (value == 'edit') {
                           Navigator.pop(context);
                           if (widget.onManageFlows != null) {
-                            widget.onManageFlows!();
+                            widget.onManageFlows!(flow.id);
                           }
                         } else if (value == 'share') {
                           Navigator.pop(context);
@@ -1121,7 +1121,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                   TextButton.icon(
                     onPressed: widget.onManageFlows == null ? null : () {
                       Navigator.pop(context); // Close the detail sheet
-                      widget.onManageFlows!(); // Navigate to My Flows
+                      widget.onManageFlows!(null); // Navigate to My Flows
                     },
                     icon: Icon(
                       Icons.view_timeline, 

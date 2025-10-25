@@ -9,12 +9,14 @@ class InboxIconWithBadge extends StatelessWidget {
   final Color iconColor;
   final VoidCallback? onRefreshSync; // ✅ Keep original for backward compatibility
   final Future<void> Function(dynamic)? onRefreshAsync; // ✅ New async version
+  final Future<void> Function(int? importedFlowId)? onImportFlow; // ✅ Import callback
 
   const InboxIconWithBadge({
     Key? key,
     this.iconColor = const Color(0xFFD4AF37),
     this.onRefreshSync,
     this.onRefreshAsync,
+    this.onImportFlow,
   }) : super(key: key);
 
   @override
@@ -36,7 +38,12 @@ class InboxIconWithBadge extends StatelessWidget {
                   MaterialPageRoute(builder: (_) => const InboxPage()),
                 );
                 
-                // Handle both callback types
+                // Handle import callback first
+                if (onImportFlow != null && importedFlowId != null) {
+                  await onImportFlow!(importedFlowId);
+                }
+                
+                // Handle both refresh callback types
                 if (onRefreshAsync != null) {
                   await onRefreshAsync!(importedFlowId);
                 } else if (onRefreshSync != null) {

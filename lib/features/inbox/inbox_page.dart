@@ -1144,7 +1144,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
         
         for (final rule in rules) {
           if (rule.matches(ky: kDate.kYear, km: kDate.kMonth, kd: kDate.kDay, g: date)) {
-            final noteTitle = payloadJson['notes'] as String? ?? item.title;
+            final noteTitle = payloadJson['name'] as String? ?? item.title;
             final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
             final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
             
@@ -1169,9 +1169,10 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
               clientEventId: cid,
               title: noteTitle,
               startsAtUtc: startsAt.toUtc(),
-              detail: 'flowLocalId=$flowId;',
+              detail: '',  // ✅ Remove the flowLocalId from detail
               allDay: rule.allDay,
               endsAtUtc: endsAt?.toUtc(),
+              flowLocalId: flowId,  // ✅ ADD THIS - Proper parameter!
             );
             
             scheduledCount++;

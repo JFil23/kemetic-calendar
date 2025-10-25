@@ -23,7 +23,7 @@ class LandscapeMonthView extends StatelessWidget {
   final List<NoteData> Function(int ky, int km, int kd) notesForDay;
   final Map<int, FlowData> flowIndex;
   final String Function(int km) getMonthName;
-  final VoidCallback? onManageFlows;
+  final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
 
   const LandscapeMonthView({
@@ -68,7 +68,7 @@ class LandscapeMonthPager extends StatefulWidget {
   final List<NoteData> Function(int ky, int km, int kd) notesForDay;
   final Map<int, FlowData> flowIndex;
   final String Function(int km) getMonthName;
-  final VoidCallback? onManageFlows;
+  final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
 
   const LandscapeMonthPager({
@@ -208,7 +208,7 @@ class LandscapeMonthGrid extends StatefulWidget {
   final List<NoteData> Function(int ky, int km, int kd) notesForDay;
   final Map<int, FlowData> flowIndex;
   final String Function(int km) getMonthName;
-  final VoidCallback? onManageFlows;
+  final void Function(int? flowId)? onManageFlows;
   final VoidCallback? onJumpToToday;
   final void Function(int ky, int km, int kd)? onAddNote;
 
@@ -378,7 +378,7 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
             tooltip: 'Flow Studio',
             icon: const Icon(Icons.view_timeline, color: _gold),
             padding: const EdgeInsets.symmetric(horizontal: 4), // 🔧 Reduced padding
-            onPressed: widget.onManageFlows,
+            onPressed: widget.onManageFlows != null ? () => widget.onManageFlows!(null) : null,
           ),
           // Add note button
           IconButton(
@@ -783,7 +783,7 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
                           if (value == 'edit') {
                             Navigator.pop(context);
                             if (widget.onManageFlows != null) {
-                              widget.onManageFlows!();
+                              widget.onManageFlows!(flow.id);
                             }
                           } else if (value == 'share') {
                             Navigator.pop(context);
@@ -898,7 +898,7 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
                     TextButton.icon(
                       onPressed: widget.onManageFlows == null ? null : () {
                         Navigator.pop(context);
-                        widget.onManageFlows!();
+                        widget.onManageFlows!(null);
                       },
                       icon: Icon(
                         Icons.view_timeline,

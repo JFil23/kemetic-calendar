@@ -201,18 +201,27 @@ class ShareRepo {
     }
   }
 
-  /// Delete an inbox item
+  /// Delete an inbox item (soft delete)
   Future<bool> deleteInboxItem(String shareId, {required bool isFlow}) async {
     try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) {
+        print('[ShareRepo] No authenticated user for delete');
+        return false;
+      }
+
       final table = isFlow ? 'flow_shares' : 'event_shares';
+      
       await _client
           .from(table)
-          .delete()
-          .eq('id', shareId);
-
+          .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})  // ✅ SOFT DELETE
+          .eq('id', shareId)
+          .eq('recipient_id', userId);  // ✅ Security: only delete your own shares
+      
+      print('[ShareRepo] Soft deleted inbox item: $shareId');
       return true;
     } catch (e) {
-      print('[ShareRepo] Error deleting inbox item: $e');
+      print('[ShareRepo] Error soft deleting inbox item: $e');
       return false;
     }
   }
