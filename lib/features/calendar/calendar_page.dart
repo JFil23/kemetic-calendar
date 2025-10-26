@@ -21,6 +21,9 @@ import '../../data/share_repo.dart';
 import '../sharing/share_flow_sheet.dart';
 import '../../data/share_models.dart';
 import '../../widgets/inbox_icon_with_badge.dart';
+import '../ai_generation/ai_flow_generation_modal.dart';
+import '../../services/ai_flow_generation_service.dart';
+import '../../widgets/kemetic_day_info.dart';
 
 
 
@@ -4601,6 +4604,19 @@ int filteredNoteCountForDay({
   return count;
 }
 
+/// Helper function to generate Kemetic day keys for the info dropdown
+String _getKemeticDayKey(int kYear, int kMonth, int kDay) {
+  final monthNames = [
+    '', // 0-indexed, unused
+    'thoth', 'paophi', 'hathor', 'kaherka', 'sefbedet', 'rekhwer', 
+    'rekhnedjes', 'renwet', 'hnsw', 'hentihet', 'paipi', 'mesutra'
+  ];
+  
+  if (kMonth < 1 || kMonth > 12) return 'unknown_${kDay}_$kYear';
+  
+  return '${monthNames[kMonth]}_${kDay}_$kYear';
+}
+
 
 class _DecanRow extends StatelessWidget {
   final int kYear; // to compute Gregorian numbers
@@ -4668,6 +4684,7 @@ class _DecanRow extends StatelessWidget {
               flowColors: flowColors,
               onTap: () => onDayTap(context, kMonth, day),
               showGregorian: showGregorian,
+              dayKey: _getKemeticDayKey(kYear, kMonth, day),
             ),
           ),
         );
@@ -4684,6 +4701,7 @@ class _DayChip extends StatelessWidget {
   final VoidCallback onTap;
   final Key? anchorKey;
   final bool showGregorian;
+  final String dayKey;
 
   const _DayChip({
     required this.label,
@@ -4693,6 +4711,7 @@ class _DayChip extends StatelessWidget {
     required this.onTap,
     required this.showGregorian,
     this.anchorKey,
+    required this.dayKey,
   });
 
   @override
@@ -4706,43 +4725,46 @@ class _DayChip extends StatelessWidget {
     final gradient =
     isToday ? _goldGloss : (showGregorian ? _blueGloss : _silverGloss);
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: SizedBox(
-        key: anchorKey,
-        height: 36,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            _GlossyText(
-              text: label,
-              style: textStyle,
-              gradient: gradient,
-            ),
-            Positioned(
-              right: 4,
-              bottom: 4,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (noteCount > 0) const _GlossyDot(gradient: _silverGloss),
-                  if (flowColors.isNotEmpty) ...[
-                    const SizedBox(width: 3),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (final c in flowColors.take(3)) ...[
-                          _ColorDot(color: c),
-                          const SizedBox(width: 2.5),
-                        ],
-                      ],
-                    ),
-                  ],
-                ],
+    return KemeticDayButton(
+      dayKey: dayKey,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          key: anchorKey,
+          height: 36,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              _GlossyText(
+                text: label,
+                style: textStyle,
+                gradient: gradient,
               ),
-            ),
-          ],
+              Positioned(
+                right: 4,
+                bottom: 4,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (noteCount > 0) const _GlossyDot(gradient: _silverGloss),
+                    if (flowColors.isNotEmpty) ...[
+                      const SizedBox(width: 3),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final c in flowColors.take(3)) ...[
+                            _ColorDot(color: c),
+                            const SizedBox(width: 2.5),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -4890,6 +4912,7 @@ class _EpagomenalCard extends StatelessWidget {
                         flowColors: flowColors,
                         onTap: () => onDayTap(context, 13, n),
                         showGregorian: showGregorian,
+                        dayKey: 'epagomenal_${n}_$kYear', // Epagomenal days use their own key format
                       ),
                     ),
                   );
@@ -6294,6 +6317,41 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
   // ---------- save/delete ----------
 
+  /// Show AI Flow Generation Modal
+  Future<void> _showAIGenerationModal() async {
+    final result = await showModalBottomSheet<AIFlowGenerationResponse>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const AIFlowGenerationModal(),
+    );
+
+    if (result != null && mounted) {
+      // AI generated a flow! Close Flow Studio and show success
+      Navigator.pop(context); // Close Flow Studio
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: Color(0xFFD4AF37)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '✨ Created "${result.flowName}" with ${result.rules.length} rules',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF1E1E1E),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
@@ -7216,6 +7274,12 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         ),
         title: const Text('Flow Studio', style: TextStyle(color: Colors.white)),
         actions: [
+          // ✨ NEW: AI Generation Button
+          IconButton(
+            icon: const Icon(Icons.auto_awesome, color: Color(0xFFD4AF37)),
+            onPressed: _showAIGenerationModal,
+            tooltip: 'Generate with AI',
+          ),
           // Only show the dropdown when there's at least one existing flow
           if (widget.existingFlows.isNotEmpty)
             PopupMenuButton<int>(
