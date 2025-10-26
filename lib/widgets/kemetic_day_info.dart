@@ -56,7 +56,7 @@ class MeduNeterKey {
 /// Sample data for Day 11 (Renwet II, Day 1)
 class KemeticDayData {
   static final Map<String, KemeticDayInfo> dayInfoMap = {
-    'renwet_11_2025': KemeticDayInfo(
+    'renwet_11_1': KemeticDayInfo(
       gregorianDate: 'October 26, 2025',
       kemeticDate: 'Renwet II, Day 1 (Day 11 of Renwet)',
       season: '🌾 Peret – Season of Emergence',
@@ -159,21 +159,28 @@ class KemeticDayDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = screenWidth > 600 ? 500.0 : screenWidth * 0.85;
+    
     return Material(
       color: Colors.transparent,
       child: Container(
+        width: cardWidth,
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
-          maxWidth: 600,
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
         ),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
+          color: const Color(0xFF000000), // True black background
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFFC9A961), // Richer gold border
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
+              color: Colors.black.withOpacity(0.5),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
@@ -182,26 +189,34 @@ class KemeticDayDropdown extends StatelessWidget {
           children: [
             // Header with close button
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
+                color: const Color(0xFF000000), // True black header
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+                border: const Border(
+                  bottom: BorderSide(
+                    color: Color(0xFFC9A961), // Richer gold divider
+                    width: 1,
+                  ),
                 ),
               ),
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
-                      '☀️ Current Kemetic Date Alignment',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                      '☀️ Kemetic Date Alignment',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFC9A961), // Richer gold color
+                      ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close, color: Color(0xFFC9A961)),
                     onPressed: onClose,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -211,34 +226,42 @@ class KemeticDayDropdown extends StatelessWidget {
             ),
             // Scrollable content
             Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildInfoSection('Gregorian Date:', dayInfo.gregorianDate),
-                    _buildInfoSection('Kemetic Date:', dayInfo.kemeticDate),
-                    _buildInfoSection('Season:', dayInfo.season),
-                    _buildInfoSection('Month:', dayInfo.month),
-                    _buildInfoSection('Decan Name:', dayInfo.decanName),
-                    _buildInfoSection('Star Cluster:', dayInfo.starCluster),
-                    _buildInfoSection('Ma\'at Principle:', dayInfo.maatPrinciple),
-                    const SizedBox(height: 16),
-                    _buildSectionHeader('△ Cosmic Context'),
-                    const SizedBox(height: 8),
-                    Text(
-                      dayInfo.cosmicContext,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 24),
-                    _buildSectionHeader('▽ Decan 2 Flow (Renwet II, Days 11–20)'),
-                    const SizedBox(height: 12),
-                    _buildDecanFlowTable(context),
-                    const SizedBox(height: 24),
-                    _buildSectionHeader('▽ Medu Neter Key'),
-                    const SizedBox(height: 12),
-                    _buildMeduNeterSection(context),
-                  ],
+              child: Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildInfoSection('Gregorian Date:', dayInfo.gregorianDate),
+                      _buildInfoSection('Kemetic Date:', dayInfo.kemeticDate),
+                      _buildInfoSection('Season:', dayInfo.season),
+                      _buildInfoSection('Month:', dayInfo.month),
+                      _buildInfoSection('Decan Name:', dayInfo.decanName),
+                      _buildInfoSection('Star Cluster:', dayInfo.starCluster),
+                      _buildInfoSection('Ma\'at Principle:', dayInfo.maatPrinciple),
+                      const SizedBox(height: 20),
+                      _buildSectionHeader('△ Cosmic Context'),
+                      const SizedBox(height: 8),
+                      Text(
+                        dayInfo.cosmicContext,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFFCCCCCC),
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildSectionHeader('▽ Decan 2 Flow (Renwet II, Days 11–20)'),
+                      const SizedBox(height: 12),
+                      _buildDecanFlowTable(context),
+                      const SizedBox(height: 24),
+                      _buildSectionHeader('▽ Medu Neter Key'),
+                      const SizedBox(height: 12),
+                      _buildMeduNeterSection(context),
+                      const SizedBox(height: 8), // Bottom padding
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -253,11 +276,14 @@ class KemeticDayDropdown extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: RichText(
         text: TextSpan(
-          style: const TextStyle(fontSize: 14, color: Colors.white),
+          style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
           children: [
             TextSpan(
               text: '$label ',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFC9A961), // Richer gold for labels
+          ),
             ),
             TextSpan(text: value),
           ],
@@ -272,7 +298,7 @@ class KemeticDayDropdown extends StatelessWidget {
       style: const TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.bold,
-        color: Colors.white,
+        color: Color(0xFFC9A961), // Richer gold
       ),
     );
   }
@@ -280,8 +306,9 @@ class KemeticDayDropdown extends StatelessWidget {
   Widget _buildDecanFlowTable(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade700),
+        border: Border.all(color: const Color(0xFF3A3A3A)),
         borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFF000000), // True black background
       ),
       child: Column(
         children: [
@@ -289,7 +316,7 @@ class KemeticDayDropdown extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.grey.shade800,
+              color: const Color(0xFF0A0A0A),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(8),
                 topRight: Radius.circular(8),
@@ -301,36 +328,44 @@ class KemeticDayDropdown extends StatelessWidget {
                   flex: 1,
                   child: Text(
                     'Day',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Color(0xFFC9A961), // Richer gold
+                    ),
                   ),
                 ),
                 Expanded(
                   flex: 2,
                   child: Text(
                     'Theme',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Color(0xFFC9A961), // Richer gold
+                    ),
                   ),
                 ),
                 Expanded(
                   flex: 3,
                   child: Text(
                     'Action',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Color(0xFFC9A961), // Richer gold
+                    ),
                   ),
                 ),
                 Expanded(
                   flex: 3,
                   child: Text(
                     'Reflection',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Color(0xFFC9A961), // Richer gold
+                    ),
                   ),
                 ),
               ],
@@ -348,7 +383,7 @@ class KemeticDayDropdown extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: Colors.grey.shade700),
+          top: BorderSide(color: const Color(0xFF3A3A3A)),
         ),
       ),
       child: Row(
@@ -358,32 +393,42 @@ class KemeticDayDropdown extends StatelessWidget {
             flex: 1,
             child: Text(
               dayData.day.toString(),
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFFCCCCCC),
+              ),
             ),
           ),
           Expanded(
             flex: 2,
             child: Text(
               dayData.theme,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Color(0xFFC9A961), // Richer gold for theme
+              ),
             ),
           ),
           Expanded(
             flex: 3,
             child: Text(
               dayData.action,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFFCCCCCC),
+              ),
             ),
           ),
           Expanded(
             flex: 3,
             child: Text(
               dayData.reflection,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontStyle: FontStyle.italic,
-                  ),
+              style: const TextStyle(
+                fontStyle: FontStyle.italic,
+                fontSize: 13,
+                color: Color(0xFFAAAAAA),
+              ),
             ),
           ),
         ],
@@ -399,11 +444,14 @@ class KemeticDayDropdown extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 8),
           child: RichText(
             text: TextSpan(
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
               children: [
                 const TextSpan(
                   text: '• Glyph: ',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFC9A961), // Richer gold
+                  ),
                 ),
                 TextSpan(text: dayInfo.meduNeter.glyph),
               ],
@@ -414,11 +462,14 @@ class KemeticDayDropdown extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 8),
           child: RichText(
             text: TextSpan(
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
               children: [
                 const TextSpan(
                   text: '• Color Frequency: ',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFC9A961), // Richer gold
+                  ),
                 ),
                 TextSpan(text: dayInfo.meduNeter.colorFrequency),
               ],
@@ -427,11 +478,14 @@ class KemeticDayDropdown extends StatelessWidget {
         ),
         RichText(
           text: TextSpan(
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
             children: [
               const TextSpan(
                 text: '• Mantra: ',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFC9A961), // Richer gold
+                ),
               ),
               TextSpan(text: dayInfo.meduNeter.mantra),
             ],
@@ -466,15 +520,12 @@ class KemeticDayDropdownController {
             child: GestureDetector(
               onTap: hide,
               child: Container(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withOpacity(0.4),
               ),
             ),
           ),
-          // Dropdown card
-          Positioned(
-            top: buttonPosition.dy + buttonSize.height + 8,
-            left: buttonPosition.dx,
-            right: MediaQuery.of(context).size.width - buttonPosition.dx - buttonSize.width,
+          // Centered dropdown card
+          Center(
             child: KemeticDayDropdown(
               dayInfo: dayInfo,
               onClose: hide,
@@ -495,7 +546,8 @@ class KemeticDayDropdownController {
   bool get isShowing => _overlayEntry != null;
 }
 
-/// Wrapper widget to make any widget tappable for showing Kemetic day info
+/// Wrapper widget to make any widget long-pressable for showing Kemetic day info
+/// Long-press shows the dropdown, regular tap is preserved for navigation
 class KemeticDayButton extends StatefulWidget {
   final Widget child;
   final String dayKey;
@@ -515,7 +567,27 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
   final GlobalKey _buttonKey = GlobalKey();
 
   void _showDropdown() {
-    final RenderBox renderBox = _buttonKey.currentContext!.findRenderObject() as RenderBox;
+    print('🔍 _showDropdown() called for key: ${widget.dayKey}');
+    
+    final RenderBox? renderBox = _buttonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) {
+      print('❌ RenderBox is null!');
+      return;
+    }
+    
+    print('✅ RenderBox found');
+    
+    final dayInfo = KemeticDayData.getInfoForDay(widget.dayKey);
+    print('🔍 Looking up data for key: ${widget.dayKey}');
+    print('🔍 Data found: ${dayInfo != null}');
+    
+    if (dayInfo == null) {
+      print('❌ No data found for key: ${widget.dayKey}');
+      print('❌ Available keys: ${KemeticDayData.dayInfoMap.keys.join(", ")}');
+      return;
+    }
+    
+    print('✅ Data found! Showing dropdown...');
     final position = renderBox.localToGlobal(Offset.zero);
     final size = renderBox.size;
 
@@ -535,11 +607,19 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
 
   @override
   Widget build(BuildContext context) {
+    print('🔵 KemeticDayButton built for key: ${widget.dayKey}');
+    
     return GestureDetector(
       key: _buttonKey,
-      onTap: _showDropdown,
+      onLongPress: () {
+        print('🟢 LONG PRESS DETECTED for: ${widget.dayKey}');
+        _showDropdown();
+      },
+      onLongPressStart: (details) {
+        print('🟡 LONG PRESS START for: ${widget.dayKey}');
+      },
+      behavior: HitTestBehavior.opaque,
       child: widget.child,
     );
   }
 }
-

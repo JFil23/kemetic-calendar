@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'calendar_page.dart';
 import 'landscape_month_view.dart';
 import '../sharing/share_flow_sheet.dart';
+import '../../widgets/kemetic_day_info.dart';
 
 // ========================================
 // EVENT LAYOUT ENGINE
@@ -244,6 +245,19 @@ class _DayViewPageState extends State<DayViewPage> {
     _pageController.dispose();
     _miniCalendarScrollController.dispose(); // 🔧 Don't forget to dispose
     super.dispose();
+  }
+
+  /// Generate the day key for Kemetic day info lookup
+  String _getKemeticDayKey(int kYear, int kMonth, int kDay) {
+    final monthNames = [
+      '', // 0-indexed, unused
+      'thoth', 'paophi', 'hathor', 'kaherka', 'sefbedet', 'rekhwer',
+      'rekhnedjes', 'renwet', 'hnsw', 'hentihet', 'paipi', 'mesutra'
+    ];
+
+    if (kMonth < 1 || kMonth > 12) return 'unknown_${kDay}_$kYear';
+
+    return '${monthNames[kMonth]}_${kDay}_$kYear';
   }
 
   ({int kYear, int kMonth, int kDay}) _dateForPage(int pageIndex) {
@@ -546,17 +560,20 @@ class _DayViewPageState extends State<DayViewPage> {
             
             const SizedBox(height: 8), // Reduced from 12
             
-            // 🔧 FIX 1: Full date with GREGORIAN year
+            // 🔧 FIX 1: Full date with GREGORIAN year - WITH KEMETIC DAY INFO
             Container(
               padding: const EdgeInsets.only(bottom: 12),
               alignment: Alignment.center,
-              child: Text(
-                // Show: "Renwet 2, 2025" (Kemetic date + Gregorian year)
-                '${monthName.split(' ').first} $_currentKd, $gregorianYear',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
+              child: KemeticDayButton(
+                dayKey: _getKemeticDayKey(_currentKy, _currentKm, _currentKd),
+                child: Text(
+                  // Show: "Renwet 2, 2025" (Kemetic date + Gregorian year)
+                  '${monthName.split(' ').first} $_currentKd, $gregorianYear',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
