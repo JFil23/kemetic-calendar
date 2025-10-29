@@ -614,9 +614,70 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
     );
   }
 
+  /// Dedupe notes before rendering to handle legacy duplicates
+  /// Two notes are duplicates if they have:
+  /// - Same flow ID
+  /// - Same start time (to the minute, or both all-day)
+  /// - Same end time (to the minute, or both all-day)
+  /// - Same title (normalized)
+  List<NoteData> _dedupeNotesForUI(List<NoteData> notes) {
+    if (notes.isEmpty) return notes;
+    
+    final seen = <String, NoteData>{};
+    
+    for (final note in notes) {
+      // Build unique key from note properties
+      final flowKey = note.flowId?.toString() ?? 'NO_FLOW';
+      
+      // Normalize timestamps (handle both all-day and timed events)
+      String startKey;
+      String endKey;
+      
+      if (note.allDay) {
+        startKey = 'ALLDAY';
+        endKey = 'ALLDAY';
+      } else {
+        // For timed events, normalize to minutes since midnight for comparison
+        if (note.start != null && note.end != null) {
+          final startMin = note.start!.hour * 60 + note.start!.minute;
+          final endMin = note.end!.hour * 60 + note.end!.minute;
+          startKey = startMin.toString();
+          endKey = endMin.toString();
+        } else {
+          startKey = 'NO_START';
+          endKey = 'NO_END';
+        }
+      }
+      
+      // Title normalized (trim + lowercase for consistency)
+      final titleKey = note.title.trim().toLowerCase();
+      
+      // Build composite key
+      final key = '$flowKey|$startKey|$endKey|$titleKey';
+      
+      // Only keep first occurrence
+      if (!seen.containsKey(key)) {
+        seen[key] = note;
+      }
+    }
+    
+    return seen.values.toList();
+  }
+
   List<Widget> _buildEventsForDay(int day, double colW) {
-    final notes = widget.notesForDay(widget.kYear, widget.kMonth, day);
+    final rawNotes = widget.notesForDay(widget.kYear, widget.kMonth, day);
+    
+    // ✅ NEW: Dedupe notes before rendering to handle legacy duplicates
+    final notes = _dedupeNotesForUI(rawNotes);
     if (notes.isEmpty) return [];
+
+    if (kDebugMode) {
+      final originalCount = rawNotes.length;
+      final dedupedCount = notes.length;
+      if (originalCount != dedupedCount) {
+        print('[LandscapeMonthView] Deduplicated events for day $day: $originalCount → $dedupedCount (removed ${originalCount - dedupedCount} duplicates)');
+      }
+    }
 
     // Convert notes to events
     final events = <_EventItem>[];

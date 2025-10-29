@@ -684,8 +684,59 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
   }
 
-  int _computeNotesHash() {
-    return Object.hashAll(widget.notes.map((n) => Object.hash(
+  /// Dedupe notes before rendering to handle legacy duplicates
+  /// Two notes are duplicates if they have:
+  /// - Same flow ID
+  /// - Same start time (to the minute, or both all-day)
+  /// - Same end time (to the minute, or both all-day)
+  /// - Same title (normalized)
+  List<NoteData> _dedupeNotesForUI(List<NoteData> notes) {
+    if (notes.isEmpty) return notes;
+    
+    final seen = <String, NoteData>{};
+    
+    for (final note in notes) {
+      // Build unique key from note properties
+      final flowKey = note.flowId?.toString() ?? 'NO_FLOW';
+      
+      // Normalize timestamps (handle both all-day and timed events)
+      String startKey;
+      String endKey;
+      
+      if (note.allDay) {
+        startKey = 'ALLDAY';
+        endKey = 'ALLDAY';
+      } else {
+        // For timed events, normalize to ISO string for minute precision
+        if (note.start != null && note.end != null) {
+          // Convert to minutes since midnight for comparison
+          final startMin = note.start!.hour * 60 + note.start!.minute;
+          final endMin = note.end!.hour * 60 + note.end!.minute;
+          startKey = startMin.toString();
+          endKey = endMin.toString();
+        } else {
+          startKey = 'NO_START';
+          endKey = 'NO_END';
+        }
+      }
+      
+      // Title normalized (trim + lowercase for consistency)
+      final titleKey = note.title.trim().toLowerCase();
+      
+      // Build composite key
+      final key = '$flowKey|$startKey|$endKey|$titleKey';
+      
+      // Only keep first occurrence
+      if (!seen.containsKey(key)) {
+        seen[key] = note;
+      }
+    }
+    
+    return seen.values.toList();
+  }
+
+  int _computeNotesHash(List<NoteData> notes) {
+    return Object.hashAll(notes.map((n) => Object.hash(
       n.title,
       n.detail,
       n.location,
@@ -700,14 +751,25 @@ class _DayViewGridState extends State<DayViewGrid> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ NEW: Dedupe notes before rendering to handle legacy duplicates
+    final dedupedNotes = _dedupeNotesForUI(widget.notes);
+    
     // 🔧 OPTIMIZATION: Only recalculate layout if notes changed
-    final notesHash = _computeNotesHash();
+    final notesHash = _computeNotesHash(dedupedNotes);
     if (_cachedBlocks == null || _cachedNotesHash != notesHash) {
       final screenWidth = MediaQuery.of(context).size.width;
       final columnWidth = (screenWidth - 100) / 3; // 3 columns max
       
+      if (kDebugMode) {
+        final originalCount = widget.notes.length;
+        final dedupedCount = dedupedNotes.length;
+        if (originalCount != dedupedCount) {
+          print('[DayView] Deduplicated events: $originalCount → $dedupedCount (removed ${originalCount - dedupedCount} duplicates)');
+        }
+      }
+      
       _cachedBlocks = EventLayoutEngine.layoutEventsForDay(
-        notes: widget.notes,
+        notes: dedupedNotes, // ✅ Use deduped notes
         flowIndex: widget.flowIndex,
         columnWidth: columnWidth,
         columnGap: 4.0,
