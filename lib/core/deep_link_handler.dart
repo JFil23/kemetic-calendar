@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/share_repo.dart';
 import '../features/inbox/inbox_page.dart';
 
@@ -66,13 +67,15 @@ class DeepLinkHandler {
         final shortLinkId = uri.pathSegments[1];
 
         try {
-          final data = await _repo.resolveShare(
-            shareId: '',
-            shortLinkId: shortLinkId,
-          );
+          // TODO: Implement short link resolution
+          // Short links not yet supported by ShareRepo
+          print('[DeepLink] Short link detected (not yet supported): $shortLinkId');
+          // final data = await _repo.resolveShare(
+          //   shareId: shortLinkId,
+          // );
 
           // TODO: Open Flow Preview Card
-          print('[DeepLink] Flow from short link: ${data['flow']}');
+          // print('[DeepLink] Flow from short link: ${data['flow']}');
           
         } catch (e) {
           print('[DeepLink] Error: $e');

@@ -1,6 +1,7 @@
 // lib/features/ai_generation/ai_flow_generation_modal.dart
 // UPDATED VERSION - Matches Flow Studio styling exactly
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -122,17 +123,46 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       return;
     }
 
+    // ✅ VALIDATE: Maximum 10 days
+    final daysDiff = _endDate!.difference(_startDate!).inDays + 1;
+    
+    if (daysDiff > 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Maximum 10 days per flow. Try a shorter range.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isGenerating = true;
       _error = null;
     });
 
     try {
+      // ✅ CRITICAL: Convert color to hex string format
+      final selectedColor = _flowPalette[_selectedColorIndex];
+      final colorAsHex = '#${selectedColor.value.toRadixString(16).substring(2).padLeft(6, '0')}';
+
+      // ✅ Debug logging (keep until first successful test)
+      if (kDebugMode) {
+        print('🎨 [AI Modal] Color value (ARGB int): ${selectedColor.value}');
+        print('🎨 [AI Modal] Color as hex string: $colorAsHex');
+        print('🚀 [AI Modal] Request payload:');
+        print('   Description: ${_descriptionController.text.trim()}');
+        print('   Start Date: ${_formatDate(_startDate!)}');
+        print('   End Date: ${_formatDate(_endDate!)}');
+        print('   Flow Color: $colorAsHex');  // Should always be "#rrggbb"
+      }
+
       final request = AIFlowGenerationRequest(
         description: _descriptionController.text.trim(),
         startDate: _formatDate(_startDate!),
         endDate: _formatDate(_endDate!),
-        flowColor: '#${_flowPalette[_selectedColorIndex].value.toRadixString(16).substring(2)}',
+        flowColor: colorAsHex,
       );
 
       // Generate flow
@@ -412,12 +442,19 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
 
                     if (_startDate != null && _endDate != null) ...[
                       const SizedBox(height: 8),
-                      Text(
-                        'Duration: ${_formatDateRange()}',
-                        style: const TextStyle(
-                          color: Color(0xFF999999),
-                          fontSize: 14,
-                        ),
+                      Builder(
+                        builder: (context) {
+                          final daysDiff = _endDate!.difference(_startDate!).inDays + 1;
+                          final isOverLimit = daysDiff > 10;
+                          return Text(
+                            'Duration: ${_formatDateRange()}${isOverLimit ? ' (max 10)' : ''}',
+                            style: TextStyle(
+                              color: isOverLimit ? Colors.red : const Color(0xFF999999),
+                              fontSize: 14,
+                              fontWeight: isOverLimit ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          );
+                        },
                       ),
                     ],
 

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/user_events_repo.dart';
+import '../../data/flows_repo.dart';
 import 'package:mobile/features/calendar/notify.dart';
 import 'package:flutter/rendering.dart';
 import '../../model/entities.dart';
@@ -5287,6 +5288,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
   // per-period mode
   bool _splitByPeriod = false; // toggle to show rows per decan/week
+  
+  // AI mode flag
+  bool _isAIGeneratedFlow = false;
 
   // cached spans + per-period selections
   List<_KemeticDecanSpan> _kemeticSpans = const [];
@@ -5295,9 +5299,12 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   final Map<String, Set<int>> _perWeekSel = {};  // key: monday ISO "yyyy-mm-dd", values: {1..7}
 
   // editors
-  final Map<String, _NoteDraft> _draftsByDay = {};     // key: "ky-km-kd" (customize mode)
+  final Map<String, List<_NoteDraft>> _draftsByDay = {};     // key: "ky-km-kd" (customize mode) - supports multiple notes per day
   final Map<String, _NoteDraft> _draftsByPattern = {}; // key: "DD-n" or "WD-wd" (repeat mode)
   final GlobalKey _editorsAnchorKey = GlobalKey();
+  
+  // analytics
+  int _originalEventCount = 0;  // Store count of AI-generated events
 
   void _scrollEditorsIntoView() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -5511,11 +5518,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         .where((k) => !wantDayKeys.contains(k))
         .toList();
     for (final k in removeDay) {
-      _draftsByDay[k]?.dispose();
+      for (final draft in _draftsByDay[k] ?? []) {
+        draft.dispose();
+      }
       _draftsByDay.remove(k);
     }
     for (final k in wantDayKeys) {
-      _draftsByDay.putIfAbsent(k, () => _NoteDraft());
+      _draftsByDay.putIfAbsent(k, () => <_NoteDraft>[]);
     }
 
     // pattern drafts (repeat mode)
@@ -6223,93 +6232,99 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           gradient: _silverGloss,
         ),
         const SizedBox(height: 8),
-        ...groups.map((g) {
-          final draft = g.isPattern
-              ? (_draftsByPattern[g.key]!)
-              : (_draftsByDay[g.key]!);
-
-          return Padding(
-            key: ValueKey(g.key),
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Card(
-              color: Colors.black,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                side: const BorderSide(color: _cardBorderGold, width: 1.0),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _GlossyText(
-                      text: g.header,
-                      style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600),
-                      gradient: _silverGloss,
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: draft.titleCtrl,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: _darkInput('Title'),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: draft.locationCtrl,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: _darkInput(
-                        'Location or Video Call',
-                        hint: 'e.g., Home • Zoom • https://…',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: draft.detailCtrl,
-                      style: const TextStyle(color: Colors.white),
-                      maxLines: 3,
-                      decoration: _darkInput('Details (optional)'),
-                    ),
-                    const SizedBox(height: 10),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: draft.allDay,
-                      onChanged: (v) => setState(() => draft.allDay = v),
-                      title: const _GlossyText(
-                        text: 'All-day',
-                        style: TextStyle(fontSize: 14),
-                        gradient: _silverGloss,
-                      ),
-                      activeThumbColor: _gold,
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
+        ...groups.expand((g) {
+          // For customize mode: return multiple cards (one per draft in the list)
+          if (!g.isPattern && _draftsByDay[g.key] != null) {
+            final drafts = _draftsByDay[g.key]!;
+            return drafts.asMap().entries.map((entry) {
+              final index = entry.key;
+              final draft = entry.value;
+              return Padding(
+                key: ValueKey('${g.key}-$index'),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Card(
+                  color: Colors.black,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    side: const BorderSide(color: _cardBorderGold, width: 1.0),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: _timeButton(
-                            'Starts',
-                            draft.start,
-                                () => _pickStartFor(draft),
-                            !draft.allDay,
+                        _GlossyText(
+                          text: g.header,
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600),
+                          gradient: _silverGloss,
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: draft.titleCtrl,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _darkInput('Title'),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: draft.locationCtrl,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _darkInput(
+                            'Location or Video Call',
+                            hint: 'e.g., Home • Zoom • https://…',
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _timeButton(
-                            'Ends',
-                            draft.end,
-                                () => _pickEndFor(draft),
-                            !draft.allDay,
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: draft.detailCtrl,
+                          style: const TextStyle(color: Colors.white),
+                          maxLines: 3,
+                          decoration: _darkInput('Details (optional)'),
+                        ),
+                        const SizedBox(height: 10),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: draft.allDay,
+                          onChanged: (v) => setState(() => draft.allDay = v),
+                          title: const _GlossyText(
+                            text: 'All-day',
+                            style: TextStyle(fontSize: 14),
+                            gradient: _silverGloss,
                           ),
+                          activeThumbColor: _gold,
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _timeButton(
+                                'Starts',
+                                draft.start,
+                                    () => _pickStartFor(draft),
+                                !draft.allDay,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _timeButton(
+                                'Ends',
+                                draft.end,
+                                    () => _pickEndFor(draft),
+                                !draft.allDay,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-          );
+              );
+            });
+          }
+          // For pattern mode or empty list: skip
+          return [];
         }),
       ],
     );
@@ -6326,29 +6341,25 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       builder: (context) => const AIFlowGenerationModal(),
     );
 
-    if (result != null && mounted) {
-      // AI generated a flow! Close Flow Studio and show success
-      Navigator.pop(context); // Close Flow Studio
+    if (result != null && result.flowId != null && mounted) {
+      // AI generated a flow! Close modal and open Flow Studio with the generated flow
+      Navigator.pop(context); // Close AI generation modal
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.auto_awesome, color: Color(0xFFD4AF37)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '✨ Created "${result.flowName}" with ${result.rules.length} rules',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
-            ],
+      // Open Flow Studio with the generated flow ID
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _FlowStudioPage(
+            existingFlows: const [], // Will be loaded from editFlowId
+            editFlowId: result.flowId,
           ),
-          backgroundColor: const Color(0xFF1E1E1E),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
         ),
       );
+      
+      // Refresh calendar after Flow Studio closes
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
@@ -6447,25 +6458,29 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
 
     if (_splitByPeriod) {
-      // per-day drafts
+      // per-day drafts (handle multiple drafts per day)
       for (final g in groups) {
         final d = g.days.first;
-        final draft = _draftsByDay[d.key];
-        if (draft == null) continue;
-        if (draft.titleCtrl.text.trim().isEmpty) continue;
+        final drafts = _draftsByDay[d.key];
+        if (drafts == null || drafts.isEmpty) continue;
+        
+        // Loop through all drafts for this day
+        for (final draft in drafts) {
+          if (draft.titleCtrl.text.trim().isEmpty) continue;
 
-        final noteWithFlowId = draft.toNote();
-        final linkedNote = _Note(
-          title: noteWithFlowId.title,
-          detail: noteWithFlowId.detail,
-          location: noteWithFlowId.location,
-          allDay: noteWithFlowId.allDay,
-          start: noteWithFlowId.start,
-          end: noteWithFlowId.end,
-          flowId: flowId,
-        );
+          final noteWithFlowId = draft.toNote();
+          final linkedNote = _Note(
+            title: noteWithFlowId.title,
+            detail: noteWithFlowId.detail,
+            location: noteWithFlowId.location,
+            allDay: noteWithFlowId.allDay,
+            start: noteWithFlowId.start,
+            end: noteWithFlowId.end,
+            flowId: flowId,
+          );
 
-        planned.add(_PlannedNote(ky: d.ky, km: d.km, kd: d.kd, note: linkedNote));
+          planned.add(_PlannedNote(ky: d.ky, km: d.km, kd: d.kd, note: linkedNote));
+        }
       }
     } else {
       // pattern drafts: apply to all concrete matches in the group
@@ -6523,6 +6538,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       print('SHARE TEST: $result');
     } catch (e) {
       print('SHARE ERROR: $e');
+    }
+
+    // Reset AI mode flag after save - flow is now a normal editable flow
+    if (_isAIGeneratedFlow) {
+      _isAIGeneratedFlow = false;
     }
 
     Navigator.of(context, rootNavigator: true)
@@ -6703,7 +6723,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _perDecanSel.clear();
       _perWeekSel.clear();
 
-      for (final d in _draftsByDay.values) { d.dispose(); }
+      for (final dayList in _draftsByDay.values) { 
+        for (final d in dayList) { d.dispose(); }
+      }
       for (final d in _draftsByPattern.values) { d.dispose(); }
       _draftsByDay.clear();
       _draftsByPattern.clear();
@@ -6789,28 +6811,278 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     });
   }
 
+  /// Load AI-generated flow by ID and populate Flow Studio
+  Future<void> _loadAIGeneratedFlow(int flowId) async {
+    try {
+      // 1. Fetch the flow from database
+      final repo = FlowsRepo(Supabase.instance.client);
+      final flow = await repo.getFlowById(flowId);
+      if (flow == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Flow not found')),
+          );
+        }
+        return;
+      }
+      
+      // 2. Convert FlowRow to _Flow
+      final flowObj = _Flow(
+        id: flow.id,
+        name: flow.name,
+        color: Color(flow.color),
+        active: flow.active,
+        start: flow.startDate,
+        end: flow.endDate,
+        notes: flow.notes,
+        rules: const [],  // AI flows have no recurring rules
+        shareId: null,
+      );
+      
+      // 3. Fetch events for this flow
+      final eventsRepo = UserEventsRepo(Supabase.instance.client);
+      final userEvents = await eventsRepo.getEventsForFlow(flowId);
+      
+      if (kDebugMode) {
+        print('🔍 [AI Flow Init] flowId: $flowId');
+        print('🔍 [AI Flow Init] userEvents.length: ${userEvents.length}');
+        print('🔍 [AI Flow Init] titles: ${userEvents.map((e) => e.title).toList()}');
+      }
+      
+      // 4. 🚨 CRITICAL ORDERING: Set context BEFORE initializing selections
+      // _populateGregorianSelections() needs _startDate to calculate week indices
+      // _convertEventsToDrafts() needs _useKemetic to build correct date keys
+      final meta = notesDecode(flowObj.notes);
+      _startDate = flowObj.start == null ? null : _dateOnly(flowObj.start!);
+      _endDate = flowObj.end == null ? null : _dateOnly(flowObj.end!);
+      _useKemetic = meta.kemetic;
+      _splitByPeriod = true;  // Force customize mode for AI flows
+      
+      // 5. Build spans now that mode is known
+      _rebuildSpans();
+      
+      // 6. Graceful fallback if no events loaded
+      if (userEvents.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "We created your Flow but couldn't load scheduled blocks. You can add blocks below.",
+              ),
+              duration: Duration(seconds: 5),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        
+        // Manual hydration of header fields (no _loadFlowForEdit call)
+        setState(() {
+          _editing = flowObj;
+          _nameCtrl.text = flowObj.name;
+          _active = flowObj.active;
+          
+          final idx = _flowPalette.indexWhere((c) => c.value == flowObj.color.value);
+          _selectedColorIndex = idx >= 0 ? idx : 0;
+          
+          _overviewCtrl.text = meta.overview ?? '';
+          
+          _isAIGeneratedFlow = true;
+        });
+        return;
+      }
+      
+      // 7. NOW initialize AI flow selections (depends on _startDate, _endDate, _useKemetic set above)
+      // Convert events to drafts and populate _draftsByDay
+      _convertEventsToDrafts(userEvents);
+      
+      // 8. Clear and populate selection state
+      _perWeekSel.clear();
+      _perDecanSel.clear();
+      
+      if (_hasFullRange && _draftsByDay.isNotEmpty) {
+        if (_useKemetic) {
+          _populateKemeticSelections(userEvents);
+        } else {
+          _populateGregorianSelections(userEvents);
+        }
+        
+        // Sync handles all spans
+        _syncDraftsWithSelection();
+      }
+      
+      // 9. Count ALL notes for analytics
+      _originalEventCount = _draftsByDay.values
+          .fold<int>(0, (sum, list) => sum + list.length);
+      
+      if (kDebugMode) {
+        print('🔍 [AI Flow Init] _originalEventCount: $_originalEventCount (days: ${_draftsByDay.keys.length})');
+      }
+      
+      // 10. 🔑 CRITICAL: Manually hydrate header fields WITHOUT calling _loadFlowForEdit()
+      setState(() {
+        _editing = flowObj;
+        
+        // Header fields only
+        _nameCtrl.text = flowObj.name;
+        _active = flowObj.active;
+        
+        // Color picker
+        final idx = _flowPalette.indexWhere((c) => c.value == flowObj.color.value);
+        _selectedColorIndex = idx >= 0 ? idx : 0;
+        
+        // Overview
+        _overviewCtrl.text = meta.overview ?? '';
+        
+        // 🚨 LOCK IN AI MODE - this prevents _loadFlowForEdit from being called
+        _isAIGeneratedFlow = true;
+        
+        // Note: _startDate, _endDate, _useKemetic, _splitByPeriod already set above
+      });
+      
+      // 11. Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.auto_awesome, color: Color(0xFFD4AF37)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('✨ Generated "${flowObj.name}" with ${userEvents.length} events. Review and save!'),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF1E3A5F),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading AI flow: $e')),
+        );
+      }
+    }
+  }
+
+  /// Populate Kemetic selections based on events
+  void _populateKemeticSelections(List<UserEvent> events) {
+    for (final event in events) {
+      final localStart = event.startsAt.toLocal();
+      final (:kYear, :kMonth, :kDay) = KemeticMath.fromGregorian(localStart);
+      
+      // Calculate decan index and day within decan
+      final di = ((kDay - 1) ~/ 10); // decan index (0-3)
+      final inDec = ((kDay - 1) % 10) + 1; // day in decan (1-10)
+      final key = '$kYear-$kMonth-$di';
+      
+      final set = _perDecanSel[key] ?? <int>{};
+      set.add(inDec);
+      _perDecanSel[key] = set;
+    }
+  }
+
+  /// Populate Gregorian weekday selections based on events
+  void _populateGregorianSelections(List<UserEvent> events) {
+    for (final event in events) {
+      final localStart = event.startsAt.toLocal();
+      final mondayOfWeek = _mondayOf(localStart);
+      final weekKey = _iso(mondayOfWeek);
+      final weekday = localStart.weekday;
+      
+      final set = _perWeekSel[weekKey] ?? <int>{};
+      set.add(weekday);
+      _perWeekSel[weekKey] = set;
+    }
+  }
+
+  /// Convert database events to _NoteDraft objects in _draftsByDay
+  /// ✅ Handles multiple events per day correctly (Map of Lists)
+  void _convertEventsToDrafts(List<UserEvent> events) {
+    // Step 1: Dispose all existing drafts properly (nested loop for lists)
+    for (final dayList in _draftsByDay.values) {
+      for (final draft in dayList) {
+        draft.dispose();
+      }
+    }
+    _draftsByDay.clear();
+    
+    for (final event in events) {
+      // Convert UTC to local
+      final localStart = event.startsAt.toLocal();
+      
+      // Get Kemetic date
+      final (:kYear, :kMonth, :kDay) = KemeticMath.fromGregorian(localStart);
+      final dateKey = '$kYear-$kMonth-$kDay';
+      
+      // Create draft
+      final draft = _NoteDraft();
+      
+      // Populate controllers
+      draft.titleCtrl.text = event.title;
+      draft.locationCtrl.text = event.location ?? '';
+      draft.detailCtrl.text = event.detail ?? '';
+      
+      // Set times
+      draft.allDay = event.allDay;
+      if (!event.allDay) {
+        draft.start = TimeOfDay(
+          hour: localStart.hour,
+          minute: localStart.minute,
+        );
+        
+        if (event.endsAt != null) {
+          final localEnd = event.endsAt!.toLocal();
+          draft.end = TimeOfDay(
+            hour: localEnd.hour,
+            minute: localEnd.minute,
+          );
+        }
+      }
+      
+      // ✅ CRITICAL: Append to list, don't overwrite (multiple events per day)
+      final listForDay = _draftsByDay[dateKey] ?? <_NoteDraft>[];
+      listForDay.add(draft);
+      _draftsByDay[dateKey] = listForDay;
+      
+      if (kDebugMode) {
+        print('🔍 [Draft] $dateKey → title: "${draft.titleCtrl.text}" (${listForDay.length} total)');
+      }
+    }
+  }
+
   // ---------- scaffold ----------
 
   @override
   void initState() {
     super.initState();
 
-    // preload if editing
-    try {
-      if (widget.editFlowId != null) {
-        _editing =
-            widget.existingFlows.firstWhere((f) => f.id == widget.editFlowId);
+    // Load AI-generated flow if provided
+    if (widget.editFlowId != null) {
+      // Check if it's in existing flows first
+      try {
+        _editing = widget.existingFlows.firstWhere((f) => f.id == widget.editFlowId);
+        // Load from existing flows
+        _nameCtrl = TextEditingController(text: _editing?.name ?? '');
+        _active = _editing?.active ?? true;
+        if (_editing != null) {
+          _loadFlowForEdit(_editing!);
+        }
+      } catch (_) {
+        // Not in existing flows, load from database (AI-generated flow)
+        _editing = null;
+        _nameCtrl = TextEditingController();
+        _active = true;
+        _loadAIGeneratedFlow(widget.editFlowId!);
       }
-    } catch (_) {
-      _editing = null;
-    }
-
-    _nameCtrl = TextEditingController(text: _editing?.name ?? '');
-    _active = _editing?.active ?? true;
-
-    if (_editing != null) {
-      _loadFlowForEdit(_editing!);
     } else {
+      // Initialize for new flow creation
+      _editing = null;
+      _nameCtrl = TextEditingController();
+      _active = true;
+      _useKemetic = false;
+      _splitByPeriod = true;
       _rebuildSpans(); // harmless if range empty
     }
   }
@@ -6819,9 +7091,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   void dispose() {
     _nameCtrl.dispose();
     _overviewCtrl.dispose();
-    for (final d in _draftsByDay.values) {
-      d.dispose();
-    }
+      for (final dayList in _draftsByDay.values) {
+        for (final d in dayList) {
+          d.dispose();
+        }
+      }
     for (final d in _draftsByPattern.values) {
       d.dispose();
     }
@@ -7258,6 +7532,84 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     );
   }
 
+  // ---------- close handler ----------
+
+  Future<void> _handleClose() async {
+    // ✅ FIX: Check if we can actually pop
+    if (!Navigator.of(context).canPop()) {
+      print('[FlowStudio] ⚠️ Cannot pop - navigation stack empty');
+      return;
+    }
+
+    // Check if this is an AI-generated flow that hasn't been saved yet
+    final shouldDelete = _isAIGeneratedFlow && _editing != null && _editing!.id != null;
+    
+    if (shouldDelete) {
+      // Confirm deletion
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title: const Text('Delete AI Flow?', style: TextStyle(color: Colors.white)),
+          content: const Text(
+            'This flow was generated by AI but hasn\'t been saved yet. '
+            'Canceling will permanently delete it. Continue?',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Keep Editing'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+      
+      if (confirm == true && _editing?.id != null) {
+        try {
+          // Delete events FIRST to avoid FK constraint violation
+          final eventsRepo = UserEventsRepo(Supabase.instance.client);
+          await eventsRepo.deleteByFlowId(_editing!.id);
+          
+          // Then delete the flow
+          final flowsRepo = FlowsRepo(Supabase.instance.client);
+          await flowsRepo.delete(_editing!.id);
+          
+          // ✅ FIX: Check mounted and canPop before popping
+          if (mounted && Navigator.of(context).canPop()) {
+            Navigator.pop(context);
+            
+            // ✅ FIX: Use Future.microtask for snackbar after pop
+            Future.microtask(() {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Flow deleted')),
+                );
+              }
+            });
+          }
+          return;  // ← CRITICAL: Must return here
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error deleting flow: $e')),
+            );
+          }
+        }
+      }
+    }
+    
+    // Regular cancel (no deletion)
+    // ✅ FIX: Check canPop again before final pop
+    if (mounted && Navigator.of(context).canPop()) {
+      Navigator.pop(context);
+    }
+  }
+
   // ---------- build ----------
 
   @override
@@ -7270,7 +7622,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         leading: IconButton(
           tooltip: 'Close',
           icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _handleClose,
         ),
         title: const Text('Flow Studio', style: TextStyle(color: Colors.white)),
         actions: [

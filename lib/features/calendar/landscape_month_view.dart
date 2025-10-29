@@ -1015,3 +1015,7 @@ class _EventItem {
     required this.color,
   });
 }
+// Landscape Month View - Full month grid with INFINITE scrolling
+// Styled to match day_view.dart's beautiful detail sheets
+//
+

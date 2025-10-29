@@ -596,6 +596,7 @@ class _AuthGateState extends State<AuthGate> {
 
     if (session == null) {
       return Scaffold(
+        backgroundColor: Colors.black, // Explicit black background
         body: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
@@ -604,16 +605,38 @@ class _AuthGateState extends State<AuthGate> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Kemetic Calendar',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+                  const Text(
+                    'Kemetic Calendar',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFD4AF37), // Gold color
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  const Text('Sign in to sync your flows and events.',
-                      textAlign: TextAlign.center),
+                  const Text(
+                    'Sign in to sync your flows and events.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white, // White text
+                      fontSize: 16,
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
                     onPressed: _signInWithGoogle,
-                    icon: const Icon(Icons.login),
-                    label: const Text('Continue with Google'),
+                    icon: const Icon(Icons.login, color: Colors.black),
+                    label: const Text(
+                      'Continue with Google',
+                      style: TextStyle(color: Colors.black),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD4AF37), // Gold button
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 16,
+                      ),
+                    ),
                   ),
                   if (kDebugMode) ...[
                     const SizedBox(height: 16),
@@ -621,7 +644,10 @@ class _AuthGateState extends State<AuthGate> {
                       onPressed: () async {
                         await supabase.auth.signOut();
                       },
-                      child: const Text('Sign out (debug)'),
+                      child: const Text(
+                        'Sign out (debug)',
+                        style: TextStyle(color: Color(0xFFD4AF37)),
+                      ),
                     ),
                   ],
                 ],

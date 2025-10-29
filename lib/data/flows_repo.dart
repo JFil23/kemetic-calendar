@@ -21,6 +21,7 @@ class FlowRow {
   final DateTime? endDate;
   final String? notes;
   final List<dynamic> rules; // store your _FlowRule list as JSON-serializable
+  final Map<String, dynamic>? aiMetadata;
 
   const FlowRow({
     required this.id,
@@ -32,6 +33,7 @@ class FlowRow {
     required this.endDate,
     required this.notes,
     required this.rules,
+    this.aiMetadata,
   });
 
   factory FlowRow.fromRow(Map<String, dynamic> r) {
@@ -51,12 +53,15 @@ class FlowRow {
       id: (r['id'] as num).toInt(),
       userId: r['user_id'] as String,
       name: r['name'] as String,
-      color: (r['color'] as num).toInt(),
+      color: (r['color'] as num? ?? 0xFF9E9E9E).toInt(),
       active: (r['active'] as bool?) ?? true,
       startDate: _d(r['start_date']),
       endDate: _d(r['end_date']),
       notes: r['notes'] as String?,
       rules: _rulesList,
+      aiMetadata: r['ai_metadata'] != null
+          ? Map<String, dynamic>.from(r['ai_metadata'] as Map)
+          : null,
     );
   }
 
@@ -236,5 +241,15 @@ class FlowsRepo {
     return rows.cast<Map<String, dynamic>>().map(FlowRow.fromRow).toList();
   }
 
-
+  /// Fetch a single flow by ID
+  Future<FlowRow?> getFlowById(int id) async {
+    final response = await _client
+        .from(_kFlows)
+        .select()
+        .eq('id', id)
+        .maybeSingle();
+    
+    if (response == null) return null;
+    return FlowRow.fromRow(response as Map<String, dynamic>);
+  }
 }

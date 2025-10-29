@@ -20,6 +20,7 @@ class UserEvent {
   final bool allDay;
   final DateTime startsAt;
   final DateTime? endsAt;
+  final int? flowLocalId;
 
   const UserEvent({
     required this.id,
@@ -30,6 +31,7 @@ class UserEvent {
     required this.allDay,
     required this.startsAt,
     this.endsAt,
+    this.flowLocalId,
   });
 
   factory UserEvent.fromRow(Map<String, dynamic> row) {
@@ -45,6 +47,7 @@ class UserEvent {
       allDay: (row['all_day'] as bool?) ?? false,
       startsAt: _parseTs(row['starts_at']).toUtc(),
       endsAt: row['ends_at'] == null ? null : DateTime.parse(row['ends_at'] as String).toUtc(),
+      flowLocalId: row['flow_local_id'] != null ? (row['flow_local_id'] as num).toInt() : null,
     );
   }
 
@@ -347,6 +350,40 @@ class UserEventsRepo {
     )).toList();
 
     return filtered;
+  }
+
+  /// Get all events for a specific flow (for Flow Studio editing)
+  /// No pagination, no limit - returns ALL events for this flow
+  Future<List<UserEvent>> getEventsForFlow(int flowId) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return [];
+
+    final rows = await _client
+        .from('user_events')
+        .select('id, client_event_id, title, detail, location, all_day, starts_at, ends_at, flow_local_id')
+        .eq('user_id', user.id)
+        .eq('flow_local_id', flowId)              // ✅ Filter by flow ID in SQL
+        .order('starts_at', ascending: true);     // Consistent display order
+
+    // ✅ MICRO-GUARD 1: Safe timestamp parsing for potential all-day events
+    return rows.map<UserEvent>((row) {
+      return UserEvent(
+        id: row['id'] as String,
+        clientEventId: row['client_event_id'] as String?,
+        title: row['title'] as String,
+        detail: row['detail'] as String?,
+        location: row['location'] as String?,
+        allDay: (row['all_day'] as bool?) ?? false,
+        // ✅ Future-proof: Handle null starts_at for all-day events
+        startsAt: row['starts_at'] != null 
+            ? DateTime.parse(row['starts_at'] as String)
+            : DateTime.now(), // Fallback (shouldn't happen with current AI)
+        endsAt: row['ends_at'] != null 
+            ? DateTime.parse(row['ends_at'] as String)
+            : null,
+        flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+      );
+    }).toList();
   }
 
   /// Minimal event telemetry to `app_events`.

@@ -567,27 +567,17 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
   final GlobalKey _buttonKey = GlobalKey();
 
   void _showDropdown() {
-    print('🔍 _showDropdown() called for key: ${widget.dayKey}');
-    
     final RenderBox? renderBox = _buttonKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) {
-      print('❌ RenderBox is null!');
       return;
     }
-    
-    print('✅ RenderBox found');
     
     final dayInfo = KemeticDayData.getInfoForDay(widget.dayKey);
-    print('🔍 Looking up data for key: ${widget.dayKey}');
-    print('🔍 Data found: ${dayInfo != null}');
     
     if (dayInfo == null) {
-      print('❌ No data found for key: ${widget.dayKey}');
-      print('❌ Available keys: ${KemeticDayData.dayInfoMap.keys.join(", ")}');
       return;
     }
     
-    print('✅ Data found! Showing dropdown...');
     final position = renderBox.localToGlobal(Offset.zero);
     final size = renderBox.size;
 
@@ -607,16 +597,13 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
 
   @override
   Widget build(BuildContext context) {
-    print('🔵 KemeticDayButton built for key: ${widget.dayKey}');
-    
     return GestureDetector(
       key: _buttonKey,
       onLongPress: () {
-        print('🟢 LONG PRESS DETECTED for: ${widget.dayKey}');
         _showDropdown();
       },
       onLongPressStart: (details) {
-        print('🟡 LONG PRESS START for: ${widget.dayKey}');
+        // Long press detected
       },
       behavior: HitTestBehavior.opaque,
       child: widget.child,

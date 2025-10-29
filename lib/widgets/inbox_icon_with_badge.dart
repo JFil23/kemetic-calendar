@@ -82,3 +82,4 @@ class InboxIconWithBadge extends StatelessWidget {
     );
   }
 }
+

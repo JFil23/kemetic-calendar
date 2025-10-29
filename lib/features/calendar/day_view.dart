@@ -1187,3 +1187,8 @@ class _DayViewGridState extends State<DayViewGrid> {
     return '${formatTime(startHour, startMinute)} – ${formatTime(endHour, endMinute)}';
   }
 }
+
+// Day View - 24-hour timeline with pixel-perfect event layout
+// Uses EventLayoutEngine for consistent positioning
+//
+

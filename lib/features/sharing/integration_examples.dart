@@ -1,13 +1,20 @@
+import 'package:flutter/material.dart';
+
 // Integration Example: How to use ShareFlowSheet in your calendar
 
 // Example 1: Add share button to flow management
 // In your flow list or flow detail page:
 
-IconButton(
-  icon: const Icon(Icons.share, color: Color(0xFFD4AF37)),
-  onPressed: () => _openShareSheet(context, flowId, flowTitle),
-  tooltip: 'Share Flow',
-),
+void _addShareButtonExample() {
+  // Add this to your widget's build method:
+  IconButton(
+    icon: const Icon(Icons.share, color: Color(0xFFD4AF37)),
+    onPressed: () {
+      // _openShareSheet(context, flowId, flowTitle);
+    },
+    tooltip: 'Share Flow',
+  );
+}
 
 // Example 2: Share sheet method
 Future<void> _openShareSheet(BuildContext context, int flowId, String flowTitle) async {
@@ -15,10 +22,7 @@ Future<void> _openShareSheet(BuildContext context, int flowId, String flowTitle)
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (context) => ShareFlowSheet(
-      flowId: flowId,
-      flowTitle: flowTitle,
-    ),
+    builder: (context) => const Placeholder(), // Replace with ShareFlowSheet
   );
   
   if (result == true) {
@@ -35,47 +39,53 @@ Future<void> _openShareSheet(BuildContext context, int flowId, String flowTitle)
 // Example 3: Add to Flow Studio toolbar
 // In your flow editing interface:
 
-Row(
-  children: [
-    IconButton(
-      icon: const Icon(Icons.save, color: Color(0xFFD4AF37)),
-      onPressed: _saveFlow,
-    ),
-    IconButton(
-      icon: const Icon(Icons.share, color: Color(0xFFD4AF37)),
-      onPressed: () => _openShareSheet(context, _currentFlow.id, _currentFlow.title),
-    ),
-    IconButton(
-      icon: const Icon(Icons.close, color: Colors.white),
-      onPressed: _closeFlow,
-    ),
-  ],
-)
+Widget _addToolbarExample() {
+  return Row(
+    children: [
+      IconButton(
+        icon: const Icon(Icons.save, color: Color(0xFFD4AF37)),
+        onPressed: () {}, // _saveFlow
+      ),
+      IconButton(
+        icon: const Icon(Icons.share, color: Color(0xFFD4AF37)),
+        onPressed: () {
+          // _openShareSheet(context, _currentFlow.id, _currentFlow.title);
+        },
+      ),
+      IconButton(
+        icon: const Icon(Icons.close, color: Colors.white),
+        onPressed: () {}, // _closeFlow
+      ),
+    ],
+  );
+}
 
 // Example 4: Integration with existing flow management
 // In your flows viewer or flow detail page:
 
 class FlowDetailPage extends StatelessWidget {
-  final Flow flow;
-  
-  const FlowDetailPage({Key? key, required this.flow}) : super(key: key);
+  const FlowDetailPage({super.key});
   
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(flow.title),
+        title: const Text('Flow Title'),
         actions: [
           IconButton(
             icon: const Icon(Icons.share, color: Color(0xFFD4AF37)),
-            onPressed: () => _openShareSheet(context),
+            onPressed: () {
+              // _openShareSheet(context);
+            },
           ),
         ],
       ),
       body: Column(
         children: [
           // Your existing flow content
-          Expanded(child: _buildFlowContent()),
+          Expanded(
+            child: _buildFlowContent(),
+          ),
           
           // Add share button to bottom actions
           Padding(
@@ -84,7 +94,9 @@ class FlowDetailPage extends StatelessWidget {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _openShareSheet(context),
+                    onPressed: () {
+                      // _openShareSheet(context);
+                    },
                     icon: const Icon(Icons.share),
                     label: const Text('Share Flow'),
                     style: ElevatedButton.styleFrom(
@@ -96,7 +108,9 @@ class FlowDetailPage extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _editFlow,
+                    onPressed: () {
+                      // _editFlow();
+                    },
                     icon: const Icon(Icons.edit),
                     label: const Text('Edit'),
                     style: OutlinedButton.styleFrom(
@@ -113,15 +127,18 @@ class FlowDetailPage extends StatelessWidget {
     );
   }
   
+  Widget _buildFlowContent() {
+    return const Center(
+      child: Text('Flow Content Here'),
+    );
+  }
+  
   Future<void> _openShareSheet(BuildContext context) async {
     final result = await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => ShareFlowSheet(
-        flowId: flow.id,
-        flowTitle: flow.title,
-      ),
+      builder: (context) => const Placeholder(), // Replace with ShareFlowSheet
     );
     
     if (result == true && context.mounted) {
@@ -134,3 +151,4 @@ class FlowDetailPage extends StatelessWidget {
     }
   }
 }
+

@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
 
 /// Request model for AI flow generation
 class AIFlowGenerationRequest {
@@ -31,12 +32,14 @@ class AIFlowGenerationRequest {
 
 /// Response model from AI flow generation
 class AIFlowGenerationResponse {
+  final int? flowId;
   final String flowName;
   final String flowColor;
   final List<FlowRule> rules;
   final String? notes;
 
   AIFlowGenerationResponse({
+    this.flowId,
     required this.flowName,
     required this.flowColor,
     required this.rules,
@@ -45,9 +48,10 @@ class AIFlowGenerationResponse {
 
   factory AIFlowGenerationResponse.fromJson(Map<String, dynamic> json) {
     return AIFlowGenerationResponse(
+      flowId: json['flowId'] as int?,
       flowName: json['flowName'] as String,
       flowColor: json['flowColor'] as String,
-      rules: (json['rules'] as List)
+      rules: ((json['rules'] as List?) ?? [])
           .map((r) => FlowRule.fromJson(r as Map<String, dynamic>))
           .toList(),
       notes: json['notes'] as String?,
@@ -188,9 +192,35 @@ class AIFlowGenerationService {
         );
       }
 
-      final data = response.data is String
-          ? <String, dynamic>{}
-          : Map<String, dynamic>.from(response.data);
+      // ✅ FIX 1: Parse JSON string responses properly
+      Map<String, dynamic> data;
+      if (response.data is String) {
+        // Parse JSON string
+        try {
+          data = jsonDecode(response.data as String) as Map<String, dynamic>;
+          _log('✅ Parsed JSON string response');
+        } catch (e) {
+          _logError('❌ Failed to parse JSON string: $e');
+          data = <String, dynamic>{};
+        }
+      } else if (response.data is Map) {
+        data = Map<String, dynamic>.from(response.data as Map);
+        _log('✅ Using Map response directly');
+      } else {
+        // Fallback for any other type
+        _logError('⚠️ Unexpected response.data type: ${response.data.runtimeType}');
+        data = Map<String, dynamic>.from(response.data ?? {});
+      }
+
+      // Check for timeout fallback
+      if (data['success'] == false && data['fallback'] == true) {
+        _logError('⚠️ Timeout fallback received');
+        throw AIFlowGenerationError(
+          message: data['message'] ?? 'AI generation timed out. Try a shorter date range (3-10 days).',
+          statusCode: response.status,
+          details: data,
+        );
+      }
 
       // Check for error in response body
       if (data.containsKey('error')) {
