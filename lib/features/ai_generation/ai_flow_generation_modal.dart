@@ -158,11 +158,31 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
         print('   Flow Color: $colorAsHex');  // Should always be "#rrggbb"
       }
 
+      // ✅ Get IANA timezone name (e.g., "America/Los_Angeles") instead of "PST"/"PDT"
+      final nowLocal = DateTime.now();
+      final offsetHours = nowLocal.timeZoneOffset.inHours;
+      final timezoneMap = {
+        -8: 'America/Los_Angeles',  // PST (winter)
+        -7: 'America/Los_Angeles',  // PDT (summer)
+        -6: 'America/Denver',        // MDT (summer) or CST (winter)
+        -5: 'America/Chicago',       // CDT (summer) or EST (winter)
+        -4: 'America/New_York',      // EDT (summer)
+        -10: 'Pacific/Honolulu',     // HST (no DST)
+        -9: 'America/Anchorage',     // AKST/AKDT
+        0: 'Europe/London',          // GMT/BST
+        1: 'Europe/Paris',           // CET/CEST
+        8: 'Asia/Singapore',         // SGT
+        9: 'Asia/Tokyo',             // JST
+        10: 'Australia/Sydney',      // AEST/AEDT
+      };
+      final ianaTimezone = timezoneMap[offsetHours] ?? 'America/Los_Angeles';
+
       final request = AIFlowGenerationRequest(
         description: _descriptionController.text.trim(),
         startDate: _formatDate(_startDate!),
         endDate: _formatDate(_endDate!),
         flowColor: colorAsHex,
+        timezone: ianaTimezone, // ✅ IANA format (e.g., "America/Los_Angeles") for Edge Function
       );
 
       // Generate flow

@@ -332,12 +332,22 @@ class UserEventsRepo {
 
     final filtered = (rows as List).cast<Map<String, dynamic>>().where((row) {
       final int? fid = (row['flow_local_id'] as num?)?.toInt();
-      if (fid == null) return true; // keep unassigned notes
+      if (fid == null) return true; // keep unassigned notes (free-floating notes)
       final Map<String, dynamic>? flow = row['flows'] as Map<String, dynamic>?;
-      if (flow == null) return false; // hidden/missing flow
+      if (flow == null) return false; // flow missing or not visible via RLS
       final bool active = (flow['active'] as bool?) ?? false;
-      final bool ended = flow['end_date'] != null;
-      return active && !ended; // only active + not-ended flows
+
+      // Treat flows as "ended" ONLY if they're inactive OR their end_date is in the past.
+      // If end_date is in the future (or today), we still want to see them on the calendar.
+      final String? endDateStr = flow['end_date'] as String?;
+      bool expired = false;
+      if (endDateStr != null) {
+        final endDate = DateTime.parse(endDateStr).toUtc();
+        final now = DateTime.now().toUtc();
+        expired = endDate.isBefore(now);
+      }
+
+      return active && !expired;
     }).map((row) => (
     clientEventId: row['client_event_id'] as String?,  // ✅ ADDED THIS LINE
     title: row['title'] as String,
@@ -352,38 +362,59 @@ class UserEventsRepo {
     return filtered;
   }
 
-  /// Get all events for a specific flow (for Flow Studio editing)
-  /// No pagination, no limit - returns ALL events for this flow
-  Future<List<UserEvent>> getEventsForFlow(int flowId) async {
-    final user = _client.auth.currentUser;
-    if (user == null) return [];
+  Future<List<({
+    String? id,
+    String? clientEventId,
+    String title,
+    String? detail,
+    String? location,
+    bool allDay,
+    DateTime startsAtUtc,
+    DateTime? endsAtUtc,
+    int? flowLocalId,
+  })>> getEventsForFlow(int flowId) async {
+    try {
+      final rows = await _client
+          .from('user_events')
+          .select('''
+            id,
+            client_event_id,
+            title,
+            detail,
+            location,
+            all_day,
+            starts_at,
+            ends_at,
+            flow_local_id
+          ''')
+          .eq('flow_local_id', flowId)
+          .order('starts_at', ascending: true);
 
-    final rows = await _client
-        .from('user_events')
-        .select('id, client_event_id, title, detail, location, all_day, starts_at, ends_at, flow_local_id')
-        .eq('user_id', user.id)
-        .eq('flow_local_id', flowId)              // ✅ Filter by flow ID in SQL
-        .order('starts_at', ascending: true);     // Consistent display order
-
-    // ✅ MICRO-GUARD 1: Safe timestamp parsing for potential all-day events
-    return rows.map<UserEvent>((row) {
-      return UserEvent(
-        id: row['id'] as String,
-        clientEventId: row['client_event_id'] as String?,
-        title: row['title'] as String,
-        detail: row['detail'] as String?,
-        location: row['location'] as String?,
-        allDay: (row['all_day'] as bool?) ?? false,
-        // ✅ Future-proof: Handle null starts_at for all-day events
-        startsAt: row['starts_at'] != null 
-            ? DateTime.parse(row['starts_at'] as String)
-            : DateTime.now(), // Fallback (shouldn't happen with current AI)
-        endsAt: row['ends_at'] != null 
-            ? DateTime.parse(row['ends_at'] as String)
-            : null,
-        flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
-      );
-    }).toList();
+      return (rows as List).map((row) {
+        return (
+          id: row['id'] as String?,
+          clientEventId: row['client_event_id'] as String?,
+          title: (row['title'] as String?) ?? '',
+          detail: row['detail'] as String?,
+          location: row['location'] as String?,
+          allDay: (row['all_day'] as bool?) ?? false,
+          startsAtUtc: DateTime.parse(row['starts_at'] as String).toUtc(),
+          endsAtUtc: row['ends_at'] != null
+              ? DateTime.parse(row['ends_at'] as String).toUtc()
+              : null,
+          flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+        );
+      }).toList();
+    } catch (e, st) {
+      if (kDebugMode) {
+        // keep this so we can see if anything explodes
+        // but don't crash hydration if it fails
+        // (this was part of why October 29 felt "bulletproof")
+        debugPrint('[UserEventsRepo] getEventsForFlow($flowId) error: $e');
+        debugPrint('$st');
+      }
+      return [];
+    }
   }
 
   /// Minimal event telemetry to `app_events`.

@@ -25,6 +25,7 @@ import '../../widgets/inbox_icon_with_badge.dart';
 import '../ai_generation/ai_flow_generation_modal.dart';
 import '../../services/ai_flow_generation_service.dart';
 import '../../widgets/kemetic_day_info.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 
@@ -959,6 +960,11 @@ class _CalendarPageState extends State<CalendarPage> {
   // concurrent modification errors and repeated work.
   bool _ranMigration = false;
 
+  // ⚠️ ONE-TIME CACHE CLEANUP FLAG
+  // Set to true once to clear stale local cache, then set back to false
+  // This should be removed after the cleanup runs successfully
+  bool _runOneTimeCacheCleanup = false;
+
   int _dataVersion = 0;
   void _bumpDataVersion() {
     // why: force landscape PageView child to reconstruct once when data hydrates
@@ -980,6 +986,9 @@ class _CalendarPageState extends State<CalendarPage> {
   // Journal controller and state
   late JournalController _journalController;
   bool _journalInitialized = false;
+
+  // Repository instances
+  late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
 
   /* ───── ClientEventId utilities ───── */
   /// Build a canonical clientEventId from Kemetic date, title, time and flow id.
@@ -1265,8 +1274,18 @@ class _CalendarPageState extends State<CalendarPage> {
 
   List<_Note> _getNotes(int kYear, int kMonth, int kDay) {
     final key = _kKey(kYear, kMonth, kDay);
+    if (kDebugMode) {
+      debugPrint('🔎 Day view requesting notes for key: "$key" (ky=$kYear km=$kMonth kd=$kDay)');
+    }
     final result = _notes[key] ?? const [];
-    if (result.isNotEmpty) {
+    if (kDebugMode) {
+      debugPrint('🔎 Found ${result.length} notes for this key');
+      if (result.isNotEmpty) {
+        debugPrint('🔎 Titles: ${result.map((n) => n.title).join(", ")}');
+      }
+    }
+    if (result.isNotEmpty && !kDebugMode) {
+      // Keep original print for non-debug builds
       print('_getNotes($kYear, $kMonth, $kDay) returning ${result.length} notes: ${result.map((n) => n.title).join(", ")}');
     }
     return result;
@@ -2070,6 +2089,14 @@ class _CalendarPageState extends State<CalendarPage> {
           final String prefix = noteFlowId >= 0 ? 'flowLocalId=${noteFlowId};' : '';
           final String? det = persisted.detail;
           final String detailPayload = prefix + (det?.trim() ?? '');
+          
+          // 🔍 DIAGNOSTIC LOGGING: Before upsert
+          print('🔍 ABOUT TO UPSERT:');
+          print('   noteFlowId=$noteFlowId');
+          print('   n.flowId=${n.flowId}');
+          print('   finalFlowId=$finalFlowId');
+          print('   cid=$cid');
+          
           await repo2.upsertByClientId(
             clientEventId: cid,
             title: persisted.title,
@@ -2078,7 +2105,21 @@ class _CalendarPageState extends State<CalendarPage> {
             location: (persisted.location ?? '').trim().isEmpty ? null : persisted.location!.trim(),
             allDay: persisted.allDay,
             endsAtUtc: endsAt?.toUtc(),
+            flowLocalId: noteFlowId >= 0 ? noteFlowId : null, // ✅ FIX: Set flow_local_id for Flow Studio saves
           );
+          
+          // 🔍 DIAGNOSTIC LOGGING: After upsert - verify database
+          print('🔍 AFTER UPSERT - checking database...');
+          try {
+            final verify = await Supabase.instance.client
+                .from('user_events')
+                .select('flow_local_id, title, starts_at')
+                .eq('client_event_id', cid)
+                .maybeSingle();
+            print('🔍 DB shows: flow_local_id=${verify?['flow_local_id']}, title=${verify?['title']}, starts_at=${verify?['starts_at']}');
+          } catch (e) {
+            print('🔍 Verification query failed: $e');
+          }
         }
       } catch (e) {
         debugPrint('persist planned notes (apply) failed: $e');
@@ -3442,11 +3483,58 @@ class _CalendarPageState extends State<CalendarPage> {
   /* ───── UI ───── */
   bool _initOnce = false;
 
+  /// ⚠️ ONE-TIME CACHE CLEANUP
+  /// Clears stale Supabase storage and SharedPreferences cache
+  /// Run once to remove "Alkaline Lunch" ghosts and ensure only true Supabase data shows
+  /// Remove this method after successful cleanup
+  Future<void> _performOneTimeCacheCleanup() async {
+    if (kDebugMode) {
+      debugPrint('🧹 [CACHE CLEANUP] Starting one-time cleanup...');
+    }
+
+    try {
+      // Clear SharedPreferences (manual cache)
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      if (kDebugMode) {
+        debugPrint('🧹 [CACHE CLEANUP] Cleared SharedPreferences');
+      }
+
+      // Sign out to force fresh session (this will also clear Supabase session cache)
+      await Supabase.instance.client.auth.signOut();
+      if (kDebugMode) {
+        debugPrint('🧹 [CACHE CLEANUP] Signed out (app will need to re-login)');
+      }
+
+      if (kDebugMode) {
+        debugPrint('✅ [CACHE CLEANUP] Cleanup complete - restart app to see fresh data');
+      }
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('❌ [CACHE CLEANUP] Error during cleanup: $e');
+        debugPrint('Stack trace: $stackTrace');
+      }
+    }
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_initOnce) {
       _initOnce = true;
+      
+      // ⚠️ ONE-TIME CACHE CLEANUP
+      // Set _runOneTimeCacheCleanup = true to clear stale cache, then set back to false
+      if (_runOneTimeCacheCleanup) {
+        _performOneTimeCacheCleanup().then((_) {
+          // After cleanup, user needs to restart app to re-login
+          if (kDebugMode) {
+            debugPrint('⚠️ [CACHE CLEANUP] App will need restart after sign-out');
+          }
+        });
+        return; // Don't load data yet - wait for restart
+      }
+      
       _loadFromDisk();
     }
   }
@@ -3483,129 +3571,91 @@ class _CalendarPageState extends State<CalendarPage> {
         }
         if (flow.id >= _nextFlowId) _nextFlowId = flow.id + 1;
       }
-      final Set<int> activeFlowIds =
-      _flows.where((f) => f.active).map((f) => f.id).toSet();
 
-      // Load events → into _notes map (skip events whose flow is not active/known)
-      final serverEvents = await repo.getAllEvents();
+      // Build index/maps for later use
+      final Map<int, _Flow> flowIndex = {
+        for (final f in _flows) f.id: f,
+      };
 
-      print('[_loadFromDisk] events fetched: ${serverEvents.length}, activeFlowIds size: ${activeFlowIds.length}');
+      // We'll only hydrate events for flows that are still active.
+      // NOTE: We *don't* care about end_date here anymore. We just listen to `active`.
+      final activeFlowIds = _flows
+          .where((f) => f.active)
+          .map((f) => f.id)
+          .toList();
 
-      // Fallback: if flows weren't hydrated (RLS/ordering), rehydrate locally to avoid gray paint
-      Set<int> _activeIds = activeFlowIds;
-      if (_activeIds.isEmpty) {
+      int addedCount = 0;
+
+      for (final flowId in activeFlowIds) {
         try {
-          final fallbackFlows = await repo.getAllFlows();
-          _activeIds = fallbackFlows.where((f) => f.active).map((f) => f.id).toSet();
-          print('[_loadFromDisk] fallback activeFlowIds size: ${_activeIds.length}');
-        } catch (_) {}
-      }
+          // 🔥 NEW: pull ALL events for this specific flow from DB,
+          // even if they're past the pagination horizon
+          final flowEvents = await repo.getEventsForFlow(flowId);
 
-      int _added = 0;
-      // Map for quick lookup of flows by id
-      final Map<int, _Flow> _flowIndex = {for (final f in _flows) f.id: f};
+          for (final evt in flowEvents) {
+            // Convert DB UTC timestamps -> device local -> Kemetic date
+            final localStart = evt.startsAtUtc.toLocal();
 
-      for (final evt in serverEvents) {
-        // ═══════════════════════════════════════════════════════════════
-        // 🔧 FIX STARTS HERE - Parse flowId from clientEventId FIRST
-        // ═══════════════════════════════════════════════════════════════
-        int? flowId;
-        // Priority 1: extract from unified clientEventId format (|f=<id>)
-        if (evt.clientEventId != null && evt.clientEventId!.isNotEmpty) {
-          final parsedFlowId = _flowIdFromCid(evt.clientEventId!);
-          // Accept values other than -1; -1 indicates standalone
-          if (parsedFlowId != -1 || evt.clientEventId!.contains('|f=-1')) {
-            flowId = parsedFlowId;
-            if (kDebugMode) {
-              debugPrint('[loader] ✓ Parsed flowId=$flowId from CID: ${evt.clientEventId}');
+            final kDate = KemeticMath.fromGregorian(localStart);
+
+            // Build _Note, same shape the rest of the app expects
+            final note = _Note(
+              title: evt.title,
+              detail: evt.detail,
+              location: evt.location,
+              allDay: evt.allDay,
+              start: evt.allDay
+                  ? null
+                  : TimeOfDay.fromDateTime(localStart),
+              end: evt.endsAtUtc == null
+                  ? null
+                  : TimeOfDay.fromDateTime(evt.endsAtUtc!.toLocal()),
+              flowId: flowId,
+            );
+
+            // Drop notes from flows that are no longer in _flows or are inactive
+            final owningFlow = flowIndex[flowId];
+            if (owningFlow == null || !owningFlow.active) {
+              // skip events that belong to deleted / inactive flows
+              continue;
+            }
+
+            final key = _kKey(kDate.kYear, kDate.kMonth, kDate.kDay);
+            final bucket = _notes.putIfAbsent(key, () => <_Note>[]);
+
+            // Dedup (title + start time match) so we don't spam UI
+            final already = bucket.any((n) =>
+                n.title == note.title &&
+                n.start?.hour == note.start?.hour &&
+                n.start?.minute == note.start?.minute);
+
+            if (!already) {
+              bucket.add(note);
+              addedCount++;
             }
           }
-        }
-        // Priority 2: fallback to server-provided flowLocalId field
-        if (flowId == null && evt.flowLocalId != null) {
-          flowId = evt.flowLocalId;
+        } catch (err, st) {
           if (kDebugMode) {
-            debugPrint('[loader] ℹ️  Using server flowLocalId=$flowId (no CID)');
-          }
-        }
-        // Priority 3: parse legacy format from detail field ("flowLocalId=N;...")
-        String? detailStr = evt.detail;
-        if (flowId == null && detailStr != null && detailStr.startsWith('flowLocalId=')) {
-          final semi = detailStr.indexOf(';');
-          if (semi > 0) {
-            final idPart = detailStr.substring('flowLocalId='.length, semi);
-            final parsed = int.tryParse(idPart);
-            if (parsed != null) {
-              flowId = parsed;
-              if (kDebugMode) {
-                debugPrint('[loader] ℹ️  Parsed flowId=$flowId from legacy detail prefix');
-              }
-            }
-            // Strip the prefix so it never shows up in the UI
-            detailStr = detailStr.substring(semi + 1);
-          }
-        }
-        // Validate: ensure flowId maps to an active flow; otherwise skip notes from inactive/deleted flows
-        if (flowId != null && flowId > 0) {
-          final f = _flowIndex[flowId];
-          if (f == null || !f.active) {
-            // 🔧 KEY FIX: skip notes from inactive or deleted flows entirely
-            if (kDebugMode) {
-              debugPrint('[loader] ⚠️  flowId=$flowId inactive/deleted → SKIPPING note: "${evt.title}"');
-            }
-            continue;
-          } else {
-            if (kDebugMode) {
-              debugPrint('[loader] ✓ flowId=$flowId validated against active flow: ${f.name}');
-            }
-          }
-        } else if (flowId == -1) {
-          // -1 is valid marker for standalone/manual note
-          if (kDebugMode) {
-            debugPrint('[loader] ✓ Standalone note (flowId=-1)');
-          }
-        }
-        // ═══════════════════════════════════════════════════════════════
-        // 🔧 FIX ENDS HERE
-        // ═══════════════════════════════════════════════════════════════
-
-        final localTime = evt.startsAtUtc.toLocal();
-        final kDate = KemeticMath.fromGregorian(localTime);
-
-        final note = _Note(
-          title: evt.title,
-          // Use the modified detail string if we stripped a legacy prefix; otherwise original
-          detail: detailStr ?? evt.detail,
-          location: evt.location,
-          allDay: evt.allDay,
-          start: evt.allDay ? null : TimeOfDay.fromDateTime(localTime),
-          end: evt.endsAtUtc == null
-              ? null
-              : TimeOfDay.fromDateTime(evt.endsAtUtc!.toLocal()),
-          // Pass parsed flowId (null for standalone) and not -1; unify representation
-          flowId: (flowId != null && flowId > 0) ? flowId : null,
-        );
-
-        final key = _kKey(kDate.kYear, kDate.kMonth, kDate.kDay);
-        final list = _notes.putIfAbsent(key, () => <_Note>[]);
-        if (!list.any((n) => n.title == note.title && n.start == note.start)) {
-          list.add(note);
-          _added++;
-          if (kDebugMode) {
-            debugPrint('[loader] ✓ Added note: title="${evt.title}" flowId=${note.flowId} ky=${kDate.kYear} km=${kDate.kMonth} kd=${kDate.kDay}');
+            debugPrint(
+                '[loadFromDisk] failed to hydrate events for flow $flowId: $err');
+            debugPrint('$st');
           }
         }
       }
-      print('[_loadFromDisk] notes joined/added: $_added');
 
+      if (kDebugMode) {
+        debugPrint('[_loadFromDisk] notes joined/added via per-flow hydration: $addedCount');
+      }
+
+      // force rebuild
       setState(() {});
+      _bumpDataVersion();
     } catch (e, stackTrace) {
       print('Supabase sync FAILED: $e');
       print('Stack: $stackTrace');
     }
 
     print('=== _loadFromDisk END ===');
-    _bumpDataVersion();
   }
 
   Map<String, dynamic> ruleToJson(FlowRule r) {
@@ -3760,15 +3810,51 @@ class _CalendarPageState extends State<CalendarPage> {
     // Use shared scheduler for flow notes if we have a saved flow
     if (saved != null && saved.active && saved.rules.isNotEmpty) {
       try {
-        await scheduleFlowNotes(
-          flowId: saved.id,
-          rules: saved.rules,
-          flowNotes: saved.notes,
-          startDate: saved.start,
-          endDate: saved.end,
-        );
-      } catch (e) {
-        debugPrint('scheduleFlowNotes failed: $e');
+        // Check if this is an AI-generated flow before scheduling
+        // (AI flows already have individually-titled events that shouldn't be regenerated)
+        final flowRow = await _flowsRepo.getFlowById(saved.id);
+        
+        // Defensive type checking for ai_metadata.generated field
+        final aiGenerated = flowRow?.aiMetadata?['generated'];
+        final isAIFlow = aiGenerated is bool && aiGenerated == true;
+        
+        if (isAIFlow) {
+          if (kDebugMode) {
+            debugPrint('[persistFlowStudio] ✅ Skipping scheduleFlowNotes for AI-generated flow ${saved.id} (preserving individual note titles)');
+          }
+          
+          // TODO: Add analytics once analytics service is integrated
+          // Example: _analyticsService.logEvent('ai_flow_schedule_skipped', {'flowId': saved.id});
+        } else {
+          // Only regenerate notes for manually-created flows with recurring rules
+          await scheduleFlowNotes(
+            flowId: saved.id,
+            rules: saved.rules,
+            flowNotes: saved.notes,
+            startDate: saved.start,
+            endDate: saved.end,
+          );
+          
+          if (kDebugMode) {
+            debugPrint('[persistFlowStudio] ✅ Scheduled recurring notes for flow ${saved.id}');
+          }
+          
+          // TODO: Add analytics once analytics service is integrated
+          // Example: _analyticsService.logEvent('flow_notes_scheduled', {
+          //   'flowId': saved.id,
+          //   'ruleCount': saved.rules.length,
+          //   'dateRange': '${saved.start} to ${saved.end}',
+          // });
+        }
+      } catch (e, stackTrace) {
+        // Log error but don't crash - flow is already saved
+        if (kDebugMode) {
+          debugPrint('[persistFlowStudio] ⚠️ Failed to check/schedule flow notes: $e');
+          debugPrint('Stack trace: $stackTrace');
+        }
+        
+        // TODO: Add error tracking once analytics service is integrated
+        // Example: _analyticsService.logError('flow_schedule_error', e, stackTrace);
       }
     }
 
@@ -3848,6 +3934,7 @@ class _CalendarPageState extends State<CalendarPage> {
             detail: detailPayload.isEmpty ? null : detailPayload,
             allDay: rule.allDay,
             endsAtUtc: endsAt?.toUtc(),
+            flowLocalId: flowId, // ✅ FIX: Set flow_local_id for recurring flow notes
           );
           
           scheduledCount++;
@@ -6841,7 +6928,22 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       
       // 3. Fetch events for this flow
       final eventsRepo = UserEventsRepo(Supabase.instance.client);
-      final userEvents = await eventsRepo.getEventsForFlow(flowId);
+      final eventRecords = await eventsRepo.getEventsForFlow(flowId);
+      
+      // Convert record type to UserEvent objects
+      final userEvents = eventRecords.map((record) {
+        return UserEvent(
+          id: record.id ?? '', // id is String? (UUID from database)
+          clientEventId: record.clientEventId,
+          title: record.title,
+          detail: record.detail,
+          location: record.location,
+          allDay: record.allDay,
+          startsAt: record.startsAtUtc,
+          endsAt: record.endsAtUtc,
+          flowLocalId: record.flowLocalId,
+        );
+      }).toList();
       
       if (kDebugMode) {
         print('🔍 [AI Flow Init] flowId: $flowId');

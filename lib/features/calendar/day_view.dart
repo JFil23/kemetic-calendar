@@ -870,11 +870,19 @@ class _DayViewGridState extends State<DayViewGrid> {
       print('[_buildEventBlock] Rendering: title="${event.title}", flowId=${event.flowId}');
     }
     
-    final durationMinutes = event.endMin - event.startMin;
+    // ✅ FIX #2A: Calculate and clamp duration to prevent giant blocks
+    int durationMinutes = event.endMin - event.startMin;
     
-    // 🔧 NEW: Look up flow name to display in the block
-    final flow = widget.flowIndex[event.flowId];
-    final bool hasFlow = flow != null;
+    // Fix garbage durations:
+    // - if negative or zero -> minimum 15 min just so it's tappable
+    if (durationMinutes <= 0) {
+      durationMinutes = 15;
+    }
+    
+    // - if way too long (overnight / malformed) -> cap at 180 min (3h) visually
+    if (durationMinutes > 180) {
+      durationMinutes = 180;
+    }
     
     return Container(
       width: block.width,
@@ -888,25 +896,40 @@ class _DayViewGridState extends State<DayViewGrid> {
         borderRadius: BorderRadius.circular(4),
       ),
       padding: const EdgeInsets.all(4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 🔧 NEW: Show flow name first if available
-          if (hasFlow) ...[
-            Text(
-              flow!.name,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: event.color,  // Use flow color for name
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+      child: _buildEventTextContents(event, durationMinutes),
+    );
+  }
+
+  /// ✅ FIX #2B: Separate method for text content with empty title handling
+  Widget _buildEventTextContents(EventItem event, int durationMinutes) {
+    final flow = widget.flowIndex[event.flowId];
+    final bool hasFlow = flow != null;
+    
+    final showTitle = event.title.trim().isNotEmpty;
+    final showLocation = event.location != null &&
+        event.location!.trim().isNotEmpty &&
+        durationMinutes > 45;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Flow name first (if available)
+        if (hasFlow) ...[
+          Text(
+            flow!.name,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: event.color,
             ),
-            const SizedBox(height: 2),
-          ],
-          
-          // Note title
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+        ],
+        
+        // Note title - only render if meaningful
+        if (showTitle)
           Text(
             event.title,
             style: const TextStyle(
@@ -914,26 +937,38 @@ class _DayViewGridState extends State<DayViewGrid> {
               fontWeight: FontWeight.w500,
               color: Colors.white,
             ),
-            maxLines: hasFlow ? 1 : 2,  // Less space if flow name shown
+            maxLines: hasFlow ? 1 : 2,
+            overflow: TextOverflow.ellipsis,
+          )
+        else
+          Text(
+            // Fallback so you don't get giant red nothing-brick
+            hasFlow ? '(flow block)' : '(scheduled)',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+              color: Colors.white70,
+              fontStyle: FontStyle.italic,
+            ),
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          
-          // Location (if space allows)
-          if (event.location != null && event.location!.isNotEmpty && durationMinutes > 45)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                event.location!,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.white.withOpacity(0.7),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+        
+        // Location (if space allows)
+        if (showLocation)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              event.location!.trim(),
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.white.withOpacity(0.7),
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 
