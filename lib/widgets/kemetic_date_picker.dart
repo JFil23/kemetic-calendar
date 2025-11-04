@@ -1,11 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile/features/calendar/kemetic_time_constants.dart';
+import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
+import 'package:mobile/widgets/month_name_text.dart';
 
 /* ═══════════════════════ KEMETIC MATH (FIXED) ═══════════════════════ */
 
 class KemeticMath {
   // Epoch anchored to *local midnight*: Toth 1, Year 1 = 2025-03-20 (local).
-  static final DateTime _epoch = DateTime(2025, 3, 20);
+  static final DateTime _epoch = kKemeticEpochUtc;  // UTC epoch from constants
 
   // Repeating 4-year cycle lengths starting at Year 1: [365, 365, 366, 365]
   static const List<int> _cycle = [365, 365, 366, 365];
@@ -38,8 +41,10 @@ class KemeticMath {
   }
 
   static ({int kYear, int kMonth, int kDay}) fromGregorian(DateTime gLocal) {
-    final g = DateUtils.dateOnly(gLocal);
-    final diff = g.difference(_epoch).inDays;
+    // FIXED: Normalize to UTC noon first to avoid DST gaps/ambiguities
+    final gUtcNoon = DateTime.utc(gLocal.year, gLocal.month, gLocal.day, 12);
+    final g = toUtcDateOnly(gUtcNoon);
+    final diff = epochDayFromUtc(g);
 
     if (diff >= 0) {
       int kYear = 1;
@@ -108,11 +113,12 @@ class KemeticMath {
       if (kDay < 1 || kDay > 30) throw ArgumentError('kDay 1..30');
     }
 
+    // FIXED: Use integer epoch-day arithmetic
     final base = _daysBeforeYear(kYear);
     final dayIndex =
         (kMonth == 13) ? (360 + (kDay - 1)) : ((kMonth - 1) * 30 + (kDay - 1));
-    final days = base + dayIndex;
-    return _epoch.add(Duration(days: days));
+    final epochDays = base + dayIndex;
+    return utcFromEpochDay(epochDays);
   }
 
   // ✅ FIXED: Simple one-liner, no circular dependency
@@ -191,21 +197,7 @@ class _GlossyText extends StatelessWidget {
 
 /* ═══════════════════════ KEMETIC MONTH NAMES ═══════════════════════ */
 
-const List<String> _kemeticMonthNames = [
-  '',
-  'Thoth (Ḏḥwty)',
-  'Paopi (Pȝ ỉp.t)',
-  'Hathor (Ḥwt-Ḥr)',
-  'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ)',
-  'Šef-Bedet (Šf-bdt)',
-  'Rekh-Wer (Rḫ-wr)',
-  'Rekh-Nedjes (Rḫ-nḏs)',
-  'Renwet (Rnnwt)',
-  'Hnsw (Ḥnsw)',
-  'Ḥenti-ḥet (Ḥnt-ḥtj)',
-  'Pa-Ipi (Ỉpt-ḥmt)',
-  'Mesut-Ra (Mswt-Rꜥ)',
-];
+// Removed - use getMonthById(m).displayFull instead
 
 /* ═══════════════════════ KEMETIC DATE PICKER ═══════════════════════ */
 
@@ -307,14 +299,11 @@ Future<DateTime?> showKemeticDatePicker({
                           },
                           children: List<Widget>.generate(13, (i) {
                             final m = i + 1;
-                            final label = (m == 13)
-                                ? 'Heriu Renpet (ḥr.w rnpt)'
-                                : _kemeticMonthNames[m];
+                            final label = getMonthById(m).displayFull;
                             return Center(
-                              child: _GlossyText(
-                                text: label,
+                              child: MonthNameText(
+                                label,
                                 style: const TextStyle(fontSize: 14),
-                                gradient: _silverGloss,
                               ),
                             );
                           }),
@@ -431,3 +420,4 @@ Future<DateTime?> showKemeticDatePicker({
     },
   );
 }
+

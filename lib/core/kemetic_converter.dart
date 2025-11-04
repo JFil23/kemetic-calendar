@@ -1,24 +1,17 @@
 import 'package:flutter/material.dart' show DateUtils;
 
 import 'package:intl/intl.dart';
+import 'package:mobile/features/calendar/kemetic_time_constants.dart';
+import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 
 /// Kemetic month numbers 1..12; 0 means epagomenal.
-const kemeticMonths = <int, String>{
-  1: 'Thoth',
-  2: 'Phaophi',
-  3: 'Athyr',
-  4: 'Choiak',
-  5: 'Tybi',
-  6: 'Mechir',
-  7: 'Phamenoth',
-  8: 'Pharmuthi',
-  9: 'Pachons',
-  10: 'Payni',
-  11: 'Epiphi',
-  12: 'Mesore',
-};
+/// Use deprecated shim for backward compatibility (one release cycle)
+@Deprecated('Use getMonthById(id).hellenized - removes in v3.0')
+final kemeticMonths = kemeticMonthsHellenized;
 
-const kemeticSeasonsByMonth = <int, String>{
+// Removed - use getMonthById(id).season instead
+@Deprecated('Use getSeasonName(id) - removes in v3.0')
+final kemeticSeasonsByMonth = <int, String>{
   1: 'Akhet', 2: 'Akhet', 3: 'Akhet', 4: 'Akhet',
   5: 'Peret', 6: 'Peret', 7: 'Peret', 8: 'Peret',
   9: 'Shemu', 10: 'Shemu', 11: 'Shemu', 12: 'Shemu',
@@ -31,8 +24,7 @@ const seasonMeaning = <String, String>{
   'Shemu': 'Low Water — harvest season.',
 };
 
-/// Epoch: Kemetic Y1 D1 = 2025-03-20 (local midnight).
-final DateTime kemeticEpochLocal = DateTime(2025, 3, 20);
+// Removed - now using centralized kKemeticEpochUtc from kemetic_time_constants.dart
 
 class KemeticDate {
   final int year;
@@ -47,27 +39,28 @@ class KemeticDate {
     required this.epagomenal,
   });
 
-  String get monthName => epagomenal ? 'Epagomenal' : kemeticMonths[month]!;
-  String? get season => epagomenal ? null : kemeticSeasonsByMonth[month];
+  String get monthName => epagomenal ? 'Epagomenal' : getMonthById(month).hellenized;
+  String? get season => epagomenal ? null : getSeasonName(month);
 
   @override
   String toString() {
     if (epagomenal) {
       return 'Kemetic Y$year • Epagomenal Day $day';
     }
-    return 'Kemetic Y$year • ${kemeticMonths[month]} $day'
+    return 'Kemetic Y$year • ${getMonthById(month).hellenized} $day'
         '${season != null ? " (${season})" : ""}';
   }
 }
 
 class KemeticConverter {
   KemeticConverter({DateTime? epochLocal})
-      : _epochLocal = DateUtils.dateOnly(epochLocal ?? kemeticEpochLocal);
+      : _epochLocal = toUtcDateOnly(epochLocal ?? kKemeticEpochUtc);
 
   final DateTime _epochLocal;
 
   KemeticDate fromGregorian(DateTime localDate) {
-    final d = DateUtils.dateOnly(localDate);
+    // FIXED: Normalize to UTC first to avoid DST issues
+    final d = toUtcDateOnly(localDate);
     int days = _daysBetween(_epochLocal, d);
 
     int kYear = 1;
@@ -103,26 +96,50 @@ class KemeticConverter {
   }
 
   DateTime toGregorianMidnight(KemeticDate kd) {
-    DateTime start = _epochLocal;
+    // FIXED: Compute using integer arithmetic, then convert to UTC
+    int totalDays = 0;
     int y = 1;
+    DateTime start = _epochLocal;
+    
     if (kd.year >= 1) {
       while (y < kd.year) {
-        final len = _kemeticYearLength(start);
-        start = start.add(Duration(days: len));
+        totalDays += _kemeticYearLength(start);
+        start = start.add(Duration(days: _kemeticYearLength(start)));
         y++;
       }
     } else {
       while (y > kd.year) {
         start = _prevKemeticYearStart(start);
+        totalDays -= _kemeticYearLength(start);
         y--;
       }
     }
+    
     final offset = kd.month == 0
         ? 360 + (kd.day - 1)
         : (kd.month - 1) * 30 + (kd.day - 1);
-    return start.add(Duration(days: offset));
+    totalDays += offset;
+    
+    return utcFromEpochDay(epochDayFromUtc(_epochLocal) + totalDays);
   }
 
+  /// LEAP LOGIC & NEW-YEAR DRIFT (gregorian-based)
+  ///
+  /// We add a 6th epagomenal day when the GREGORIAN year containing
+  /// days 361–365 is leap. That makes the Kemetic year length 366.
+  /// Consequence: the next Kemetic New Year shifts forward by 1 day.
+  ///
+  /// Example (Pacific, from our epoch):
+  ///   Y1 start 2025-03-20
+  ///   Y2 start 2026-03-20
+  ///   Y3 start 2027-03-20  (leap → Epi-6 on 2028-03-20)
+  ///   Y4 start 2028-03-21  (shifted)
+  ///   Y5 start 2029-03-21
+  ///   Y6 start 2030-03-21
+  ///   Y7 start 2031-03-21  (leap → Epi-6 on 2032-03-21)
+  ///   Y8 start 2032-03-22  (shifted again)
+  ///
+  /// This intentionally follows Gregorian leap years (not a fixed 4-year Kemetic cycle).
   int _kemeticYearLength(DateTime kYearStartLocal) {
     final epagomenalStart = kYearStartLocal.add(const Duration(days: 360));
     final gYear = epagomenalStart.year;
@@ -142,8 +159,8 @@ class KemeticConverter {
   }
 
   static int _daysBetween(DateTime a, DateTime b) {
-    final da = DateUtils.dateOnly(a);
-    final db = DateUtils.dateOnly(b);
+    final da = toUtcDateOnly(a);
+    final db = toUtcDateOnly(b);
     return db.difference(da).inDays;
   }
 }
@@ -156,7 +173,7 @@ String formatKemeticToday({DateTime? todayLocal, KemeticConverter? conv}) {
   if (kd.epagomenal) {
     return 'Y${kd.year} • Epagomenal Day ${kd.day}';
   }
-  final monthName = kemeticMonths[kd.month]!;
-  final season = kemeticSeasonsByMonth[kd.month]!;
+  final monthName = getMonthById(kd.month).hellenized;
+  final season = getSeasonName(kd.month);
   return 'Y${kd.year} • $monthName ${kd.day} • $season';
 }

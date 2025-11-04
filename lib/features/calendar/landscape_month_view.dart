@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart'; // For KemeticMath
 import '../sharing/share_flow_sheet.dart';
+import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 
 // ========================================
 // MAIN LANDSCAPE MONTH VIEW WIDGET
@@ -165,6 +166,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
       key: ValueKey('landscape-pager-${widget.initialKy}-${widget.initialKm}-${widget.onAddNote?.hashCode ?? "null"}'),
       controller: _pageController,
       scrollDirection: Axis.horizontal,
+      physics: const PageScrollPhysics(), // ✅ Enable page swiping with snap-to-page
       itemBuilder: (context, index) {
         final month = _monthForPage(index);
         
@@ -378,7 +380,14 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
             tooltip: 'Flow Studio',
             icon: const Icon(Icons.view_timeline, color: _gold),
             padding: const EdgeInsets.symmetric(horizontal: 4), // 🔧 Reduced padding
-            onPressed: widget.onManageFlows != null ? () => widget.onManageFlows!(null) : null,
+            onPressed: widget.onManageFlows != null
+                ? () {
+                    if (kDebugMode) {
+                      print('🔘 [LANDSCAPE] Flow Studio button tapped');
+                    }
+                    widget.onManageFlows!(null);
+                  }
+                : null,
           ),
           // Add note button
           IconButton(
@@ -387,18 +396,38 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             onPressed: widget.onAddNote != null
                 ? () {
+                    if (kDebugMode) {
+                      print('🔘 [LANDSCAPE] Add Note button tapped');
+                    }
                     final now = DateTime.now();
                     final today = KemeticMath.fromGregorian(now);
                     final kd = (widget.kYear == today.kYear && widget.kMonth == today.kMonth) 
                         ? today.kDay 
                         : 1;
+                    
+                    // ⚠️ Sacred day awareness: Month 13 (Heriu Renpet) is epagomenal
+                    if (widget.kMonth == 13) {
+                      if (kDebugMode) {
+                        print('⚠️  [LANDSCAPE] Creating note in sacred Month 13 (Heriu Renpet)');
+                        print('   Day: $kd');
+                        print('   Consider: Are mundane notes appropriate on sacred days?');
+                      }
+                    }
+                    
                     widget.onAddNote!(widget.kYear, widget.kMonth, kd);
                   }
                 : null,
           ),
           // Today button
           TextButton(
-            onPressed: widget.onJumpToToday,
+            onPressed: widget.onJumpToToday != null
+                ? () {
+                    if (kDebugMode) {
+                      print('🔘 [LANDSCAPE] Today button tapped');
+                    }
+                    widget.onJumpToToday!();
+                  }
+                : null,
             child: const Text(
               'Today',
               style: TextStyle(
@@ -484,6 +513,7 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
               child: SingleChildScrollView(
                 controller: _hGrid,
                 scrollDirection: Axis.horizontal,
+                physics: const ClampingScrollPhysics(), // ✅ Prevent gesture conflicts with PageView
                 child: SizedBox(
                   width: gridW,
                   height: gridH,
@@ -542,7 +572,8 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
                     today.kDay == day;
 
     // Get Gregorian date
-    final gregorianDate = KemeticMath.toGregorian(widget.kYear, widget.kMonth, day);
+    // FIXED: Convert UTC result to local at noon to avoid DST issues
+    final gregorianDate = safeLocalDisplay(KemeticMath.toGregorian(widget.kYear, widget.kMonth, day));
 
     return Container(
       width: colW,

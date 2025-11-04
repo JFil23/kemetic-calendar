@@ -26,6 +26,9 @@ import '../ai_generation/ai_flow_generation_modal.dart';
 import '../../services/ai_flow_generation_service.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile/features/calendar/kemetic_time_constants.dart';
+import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
+import 'package:mobile/widgets/month_name_text.dart';
 
 
 
@@ -119,7 +122,7 @@ As waters spread, temple astronomer-priests rose before dawn to watch Sopdet's (
 As the architect of cosmic measure, Thoth counts the days, names the stars, and fixes the span of the gods themselves. When creation first stirred and Ra's words set the world alight, Thoth recorded the command. He did not speak creation — he remembered it. His writing preserved the pattern of Maʿat so that time could repeat without decay. Thoth's month began with careful thought: the mind setting the tone for a balanced year.
 ''',
   2: '''
-Month 2 – Paopi (Pȝ ỉp.t)
+Month 2 – Paopi (Mnḫt)
 If Thoth's month teaches order through understanding, Paopi teaches order through movement. The ancients named this month Paopi; in reflection it bears the title Paopi — the Carrying — for its spirit of motion and renewal. The world has been measured; now it must be carried forward.
 The word mnḫt appears in Old Kingdom agricultural records and means “to bring” or “to carry.” It evokes both the physical act of transport — bearing the first loads of mud and seed — and the spiritual duty of carrying Maʿat forward into the year.
 The Nile, still full from the southern rains, moved like a goddess in motion — Hapi herself — and humanity’s task was to join her current, not resist it.
@@ -527,7 +530,7 @@ Set<int> _emptySet() => <int>{};
 
 class KemeticMath {
   // Epoch anchored to *local midnight*: Toth 1, Year 1 = 2025-03-20 (local).
-  static final DateTime _epoch = DateTime(2025, 3, 20);
+  static final DateTime _epoch = kKemeticEpochUtc;  // UTC epoch from constants
 
   // Repeating 4-year cycle lengths starting at Year 1: [365, 365, 366, 365]
   static const List<int> _cycle = [365, 365, 366, 365];
@@ -560,8 +563,10 @@ class KemeticMath {
   }
 
   static ({int kYear, int kMonth, int kDay}) fromGregorian(DateTime gLocal) {
-    final g = DateUtils.dateOnly(gLocal);
-    final diff = g.difference(_epoch).inDays;
+    // FIXED: Normalize to UTC noon first to avoid DST gaps/ambiguities
+    final gUtcNoon = DateTime.utc(gLocal.year, gLocal.month, gLocal.day, 12);
+    final g = toUtcDateOnly(gUtcNoon);
+    final diff = epochDayFromUtc(g);
 
     if (diff >= 0) {
       int kYear = 1;
@@ -630,11 +635,12 @@ class KemeticMath {
       if (kDay < 1 || kDay > 30) throw ArgumentError('kDay 1..30');
     }
 
+    // FIXED: Use integer epoch-day arithmetic for clarity and robustness
     final base = _daysBeforeYear(kYear);
     final dayIndex =
-    (kMonth == 13) ? (360 + (kDay - 1)) : ((kMonth - 1) * 30 + (kDay - 1));
-    final days = base + dayIndex;
-    return _epoch.add(Duration(days: days));
+        (kMonth == 13) ? (360 + (kDay - 1)) : ((kMonth - 1) * 30 + (kDay - 1));
+    final epochDays = base + dayIndex;
+    return utcFromEpochDay(epochDays);
   }
 
   static bool isLeapKemeticYear(int kYear) => _mod(kYear - 1, 4) == 2;
@@ -1864,7 +1870,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   String _monthLabel(int kMonth) =>
-      kMonth == 13 ? 'Heriu Renpet (ḥr.w rnpt)' : _MonthCard.monthNames[kMonth];
+      getMonthById(kMonth).displayFull;
 
   /* ───── TODAY snap/center ───── */
 
@@ -1944,7 +1950,7 @@ class _CalendarPageState extends State<CalendarPage> {
       context: context,
       delegate: _EventSearchDelegate(
         notes: _notes,
-        monthName: (km) => km == 13 ? 'Heriu Renpet (ḥr.w rnpt)' : _MonthCard.monthNames[km],
+        monthName: (km) => getMonthById(km).displayFull,
         gregYearLabelFor: _gregYearLabelFor,
         openDay: (ky, km, kd) {
           Navigator.of(context).pop(); // dismiss search
@@ -2724,10 +2730,7 @@ class _CalendarPageState extends State<CalendarPage> {
     }
 
     // Get month name function
-    final getMonthName = (int km) {
-      if (km == 13) return 'Heriu Renpet (ḥr.w rnpt)';
-      return _MonthCard.monthNames[km] ?? 'Month $km';
-    };
+    final getMonthName = (int km) => getMonthById(km).displayFull;
 
     // Navigate to Day View
     UiGuards.disableJournalSwipe();
@@ -2956,9 +2959,7 @@ class _CalendarPageState extends State<CalendarPage> {
                             },
                             children: List<Widget>.generate(13, (i) {
                               final m = i + 1;
-                              final label = (m == 13)
-                                  ? 'Heriu Renpet (ḥr.w rnpt)'
-                                  : _MonthCard.monthNames[m];
+                              final label = getMonthById(m).displayFull;
                               return Center(
                                 child: _GlossyText(
                                   text: label,
@@ -4006,10 +4007,7 @@ class _CalendarPageState extends State<CalendarPage> {
           )).toList();
         },
         flowIndex: _buildFlowIndex(),
-        getMonthName: (km) {
-          if (km == 13) return 'Heriu Renpet (ḥr.w rnpt)';
-          return _MonthCard.monthNames[km] ?? 'Month $km';
-        },
+        getMonthName: (km) => getMonthById(km).displayFull,
         onManageFlows: _getFlowStudioCallback(),
         onAddNote: (ky, km, kd) {
           if (kDebugMode) {
@@ -4461,21 +4459,7 @@ class _MonthCard extends StatelessWidget {
     this.onDecanTap,
   });
 
-  static const monthNames = [
-    '',
-    'Thoth (Ḏḥwty)',
-    'Paopi (Pȝ ỉp.t)',
-    'Hathor (Ḥwt-Ḥr)',
-    'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ)',
-    'Šef-Bedet (Šf-bdt)',
-    'Rekh-Wer (Rḫ-wr)',
-    'Rekh-Nedjes (Rḫ-nḏs)',
-    'Renwet (Rnnwt)',
-    'Hnsw (Ḥnsw)',
-    'Ḥenti-ḥet (Ḥnt-ḥtj)',
-    'Pa-Ipi (ỉpt-ḥmt)',
-    'Mesut-Ra (Mswt-Rꜥ)',
-  ];
+  // monthNames removed - use getMonthById(kMonth).displayFull instead
 
   static const Map<int, List<String>> decans = {
     1: ['ṯmꜣt ḥrt', 'ṯmꜣt ẖrt', 'wšꜣty bkꜣty'],
@@ -4579,10 +4563,9 @@ class _MonthCard extends StatelessWidget {
                         _openMonthInfo(context);
                       }
                     },
-                    child: _GlossyText(
-                      text: monthNames[kMonth],
+                    child: MonthNameText(
+                      getMonthById(kMonth).displayFull,
                       style: _monthTitleGold,
-                      gradient: _goldGloss,
                     ),
                   ),
                   const Spacer(),
@@ -4694,15 +4677,22 @@ int filteredNoteCountForDay({
 
 /// Helper function to generate Kemetic day keys for the info dropdown
 String _getKemeticDayKey(int kYear, int kMonth, int kDay) {
-  final monthNames = [
-    '', // 0-indexed, unused
-    'thoth', 'paophi', 'hathor', 'kaherka', 'sefbedet', 'rekhwer', 
-    'rekhnedjes', 'renwet', 'hnsw', 'hentihet', 'paipi', 'mesutra'
-  ];
-  
-  if (kMonth < 1 || kMonth > 12) return 'unknown_${kDay}_$kYear';
-  
-  return '${monthNames[kMonth]}_${kDay}_$kYear';
+  // Use stable keys from metadata
+
+  // Safety fallback if somehow we're out of normal 1–13 range
+  if (kMonth < 1 || kMonth > 13) {
+    return 'unknown_${kDay}_$kYear';
+  }
+
+  // decan math:
+  // days 1–10   → decan 1
+  // days 11–20  → decan 2
+  // days 21–30  → decan 3
+  final decan = ((kDay - 1) ~/ 10) + 1;
+
+  // final key format must match kemetic_day_info.dart exactly
+  // e.g. thoth_11_2
+  return '${getMonthById(kMonth).key}_${kDay}_$decan';
 }
 
 
@@ -4758,13 +4748,14 @@ class _DecanRow extends StatelessWidget {
         }
 
         final label = showGregorian
-            ? '${KemeticMath.toGregorian(kYear, kMonth, day).day}'
+            ? '${safeLocalDisplay(KemeticMath.toGregorian(kYear, kMonth, day)).day}'
             : '$day';
 
         return Expanded(
           child: Padding(
             padding: EdgeInsets.only(right: j == 9 ? 0 : 6),
             child: _DayChip(
+              key: ValueKey('k:$kYear-$kMonth-$day|${showGregorian ? "G" : "K"}'), // 🔑 Unique key with mode
               anchorKey: isToday ? todayDayKey : null, // 🔑 attach
               label: label,
               isToday: isToday,
@@ -4792,6 +4783,7 @@ class _DayChip extends StatelessWidget {
   final String dayKey;
 
   const _DayChip({
+    super.key,  // Add key parameter
     required this.label,
     required this.isToday,
     required this.noteCount,
@@ -5058,7 +5050,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
   @override
   Widget build(BuildContext context) {
     final infoTitle = _currentDecanIndex == null
-        ? _MonthCard.monthNames[widget.kMonth]
+        ? getMonthById(widget.kMonth).displayFull
         : _MonthCard.decans[widget.kMonth]![_currentDecanIndex!];
 
     final infoBody = _currentDecanIndex == null
@@ -5439,7 +5431,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   String _fmtKemetic(DateTime? g) {
     if (g == null) return '--';
     final k = KemeticMath.fromGregorian(g);
-    final month = (k.kMonth == 13) ? 'Heriu Renpet (ḥr.w rnpt)' : _MonthCard.monthNames[k.kMonth];
+    final month = getMonthById(k.kMonth).displayFull;
     final y = _gregYearLabelFor(k.kYear, k.kMonth);
     return '$month ${k.kDay} • $y';
   }
@@ -5487,7 +5479,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             key: d.key,
             isPattern: false,
             header:
-            '${d.km == 13 ? 'Heriu Renpet (ḥr.w rnpt)' : _MonthCard.monthNames[d.km]} ${d.kd}  •  ${_fmtGregorian(d.g)}',
+            '${getMonthById(d.km).displayFull} ${d.kd}  •  ${_fmtGregorian(d.g)}',
             days: [d],
           )
       ];
@@ -5664,7 +5656,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       final inDec = ((k.kDay - 1) % 10) + 1; // 1..10
       final key = '${k.kYear}-${k.kMonth}-$di';
       kem.putIfAbsent(key, () {
-        final monthName = _MonthCard.monthNames[k.kMonth];
+        final monthName = getMonthById(k.kMonth).displayFull;
         final diName =
         (_MonthCard.decans[k.kMonth] ?? const ['A', 'B', 'C'])[di];
         return _KemeticDecanSpan(
@@ -6010,9 +6002,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                             },
                             children: List<Widget>.generate(13, (i) {
                               final m = i + 1;
-                              final label = (m == 13)
-                                  ? 'Heriu Renpet (ḥr.w rnpt)'
-                                  : _MonthCard.monthNames[m];
+                              final label = getMonthById(m).displayFull;
                               return Center(
                                 child: _GlossyText(
                                   text: label,
@@ -7928,7 +7918,7 @@ class _FlowPreviewPage extends StatelessWidget {
           if (k.kMonth == 13) continue; // skip epagomenal
           final di = ((k.kDay - 1) ~/ 10); // 0..2
           final inDec = ((k.kDay - 1) % 10) + 1;
-          final name = '${_MonthCard.monthNames[k.kMonth]} • ${getDecanLabel(k.kMonth, di)}';
+          final name = '${getMonthById(k.kMonth).displayFull} • ${getDecanLabel(k.kMonth, di)}';
           (map[name] ??= <int>[]).add(inDec);
         }
         final keys = map.keys.toList()..sort();
@@ -8626,7 +8616,7 @@ class _MaatFlowTemplateDetailPageState extends State<_MaatFlowTemplateDetailPage
     final yStart = KemeticMath.toGregorian(k.kYear, k.kMonth, 1).year;
     final yEnd   = KemeticMath.toGregorian(k.kYear, k.kMonth, lastDay).year;
     final yLabel = (yStart == yEnd) ? '$yStart' : '$yStart/$yEnd';
-    final month = (k.kMonth == 13) ? 'Heriu Renpet (ḥr.w rnpt)' : _MonthCard.monthNames[k.kMonth];
+    final month = getMonthById(k.kMonth).displayFull;
     return '$month ${k.kDay} • $yLabel';
   }
 
@@ -8804,10 +8794,9 @@ class _MaatFlowTemplateDetailPageState extends State<_MaatFlowTemplateDetailPage
                       children: List.generate(13, (i) {
                         final m = i + 1;
                         return Center(
-                          child: _GlossyText(
-                            text: (m == 13) ? 'Heriu Renpet (ḥr.w rnpt)' : _MonthCard.monthNames[m],
+                          child: MonthNameText(
+                            getMonthById(m).displayFull,
                             style: const TextStyle(fontSize: 14),
-                            gradient: _silverGloss,
                           ),
                         );
                       }),
