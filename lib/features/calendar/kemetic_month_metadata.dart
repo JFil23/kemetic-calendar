@@ -285,7 +285,7 @@ const List<KemeticMonth> kKemeticMonths = [
     season: KemeticSeason.shemu,
     searchAliases: [
       'Pa-Ipi', 'Paipi', 'ỉpt-ḥmt', 'Ipet-hemet', 'Epiphi',
-      'Pȝ ỉp.t', 'Pa ip.t', 'Pa-ipt', 'Paipt',
+      'Pȝ ỉp.t', 'Pa ip.t', 'Pa-ipt', 'Paipt', 'ipt',
     ],
   ),
   
