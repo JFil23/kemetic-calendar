@@ -1,0 +1,1583 @@
+import 'package:flutter/material.dart';
+
+/// Model for Kemetic day information
+class KemeticDayInfo {
+  final String gregorianDate;
+  final String kemeticDate;
+  final String season;
+  final String month;
+  final String decanName;
+  final String starCluster;
+  final String maatPrinciple;
+  final String cosmicContext;
+  final List<DecanDayInfo> decanFlow;
+  final MeduNeterKey meduNeter;
+
+  KemeticDayInfo({
+    required this.gregorianDate,
+    required this.kemeticDate,
+    required this.season,
+    required this.month,
+    required this.decanName,
+    required this.starCluster,
+    required this.maatPrinciple,
+    required this.cosmicContext,
+    required this.decanFlow,
+    required this.meduNeter,
+  });
+}
+
+class DecanDayInfo {
+  final int day;
+  final String theme;
+  final String action;
+  final String reflection;
+
+  DecanDayInfo({
+    required this.day,
+    required this.theme,
+    required this.action,
+    required this.reflection,
+  });
+}
+
+class MeduNeterKey {
+  final String glyph;
+  final String colorFrequency;
+  final String mantra;
+
+  MeduNeterKey({
+    required this.glyph,
+    required this.colorFrequency,
+    required this.mantra,
+  });
+}
+
+/// Sample data for Day 11 (Renwet II, Day 1)
+class KemeticDayData {
+  static final Map<String, KemeticDayInfo> dayInfoMap = {
+    // ==========================================================
+    // 🌞 THOTH I — DAYS 1–10  (Month of Divine Order & Rebirth)
+    // ==========================================================
+    'thoth_1_1': KemeticDayInfo(
+      gregorianDate: 'March 20, 2025',
+      kemeticDate: 'Thoth I – Day 1',
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+      starCluster: '✨ Sopdet (Sirius) — herald of the sacred new year',
+      maatPrinciple: 'Truth & Right Speech — the spoken word as cosmic law',
+      cosmicContext: '''
+This is the first breath of the Kemetic year.
+The rising of Sopdet marks renewal: flood, fertility, order returning.
+Today's words are not casual — they are vows.
+To speak truth now is to write the law of your year.''',
+      decanFlow: [
+        DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+        DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+        DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+        DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+        DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+        DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+        DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+        DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+        DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+        DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+      ],
+      meduNeter: MeduNeterKey(
+        glyph: '𓂀 (Eye of Djehuty) — sacred sight, truthful witnessing',
+        colorFrequency: 'Deep indigo and silver — clarity emerging from night',
+        mantra: '"My word becomes world."',
+      ),
+    ),
+
+    'thoth_2_1': KemeticDayInfo(
+      gregorianDate: 'March 21, 2025',
+      kemeticDate: 'Thoth I – Day 2',
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Thoth (Djehuty)',
+      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+      starCluster: '✨ Sopdet as herald of renewed order',
+      maatPrinciple: 'Vision in Right Measure — seeing what is sustainable',
+      cosmicContext: '''
+Day 2 clarifies vision.
+You've spoken truth; now you draw its architecture.
+Describe what balance looks and feels like when lived.''',
+      decanFlow: [
+        DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+        DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+        DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+        DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+        DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+        DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+        DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+        DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+        DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+        DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+      ],
+      meduNeter: MeduNeterKey(
+        glyph: '𓏏 (Palette and Reed) — intention becoming design',
+        colorFrequency: 'White over blue — clarity on deep order',
+        mantra: '"I see through Ma\'at\'s measure."',
+      ),
+    ),
+
+    'thoth_3_1': KemeticDayInfo(
+      gregorianDate: 'March 22, 2025',
+      kemeticDate: 'Thoth I – Day 3',
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Thoth (Djehuty)',
+      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+      starCluster: '✨ Sopdet — order after chaos',
+      maatPrinciple: 'Purification Before Building',
+      cosmicContext: '''
+Flood waters leave both fertile silt and debris.
+Day 3 cleans the field before planting.
+Remove habits and clutter that choke growth.''',
+      decanFlow: [
+        DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+        DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+        DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+        DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+        DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+        DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+        DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+        DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+        DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+        DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+      ],
+      meduNeter: MeduNeterKey(
+        glyph: '𓋹 (Ankh) — life-force renewed by clearing',
+        colorFrequency: 'Pale blue and white — rinse, reset',
+        mantra: '"I renew life through clarity."',
+      ),
+    ),
+
+    'thoth_4_1': KemeticDayInfo(
+      gregorianDate: 'March 23, 2025',
+      kemeticDate: 'Thoth I – Day 4',
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Thoth (Djehuty)',
+      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+      starCluster: '✨ Sopdet with Sahu (Orion) as witness of destiny',
+      maatPrinciple: 'Naming as Creation',
+      cosmicContext: '''
+To name is to bind into existence.
+Assign names to your projects and disciplines with clarity —
+so the universe can respond.''',
+      decanFlow: [
+        DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+        DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+        DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+        DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+        DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+        DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+        DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+        DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+        DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+        DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+      ],
+      meduNeter: MeduNeterKey(
+        glyph: '𓏠 (Ink Pot & Reed Pen) — authorship of reality',
+        colorFrequency: 'Cobalt blue and black — script on cosmic backdrop',
+        mantra: '"My words draw the lines of creation."',
+      ),
+    ),
+
+    'thoth_5_1': KemeticDayInfo(
+      gregorianDate: 'March 24, 2025',
+      kemeticDate: 'Thoth I – Day 5',
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Thoth (Djehuty)',
+      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+      starCluster: '✨ Sopdet aligned with Ma\'at\'s balance',
+      maatPrinciple: 'Alignment of Speech and Deed',
+      cosmicContext: '''
+Day 5 is the heart's weighing.
+Compare promise to practice and re-align without shame.
+Integrity keeps the year on course.''',
+      decanFlow: [
+        DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+        DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+        DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+        DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+        DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+        DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+        DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+        DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+        DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+        DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+      ],
+      meduNeter: MeduNeterKey(
+        glyph: '𓂻 (Feet toward the Scales) — walking your talk',
+        colorFrequency: 'Gold on black — truth held to light',
+        mantra: '"I am balanced in truth."',
+      ),
+    ),
+
+    'thoth_6_1': KemeticDayInfo(
+      gregorianDate: 'March 25, 2025',
+      kemeticDate: 'Thoth I – Day 6',
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Thoth (Djehuty)',
+      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+      starCluster: '✨ Sopdet joined by supportive lights',
+      maatPrinciple: 'Right Exchange / Sacred Reciprocity',
+      cosmicContext: '''
+Energy must circulate.
+Offer something today — service, gratitude, art.
+Giving keeps Ma\'at\'s current alive.''',
+      decanFlow: [
+        DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+        DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+        DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+        DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+        DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+        DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+        DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+        DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+        DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+        DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+      ],
+      meduNeter: MeduNeterKey(
+        glyph: '𓋴 (Ka in motion) — energy extended outward',
+        colorFrequency: 'Deep gold / warm copper — circulation',
+        mantra: '"My offering sustains the balance."',
+      ),
+    ),
+
+    'thoth_7_1': KemeticDayInfo(
+      gregorianDate: 'March 26, 2025',
+      kemeticDate: 'Thoth I – Day 7',
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Thoth (Djehuty)',
+      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+      starCluster: '✨ Sopdet behind the veil — listening phase',
+      maatPrinciple: 'Purity / Quieting Interference',
+      cosmicContext: '''
+The river settles; clarity returns.
+Fast, bathe, or enter silence.
+Stillness separates signal from noise.''',
+      decanFlow: [
+        DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+        DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+        DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+        DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+        DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+        DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+        DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+        DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+        DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+        DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+      ],
+      meduNeter: MeduNeterKey(
+        glyph: '𓈖 (Water ripple) — calm surface, depth below',
+        colorFrequency: 'Blue-white — rinsed and quiet',
+        mantra: '"In stillness I return to Ma\'at."',
+      ),
+    ),
+
+    'thoth_8_1': KemeticDayInfo(
+      gregorianDate: 'March 27, 2025',
+      kemeticDate: 'Thoth I – Day 8',
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Thoth (Djehuty)',
+      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+      starCluster: '✨ Sopdet\'s light becomes inner guidance',
+      maatPrinciple: 'Receiving Wisdom',
+      cosmicContext: '''
+From silence comes message.
+Listen for truth that feels like recognition, not novelty.
+Write it down — your year is speaking.''',
+      decanFlow: [
+        DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+        DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+        DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+        DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+        DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+        DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+        DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+        DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+        DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+        DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+      ],
+      meduNeter: MeduNeterKey(
+        glyph: '𓅓 (Ibis of Djehuty) — divine intellect',
+        colorFrequency: 'Pearl gray — moonlit logic',
+        mantra: '"I hear the language of light."',
+      ),
+    ),
+
+    'thoth_9_1': KemeticDayInfo(
+      gregorianDate: 'March 28, 2025',
+      kemeticDate: 'Thoth I – Day 9',
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Thoth (Djehuty)',
+      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+      starCluster: '✨ Sopdet guides motion into reality',
+      maatPrinciple: 'Action in Harmony',
+      cosmicContext: '''
+Take one physical act that matches your intention.
+Small motion anchors spirit into timeline.''',
+      decanFlow: [
+        DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+        DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+        DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+        DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+        DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+        DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+        DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+        DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+        DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+        DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+      ],
+      meduNeter: MeduNeterKey(
+        glyph: '𓂧 (Hand in act) — will translated into deed',
+        colorFrequency: 'Bronze — living will in motion',
+        mantra: '"I move as truth moves."',
+      ),
+    ),
+
+    'thoth_10_1': KemeticDayInfo(
+      gregorianDate: 'March 29, 2025',
+      kemeticDate: 'Thoth I – Day 10',
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Thoth (Djehuty)',
+      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+      starCluster: '✨ Sopdet stabilizing — first cycle complete',
+      maatPrinciple: 'Completion with Gratitude',
+      cosmicContext: '''
+Close the first cycle with thanks.
+Gratitude seals the container so your energy doesn't leak.
+Witness what you've built in ten days.''',
+      decanFlow: [
+        DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+        DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+        DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+        DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+        DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+        DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+        DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+        DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+        DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+        DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+      ],
+      meduNeter: MeduNeterKey(
+        glyph: '𓏞 (Rolled papyrus) — sealed decree',
+        colorFrequency: 'Gold on ivory — sacred contract formalized',
+        mantra: '"I seal truth with gratitude."',
+      ),
+    ),
+
+    'renwet_11_1': KemeticDayInfo(
+      gregorianDate: 'October 26, 2025',
+      kemeticDate: 'Renwet II, Day 1 (Day 11 of Renwet)',
+      season: '🌾 Peret – Season of Emergence',
+      month: 'Renwet (Month of Fertility and Growth)',
+      decanName: 'Khery Heped en Renwet ("The Follower of Renwet\'s Offering")',
+      starCluster: '✨ Likely linked to Orion\'s Belt (aligned with early Peret decans as Sahu rises higher).',
+      maatPrinciple: 'Reciprocity / Right Exchange — what you give returns, and what you withhold decays.',
+      cosmicContext: '''You're in the middle current of the Year of Djehuty — the season when Renwet's blessings (abundance, fertility, renewal) are converted into sustainable order.
+
+This decan's light emerges after the initial burst of new life — it's about directing growth toward purpose.
+
+• Solar phase: The Sun sits in Libra–Scorpio transition — balance giving way to transformation.
+
+• Cosmic mirror: As Orion climbs and Sirius recedes, it's time to balance inner offerings (discipline, generosity) with outer work (structure, creation).''',
+      decanFlow: [
+        DecanDayInfo(
+          day: 11,
+          theme: 'Offering Begins',
+          action: 'Dedicate your current project to something beyond self.',
+          reflection: '"Who benefits from my effort?"',
+        ),
+        DecanDayInfo(
+          day: 12,
+          theme: 'Exchange',
+          action: 'Trade or share an idea/resource.',
+          reflection: '"What flows because I gave?"',
+        ),
+        DecanDayInfo(
+          day: 13,
+          theme: 'Circulation',
+          action: 'Movement or travel; stretch your field.',
+          reflection: '"What did I learn from contact?"',
+        ),
+        DecanDayInfo(
+          day: 14,
+          theme: 'Refinement',
+          action: 'Edit, polish, or temper excess.',
+          reflection: '"What strengthens through restraint?"',
+        ),
+        DecanDayInfo(
+          day: 15,
+          theme: 'Balance Check',
+          action: 'Rest or fast; observe silence.',
+          reflection: '"Where am I overspending energy?"',
+        ),
+        DecanDayInfo(
+          day: 16,
+          theme: 'Reconnection',
+          action: 'Meet, call, or honor others.',
+          reflection: '"Who restores my alignment?"',
+        ),
+        DecanDayInfo(
+          day: 17,
+          theme: 'Recommitment',
+          action: 'Renew an oath, plan, or ritual.',
+          reflection: '"What deserves another push?"',
+        ),
+        DecanDayInfo(
+          day: 18,
+          theme: 'Abundance Flow',
+          action: 'Accept prosperity or recognition gracefully.',
+          reflection: '"How do I receive with Ma\'at?"',
+        ),
+        DecanDayInfo(
+          day: 19,
+          theme: 'Return Offering',
+          action: 'Give back again; a loop completes.',
+          reflection: '"How can I close this exchange?"',
+        ),
+        DecanDayInfo(
+          day: 20,
+          theme: 'Transition',
+          action: 'Prepare for the next decan.',
+          reflection: '"What lesson is ready to move forward?"',
+        ),
+      ],
+      meduNeter: MeduNeterKey(
+        glyph: '𓂓 (Ka in motion) — symbolizes the act of extending energy outward in rightful proportion.',
+        colorFrequency: 'Deep gold or warm copper (energy in movement).',
+        mantra: '"My offering sustains the balance."',
+      ),
+    ),
+  };
+
+  static KemeticDayInfo? getInfoForDay(String dayKey) {
+    return dayInfoMap[dayKey];
+  }
+}
+
+/// Dropdown card widget for displaying Kemetic day information
+class KemeticDayDropdown extends StatelessWidget {
+  final KemeticDayInfo dayInfo;
+  final VoidCallback onClose;
+
+  const KemeticDayDropdown({
+    Key? key,
+    required this.dayInfo,
+    required this.onClose,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = screenWidth > 600 ? 500.0 : screenWidth * 0.85;
+    
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: cardWidth,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        decoration: BoxDecoration(
+          color: const Color(0xFF000000), // True black background
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFFC9A961), // Richer gold border
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.5),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header with close button
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF000000), // True black header
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+                border: const Border(
+                  bottom: BorderSide(
+                    color: Color(0xFFC9A961), // Richer gold divider
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '☀️ Kemetic Date Alignment',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFC9A961), // Richer gold color
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Color(0xFFC9A961)),
+                    onPressed: onClose,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+            // Scrollable content
+            Flexible(
+              child: Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildInfoSection('Gregorian Date:', dayInfo.gregorianDate),
+                      _buildInfoSection('Kemetic Date:', dayInfo.kemeticDate),
+                      _buildInfoSection('Season:', dayInfo.season),
+                      _buildInfoSection('Month:', dayInfo.month),
+                      _buildInfoSection('Decan Name:', dayInfo.decanName),
+                      _buildInfoSection('Star Cluster:', dayInfo.starCluster),
+                      _buildInfoSection('Ma\'at Principle:', dayInfo.maatPrinciple),
+                      const SizedBox(height: 20),
+                      _buildSectionHeader('△ Cosmic Context'),
+                      const SizedBox(height: 8),
+                      Text(
+                        dayInfo.cosmicContext,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFFCCCCCC),
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildSectionHeader('▽ Decan Flow'),
+                      const SizedBox(height: 12),
+                      _buildDecanFlowTable(context),
+                      const SizedBox(height: 24),
+                      _buildSectionHeader('▽ Medu Neter Key'),
+                      const SizedBox(height: 12),
+                      _buildMeduNeterSection(context),
+                      const SizedBox(height: 8), // Bottom padding
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoSection(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
+          children: [
+            TextSpan(
+              text: '$label ',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFC9A961), // Richer gold for labels
+              ),
+            ),
+            TextSpan(text: value),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFFC9A961), // Richer gold
+      ),
+    );
+  }
+
+  Widget _buildDecanFlowTable(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFF3A3A3A)),
+        borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFF000000), // True black background
+      ),
+      child: Column(
+        children: dayInfo.decanFlow.map((day) {
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: const Color(0xFF3A3A3A),
+                  width: day == dayInfo.decanFlow.last ? 0 : 1,
+                ),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  child: Text(
+                    'Day ${day.day}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFC9A961), // Richer gold
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        day.theme,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        day.action,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFFCCCCCC),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        day.reflection,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.7),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildMeduNeterSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
+              children: [
+                const TextSpan(
+                  text: '• Glyph: ',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFC9A961), // Richer gold
+                  ),
+                ),
+                TextSpan(text: dayInfo.meduNeter.glyph),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
+              children: [
+                const TextSpan(
+                  text: '• Color Frequency: ',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFC9A961), // Richer gold
+                  ),
+                ),
+                TextSpan(text: dayInfo.meduNeter.colorFrequency),
+              ],
+            ),
+          ),
+        ),
+        RichText(
+          text: TextSpan(
+            style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
+            children: [
+              const TextSpan(
+                text: '• Mantra: ',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFC9A961), // Richer gold
+                ),
+              ),
+              TextSpan(text: dayInfo.meduNeter.mantra),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Controller/Service for managing the dropdown overlay
+    gregorianDate: 'March 21, 2025',
+    kemeticDate: 'Thoth I, Day 2 (Day 2 of Thoth)',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+    starCluster: '✨ Sopdet (Sirius) as herald of renewed order; the royal announcer of cycles',
+    maatPrinciple: 'Vision in Right Measure — seeing not just what you want, but what is sustainable',
+    cosmicContext: '''
+Day 2 is vision work. Yesterday you spoke. Today you shape what that truth actually looks like when it's lived.
+
+This is where fantasy gets cut away and real architecture begins. You're not dreaming "some day." You're describing balanced life in sensory detail: how you wake, how you earn, how you love, how you restore.
+
+The more precise you are, the more gravitational pull this vision has.
+''',
+    decanFlow: [
+      DecanDayInfo(
+        day: 1,
+        theme: 'Genesis of Speech',
+        action: 'Speak your intention for the year clearly — out loud or written.',
+        reflection: '"What truth am I willing to build upon?"',
+      ),
+      DecanDayInfo(
+        day: 2,
+        theme: 'Vision Declared',
+        action: 'Map the image of what balance looks like for you.',
+        reflection: '"How does my life look when it is aligned?"',
+      ),
+      DecanDayInfo(
+        day: 3,
+        theme: 'Foundation of Order',
+        action: 'Cleanse your space; remove what contradicts your new truth.',
+        reflection: '"What must be cleared to make way?"',
+      ),
+      DecanDayInfo(
+        day: 4,
+        theme: 'Naming Power',
+        action: 'Name your projects, goals, or vows with sacred clarity.',
+        reflection: '"What do I call forth into being?"',
+      ),
+      DecanDayInfo(
+        day: 5,
+        theme: 'Alignment Day',
+        action: 'Perform a Ma\'at ritual — balance the scales of speech and action.',
+        reflection: '"Are my words matching my deeds?"',
+      ),
+      DecanDayInfo(
+        day: 6,
+        theme: 'First Offering',
+        action: 'Give something symbolic to the world (art, gratitude, time, service).',
+        reflection: '"How does giving anchor truth?"',
+      ),
+      DecanDayInfo(
+        day: 7,
+        theme: 'Purification',
+        action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.',
+        reflection: '"What noise needs to quiet for clarity to speak?"',
+      ),
+      DecanDayInfo(
+        day: 8,
+        theme: 'Insight Rising',
+        action: 'Journal or meditate; record what rises without forcing it.',
+        reflection: '"What truth emerges when I listen?"',
+      ),
+      DecanDayInfo(
+        day: 9,
+        theme: 'Order Manifest',
+        action: 'Take one measurable action in line with your declaration.',
+        reflection: '"What is the first visible sign of alignment?"',
+      ),
+      DecanDayInfo(
+        day: 10,
+        theme: 'Completion of Utterance',
+        action: 'Re-read Day 1. Seal it with gratitude and decision.',
+        reflection: '"What cycle have I begun?"',
+      ),
+    ],
+    meduNeter: MeduNeterKey(
+      glyph: '𓏏 (Palette and Reed of the Scribe) — recording, design, intention becoming plan',
+      colorFrequency: 'White over blue — clarity drawn on top of deep order',
+      mantra: '"I see through Ma\'at\'s measure."',
+    ),
+  ),
+
+  'thoth_3_2025': KemeticDayInfo(
+    gregorianDate: 'March 22, 2025',
+    kemeticDate: 'Thoth I, Day 3 (Day 3 of Thoth)',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+    starCluster: '✨ Sopdet (Sirius) — order resurfaces after floodwaters; clarity after chaos',
+    maatPrinciple: 'Purification Before Building',
+    cosmicContext: '''
+You cannot build a temple on rotten ground. Day 3 is about clearing.
+
+In Nile terms: flood leaves behind both rich silt (good) and debris (bad). The farmers of Kemet first removed what would choke crops. Spiritually, same rule.
+
+Anything that contradicts your declared alignment is now identified and removed: habits, clutter, relationships, mental scripts that don't serve balance.
+''',
+    decanFlow: [
+      DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+      DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+      DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+      DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+      DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+      DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+      DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+      DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+      DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+      DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+    ],
+    meduNeter: MeduNeterKey(
+      glyph: '𓋹 (Ankh) — life-force renewed by clearing obstruction',
+      colorFrequency: 'Pale blue and white — rinse, cleanse, reset',
+      mantra: '"I renew life through clarity."',
+    ),
+  ),
+
+  'thoth_4_2025': KemeticDayInfo(
+    gregorianDate: 'March 23, 2025',
+    kemeticDate: 'Thoth I, Day 4 (Day 4 of Thoth)',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+    starCluster: '✨ Sopdet (Sirius) — still the announcer, now paired with Sahu (Orion) as witness of destiny',
+    maatPrinciple: 'Naming as Creation',
+    cosmicContext: '''
+In Kemetic thinking, to name is to bind something into existence.
+
+Day 4 is when you officially assign names: projects, flows, disciplines, even the version of yourself you're stepping into.
+
+Names are containers. When you say "This is my Flow of Rest" or "This is my Wealth Discipline," you're not just labeling — you're defining terms the universe can now respond to.
+''',
+    decanFlow: [
+      DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+      DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+      DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+      DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+      DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+      DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+      DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+      DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+      DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+      DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+    ],
+    meduNeter: MeduNeterKey(
+      glyph: '𓏠 (Ink Pot & Reed Pen) — inscription, naming, authorship of reality',
+      colorFrequency: 'Cobalt blue and matte black — script against cosmic backdrop',
+      mantra: '"My words draw the lines of creation."',
+    ),
+  ),
+
+  'thoth_5_2025': KemeticDayInfo(
+    gregorianDate: 'March 24, 2025',
+    kemeticDate: 'Thoth I, Day 5 (Day 5 of Thoth)',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+    starCluster: '✨ Sopdet aligned with Ma\'at\'s balance — declaration meets accountability',
+    maatPrinciple: 'Alignment of Speech and Deed',
+    cosmicContext: '''
+Day 5 is a balance check. Ma'at isn't just spiritual — it's forensic.
+
+You said who you are. Are you acting like that person?
+
+This is the day to perform a literal or symbolic weighing-of-the-heart: measure promise vs practice. No guilt, just calibration. If you correct on Day 5, you protect the entire year from drifting out of integrity.
+''',
+    decanFlow: [
+      DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+      DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+      DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+      DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+      DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+      DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+      DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+      DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+      DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+      DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+    ],
+    meduNeter: MeduNeterKey(
+      glyph: '𓂻 + ⚖️ (Feet moving toward the Scales of Ma\'at) — walking your talk',
+      colorFrequency: 'Gold on black — truth held to light',
+      mantra: '"I am balanced in truth."',
+    ),
+  ),
+
+  'thoth_6_2025': KemeticDayInfo(
+    gregorianDate: 'March 25, 2025',
+    kemeticDate: 'Thoth I, Day 6 (Day 6 of Thoth)',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+    starCluster: '✨ The first brightness of Sopdet is now joined by supportive lights — reciprocity begins circulating',
+    maatPrinciple: 'Right Exchange / Sacred Reciprocity',
+    cosmicContext: '''
+Nothing in Kemet existed in isolation. Energy had to circulate.
+
+Day 6 is about offering. You give not to drain yourself, but to keep spiritual current from going stale. Even a small offering — attention, help, a thank you spoken out loud — is you saying, "I participate in balance, I don't just demand it."
+''',
+    decanFlow: [
+      DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+      DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+      DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+      DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+      DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+      DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+      DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+      DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+      DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+      DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+    ],
+    meduNeter: MeduNeterKey(
+      glyph: '𓋴 (Ka in motion) — energy extended outward in rightful proportion',
+      colorFrequency: 'Deep gold / warm copper — circulation, giving without self-erasure',
+      mantra: '"My offering sustains the balance."',
+    ),
+  ),
+
+  'thoth_7_2025': KemeticDayInfo(
+    gregorianDate: 'March 26, 2025',
+    kemeticDate: 'Thoth I, Day 7 (Day 7 of Thoth)',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+    starCluster: '✨ Sopdet now behind the veil of inner hearing — listening replaces declaration',
+    maatPrinciple: 'Purity / Quieting Interference',
+    cosmicContext: '''
+Day 7 withdraws from noise. Floodwater settles. Silt drops. The river clears.
+
+In you, that looks like intentional silence, fasting, water rituals, turning down stimulation.
+
+This is how Kemet approached refinement: not nonstop grind, but periodic stilling so the signal separates from the static.
+''',
+    decanFlow: [
+      DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+      DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+      DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+      DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+      DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+      DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+      DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+      DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+      DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+      DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+    ],
+    meduNeter: MeduNeterKey(
+      glyph: '𓈖 (Water ripple) — calm surface, depth below',
+      colorFrequency: 'Blue-white, rinsed and quiet',
+      mantra: '"In stillness I return to Ma\'at."',
+    ),
+  ),
+
+  'thoth_8_2025': KemeticDayInfo(
+    gregorianDate: 'March 27, 2025',
+    kemeticDate: 'Thoth I, Day 8 (Day 8 of Thoth)',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+    starCluster: '✨ The guiding light of Sopdet becomes inner guidance — revelation phase',
+    maatPrinciple: 'Receiving Wisdom',
+    cosmicContext: '''
+Day 8 is when silence turns to message.
+
+You've spoken, cleared, named, balanced, offered, purified. Now the current talks back.
+
+Listen for the thing that feels like recognition — not random inspiration, but "this was always mine, I just hadn't heard it clearly yet." Write it down. This is the voice of your year speaking to you.
+''',
+    decanFlow: [
+      DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+      DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+      DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+      DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+      DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+      DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+      DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+      DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+      DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+      DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+    ],
+    meduNeter: MeduNeterKey(
+      glyph: '𓅓 (Ibis of Djehuty) — divine intellect, measured knowing',
+      colorFrequency: 'Pearl gray, moonlit logic',
+      mantra: '"I hear the language of light."',
+    ),
+  ),
+
+  'thoth_9_2025': KemeticDayInfo(
+    gregorianDate: 'March 28, 2025',
+    kemeticDate: 'Thoth I, Day 9 (Day 9 of Thoth)',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+    starCluster: '✨ Sopdet guiding movement into material reality — vision becomes motion',
+    maatPrinciple: 'Action in Harmony',
+    cosmicContext: '''
+Day 9 is not grind culture. It's alignment-in-motion.
+
+You're asked to take one move in the physical world that matches everything declared so far. It can be tiny — send the email, buy the tool, block the time on your calendar — but it must be physical.
+
+This is how intention becomes timeline.
+''',
+    decanFlow: [
+      DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+      DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+      DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+      DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+      DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+      DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+      DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+      DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+      DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+      DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+    ],
+    meduNeter: MeduNeterKey(
+      glyph: '𓂧 (Hand in act) — will translated into deed',
+      colorFrequency: 'Bronze — living will in motion',
+      mantra: '"I move as truth moves."',
+    ),
+  ),
+
+  'thoth_10_2025': KemeticDayInfo(
+    gregorianDate: 'March 29, 2025',
+    kemeticDate: 'Thoth I, Day 10 (Day 10 of Thoth)',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'Tepy-a Djehuty ("The First of Thoth")',
+    starCluster: '✨ Sopdet stabilizing; first 10-day current completes its circuit',
+    maatPrinciple: 'Completion with Gratitude',
+    cosmicContext: '''
+Day 10 seals the first decan. This is where you witness what you've already done in just 10 days — and you acknowledge it.
+
+Gratitude isn't fluff here, it's energetic sealing. When you consciously honor a cycle, you "close the container" so it doesn't leak. That's what protects you moving into the next decan with strength instead of fatigue.
+''',
+    decanFlow: [
+      DecanDayInfo(day: 1, theme: 'Genesis of Speech', action: 'Speak your intention for the year clearly — out loud or written.', reflection: '"What truth am I willing to build upon?"'),
+      DecanDayInfo(day: 2, theme: 'Vision Declared', action: 'Map the image of what balance looks like for you.', reflection: '"How does my life look when it is aligned?"'),
+      DecanDayInfo(day: 3, theme: 'Foundation of Order', action: 'Cleanse your space; remove what contradicts your new truth.', reflection: '"What must be cleared to make way?"'),
+      DecanDayInfo(day: 4, theme: 'Naming Power', action: 'Name your projects, goals, or vows with sacred clarity.', reflection: '"What do I call forth into being?"'),
+      DecanDayInfo(day: 5, theme: 'Alignment Day', action: 'Perform a Ma\'at ritual — balance the scales of speech and action.', reflection: '"Are my words matching my deeds?"'),
+      DecanDayInfo(day: 6, theme: 'First Offering', action: 'Give something symbolic to the world (art, gratitude, time, service).', reflection: '"How does giving anchor truth?"'),
+      DecanDayInfo(day: 7, theme: 'Purification', action: 'Fast, bathe, or enter intentional silence to reset signal vs noise.', reflection: '"What noise needs to quiet for clarity to speak?"'),
+      DecanDayInfo(day: 8, theme: 'Insight Rising', action: 'Journal or meditate; record what rises without forcing it.', reflection: '"What truth emerges when I listen?"'),
+      DecanDayInfo(day: 9, theme: 'Order Manifest', action: 'Take one measurable action in line with your declaration.', reflection: '"What is the first visible sign of alignment?"'),
+      DecanDayInfo(day: 10, theme: 'Completion of Utterance', action: 'Re-read Day 1. Seal it with gratitude and decision.', reflection: '"What cycle have I begun?"'),
+    ],
+    meduNeter: MeduNeterKey(
+      glyph: '𓏞 (Rolled papyrus / sealed decree) — record closed, vow witnessed',
+      colorFrequency: 'Gold on ivory — sacred contract, formalized',
+      mantra: '"I seal truth with gratitude."',
+    ),
+  ),
+  };
+
+  static KemeticDayInfo? getInfoForDay(String dayKey) {
+    return dayInfoMap[dayKey];
+  }
+}
+
+/// Dropdown card widget for displaying Kemetic day information
+class KemeticDayDropdown extends StatelessWidget {
+  final KemeticDayInfo dayInfo;
+  final VoidCallback onClose;
+
+  const KemeticDayDropdown({
+    Key? key,
+    required this.dayInfo,
+    required this.onClose,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = screenWidth > 600 ? 500.0 : screenWidth * 0.85;
+    
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: cardWidth,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        decoration: BoxDecoration(
+          color: const Color(0xFF000000), // True black background
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFFC9A961), // Richer gold border
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.5),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header with close button
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF000000), // True black header
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+                border: const Border(
+                  bottom: BorderSide(
+                    color: Color(0xFFC9A961), // Richer gold divider
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '☀️ Kemetic Date Alignment',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFC9A961), // Richer gold color
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Color(0xFFC9A961)),
+                    onPressed: onClose,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+            // Scrollable content
+            Flexible(
+              child: Scrollbar(
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildInfoSection('Gregorian Date:', dayInfo.gregorianDate),
+                      _buildInfoSection('Kemetic Date:', dayInfo.kemeticDate),
+                      _buildInfoSection('Season:', dayInfo.season),
+                      _buildInfoSection('Month:', dayInfo.month),
+                      _buildInfoSection('Decan Name:', dayInfo.decanName),
+                      _buildInfoSection('Star Cluster:', dayInfo.starCluster),
+                      _buildInfoSection('Ma\'at Principle:', dayInfo.maatPrinciple),
+                      const SizedBox(height: 20),
+                      _buildSectionHeader('△ Cosmic Context'),
+                      const SizedBox(height: 8),
+                      Text(
+                        dayInfo.cosmicContext,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFFCCCCCC),
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildSectionHeader('▽ Decan 2 Flow (Renwet II, Days 11–20)'),
+                      const SizedBox(height: 12),
+                      _buildDecanFlowTable(context),
+                      const SizedBox(height: 24),
+                      _buildSectionHeader('▽ Medu Neter Key'),
+                      const SizedBox(height: 12),
+                      _buildMeduNeterSection(context),
+                      const SizedBox(height: 8), // Bottom padding
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoSection(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
+          children: [
+            TextSpan(
+              text: '$label ',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFC9A961), // Richer gold for labels
+          ),
+            ),
+            TextSpan(text: value),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFFC9A961), // Richer gold
+      ),
+    );
+  }
+
+  Widget _buildDecanFlowTable(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFF3A3A3A)),
+        borderRadius: BorderRadius.circular(8),
+        color: const Color(0xFF000000), // True black background
+      ),
+      child: Column(
+        children: [
+          // Table header
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0A0A0A),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Day',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Color(0xFFC9A961), // Richer gold
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Theme',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Color(0xFFC9A961), // Richer gold
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Action',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Color(0xFFC9A961), // Richer gold
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Reflection',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Color(0xFFC9A961), // Richer gold
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Table rows
+          ...dayInfo.decanFlow.map((day) => _buildTableRow(context, day)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTableRow(BuildContext context, DecanDayInfo dayData) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: const Color(0xFF3A3A3A)),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 1,
+            child: Text(
+              dayData.day.toString(),
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFFCCCCCC),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              dayData.theme,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Color(0xFFC9A961), // Richer gold for theme
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              dayData.action,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFFCCCCCC),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              dayData.reflection,
+              style: const TextStyle(
+                fontStyle: FontStyle.italic,
+                fontSize: 13,
+                color: Color(0xFFAAAAAA),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMeduNeterSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
+              children: [
+                const TextSpan(
+                  text: '• Glyph: ',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFC9A961), // Richer gold
+                  ),
+                ),
+                TextSpan(text: dayInfo.meduNeter.glyph),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
+              children: [
+                const TextSpan(
+                  text: '• Color Frequency: ',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFC9A961), // Richer gold
+                  ),
+                ),
+                TextSpan(text: dayInfo.meduNeter.colorFrequency),
+              ],
+            ),
+          ),
+        ),
+        RichText(
+          text: TextSpan(
+            style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
+            children: [
+              const TextSpan(
+                text: '• Mantra: ',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFC9A961), // Richer gold
+                ),
+              ),
+              TextSpan(text: dayInfo.meduNeter.mantra),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Controller/Service for managing the dropdown overlay
+class KemeticDayDropdownController {
+  OverlayEntry? _overlayEntry;
+
+  void show({
+    required BuildContext context,
+    required String dayKey,
+    required Offset buttonPosition,
+    required Size buttonSize,
+  }) {
+    final dayInfo = KemeticDayData.getInfoForDay(dayKey);
+    if (dayInfo == null) return;
+
+    // Remove existing overlay if any
+    hide();
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          // Dismiss barrier
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: hide,
+              child: Container(
+                color: Colors.black.withOpacity(0.4),
+              ),
+            ),
+          ),
+          // Centered dropdown card
+          Center(
+            child: KemeticDayDropdown(
+              dayInfo: dayInfo,
+              onClose: hide,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void hide() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+  }
+
+  bool get isShowing => _overlayEntry != null;
+}
+
+/// Wrapper widget to make any widget long-pressable for showing Kemetic day info
+/// Long-press shows the dropdown, regular tap is preserved for navigation
+class KemeticDayButton extends StatefulWidget {
+  final Widget child;
+  final String dayKey;
+
+  const KemeticDayButton({
+    Key? key,
+    required this.child,
+    required this.dayKey,
+  }) : super(key: key);
+
+  @override
+  State<KemeticDayButton> createState() => _KemeticDayButtonState();
+}
+
+class _KemeticDayButtonState extends State<KemeticDayButton> {
+  final KemeticDayDropdownController _controller = KemeticDayDropdownController();
+  final GlobalKey _buttonKey = GlobalKey();
+
+  void _showDropdown() {
+    final RenderBox? renderBox = _buttonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) {
+      return;
+    }
+    
+    final dayInfo = KemeticDayData.getInfoForDay(widget.dayKey);
+    
+    if (dayInfo == null) {
+      return;
+    }
+    
+    final position = renderBox.localToGlobal(Offset.zero);
+    final size = renderBox.size;
+
+    _controller.show(
+      context: context,
+      dayKey: widget.dayKey,
+      buttonPosition: position,
+      buttonSize: size,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.hide();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      key: _buttonKey,
+      onLongPress: () {
+        _showDropdown();
+      },
+      onLongPressStart: (details) {
+        // Long press detected
+      },
+      behavior: HitTestBehavior.opaque,
+      child: widget.child,
+    );
+  }
+}
+
+
+
+
+
+
+
+
+
+

@@ -10,6 +10,7 @@ import 'calendar_page.dart';
 import 'landscape_month_view.dart';
 import '../sharing/share_flow_sheet.dart';
 import '../../widgets/kemetic_day_info.dart';
+import 'package:mobile/core/day_key.dart';
 
 // ========================================
 // EVENT LAYOUT ENGINE
@@ -249,15 +250,15 @@ class _DayViewPageState extends State<DayViewPage> {
 
   /// Generate the day key for Kemetic day info lookup
   String _getKemeticDayKey(int kYear, int kMonth, int kDay) {
-    final monthNames = [
-      '', // 0-indexed, unused
-      'thoth', 'paophi', 'hathor', 'kaherka', 'sefbedet', 'rekhwer',
-      'rekhnedjes', 'renwet', 'hnsw', 'hentihet', 'paipi', 'mesutra'
-    ];
-
-    if (kMonth < 1 || kMonth > 12) return 'unknown_${kDay}_$kYear';
-
-    return '${monthNames[kMonth]}_${kDay}_$kYear';
+    // kYear parameter kept for API consistency but not used in day key generation.
+    // Day keys use DECAN (1-3), not year. Decan is computed from kDay in kemeticDayKey().
+    // 
+    // NOTE: This validates range 1-12 (not 1-13) because day_view.dart
+    // doesn't handle epagomenal days currently.
+    if (kMonth < 1 || kMonth > 12) {
+      return 'unknown_${kDay}_$kYear';
+    }
+    return kemeticDayKey(kMonth, kDay);
   }
 
   ({int kYear, int kMonth, int kDay}) _dateForPage(int pageIndex) {

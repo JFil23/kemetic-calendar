@@ -29,7 +29,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/widgets/month_name_text.dart';
-import 'package:mobile/core/day_key.dart';
 
 
 
@@ -318,12 +317,14 @@ class _GlossyText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ShaderMask(
-      shaderCallback: (Rect bounds) => gradient.createShader(bounds),
-      blendMode: BlendMode.srcIn,
-      child: Text(
-        text,
-        style: style.copyWith(color: Colors.white),
+    // Use foreground paint shader instead of ShaderMask for more reliable rendering
+    final shaderBounds = const Rect.fromLTWH(0, 0, 500, 100);
+    
+    return Text(
+      text,
+      style: style.copyWith(
+        color: Colors.white,
+        foreground: Paint()..shader = gradient.createShader(shaderBounds),
       ),
     );
   }
@@ -4566,13 +4567,13 @@ class _MonthCard extends StatelessWidget {
                         _openMonthInfo(context);
                       }
                     },
-                  child: _GlossyText(
-                    text: getMonthById(kMonth).displayFull,
-                    style: _monthTitleGold.copyWith(
-                      fontFamily: 'GentiumPlus',
-                      fontFamilyFallback: const ['NotoSans', 'Roboto'],
+                  child: ShaderMask(
+                    shaderCallback: (bounds) => _goldGloss.createShader(bounds),
+                    blendMode: BlendMode.srcIn,
+                    child: MonthNameText(
+                      getMonthById(kMonth).displayFull,
+                      style: _monthTitleGold.copyWith(color: Colors.white),
                     ),
-                    gradient: _goldGloss,
                   ),
                   ),
                   const Spacer(),
@@ -4699,7 +4700,7 @@ String _getKemeticDayKey(int kYear, int kMonth, int kDay) {
 
   // final key format must match kemetic_day_info.dart exactly
   // e.g. thoth_11_2
-  return kemeticDayKey(kMonth, kDay);
+  return '${getMonthById(kMonth).key}_${kDay}_$decan';
 }
 
 
@@ -4937,13 +4938,13 @@ class _EpagomenalCard extends StatelessWidget {
                       maintainState: true,
                       maintainAnimation: true,
                       maintainSize: true, // keep height so layout doesn't jump
-                    child: _GlossyText(
-                      text: 'Heriu Renpet (ḥr.w rnpt)',
-                      style: _monthTitleGold.copyWith(
-                        fontFamily: 'GentiumPlus',
-                        fontFamilyFallback: const ['NotoSans', 'Roboto'],
+                    child: ShaderMask(
+                      shaderCallback: (bounds) => _goldGloss.createShader(bounds),
+                      blendMode: BlendMode.srcIn,
+                      child: MonthNameText(
+                        'Heriu Renpet (ḥr.w rnpt)',
+                        style: _monthTitleGold.copyWith(color: Colors.white),
                       ),
-                      gradient: _goldGloss,
                     ),
                     ),
                   ),

@@ -9854,9 +9854,19 @@ class KemeticDayDropdownController {
 
     final dayInfo = KemeticDayData.getInfoForDay(dayKey);
     
+    // DEBUG: Log lookup result
+    print('[DEBUG] Looking up card for: $dayKey');
+    print('[DEBUG] Card found: ${dayInfo != null}');
+    
     if (dayInfo == null) {
+      print('[DEBUG] ❌ No card data for: $dayKey');
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       return;
     }
+    
+    print('[DEBUG] ✅ Card data exists for: $dayKey');
+    print('[DEBUG] Card kemeticDate: ${dayInfo.kemeticDate}');
+    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     _overlayEntry = OverlayEntry(
       builder: (context) {
@@ -9918,13 +9928,24 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
   final GlobalKey _buttonKey = GlobalKey();
 
   void _showDropdown() {
+    // DEBUG: Log long-press attempts
+    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    print('[DEBUG] Long-press detected');
+    print('[DEBUG] Day key: ${widget.dayKey}');
+    
     final RenderBox? renderBox = _buttonKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) {
+      print('[DEBUG] ERROR: renderBox is null');
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       return;
     }
     
     final position = renderBox.localToGlobal(Offset.zero);
     final size = renderBox.size;
+    
+    // DEBUG: Log position info
+    print('[DEBUG] Button position: $position');
+    print('[DEBUG] Button size: $size');
 
     _controller.show(
       context: context,

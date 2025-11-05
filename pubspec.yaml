@@ -82,20 +82,9 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Custom fonts for Egyptological transliteration
-  # COMMENTED OUT: Font files not yet added to repo
-  # To enable: Add fonts to mobile/fonts/ directory and uncomment below
-  # fonts:
-  #   - family: GentiumPlus
-  #     fonts:
-  #       - asset: fonts/GentiumPlus-Regular.ttf
-  #       - asset: fonts/GentiumPlus-Bold.ttf
-  #         weight: 700
-  #   - family: NotoSans
-  #     fonts:
-  #       - asset: fonts/NotoSans-Regular.ttf
-  #       - asset: fonts/NotoSans-Bold.ttf
-  #         weight: 700
+  # Using GoogleFonts package for all typography
+  # Includes support for Egyptological transliteration characters
+  # Fonts loaded from Google Fonts CDN at runtime (no local files needed)
 
   # To add assets to your application, add an assets section, like this:
   # assets:
