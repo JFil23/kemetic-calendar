@@ -191,3 +191,4 @@ After successful integration:
 5. **Deploy to production** when ready
 
 The integration is designed to be **safe** and **reversible** - you can always roll back to V1 by setting flags to FALSE.
+

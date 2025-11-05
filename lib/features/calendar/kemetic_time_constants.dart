@@ -38,3 +38,4 @@ int epochDayFromUtc(DateTime utc) {
 DateTime utcFromEpochDay(int epochDay) {
   return kKemeticEpochUtc.add(Duration(days: epochDay));
 }
+

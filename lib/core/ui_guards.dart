@@ -52,3 +52,4 @@ class UiGuards {
     _canOpenJournalSwipe = false;
   }
 }
+

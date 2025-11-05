@@ -6680,7 +6680,7 @@ This is the handover from survival to stewardship.''',
   // ☀️ RENWET I — DAYS 1–10  (First Decan - ḫntt wꜣ)
   // ==========================================================
   'renwet_1_1': KemeticDayInfo(
-    gregorianDate: 'October 7, 2025',
+    gregorianDate: 'February 13, 2026',
     kemeticDate: 'Renwet I, Day 1 (Day 1 of Renwet / Pa-Renutet)',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet (rnnt) — "The Month of Gratitude and Fate," overseen by Renenutet, She Who Nurtures into Being',
@@ -6702,7 +6702,7 @@ You are allowed to say, "This is provision," without shame.''',
   ),
 
   'renwet_2_1': KemeticDayInfo(
-    gregorianDate: 'October 8, 2025',
+    gregorianDate: 'February 14, 2026',
     kemeticDate: 'Renwet I, Day 2',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — The Month of Gratitude and Fate',
@@ -6724,7 +6724,7 @@ Sorting is not loss. Sorting is protection of relationship.''',
   ),
 
   'renwet_3_1': KemeticDayInfo(
-    gregorianDate: 'October 9, 2025',
+    gregorianDate: 'February 15, 2026',
     kemeticDate: 'Renwet I, Day 3',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — rnnt, governed by Renenutet',
@@ -6745,7 +6745,7 @@ This act is protection. Renenutet is generous, but she is not casual. Hoarders l
   ),
 
   'renwet_4_1': KemeticDayInfo(
-    gregorianDate: 'October 10, 2025',
+    gregorianDate: 'February 16, 2026',
     kemeticDate: 'Renwet I, Day 4',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — "Gratitude and Fate"',
@@ -6766,7 +6766,7 @@ You cannot claim Maʿat if the people depending on you are collapsing while you 
   ),
 
   'renwet_5_1': KemeticDayInfo(
-    gregorianDate: 'October 11, 2025',
+    gregorianDate: 'February 17, 2026',
     kemeticDate: 'Renwet I, Day 5',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — rnnt',
@@ -6787,7 +6787,7 @@ This is how you stay aligned with truth instead of building a myth of yourself.'
   ),
 
   'renwet_6_1': KemeticDayInfo(
-    gregorianDate: 'October 12, 2025',
+    gregorianDate: 'February 18, 2026',
     kemeticDate: 'Renwet I, Day 6',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — The Month of Gratitude and Fate',
@@ -6808,7 +6808,7 @@ If you prosper and pretend you carried it by yourself, fate (šai) marks you as 
   ),
 
   'renwet_7_1': KemeticDayInfo(
-    gregorianDate: 'October 13, 2025',
+    gregorianDate: 'February 19, 2026',
     kemeticDate: 'Renwet I, Day 7',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — rnnt',
@@ -6829,7 +6829,7 @@ To keep tearing at a source without pause is to declare yourself more important 
   ),
 
   'renwet_8_1': KemeticDayInfo(
-    gregorianDate: 'October 14, 2025',
+    gregorianDate: 'February 20, 2026',
     kemeticDate: 'Renwet I, Day 8',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — The Month of Gratitude and Fate',
@@ -6850,7 +6850,7 @@ Ungrateful mouths were believed to poison their own fate.''',
   ),
 
   'renwet_9_1': KemeticDayInfo(
-    gregorianDate: 'October 15, 2025',
+    gregorianDate: 'February 21, 2026',
     kemeticDate: 'Renwet I, Day 9',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — rnnt',
@@ -6871,7 +6871,7 @@ Guarding is not greed. Guarding is respect.''',
   ),
 
   'renwet_10_1': KemeticDayInfo(
-    gregorianDate: 'October 16, 2025',
+    gregorianDate: 'February 22, 2026',
     kemeticDate: 'Renwet I, Day 10',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — The Month of Gratitude and Fate',
@@ -6897,7 +6897,7 @@ You state aloud who you are committing to be with what you've been given. This i
   // ==========================================================
 
   'renwet_11_2': KemeticDayInfo(
-    gregorianDate: 'October 17, 2025',
+    gregorianDate: 'February 23, 2026',
     kemeticDate: 'Renwet II, Day 11 (Day 11 of Renwet / Pa-Renutet)',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet (rnnt) — month of gratitude, fate, and accountability before Renenutet',
@@ -6918,7 +6918,7 @@ You let yourself be seen today. You let the light fall where you would normally 
   ),
 
   'renwet_12_2': KemeticDayInfo(
-    gregorianDate: 'October 18, 2025',
+    gregorianDate: 'February 24, 2026',
     kemeticDate: 'Renwet II, Day 12',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — The Month of Gratitude and Fate',
@@ -6939,7 +6939,7 @@ Did you actually move like that? If not, the gap itself is what must be addresse
   ),
 
   'renwet_13_2': KemeticDayInfo(
-    gregorianDate: 'October 19, 2025',
+    gregorianDate: 'February 25, 2026',
     kemeticDate: 'Renwet II, Day 13',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — rnnt',
@@ -6960,7 +6960,7 @@ Renenutet nourishes — but she also remembers.''',
   ),
 
   'renwet_14_2': KemeticDayInfo(
-    gregorianDate: 'October 20, 2025',
+    gregorianDate: 'February 26, 2026',
     kemeticDate: 'Renwet II, Day 14',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — The Month of Gratitude and Fate',
@@ -6981,7 +6981,7 @@ This is one of the holiest acts in the whole year.''',
   ),
 
   'renwet_15_2': KemeticDayInfo(
-    gregorianDate: 'October 21, 2025',
+    gregorianDate: 'February 27, 2026',
     kemeticDate: 'Renwet II, Day 15',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — rnnt',
@@ -7002,7 +7002,7 @@ If you are resourced and someone close to you is still in danger, Maʿat demands
   ),
 
   'renwet_16_2': KemeticDayInfo(
-    gregorianDate: 'October 22, 2025',
+    gregorianDate: 'February 28, 2026',
     kemeticDate: 'Renwet II, Day 16',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — The Month of Gratitude and Fate',
@@ -7023,7 +7023,7 @@ You don't have to publish online. You do have to be known by your circle in a wa
   ),
 
   'renwet_17_2': KemeticDayInfo(
-    gregorianDate: 'October 23, 2025',
+    gregorianDate: 'March 1, 2026',
     kemeticDate: 'Renwet II, Day 17',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — rnnt',
@@ -7044,7 +7044,7 @@ This is how Maʿat remembers them.''',
   ),
 
   'renwet_18_2': KemeticDayInfo(
-    gregorianDate: 'October 24, 2025',
+    gregorianDate: 'March 2, 2026',
     kemeticDate: 'Renwet II, Day 18',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — The Month of Gratitude and Fate',
@@ -7065,7 +7065,7 @@ You are telling Renenutet and your own lineage: "Judge me by this."''',
   ),
 
   'renwet_19_2': KemeticDayInfo(
-    gregorianDate: 'October 25, 2025',
+    gregorianDate: 'March 3, 2026',
     kemeticDate: 'Renwet II, Day 19',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — rnnt',
@@ -7086,7 +7086,7 @@ This is the cost — and the honor — of living in Maʿat.''',
   ),
 
   'renwet_20_2': KemeticDayInfo(
-    gregorianDate: 'October 26, 2025',
+    gregorianDate: 'March 4, 2026',
     kemeticDate: 'Renwet II, Day 20',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — The Month of Gratitude and Fate',
@@ -7112,7 +7112,7 @@ This rest is not laziness. It is earned peace — the peace of a heart that face
   // ==========================================================
 
   'renwet_21_3': KemeticDayInfo(
-    gregorianDate: 'October 27, 2025',
+    gregorianDate: 'March 5, 2026',
     kemeticDate: 'Renwet III, Day 21 (Day 21 of Renwet / Pa-Renutet)',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet (rnnt) — Gratitude, Fate, Just Distribution',
@@ -7133,7 +7133,7 @@ Stored nourishment is stored future.''',
   ),
 
   'renwet_22_3': KemeticDayInfo(
-    gregorianDate: 'October 28, 2025',
+    gregorianDate: 'March 6, 2026',
     kemeticDate: 'Renwet III, Day 22',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — The Month of Gratitude and Fate',
@@ -7154,7 +7154,7 @@ Gratitude is not mood. Gratitude is redistribution.''',
   ),
 
   'renwet_23_3': KemeticDayInfo(
-    gregorianDate: 'October 29, 2025',
+    gregorianDate: 'March 7, 2026',
     kemeticDate: 'Renwet III, Day 23',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — rnnt',
@@ -7175,7 +7175,7 @@ To bless the tool is to admit you are not entitled to endless output from it.'''
   ),
 
   'renwet_24_3': KemeticDayInfo(
-    gregorianDate: 'October 30, 2025',
+    gregorianDate: 'March 8, 2026',
     kemeticDate: 'Renwet III, Day 24',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — The Month of Gratitude and Fate',
@@ -7196,7 +7196,7 @@ False records become future famine.''',
   ),
 
   'renwet_25_3': KemeticDayInfo(
-    gregorianDate: 'October 31, 2025',
+    gregorianDate: 'March 9, 2026',
     kemeticDate: 'Renwet III, Day 25',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — rnnt',
@@ -7217,7 +7217,7 @@ Unspoken lessons are lost lessons.''',
   ),
 
   'renwet_26_3': KemeticDayInfo(
-    gregorianDate: 'November 1, 2025',
+    gregorianDate: 'March 10, 2026',
     kemeticDate: 'Renwet III, Day 26',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — The Month of Gratitude and Fate',
@@ -7237,7 +7237,7 @@ You are allowed to want goodness. You are not allowed to strangle it before it's
   ),
 
   'renwet_27_3': KemeticDayInfo(
-    gregorianDate: 'November 2, 2025',
+    gregorianDate: 'March 11, 2026',
     kemeticDate: 'Renwet III, Day 27',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — rnnt',
@@ -7258,7 +7258,7 @@ You are allowed to admit: the crisis window closed.''',
   ),
 
   'renwet_28_3': KemeticDayInfo(
-    gregorianDate: 'November 2, 2025',
+    gregorianDate: 'March 12, 2026',
     kemeticDate: 'Renwet III, Day 28',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — The Month of Gratitude and Fate',
@@ -7279,7 +7279,7 @@ If you cannot sit in quiet, you are not healed yet — you are just distracted.'
   ),
 
   'renwet_29_3': KemeticDayInfo(
-    gregorianDate: 'November 4, 2025',
+    gregorianDate: 'March 13, 2026',
     kemeticDate: 'Renwet III, Day 29',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — rnnt',
@@ -7300,7 +7300,7 @@ Your nervous system is part of creation. You are required to keep it alive.''',
   ),
 
   'renwet_30_3': KemeticDayInfo(
-    gregorianDate: 'November 5, 2025',
+    gregorianDate: 'March 14, 2026',
     kemeticDate: 'Renwet III, Day 30',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — The Month of Gratitude and Fate',
@@ -7326,7 +7326,7 @@ Completion is an offering.''',
   // ==========================================================
 
   'hnsw_1_1': KemeticDayInfo(
-    gregorianDate: 'November 6, 2025',
+    gregorianDate: 'March 15, 2026',
     kemeticDate: 'Hnsw I, Day 1 (Day 1 of Hnsw / Pa-Khonsu)',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw ("The Traveler") — sacred motion, dignified endurance under Ra',
@@ -7347,7 +7347,7 @@ Drift is not allowed on Day 1. Drift insults the barque.''',
   ),
 
   'hnsw_2_1': KemeticDayInfo(
-    gregorianDate: 'November 7, 2025',
+    gregorianDate: 'March 16, 2026',
     kemeticDate: 'Hnsw I, Day 2',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw — The Traveler\'s Month',
@@ -7368,7 +7368,7 @@ Radiance without cruelty — that is divine travel.''',
   ),
 
   'hnsw_3_1': KemeticDayInfo(
-    gregorianDate: 'November 8, 2025',
+    gregorianDate: 'March 17, 2026',
     kemeticDate: 'Hnsw I, Day 3',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw',
@@ -7389,7 +7389,7 @@ Spiritual maturity means: I do not waste holy energy fighting reality.''',
   ),
 
   'hnsw_4_1': KemeticDayInfo(
-    gregorianDate: 'November 9, 2025',
+    gregorianDate: 'March 18, 2026',
     kemeticDate: 'Hnsw I, Day 4',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw',
@@ -7410,7 +7410,7 @@ Movement without integrity is not sacred travel. It's looting.''',
   ),
 
   'hnsw_5_1': KemeticDayInfo(
-    gregorianDate: 'November 10, 2025',
+    gregorianDate: 'March 19, 2026',
     kemeticDate: 'Hnsw I, Day 5',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw — The Traveler\'s Month',
@@ -7431,7 +7431,7 @@ To travel under Ra and refuse to nourish others is to lie about who carried you 
   ),
 
   'hnsw_6_1': KemeticDayInfo(
-    gregorianDate: 'November 11, 2025',
+    gregorianDate: 'March 20, 2026',
     kemeticDate: 'Hnsw I, Day 6',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw',
@@ -7452,7 +7452,7 @@ Self-neglect is not holiness. It's sabotage.''',
   ),
 
   'hnsw_7_1': KemeticDayInfo(
-    gregorianDate: 'November 12, 2025',
+    gregorianDate: 'March 21, 2026',
     kemeticDate: 'Hnsw I, Day 7',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw — Pa-Khonsu',
@@ -7473,7 +7473,7 @@ Service begins with seeing.''',
   ),
 
   'hnsw_8_1': KemeticDayInfo(
-    gregorianDate: 'November 13, 2025',
+    gregorianDate: 'March 22, 2026',
     kemeticDate: 'Hnsw I, Day 8',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw',
@@ -7494,7 +7494,7 @@ Your words are allowed to build shelter.''',
   ),
 
   'hnsw_9_1': KemeticDayInfo(
-    gregorianDate: 'November 14, 2025',
+    gregorianDate: 'March 23, 2026',
     kemeticDate: 'Hnsw I, Day 9',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw — The Traveler\'s Month',
@@ -7515,7 +7515,7 @@ Truth keeps you aligned for Day 10.''',
   ),
 
   'hnsw_10_1': KemeticDayInfo(
-    gregorianDate: 'November 15, 2025',
+    gregorianDate: 'March 24, 2026',
     kemeticDate: 'Hnsw I, Day 10',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw — Pa-Khonsu, Traveler',
@@ -7540,7 +7540,7 @@ To rest without boasting is to prove you are traveling with Maʿat, not ego.''',
   // ==========================================================
 
   'hnsw_11_2': KemeticDayInfo(
-    gregorianDate: 'November 16, 2025',
+    gregorianDate: 'March 25, 2026',
     kemeticDate: 'Hnsw II, Day 11 (Day 11 of Hnsw / Pa-Khonsu)',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw ("The Traveler") — pilgrimage, commerce, endurance',
@@ -7561,7 +7561,7 @@ If it cannot survive daylight language, it is not Maʿat.''',
   ),
 
   'hnsw_12_2': KemeticDayInfo(
-    gregorianDate: 'November 17, 2025',
+    gregorianDate: 'March 26, 2026',
     kemeticDate: 'Hnsw II, Day 12',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
@@ -7582,7 +7582,7 @@ Reputation was currency then. It still is now.''',
   ),
 
   'hnsw_13_2': KemeticDayInfo(
-    gregorianDate: 'November 18, 2025',
+    gregorianDate: 'March 27, 2026',
     kemeticDate: 'Hnsw II, Day 13',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — The Traveler\'s Month',
@@ -7603,7 +7603,7 @@ Pride is the most expensive fuel on earth.''',
   ),
 
   'hnsw_14_2': KemeticDayInfo(
-    gregorianDate: 'November 19, 2025',
+    gregorianDate: 'March 28, 2026',
     kemeticDate: 'Hnsw II, Day 14',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
@@ -7624,7 +7624,7 @@ Thoth records every word. Assume the record will be read.''',
   ),
 
   'hnsw_15_2': KemeticDayInfo(
-    gregorianDate: 'November 20, 2025',
+    gregorianDate: 'March 29, 2026',
     kemeticDate: 'Hnsw II, Day 15',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — Pa-Khonsu',
@@ -7645,7 +7645,7 @@ You cannot poison the altar and expect blessing to follow.''',
   ),
 
   'hnsw_16_2': KemeticDayInfo(
-    gregorianDate: 'November 21, 2025',
+    gregorianDate: 'March 30, 2026',
     kemeticDate: 'Hnsw II, Day 16',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
@@ -7666,7 +7666,7 @@ Your word is a living thing. Do not throw it around like broken grain.''',
   ),
 
   'hnsw_17_2': KemeticDayInfo(
-    gregorianDate: 'November 22, 2025',
+    gregorianDate: 'March 31, 2026',
     kemeticDate: 'Hnsw II, Day 17',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
@@ -7687,7 +7687,7 @@ Silence is maintenance.''',
   ),
 
   'hnsw_18_2': KemeticDayInfo(
-    gregorianDate: 'November 23, 2025',
+    gregorianDate: 'April 1, 2026',
     kemeticDate: 'Hnsw II, Day 18',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — The Traveler\'s Month',
@@ -7708,7 +7708,7 @@ Maʿat can't grow in a field salted by envy.''',
   ),
 
   'hnsw_19_2': KemeticDayInfo(
-    gregorianDate: 'November 24, 2025',
+    gregorianDate: 'April 2, 2026',
     kemeticDate: 'Hnsw II, Day 19',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
@@ -7729,7 +7729,7 @@ A boundary is not violence. It is architecture.''',
   ),
 
   'hnsw_20_2': KemeticDayInfo(
-    gregorianDate: 'November 25, 2025',
+    gregorianDate: 'April 3, 2026',
     kemeticDate: 'Hnsw II, Day 20',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — The Traveler\'s Month',
@@ -7754,7 +7754,7 @@ Clarity is protection for everyone who walks with you.''',
   // ==========================================================
 
   'hnsw_21_3': KemeticDayInfo(
-    gregorianDate: 'November 26, 2025',
+    gregorianDate: 'April 4, 2026',
     kemeticDate: 'Hnsw III, Day 21 (Day 21 of Hnsw / Pa-Khonsu)',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw ("The Traveler") — the sun\'s path made human',
@@ -7775,7 +7775,7 @@ This is not laziness. This is honoring the boundary between effort and vanity.''
   ),
 
   'hnsw_22_3': KemeticDayInfo(
-    gregorianDate: 'November 27, 2025',
+    gregorianDate: 'April 5, 2026',
     kemeticDate: 'Hnsw III, Day 22',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
@@ -7796,7 +7796,7 @@ You cannot carry light if you let the lamp crack.''',
   ),
 
   'hnsw_23_3': KemeticDayInfo(
-    gregorianDate: 'November 28, 2025',
+    gregorianDate: 'April 6, 2026',
     kemeticDate: 'Hnsw III, Day 23',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — The Traveler\'s Month',
@@ -7817,7 +7817,7 @@ You dishonor the journey if you let yourself break to protect ego.''',
   ),
 
   'hnsw_24_3': KemeticDayInfo(
-    gregorianDate: 'November 29, 2025',
+    gregorianDate: 'April 7, 2026',
     kemeticDate: 'Hnsw III, Day 24',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
@@ -7838,7 +7838,7 @@ The bull is strongest when it is not being baited.''',
   ),
 
   'hnsw_25_3': KemeticDayInfo(
-    gregorianDate: 'November 30, 2025',
+    gregorianDate: 'April 8, 2026',
     kemeticDate: 'Hnsw III, Day 25',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — Pa-Khonsu',
@@ -7859,7 +7859,7 @@ Rest in daylight. You are allowed.''',
   ),
 
   'hnsw_26_3': KemeticDayInfo(
-    gregorianDate: 'December 1, 2025',
+    gregorianDate: 'April 9, 2026',
     kemeticDate: 'Hnsw III, Day 26',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
@@ -7880,7 +7880,7 @@ Maʿat is not sentimental about decay.''',
   ),
 
   'hnsw_27_3': KemeticDayInfo(
-    gregorianDate: 'December 2, 2025',
+    gregorianDate: 'April 10, 2026',
     kemeticDate: 'Hnsw III, Day 27',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
@@ -7901,7 +7901,7 @@ You are landing. Let yourself land.''',
   ),
 
   'hnsw_28_3': KemeticDayInfo(
-    gregorianDate: 'December 3, 2025',
+    gregorianDate: 'April 11, 2026',
     kemeticDate: 'Hnsw III, Day 28',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — The Traveler\'s Month',
@@ -7922,7 +7922,7 @@ You did not arrive alone.''',
   ),
 
   'hnsw_29_3': KemeticDayInfo(
-    gregorianDate: 'December 4, 2025',
+    gregorianDate: 'April 12, 2026',
     kemeticDate: 'Hnsw III, Day 29',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
@@ -7943,7 +7943,7 @@ You are not just a traveler. You are a vessel of a lineage.''',
   ),
 
   'hnsw_30_3': KemeticDayInfo(
-    gregorianDate: 'December 5, 2025',
+    gregorianDate: 'April 13, 2026',
     kemeticDate: 'Hnsw III, Day 30',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — The Traveler\'s Month',
@@ -8609,7 +8609,7 @@ You close the month the way a priest closes the shrine: with dignity.''',
   // ==========================================================
 
   'ipt_1_1': KemeticDayInfo(
-    gregorianDate: 'January 5, 2026',
+    gregorianDate: 'April 14, 2026',
     kemeticDate: 'Ipt-ḥmt I, Day 1',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Bringing Together / Union") — reunion of living and ancestral lines, renewal through remembrance',
@@ -8630,7 +8630,7 @@ You are not alone. You never were.''',
   ),
 
   'ipt_2_1': KemeticDayInfo(
-    gregorianDate: 'January 6, 2026',
+    gregorianDate: 'April 15, 2026',
     kemeticDate: 'Ipt-ḥmt I, Day 2',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -8651,7 +8651,7 @@ You are not decorating. You are restoring dignity to your blood.''',
   ),
 
   'ipt_3_1': KemeticDayInfo(
-    gregorianDate: 'January 7, 2026',
+    gregorianDate: 'April 16, 2026',
     kemeticDate: 'Ipt-ḥmt I, Day 3',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Reunion")',
@@ -8672,7 +8672,7 @@ This is worship through loyalty.''',
   ),
 
   'ipt_4_1': KemeticDayInfo(
-    gregorianDate: 'January 8, 2026',
+    gregorianDate: 'April 17, 2026',
     kemeticDate: 'Ipt-ḥmt I, Day 4',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -8693,7 +8693,7 @@ Guidance from those who survived before you is not theory. It is field-tested la
   ),
 
   'ipt_5_1': KemeticDayInfo(
-    gregorianDate: 'January 9, 2026',
+    gregorianDate: 'April 18, 2026',
     kemeticDate: 'Ipt-ḥmt I, Day 5',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Bringing Together of the Women / Union of Forces")',
@@ -8714,7 +8714,7 @@ This is how you stop inheritance of rot.''',
   ),
 
   'ipt_6_1': KemeticDayInfo(
-    gregorianDate: 'January 10, 2026',
+    gregorianDate: 'April 19, 2026',
     kemeticDate: 'Ipt-ḥmt I, Day 6',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -8734,7 +8734,7 @@ Choose one trait from a specific ancestor and live it consciously for the next 2
   ),
 
   'ipt_7_1': KemeticDayInfo(
-    gregorianDate: 'January 11, 2026',
+    gregorianDate: 'April 20, 2026',
     kemeticDate: 'Ipt-ḥmt I, Day 7',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Reunion of lines")',
@@ -8755,7 +8755,7 @@ This is protection against despair. Isolation is how chaos hunts.''',
   ),
 
   'ipt_8_1': KemeticDayInfo(
-    gregorianDate: 'January 12, 2026',
+    gregorianDate: 'April 21, 2026',
     kemeticDate: 'Ipt-ḥmt I, Day 8',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -8776,7 +8776,7 @@ Maʿat begins inside the doorway.''',
   ),
 
   'ipt_9_1': KemeticDayInfo(
-    gregorianDate: 'January 13, 2026',
+    gregorianDate: 'April 22, 2026',
     kemeticDate: 'Ipt-ḥmt I, Day 9',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Renewal")',
@@ -8797,7 +8797,7 @@ You are ensuring that your line does not break when you do.''',
   ),
 
   'ipt_10_1': KemeticDayInfo(
-    gregorianDate: 'January 14, 2026',
+    gregorianDate: 'April 23, 2026',
     kemeticDate: 'Ipt-ḥmt I, Day 10',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -8822,7 +8822,7 @@ The gods record. Your ancestors hear. You become answerable.''',
   // ==========================================================
 
   'ipt_11_2': KemeticDayInfo(
-    gregorianDate: 'January 15, 2026',
+    gregorianDate: 'April 24, 2026',
     kemeticDate: 'Ipt-ḥmt II, Day 11',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Bringing Together of the Line")',
@@ -8843,7 +8843,7 @@ This is not guilt. This is calibration. You're checking your own weight while yo
   ),
 
   'ipt_12_2': KemeticDayInfo(
-    gregorianDate: 'January 16, 2026',
+    gregorianDate: 'April 25, 2026',
     kemeticDate: 'Ipt-ḥmt II, Day 12',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -8864,7 +8864,7 @@ You are not worshiping them. You are apprenticing under them.''',
   ),
 
   'ipt_13_2': KemeticDayInfo(
-    gregorianDate: 'January 17, 2026',
+    gregorianDate: 'April 26, 2026',
     kemeticDate: 'Ipt-ḥmt II, Day 13',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Reunion")',
@@ -8885,7 +8885,7 @@ The blessed dead you just honored are not fooled by costume. Neither should you 
   ),
 
   'ipt_14_2': KemeticDayInfo(
-    gregorianDate: 'January 18, 2026',
+    gregorianDate: 'April 27, 2026',
     kemeticDate: 'Ipt-ḥmt II, Day 14',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -8906,7 +8906,7 @@ You are not groveling. You are cleaning the ledger your own spirit will face.'''
   ),
 
   'ipt_15_2': KemeticDayInfo(
-    gregorianDate: 'January 19, 2026',
+    gregorianDate: 'April 28, 2026',
     kemeticDate: 'Ipt-ḥmt II, Day 15',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Bringing Together")',
@@ -8927,7 +8927,7 @@ This is not rebranding. This is spiritual hygiene.''',
   ),
 
   'ipt_16_2': KemeticDayInfo(
-    gregorianDate: 'January 20, 2026',
+    gregorianDate: 'April 29, 2026',
     kemeticDate: 'Ipt-ḥmt II, Day 16',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -8948,7 +8948,7 @@ The honored dead hear you and hold you accountable.''',
   ),
 
   'ipt_17_2': KemeticDayInfo(
-    gregorianDate: 'January 21, 2026',
+    gregorianDate: 'April 30, 2026',
     kemeticDate: 'Ipt-ḥmt II, Day 17',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Reunion of lines")',
@@ -8969,7 +8969,7 @@ Your voice is an altar. Stop spilling on it.''',
   ),
 
   'ipt_18_2': KemeticDayInfo(
-    gregorianDate: 'January 22, 2026',
+    gregorianDate: 'May 1, 2026',
     kemeticDate: 'Ipt-ḥmt II, Day 18',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -8990,7 +8990,7 @@ This is posture under flame.''',
   ),
 
   'ipt_19_2': KemeticDayInfo(
-    gregorianDate: 'January 23, 2026',
+    gregorianDate: 'May 2, 2026',
     kemeticDate: 'Ipt-ḥmt II, Day 19',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Reunion")',
@@ -9011,7 +9011,7 @@ This corrects an old injustice: work without honor.''',
   ),
 
   'ipt_20_2': KemeticDayInfo(
-    gregorianDate: 'January 24, 2026',
+    gregorianDate: 'May 3, 2026',
     kemeticDate: 'Ipt-ḥmt II, Day 20',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -9036,7 +9036,7 @@ This is not fantasy. This is reputation as ritual — you forming the memory you
   // ==========================================================
 
   'ipt_21_3': KemeticDayInfo(
-    gregorianDate: 'January 25, 2026',
+    gregorianDate: 'May 4, 2026',
     kemeticDate: 'Ipt-ḥmt III, Day 21',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Bringing Together / Reunion of the Line")',
@@ -9057,7 +9057,7 @@ Claiming the line is not cosplay. It is custodianship.''',
   ),
 
   'ipt_22_3': KemeticDayInfo(
-    gregorianDate: 'January 26, 2026',
+    gregorianDate: 'May 5, 2026',
     kemeticDate: 'Ipt-ḥmt III, Day 22',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -9078,7 +9078,7 @@ This is when you say, "Yes. I'll carry it."''',
   ),
 
   'ipt_23_3': KemeticDayInfo(
-    gregorianDate: 'January 27, 2026',
+    gregorianDate: 'May 6, 2026',
     kemeticDate: 'Ipt-ḥmt III, Day 23',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Bringing Together / Reunion")',
@@ -9099,7 +9099,7 @@ You do not pretend it wasn't there. You say, "I see it. It stops here."''',
   ),
 
   'ipt_24_3': KemeticDayInfo(
-    gregorianDate: 'January 28, 2026',
+    gregorianDate: 'May 7, 2026',
     kemeticDate: 'Ipt-ḥmt III, Day 24',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -9120,7 +9120,7 @@ This is you taking oath as living temple.''',
   ),
 
   'ipt_25_3': KemeticDayInfo(
-    gregorianDate: 'January 29, 2026',
+    gregorianDate: 'May 8, 2026',
     kemeticDate: 'Ipt-ḥmt III, Day 25',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Reunion with the Ka")',
@@ -9141,7 +9141,7 @@ You are cutting a cord. You are killing a pattern so the next ones don't have to
   ),
 
   'ipt_26_3': KemeticDayInfo(
-    gregorianDate: 'January 30, 2026',
+    gregorianDate: 'May 9, 2026',
     kemeticDate: 'Ipt-ḥmt III, Day 26',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -9162,7 +9162,7 @@ This is love as architecture.''',
   ),
 
   'ipt_27_3': KemeticDayInfo(
-    gregorianDate: 'January 31, 2026',
+    gregorianDate: 'May 10, 2026',
     kemeticDate: 'Ipt-ḥmt III, Day 27',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -9183,7 +9183,7 @@ You are not immortal. Share the map.''',
   ),
 
   'ipt_28_3': KemeticDayInfo(
-    gregorianDate: 'February 1, 2026',
+    gregorianDate: 'May 11, 2026',
     kemeticDate: 'Ipt-ḥmt III, Day 28',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Bringing Together / Reunion")',
@@ -9204,7 +9204,7 @@ When you declare it, the world can measure you by it. That pressure is holy.''',
   ),
 
   'ipt_29_3': KemeticDayInfo(
-    gregorianDate: 'February 2, 2026',
+    gregorianDate: 'May 12, 2026',
     kemeticDate: 'Ipt-ḥmt III, Day 29',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
@@ -9225,7 +9225,7 @@ That is love. That is protection. That is Maʿat.''',
   ),
 
   'ipt_30_3': KemeticDayInfo(
-    gregorianDate: 'February 3, 2026',
+    gregorianDate: 'May 13, 2026',
     kemeticDate: 'Ipt-ḥmt III, Day 30',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Bringing Together / Reunion with the Ka")',
@@ -9949,6 +9949,37 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

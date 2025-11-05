@@ -112,3 +112,4 @@ class DailyReviewHandler {
     return 'You completed $total tasks today.';
   }
 }
+
