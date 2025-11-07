@@ -15,7 +15,6 @@ import 'dart:convert';
 import 'day_view.dart';
 import '../profile/profile_page.dart';
 import '../journal/journal_controller.dart';
-import '../journal/journal_swipe_layer.dart';
 import '../../core/ui_guards.dart';
 import '../../main.dart';
 import '../../data/share_repo.dart';
@@ -4100,18 +4099,7 @@ class _CalendarPageState extends State<CalendarPage> {
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
     debugPrint('🔧 _buildBodyWithJournal called: portrait=$isPortrait, initialized=$_journalInitialized');
     
-    // Wait for journal to initialize before enabling swipe
-    if (!_journalInitialized) {
-      debugPrint('   Returning calendar scroll view (not initialized)');
-      return _buildCalendarScrollView();
-    }
-    
-    debugPrint('   Returning JournalSwipeLayer wrapper');
-    return JournalSwipeLayer(
-      controller: _journalController,
-      isPortrait: isPortrait,
-      child: _buildCalendarScrollView(),
-    );
+    return _buildCalendarScrollView();
   }
 
   Widget _buildCalendarScrollView() {

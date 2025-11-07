@@ -237,64 +237,64 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     );
   }
 
-  // 🔧 NEW: Custom header (like day_view pattern) with month swipe gesture
+  // 🔧 FIXED: Custom header with month swipe gesture - GestureDetector only wraps title area
   Widget _buildCustomHeader(BuildContext context) {
     final currentMonth = _monthForPage(_currentPage);
     final monthName = widget.getMonthName(currentMonth.kMonth);
     final yearLabel = _getYearLabel(currentMonth.kYear, currentMonth.kMonth);
     
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onHorizontalDragStart: (details) {
-        _dragAccum = 0.0;
-      },
-      onHorizontalDragUpdate: (details) {
-        _dragAccum += details.delta.dx;
-      },
-      onHorizontalDragEnd: (details) async {
-        const double distThreshold = 40.0;
-        const double velThreshold = 600.0;
-        final vx = details.primaryVelocity ?? 0.0;
-
-        if (vx <= -velThreshold || _dragAccum <= -distThreshold) {
-          // Swipe left → next month
-          if (_pageController.hasClients) {
-            await _pageController.nextPage(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOut,
-            );
-          }
-        } else if (vx >= velThreshold || _dragAccum >= distThreshold) {
-          // Swipe right → previous month
-          if (_pageController.hasClients) {
-            await _pageController.previousPage(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOut,
-            );
-          }
-        }
-        _dragAccum = 0.0;
-      },
-      child: Container(
-        color: _landscapeSurface,
-        child: SafeArea(
-          bottom: false,
-          child: Container(
-            height: kToolbarHeight,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: _landscapeSurface,
-              border: Border(
-                bottom: BorderSide(
-                  color: _landscapeGold.withOpacity(0.1),
-                  width: 1,
-                ),
+    return Container(
+      color: _landscapeSurface,
+      child: SafeArea(
+        bottom: false,
+        child: Container(
+          height: kToolbarHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: _landscapeSurface,
+            border: Border(
+              bottom: BorderSide(
+                color: _landscapeGold.withOpacity(0.1),
+                width: 1,
               ),
             ),
-            child: Row(
-              children: [
-                // Month/Year title
-                Expanded(
+          ),
+          child: Row(
+            children: [
+              // Month/Year title - WITH gesture detector for swiping (only this area)
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onHorizontalDragStart: (details) {
+                    _dragAccum = 0.0;
+                  },
+                  onHorizontalDragUpdate: (details) {
+                    _dragAccum += details.delta.dx;
+                  },
+                  onHorizontalDragEnd: (details) async {
+                    const double distThreshold = 40.0;
+                    const double velThreshold = 600.0;
+                    final vx = details.primaryVelocity ?? 0.0;
+
+                    if (vx <= -velThreshold || _dragAccum <= -distThreshold) {
+                      // Swipe left → next month
+                      if (_pageController.hasClients) {
+                        await _pageController.nextPage(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOut,
+                        );
+                      }
+                    } else if (vx >= velThreshold || _dragAccum >= distThreshold) {
+                      // Swipe right → previous month
+                      if (_pageController.hasClients) {
+                        await _pageController.previousPage(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOut,
+                        );
+                      }
+                    }
+                    _dragAccum = 0.0;
+                  },
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,62 +317,62 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
                     ],
                   ),
                 ),
-                // Flow Studio button
-                IconButton(
-                  tooltip: 'Flow Studio',
-                  icon: const Icon(Icons.view_timeline, color: _landscapeGold),
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  onPressed: widget.onManageFlows != null
-                      ? () {
-                          if (kDebugMode) {
-                            print('🔘 [LANDSCAPE] Flow Studio tapped');
-                          }
-                          widget.onManageFlows!(null);
+              ),
+              // Flow Studio button - OUTSIDE GestureDetector (no gesture interference)
+              IconButton(
+                tooltip: 'Flow Studio',
+                icon: const Icon(Icons.view_timeline, color: _landscapeGold),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                onPressed: widget.onManageFlows != null
+                    ? () {
+                        if (kDebugMode) {
+                          print('🔘 [LANDSCAPE] Flow Studio tapped');
                         }
-                      : null,
-                ),
-                // Add Note button
-                IconButton(
-                  tooltip: 'New note',
-                  icon: const Icon(Icons.add, color: _landscapeGold),
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  onPressed: widget.onAddNote != null
-                      ? () {
-                          if (kDebugMode) {
-                            print('🔘 [LANDSCAPE] Add Note tapped');
-                          }
-                          final now = DateTime.now();
-                          final today = KemeticMath.fromGregorian(now);
-                          final currentMonth = _monthForPage(_currentPage);
-                          final kd = (currentMonth.kYear == today.kYear && 
-                                      currentMonth.kMonth == today.kMonth) 
-                              ? today.kDay 
-                              : 1;
-                          
-                          if (currentMonth.kMonth == 13 && kDebugMode) {
-                            print('⚠️ [LANDSCAPE] Creating note in sacred Month 13 (Heriu Renpet)');
-                            print('   Day: $kd');
-                          }
-                          
-                          widget.onAddNote!(currentMonth.kYear, currentMonth.kMonth, kd);
+                        widget.onManageFlows!(null);
+                      }
+                    : null,
+              ),
+              // Add Note button - OUTSIDE GestureDetector (no gesture interference)
+              IconButton(
+                tooltip: 'New note',
+                icon: const Icon(Icons.add, color: _landscapeGold),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                onPressed: widget.onAddNote != null
+                    ? () {
+                        if (kDebugMode) {
+                          print('🔘 [LANDSCAPE] Add Note tapped');
                         }
-                      : null,
-                ),
-                // Today button
-                TextButton(
-                  onPressed: _jumpToToday,
-                  child: const Text(
-                    'Today',
-                    style: TextStyle(
-                      color: _landscapeGold,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
+                        final now = DateTime.now();
+                        final today = KemeticMath.fromGregorian(now);
+                        final currentMonth = _monthForPage(_currentPage);
+                        final kd = (currentMonth.kYear == today.kYear && 
+                                    currentMonth.kMonth == today.kMonth) 
+                            ? today.kDay 
+                            : 1;
+                        
+                        if (currentMonth.kMonth == 13 && kDebugMode) {
+                          print('⚠️ [LANDSCAPE] Creating note in sacred Month 13 (Heriu Renpet)');
+                          print('   Day: $kd');
+                        }
+                        
+                        widget.onAddNote!(currentMonth.kYear, currentMonth.kMonth, kd);
+                      }
+                    : null,
+              ),
+              // Today button - OUTSIDE GestureDetector (no gesture interference)
+              TextButton(
+                onPressed: _jumpToToday,
+                child: const Text(
+                  'Today',
+                  style: TextStyle(
+                    color: _landscapeGold,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(width: 8),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
         ),
       ),

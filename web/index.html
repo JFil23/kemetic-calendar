@@ -3,37 +3,77 @@
 <head>
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="Kemetic Calendar">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Kemetic Calendar">
+  <meta name="theme-color" content="#6B5AED">
+
+  <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
   <link rel="icon" type="image/png" href="favicon.png"/>
+
   <title>Kemetic Calendar</title>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#6B5AED">
+
   <style>
-    /* Make touch gestures immediate and allowed */
+    /* Keep it minimal and safe */
     html, body {
       margin: 0;
-      padding: 0;
-      overscroll-behavior: none;
-      touch-action: pan-x pan-y;
-    }
-
-    /* Flutter inserts a "glass pane" div; make sure it allows touch */
-    #flt-glass-pane, .flt-glass-pane, canvas {
-      touch-action: pan-x pan-y;
-    }
-
-    /* Remove tap highlight */
-    * {
+      height: 100%;
       -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    /* Pin Flutter surface to the real viewport and accept touches */
+    #flt-glass-pane, .flt-glass-pane, canvas {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      touch-action: manipulation !important;
+      pointer-events: auto !important;
+      z-index: 1 !important;
+    }
+
+    /* Do NOT fix the body or hide overflow; that causes iOS PWA desyncs */
+    /* Removed:
+       @supports (-webkit-touch-callout: none) { body { position: fixed; width:100%; height:100%; overflow:hidden; } }
+    */
+
+    /* Optional: interactive elements—fine to keep */
+    button, [role="button"], a, input, textarea, select {
+      touch-action: manipulation !important;
     }
   </style>
+
+  <script>
+    // iOS PWA: gently "nudge" layout like a fake rotate to ensure correct glass-pane metrics
+    (function () {
+      const isIOS = /iphone|ipod|ipad/i.test(navigator.userAgent);
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator.standalone === true);
+
+      function nudge() {
+        // trigger layout + two resizes
+        window.scrollTo(0, 1);
+        requestAnimationFrame(() => {
+          window.dispatchEvent(new Event('resize'));
+          setTimeout(() => window.dispatchEvent(new Event('resize')), 60);
+        });
+      }
+
+      window.addEventListener('load', () => {
+        if (isIOS && isStandalone) { nudge(); setTimeout(nudge, 300); }
+      }, { once: true });
+
+      window.addEventListener('touchstart', () => {
+        if (isIOS && isStandalone) nudge();
+      }, { once: true, passive: true });
+    })();
+  </script>
 </head>
 <body>
 <script>

@@ -44,78 +44,70 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
     super.dispose();
   }
 
-  void _onPanUpdate(DragUpdateDetails details) {
-    // Debug: Log every pan update
-    if (details.delta.dx.abs() > 2 || details.delta.dy.abs() > 2) {
-      debugPrint('👆 PAN UPDATE: dx=${details.delta.dx.toStringAsFixed(1)}, dy=${details.delta.dy.toStringAsFixed(1)}');
-    }
-    
+  // Track drag distance for portrait swipe detection
+  double _dragAccum = 0.0;
+
+  void _onHorizontalDragStart(DragStartDetails details) {
+    _dragAccum = 0.0;
+  }
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
     if (!UiGuards.canOpenJournalSwipe) {
-      debugPrint('⛔ PAN BLOCKED: UiGuards.canOpenJournalSwipe = false');
       return;
     }
     
     if (_isJournalOpen) {
-      debugPrint('⛔ PAN BLOCKED: Journal already open');
       return;
     }
 
-    // Check directional dominance
+    if (!widget.isPortrait) {
+      return; // Landscape handled by header
+    }
+
+    // Portrait: L→R swipe anywhere
+    _dragAccum += details.delta.dx;
+    
+    // Check if we've exceeded threshold for immediate open
     final dx = details.delta.dx.abs();
     final dy = details.delta.dy.abs();
-
-    bool shouldOpen = false;
-
-    if (widget.isPortrait) {
-      // Portrait: L→R swipe anywhere
-      final isRightward = details.delta.dx > 0;
-      final isDominantHorizontal = dx > dy * kJournalSwipeDominance;
-      
-      debugPrint('📱 PORTRAIT CHECK:');
-      debugPrint('   Rightward? $isRightward (dx=${details.delta.dx.toStringAsFixed(1)})');
-      debugPrint('   Dominant H? $isDominantHorizontal (dx=$dx > dy=$dy * 1.6)');
-      
-      shouldOpen = isRightward && isDominantHorizontal;
-    } else {
-      // Landscape: Down swipe on header only (handled by parent)
-      debugPrint('📱 LANDSCAPE: Ignoring (header-only swipe)');
-      return;
-    }
-
-    if (shouldOpen) {
+    final isRightward = details.delta.dx > 0;
+    final isDominantHorizontal = dx > dy * kJournalSwipeDominance;
+    
+    if (isRightward && isDominantHorizontal && _dragAccum > 40) {
       debugPrint('✅ OPENING JOURNAL (threshold met)');
       _openJournal();
+      _dragAccum = 0.0;
     }
   }
 
-  void _onPanEnd(DragEndDetails details) {
-    debugPrint('👆 PAN END: velocity=${details.velocity.pixelsPerSecond.dx.toStringAsFixed(1)} px/s');
-    
+  void _onHorizontalDragEnd(DragEndDetails details) {
     if (!UiGuards.canOpenJournalSwipe) {
-      debugPrint('⛔ PAN END BLOCKED: Guards disabled');
+      _dragAccum = 0.0;
       return;
     }
     
     if (_isJournalOpen) {
-      debugPrint('⛔ PAN END BLOCKED: Already open');
+      _dragAccum = 0.0;
       return;
     }
 
-    final velocity = widget.isPortrait
-        ? details.velocity.pixelsPerSecond.dx
-        : details.velocity.pixelsPerSecond.dy;
-
-    debugPrint('🏃 Velocity check: ${velocity.abs().toStringAsFixed(1)} vs threshold $kJournalSwipeMinVelocity');
-
-    if (velocity.abs() >= kJournalSwipeMinVelocity) {
-      if (widget.isPortrait && velocity > 0) {
-        debugPrint('✅ OPENING JOURNAL (flick detected)');
-        _openJournal();
-      } else if (!widget.isPortrait && velocity > 0) {
-        debugPrint('✅ OPENING JOURNAL (flick detected)');
-        _openJournal();
-      }
+    if (!widget.isPortrait) {
+      _dragAccum = 0.0;
+      return;
     }
+
+    final velocity = details.velocity.pixelsPerSecond.dx;
+
+    // Check velocity or accumulated distance
+    if (velocity.abs() >= kJournalSwipeMinVelocity && velocity > 0) {
+      debugPrint('✅ OPENING JOURNAL (flick detected)');
+      _openJournal();
+    } else if (_dragAccum > 40) {
+      debugPrint('✅ OPENING JOURNAL (distance threshold)');
+      _openJournal();
+    }
+    
+    _dragAccum = 0.0;
   }
 
   void _openJournal() {
@@ -174,10 +166,13 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
     }
 
     debugPrint('   Adding gesture detector (portrait mode)');
+    // Use drag gestures instead of pan gestures to match landscape pattern
+    // This ensures gesture binding is fully initialized in PWA standalone mode
     return GestureDetector(
-      onPanUpdate: _onPanUpdate,
-      onPanEnd: _onPanEnd,
       behavior: HitTestBehavior.translucent,
+      onHorizontalDragStart: _onHorizontalDragStart,
+      onHorizontalDragUpdate: _onHorizontalDragUpdate,
+      onHorizontalDragEnd: _onHorizontalDragEnd,
       child: widget.child,
     );
   }
