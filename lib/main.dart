@@ -1,5 +1,6 @@
 // lib/main.dart
 import 'dart:async';
+import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -131,6 +132,21 @@ class Events {
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
+/* ───────────────────────── Scroll Behavior (PWA Touch Support) ───────────────────────── */
+
+class AppScrollBehavior extends MaterialScrollBehavior {
+  const AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => const {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.invertedStylus,
+    PointerDeviceKind.trackpad,
+  };
+}
+
 class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
   void _send(PageRoute<dynamic>? route) {
     final name = route?.settings.name ?? '/';
@@ -199,6 +215,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
+      scrollBehavior: const AppScrollBehavior(),
       routerConfig: _router,
     );
   }

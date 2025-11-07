@@ -6,10 +6,20 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart'; // For DragStartBehavior
 import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart'; // For KemeticMath
 import '../sharing/share_flow_sheet.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
+
+// ========================================
+// SHARED CONSTANTS FOR LANDSCAPE VIEW
+// ========================================
+const Color _landscapeGold = Color(0xFFFFC145);
+const Color _landscapeBg = Color(0xFF000000);      // True black
+const Color _landscapeSurface = Color(0xFF0D0D0F); // Dark surface
+const Color _landscapeDivider = Color(0xFF1A1A1A); // Divider lines
+const double kLandscapeHeaderHeight = 58.0;        // Day number header height
 
 // ========================================
 // MAIN LANDSCAPE MONTH VIEW WIDGET
@@ -92,11 +102,18 @@ class LandscapeMonthPager extends StatefulWidget {
 class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
   late PageController _pageController;
   static const int _centerPage = 100000; // Match your _LandscapePager's _origin
+  
+  // 🔧 NEW: Track current page for AppBar display
+  int _currentPage = 100000;
+  
+  // 🔧 NEW: Track drag accumulation for manual gesture control
+  double _dragAccum = 0.0;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _centerPage);
+    _currentPage = _centerPage; // 🔧 NEW: Initialize
   }
 
   @override
@@ -159,28 +176,232 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     }
   }
 
+  // 🔧 NEW: Get days in month (needed for year label calculation)
+  int _getDaysInMonth(int kYear, int kMonth) {
+    if (kMonth == 13) {
+      return KemeticMath.isLeapKemeticYear(kYear) ? 6 : 5;
+    }
+    return 30;
+  }
+
+  // 🔧 NEW: Get year label - always Gregorian (matching current behavior)
+  String _getYearLabel(int kYear, int kMonth) {
+    final firstDayG = KemeticMath.toGregorian(kYear, kMonth, 1);
+    final lastDay = _getDaysInMonth(kYear, kMonth);
+    final lastDayG = KemeticMath.toGregorian(kYear, kMonth, lastDay);
+    
+    if (firstDayG.year == lastDayG.year) {
+      return '${firstDayG.year}';
+    } else {
+      return '${firstDayG.year}/${lastDayG.year}';
+    }
+  }
+
+  // 🔧 NEW: Build month header for AppBar
+  Widget _buildMonthHeader(String monthName, String yearLabel) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          monthName,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: _landscapeGold,
+          ),
+        ),
+        Text(
+          yearLabel,
+          style: TextStyle(
+            fontSize: 11,
+            color: _landscapeGold.withOpacity(0.6),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _landscapeBg,
+      body: Column(
+        children: [
+          _buildCustomHeader(context), // Custom header like day_view
+          Expanded(
+            child: _buildBodyWithSwipeGate(context), // PageView below
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔧 NEW: Custom header (like day_view pattern) with month swipe gesture
+  Widget _buildCustomHeader(BuildContext context) {
+    final currentMonth = _monthForPage(_currentPage);
+    final monthName = widget.getMonthName(currentMonth.kMonth);
+    final yearLabel = _getYearLabel(currentMonth.kYear, currentMonth.kMonth);
+    
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragStart: (details) {
+        _dragAccum = 0.0;
+      },
+      onHorizontalDragUpdate: (details) {
+        _dragAccum += details.delta.dx;
+      },
+      onHorizontalDragEnd: (details) async {
+        const double distThreshold = 40.0;
+        const double velThreshold = 600.0;
+        final vx = details.primaryVelocity ?? 0.0;
+
+        if (vx <= -velThreshold || _dragAccum <= -distThreshold) {
+          // Swipe left → next month
+          if (_pageController.hasClients) {
+            await _pageController.nextPage(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+            );
+          }
+        } else if (vx >= velThreshold || _dragAccum >= distThreshold) {
+          // Swipe right → previous month
+          if (_pageController.hasClients) {
+            await _pageController.previousPage(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+            );
+          }
+        }
+        _dragAccum = 0.0;
+      },
+      child: Container(
+        color: _landscapeSurface,
+        child: SafeArea(
+          bottom: false,
+          child: Container(
+            height: kToolbarHeight,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: _landscapeSurface,
+              border: Border(
+                bottom: BorderSide(
+                  color: _landscapeGold.withOpacity(0.1),
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                // Month/Year title
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        monthName,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: _landscapeGold,
+                        ),
+                      ),
+                      Text(
+                        yearLabel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _landscapeGold.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Flow Studio button
+                IconButton(
+                  tooltip: 'Flow Studio',
+                  icon: const Icon(Icons.view_timeline, color: _landscapeGold),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  onPressed: widget.onManageFlows != null
+                      ? () {
+                          if (kDebugMode) {
+                            print('🔘 [LANDSCAPE] Flow Studio tapped');
+                          }
+                          widget.onManageFlows!(null);
+                        }
+                      : null,
+                ),
+                // Add Note button
+                IconButton(
+                  tooltip: 'New note',
+                  icon: const Icon(Icons.add, color: _landscapeGold),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  onPressed: widget.onAddNote != null
+                      ? () {
+                          if (kDebugMode) {
+                            print('🔘 [LANDSCAPE] Add Note tapped');
+                          }
+                          final now = DateTime.now();
+                          final today = KemeticMath.fromGregorian(now);
+                          final currentMonth = _monthForPage(_currentPage);
+                          final kd = (currentMonth.kYear == today.kYear && 
+                                      currentMonth.kMonth == today.kMonth) 
+                              ? today.kDay 
+                              : 1;
+                          
+                          if (currentMonth.kMonth == 13 && kDebugMode) {
+                            print('⚠️ [LANDSCAPE] Creating note in sacred Month 13 (Heriu Renpet)');
+                            print('   Day: $kd');
+                          }
+                          
+                          widget.onAddNote!(currentMonth.kYear, currentMonth.kMonth, kd);
+                        }
+                      : null,
+                ),
+                // Today button
+                TextButton(
+                  onPressed: _jumpToToday,
+                  child: const Text(
+                    'Today',
+                    style: TextStyle(
+                      color: _landscapeGold,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🔧 NEW: Body with PageView (no gesture handling - grid handles its own)
+  Widget _buildBodyWithSwipeGate(BuildContext context) {
     return PageView.builder(
       key: ValueKey('landscape-pager-${widget.initialKy}-${widget.initialKm}-${widget.onAddNote?.hashCode ?? "null"}'),
       controller: _pageController,
       scrollDirection: Axis.horizontal,
-      physics: const PageScrollPhysics(), // ✅ Enable page swiping with snap-to-page
+      physics: const NeverScrollableScrollPhysics(), // Month changes via header only
+      pageSnapping: true,
+      onPageChanged: (page) {
+        setState(() {
+          _currentPage = page;
+        });
+      },
       itemBuilder: (context, index) {
         final month = _monthForPage(index);
         
         if (kDebugMode) {
-          print('🔧 [PAGER] Creating LandscapeMonthGrid for page $index');
+          print('🔧 [PAGER] Creating LandscapeMonthGridBody for page $index');
           print('   Month: ${month.kYear}-${month.kMonth}');
-          print('   widget.onAddNote != null: ${widget.onAddNote != null}');
-          if (widget.onAddNote != null) {
-            print('   Callback hashCode: ${widget.onAddNote.hashCode}');
-          }
         }
         
-        return LandscapeMonthGrid(
-          key: ValueKey('grid-${month.kYear}-${month.kMonth}-${widget.onAddNote?.hashCode ?? "null"}'),
+        return LandscapeMonthGridBody(
+          key: ValueKey('grid-body-${month.kYear}-${month.kMonth}'),
           kYear: month.kYear,
           kMonth: month.kMonth,
           initialDay: index == _centerPage ? widget.initialDay : null,
@@ -189,8 +410,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           flowIndex: widget.flowIndex,
           getMonthName: widget.getMonthName,
           onManageFlows: widget.onManageFlows,
-          onJumpToToday: _jumpToToday,
-          onAddNote: widget.onAddNote, // ✅ MATCHES CONSTRUCTOR ORDER!
+          onAddNote: widget.onAddNote,
         );
       },
     );
@@ -198,11 +418,11 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
 }
 
 // ========================================
-// LANDSCAPE MONTH GRID
-// The actual scrollable month grid (single month)
+// LANDSCAPE MONTH GRID BODY
+// The actual scrollable month grid (single month) - no Scaffold/AppBar
 // ========================================
 
-class LandscapeMonthGrid extends StatefulWidget {
+class LandscapeMonthGridBody extends StatefulWidget {
   final int kYear;
   final int kMonth;
   final int? initialDay;
@@ -211,10 +431,9 @@ class LandscapeMonthGrid extends StatefulWidget {
   final Map<int, FlowData> flowIndex;
   final String Function(int km) getMonthName;
   final void Function(int? flowId)? onManageFlows;
-  final VoidCallback? onJumpToToday;
   final void Function(int ky, int km, int kd)? onAddNote;
 
-  const LandscapeMonthGrid({
+  const LandscapeMonthGridBody({
     super.key,
     required this.kYear,
     required this.kMonth,
@@ -224,27 +443,26 @@ class LandscapeMonthGrid extends StatefulWidget {
     required this.flowIndex,
     required this.getMonthName,
     this.onManageFlows,
-    this.onJumpToToday,
-    this.onAddNote, // 🔧 NEW
+    this.onAddNote,
   });
 
   @override
-  State<LandscapeMonthGrid> createState() => _LandscapeMonthGridState();
+  State<LandscapeMonthGridBody> createState() => _LandscapeMonthGridBodyState();
 }
 
-class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
+class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   // Layout constants (matching existing landscape)
   static const double _rowH = 64.0;      // hour row height
   static const double _gutterW = 56.0;   // time gutter width
-  static const double _headerH = 58.0;   // day number header
+  static const double _headerH = kLandscapeHeaderHeight;   // day number header (shared constant)
   static const double _daySepW = 1.0;    // day separator
   static const double _hourSepH = 1.0;   // hour separator
 
-  // Gold color (matching day view)
-  static const Color _gold = Color(0xFFFFC145);
-  static const Color _bg = Color(0xFF000000);      // True black
-  static const Color _surface = Color(0xFF0D0D0F); // Dark surface
-  static const Color _divider = Color(0xFF1A1A1A); // Divider lines
+  // 🔧 UPDATED: Use shared color constants
+  static const Color _gold = _landscapeGold;
+  static const Color _bg = _landscapeBg;
+  static const Color _surface = _landscapeSurface;
+  static const Color _divider = _landscapeDivider;
 
   // 4 synchronized scroll controllers
   late ScrollController _hHeader;
@@ -264,7 +482,7 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
     super.initState();
     
     if (kDebugMode) {
-      print('🟢 [LANDSCAPE] LandscapeMonthGrid initState()');
+      print('🟢 [LANDSCAPE] LandscapeMonthGridBody initState()');
       print('   kYear: ${widget.kYear}, kMonth: ${widget.kMonth}');
       print('   onAddNote callback: ${widget.onAddNote != null ? "PROVIDED" : "NULL"}');
     }
@@ -274,16 +492,9 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
     _vGutter = ScrollController();
     _vGrid = ScrollController();
 
-    // Sync horizontal scrolling
-    _hHeader.addListener(() {
-      if (_syncingH) return;
-      _syncingH = true;
-      if (_hGrid.hasClients) {
-        _hGrid.jumpTo(_hHeader.offset.clamp(0.0, _hGrid.position.maxScrollExtent));
-      }
-      _syncingH = false;
-    });
-
+    // Sync horizontal scrolling (grid → header only, since header is non-scrollable)
+    // REMOVED: _hHeader.addListener - header can't scroll, so no need to sync header→grid
+    
     _hGrid.addListener(() {
       if (_syncingH) return;
       _syncingH = true;
@@ -325,7 +536,7 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
   void dispose() {
     _isDisposed = true;
     if (kDebugMode) {
-      print('🔴 [LANDSCAPE] LandscapeMonthGrid dispose()');
+      print('🔴 [LANDSCAPE] LandscapeMonthGridBody dispose()');
       print('   Button was tapped $_buttonTapCount times before disposal');
     }
     _hHeader.dispose();
@@ -365,82 +576,10 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
     final gridW = colW * dayCount + (_daySepW * (dayCount - 1));
     final gridH = _rowH * 24 + (_hourSepH * 23);
 
-    return Scaffold(
-      backgroundColor: _bg, // True black
-      appBar: AppBar(
-        backgroundColor: _surface, // Dark surface (matching day view)
-        elevation: 0,
-        automaticallyImplyLeading: false, // No back/close button
-        centerTitle: false,
-        titleSpacing: 16,
-        title: _buildMonthHeader(),
-        actions: [
-          // Flow Studio button
-          IconButton(
-            tooltip: 'Flow Studio',
-            icon: const Icon(Icons.view_timeline, color: _gold),
-            padding: const EdgeInsets.symmetric(horizontal: 4), // 🔧 Reduced padding
-            onPressed: widget.onManageFlows != null
-                ? () {
-                    if (kDebugMode) {
-                      print('🔘 [LANDSCAPE] Flow Studio button tapped');
-                    }
-                    widget.onManageFlows!(null);
-                  }
-                : null,
-          ),
-          // Add note button
-          IconButton(
-            tooltip: 'New note',
-            icon: const Icon(Icons.add, color: _gold),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            onPressed: widget.onAddNote != null
-                ? () {
-                    if (kDebugMode) {
-                      print('🔘 [LANDSCAPE] Add Note button tapped');
-                    }
-                    final now = DateTime.now();
-                    final today = KemeticMath.fromGregorian(now);
-                    final kd = (widget.kYear == today.kYear && widget.kMonth == today.kMonth) 
-                        ? today.kDay 
-                        : 1;
-                    
-                    // ⚠️ Sacred day awareness: Month 13 (Heriu Renpet) is epagomenal
-                    if (widget.kMonth == 13) {
-                      if (kDebugMode) {
-                        print('⚠️  [LANDSCAPE] Creating note in sacred Month 13 (Heriu Renpet)');
-                        print('   Day: $kd');
-                        print('   Consider: Are mundane notes appropriate on sacred days?');
-                      }
-                    }
-                    
-                    widget.onAddNote!(widget.kYear, widget.kMonth, kd);
-                  }
-                : null,
-          ),
-          // Today button
-          TextButton(
-            onPressed: widget.onJumpToToday != null
-                ? () {
-                    if (kDebugMode) {
-                      print('🔘 [LANDSCAPE] Today button tapped');
-                    }
-                    widget.onJumpToToday!();
-                  }
-                : null,
-            child: const Text(
-              'Today',
-              style: TextStyle(
-                color: _gold, // Gold color (matching day view)
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: Stack(
+    // 🔧 CHANGED: Return Container with Stack directly (no Scaffold/AppBar)
+    return Container(
+      color: _bg, // True black background
+      child: Stack(
         children: [
           // Top-left corner (empty space above gutter)
           Positioned(
@@ -459,14 +598,18 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
             top: 0,
             right: 0,
             height: _headerH,
-            child: SingleChildScrollView(
-              controller: _hHeader,
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (int day = 1; day <= dayCount; day++)
-                    _buildDayHeader(day, colW),
-                ],
+            child: IgnorePointer(
+              ignoring: true, // Prevent any gesture recognizers from header subtree
+              child: SingleChildScrollView(
+                controller: _hHeader,
+                scrollDirection: Axis.horizontal,
+                physics: const NeverScrollableScrollPhysics(), // 🔧 REMOVES FROM GESTURE ARENA
+                child: Row(
+                  children: [
+                    for (int day = 1; day <= dayCount; day++)
+                      _buildDayHeader(day, colW),
+                  ],
+                ),
               ),
             ),
           ),
@@ -481,6 +624,7 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
               color: _surface,
               child: SingleChildScrollView(
                 controller: _vGutter,
+                physics: const ClampingScrollPhysics(), // 🔧 Prevent gesture conflicts
                 child: Column(
                   children: [
                     for (int hour = 0; hour < 24; hour++)
@@ -510,10 +654,11 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
             bottom: 0,
             child: SingleChildScrollView(
               controller: _vGrid,
+              physics: const ClampingScrollPhysics(), // 🔧 Prevent gesture conflicts
               child: SingleChildScrollView(
                 controller: _hGrid,
                 scrollDirection: Axis.horizontal,
-                physics: const ClampingScrollPhysics(), // ✅ Prevent gesture conflicts with PageView
+                physics: const ClampingScrollPhysics(), // ✅ Re-enabled for horizontal scrolling
                 child: SizedBox(
                   width: gridW,
                   height: gridH,
@@ -533,33 +678,6 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildMonthHeader() {
-    final monthName = widget.getMonthName(widget.kMonth);
-    final yearLabel = _getYearLabel();
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          monthName,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: _gold, // Gold (matching day view)
-          ),
-        ),
-        Text(
-          yearLabel,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF808080),
-          ),
-        ),
-      ],
     );
   }
 
@@ -1047,18 +1165,6 @@ class _LandscapeMonthGridState extends State<LandscapeMonthGrid> {
       return KemeticMath.isLeapKemeticYear(widget.kYear) ? 6 : 5;
     }
     return 30;
-  }
-
-  String _getYearLabel() {
-    final firstDayG = KemeticMath.toGregorian(widget.kYear, widget.kMonth, 1);
-    final lastDay = _getDaysInMonth();
-    final lastDayG = KemeticMath.toGregorian(widget.kYear, widget.kMonth, lastDay);
-
-    if (firstDayG.year == lastDayG.year) {
-      return '${firstDayG.year}';
-    } else {
-      return '${firstDayG.year}/${lastDayG.year}';
-    }
   }
 
   String _formatHour(int hour) {
