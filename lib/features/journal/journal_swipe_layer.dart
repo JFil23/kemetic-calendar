@@ -1,5 +1,4 @@
-// lib/features/journal/journal_swipe_layer.dart
-// TEMPORARY DEBUG VERSION - Replace your current file with this
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'journal_controller.dart';
 import 'journal_overlay.dart';
@@ -8,16 +7,16 @@ import '../../core/ui_guards.dart';
 import '../../main.dart';
 
 class JournalSwipeLayer extends StatefulWidget {
-  final Widget child;
-  final JournalController controller;
-  final bool isPortrait;
-
   const JournalSwipeLayer({
     Key? key,
     required this.child,
     required this.controller,
     required this.isPortrait,
   }) : super(key: key);
+
+  final Widget child;
+  final JournalController controller; // your existing data/controller
+  final bool isPortrait;
 
   @override
   State<JournalSwipeLayer> createState() => _JournalSwipeLayerState();
@@ -26,6 +25,25 @@ class JournalSwipeLayer extends StatefulWidget {
 class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
   bool _isJournalOpen = false;
   OverlayEntry? _overlayEntry;
+
+  // Gesture accumulators
+  double _dragAccumOpen = 0.0;   // left-edge -> right drag to open
+  double _dragAccumClose = 0.0;  // right-edge -> left drag to close
+
+  // Tunables
+  static const double _edgeMin = 28;   // min px edge width
+  static const double _edgeMax = 56;   // max px edge width
+  static const double _openDistance = 42;     // px to open via slow drag
+  static const double _closeDistance = 42;    // px to close via slow drag
+  static const double _openVelocity = 750;    // fling right to open
+  static const double _closeVelocity = -750;  // fling left to close
+
+  double _edgeWidth(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    return math.max(_edgeMin, math.min(_edgeMax, w * 0.06));
+  }
+
+  bool get _active => widget.isPortrait && mounted;
 
   @override
   void initState() {
@@ -44,78 +62,13 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
     super.dispose();
   }
 
-  // Track drag distance for portrait swipe detection
-  double _dragAccum = 0.0;
-
-  void _onHorizontalDragStart(DragStartDetails details) {
-    _dragAccum = 0.0;
-  }
-
-  void _onHorizontalDragUpdate(DragUpdateDetails details) {
-    if (!UiGuards.canOpenJournalSwipe) {
-      return;
-    }
-    
-    if (_isJournalOpen) {
-      return;
-    }
-
-    if (!widget.isPortrait) {
-      return; // Landscape handled by header
-    }
-
-    // Portrait: L→R swipe anywhere
-    _dragAccum += details.delta.dx;
-    
-    // Check if we've exceeded threshold for immediate open
-    final dx = details.delta.dx.abs();
-    final dy = details.delta.dy.abs();
-    final isRightward = details.delta.dx > 0;
-    final isDominantHorizontal = dx > dy * kJournalSwipeDominance;
-    
-    if (isRightward && isDominantHorizontal && _dragAccum > 40) {
-      debugPrint('✅ OPENING JOURNAL (threshold met)');
-      _openJournal();
-      _dragAccum = 0.0;
-    }
-  }
-
-  void _onHorizontalDragEnd(DragEndDetails details) {
-    if (!UiGuards.canOpenJournalSwipe) {
-      _dragAccum = 0.0;
-      return;
-    }
-    
-    if (_isJournalOpen) {
-      _dragAccum = 0.0;
-      return;
-    }
-
-    if (!widget.isPortrait) {
-      _dragAccum = 0.0;
-      return;
-    }
-
-    final velocity = details.velocity.pixelsPerSecond.dx;
-
-    // Check velocity or accumulated distance
-    if (velocity.abs() >= kJournalSwipeMinVelocity && velocity > 0) {
-      debugPrint('✅ OPENING JOURNAL (flick detected)');
-      _openJournal();
-    } else if (_dragAccum > 40) {
-      debugPrint('✅ OPENING JOURNAL (distance threshold)');
-      _openJournal();
-    }
-    
-    _dragAccum = 0.0;
-  }
-
   void _openJournal() {
+    if (_isJournalOpen) return;
+    if (!UiGuards.canOpenJournalSwipe) return;
+
     debugPrint('');
     debugPrint('🚀 OPENING JOURNAL OVERLAY');
     debugPrint('');
-    
-    if (_isJournalOpen) return;
 
     setState(() => _isJournalOpen = true);
 
@@ -126,10 +79,9 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
         isPortrait: widget.isPortrait,
       ),
     );
-
     Overlay.of(context).insert(_overlayEntry!);
 
-    // Track analytics
+    // analytics
     _trackJournalOpened();
     
     debugPrint('✅ Journal overlay inserted');
@@ -142,12 +94,10 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
     
     _overlayEntry?.remove();
     _overlayEntry = null;
-
     setState(() => _isJournalOpen = false);
   }
 
   void _trackJournalOpened() {
-    // Track journal opened event
     Events.trackIfAuthed('journal_opened', {
       'entry_point': 'swipe',
       'orientation': widget.isPortrait ? 'portrait' : 'landscape',
@@ -158,52 +108,114 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
   Widget build(BuildContext context) {
     debugPrint('🏗️  JournalSwipeLayer BUILD (isPortrait: ${widget.isPortrait})');
     
-    // Only add gesture detector in portrait mode
-    // Landscape open is handled by header bar
-    if (!widget.isPortrait) {
-      debugPrint('   Skipping gesture detector (landscape mode)');
+    if (!_active) {
+      debugPrint('   Skipping gesture detector (landscape mode or not mounted)');
       return widget.child;
     }
 
-    debugPrint('   Adding gesture detector (portrait mode)');
-    // Use drag gestures instead of pan gestures to match landscape pattern
-    // This ensures gesture binding is fully initialized in PWA standalone mode
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onHorizontalDragStart: _onHorizontalDragStart,
-      onHorizontalDragUpdate: _onHorizontalDragUpdate,
-      onHorizontalDragEnd: _onHorizontalDragEnd,
-      child: widget.child,
+    final double safeTop = kToolbarHeight + MediaQuery.of(context).padding.top;
+    final double edge = _edgeWidth(context);
+    final bool isRtl = Directionality.of(context) == TextDirection.rtl;
+
+    // For RTL, flip edges
+    final leftSide = isRtl ? null : 0.0;
+    final rightSide = isRtl ? 0.0 : null;
+
+    debugPrint('   Adding edge-only swipe pads (edge width: $edge px)');
+
+    return Stack(
+      children: [
+        // Content below
+        widget.child,
+
+        // ===== Left-edge OPEN (drag right) — only when closed =====
+        if (!_isJournalOpen)
+          Positioned(
+            left: leftSide,
+            right: rightSide,
+            top: safeTop,
+            bottom: 0,
+            width: edge,
+            child: _EdgeSwipePad(
+              onHorizontalDragStart: (_) {
+                if (!UiGuards.canOpenJournalSwipe) return;
+                _dragAccumOpen = 0.0;
+              },
+              onHorizontalDragUpdate: (d) {
+                if (!UiGuards.canOpenJournalSwipe) return;
+                _dragAccumOpen += d.delta.dx; // right = positive
+              },
+              onHorizontalDragEnd: (d) {
+                if (!UiGuards.canOpenJournalSwipe) {
+                  _dragAccumOpen = 0.0;
+                  return;
+                }
+                final vx = d.velocity.pixelsPerSecond.dx;
+                final traveled = _dragAccumOpen;
+                final flingOpen = vx > _openVelocity;
+                final dragOpen = traveled > _openDistance;
+                if ((flingOpen || dragOpen) && !_isJournalOpen) {
+                  _openJournal();
+                }
+                _dragAccumOpen = 0.0;
+              },
+            ),
+          ),
+
+        // ===== Right-edge CLOSE (drag left) — only when open =====
+        if (_isJournalOpen)
+          Positioned(
+            right: rightSide == null ? 0 : null, // LTR -> right:0 ; RTL -> left:0
+            left: rightSide,
+            top: safeTop,
+            bottom: 0,
+            width: edge,
+            child: _EdgeSwipePad(
+              onHorizontalDragStart: (_) => _dragAccumClose = 0.0,
+              onHorizontalDragUpdate: (d) {
+                _dragAccumClose += d.delta.dx; // left = negative
+              },
+              onHorizontalDragEnd: (d) {
+                final vx = d.velocity.pixelsPerSecond.dx;
+                final traveled = _dragAccumClose;
+                final flingClose = vx < _closeVelocity;        // strong left fling
+                final dragClose = traveled < -_closeDistance;  // enough left drag
+                if ((flingClose || dragClose) && _isJournalOpen) {
+                  _closeJournal();
+                }
+                _dragAccumClose = 0.0;
+              },
+            ),
+          ),
+      ],
     );
   }
 }
 
-/// Wrapper for landscape header-only swipe
-class JournalHeaderSwipeDetector extends StatelessWidget {
-  final Widget child;
-  final JournalController controller;
-  final VoidCallback onOpen;
+/// Transparent, edge-only strip that recognizes drags but lets taps pass.
+class _EdgeSwipePad extends StatelessWidget {
+  const _EdgeSwipePad({
+    required this.onHorizontalDragStart,
+    required this.onHorizontalDragUpdate,
+    required this.onHorizontalDragEnd,
+  });
 
-  const JournalHeaderSwipeDetector({
-    Key? key,
-    required this.child,
-    required this.controller,
-    required this.onOpen,
-  }) : super(key: key);
+  final GestureDragStartCallback? onHorizontalDragStart;
+  final GestureDragUpdateCallback? onHorizontalDragUpdate;
+  final GestureDragEndCallback? onHorizontalDragEnd;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onVerticalDragUpdate: (details) {
-        if (!UiGuards.canOpenJournalSwipe) return;
-
-        // Down swipe only
-        if (details.delta.dy > 0 &&
-            details.delta.dy.abs() > details.delta.dx.abs() * kJournalSwipeDominance) {
-          onOpen();
-        }
-      },
-      child: child,
+    return Listener(
+      behavior: HitTestBehavior.translucent, // do not swallow taps
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: null, // never claim taps
+        onHorizontalDragStart: onHorizontalDragStart,
+        onHorizontalDragUpdate: onHorizontalDragUpdate,
+        onHorizontalDragEnd: onHorizontalDragEnd,
+        child: const SizedBox.expand(),
+      ),
     );
   }
 }

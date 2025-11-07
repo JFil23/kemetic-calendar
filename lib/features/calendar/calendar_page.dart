@@ -15,6 +15,7 @@ import 'dart:convert';
 import 'day_view.dart';
 import '../profile/profile_page.dart';
 import '../journal/journal_controller.dart';
+import '../journal/journal_swipe_layer.dart';
 import '../../core/ui_guards.dart';
 import '../../main.dart';
 import '../../data/share_repo.dart';
@@ -4099,7 +4100,11 @@ class _CalendarPageState extends State<CalendarPage> {
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
     debugPrint('🔧 _buildBodyWithJournal called: portrait=$isPortrait, initialized=$_journalInitialized');
     
-    return _buildCalendarScrollView();
+    return JournalSwipeLayer(
+      controller: _journalController,
+      isPortrait: isPortrait,
+      child: _buildCalendarScrollView(),
+    );
   }
 
   Widget _buildCalendarScrollView() {
