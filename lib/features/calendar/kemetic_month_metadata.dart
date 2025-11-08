@@ -307,7 +307,7 @@ const List<KemeticMonth> kKemeticMonths = [
   KemeticMonth(
     id: 13,
     key: 'epagomenal',
-    displayShort: 'Epagomenal',
+    displayShort: 'Heriu Renpet',  // ✅ FIX 3: Changed from 'Epagomenal'
     displayTransliteration: 'ḥr.w rnpt',
     transliterationFull: 'Heriu Renpet',
     hellenized: 'Epagomenai',

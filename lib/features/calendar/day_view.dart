@@ -218,6 +218,9 @@ class _DayViewPageState extends State<DayViewPage> {
   static const int _centerPage = 5000;
   double? _savedScrollOffset; // Added for scroll persistence
   
+  // ✅ Today button guard to prevent duplicate state updates
+  bool _isJumpingToToday = false;
+  
   // 🔧 ADD THIS: Persistent scroll controller for mini calendar
   late ScrollController _miniCalendarScrollController;
   
@@ -239,6 +242,30 @@ class _DayViewPageState extends State<DayViewPage> {
         : 30;
     final initialScroll = ((_currentKd - 5).clamp(0, (dayCount - 10).clamp(0, dayCount))).toDouble() * 34; // 30 width + 4 margin
     _miniCalendarScrollController = ScrollController(initialScrollOffset: initialScroll);
+  }
+
+  @override
+  void didUpdateWidget(covariant DayViewPage old) {
+    super.didUpdateWidget(old);
+    if (old.initialKy != widget.initialKy ||
+        old.initialKm != widget.initialKm ||
+        old.initialKd != widget.initialKd) {
+      final g = KemeticMath.toGregorian(
+        widget.initialKy, widget.initialKm, widget.initialKd ?? 1,
+      );
+      setState(() {
+        _initialGregorian = g;
+        _currentKy = widget.initialKy;
+        _currentKm = widget.initialKm;
+        _currentKd = widget.initialKd ?? 1;
+        if (_pageController.hasClients) {
+          _pageController.jumpToPage(_centerPage);  // reset paging anchor
+        }
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollMiniCalendarToCenter(_currentKd);     // keep gold circle centered
+      });
+    }
   }
 
   @override
@@ -269,13 +296,17 @@ class _DayViewPageState extends State<DayViewPage> {
 
   void _onPageChanged(int pageIndex) {
     final kDate = _dateForPage(pageIndex);
+    
     setState(() {
       _currentKy = kDate.kYear;
       _currentKm = kDate.kMonth;
       _currentKd = kDate.kDay;
     });
     
-    // 🔧 ADD THIS: Animate mini calendar when day changes
+    // ✅ Don't duplicate state updates during Today jump
+    if (_isJumpingToToday) return;
+    
+    // Animate mini calendar when day changes
     _scrollMiniCalendar();
   }
 
@@ -300,6 +331,20 @@ class _DayViewPageState extends State<DayViewPage> {
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
     );
+  }
+
+  void _scrollMiniCalendarToCenter(int day) {
+    // tune to your chip size/gaps; 34.0 is a common width
+    const chipW = 34.0;
+    const centerIndex = 5; // places selection near the middle of the row
+    final target = (day - centerIndex).clamp(0, 27) * chipW;
+    if (_miniCalendarScrollController.hasClients) {
+      _miniCalendarScrollController.animateTo(
+        target.toDouble(),
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   // 🔧 NEW: Convert Kemetic date to total days for navigation
@@ -337,6 +382,23 @@ class _DayViewPageState extends State<DayViewPage> {
               getMonthName: widget.getMonthName,
               onManageFlows: widget.onManageFlows,
               onAddNote: widget.onAddNote,
+              onMonthChanged: (ky, km) {
+                // ✅ HANDLE MONTH CHANGE IN DAY VIEW
+                if (kDebugMode) {
+                  print('🔄 [DAY VIEW] Landscape month changed: Year $ky, Month $km');
+                }
+                setState(() {
+                  _currentKy = ky;
+                  _currentKm = km;
+                  // Keep current day if still valid in new month
+                  final maxDay = km == 13 
+                      ? (KemeticMath.isLeapKemeticYear(ky) ? 6 : 5)
+                      : 30;
+                  if (_currentKd > maxDay) {
+                    _currentKd = maxDay;
+                  }
+                });
+              },
             );
           }
           
@@ -473,19 +535,30 @@ class _DayViewPageState extends State<DayViewPage> {
                   ),
                   // Today button
                   TextButton(
-                    onPressed: () {
-                      final now = DateTime.now();
-                      final todayGregorian = DateTime(now.year, now.month, now.day);
-                      final offsetDays = todayGregorian.difference(_initialGregorian).inDays;
+                    onPressed: () async {
+                      if (!_pageController.hasClients) return;
+
+                      final t = KemeticMath.fromGregorian(DateTime.now());
+                      final g = KemeticMath.toGregorian(t.kYear, t.kMonth, t.kDay);
+                      final offsetDays = g.difference(_initialGregorian).inDays;
                       final targetPage = _centerPage + offsetDays;
-                      
-                      if (_pageController.hasClients) {
-                        _pageController.animateToPage(
-                          targetPage,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOut,
-                        );
-                      }
+
+                      _isJumpingToToday = true;
+
+                      await _pageController.animateToPage(
+                        targetPage, duration: const Duration(milliseconds: 280), curve: Curves.easeOut,
+                      );
+
+                      setState(() {
+                        _currentKy = t.kYear;
+                        _currentKm = t.kMonth;
+                        _currentKd = t.kDay;
+                      });
+
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        _scrollMiniCalendarToCenter(_currentKd);
+                        _isJumpingToToday = false;
+                      });
                     },
                     child: const Text(
                       'Today',

@@ -36,6 +36,7 @@ class LandscapeMonthView extends StatelessWidget {
   final String Function(int km) getMonthName;
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
+  final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
 
   const LandscapeMonthView({
     super.key,
@@ -47,7 +48,8 @@ class LandscapeMonthView extends StatelessWidget {
     required this.flowIndex,
     required this.getMonthName,
     this.onManageFlows,
-    this.onAddNote, // 🔧 NEW
+    this.onAddNote,
+    this.onMonthChanged, // ✅ NEW CALLBACK
   });
 
   @override
@@ -61,7 +63,8 @@ class LandscapeMonthView extends StatelessWidget {
       flowIndex: flowIndex,
       getMonthName: getMonthName,
       onManageFlows: onManageFlows,
-      onAddNote: onAddNote, // 🔧 NEW: Pass it down
+      onAddNote: onAddNote,
+      onMonthChanged: onMonthChanged, // ✅ PASS CALLBACK DOWN
     );
   }
 }
@@ -81,6 +84,7 @@ class LandscapeMonthPager extends StatefulWidget {
   final String Function(int km) getMonthName;
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
+  final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
 
   const LandscapeMonthPager({
     super.key,
@@ -92,7 +96,8 @@ class LandscapeMonthPager extends StatefulWidget {
     required this.flowIndex,
     required this.getMonthName,
     this.onManageFlows,
-    this.onAddNote, // 🔧 NEW
+    this.onAddNote,
+    this.onMonthChanged, // ✅ NEW CALLBACK
   });
 
   @override
@@ -106,14 +111,62 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
   // 🔧 NEW: Track current page for AppBar display
   int _currentPage = 100000;
   
-  // 🔧 NEW: Track drag accumulation for manual gesture control
-  double _dragAccum = 0.0;
+  // ✅ HARDENING 3: Debounce onPageChanged to prevent redundant callbacks
+  int? _lastNotifiedPage;
+  
+  // ✅ FIX 3: Animation guard to prevent remapping during animation
+  bool _isAnimating = false;
+  
+  // ✅ FIX 1: Track actual displayed month (avoids stale widget.initialKy/Km)
+  ({int kYear, int kMonth})? _actualMonth;
+  
+  // ✅ Today Button Fix: Stable internal base (doesn't depend on widget props)
+  late int _baseTotalMonths;  // ✅ Use late (safer than = 0)
+  
+  // ✅ Today Button Fix: Dual flags to prevent shuffle
+  bool _isJumpingToToday = false;      // Blocks onPageChanged during Today jump
+  bool _suppressRemap = false;         // Blocks didUpdateWidget remap
+
+  // ✅ FIX A: Canonical month math - Year 1, Month 1 = index 0
+  /// Absolute month index where (Year 1, Month 1) == 0
+  int _toTotalMonths(int ky, int km) {
+    // km expected 1..13, ky can be any integer (…,-1,0,1,2,…)
+    return (ky - 1) * 13 + (km - 1);  // ✅ Year 1, Month 1 = 0
+  }
+
+  int _pageFor(int ky, int km) =>
+    _centerPage + (_toTotalMonths(ky, km) - _toTotalMonths(widget.initialKy, widget.initialKm));
+
+  /// Calculate absolute page for a month using stable internal base
+  /// This avoids dependency on potentially stale widget.initialKy/Km
+  int _pageForAbsolute(int ky, int km) {
+    final total = _toTotalMonths(ky, km);
+    return _centerPage + (total - _baseTotalMonths);
+  }
+
+  /// Inverse of _toTotalMonths with Euclidean normalization
+  ({int kYear, int kMonth}) _fromTotalMonths(int total) {
+    // m0 in 0..12 even for negative totals
+    final m0 = ((total % 13) + 13) % 13;
+    // Floor-like division because we removed the remainder first
+    final y0 = (total - m0) ~/ 13;
+    return (kYear: y0 + 1, kMonth: m0 + 1);  // ✅ Convert back to 1-indexed
+  }
+
+  ({int kYear, int kMonth}) _monthForPage(int page) {
+    final delta = page - _centerPage;
+    final total = _baseTotalMonths + delta;  // ✅ Use canonical base
+    return _fromTotalMonths(total);
+  }
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _centerPage);
     _currentPage = _centerPage; // 🔧 NEW: Initialize
+    _lastNotifiedPage = _centerPage; // Optional: for consistency
+    // ✅ Initialize stable base
+    _baseTotalMonths = _toTotalMonths(widget.initialKy, widget.initialKm);
   }
 
   @override
@@ -125,11 +178,47 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
   @override
   void didUpdateWidget(LandscapeMonthPager oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
+    final newBase = _toTotalMonths(widget.initialKy, widget.initialKm);
+    if (newBase == _baseTotalMonths) return;
+
+    final oldBase = _baseTotalMonths;
+    _baseTotalMonths = newBase; // ✅ Update base immediately
+
+    if (_suppressRemap || _isAnimating) {
+      // ✅ Keep header consistent while suppressed
+      if (_pageController.hasClients) {
+        final pageNow = _pageController.page?.round() ?? _currentPage;
+        final total = _baseTotalMonths + (pageNow - _centerPage);
+        _actualMonth = _fromTotalMonths(total);
+      }
+      if (kDebugMode && _suppressRemap) {
+        print('✓ [PAGER] Updated base during suppression: $oldBase → $newBase');
+      }
+      return;
+    }
+
+    // ✅ Preserve same absolute month on screen
+    final delta = _currentPage - _centerPage;
+    final curTotal = oldBase + delta;
+    final newDelta = curTotal - newBase;
+    final newPage = _centerPage + newDelta;
+
     if (kDebugMode) {
-      print('🔄 [PAGER] didUpdateWidget()');
-      print('   Old onAddNote: ${oldWidget.onAddNote != null ? "PROVIDED" : "NULL"}');
-      print('   New onAddNote: ${widget.onAddNote != null ? "PROVIDED" : "NULL"}');
+      print('🔄 [PAGER] Base changed: $oldBase → $newBase');
+      print('   Preserving absolute month: $curTotal');
+      print('   New page: $newPage');
+    }
+
+    if (_pageController.hasClients && newPage != _currentPage) {
+      _pageController.jumpToPage(newPage);
+      _currentPage = newPage;
+      _lastNotifiedPage = newPage;
+      _actualMonth = _monthForPage(newPage);
+      
+      if (kDebugMode) {
+        print('✓ [PAGER] Remap complete');
+      }
     }
     
     // When callback becomes available, force PageView to rebuild current page
@@ -144,36 +233,38 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     }
   }
 
-  // Calculate which month to show based on page offset
-  // EXACTLY matches your _LandscapePager._addMonths logic
-  ({int kYear, int kMonth}) _monthForPage(int page) {
-    final delta = page - _centerPage;
-    
-    // Use INITIAL year/month (never changes) + delta
-    final zero = (widget.initialKy * 13) + (widget.initialKm - 1) + delta;
-    final ky = zero ~/ 13;
-    final km = (zero % 13) + 1;
-    
-    return (kYear: ky, kMonth: km);
-  }
+  // ✅ FIX 3: Old _monthForPage removed - now using helper method from Fix 1
 
-  void _jumpToToday() {
-    final now = DateTime.now();
-    final today = KemeticMath.fromGregorian(now);
-    
-    // Calculate which page shows today's month
-    final todayTotalMonths = (today.kYear * 13) + (today.kMonth - 1);
-    final initialTotalMonths = (widget.initialKy * 13) + (widget.initialKm - 1);
-    final delta = todayTotalMonths - initialTotalMonths;
-    final targetPage = _centerPage + delta;
-    
-    if (_pageController.hasClients) {
-      _pageController.animateToPage(
-        targetPage,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
+  Future<void> _jumpToToday() async {
+    if (!_pageController.hasClients) return;
+
+    final t = KemeticMath.fromGregorian(DateTime.now());
+
+    // ✅ NEW: refresh base first so header math is correct on first press
+    _baseTotalMonths = _toTotalMonths(t.kYear, t.kMonth);
+
+    final targetPage = _pageForAbsolute(t.kYear, t.kMonth);
+
+    _isAnimating = true;
+    _suppressRemap = true;
+
+    await _pageController.animateToPage(
+      targetPage,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+    );
+
+    setState(() {
+      _currentPage = targetPage;
+      _actualMonth = (kYear: t.kYear, kMonth: t.kMonth);
+    });
+
+    widget.onMonthChanged?.call(t.kYear, t.kMonth);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _isAnimating = false;
+      _suppressRemap = false;
+    });
   }
 
   // 🔧 NEW: Get days in month (needed for year label calculation)
@@ -239,7 +330,8 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
 
   // 🔧 FIXED: Custom header with month swipe gesture - GestureDetector only wraps title area
   Widget _buildCustomHeader(BuildContext context) {
-    final currentMonth = _monthForPage(_currentPage);
+    // ✅ FIX 1: Prefer _actualMonth to avoid stale widget.initialKy/Km
+    final currentMonth = _actualMonth ?? _monthForPage(_currentPage);
     final monthName = widget.getMonthName(currentMonth.kMonth);
     final yearLabel = _getYearLabel(currentMonth.kYear, currentMonth.kMonth);
     
@@ -261,61 +353,28 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           ),
           child: Row(
             children: [
-              // Month/Year title - WITH gesture detector for swiping (only this area)
+              // Month/Year title - REMOVED GestureDetector, PageView handles swipes
               Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onHorizontalDragStart: (details) {
-                    _dragAccum = 0.0;
-                  },
-                  onHorizontalDragUpdate: (details) {
-                    _dragAccum += details.delta.dx;
-                  },
-                  onHorizontalDragEnd: (details) async {
-                    const double distThreshold = 40.0;
-                    const double velThreshold = 600.0;
-                    final vx = details.primaryVelocity ?? 0.0;
-
-                    if (vx <= -velThreshold || _dragAccum <= -distThreshold) {
-                      // Swipe left → next month
-                      if (_pageController.hasClients) {
-                        await _pageController.nextPage(
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOut,
-                        );
-                      }
-                    } else if (vx >= velThreshold || _dragAccum >= distThreshold) {
-                      // Swipe right → previous month
-                      if (_pageController.hasClients) {
-                        await _pageController.previousPage(
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOut,
-                        );
-                      }
-                    }
-                    _dragAccum = 0.0;
-                  },
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        monthName,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: _landscapeGold,
-                        ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      monthName,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: _landscapeGold,
                       ),
-                      Text(
-                        yearLabel,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _landscapeGold.withOpacity(0.6),
-                        ),
+                    ),
+                    Text(
+                      yearLabel,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _landscapeGold.withOpacity(0.6),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
               // Flow Studio button - OUTSIDE GestureDetector (no gesture interference)
@@ -382,29 +441,56 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
   // 🔧 NEW: Body with PageView (no gesture handling - grid handles its own)
   Widget _buildBodyWithSwipeGate(BuildContext context) {
     return PageView.builder(
-      key: ValueKey('landscape-pager-${widget.initialKy}-${widget.initialKm}-${widget.onAddNote?.hashCode ?? "null"}'),
       controller: _pageController,
       scrollDirection: Axis.horizontal,
-      physics: const NeverScrollableScrollPhysics(), // Month changes via header only
+      physics: const PageScrollPhysics(), // ✅ Allows gesture AND animateToPage()
       pageSnapping: true,
       onPageChanged: (page) {
+        // ✅ HARDENING 3: Debounce to prevent redundant callbacks
+        if (_lastNotifiedPage == page) return;
+
+        final m = _monthForPage(page);
+
+        // ✅ Always keep local truth in sync for UI
         setState(() {
           _currentPage = page;
+          _actualMonth = m;
         });
+        _lastNotifiedPage = page;
+
+        // ✅ If in middle of Today jump, don't ping parent again
+        if (_isJumpingToToday) {
+          if (kDebugMode) {
+            print('📄 [PAGER] Page changed to $page during Today jump - state updated, parent notification blocked');
+          }
+          return;
+        }
+
+        // ✅ Normal swipe → notify parent so it sends correct data
+        if (kDebugMode) {
+          print('📄 [PAGER] Page changed to: $page');
+          print('   Month: ${m.kYear}-${m.kMonth}');
+        }
+        widget.onMonthChanged?.call(m.kYear, m.kMonth);
       },
       itemBuilder: (context, index) {
-        final month = _monthForPage(index);
+        final m = _monthForPage(index);
+        final pageInitialDay = (widget.initialDay != null &&
+                                m.kYear == widget.initialKy &&
+                                m.kMonth == widget.initialKm)
+                               ? widget.initialDay
+                               : null;
         
         if (kDebugMode) {
           print('🔧 [PAGER] Creating LandscapeMonthGridBody for page $index');
-          print('   Month: ${month.kYear}-${month.kMonth}');
+          print('   Month: ${m.kYear}-${m.kMonth}');
         }
         
         return LandscapeMonthGridBody(
-          key: ValueKey('grid-body-${month.kYear}-${month.kMonth}'),
-          kYear: month.kYear,
-          kMonth: month.kMonth,
-          initialDay: index == _centerPage ? widget.initialDay : null,
+          key: ValueKey('grid-body-${m.kYear}-${m.kMonth}'),
+          kYear: m.kYear,
+          kMonth: m.kMonth,
+          initialDay: pageInitialDay,          // ✅ use 'initialDay'
           showGregorian: widget.showGregorian,
           notesForDay: widget.notesForDay,
           flowIndex: widget.flowIndex,
@@ -531,6 +617,13 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     }
   }
 
+  @override
+  void didUpdateWidget(covariant LandscapeMonthGridBody old) {
+    super.didUpdateWidget(old);
+    if (old.initialDay != widget.initialDay && widget.initialDay != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToDay(widget.initialDay!));
+    }
+  }
 
   @override
   void dispose() {
@@ -663,6 +756,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                   width: gridW,
                   height: gridH,
                   child: Stack(
+                    fit: StackFit.expand,
+                    clipBehavior: Clip.none,
                     children: [
                       // Grid lines
                       _buildGridLines(dayCount, colW),
@@ -816,8 +911,27 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   List<Widget> _buildEventsForDay(int day, double colW) {
     final rawNotes = widget.notesForDay(widget.kYear, widget.kMonth, day);
     
+    // ✅ ADD DEBUG LOGGING
+    if (kDebugMode && rawNotes.isNotEmpty) {
+      print('📅 [LANDSCAPE] Building events for day $day');
+      print('   Year: ${widget.kYear}, Month: ${widget.kMonth}');
+      print('   Raw notes: ${rawNotes.length}');
+      print('   FlowIndex keys: ${widget.flowIndex.keys.toList()}');
+      for (var note in rawNotes) {
+        print('   - Note: "${note.title}", flowId: ${note.flowId}');
+        if (note.flowId != null) {
+          final flow = widget.flowIndex[note.flowId];
+          print('     Flow color: ${flow?.color}');
+        }
+      }
+    }
+    
     // ✅ NEW: Dedupe notes before rendering to handle legacy duplicates
     final notes = _dedupeNotesForUI(rawNotes);
+    
+    if (kDebugMode && rawNotes.isNotEmpty && notes.isEmpty) {
+      print('⚠️ [LANDSCAPE] All notes deduped for day $day!');
+    }
     if (notes.isEmpty) return [];
 
     if (kDebugMode) {
@@ -879,7 +993,16 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       final col = columnAssignments[event] ?? 0;
       final left = (day - 1) * (colW + _daySepW) + (col * (columnWidth + columnGap));
       final top = (event.startMin / 60.0) * _rowH;
-      final height = ((event.endMin - event.startMin) / 60.0) * _rowH;
+      
+      // ✅ FIX 5: Calculate and clamp duration like day view
+      int durationMinutes = event.endMin - event.startMin;
+      if (durationMinutes <= 0) {
+        durationMinutes = 15;
+      }
+      if (durationMinutes > 180) {
+        durationMinutes = 180;
+      }
+      final height = (durationMinutes / 60.0) * _rowH;
 
       widgets.add(
         Positioned(
@@ -891,15 +1014,15 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             onTap: () => _showEventDetail(event),
             child: Container(
               margin: const EdgeInsets.only(right: 4, bottom: 2),
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(4), // ✅ Match day view exactly
               decoration: BoxDecoration(
-                color: event.color.withOpacity(0.2),
+                color: event.color.withOpacity(0.20),
                 border: Border(
-                  left: BorderSide(color: event.color, width: 3),
+                  left: BorderSide(color: event.color, width: 3), // ✅ Left border only
                 ),
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(4), // ✅ Radius 4 (not 6)
               ),
-              child: _buildEventBlockContent(event),
+              child: _buildEventBlockContent(event, durationMinutes),
             ),
           ),
         ),
@@ -909,10 +1032,15 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     return widgets;
   }
 
-  Widget _buildEventBlockContent(_EventItem event) {
+  Widget _buildEventBlockContent(_EventItem event, int durationMinutes) {
     final flow = widget.flowIndex[event.flowId];
     final hasFlow = flow != null;
-    
+
+    final showTitle = event.title.trim().isNotEmpty;
+    final showLocation = event.location != null &&
+        event.location!.trim().isNotEmpty &&
+        durationMinutes > 45;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -921,7 +1049,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           Text(
             flow!.name,
             style: TextStyle(
-              fontSize: 9,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
               color: event.color,
             ),
@@ -931,17 +1059,45 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           const SizedBox(height: 2),
         ],
         
-        // Note title
-        Text(
-          event.title,
-          style: const TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-            color: Colors.white,
+        // Note title - only render if meaningful
+        if (showTitle)
+          Text(
+            event.title.trim(),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500, // ✅ w500 not w600
+              color: Colors.white,
+            ),
+            maxLines: hasFlow ? 1 : 2,
+            overflow: TextOverflow.ellipsis,
+          )
+        else
+          Text( // ✅ No const - text is conditional
+            hasFlow ? '(flow block)' : '(scheduled)', // ✅ Match day view logic
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+              color: Colors.white70, // ✅ Exact day view color
+              fontStyle: FontStyle.italic,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          maxLines: hasFlow ? 1 : 2,
-          overflow: TextOverflow.ellipsis,
-        ),
+        
+        // Location (if space allows)
+        if (showLocation)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              event.location!.trim(),
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.white.withOpacity(0.7), // ✅ NO fontWeight
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
       ],
     );
   }

@@ -40,28 +40,28 @@ import 'package:mobile/core/day_key.dart';
 /* ───────────────────── Premium Dark Theme + Gloss ───────────────────── */
 
 const Color _bg = Colors.black; // True black
-const Color _gold = Color(0xFFD4AF37);
 const Color _silver = Color(0xFFC8CCD2);
-const Color _cardBorderGold = _gold;
 
 // Gregorian blue (high contrast on dark)
 const Color _blue = Color(0xFF4DA3FF);
 const Color _blueLight = Color(0xFFBFE0FF);
 const Color _blueDeep = Color(0xFF0B64C0);
 
-// Gentle highlight and depth shades for glossy gradients
-const Color _goldLight = Color(0xFFFFE7A3);  // Bright highlight
-const Color _goldMid = Color(0xFFF3C766);     // Rich mid-tone
-const Color _goldDeep = Color(0xFFB8903A);    // Deep shadow
+// Richer, deeper gold with visible gleam
+const Color _gold = Color(0xFFD4AF37);
+const Color _cardBorderGold = _gold;
+const Color _goldLight = Color(0xFFE6C85A);  // Slightly brighter than base gold (for visible gleam)
+const Color _goldMid = Color(0xFFD4AF37);     // Base gold as mid-tone
+const Color _goldDeep = Color(0xFF9D7A1F);    // Much deeper shadow
 const Color _silverLight = Color(0xFFF5F7FA);
 const Color _silverDeep = Color(0xFF7A838C);
 
-// Gradients for gloss (top-left to bottom-right)
+// Gradients for gloss (top-left to bottom-right) - enhanced contrast for more gloss
 const Gradient _goldGloss = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
   colors: [_goldLight, _goldMid, _goldDeep],
-  stops: [0.0, 0.55, 1.0],
+  stops: [0.0, 0.45, 1.0], // Tighter highlight band for more visible gleam
 );
 
 const Gradient _silverGloss = LinearGradient(
@@ -96,6 +96,14 @@ const TextStyle _seasonStyle =
 TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.white);
 const TextStyle _decanStyle =
 TextStyle(fontSize: 12, fontWeight: FontWeight.w400, color: Colors.white);
+// Neutral on black — match day numbers / decan rows (no gradient, no glow)
+const TextStyle _neutralOnBlack = TextStyle(
+  fontSize: 12,                // match day-number size
+  fontWeight: FontWeight.w400, // same as day numbers
+  letterSpacing: 0.0,
+  color: Colors.white,         // same color as the day numbers
+  height: 1.2,
+);
 
 /* Gregorian month names (1-based) */
 const List<String> _gregMonthNames = [
@@ -318,12 +326,27 @@ class _GlossyText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ FIX 3: Use ShaderMask instead of foreground Paint to avoid shader+shadows conflict
     return ShaderMask(
       shaderCallback: (Rect bounds) => gradient.createShader(bounds),
       blendMode: BlendMode.srcIn,
       child: Text(
         text,
-        style: style.copyWith(color: Colors.white),
+        style: style.copyWith(
+          color: Colors.white,
+          shadows: const [
+            Shadow(
+              offset: Offset(1.5, 0.4),
+              blurRadius: 3.0,
+              color: Color(0x55D4AF37),
+            ),
+            Shadow(
+              offset: Offset(1.0, 1.2),
+              blurRadius: 2.5,
+              color: Color(0x44D4AF37),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -962,7 +985,7 @@ class CalendarPage extends StatefulWidget {
   State<CalendarPage> createState() => _CalendarPageState();
 }
 
-class _CalendarPageState extends State<CalendarPage> {
+class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver {
 
   // Track whether the clientEventId migration has been executed.
   // This ensures the migration runs at most once per app session to avoid
@@ -1138,69 +1161,216 @@ class _CalendarPageState extends State<CalendarPage> {
 
   int? _lastViewKy;       // last centered Kemetic year
   int? _lastViewKm;       // last centered Kemetic month (1..13)
+  int? _lastViewKd;       // last viewed Kemetic day (1..30, or 1..5/6 for month 13)
   
   // Debug logging fields
   int _buildCount = 0; // Track how many times build() is called
   Orientation? _lastOrientation; // Track orientation changes
+  
+  // ✅ ADD: Preference keys for state persistence
+  static const String _kPrefLastViewYear = 'calendar_last_view_ky';
+  static const String _kPrefLastViewMonth = 'calendar_last_view_km';
+  static const String _kPrefLastViewDay = 'calendar_last_view_kd';
+
+  // ✅ ADD: Flag to prevent auto-scroll on orientation change
+  bool _skipScrollToToday = false;
+
+  // ✅ ADD: Feedback loop prevention flag
+  bool _isUpdatingFromLandscape = false;
+  bool _isUpdatingFromPortrait = false;
+  
+  // ✅ NEW: Suspend centered month updates during orientation/metrics changes
+  bool _suspendCenteredMonthUpdate = false;
+
+  // ✅ ADD: First-build gating flag to prevent race condition
+  bool _restored = false;
 
 
 // Find the month card whose vertical center is closest to the viewport center.
   void _updateCenteredMonth() {
-    // Check a reasonable window of years around the current scroll position:
+    // ✅ Skip if metrics/orientation are mid-change
+    if (_suspendCenteredMonthUpdate) return;
+
     final candidates = <(int ky, int km, double dist)>[];
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null) return;
-    final viewportCenterY = box.size.height / 2;
+    
+    // ✅ OPTIMIZED: Try saved/today month first (most likely mounted)
+    final baseKy = _lastViewKy ?? _today.kYear;
+    final baseKm = _lastViewKm ?? _today.kMonth;
+    
+    ScrollableState? scrollableState;
+    RenderBox? viewportBox;
+    
+    // Try saved/today month first
+    var ctx = keyForMonth(baseKy, baseKm).currentContext;
+    if (ctx != null) {
+      scrollableState = Scrollable.of(ctx);  // ✅ Use CHILD context!
+      if (scrollableState != null) {
+        final vpBox = scrollableState.context.findRenderObject() as RenderBox?;
+        if (vpBox != null && vpBox.hasSize) {
+          viewportBox = vpBox;
+        }
+      }
+    }
+    
+    // Fallback: search nearby months if first attempt failed
+    if (viewportBox == null) {
+      for (var dY = -3; dY <= 3 && viewportBox == null; dY++) {
+        final ky = baseKy + dY;
+        for (var km = 1; km <= 13; km++) {
+          ctx = keyForMonth(ky, km).currentContext;
+          if (ctx == null) continue;
+          scrollableState = Scrollable.of(ctx);
+          if (scrollableState != null) {
+            final vpBox = scrollableState.context.findRenderObject() as RenderBox?;
+            if (vpBox != null && vpBox.hasSize) {
+              viewportBox = vpBox;
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    if (scrollableState == null || viewportBox == null) return;
+    
+    // ✅ Viewport must be valid and laid out
+    final position = scrollableState.position;
+    if (!position.hasPixels || position.viewportDimension <= 0) return;
+    
+    // ✅ Calculate viewport center in global coordinates
+    final viewportTopGlobal = viewportBox.localToGlobal(Offset.zero).dy;
+    final viewportCenterY = viewportTopGlobal + (viewportBox.size.height / 2);
 
     bool addIfMounted(int ky, int km) {
-      final key = keyForMonth(ky, km);
-      final ctx = key.currentContext;
+      final ctx = keyForMonth(ky, km).currentContext;
       if (ctx == null) return false;
+      
       final rb = ctx.findRenderObject() as RenderBox?;
-      if (rb == null) return false;
-      final topLeft = rb.localToGlobal(Offset.zero, ancestor: box);
-      final centerY = topLeft.dy + rb.size.height / 2;
-      final dist = (centerY - viewportCenterY).abs();
+      if (rb == null || !rb.hasSize) return false;
+      
+      // ✅ CORRECT: size.center() exists and matches _centerMonth() pattern
+      final monthCenterGlobal = rb.localToGlobal(rb.size.center(Offset.zero)).dy;
+      
+      final dist = (monthCenterGlobal - viewportCenterY).abs();
       candidates.add((ky, km, dist));
       return true;
     }
 
-    final today = _today;
-    for (var dy = -3; dy <= 3; dy++) {
-      final ky = today.kYear + dy;
+    // Search from saved state (already correct from v3)
+    for (var dY = -3; dY <= 3; dY++) {
+      final ky = baseKy + dY;
       for (var km = 1; km <= 13; km++) {
         addIfMounted(ky, km);
       }
     }
+    
     if (candidates.isEmpty) return;
     candidates.sort((a, b) => a.$3.compareTo(b.$3));
-    _lastViewKy = candidates.first.$1;
-    _lastViewKm = candidates.first.$2;
+    
+    final newKy = candidates.first.$1;
+    final newKm = candidates.first.$2;
+    
+    // ✅ ONLY UPDATE IF CHANGED AND NOT UPDATING FROM LANDSCAPE OR PORTRAIT
+    if ((_lastViewKy != newKy || _lastViewKm != newKm) &&
+        !_isUpdatingFromLandscape && !_isUpdatingFromPortrait) {
+      
+      // ✅ Sentinel guard: never accept 1/1 unless today actually is 1/1
+      final today = KemeticMath.fromGregorian(DateTime.now());
+      final looksLikeSentinel = (newKy == 1 && newKm == 1);
+      final todayIs1_1 = (today.kYear == 1 && today.kMonth == 1);
+      if (looksLikeSentinel && !todayIs1_1) {
+        if (kDebugMode) {
+          print('⚠️ [_updateCenteredMonth] rejected 1/1 during transition');
+        }
+        return;
+      }
+      
+      // ✅ HARDENING 1: Clamp day when month changes
+      final maxDay = _maxDayForMonth(newKy, newKm);
+      final clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
+      
+      _lastViewKy = newKy;
+      _lastViewKm = newKm;
+      _lastViewKd = clampedKd;
+      _saveViewState(_lastViewKy!, _lastViewKm!, clampedKd);
+    }
   }
 
   void _updateCenteredMonthWide() {
+    // ✅ ONLY update if we don't already have a valid state
+    // ✅ FIX 2: Removed _lastViewKy! >= 1 check - accept historical years
+    if (_lastViewKy != null && _lastViewKm != null && 
+        _lastViewKm! >= 1 && _lastViewKm! <= 13) {
+      if (kDebugMode) {
+        print('✓ [CALENDAR] Skipping _updateCenteredMonthWide - using existing state: $_lastViewKy-$_lastViewKm');
+      }
+      return;
+    }
+    
     final candidates = <(int ky, int km, double dist)>[];
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null) return;
-    final viewportCenterY = box.size.height / 2;
+    
+    // ✅ OPTIMIZED: Try saved/today month first (most likely mounted)
+    final base = _lastViewKy ?? _today.kYear;
+    final baseMonth = _lastViewKm ?? _today.kMonth;
+    
+    ScrollableState? scrollableState;
+    RenderBox? viewportBox;
+    
+    // Try saved/today month first
+    var ctx = keyForMonth(base, baseMonth).currentContext;
+    if (ctx != null) {
+      scrollableState = Scrollable.of(ctx);  // ✅ Use CHILD context!
+      if (scrollableState != null) {
+        final vpBox = scrollableState.context.findRenderObject() as RenderBox?;
+        if (vpBox != null && vpBox.hasSize) {
+          viewportBox = vpBox;
+        }
+      }
+    }
+    
+    // Fallback: search nearby months if first attempt failed
+    if (viewportBox == null) {
+      for (var dy = -220; dy <= 220; dy++) {
+        final ky = base + dy;
+        for (var km = 1; km <= 13; km++) {
+          ctx = keyForMonth(ky, km).currentContext;
+          if (ctx != null) {
+            scrollableState = Scrollable.of(ctx);
+            if (scrollableState != null) {
+              final vpBox = scrollableState.context.findRenderObject() as RenderBox?;
+              if (vpBox != null && vpBox.hasSize) {
+                viewportBox = vpBox;
+                break;
+              }
+            }
+          }
+        }
+        if (viewportBox != null) break;
+      }
+    }
+    
+    if (scrollableState == null || viewportBox == null) return;
+    
+    // ✅ Calculate viewport center in global coordinates (SAME as _updateCenteredMonth)
+    final viewportTopGlobal = viewportBox.localToGlobal(Offset.zero).dy;
+    final viewportCenterY = viewportTopGlobal + (viewportBox.size.height / 2);
 
     bool addIfMounted(int ky, int km) {
       final ctx = keyForMonth(ky, km).currentContext;
       if (ctx == null) return false;
       final rb = ctx.findRenderObject() as RenderBox?;
-      if (rb == null) return false;
-      final topLeft = rb.localToGlobal(Offset.zero, ancestor: box);
-      final centerY = topLeft.dy + rb.size.height / 2;
-      final dist = (centerY - viewportCenterY).abs();
+      if (rb == null || !rb.hasSize) return false;
+      
+      // ✅ CORRECT: Use same calculation as _centerMonth() and _updateCenteredMonth()
+      final monthCenterGlobal = rb.localToGlobal(rb.size.center(Offset.zero)).dy;
+      final dist = (monthCenterGlobal - viewportCenterY).abs();
       candidates.add((ky, km, dist));
       return true;
     }
 
-    // Scan a wider band once (matches your 200-year slivers either side)
-    final base = _today.kYear;
+    // Wider search for landscape (±220 years)
     for (var dy = -220; dy <= 220; dy++) {
       final ky = base + dy;
-      // Quick early exit once we’ve found enough nearby candidates
       var foundAny = false;
       for (var km = 1; km <= 13; km++) {
         foundAny = addIfMounted(ky, km) || foundAny;
@@ -1210,13 +1380,110 @@ class _CalendarPageState extends State<CalendarPage> {
 
     if (candidates.isEmpty) return;
     candidates.sort((a, b) => a.$3.compareTo(b.$3));
-    _lastViewKy = candidates.first.$1;
-    _lastViewKm = candidates.first.$2;
+    
+    // ✅ Only update if not already set
+    if (_lastViewKy == null || _lastViewKm == null) {
+      final newKy = candidates.first.$1;
+      final newKm = candidates.first.$2;
+      final maxDay = _maxDayForMonth(newKy, newKm);
+      final clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
+      
+      _lastViewKy = newKy;
+      _lastViewKm = newKm;
+      _lastViewKd = clampedKd;
+    }
   }
 
 // Call on scroll to keep tracking the centered month.
   void _onVerticalScroll() {
-    _updateCenteredMonth();
+    // ✅ Skip if suspended during orientation changes
+    if (_suspendCenteredMonthUpdate) return;
+    
+    // ✅ Debounce to next frame to avoid stale RenderObjects
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_suspendCenteredMonthUpdate) {
+        _updateCenteredMonth();
+      }
+    });
+  }
+
+  /// ✅ FIX 4: Compute centered month precisely using getOffsetToReveal
+  (int, int) _computeCenteredMonthPrecisely() {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) {
+      return (_lastViewKy ?? _today.kYear, _lastViewKm ?? _today.kMonth);
+    }
+
+    final vp = RenderAbstractViewport.of(box);
+    if (vp == null) {
+      return (_lastViewKy ?? _today.kYear, _lastViewKm ?? _today.kMonth);
+    }
+    
+    final viewportCenter = _scrollCtrl.offset + (box.size.height / 2);
+
+    // Search ±2 years around last known position
+    var bestKy = _lastViewKy ?? _today.kYear;
+    var bestKm = _lastViewKm ?? _today.kMonth;
+    double bestDist = double.infinity;
+
+    for (int dy = -2; dy <= 2; dy++) {
+      final baseKy = (_lastViewKy ?? _today.kYear) + dy;
+      for (int km = 1; km <= 13; km++) {
+        final ctx = keyForMonth(baseKy, km).currentContext;
+        if (ctx == null) continue;
+        
+        final ro = ctx.findRenderObject();
+        if (ro == null || ro is! RenderBox) continue;
+
+        // ✅ Use getOffsetToReveal for precision
+        final revealResult = vp.getOffsetToReveal(ro, 0.5);
+        final revealOffset = revealResult.offset;
+        final dist = (revealOffset - viewportCenter).abs();
+        
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestKy = baseKy;
+          bestKm = km;
+        }
+      }
+    }
+    
+    return (bestKy, bestKm);
+  }
+
+  /// ✅ FIX 4: Handle month change from portrait scroll (with feedback loop guard)
+  void _handlePortraitMonthChanged(int ky, int km) {
+    if (_isUpdatingFromLandscape || _isUpdatingFromPortrait) return;
+    
+    // ✅ NEW: Sentinel guard for _computeCenteredMonthPrecisely() results
+    final today = KemeticMath.fromGregorian(DateTime.now());
+    if (ky == 1 && km == 1 && !(today.kYear == 1 && today.kMonth == 1)) {
+      if (kDebugMode) {
+        print('⚠️ [_handlePortraitMonthChanged] rejected 1/1 from precise compute');
+      }
+      return;
+    }
+    
+    _isUpdatingFromPortrait = true;
+    try {
+      final maxDay = _maxDayForMonth(ky, km);
+      final clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
+      
+      setState(() {
+        _lastViewKy = ky;
+        _lastViewKm = km;
+        _lastViewKd = clampedKd;
+      });
+      _saveViewState(ky, km, clampedKd);
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ [CALENDAR] Error in portrait month change: $e');
+      }
+    } finally {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _isUpdatingFromPortrait = false;
+      });
+    }
   }
 
   // toggle: Kemetic (false) <-> Gregorian overlay (true)
@@ -1230,15 +1497,20 @@ class _CalendarPageState extends State<CalendarPage> {
   @override
   void initState() {
     super.initState();
-    _lastViewKy = _today.kYear;
-    _lastViewKm = _today.kMonth;
+    WidgetsBinding.instance.addObserver(this);
+    
+    // ✅ Load persisted state first, fallback to today
+    _loadPersistedViewState();
 
     _scrollCtrl.addListener(_onVerticalScroll);
 
     // notifications
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _scrollToToday();
+      // ✅ Only scroll to today if no persisted state
+      if (!_skipScrollToToday) {
+        _scrollToToday();
+      }
     });
 
     // Schedule a one-time migration of clientEventIds to the unified format.
@@ -1266,8 +1538,174 @@ class _CalendarPageState extends State<CalendarPage> {
     });
   }
 
+  /// ✅ Load persisted view state from SharedPreferences
+  Future<void> _loadPersistedViewState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedKy = prefs.getInt(_kPrefLastViewYear);
+      final savedKm = prefs.getInt(_kPrefLastViewMonth);
+      final savedKd = prefs.getInt(_kPrefLastViewDay);
+      
+      // ✅ FIX 2: Allow years < 1 in saved state - support historical dates
+      if (savedKy != null && savedKm != null && savedKm >= 1 && savedKm <= 13) {
+        final today = KemeticMath.fromGregorian(DateTime.now());
+        
+        if (savedKy > today.kYear + 2) {
+          if (kDebugMode) {
+            print('⚠️ [CALENDAR] Future persisted date $savedKy/$savedKm — defaulting to today');
+          }
+          setState(() {
+            _lastViewKy = today.kYear;
+            _lastViewKm = today.kMonth;
+            _lastViewKd = today.kDay;
+            _restored = true;
+          });
+          return;
+        }
+
+        // ✅ NEW: Reject Year 1, Month 1 unless today actually is 1/1
+        if (savedKy == 1 && savedKm == 1 && (today.kYear != 1 || today.kMonth != 1)) {
+          if (kDebugMode) {
+            print('⚠️ [CALENDAR] Year 1/Month 1 persisted (likely corruption) — defaulting to today');
+          }
+          await prefs.remove(_kPrefLastViewYear);
+          await prefs.remove(_kPrefLastViewMonth);
+          await prefs.remove(_kPrefLastViewDay);
+          setState(() {
+            _lastViewKy = today.kYear;
+            _lastViewKm = today.kMonth;
+            _lastViewKd = today.kDay;
+            _restored = true;
+          });
+          return;
+        }
+        
+        // Restore valid saved state
+        final maxDay = _maxDayForMonth(savedKy, savedKm);
+        final clamped = (savedKd != null && savedKd >= 1 && savedKd <= maxDay) ? savedKd : 1;
+        
+        if (kDebugMode) {
+          print('📂 [CALENDAR] Restored $savedKy/$savedKm/$clamped');
+        }
+        
+        setState(() {
+          _lastViewKy = savedKy;
+          _lastViewKm = savedKm;
+          _lastViewKd = clamped;
+          _skipScrollToToday = true;
+          _restored = true;
+        });
+      } else {
+        if (kDebugMode) {
+          print('📂 [CALENDAR] No persisted state — defaulting to today');
+        }
+        final today = KemeticMath.fromGregorian(DateTime.now());
+        setState(() {
+          _lastViewKy = today.kYear;
+          _lastViewKm = today.kMonth;
+          _lastViewKd = today.kDay;
+          _restored = true;
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ [CALENDAR] Persist load error — defaulting to today: $e');
+      }
+      final today = KemeticMath.fromGregorian(DateTime.now());
+      setState(() {
+        _lastViewKy = today.kYear;
+        _lastViewKm = today.kMonth;
+        _lastViewKd = today.kDay;
+        _restored = true;
+      });
+    }
+  }
+
+  /// ✅ Helper: Calculate max days in a Kemetic month
+  int _maxDayForMonth(int ky, int km) {
+    if (km == 13) {
+      return KemeticMath.isLeapKemeticYear(ky) ? 6 : 5;
+    }
+    return 30;
+  }
+
+  /// ✅ Save view state to SharedPreferences
+  Future<void> _saveViewState(int ky, int km, [int? kd]) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_kPrefLastViewYear, ky);
+      await prefs.setInt(_kPrefLastViewMonth, km);
+      // ✅ HARDENING 1: Save day if provided, otherwise keep existing or use 1
+      final dayToSave = kd ?? _lastViewKd ?? 1;
+      // Clamp day to valid range before saving
+      final maxDay = _maxDayForMonth(ky, km);
+      final clampedDay = dayToSave.clamp(1, maxDay);
+      await prefs.setInt(_kPrefLastViewDay, clampedDay);
+      
+      if (kDebugMode) {
+        print('💾 [CALENDAR] Saved view state: Year $ky, Month $km, Day $clampedDay');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️  [CALENDAR] Error saving view state: $e');
+      }
+    }
+  }
+
+  /// ✅ Handle month change from landscape view (WITH CORRECT FEEDBACK LOOP GUARD TIMING)
+  void _handleLandscapeMonthChanged(int ky, int km) {
+    // ✅ PREVENT FEEDBACK LOOP: Don't update if we're already updating
+    if (_isUpdatingFromLandscape) {
+      if (kDebugMode) {
+        print('🔄 [CALENDAR] Ignoring landscape update (already updating)');
+      }
+      return;
+    }
+    
+    if (kDebugMode) {
+      print('🔄 [CALENDAR] Landscape month changed: Year $ky, Month $km');
+    }
+    
+    // ✅ SET FLAG: Prevent portrait from triggering landscape update
+    _isUpdatingFromLandscape = true;
+    
+    // ✅ FIX 5: Exception-safe callback handling
+    try {
+      // ✅ HARDENING 1: Clamp day when month changes, or use today's day if month matches today
+      final maxDay = _maxDayForMonth(ky, km);
+      int clampedKd;
+      
+      // If this is today's month, use today's day; otherwise clamp existing day
+      if (ky == _today.kYear && km == _today.kMonth) {
+        clampedKd = _today.kDay.clamp(1, maxDay);
+      } else {
+        clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
+      }
+      
+      setState(() {
+        _lastViewKy = ky;
+        _lastViewKm = km;
+        _lastViewKd = clampedKd;
+      });
+      
+      // Persist the change (including clamped day)
+      _saveViewState(ky, km, clampedKd);
+    } catch (e) {
+      if (kDebugMode) {
+        print('⚠️ [CALENDAR] Error in landscape month change: $e');
+      }
+    } finally {
+      // ✅ CLEAR FLAG AFTER FRAME: This ensures portrait's scroll listener can see the flag
+      // Using post-frame callback prevents the flag from clearing before portrait processes the update
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _isUpdatingFromLandscape = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     debugPrint('');
     debugPrint('🗑️  _CalendarPageState DISPOSING');
     debugPrint('   Total builds: $_buildCount');
@@ -1275,6 +1713,17 @@ class _CalendarPageState extends State<CalendarPage> {
     _journalController.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+  
+  // ✅ NEW: Pause centered-month updates for one frame on metric changes (rotation, insets)
+  @override
+  void didChangeMetrics() {
+    _suspendCenteredMonthUpdate = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _suspendCenteredMonthUpdate = false;
+      }
+    });
   }
 
   /* ───── helpers ───── */
@@ -2753,6 +3202,17 @@ class _CalendarPageState extends State<CalendarPage> {
         ),
       ),
     ).then((_) {
+      // ✅ Save state when returning from day view
+      if (mounted) {
+        final ky = _lastViewKy ?? kYear;
+        final km = _lastViewKm ?? kMonth;
+        final kd = _lastViewKd ?? kDay;
+        _saveViewState(ky, km, kd);
+        
+        if (kDebugMode) {
+          print('💾 [CALENDAR] Saved state on day view close: $ky-$km-$kd');
+        }
+      }
       UiGuards.enableJournalSwipe();
     });
   }
@@ -3954,6 +4414,11 @@ class _CalendarPageState extends State<CalendarPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ HARDENING 2: Gate build until state is restored to prevent race condition
+    if (!_restored) {
+      return const SizedBox.shrink();
+    }
+    
     _buildCount++;
     debugPrint('📔 Journal initialized: $_journalInitialized');
 
@@ -3975,12 +4440,31 @@ class _CalendarPageState extends State<CalendarPage> {
         print('Modal route active: ${ModalRoute.of(context)?.isCurrent ?? false}');
         print('🔄'*30 + '\n');
       }
+      
+      // ✅ FIX 1: Scroll to saved month when switching to portrait
+      // _centerMonth() already uses addPostFrameCallback internally, so direct call is safe
+      if (orientation == Orientation.portrait && 
+          _lastViewKy != null && 
+          _lastViewKm != null) {
+        if (kDebugMode) {
+          print('📜 [CALENDAR] Scrolling to saved month: $_lastViewKy-$_lastViewKm');
+        }
+        _centerMonth(_lastViewKy!, _lastViewKm!);
+      }
     }
     _lastOrientation = orientation;
 
     if (useGrid) {
       debugPrint('📱 Rendering: LandscapeMonthView (build #$_buildCount)');
-      _updateCenteredMonthWide();
+      
+      // ✅ FIX 5: Only call if state is missing (optimization)
+      // The method already has a guard, but this prevents unnecessary function calls
+      // ✅ FIX 6: Also prevent during landscape updates to avoid side effects
+      if (!_isUpdatingFromLandscape && 
+          (_lastViewKy == null || _lastViewKm == null)) {
+        _updateCenteredMonthWide();
+      }
+      
       final ky = _lastViewKy ?? kToday.kYear;
       final km = _lastViewKm ?? kToday.kMonth;
 
@@ -3995,7 +4479,7 @@ class _CalendarPageState extends State<CalendarPage> {
       return LandscapeMonthView(
         initialKy: ky,
         initialKm: km,
-        initialKd: null, // No specific day from main calendar
+        initialKd: _lastViewKd ?? _today.kDay,  // ✅ Highlight current day
         showGregorian: _showGregorian,
         notesForDay: (ky, km, kd) {
           final notes = _getNotes(ky, km, kd);
@@ -4019,6 +4503,7 @@ class _CalendarPageState extends State<CalendarPage> {
           }
           _openDaySheet(ky, km, kd, allowDateChange: true);
         },
+        onMonthChanged: _handleLandscapeMonthChanged, // ✅ ADD CALLBACK
       );
     }
 
@@ -4030,6 +4515,10 @@ class _CalendarPageState extends State<CalendarPage> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0.5,
+        // Left-biased title (not centered, not flush)
+        centerTitle: false,
+        titleSpacing: 12, // 10–14; 12 matches your "correct" look
+        iconTheme: const IconThemeData(color: _gold), // ensure action icons use rich gold
         title: GestureDetector(
           onTap: () => setState(() => _showGregorian = !_showGregorian),
           child: _GlossyText(
@@ -4110,11 +4599,25 @@ class _CalendarPageState extends State<CalendarPage> {
   Widget _buildCalendarScrollView() {
     final kToday = _today;
     
-    return CustomScrollView(
-      controller: _scrollCtrl,
-      anchor: 0.5, // center the "center" sliver in the viewport
-      center: _centerKey, // current Kemetic year is the center
-      slivers: [
+    // ✅ FIX 4: Wrap with NotificationListener to capture scroll-end events
+    return NotificationListener<ScrollEndNotification>(
+      onNotification: (notification) {
+        // ✅ Only update centered month when scrolling STOPS
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          
+          final centered = _computeCenteredMonthPrecisely();
+          if (centered.$1 != _lastViewKy || centered.$2 != _lastViewKm) {
+            _handlePortraitMonthChanged(centered.$1, centered.$2);
+          }
+        });
+        return false;
+      },
+      child: CustomScrollView(
+        controller: _scrollCtrl,
+        anchor: 0.5, // center the "center" sliver in the viewport
+        center: _centerKey, // current Kemetic year is the center
+        slivers: [
         // PAST years
         SliverList(
           delegate: SliverChildBuilderDelegate(
@@ -4173,6 +4676,7 @@ class _CalendarPageState extends State<CalendarPage> {
           ),
         ),
       ],
+      ),
     );
   }
 
@@ -4569,10 +5073,9 @@ class _MonthCard extends StatelessWidget {
                   ),
                   ),
                   const Spacer(),
-                  _GlossyText(
-                    text: rightLabel,
-                    style: _rightSmall,
-                    gradient: _whiteGloss,
+                  Text(
+                    rightLabel,
+                    style: _neutralOnBlack,
                   ),
                 ],
               ),
