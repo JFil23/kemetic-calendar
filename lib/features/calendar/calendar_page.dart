@@ -1238,17 +1238,12 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
   bool _isUpdatingFromLandscape = false;
   bool _isUpdatingFromPortrait = false;
   
-  // ✅ NEW: Suspend centered month updates during orientation/metrics changes
-  bool _suspendCenteredMonthUpdate = false;
-
   // ✅ ADD: First-build gating flag to prevent race condition
   bool _restored = false;
 
 
 // Find the month card whose vertical center is closest to the viewport center.
   void _updateCenteredMonth() {
-    // ✅ Skip if metrics/orientation are mid-change
-    if (_suspendCenteredMonthUpdate) return;
 
     final candidates = <(int ky, int km, double dist)>[];
     
@@ -1333,25 +1328,11 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
     if ((_lastViewKy != newKy || _lastViewKm != newKm) &&
         !_isUpdatingFromLandscape && !_isUpdatingFromPortrait) {
       
-      // ✅ Sentinel guard: never accept 1/1 unless today actually is 1/1
-      final today = KemeticMath.fromGregorian(DateTime.now());
-      final looksLikeSentinel = (newKy == 1 && newKm == 1);
-      final todayIs1_1 = (today.kYear == 1 && today.kMonth == 1);
-      if (looksLikeSentinel && !todayIs1_1) {
-        if (kDebugMode) {
-          print('⚠️ [_updateCenteredMonth] rejected 1/1 during transition');
-        }
-        return;
-      }
-      
       // ✅ HARDENING 1: Clamp day when month changes
       final maxDay = _maxDayForMonth(newKy, newKm);
       final clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
       
-      _lastViewKy = newKy;
-      _lastViewKm = newKm;
-      _lastViewKd = clampedKd;
-      _saveViewState(_lastViewKy!, _lastViewKm!, clampedKd);
+      _setView(newKy, newKm, kd: clampedKd);
     }
   }
 
@@ -1455,13 +1436,10 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
 
 // Call on scroll to keep tracking the centered month.
   void _onVerticalScroll() {
-    // ✅ Skip if suspended during orientation changes
-    if (_suspendCenteredMonthUpdate) return;
-    
     // ✅ Debounce to next frame to avoid stale RenderObjects
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_suspendCenteredMonthUpdate) {
-    _updateCenteredMonth();
+      if (mounted) {
+        _updateCenteredMonth();
       }
     });
   }
@@ -1514,26 +1492,12 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
   void _handlePortraitMonthChanged(int ky, int km) {
     if (_isUpdatingFromLandscape || _isUpdatingFromPortrait) return;
     
-    // ✅ NEW: Sentinel guard for _computeCenteredMonthPrecisely() results
-    final today = KemeticMath.fromGregorian(DateTime.now());
-    if (ky == 1 && km == 1 && !(today.kYear == 1 && today.kMonth == 1)) {
-      if (kDebugMode) {
-        print('⚠️ [_handlePortraitMonthChanged] rejected 1/1 from precise compute');
-      }
-      return;
-    }
-    
     _isUpdatingFromPortrait = true;
     try {
       final maxDay = _maxDayForMonth(ky, km);
       final clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
       
-      setState(() {
-        _lastViewKy = ky;
-        _lastViewKm = km;
-        _lastViewKd = clampedKd;
-      });
-      _saveViewState(ky, km, clampedKd);
+      _setView(ky, km, kd: clampedKd);
     } catch (e) {
       if (kDebugMode) {
         print('⚠️ [CALENDAR] Error in portrait month change: $e');
@@ -1613,32 +1577,11 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
           if (kDebugMode) {
             print('⚠️ [CALENDAR] Future persisted date $savedKy/$savedKm — defaulting to today');
           }
-          setState(() {
-            _lastViewKy = today.kYear;
-            _lastViewKm = today.kMonth;
-            _lastViewKd = today.kDay;
-            _restored = true;
-          });
+          _setView(today.kYear, today.kMonth, kd: today.kDay);
+          _restored = true;
           return;
         }
 
-        // ✅ NEW: Reject Year 1, Month 1 unless today actually is 1/1
-        if (savedKy == 1 && savedKm == 1 && (today.kYear != 1 || today.kMonth != 1)) {
-          if (kDebugMode) {
-            print('⚠️ [CALENDAR] Year 1/Month 1 persisted (likely corruption) — defaulting to today');
-          }
-          await prefs.remove(_kPrefLastViewYear);
-          await prefs.remove(_kPrefLastViewMonth);
-          await prefs.remove(_kPrefLastViewDay);
-          setState(() {
-            _lastViewKy = today.kYear;
-            _lastViewKm = today.kMonth;
-            _lastViewKd = today.kDay;
-            _restored = true;
-          });
-          return;
-        }
-        
         // Restore valid saved state
         final maxDay = _maxDayForMonth(savedKy, savedKm);
         final clamped = (savedKd != null && savedKd >= 1 && savedKd <= maxDay) ? savedKd : 1;
@@ -1658,25 +1601,15 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
         if (kDebugMode) {
           print('📂 [CALENDAR] No persisted state — defaulting to today');
         }
-        final today = KemeticMath.fromGregorian(DateTime.now());
-        setState(() {
-          _lastViewKy = today.kYear;
-          _lastViewKm = today.kMonth;
-          _lastViewKd = today.kDay;
-          _restored = true;
-        });
+        _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
+        _restored = true;
       }
     } catch (e) {
       if (kDebugMode) {
         print('⚠️ [CALENDAR] Persist load error — defaulting to today: $e');
       }
-      final today = KemeticMath.fromGregorian(DateTime.now());
-      setState(() {
-        _lastViewKy = today.kYear;
-        _lastViewKm = today.kMonth;
-        _lastViewKd = today.kDay;
-        _restored = true;
-      });
+      _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
+      _restored = true;
     }
   }
 
@@ -1686,6 +1619,18 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
       return KemeticMath.isLeapKemeticYear(ky) ? 6 : 5;
     }
     return 30;
+  }
+
+  /// ✅ Central writer for view state - single source of truth
+  void _setView(int ky, int km, {int? kd}) {
+    if (_lastViewKy == ky && _lastViewKm == km && (kd == null || _lastViewKd == kd)) return;
+    
+    _lastViewKy = ky;
+    _lastViewKm = km;
+    if (kd != null) _lastViewKd = kd;
+    
+    _saveViewState(ky, km, kd); // existing signature
+    setState(() {}); // keep headers/UI in sync
   }
 
   /// ✅ Save view state to SharedPreferences
@@ -1741,14 +1686,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
         clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
       }
       
-      setState(() {
-        _lastViewKy = ky;
-        _lastViewKm = km;
-        _lastViewKd = clampedKd;
-      });
-      
-      // Persist the change (including clamped day)
-      _saveViewState(ky, km, clampedKd);
+      _setView(ky, km, kd: clampedKd);
     } catch (e) {
       if (kDebugMode) {
         print('⚠️ [CALENDAR] Error in landscape month change: $e');
@@ -1774,14 +1712,20 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
     super.dispose();
   }
   
-  // ✅ NEW: Pause centered-month updates for one frame on metric changes (rotation, insets)
+  // ✅ Rotation reconcile: re-center on last view after rotation settles
   @override
   void didChangeMetrics() {
-    _suspendCenteredMonthUpdate = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _suspendCenteredMonthUpdate = false;
+      if (!mounted) return;
+      
+      final orientation = MediaQuery.orientationOf(context);
+      final ky = _lastViewKy ?? _today.kYear;
+      final km = _lastViewKm ?? _today.kMonth;
+      
+      if (orientation == Orientation.portrait) {
+        _centerMonth(ky, km); // your existing helper
       }
+      // Landscape rebuild pulls initialKy/Km from _lastView* in build()
     });
   }
 
