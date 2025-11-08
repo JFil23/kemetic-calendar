@@ -28,19 +28,35 @@ class MonthNameText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Merge with provided style but enforce font family
-    final effectiveStyle = (style ?? const TextStyle()).copyWith(
+    final s = style ?? const TextStyle();
+    final double fs = (s.fontSize ?? 20.0);
+
+    // Canonical crisp stack for month names
+    final TextStyle base = const TextStyle(
       fontFamily: 'GentiumPlus',
-      fontFamilyFallback: const ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+      fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
     );
-    
+
+    final TextStyle crisp = base.merge(s).copyWith(
+      // snap to whole pixels
+      fontSize: fs.roundToDouble(),
+      // kill subpixel spacing (CanvasKit blur)
+      letterSpacing: 0,
+      // do NOT force a fractional line height
+      height: s.height,
+    );
+
     return Text(
       text,
-      style: effectiveStyle,
       textAlign: textAlign,
+      style: crisp,
       maxLines: maxLines,
-      overflow: overflow ?? (maxLines != null ? TextOverflow.ellipsis : null),
       softWrap: softWrap,
+      overflow: overflow ?? (maxLines != null ? TextOverflow.ellipsis : null),
+      textHeightBehavior: const TextHeightBehavior(
+        applyHeightToFirstAscent: false,
+        applyHeightToLastDescent: false,
+      ),
     );
   }
 }

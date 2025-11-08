@@ -89,7 +89,7 @@ const Gradient _whiteGloss = LinearGradient(
 const TextStyle _titleGold =
 TextStyle(fontSize: 22, fontWeight: FontWeight.w500, color: Colors.white);
 const TextStyle _monthTitleGold =
-TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: Colors.white, height: 1.2);
+TextStyle(fontSize: 20, fontWeight: FontWeight.w500, color: Colors.white);
 const TextStyle _rightSmall =
 TextStyle(fontSize: 12, fontWeight: FontWeight.w400, color: Colors.white);
 const TextStyle _seasonStyle =
@@ -102,7 +102,6 @@ const TextStyle _neutralOnBlack = TextStyle(
   fontWeight: FontWeight.w400, // same as day numbers
   letterSpacing: 0.0,
   color: Colors.white,         // same color as the day numbers
-  height: 1.2,
 );
 
 /* Gregorian month names (1-based) */
@@ -326,26 +325,86 @@ class _GlossyText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ FIX 3: Use ShaderMask instead of foreground Paint to avoid shader+shadows conflict
-    return ShaderMask(
-      shaderCallback: (Rect bounds) => gradient.createShader(bounds),
+    final double fs = (style.fontSize ?? 16.0);
+    final bool small = fs < 18.0;
+
+    final TextStyle masked = style.copyWith(
+      color: const Color(0xFFFFFFFF),
+      // ❌ No default fractional line-height
+      height: style.height, // let Flutter compute when null
+      // ✅ Snap font size to whole pixels if present
+      fontSize: (style.fontSize != null) ? style.fontSize!.roundToDouble() : null,
+      // ✅ Kill subpixel spacing (big source of blur under masks)
+      letterSpacing: 0,
+      // ✅ Keep caller's font choice; only add sane fallbacks if missing
+      fontFamily: style.fontFamily,
+      fontFamilyFallback: style.fontFamilyFallback ?? const ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+      // ✅ Gate shadows (small text + mask + shadows = mush on web)
+      shadows: small ? null : style.shadows,
+    );
+
+    return RepaintBoundary(
+      child: ShaderMask(
+        shaderCallback: (Rect r) => gradient.createShader(r),
       blendMode: BlendMode.srcIn,
       child: Text(
         text,
-        style: style.copyWith(
-          color: Colors.white,
-          shadows: const [
-            Shadow(
-              offset: Offset(1.5, 0.4),
-              blurRadius: 3.0,
-              color: Color(0x55D4AF37),
-            ),
-            Shadow(
-              offset: Offset(1.0, 1.2),
-              blurRadius: 2.5,
-              color: Color(0x44D4AF37),
-            ),
-          ],
+          style: masked,
+          softWrap: false,
+          maxLines: 1,
+          overflow: TextOverflow.fade,
+          textHeightBehavior: const TextHeightBehavior(
+            applyHeightToFirstAscent: false,
+            applyHeightToLastDescent: false,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- Month header rendering helper (crisp + glossy) ---
+class _GlossyMonthNameText extends StatelessWidget {
+  final String text;
+  final TextStyle? style;
+  final Gradient gradient;
+
+  const _GlossyMonthNameText({
+    required this.text,
+    required this.gradient,
+    this.style,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final s = style ?? const TextStyle();
+    final double fs = (s.fontSize ?? 20.0);
+    final bool small = fs < 18.0;
+
+    // White base for mask happens inside MonthNameText via color override here.
+    final TextStyle masked = s.copyWith(
+      color: const Color(0xFFFFFFFF),
+      fontSize: fs.roundToDouble(),
+      letterSpacing: 0,
+      height: s.height,
+      // keep caller's family; MonthNameText merges canonical stack
+      fontFamily: s.fontFamily,
+      fontFamilyFallback: s.fontFamilyFallback,
+      // Gate shadows: small text + mask + shadows = mush
+      shadows: small ? null : s.shadows,
+    );
+
+    return RepaintBoundary(
+      child: ShaderMask(
+        shaderCallback: (Rect r) => gradient.createShader(r),
+        blendMode: BlendMode.srcIn,
+        child: MonthNameText(
+          text,
+          style: masked,
+          softWrap: false,
+          maxLines: 1,
+          overflow: TextOverflow.fade,
+          textAlign: TextAlign.center,
         ),
       ),
     );
@@ -1402,7 +1461,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
     // ✅ Debounce to next frame to avoid stale RenderObjects
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_suspendCenteredMonthUpdate) {
-        _updateCenteredMonth();
+    _updateCenteredMonth();
       }
     });
   }
@@ -1509,7 +1568,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
       if (!mounted) return;
       // ✅ Only scroll to today if no persisted state
       if (!_skipScrollToToday) {
-        _scrollToToday();
+      _scrollToToday();
       }
     });
 
@@ -4462,7 +4521,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
       // ✅ FIX 6: Also prevent during landscape updates to avoid side effects
       if (!_isUpdatingFromLandscape && 
           (_lastViewKy == null || _lastViewKm == null)) {
-        _updateCenteredMonthWide();
+      _updateCenteredMonthWide();
       }
       
       final ky = _lastViewKy ?? kToday.kYear;
@@ -4523,8 +4582,13 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
           onTap: () => setState(() => _showGregorian = !_showGregorian),
           child: _GlossyText(
             text: "Ma'at",
-            style: _titleGold,
             gradient: _showGregorian ? _whiteGloss : _goldGloss,
+            style: _titleGold.copyWith(
+              fontSize: (_titleGold.fontSize ?? 22.0).roundToDouble(),
+              letterSpacing: 0,
+              // shadows off for button text; mask + small shadows = haze
+              shadows: null,
+            ),
           ),
         ),
         actions: [
@@ -4614,10 +4678,10 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
         return false;
       },
       child: CustomScrollView(
-        controller: _scrollCtrl,
-        anchor: 0.5, // center the "center" sliver in the viewport
-        center: _centerKey, // current Kemetic year is the center
-        slivers: [
+      controller: _scrollCtrl,
+      anchor: 0.5, // center the "center" sliver in the viewport
+      center: _centerKey, // current Kemetic year is the center
+      slivers: [
         // PAST years
         SliverList(
           delegate: SliverChildBuilderDelegate(
@@ -5043,6 +5107,8 @@ class _MonthCard extends StatelessWidget {
       child: Card(
         color: Colors.black,
         elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        clipBehavior: Clip.none, // avoids unnecessary AA clip
         shape: RoundedRectangleBorder(
           side: BorderSide.none,
           borderRadius: BorderRadius.circular(16),
@@ -5063,19 +5129,24 @@ class _MonthCard extends StatelessWidget {
                         _openMonthInfo(context);
                       }
                     },
-                  child: _GlossyText(
-                    text: getMonthById(kMonth).displayFull,
-                    style: _monthTitleGold.copyWith(
-                      fontFamily: 'GentiumPlus',
-                      fontFamilyFallback: const ['NotoSans', 'Roboto'],
+                    child: _GlossyMonthNameText(
+                      text: getMonthById(kMonth).displayFull,
+                      style: _monthTitleGold, // MonthNameText handles font families
+                      gradient: _goldGloss,
                     ),
-                    gradient: _goldGloss,
-                  ),
                   ),
                   const Spacer(),
-                  Text(
-                    rightLabel,
-                    style: _neutralOnBlack,
+                  RepaintBoundary(
+                    child: Text(
+                      rightLabel,
+                      style: _neutralOnBlack.copyWith(
+                        fontFamilyFallback: const ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+                        letterSpacing: 0,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.fade,
+                      softWrap: false,
+                    ),
                   ),
                 ],
               ),
@@ -5302,7 +5373,8 @@ class _DayChip extends StatelessWidget {
     final textStyle = const TextStyle(
       color: Colors.white,
       fontWeight: FontWeight.w400,
-      fontSize: 15.2,
+      fontSize: 16.0,      // <- round to whole px to avoid subpixel blur
+      letterSpacing: 0.0,  // <- reduce fuzz on CanvasKit
     );
 
     final gradient =
@@ -5316,6 +5388,7 @@ class _DayChip extends StatelessWidget {
         child: SizedBox(
           key: anchorKey,
           height: 36,
+          child: RepaintBoundary(
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -5347,6 +5420,7 @@ class _DayChip extends StatelessWidget {
                 ),
               ),
             ],
+          ),
           ),
         ),
       ),
@@ -5427,12 +5501,11 @@ class _EpagomenalCard extends StatelessWidget {
               // Header row: Kemetic header (left) and Gregorian month (right when present)
               Row(
                 children: [
-                  Expanded(
-                    child: Visibility(
-                      visible: !showGregorian, // visually removed in Gregorian
-                      maintainState: true,
-                      maintainAnimation: true,
-                      maintainSize: true, // keep height so layout doesn't jump
+                  Visibility(
+                    visible: !showGregorian, // visually removed in Gregorian
+                    maintainState: true,
+                    maintainAnimation: true,
+                    maintainSize: true, // keep height so layout doesn't jump
                     child: _GlossyText(
                       text: 'Heriu Renpet (ḥr.w rnpt)',
                       style: _monthTitleGold.copyWith(
@@ -5441,22 +5514,17 @@ class _EpagomenalCard extends StatelessWidget {
                       ),
                       gradient: _goldGloss,
                     ),
-                    ),
                   ),
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Visibility(
-                        visible: showGregorian && gLabel != null,
-                        maintainState: true,
-                        maintainAnimation: true,
-                        maintainSize: true,
-                        child: _GlossyText(
-                          text: gLabel ?? '',
-                          style: _decanStyle,
-                          gradient: _blueGloss,
-                        ),
-                      ),
+                  const Spacer(),
+                  Visibility(
+                    visible: showGregorian && gLabel != null,
+                    maintainState: true,
+                    maintainAnimation: true,
+                    maintainSize: true,
+                    child: _GlossyText(
+                      text: gLabel ?? '',
+                      style: _decanStyle,
+                      gradient: _blueGloss,
                     ),
                   ),
                 ],
@@ -9780,13 +9848,22 @@ class _GoldDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final w = (MediaQuery.of(context).size.width * 0.82).floorToDouble(); // snap to px
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),  // 16px above and below
       child: Center(
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.8,  // 80% width, centered
-          height: 1,  // Thin line
-          color: _cardBorderGold,  // Gold color
+        child: RepaintBoundary(
+          child: ShaderMask(
+            shaderCallback: (Rect r) => _goldGloss.createShader(r), // same gradient as titles
+            blendMode: BlendMode.srcIn,
+            child: SizedBox(
+              width: w,
+              height: 1.0,
+              child: const DecoratedBox(
+                decoration: BoxDecoration(color: Color(0xFFFFFFFF)), // white base for mask
+              ),
+            ),
+          ),
         ),
       ),
     );
