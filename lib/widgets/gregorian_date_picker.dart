@@ -1,69 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 /* ═══════════════════════ STYLING CONSTANTS ═══════════════════════ */
-
-const Color _blue = Color(0xFF4DA3FF);
-const Color _silver = Color(0xFFC8CCD2);
-
-const Color _blueLight = Color(0xFFBFE0FF);
-const Color _blueDeep = Color(0xFF0B64C0);
-const Color _silverLight = Color(0xFFF5F7FA);
-const Color _silverDeep = Color(0xFF7A838C);
-
-const Gradient _blueGloss = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [_blueLight, _blue, _blueDeep],
-  stops: [0.0, 0.55, 1.0],
-);
-
-const Gradient _silverGloss = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [_silverLight, _silver, _silverDeep],
-  stops: [0.0, 0.55, 1.0],
-);
-
-/* ═══════════════════════ GLOSSY TEXT WIDGETS ═══════════════════════ */
-
-class _Glossy extends StatelessWidget {
-  final Widget child;
-  final Gradient gradient;
-  const _Glossy({required this.child, required this.gradient});
-  
-  @override
-  Widget build(BuildContext context) {
-    return ShaderMask(
-      shaderCallback: (Rect bounds) => gradient.createShader(bounds),
-      blendMode: BlendMode.srcIn,
-      child: child,
-    );
-  }
-}
-
-class _GlossyText extends StatelessWidget {
-  final String text;
-  final TextStyle style;
-  final Gradient gradient;
-
-  const _GlossyText({
-    required this.text,
-    required this.style,
-    required this.gradient,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _Glossy(
-      gradient: gradient,
-      child: Text(
-        text,
-        style: style.copyWith(color: Colors.white),
-      ),
-    );
-  }
-}
+// Colors and gradients are now imported from shared/glossy_text.dart
 
 /* ═══════════════════════ GREGORIAN MONTH NAMES ═══════════════════════ */
 
@@ -147,10 +87,10 @@ Future<DateTime?> showGregorianDatePicker({
                 ),
 
                 // Title
-                const _GlossyText(
+                const GlossyText(
                   text: 'Pick Gregorian date',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  gradient: _blueGloss,
+                  gradient: blueGloss,
                 ),
                 const SizedBox(height: 8),
 
@@ -182,10 +122,10 @@ Future<DateTime?> showGregorianDatePicker({
                           children: List<Widget>.generate(12, (i) {
                             final label = _gregMonthNames[i + 1];
                             return Center(
-                              child: _GlossyText(
+                              child: GlossyText(
                                 text: label,
                                 style: const TextStyle(fontSize: 14),
-                                gradient: _silverGloss,
+                                gradient: silverGloss,
                               ),
                             );
                           }),
@@ -210,10 +150,10 @@ Future<DateTime?> showGregorianDatePicker({
                           children: List<Widget>.generate(dayMax(), (i) {
                             final dd = i + 1;
                             return Center(
-                              child: _GlossyText(
+                              child: GlossyText(
                                 text: '$dd',
                                 style: const TextStyle(fontSize: 14),
-                                gradient: _silverGloss,
+                                gradient: silverGloss,
                               ),
                             );
                           }),
@@ -244,10 +184,10 @@ Future<DateTime?> showGregorianDatePicker({
                           children: List<Widget>.generate(401, (i) {
                             final yy = yearStart + i;
                             return Center(
-                              child: _GlossyText(
+                              child: GlossyText(
                                 text: '$yy',
                                 style: const TextStyle(fontSize: 14),
-                                gradient: _silverGloss,
+                                gradient: silverGloss,
                               ),
                             );
                           }),
@@ -266,7 +206,7 @@ Future<DateTime?> showGregorianDatePicker({
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
-                          side: const BorderSide(color: _silver),
+                          side: const BorderSide(color: silver),
                         ),
                         onPressed: () => Navigator.pop(sheetCtx, null),
                         child: const Text('Cancel'),
@@ -276,7 +216,7 @@ Future<DateTime?> showGregorianDatePicker({
                     Expanded(
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _blue,
+                          backgroundColor: blue,
                           foregroundColor: Colors.black,
                         ),
                         onPressed: () {

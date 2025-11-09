@@ -45,8 +45,13 @@ Future<void> main() async {
     return;
   }
 
+  // Normalize URL: strip trailing slash if present
+  final _supabaseUrl = SUPABASE_URL.endsWith('/')
+      ? SUPABASE_URL.substring(0, SUPABASE_URL.length - 1)
+      : SUPABASE_URL;
+
   await Supabase.initialize(
-    url: SUPABASE_URL,
+    url: _supabaseUrl,  // Use normalized URL
     anonKey: SUPABASE_ANON_KEY,
     authOptions: FlutterAuthClientOptions(
       autoRefreshToken: true,

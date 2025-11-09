@@ -53,7 +53,8 @@ class FlowRow {
       id: (r['id'] as num).toInt(),
       userId: r['user_id'] as String,
       name: r['name'] as String,
-      color: (r['color'] as num? ?? 0xFF9E9E9E).toInt(),
+      // Force 24-bit RGB and safe default matching the backend
+      color: (((r['color'] as num?)?.toInt() ?? 0x4DD0E1) & 0x00FFFFFF),
       active: (r['active'] as bool?) ?? true,
       startDate: _d(r['start_date']),
       endDate: _d(r['end_date']),

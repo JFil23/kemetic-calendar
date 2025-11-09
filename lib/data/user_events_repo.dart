@@ -451,12 +451,14 @@ class UserEventsRepo {
     required String rules,
   }) async {
     final user = _client.auth.currentUser;
-    if (user == null) throw StateError('No user session');
+    if (user == null) {
+      throw StateError('No user session');
+    }
 
-    final payload = {
+    final payload = <String, dynamic>{
       'user_id': user.id,
       'name': name,
-      'color': color,
+      'color': (color & 0x00FFFFFF), // 24-bit guard
       'active': active,
       'start_date': startDate?.toIso8601String(),
       'end_date': endDate?.toIso8601String(),
@@ -464,15 +466,23 @@ class UserEventsRepo {
       'rules': jsonDecode(rules),
     };
 
-    if (id != null && id > 0) {
-      payload['id'] = id;
+    if (id == null || id <= 0) {
+      final inserted = await _client
+          .from('flows')
+          .insert(payload)
+          .select('id')
+          .single();
+      return (inserted['id'] as num).toInt();
+    } else {
+      final patch = Map<String, dynamic>.from(payload)..remove('user_id');
+      final updated = await _client
+          .from('flows')
+          .update(patch)
+          .eq('id', id)
+          .select('id')
+          .single();
+      return (updated['id'] as num).toInt();
     }
-
-    _log('upsertFlow → $payload');
-    final result = await _client.from('flows').upsert(payload).select().single();
-    final savedId = (result['id'] as num).toInt();
-    _log('upsertFlow ✓ id=$savedId');
-    return savedId;
   }
 
   /// Fetch all flows for the signed-in user.

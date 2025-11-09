@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
-import 'package:mobile/widgets/month_name_text.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 /* ═══════════════════════ KEMETIC MATH (FIXED) ═══════════════════════ */
 
@@ -126,74 +126,7 @@ class KemeticMath {
 }
 
 /* ═══════════════════════ STYLING CONSTANTS ═══════════════════════ */
-
-const Color _gold = Color(0xFFD4AF37);
-const Color _silver = Color(0xFFC8CCD2);
-
-const Color _goldLight = Color(0xFFFFE8A3);
-const Color _goldDeep = Color(0xFF8A6B16);
-const Color _silverLight = Color(0xFFF5F7FA);
-const Color _silverDeep = Color(0xFF7A838C);
-
-const Gradient _goldGloss = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [_goldLight, _gold, _goldDeep],
-  stops: [0.0, 0.55, 1.0],
-);
-
-const Gradient _silverGloss = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [_silverLight, _silver, _silverDeep],
-  stops: [0.0, 0.55, 1.0],
-);
-
-const Gradient _whiteGloss = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [Colors.white, Colors.white, Colors.white],
-);
-
-/* ═══════════════════════ GLOSSY TEXT WIDGETS ═══════════════════════ */
-
-class _Glossy extends StatelessWidget {
-  final Widget child;
-  final Gradient gradient;
-  const _Glossy({required this.child, required this.gradient});
-  
-  @override
-  Widget build(BuildContext context) {
-    return ShaderMask(
-      shaderCallback: (Rect bounds) => gradient.createShader(bounds),
-      blendMode: BlendMode.srcIn,
-      child: child,
-    );
-  }
-}
-
-class _GlossyText extends StatelessWidget {
-  final String text;
-  final TextStyle style;
-  final Gradient gradient;
-
-  const _GlossyText({
-    required this.text,
-    required this.style,
-    required this.gradient,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _Glossy(
-      gradient: gradient,
-      child: Text(
-        text,
-        style: style.copyWith(color: Colors.white),
-      ),
-    );
-  }
-}
+// Colors and gradients are now imported from shared/glossy_text.dart
 
 /* ═══════════════════════ KEMETIC MONTH NAMES ═══════════════════════ */
 
@@ -264,10 +197,10 @@ Future<DateTime?> showKemeticDatePicker({
                 ),
 
                 // Title
-                const _GlossyText(
+                const GlossyText(
                   text: 'Pick Kemetic date',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  gradient: _goldGloss,
+                  gradient: goldGloss,
                 ),
                 const SizedBox(height: 8),
 
@@ -301,9 +234,10 @@ Future<DateTime?> showKemeticDatePicker({
                             final m = i + 1;
                             final label = getMonthById(m).displayFull;
                             return Center(
-                              child: MonthNameText(
-                                label,
+                              child: GlossyText(
+                                text: label,
                                 style: const TextStyle(fontSize: 14),
+                                gradient: silverGloss,
                               ),
                             );
                           }),
@@ -328,10 +262,10 @@ Future<DateTime?> showKemeticDatePicker({
                           children: List<Widget>.generate(dayMax(), (i) {
                             final d = i + 1;
                             return Center(
-                              child: _GlossyText(
+                              child: GlossyText(
                                 text: '$d',
                                 style: const TextStyle(fontSize: 14),
-                                gradient: _silverGloss,
+                                gradient: silverGloss,
                               ),
                             );
                           }),
@@ -364,10 +298,10 @@ Future<DateTime?> showKemeticDatePicker({
                             final ky = yearStart + i;
                             final label = gregYearLabelFor(ky, localKm);
                             return Center(
-                              child: _GlossyText(
+                              child: GlossyText(
                                 text: label,
                                 style: const TextStyle(fontSize: 14),
-                                gradient: _silverGloss,
+                                gradient: silverGloss,
                               ),
                             );
                           }),
@@ -386,7 +320,7 @@ Future<DateTime?> showKemeticDatePicker({
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
-                          side: const BorderSide(color: _silver),
+                          side: const BorderSide(color: silver),
                         ),
                         onPressed: () => Navigator.pop(sheetCtx, null),
                         child: const Text('Cancel'),
@@ -396,17 +330,17 @@ Future<DateTime?> showKemeticDatePicker({
                     Expanded(
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _gold,
+                          backgroundColor: gold,
                           foregroundColor: Colors.white,
                         ),
                         onPressed: () {
                           final g = KemeticMath.toGregorian(localKy, localKm, localKd);
                           Navigator.pop(sheetCtx, DateUtils.dateOnly(g));
                         },
-                        child: const _GlossyText(
+                        child: const GlossyText(
                           text: 'Done',
                           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                          gradient: _whiteGloss,
+                          gradient: whiteGloss,
                         ),
                       ),
                     ),
@@ -420,4 +354,8 @@ Future<DateTime?> showKemeticDatePicker({
     },
   );
 }
+
+
+
+
 

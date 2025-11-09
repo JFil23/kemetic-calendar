@@ -25,7 +25,8 @@ class AIFlowGenerationRequest {
         'startDate': startDate,
         'endDate': endDate,
         if (flowName != null) 'flowName': flowName,
-        if (flowColor != null) 'flowColor': flowColor,
+        // ✅ Always include flowColor with default fallback
+        'flowColor': (flowColor != null && flowColor!.isNotEmpty) ? flowColor : '#4dd0e1',
         if (timezone != null) 'timezone': timezone,
       };
 }
@@ -311,3 +312,5 @@ class AIFlowGenerationService {
     print('[$timestamp] [AIFlowService] 🚨 $message');
   }
 }
+
+

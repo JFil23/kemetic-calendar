@@ -7,6 +7,7 @@ import 'package:mobile/features/calendar/notify.dart';
 import 'package:flutter/rendering.dart';
 import '../../model/entities.dart';
 import 'dart:io' show File, Directory;
+import 'package:mobile/utils/color_bits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'landscape_month_view.dart';
@@ -30,6 +31,7 @@ import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/widgets/month_name_text.dart';
 import 'package:mobile/core/day_key.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 
 
@@ -56,34 +58,7 @@ const Color _goldDeep = Color(0xFF9D7A1F);    // Much deeper shadow
 const Color _silverLight = Color(0xFFF5F7FA);
 const Color _silverDeep = Color(0xFF7A838C);
 
-// Gradients for gloss (top-left to bottom-right) - enhanced contrast for more gloss
-const Gradient _goldGloss = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [_goldLight, _goldMid, _goldDeep],
-  stops: [0.0, 0.45, 1.0], // Tighter highlight band for more visible gleam
-);
-
-const Gradient _silverGloss = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [_silverLight, _silver, _silverDeep],
-  stops: [0.0, 0.55, 1.0],
-);
-
-const Gradient _blueGloss = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [_blueLight, _blue, _blueDeep],
-  stops: [0.0, 0.55, 1.0],
-);
-
-// "White" gloss for text that should render pure white via ShaderMask
-const Gradient _whiteGloss = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [Colors.white, Colors.white, Colors.white],
-);
+// Gradients are now imported from shared/glossy_text.dart
 
 // Base text styles (color overridden to white inside gloss wrappers)
 const TextStyle _titleGold =
@@ -312,56 +287,7 @@ class _Glossy extends StatelessWidget {
   }
 }
 
-class _GlossyText extends StatelessWidget {
-  final String text;
-  final TextStyle style;
-  final Gradient gradient;
-
-  const _GlossyText({
-    required this.text,
-    required this.style,
-    required this.gradient,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final double fs = (style.fontSize ?? 16.0);
-    final bool small = fs < 18.0;
-
-    final TextStyle masked = style.copyWith(
-      color: const Color(0xFFFFFFFF),
-      // ❌ No default fractional line-height
-      height: style.height, // let Flutter compute when null
-      // ✅ Snap font size to whole pixels if present
-      fontSize: (style.fontSize != null) ? style.fontSize!.roundToDouble() : null,
-      // ✅ Kill subpixel spacing (big source of blur under masks)
-      letterSpacing: 0,
-      // ✅ Keep caller's font choice; only add sane fallbacks if missing
-      fontFamily: style.fontFamily,
-      fontFamilyFallback: style.fontFamilyFallback ?? const ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
-      // ✅ Gate shadows (small text + mask + shadows = mush on web)
-      shadows: small ? null : style.shadows,
-    );
-
-    return RepaintBoundary(
-      child: ShaderMask(
-        shaderCallback: (Rect r) => gradient.createShader(r),
-      blendMode: BlendMode.srcIn,
-      child: Text(
-        text,
-          style: masked,
-          softWrap: false,
-          maxLines: 1,
-          overflow: TextOverflow.fade,
-          textHeightBehavior: const TextHeightBehavior(
-            applyHeightToFirstAscent: false,
-            applyHeightToLastDescent: false,
-          ),
-        ),
-      ),
-    );
-  }
-}
+// GlossyText is now imported from shared/glossy_text.dart as GlossyText
 
 // --- Month header rendering helper (crisp + glossy) ---
 class _GlossyMonthNameText extends StatelessWidget {
@@ -741,7 +667,7 @@ class _SeasonHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 16, 16, 8),
       child:
-      _GlossyText(text: title, style: _seasonStyle, gradient: _goldGloss),
+      GlossyText(text: title, style: _seasonStyle, gradient: goldGloss),
     );
   }
 }
@@ -2083,61 +2009,52 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
 
   // Flows — add/remove/toggle
   // >>> FIND-ME: PATCH-2 _saveNewFlow AFTER
-  void _saveNewFlow(_Flow flow) {
+  Future<int> _saveNewFlow(_Flow flow) async {
     final localId = _nextFlowId++;
     flow.id = localId;
     _flows.add(flow);
-    setState(() {});
+    if (mounted) setState(() {});
 
-    // Save to Supabase in background, then unify IDs (server id replaces local)
-    Future.microtask(() async {
-      try {
-        final repo = UserEventsRepo(Supabase.instance.client);
-        final rulesJson = jsonEncode(flow.rules.map(ruleToJson).toList());
+    try {
+      final repo = UserEventsRepo(Supabase.instance.client);
+      final rulesJson = jsonEncode(flow.rules.map(ruleToJson).toList());
 
-        final savedId = await repo.upsertFlow(
-          id: null, // let server assign id
-          name: flow.name,
-          color: flow.color.value,
-          active: flow.active,
-          startDate: flow.start,
-          endDate: flow.end,
-          notes: flow.notes,
-          rules: rulesJson,
-        );
-        final now = DateTime.now().toUtc();
-        final today = DateTime.utc(now.year, now.month, now.day);
-        if (flow.active == false) {
-          await repo.deleteByFlowId(savedId, fromDate: today);
-          await repo.deleteFlow(savedId);
-        }
+      final savedId = await repo.upsertFlow(
+        id: null, // let server assign id
+        name: flow.name,
+        color: flow.color.value,
+        active: flow.active,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: flow.notes,
+        rules: rulesJson,
+      );
 
-
-
-
-        if (savedId != localId) {
-          // 1) update the in-memory flow id
-          final idx = _flows.indexWhere((f) => f.id == localId);
-          if (idx >= 0) {
-            _flows[idx].id = savedId;
-            // Add debug logging
-            if (kDebugMode) {
-              debugPrint('[saveNewFlow] Remapped flow ID: $localId → $savedId');
-              debugPrint('[saveNewFlow] Flow "${_flows[idx].name}" color: ${_flows[idx].color.value.toRadixString(16)}');
-            }
+      if (savedId != localId) {
+        // 1) update the in-memory flow id
+        final idx = _flows.indexWhere((f) => f.id == localId);
+        if (idx >= 0) {
+          _flows[idx].id = savedId;
+          // Add debug logging
+          if (kDebugMode) {
+            debugPrint('[saveNewFlow] Remapped flow ID: $localId → $savedId');
+            debugPrint('[saveNewFlow] Flow "${_flows[idx].name}" color: ${_flows[idx].color.value.toRadixString(16)}');
           }
-          // 2) re-stamp any notes that used the local id to now use the server id
-          _rekeyNotesFlowId(localId, savedId);
-
-          // 3) keep nextFlowId monotonic
-          if (savedId >= _nextFlowId) _nextFlowId = savedId + 1;
-
-          if (mounted) setState(() {});
         }
-      } catch (e) {
-        debugPrint('Background flow sync failed: $e');
+        // 2) re-stamp any notes that used the local id to now use the server id
+        _rekeyNotesFlowId(localId, savedId);
+
+        // 3) keep nextFlowId monotonic
+        if (savedId >= _nextFlowId) _nextFlowId = savedId + 1;
+
+        if (mounted) setState(() {});
       }
-    });
+      return savedId;
+    } catch (e) {
+      debugPrint('Flow save failed: $e');
+      // Keep local id on failure; caller will still attach notes to local
+      return localId;
+    }
   }
 
 
@@ -2436,8 +2353,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
         await _persistFlowStudioResult(edited);
         finalFlowId = editFlowId;
       } else {
-        _saveNewFlow(f);
-        finalFlowId = f.id; // <-- id assigned inside _saveNewFlow
+        finalFlowId = await _saveNewFlow(f); // await save and get server ID
       }
     }
 
@@ -2711,8 +2627,8 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                                       required _MaatFlowTemplate template,
                                       required DateTime startDate,
                                       required bool useKemetic,
-                                    }) {
-                                      final id = _addMaatFlowInstance(
+                                    }) async {
+                                      final id = await _addMaatFlowInstance(
                                         template: template,
                                         startDate: startDate,
                                         useKemetic: useKemetic,
@@ -2918,15 +2834,15 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
   }
 
 
-  /// Create a user-owned *instance* from a Ma’at template starting on [startDate].
+  /// Create a user-owned *instance* from a Ma'at template starting on [startDate].
   /// - [useKemetic]: true to interpret [startDate] as Kemetic (kY/kM/kD); false = Gregorian.
   /// - Produces a new _Flow with explicit dates (10 days) and adds 10 notes linked to the flowId.
   /// - Returns the created flow's id.
-  int _addMaatFlowInstance({
+  Future<int> _addMaatFlowInstance({
     required _MaatFlowTemplate template,
     required DateTime startDate,
     required bool useKemetic,
-  }) {
+  }) async {
     // 1) Build the 10 Gregorian dates starting at chosen start.
     final dates = <DateTime>{};
     DateTime firstG;
@@ -2969,8 +2885,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
       ].join(';'),
     );
 
-    _saveNewFlow(flow); // assigns id and adds to _flows
-    final flowId = _flows.last.id;
+    final serverFlowId = await _saveNewFlow(flow); // await save and get server ID
 
     // 3) Add 10 linked notes (title + detail from template).
     // Use 9am default; users can edit/delete individual notes later if they want.
@@ -2988,14 +2903,14 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
         allDay: false,
         start: const TimeOfDay(hour: 9, minute: 0),
         end: const TimeOfDay(hour: 10, minute: 0),
-        flowId: flowId,
+        flowId: serverFlowId,
       );
       // sync each auto-created flow day to Supabase (fire-and-forget)
       Future.microtask(() async {
         try {
           final repo = UserEventsRepo(Supabase.instance.client);
           final scheduledAt = DateTime(g.year, g.month, g.day, 9, 0);
-          // Use unified clientEventId for Ma’at flows as well. The note uses
+          // Use unified clientEventId for Ma'at flows as well. The note uses
           // the same 9:00 start and 10:00 end times; flowId identifies the
           // owning flow. This allows deletion to operate uniformly.
           final String cid = _buildCid(
@@ -3006,7 +2921,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
             startHour: 9,
             startMinute: 0,
             allDay: false,
-            flowId: flowId,
+            flowId: serverFlowId,
           );
           await repo.upsertByClientId(
             clientEventId: cid,
@@ -3016,6 +2931,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
             location: null,
             allDay: false,
             endsAtUtc: DateTime(g.year, g.month, g.day, 10, 0).toUtc(),
+            flowLocalId: serverFlowId, // ✅ attach to the flow you just created
           );
         } catch (_) {}
       });
@@ -3024,7 +2940,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
       dayIndex++;
     }
     setState(() {});
-    return flowId;
+    return serverFlowId;
   }
 
   /// End a Ma’at flow instance:
@@ -3427,10 +3343,10 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                               final m = i + 1;
                               final label = getMonthById(m).displayFull;
                               return Center(
-                                child: _GlossyText(
+                                child: GlossyText(
                                   text: label,
                                   style: const TextStyle(fontSize: 14),
-                                  gradient: _silverGloss,
+                                  gradient: silverGloss,
                                 ),
                               );
                             }),
@@ -3454,10 +3370,10 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                             children: List<Widget>.generate(dayCount, (i) {
                               final d = i + 1;
                               return Center(
-                                child: _GlossyText(
+                                child: GlossyText(
                                   text: '$d',
                                   style: const TextStyle(fontSize: 14),
-                                  gradient: _silverGloss,
+                                  gradient: silverGloss,
                                 ),
                               );
                             }),
@@ -3490,10 +3406,10 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                               final ky = yearStart + i;
                               final label = _gregYearLabelFor(ky, selMonth);
                               return Center(
-                                child: _GlossyText(
+                                child: GlossyText(
                                   text: label,
                                   style: const TextStyle(fontSize: 14),
-                                  gradient: _silverGloss,
+                                  gradient: silverGloss,
                                 ),
                               );
                             }),
@@ -3544,13 +3460,13 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                       if (dayFlows.isNotEmpty) ...[
                         const Align(
                           alignment: Alignment.centerLeft,
-                          child: _GlossyText(
+                          child: GlossyText(
                             text: 'Scheduled flows',
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 16,
                             ),
-                            gradient: _silverGloss,
+                            gradient: silverGloss,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -3586,10 +3502,10 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        _GlossyText(
+                                        GlossyText(
                                           text: occ.flow.name,
                                           style: const TextStyle(fontSize: 14),
-                                          gradient: _silverGloss,
+                                          gradient: silverGloss,
                                         ),
                                         if (timeLine.isNotEmpty)
                                           Padding(
@@ -3616,10 +3532,10 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                           child: TextButton.icon(
                             onPressed: _openFlowsViewer,
                             icon: const Icon(Icons.view_timeline, color: _silver),
-                            label: const _GlossyText(
+                            label: const GlossyText(
                               text: 'Manage flows',
                               style: TextStyle(fontSize: 14),
-                              gradient: _silverGloss,
+                              gradient: silverGloss,
                             ),
                           ),
                         ),
@@ -3630,10 +3546,10 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                       if ((_dataVersion > 0) && dayNotes.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),
-                          child: _GlossyText(
+                          child: GlossyText(
                             text: 'No notes yet',
                             style: TextStyle(fontSize: 14),
-                            gradient: _silverGloss,
+                            gradient: silverGloss,
                           ),
                         )
                       else
@@ -3663,10 +3579,10 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        _GlossyText(
+                                        GlossyText(
                                           text: n.title,
                                           style: const TextStyle(fontSize: 16),
-                                          gradient: _silverGloss,
+                                          gradient: silverGloss,
                                         ),
                                         if (timeLine.isNotEmpty || location != null) ...[
                                           const SizedBox(height: 2),
@@ -3721,13 +3637,13 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                       const Divider(height: 16, color: Colors.white12),
                       const Align(
                         alignment: Alignment.centerLeft,
-                        child: _GlossyText(
+                        child: GlossyText(
                           text: 'Add note',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 16,
                           ),
-                          gradient: _silverGloss,
+                          gradient: silverGloss,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -3764,10 +3680,10 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                         contentPadding: EdgeInsets.zero,
                         value: allDay,
                         onChanged: (v) => setSheetState(() => allDay = v),
-                        title: const _GlossyText(
+                        title: const GlossyText(
                           text: 'All-day',
                           style: TextStyle(fontSize: 14),
-                          gradient: _silverGloss,
+                          gradient: silverGloss,
                         ),
                         activeThumbColor: _gold,
                       ),
@@ -4022,7 +3938,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
         final flow = _Flow(
           id: f.id,
           name: f.name,
-          color: Color(f.color),
+          color: Color(rgbToArgb(f.color)),
           active: f.active,
           rules: _parseRules(f.rules),
           start: f.startDate,
@@ -4220,14 +4136,6 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
         notes: r.savedFlow!.notes,
         rules: rulesJson,
       );
-
-      final now = DateTime.now().toUtc();
-      final today = DateTime.utc(now.year, now.month, now.day);
-
-      if (r.savedFlow!.active == false) {
-        await repo.deleteByFlowId(savedId, fromDate: today);
-        await repo.deleteFlow(savedId);
-      }
 
 
 
@@ -4524,9 +4432,9 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
         iconTheme: const IconThemeData(color: _gold), // ensure action icons use rich gold
         title: GestureDetector(
           onTap: () => setState(() => _showGregorian = !_showGregorian),
-          child: _GlossyText(
+          child: GlossyText(
             text: "Ma'at",
-            gradient: _showGregorian ? _whiteGloss : _goldGloss,
+            gradient: _showGregorian ? whiteGloss : goldGloss,
             style: _titleGold.copyWith(
               fontSize: (_titleGold.fontSize ?? 22.0).roundToDouble(),
               letterSpacing: 0,
@@ -4538,23 +4446,23 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
         actions: [
           IconButton(
             tooltip: 'Today',
-            icon: const _GlossyIcon(Icons.calendar_today, gradient: _silverGloss),
+            icon: const _GlossyIcon(Icons.calendar_today, gradient: silverGloss),
             onPressed: _scrollToToday,
           ),
           IconButton(
             tooltip: 'Search events',
-            icon: const _GlossyIcon(Icons.search, gradient: _silverGloss),
+            icon: const _GlossyIcon(Icons.search, gradient: silverGloss),
             onPressed: _openSearch,
           ),
           IconButton(
             tooltip: 'Flow Studio',
-            icon: const _GlossyIcon(Icons.view_timeline, gradient: _goldGloss),
+            icon: const _GlossyIcon(Icons.view_timeline, gradient: goldGloss),
             onPressed: () => _getFlowStudioCallback()(null),
           ),
 
           IconButton(
             tooltip: 'New note',
-            icon: const _GlossyIcon(Icons.add, gradient: _goldGloss),
+            icon: const _GlossyIcon(Icons.add, gradient: goldGloss),
             onPressed: () => _openDaySheet(
               kToday.kYear,
               kToday.kMonth,
@@ -4565,7 +4473,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
           // My Profile button
           IconButton(
             tooltip: 'My Profile',
-            icon: const _GlossyIcon(Icons.person, gradient: _goldGloss),
+            icon: const _GlossyIcon(Icons.person, gradient: goldGloss),
             onPressed: () {
               final userId = Supabase.instance.client.auth.currentUser?.id;
               if (userId != null) {
@@ -5076,7 +4984,7 @@ class _MonthCard extends StatelessWidget {
                     child: _GlossyMonthNameText(
                       text: getMonthById(kMonth).displayFull,
                       style: _monthTitleGold, // MonthNameText handles font families
-                      gradient: _goldGloss,
+                      gradient: goldGloss,
                     ),
                   ),
                   const Spacer(),
@@ -5116,10 +5024,10 @@ class _MonthCard extends StatelessWidget {
                               _openDecanInfo(context, i);
                             }
                           },
-                          child: _GlossyText(
+                          child: GlossyText(
                             text: names[i],
                             style: _decanStyle,
-                            gradient: _silverGloss,
+                            gradient: silverGloss,
                           ),
                         ),
                       ),
@@ -5134,10 +5042,10 @@ class _MonthCard extends StatelessWidget {
                           maintainState: true,
                           maintainAnimation: true,
                           maintainSize: true,
-                          child: _GlossyText(
+                          child: GlossyText(
                             text: _gregLabelForDecanRow(kYear, kMonth, i) ?? '',
                             style: _decanStyle,
-                            gradient: _blueGloss,
+                            gradient: blueGloss,
                           ),
                         ),
                       ),
@@ -5322,7 +5230,7 @@ class _DayChip extends StatelessWidget {
     );
 
     final gradient =
-    isToday ? _goldGloss : (showGregorian ? _blueGloss : _silverGloss);
+    isToday ? goldGloss : (showGregorian ? blueGloss : silverGloss);
 
     return KemeticDayButton(
       dayKey: dayKey,
@@ -5336,7 +5244,7 @@ class _DayChip extends StatelessWidget {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              _GlossyText(
+              GlossyText(
                 text: label,
                 style: textStyle,
                 gradient: gradient,
@@ -5347,7 +5255,7 @@ class _DayChip extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (noteCount > 0) const _GlossyDot(gradient: _silverGloss),
+                    if (noteCount > 0) const _GlossyDot(gradient: silverGloss),
                     if (flowColors.isNotEmpty) ...[
                       const SizedBox(width: 3),
                       Row(
@@ -5450,13 +5358,13 @@ class _EpagomenalCard extends StatelessWidget {
                     maintainState: true,
                     maintainAnimation: true,
                     maintainSize: true, // keep height so layout doesn't jump
-                    child: _GlossyText(
+                    child: GlossyText(
                       text: 'Heriu Renpet (ḥr.w rnpt)',
                       style: _monthTitleGold.copyWith(
                         fontFamily: 'GentiumPlus',
                         fontFamilyFallback: const ['NotoSans', 'Roboto'],
                       ),
-                      gradient: _goldGloss,
+                      gradient: goldGloss,
                     ),
                   ),
                   const Spacer(),
@@ -5465,10 +5373,10 @@ class _EpagomenalCard extends StatelessWidget {
                     maintainState: true,
                     maintainAnimation: true,
                     maintainSize: true,
-                    child: _GlossyText(
+                    child: GlossyText(
                       text: gLabel ?? '',
                       style: _decanStyle,
-                      gradient: _blueGloss,
+                      gradient: blueGloss,
                     ),
                   ),
                 ],
@@ -5589,22 +5497,22 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
         automaticallyImplyLeading: false,
         leading: IconButton(
           tooltip: 'Close',
-          icon: const _GlossyIcon(Icons.close, gradient: _goldGloss),
+          icon: const _GlossyIcon(Icons.close, gradient: goldGloss),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: _GlossyText(
+        title: GlossyText(
           text: infoTitle,
           style: _monthTitleGold,
-          gradient: _goldGloss,
+          gradient: goldGloss,
         ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
             child: Center(
-              child: _GlossyText(
+              child: GlossyText(
                 text: rightLabel,
                 style: _rightSmall,
-                gradient: _whiteGloss,
+                gradient: whiteGloss,
               ),
             ),
           ),
@@ -5640,10 +5548,10 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _GlossyText(
+                  GlossyText(
                     text: infoTitle,
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    gradient: _silverGloss,
+                    gradient: silverGloss,
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -5879,7 +5787,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   DateTime? _startDate, _endDate;
   bool get _hasFullRange => _startDate != null && _endDate != null;
 
-  // “same for all” selections
+  // Readiness gate: only allow sync when the editor's state is fully initialized.
+  bool _syncReady = false;
+
+  // Single source-of-truth for day keys used by _draftsByDay.
+  static String dayKey(int ky, int km, int kd) => '$ky-$km-$kd';
+
+  // "same for all" selections
   final Set<int> _selectedDecanDays = <int>{}; // 1..10
   final Set<int> _selectedWeekdays = <int>{};   // 1..7 (Mon..Sun)
 
@@ -6042,6 +5956,48 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     }
   }
 
+  List<_EditorGroup> _groupsFromDraftsFallback() {
+    if (_draftsByDay.isEmpty) return const [];
+    final out = <_EditorGroup>[];
+
+    for (final entry in _draftsByDay.entries) {
+      final key = entry.key; // "ky-km-kd"
+      final parts = key.split('-');
+      if (parts.length != 3) continue;
+
+      final ky = int.tryParse(parts[0]) ?? 0;
+      final km = int.tryParse(parts[1]) ?? 0;
+      final kd = int.tryParse(parts[2]) ?? 0;
+
+      // Skip invalid kemetic keys
+      if (ky <= 0 || km <= 0 || kd <= 0) continue;
+
+      // Convert to Gregorian; skip if conversion fails (throws ArgumentError)
+      DateTime g;
+      try {
+        g = KemeticMath.toGregorian(ky, km, kd);
+      } catch (_) {
+        continue; // Invalid date, skip this entry
+      }
+
+      final header = '${getMonthById(km).displayFull} $kd  •  ${_fmtGregorian(g)}';
+
+      out.add(
+        _EditorGroup(
+          key: key,
+          isPattern: false,
+          header: header,
+          days: [
+            _SelectedDay(key, ky, km, kd, g),
+          ],
+        ),
+      );
+    }
+
+    out.sort((a, b) => a.key.compareTo(b.key));
+    return out;
+  }
+
   List<_SelectedDay> _computeSelectedDays() {
     final out = <_SelectedDay>[];
     if (!_hasFullRange) return out;
@@ -6057,7 +6013,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             final kd = s.di * 10 + n; // 1..30
             final g = KemeticMath.toGregorian(s.ky, s.km, kd);
             if (!inside(g)) continue;
-            final key = '${s.ky}-${s.km}-$kd';
+            final key = dayKey(s.ky, s.km, kd);
             out.add(_SelectedDay(key, s.ky, s.km, kd, g));
           }
         }
@@ -6068,7 +6024,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             final g = w.monday.add(Duration(days: wd - 1));
             if (!inside(g)) continue;
             final k = KemeticMath.fromGregorian(g);
-            final key = '${k.kYear}-${k.kMonth}-${k.kDay}';
+            final key = dayKey(k.kYear, k.kMonth, k.kDay);
             out.add(_SelectedDay(key, k.kYear, k.kMonth, k.kDay, g));
           }
         }
@@ -6082,7 +6038,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           if (k.kMonth == 13) continue;
           final dayInDecan = ((k.kDay - 1) % 10) + 1;
           if (_selectedDecanDays.contains(dayInDecan)) {
-            final key = '${k.kYear}-${k.kMonth}-${k.kDay}';
+            final key = dayKey(k.kYear, k.kMonth, k.kDay);
             out.add(_SelectedDay(key, k.kYear, k.kMonth, k.kDay, d));
           }
         }
@@ -6092,7 +6048,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         d = d.add(const Duration(days: 1))) {
           if (_selectedWeekdays.contains(d.weekday)) {
             final k = KemeticMath.fromGregorian(d);
-            final key = '${k.kYear}-${k.kMonth}-${k.kDay}';
+            final key = dayKey(k.kYear, k.kMonth, k.kDay);
             out.add(_SelectedDay(key, k.kYear, k.kMonth, k.kDay, d));
           }
         }
@@ -6105,41 +6061,61 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
   // Keep drafts in sync with the active groups.
   void _syncDraftsWithSelection() {
+    // Hard gate: never sync while not ready.
+    if (!_syncReady) return;
+
     final groups = _buildEditorGroups();
 
-    // day drafts (customize mode)
+    // Day-draft syncing (customize mode).
     final wantDayKeys = {
       for (final g in groups.where((g) => !g.isPattern)) g.key
     };
-    final removeDay = _draftsByDay.keys
-        .where((k) => !wantDayKeys.contains(k))
-        .toList();
-    for (final k in removeDay) {
-      for (final draft in _draftsByDay[k] ?? []) {
-        draft.dispose();
-      }
-      _draftsByDay.remove(k);
-    }
-    for (final k in wantDayKeys) {
-      _draftsByDay.putIfAbsent(k, () => <_NoteDraft>[]);
-    }
 
-    // pattern drafts (repeat mode)
+    if (_hasFullRange) {
+      // Remove only keys that are NOT wanted AND are empty shells.
+      final removeDay = _draftsByDay.keys
+          .where((k) => !wantDayKeys.contains(k))
+          .toList();
+
+      for (final k in removeDay) {
+        final list = _draftsByDay[k];
+        if (list == null || list.isEmpty) {
+          for (final draft in list ?? []) {
+            draft.dispose();
+          }
+          _draftsByDay.remove(k);
+        }
+      }
+
+      // Seed missing wanted keys (one empty draft per day in customize mode).
+      for (final k in wantDayKeys) {
+        _draftsByDay.putIfAbsent(
+          k,
+          () => _splitByPeriod ? <_NoteDraft>[_NoteDraft()] : <_NoteDraft>[],
+        );
+      }
+    }
+    // When !_hasFullRange: do not remove/seed; fallback render will show seeded shells.
+
+    // Pattern-draft syncing (repeat mode).
     final wantPatKeys = {
       for (final g in groups.where((g) => g.isPattern)) g.key
     };
-    final removePat = _draftsByPattern.keys
-        .where((k) => !wantPatKeys.contains(k))
-        .toList();
-    for (final k in removePat) {
-      _draftsByPattern[k]?.dispose();
-      _draftsByPattern.remove(k);
+
+    if (_hasFullRange) {
+      final removePat = _draftsByPattern.keys
+          .where((k) => !wantPatKeys.contains(k))
+          .toList();
+      for (final k in removePat) {
+        _draftsByPattern[k]?.dispose();
+        _draftsByPattern.remove(k);
+      }
     }
     for (final k in wantPatKeys) {
       _draftsByPattern.putIfAbsent(k, () => _NoteDraft());
     }
 
-    setState(() {});
+    setState(() {}); // Trigger UI update
   }
 
 
@@ -6159,7 +6135,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         _kemeticSpans = const [];
         _weekSpans = const [];
       });
-      _syncDraftsWithSelection();
+      // IMPORTANT: do NOT call _syncDraftsWithSelection() here
       return;
     }
 
@@ -6234,7 +6210,17 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         ..sort((a, b) => a.monday.compareTo(b.monday));
     });
 
-    _syncDraftsWithSelection();
+    // Only sync if we are ready AND we have a full range.
+    if (_syncReady && _hasFullRange) {
+      _syncDraftsWithSelection();
+    }
+  }
+
+  /// Centralizes: "rebuild spans then (if ready) sync".
+  /// NOTE: _rebuildSpans() already calls _syncDraftsWithSelection()
+  /// when _syncReady && _hasFullRange, so we do not call it again here.
+  void _applySelectionToDrafts() {
+    _rebuildSpans();
   }
 
   // ---------- pickers ----------
@@ -6291,10 +6277,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                     ),
                   ),
 
-                  const _GlossyText(
+                  const GlossyText(
                     text: 'Pick Gregorian date',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    gradient: _blueGloss,
+                    gradient: blueGloss,
                   ),
                   const SizedBox(height: 8),
 
@@ -6325,10 +6311,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                             children: List<Widget>.generate(12, (i) {
                               final label = _gregMonthNames[i + 1];
                               return Center(
-                                child: _GlossyText(
+                                child: GlossyText(
                                   text: label,
                                   style: const TextStyle(fontSize: 14),
-                                  gradient: _silverGloss,
+                                  gradient: silverGloss,
                                 ),
                               );
                             }),
@@ -6352,10 +6338,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                             children: List<Widget>.generate(dayMax(), (i) {
                               final dd = i + 1;
                               return Center(
-                                child: _GlossyText(
+                                child: GlossyText(
                                   text: '$dd',
                                   style: const TextStyle(fontSize: 14),
-                                  gradient: _silverGloss,
+                                  gradient: silverGloss,
                                 ),
                               );
                             }),
@@ -6385,10 +6371,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                             children: List<Widget>.generate(401, (i) {
                               final yy = yearStart + i;
                               return Center(
-                                child: _GlossyText(
+                                child: GlossyText(
                                   text: '$yy',
                                   style: const TextStyle(fontSize: 14),
-                                  gradient: _silverGloss,
+                                  gradient: silverGloss,
                                 ),
                               );
                             }),
@@ -6405,7 +6391,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
-                            side: const BorderSide(color: _silver),
+                            side: const BorderSide(color: silver, width: 1.25),
                           ),
                           onPressed: () => Navigator.pop(sheetCtx, null),
                           child: const Text('Cancel'),
@@ -6487,10 +6473,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const _GlossyText(
+                  const GlossyText(
                     text: 'Pick Kemetic date',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    gradient: _goldGloss, // <- gold gleam
+                    gradient: goldGloss, // <- gold gleam
                   ),
                   const SizedBox(height: 8),
                   SizedBox(
@@ -6522,10 +6508,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                               final m = i + 1;
                               final label = getMonthById(m).displayFull;
                               return Center(
-                                child: _GlossyText(
+                                child: GlossyText(
                                   text: label,
                                   style: const TextStyle(fontSize: 14),
-                                  gradient: _silverGloss,
+                                  gradient: silverGloss,
                                 ),
                               );
                             }),
@@ -6548,10 +6534,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                             children: List<Widget>.generate(dayMax(), (i) {
                               final d = i + 1;
                               return Center(
-                                child: _GlossyText(
+                                child: GlossyText(
                                   text: '$d',
                                   style: const TextStyle(fontSize: 14),
-                                  gradient: _silverGloss,
+                                  gradient: silverGloss,
                                 ),
                               );
                             }),
@@ -6583,10 +6569,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                               final ky = yearStart + i;
                               final label = _gregYearLabelFor(ky, localKm);
                               return Center(
-                                child: _GlossyText(
+                                child: GlossyText(
                                   text: label,
                                   style: const TextStyle(fontSize: 14),
-                                  gradient: _silverGloss,
+                                  gradient: silverGloss,
                                 ),
                               );
                             }),
@@ -6602,7 +6588,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
-                            side: const BorderSide(color: _silver),
+                            side: const BorderSide(color: silver, width: 1.25),
                           ),
                           onPressed: () => Navigator.pop(sheetCtx, null),
                           child: const Text('Cancel'),
@@ -6619,10 +6605,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                             final g = KemeticMath.toGregorian(localKy, localKm, localKd);
                             Navigator.pop(sheetCtx, _dateOnly(g));
                           },
-                          child: const _GlossyText(
+                          child: const GlossyText(
                             text: 'Done',
                             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                            gradient: _whiteGloss, // subtle sheen on the label
+                            gradient: whiteGloss, // subtle sheen on the label
                           ),
                         ),
                       ),
@@ -6643,7 +6629,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         : await _pickGregorianDate(initial: _startDate);
     if (picked != null) {
       setState(() => _startDate = _dateOnly(picked));
-      _rebuildSpans();
+      _applySelectionToDrafts();
     }
   }
 
@@ -6653,7 +6639,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         : await _pickGregorianDate(initial: _endDate ?? _startDate);
     if (picked != null) {
       setState(() => _endDate = _dateOnly(picked));
-      _rebuildSpans();
+      _applySelectionToDrafts();
     }
   }
 
@@ -6692,10 +6678,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const _GlossyText(
+              const GlossyText(
                 text: 'Flow overview',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                gradient: _silverGloss,
+                gradient: silverGloss,
               ),
               const SizedBox(height: 8),
               TextField(
@@ -6714,7 +6700,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white,
-                        side: const BorderSide(color: _silver),
+                        side: const BorderSide(color: silver, width: 1.25),
                       ),
                       onPressed: () => Navigator.pop(sheetCtx),
                       child: const Text('Close'),
@@ -6814,17 +6800,25 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   }
 
   Widget _notesEditorsPanel() {
-    final groups = _buildEditorGroups();
-    if (groups.isEmpty) return const SizedBox.shrink();
+    List<_EditorGroup> groups = _buildEditorGroups();
+    // Fallback: if selection/range isn't ready but drafts exist, render from drafts.
+    if (groups.isEmpty) {
+      if (_draftsByDay.isNotEmpty) {
+        groups = _groupsFromDraftsFallback();
+        if (groups.isEmpty) return const SizedBox.shrink();
+      } else {
+        return const SizedBox.shrink();
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 16),
-        const _GlossyText(
+        const GlossyText(
           text: 'Notes for selection',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          gradient: _silverGloss,
+          gradient: silverGloss,
         ),
         const SizedBox(height: 8),
         ...groups.expand((g) {
@@ -6849,11 +6843,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _GlossyText(
+                        GlossyText(
                           text: g.header,
                           style: const TextStyle(
                               fontSize: 13, fontWeight: FontWeight.w600),
-                          gradient: _silverGloss,
+                          gradient: silverGloss,
                         ),
                         const SizedBox(height: 8),
                         TextField(
@@ -6882,10 +6876,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                           contentPadding: EdgeInsets.zero,
                           value: draft.allDay,
                           onChanged: (v) => setState(() => draft.allDay = v),
-                          title: const _GlossyText(
+                          title: const GlossyText(
                             text: 'All-day',
                             style: TextStyle(fontSize: 14),
-                            gradient: _silverGloss,
+                            gradient: silverGloss,
                           ),
                           activeThumbColor: _gold,
                         ),
@@ -7198,10 +7192,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const _GlossyText(
+                  const GlossyText(
                     text: 'Find / Edit a flow',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    gradient: _silverGloss,
+                    gradient: silverGloss,
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -7260,7 +7254,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
-                            side: const BorderSide(color: _silver),
+                            side: const BorderSide(color: silver, width: 1.25),
                           ),
                           onPressed: () => Navigator.pop(sheetCtx),
                           child: const Text('Close'),
@@ -7327,7 +7321,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
       _overviewCtrl.text = '';
 
-      _rebuildSpans();
+      _syncReady = false; // prevent any sync during wipe/reset
+      _rebuildSpans(); // clears spans; no sync happens
     });
   }
 
@@ -7402,7 +7397,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         }
       }
 
-      _rebuildSpans(); // refresh UI with new selections
+      // refresh UI with new selections
+      _syncReady = true;
+      _applySelectionToDrafts();
     });
   }
 
@@ -7425,7 +7422,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       final flowObj = _Flow(
         id: flow.id,
         name: flow.name,
-        color: Color(flow.color),
+        color: Color(rgbToArgb(flow.color)),
         active: flow.active,
         start: flow.startDate,
         end: flow.endDate,
@@ -7468,6 +7465,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _useKemetic = meta.kemetic;
       _splitByPeriod = true;  // Force customize mode for AI flows
       
+      _syncReady = true;
       // 5. Build spans now that mode is known
       _rebuildSpans();
       
@@ -7515,10 +7513,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         } else {
           _populateGregorianSelections(userEvents);
         }
-        
-        // Sync handles all spans
-        _syncDraftsWithSelection();
       }
+
+      _applySelectionToDrafts(); // one entry point
       
       // 9. Count ALL notes for analytics
       _originalEventCount = _draftsByDay.values
@@ -7624,7 +7621,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       
       // Get Kemetic date
       final (:kYear, :kMonth, :kDay) = KemeticMath.fromGregorian(localStart);
-      final dateKey = '$kYear-$kMonth-$kDay';
+      final dateKey = dayKey(kYear, kMonth, kDay);
       
       // Create draft
       final draft = _NoteDraft();
@@ -7693,7 +7690,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _active = true;
       _useKemetic = false;
       _splitByPeriod = true;
-      _rebuildSpans(); // harmless if range empty
+      _syncReady = true; // new editor can sync once range exists
+      _rebuildSpans(); // harmless if range empty; no sync without range
     }
   }
 
@@ -7750,7 +7748,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         setState(() {
           _useKemetic = v;
         });
-        _rebuildSpans();
+        _applySelectionToDrafts();
       },
     );
   }
@@ -7764,10 +7762,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _GlossyText(
+        const GlossyText(
           text: 'Date range (optional)',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          gradient: _silverGloss,
+          gradient: silverGloss,
         ),
         const SizedBox(height: 8),
         Row(
@@ -7776,11 +7774,22 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white,
-                  side: const BorderSide(color: _silver),
+                  side: const BorderSide(color: silver, width: 1.25),
                   alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: -0.1),
                 ),
                 onPressed: _pickRangeStart,
-                child: Text(startLabel),
+                child: Text(
+                  startLabel,
+                  style: const TextStyle(fontSize: 14),
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -7788,11 +7797,22 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
               child: OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white,
-                  side: const BorderSide(color: _silver),
+                  side: const BorderSide(color: silver, width: 1.25),
                   alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: -0.1),
                 ),
                 onPressed: _pickRangeEnd,
-                child: Text(endLabel),
+                child: Text(
+                  endLabel,
+                  style: const TextStyle(fontSize: 14),
+                ),
               ),
             ),
           ],
@@ -7806,10 +7826,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: const [
         SizedBox(height: 16),
-        _GlossyText(
+        GlossyText(
           text: 'Set a start and end date to define rules',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          gradient: _silverGloss,
+          gradient: silverGloss,
         ),
         SizedBox(height: 6),
         Text(
@@ -7829,11 +7849,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         setState(() {
           v ? _selectedDecanDays.add(n) : _selectedDecanDays.remove(n);
         });
-        _syncDraftsWithSelection();
+        _applySelectionToDrafts();
       },
       selectedColor: _gold.withOpacity(0.22),
       checkmarkColor: Colors.white,
-      side: const BorderSide(color: _silver),
+      side: const BorderSide(color: silver, width: 1.25),
       labelStyle: const TextStyle(color: Colors.white),
       backgroundColor: const Color(0xFF1A1B1F),
     );
@@ -7841,10 +7861,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _GlossyText(
+        const GlossyText(
           text: 'Kemetic rules',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          gradient: _silverGloss,
+          gradient: silverGloss,
         ),
         const SizedBox(height: 6),
         _toggleCustomizeButton(),
@@ -7864,7 +7884,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                     ..clear()
                     ..addAll({for (var i = 1; i <= 10; i++) i});
                 });
-                _syncDraftsWithSelection();
+                _applySelectionToDrafts();
               },
               child: const Text('Select all'),
             ),
@@ -7872,7 +7892,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             TextButton(
               onPressed: () {
                 setState(() => _selectedDecanDays.clear());
-                _syncDraftsWithSelection();
+                _applySelectionToDrafts();
               },
               child: const Text('Clear'),
             ),
@@ -7897,11 +7917,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         setState(() {
           v ? _selectedWeekdays.add(n) : _selectedWeekdays.remove(n);
         });
-        _syncDraftsWithSelection();
+        _applySelectionToDrafts();
       },
       selectedColor: _gold.withOpacity(0.22),
       checkmarkColor: Colors.white,
-      side: const BorderSide(color: _silver),
+      side: const BorderSide(color: silver, width: 1.25),
       labelStyle: const TextStyle(color: Colors.white),
       backgroundColor: const Color(0xFF1A1B1F),
     );
@@ -7909,10 +7929,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _GlossyText(
+        const GlossyText(
           text: 'Gregorian rules',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          gradient: _silverGloss,
+          gradient: silverGloss,
         ),
         const SizedBox(height: 6),
         _toggleCustomizeButton(),
@@ -7932,7 +7952,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                 setState(() {
                   _selectedWeekdays..clear()..addAll({1, 2, 3, 4, 5, 6, 7});
                 });
-                _syncDraftsWithSelection();
+                _applySelectionToDrafts();
               },
               child: const Text('Select all'),
             ),
@@ -7940,7 +7960,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             TextButton(
               onPressed: () {
                 setState(() => _selectedWeekdays.clear());
-                _syncDraftsWithSelection();
+                _applySelectionToDrafts();
               },
               child: const Text('Clear'),
             ),
@@ -7960,10 +7980,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _GlossyText(
+        const GlossyText(
           text: 'Kemetic rules • per decan',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          gradient: _silverGloss,
+          gradient: silverGloss,
         ),
         const SizedBox(height: 6),
         _toggleCustomizeButton(),
@@ -8003,7 +8023,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                     v ? set.add(n) : set.remove(n);
                     _perDecanSel[s.key] = set;
                   });
-                  _syncDraftsWithSelection();
+                  _applySelectionToDrafts();
                 },
                 selectedColor: _gold.withOpacity(0.22),
                 checkmarkColor: Colors.white,
@@ -8038,10 +8058,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _GlossyText(
+        const GlossyText(
           text: 'Gregorian rules • per week',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          gradient: _silverGloss,
+          gradient: silverGloss,
         ),
         const SizedBox(height: 6),
         _toggleCustomizeButton(),
@@ -8068,7 +8088,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                     v ? set.add(wd) : set.remove(wd);
                     _perWeekSel[w.key] = set;
                   });
-                  _syncDraftsWithSelection();
+                  _applySelectionToDrafts();
                 },
                 selectedColor: _gold.withOpacity(0.22),
                 checkmarkColor: Colors.white,
@@ -8128,7 +8148,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             }
             _splitByPeriod = !_splitByPeriod;
           });
-          _syncDraftsWithSelection();
+          _applySelectionToDrafts();
         },
         icon: const Icon(Icons.tune, color: _silver),
         label: Text(
@@ -8313,10 +8333,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             ),
 
             const SizedBox(height: 8),
-            const _GlossyText(
+            const GlossyText(
               text: 'Color',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              gradient: _silverGloss,
+              gradient: silverGloss,
             ),
             const SizedBox(height: 8),
             SizedBox(
@@ -8554,18 +8574,18 @@ class _FlowPreviewPage extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           // Name
-          _GlossyText(
+          GlossyText(
             text: flow.name,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-            gradient: _goldGloss,
+            gradient: goldGloss,
           ),
           const SizedBox(height: 10),
 
           // Overview
-          const _GlossyText(
+          const GlossyText(
             text: 'Overview',
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            gradient: _silverGloss,
+            gradient: silverGloss,
           ),
           const SizedBox(height: 6),
           Text(
@@ -8592,10 +8612,10 @@ class _FlowPreviewPage extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Schedule
-          const _GlossyText(
+          const GlossyText(
             text: 'Schedule',
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            gradient: _silverGloss,
+            gradient: silverGloss,
           ),
           const SizedBox(height: 6),
           ..._buildSchedule(context),
@@ -9113,7 +9133,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   });
 
   final _MaatFlowTemplate template;
-  final int Function({
+  final Future<int> Function({
   required _MaatFlowTemplate template,
   required DateTime startDate,
   required bool useKemetic,
@@ -9215,10 +9235,10 @@ class _MaatFlowTemplateDetailPageState extends State<_MaatFlowTemplateDetailPage
                       },
                       children: List.generate(12, (i) {
                         return Center(
-                          child: _GlossyText(
+                          child: GlossyText(
                             text: _gregMonthNames[i + 1],
                             style: const TextStyle(fontSize: 14),
-                            gradient: _silverGloss,
+                            gradient: silverGloss,
                           ),
                         );
                       }),
@@ -9241,10 +9261,10 @@ class _MaatFlowTemplateDetailPageState extends State<_MaatFlowTemplateDetailPage
                       children: List.generate(_gregDayMax(gy, gm), (i) {
                         final dd = i + 1;
                         return Center(
-                          child: _GlossyText(
+                          child: GlossyText(
                             text: '$dd',
                             style: const TextStyle(fontSize: 14),
-                            gradient: _silverGloss,
+                            gradient: silverGloss,
                           ),
                         );
                       }),
@@ -9273,10 +9293,10 @@ class _MaatFlowTemplateDetailPageState extends State<_MaatFlowTemplateDetailPage
                       children: List.generate(40, (i) {
                         final yy = gYearStart + i;
                         return Center(
-                          child: _GlossyText(
+                          child: GlossyText(
                             text: '$yy',
                             style: const TextStyle(fontSize: 14),
-                            gradient: _silverGloss,
+                            gradient: silverGloss,
                           ),
                         );
                       }),
@@ -9337,10 +9357,10 @@ class _MaatFlowTemplateDetailPageState extends State<_MaatFlowTemplateDetailPage
                       children: List.generate(_kemDayMax(ky, km), (i) {
                         final dd = i + 1;
                         return Center(
-                          child: _GlossyText(
+                          child: GlossyText(
                             text: '$dd',
                             style: const TextStyle(fontSize: 14),
-                            gradient: _silverGloss,
+                            gradient: silverGloss,
                           ),
                         );
                       }),
@@ -9375,10 +9395,10 @@ class _MaatFlowTemplateDetailPageState extends State<_MaatFlowTemplateDetailPage
                         final yEnd   = KemeticMath.toGregorian(y, km, last).year;
                         final label  = (yStart == yEnd) ? '$yStart' : '$yStart/$yEnd';
                         return Center(
-                          child: _GlossyText(
+                          child: GlossyText(
                             text: label,
                             style: const TextStyle(fontSize: 14),
-                            gradient: _silverGloss,
+                            gradient: silverGloss,
                           ),
                         );
                       }),
@@ -9468,10 +9488,10 @@ class _MaatFlowTemplateDetailPageState extends State<_MaatFlowTemplateDetailPage
                   const SizedBox(height: 10),
 
                   // title
-                  _GlossyText(
+                  GlossyText(
                     text: localKemetic ? 'Start date (Kemetic)' : 'Start date (Gregorian)',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    gradient: localKemetic ? _goldGloss : _blueGloss,
+                    gradient: localKemetic ? goldGloss : blueGloss,
                   ),
                   const SizedBox(height: 8),
 
@@ -9485,7 +9505,7 @@ class _MaatFlowTemplateDetailPageState extends State<_MaatFlowTemplateDetailPage
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
-                            side: const BorderSide(color: _silver),
+                            side: const BorderSide(color: silver, width: 1.25),
                           ),
                           onPressed: () => Navigator.pop(sheetCtx),
                           child: const Text('Cancel'),
@@ -9536,19 +9556,19 @@ class _MaatFlowTemplateDetailPageState extends State<_MaatFlowTemplateDetailPage
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
-          _GlossyText(
+          GlossyText(
             text: widget.template.title,
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-            gradient: _goldGloss,
+            gradient: goldGloss,
           ),
           const SizedBox(height: 8),
           Text(widget.template.overview,
               style: const TextStyle(color: Colors.white, height: 1.35)),
           const SizedBox(height: 16),
-          const _GlossyText(
+          const GlossyText(
             text: '10-Day Outline',
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            gradient: _silverGloss,
+            gradient: silverGloss,
           ),
           const SizedBox(height: 8),
           ...List.generate(10, (i) {
@@ -9576,7 +9596,7 @@ class _MaatFlowTemplateDetailPageState extends State<_MaatFlowTemplateDetailPage
             child: OutlinedButton(
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white,
-                side: const BorderSide(color: _silver),
+                side: const BorderSide(color: silver, width: 1.25),
                 alignment: Alignment.centerLeft,
               ),
               onPressed: _pickDate,
@@ -9606,13 +9626,15 @@ class _MaatFlowTemplateDetailPageState extends State<_MaatFlowTemplateDetailPage
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            onPressed: _picked == null ? null : () {
-              final id = widget.addInstance(
+            onPressed: _picked == null ? null : () async {
+              final id = await widget.addInstance(
                 template: widget.template,
                 startDate: _picked!,
                 useKemetic: _useKemetic,
               );
-              Navigator.of(context).pop(id);
+              if (context.mounted) {
+                Navigator.of(context).pop(id);
+              }
             },
             child: const Text('Add Flow'),
           ),
@@ -9798,7 +9820,7 @@ class _GoldDivider extends StatelessWidget {
       child: Center(
         child: RepaintBoundary(
           child: ShaderMask(
-            shaderCallback: (Rect r) => _goldGloss.createShader(r), // same gradient as titles
+            shaderCallback: (Rect r) => goldGloss.createShader(r), // same gradient as titles
             blendMode: BlendMode.srcIn,
             child: SizedBox(
               width: w,

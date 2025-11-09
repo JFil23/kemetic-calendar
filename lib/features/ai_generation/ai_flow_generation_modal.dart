@@ -9,16 +9,7 @@ import '../../services/ai_flow_generation_service.dart';
 import '../../widgets/kemetic_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart';
 import '../../widgets/ai_generation_diagnostic.dart';
-
-// Import your theme constants from Flow Studio
-const _gold = Color(0xFFD4AF37);
-const _silver = Color(0xFFB8B8B8);
-
-const _silverGloss = LinearGradient(
-  begin: Alignment.topCenter,
-  end: Alignment.bottomCenter,
-  colors: [Color(0xFFE8E8E8), Color(0xFF999999)],
-);
+import 'package:mobile/shared/glossy_text.dart';
 
 // Your flow palette from Flow Studio
 const _flowPalette = [
@@ -144,12 +135,22 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
 
     try {
       // ✅ CRITICAL: Convert color to hex string format
-      final selectedColor = _flowPalette[_selectedColorIndex];
-      final colorAsHex = '#${selectedColor.value.toRadixString(16).substring(2).padLeft(6, '0')}';
+      // Ensure _selectedColorIndex is within bounds
+      final safeColorIndex = _selectedColorIndex.clamp(0, _flowPalette.length - 1);
+      final selectedColor = _flowPalette[safeColorIndex];
+      final colorValue = selectedColor.value;
+      final hexString = colorValue.toRadixString(16).substring(2).padLeft(6, '0');
+      final colorAsHex = '#$hexString';
+      
+      // ✅ Safety check: ensure color is never null or empty
+      if (colorAsHex.isEmpty || colorAsHex == '#') {
+        throw StateError('Invalid color conversion: $colorValue -> $colorAsHex');
+      }
 
       // ✅ Debug logging (keep until first successful test)
       if (kDebugMode) {
-        print('🎨 [AI Modal] Color value (ARGB int): ${selectedColor.value}');
+        print('🎨 [AI Modal] Color index: $_selectedColorIndex (safe: $safeColorIndex)');
+        print('🎨 [AI Modal] Color value (ARGB int): $colorValue');
         print('🎨 [AI Modal] Color as hex string: $colorAsHex');
         print('🚀 [AI Modal] Request payload:');
         print('   Description: ${_descriptionController.text.trim()}');
@@ -198,7 +199,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.check_circle, color: _gold),
+              const Icon(Icons.check_circle, color: gold),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -254,20 +255,20 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.close, color: _gold),
+                  icon: const Icon(Icons.close, color: gold),
                   onPressed: () => Navigator.pop(context),
                 ),
                 const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _GlossyText(
+                      GlossyText(
                         text: 'Generate with AI',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
-                        gradient: _silverGloss,
+                        gradient: silverGloss,
                       ),
                       SizedBox(height: 2),
                       Text(
@@ -307,13 +308,13 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Description input
-                    const _GlossyText(
+                    const GlossyText(
                       text: 'What do you want to create?',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
-                      gradient: _silverGloss,
+                      gradient: silverGloss,
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -347,13 +348,13 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                     const SizedBox(height: 24),
 
                     // Color picker (matching Flow Studio exactly)
-                    const _GlossyText(
+                    const GlossyText(
                       text: 'Color',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
-                      gradient: _silverGloss,
+                      gradient: silverGloss,
                     ),
                     const SizedBox(height: 8),
                     SizedBox(
@@ -373,7 +374,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                       child: CupertinoSegmentedControl<CalendarMode>(
                         groupValue: _mode,
                         onValueChanged: (v) => setState(() => _mode = v),
-                        borderColor: _silver,
+                        borderColor: silver,
                         selectedColor: const Color(0xFF7C4DFF),
                         unselectedColor: Colors.white,
                         children: const {
@@ -392,13 +393,13 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                     const SizedBox(height: 24),
 
                     // Date range (matching Flow Studio exactly)
-                    const _GlossyText(
+                    const GlossyText(
                       text: 'Date range (optional)',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
-                      gradient: _silverGloss,
+                      gradient: silverGloss,
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -407,7 +408,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
-                              side: const BorderSide(color: _silver),
+                              side: const BorderSide(color: silver, width: 1.25),
                               alignment: Alignment.centerLeft,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -416,6 +417,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),
+                              textStyle: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: -0.1),
                             ),
                             onPressed: _isGenerating ? null : _pickRangeStart,
                             child: Text(
@@ -429,7 +431,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
-                              side: const BorderSide(color: _silver),
+                              side: const BorderSide(color: silver, width: 1.25),
                               alignment: Alignment.centerLeft,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -438,6 +440,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),
+                              textStyle: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: -0.1),
                             ),
                             onPressed: _isGenerating ? null : _pickRangeEnd,
                             child: Text(
@@ -518,7 +521,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                     ElevatedButton(
                       onPressed: _isGenerating ? null : _generate,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _gold,
+                        backgroundColor: gold,
                         foregroundColor: Colors.black,
                         disabledBackgroundColor: Colors.grey.shade800,
                         disabledForegroundColor: Colors.grey.shade600,
@@ -563,7 +566,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                             children: [
                               Icon(
                                 Icons.lightbulb_outline,
-                                color: _gold,
+                                color: gold,
                                 size: 20,
                               ),
                               SizedBox(width: 8),
@@ -609,7 +612,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
           shape: BoxShape.circle,
           gradient: _glossFromColor(_flowPalette[i]),
           border: Border.all(
-            color: selected ? _gold : Colors.white24,
+            color: selected ? gold : Colors.white24,
             width: selected ? 2.0 : 1.0,
           ),
         ),
@@ -654,26 +657,4 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
   }
 }
 
-// Glossy text widget (from Flow Studio)
-class _GlossyText extends StatelessWidget {
-  final String text;
-  final TextStyle style;
-  final LinearGradient gradient;
-
-  const _GlossyText({
-    required this.text,
-    required this.style,
-    required this.gradient,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ShaderMask(
-      shaderCallback: (bounds) => gradient.createShader(bounds),
-      child: Text(
-        text,
-        style: style.copyWith(color: Colors.white),
-      ),
-    );
-  }
-}
+// Glossy text widget is now imported from shared/glossy_text.dart
