@@ -35,6 +35,14 @@ class FeatureFlags {
   static const bool enableUndoRedo = false;
   
   // =========================================================================
+  // NUTRITION FEATURE
+  // =========================================================================
+  
+  /// Enable nutrition grid and scheduling feature
+  /// Set to TRUE to enable the Nutrition tab in the journal overlay
+  static const bool enableNutrition = true;  // ← ENABLED
+  
+  // =========================================================================
   // DEBUG FLAGS
   // =========================================================================
   
@@ -57,6 +65,9 @@ class FeatureFlags {
   /// Check if charts should be shown
   static bool get hasCharts => isJournalV2Active && enableCharts;
   
+  /// Check if nutrition feature is enabled
+  static bool get hasNutrition => enableNutrition;
+  
   /// Get enabled features (for analytics)
   static List<String> get enabledFeatures {
     final features = <String>[];
@@ -65,6 +76,7 @@ class FeatureFlags {
     if (enableDrawing) features.add('drawing');
     if (enableCharts) features.add('charts');
     if (enableUndoRedo) features.add('undo_redo');
+    if (enableNutrition) features.add('nutrition');
     return features;
   }
 }

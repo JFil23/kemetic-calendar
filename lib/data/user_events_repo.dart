@@ -220,6 +220,30 @@ class UserEventsRepo {
     }
   }
 
+  /// Delete events by client_event_id prefix (e.g., 'nutrition:item-id:').
+  /// Useful for bulk deletion of related events.
+  Future<void> deleteByClientIdPrefix(String prefix) async {
+    _log('deleteByClientIdPrefix($prefix)');
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) return;
+      
+      await _client
+          .from(_kTable)
+          .delete()
+          .eq('user_id', user.id)
+          .like('client_event_id', '$prefix%');
+      
+      _log('deleteByClientIdPrefix ✓');
+    } on PostgrestException catch (e) {
+      _log('deleteByClientIdPrefix ✗ ${e.code} ${e.message}');
+      rethrow;
+    } catch (e) {
+      _log('deleteByClientIdPrefix ✗ $e');
+      rethrow;
+    }
+  }
+
   /// Delete Ma'at-generated events by flow id. Optionally from a given date forward.
   Future<void> deleteByFlowId(int flowId, {DateTime? fromDate}) async {
     _log('deleteByFlowId(flowId=$flowId, fromDate=$fromDate)');

@@ -1145,6 +1145,37 @@ class _DayViewGridState extends State<DayViewGrid> {
               crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header row with flow badge and menu
+              // Check if this is a nutrition event (detail contains "Source:" pattern)
+              if (flow == null && event.detail != null && event.detail!.contains('Source:')) ...[
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD4AF37).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.local_drink, size: 14, color: Color(0xFFD4AF37)),
+                          SizedBox(width: 4),
+                          Text(
+                            'Nutrition',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFFD4AF37),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
               if (flow != null) ...[
                 Row(
                   children: [

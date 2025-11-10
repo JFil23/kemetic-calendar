@@ -12,6 +12,9 @@ import 'journal_v2_drawing.dart';
 import 'journal_undo_system.dart';
 import 'journal_archive_page.dart';
 import '../../data/journal_repo.dart';
+import '../../data/nutrition_repo.dart';
+import '../../data/user_events_repo.dart';
+import '../nutrition/nutrition_grid.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class JournalOverlay extends StatefulWidget {
@@ -37,6 +40,9 @@ class _JournalOverlayState extends State<JournalOverlay>
   late TextEditingController _textController;
   late ScrollController _scrollController;
   late FocusNode _focusNode;
+
+  // Toggle between Journal (false) and Nutrition (true)
+  bool _showNutrition = false;
 
   double _dragOffset = 0;
 
@@ -72,6 +78,8 @@ class _JournalOverlayState extends State<JournalOverlay>
     _scrollController = ScrollController();
     _focusNode = FocusNode();
     widget.controller.onDraftChanged = _onDraftChanged;
+
+    // Journal remains default view; Nutrition toggle is user-driven
 
     // V2 initialization
     _undoSystem = JournalUndoSystem();
@@ -503,8 +511,9 @@ class _JournalOverlayState extends State<JournalOverlay>
                   child: Column(
                     children: [
                       _buildHeader(),
-                      if (_showToolbar) _buildToolbar(),
-                      Expanded(child: _buildEditor()),
+                      // Show the journal toolbar only in Journal mode
+                      if (_showToolbar && !_showNutrition) _buildToolbar(),
+                      Expanded(child: _buildContent()),
                     ],
                   ),
                 ),
@@ -526,14 +535,43 @@ class _JournalOverlayState extends State<JournalOverlay>
       ),
       child: Row(
         children: [
-          const Text(
-            'Journal',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+          // Journal button
+          TextButton(
+            onPressed: () => setState(() => _showNutrition = false),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              'Journal',
+              style: TextStyle(
+                color: !_showNutrition ? const Color(0xFFD4AF37) : Colors.white70,
+                fontSize: 18,
+                fontWeight: !_showNutrition ? FontWeight.w600 : FontWeight.w400,
+              ),
             ),
           ),
+          // Nutrition button (only if feature is enabled)
+          if (FeatureFlags.hasNutrition) ...[
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: () => setState(() => _showNutrition = true),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'Nutrition',
+                style: TextStyle(
+                  color: _showNutrition ? const Color(0xFFD4AF37) : Colors.white70,
+                  fontSize: 18,
+                  fontWeight: _showNutrition ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ),
+          ],
           const Spacer(),
           IconButton(
             icon: const Icon(Icons.history, color: Color(0xFFD4AF37)),
@@ -551,6 +589,17 @@ class _JournalOverlayState extends State<JournalOverlay>
         ],
       ),
     );
+  }
+
+  /// Returns either the Journal editor (default) or the Nutrition grid.
+  Widget _buildContent() {
+    if (FeatureFlags.hasNutrition && _showNutrition) {
+      return NutritionGridWidget(
+        repo: NutritionRepo(Supabase.instance.client),
+        eventsRepo: UserEventsRepo(Supabase.instance.client),
+      );
+    }
+    return _buildEditor(); // existing editor builder
   }
 
   Widget _buildToolbar() {
@@ -657,3 +706,5 @@ class _JournalOverlayState extends State<JournalOverlay>
     );
   }
 }
+
+
