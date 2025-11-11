@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';   // LogicalKeyboardKey
 
 import '../../core/kemetic_converter.dart';
 import '../../data/nutrition_repo.dart';
@@ -29,11 +30,67 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   List<NutritionItem> _items = [];
   String? _lastError;
   bool _adding = false; // prevents double-clicks while inserting
+  bool _schedulePickerOpen = false; // prevents double-open from rapid taps
 
   // Column widths for header and body alignment (fixed widths for perfect alignment)
   static const double _rowHeight = 48;
   static const TextStyle _hdrStyle = TextStyle(color: Colors.white, fontWeight: FontWeight.w600);
   static const TextStyle _cellStyle = TextStyle(color: Colors.white);
+
+  // Typography (use with existing _hdrStyle/_cellStyle)
+  static const double _hdrFontSize = 14;
+  static const double _cellFontSize = 13;
+
+  // Focus-based expansion constants
+  static const int _expandedRowFactor = 5;
+  static const double _whenIconSize = 20;
+
+  // Focus state for row expansion
+  String? _focusedRowId;
+  final Map<String, FocusNode> _focusByCell = {};
+
+  FocusNode _focusFor(String cellId) {
+    return _focusByCell.putIfAbsent(cellId, () {
+      final n = FocusNode();
+      n.addListener(() {
+        if (!mounted) return;
+        final row = cellId.split(':').first;
+
+        // Defer setState to after the current frame
+        void _defer(VoidCallback f) =>
+            WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) f(); });
+
+        if (n.hasFocus) {
+          if (_focusedRowId != row) _defer(() => setState(() => _focusedRowId = row));
+        } else if (_focusedRowId == row) {
+          final stillFocused = _focusByCell.entries.any(
+            (e) => e.key.startsWith('$row:') && e.value.hasFocus,
+          );
+          if (!stillFocused) _defer(() => setState(() => _focusedRowId = null));
+        }
+      });
+      return n;
+    });
+  }
+
+  bool _isFocusedRow(String rowId) => _focusedRowId == rowId;
+
+  double _expandedRowHeight(BuildContext context) {
+    final cap = MediaQuery.of(context).size.height * 0.60;
+    final target = _rowHeight * _expandedRowFactor;
+    return target > cap ? cap : target;
+  }
+
+  // Row expand/collapse state (track by item.id) - kept for backward compatibility
+  final Set<String> _expanded = <String>{};
+  bool _isExpanded(NutritionItem it) => _expanded.contains(it.id);
+  void _toggleExpanded(NutritionItem it) => setState(() {
+    if (_expanded.contains(it.id)) {
+      _expanded.remove(it.id);
+    } else {
+      _expanded.add(it.id);
+    }
+  });
 
   // Base & minimum widths for: Nutrient, Source, Purpose, When, Repeat, Delete
   static const List<double> _COL_BASE = [160, 140, 200, 190, 64, 48];
@@ -200,6 +257,10 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     for (final t in _debouncers.values) {
       t.cancel();
     }
+    for (final n in _focusByCell.values) {
+      n.dispose();
+    }
+    _focusByCell.clear();
     super.dispose();
   }
 
@@ -231,19 +292,20 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   }
 
   // === HEADER ===
-  Widget _headerCell(String text, {double? width}) {
-    return Container(
-      color: Colors.black,
+  Widget _headerCell(String text, {double? width, IconData? icon}) {
+    return _cellShell(
+      icon != null
+          ? Icon(icon, size: 16, color: Colors.white)
+          : Text(
+              text,
+              style: _hdrStyle.copyWith(fontSize: _hdrFontSize),
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+            ),
       width: width,
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Text(
-        text,
-        style: _hdrStyle,
-        maxLines: 1,
-        softWrap: false,
-        overflow: TextOverflow.ellipsis,
-      ),
+      minHeight: 44,
+      align: Alignment.centerLeft,
     );
   }
 
@@ -339,42 +401,39 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   }
 
   // ---------- NEW RESPONSIVE TABLE METHODS ----------
-  // Fractions must sum ~1.0; tune if you like
-  static const List<double> _FRACTIONS = [0.22, 0.18, 0.28, 0.22, 0.06, 0.04];
+  // Column weights (sum = 1.0)  [Nutrient, Source, Purpose, When] - 4 columns
+  static const List<double> _FRACTIONS = [0.30, 0.24, 0.35, 0.11];
+
+  // Row background color for zebra striping
+  Color _rowBg(int i) => i.isOdd ? Colors.white.withOpacity(0.03) : Colors.transparent;
 
   // Public entry point for responsive table (uses _items field)
   Widget buildNutritionTableResponsive() {
+    final widths = <int, TableColumnWidth>{
+      0: const FlexColumnWidth(0.30),
+      1: const FlexColumnWidth(0.24),
+      2: const FlexColumnWidth(0.35),
+      3: const FlexColumnWidth(0.11), // icon
+    };
+
     return Column(
       children: [
-        // Header (flex columns)
         Table(
-          columnWidths: {
-            for (int i = 0; i < _FRACTIONS.length; i++) i: FlexColumnWidth(_FRACTIONS[i]),
-          },
           border: _gridBorder(),
-          defaultVerticalAlignment: TableCellVerticalAlignment.top, // top for wrapping
-          children: [
-            TableRow(children: [
-              _headerCell('Nutrient'),     // width optional; not needed w/ Flex
-              _headerCell('Source'),
-              _headerCell('Purpose'),
-              _headerCell('When to take'),
-              _headerCell('Repeat'),
-              _headerCell(''),             // Delete (blank header)
-            ]),
-          ],
+          defaultVerticalAlignment: TableCellVerticalAlignment.top,
+          columnWidths: widths,
+          children: [_headerRow()],
         ),
-
-        // Body (vertical scroll only)
         Expanded(
           child: SingleChildScrollView(
             child: Table(
-              columnWidths: {
-                for (int i = 0; i < _FRACTIONS.length; i++) i: FlexColumnWidth(_FRACTIONS[i]),
-              },
               border: _gridBorder(),
               defaultVerticalAlignment: TableCellVerticalAlignment.top,
-              children: [for (final it in _items) _buildRowFractional(it)],
+              columnWidths: widths,
+              children: [
+                for (int i = 0; i < _items.length; i++)
+                  _buildRowFractional(i, _items[i], bg: _rowBg(i)),
+              ],
             ),
           ),
         ),
@@ -382,31 +441,38 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     );
   }
 
-  // Header table with fractional widths
-  Widget _buildHeaderTableFractional(List<double> widths) {
-    return Table(
-      columnWidths: {
-        for (int i = 0; i < widths.length; i++) i: FixedColumnWidth(widths[i]),
-      },
-      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      border: _gridBorder(),
-      children: [
-        TableRow(
-          children: [
-            _headerCell('Nutrient', width: widths[0]),
-            _headerCell('Source',   width: widths[1]),
-            _headerCell('Purpose',  width: widths[2]),
-            _headerCell('When to take', width: widths[3]),
-            _headerCell('Repeat',   width: widths[4]),
-            _headerCell('',         width: widths[5]),
-          ],
+  // Header row (4 columns: Nutrient, Source, Purpose, When)
+  TableRow _headerRow() {
+    return TableRow(children: [
+      _cellShell(Text('Nutrient', style: _hdrStyle)),
+      _cellShell(Text('Source', style: _hdrStyle)),
+      _cellShell(Text('Purpose', style: _hdrStyle)),
+      _cellShell(
+        Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: const Icon(Icons.event_note_rounded, size: _whenIconSize, color: Colors.white),
+          ),
         ),
-      ],
+        align: Alignment.center,
+        padding: EdgeInsets.zero,  // no padding for icon column
+      ),
+    ]);
+  }
+
+  // Header table with fractional widths (legacy - kept for compatibility)
+  Widget _buildHeaderTableFractional(Map<int, TableColumnWidth> widths) {
+    return Table(
+      border: _gridBorder(),
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      columnWidths: widths,
+      children: [_headerRow()],
     );
   }
 
   // Body table with fractional widths (legacy method - not used by new responsive table)
   Widget _buildBodyTableFractional(List<double> widths, List<NutritionItem> items) {
+    Color rowBg(int i) => i.isEven ? const Color(0xFF0D0D0D) : const Color(0xFF111111);
     return Table(
       columnWidths: {
         for (int i = 0; i < widths.length; i++) i: FixedColumnWidth(widths[i]),
@@ -414,21 +480,24 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       border: _gridBorder(),
       children: [
-        for (final it in items) _buildRowFractional(it),  // Fixed: removed widths parameter
+        for (int i = 0; i < items.length; i++)
+          _buildRowFractional(i, items[i], bg: rowBg(i)),
       ],
     );
   }
 
   // Row builder (uses FlexColumnWidth, so no pixel widths needed)
-  TableRow _buildRowFractional(NutritionItem item) {
+  TableRow _buildRowFractional(int index, NutritionItem item, {Color? bg}) {
+    final focused = _isFocusedRow(item.id);
+    final minH = focused ? _expandedRowHeight(context) : _rowHeight;
+    final bgCol = bg ?? _rowBg(index);
+
     return TableRow(children: [
-      _cellTextField(item, field: 'nutrient', hint: 'e.g., Magnesium', width: null),
-      _cellTextField(item, field: 'source',   hint: 'e.g., 200mg caps', width: null),
-      // Purpose grows freely (null = wrap)
-      _cellTextField(item, field: 'purpose',  hint: 'e.g., sleep, recovery', maxLines: null, width: null),
-      _cellSchedule(item, width: null),  // label wraps
-      _cellRepeat(item, width: null),
-      _cellDelete(item, width: null),
+      _cellTextField(item, field: 'nutrient', hint: 'e.g., Magnesium', rowId: item.id, bgColor: bgCol, maxLines: 1),
+      _cellTextField(item, field: 'source', hint: 'e.g., Glycinate', rowId: item.id, bgColor: bgCol, maxLines: 1),
+      // Purpose: wraps when focused; otherwise compact
+      _cellTextField(item, field: 'purpose', hint: 'Why you take it', rowId: item.id, bgColor: bgCol, maxLines: focused ? null : 2, minHeight: minH),
+      _cellSchedule(item, bgColor: bgCol, minHeight: minH),
     ]);
   }
 
@@ -436,16 +505,28 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   Widget _cellShell(
     Widget child, {
     Alignment align = Alignment.centerLeft,
-    double? width,       // kept for compatibility
-    double? minHeight,   // new: lets rows grow
+    double? width,
+    double? minHeight,
+    Color? bgColor,  // null => transparent (no charcoal)
+    EdgeInsets? padding,  // optional padding override
   }) {
-    return Container(
-      color: Colors.black,
+    final core = Container(
       width: width,
       alignment: align,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      constraints: BoxConstraints(minHeight: minHeight ?? 44), // no max height
+      padding: padding ?? const EdgeInsets.symmetric(horizontal: 10),
+      color: bgColor,  // null => transparent (no charcoal)
+      constraints: (minHeight == null)
+          ? const BoxConstraints()
+          : BoxConstraints(minHeight: minHeight),
       child: child,
+    );
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 160),
+      alignment: Alignment.topCenter,
+      child: DefaultTextStyle.merge(
+        style: TextStyle(fontSize: _cellFontSize),
+        child: core,
+      ),
     );
   }
 
@@ -453,50 +534,54 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     NutritionItem item, {
     required String field,
     String? hint,
-    int? maxLines = 1,   // nullable; null => wrap & grow
-    double? width,       // kept for compatibility
+    int? maxLines = 1,
+    double? width,
+    String? rowId,
+    double? minHeight,
+    Color? bgColor,
   }) {
+    final id = rowId ?? item.id;
+    final focused = _isFocusedRow(id);
+    final lines = focused ? null : (maxLines ?? 1);
+
     final initial = switch (field) {
       'nutrient' => item.nutrient,
-      'source' => item.source,
-      'purpose' => item.purpose,
+      'source'   => item.source,
+      'purpose'  => item.purpose,
       _ => '',
     };
 
-    // Purpose grows fully; others keep provided cap
-    final lines = (field == 'purpose') ? null : maxLines;
-
-    return _cellShell(
-      TextFormField(
-        initialValue: initial,
-        style: _cellStyle,
-        textAlignVertical: TextAlignVertical.top,  // top aligns multi-line
-        maxLines: lines,                           // null => wrap & grow
-        minLines: 1,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: Colors.white38),
-          isDense: true,
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
-        ),
-        onChanged: (v) {
-          switch (field) {
-            case 'nutrient':
-              item.nutrient = v;
-              break;
-            case 'source':
-              item.source = v;
-              break;
-            case 'purpose':
-              item.purpose = v;
-              break;
-          }
-          _saveDebounced(item, resync: false); // text-only change
-        },
+    final editor = TextFormField(
+      initialValue: initial,
+      focusNode: _focusFor('$id:$field'),
+      style: _cellStyle,
+      maxLines: lines,
+      expands: focused,  // scrolls inside when focused
+      keyboardType: TextInputType.multiline,
+      textInputAction: TextInputAction.newline,
+      textAlignVertical: focused ? TextAlignVertical.top : TextAlignVertical.center,
+      decoration: InputDecoration(
+        hintText: hint,
+        isDense: true,
+        contentPadding: EdgeInsets.zero,
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        filled: false,
       ),
-      width: width,
+      onChanged: (txt) {
+        switch (field) {
+          case 'nutrient': item.nutrient = txt; break;
+          case 'source':   item.source   = txt; break;
+          case 'purpose':  item.purpose  = txt; break;
+        }
+        _saveDebounced(item, resync: false); // text-only changes
+      },
     );
+
+    final h = focused ? (minHeight ?? _expandedRowHeight(context)) : (minHeight ?? _rowHeight);
+    final wrapped = focused ? SizedBox(height: h, child: editor) : editor;
+    return _cellShell(wrapped, width: width, minHeight: focused ? null : h, bgColor: bgColor);
   }
 
   String _scheduleLabel(BuildContext context, IntakeSchedule s) {
@@ -513,32 +598,89 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     }
   }
 
-  Widget _cellSchedule(NutritionItem item, {double? width}) {
-    final label = _scheduleLabel(context, item.schedule);
-    return InkWell(
-      onTap: () async {
-        final updated = await _openSchedulePicker(context, item.schedule);
-        if (updated != null) {
-          setState(() {
-            item.schedule = updated;
-            item.enabled = (updated.mode == IntakeMode.weekday && updated.daysOfWeek.isNotEmpty) ||
-                          (updated.mode == IntakeMode.decan && updated.decanDays.isNotEmpty);
-            _scheduleChanged[item.id] = true;
-          });
-          _saveDebounced(item, resync: true);
-        }
-      },
-      child: _cellShell(
-        Text(
-          label.isEmpty ? 'Tap to set' : label,
-          style: TextStyle(
-            color: label.isEmpty ? Colors.white38 : Colors.blueAccent,
-            fontStyle: label.isEmpty ? FontStyle.italic : FontStyle.normal,
-          ),
-          maxLines: null,  // wrap & grow
-        ),
-        width: width,
+  // Helpers for compact schedule preview chips
+  String _dowShort(int d) => const ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][d - 1];
+
+  Widget _chip(String t, {IconData? icon}) {
+    return Container(
+      margin: const EdgeInsets.only(right: 6, bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1C),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x22FFFFFF)),
       ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 12),
+            const SizedBox(width: 4),
+          ],
+          Text(t, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  // Compact schedule preview text (no chips)
+  String _schedulePreviewText(BuildContext context, IntakeSchedule s) {
+    final daysText = (s.mode == IntakeMode.weekday)
+        ? (s.daysOfWeek.isEmpty
+            ? 'Tap to set'
+            : s.daysOfWeek.map(_dowShort).join(' '))
+        : (s.decanDays.isEmpty
+            ? 'Tap to set'
+            : 'Days ${s.decanDays.join(', ')}');
+    return '$daysText • ${s.time.format(context)}';
+  }
+
+  Widget _cellSchedule(
+    NutritionItem item, {
+    double? width,
+    double? minHeight,
+    bool? collapsed,  // kept for back-compat; unused
+    Color? bgColor,
+  }) {
+    final focused = _isFocusedRow(item.id);
+    final h = focused ? (minHeight ?? _expandedRowHeight(context)) : (minHeight ?? _rowHeight);
+    final tip = _schedulePreviewText(context, item.schedule);
+
+    return _cellShell(
+      Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: IconButton(
+              tooltip: tip,
+              icon: const Icon(Icons.event_note_rounded, size: _whenIconSize, color: Colors.white),
+              padding: EdgeInsets.zero,  // Remove default padding
+              constraints: const BoxConstraints(),  // Remove default 48x48 constraint
+              splashRadius: 18,  // slightly larger than icon for better touch feedback
+              onPressed: () async {
+                FocusScope.of(context).unfocus();
+                final updated = await _openSchedulePicker(context, item);
+                if (updated != null) {
+                  setState(() {
+                    item.schedule = updated;
+                    item.enabled = (updated.mode == IntakeMode.weekday && updated.daysOfWeek.isNotEmpty) ||
+                                   (updated.mode == IntakeMode.decan && updated.decanDays.isNotEmpty);
+                    _scheduleChanged[item.id] = true;
+                  });
+                  _saveDebounced(item, resync: true);
+                }
+              },
+            ),
+          ),
+        ),
+      ),
+      width: width,
+      minHeight: h,
+      bgColor: bgColor,
+      align: Alignment.center,
+      padding: EdgeInsets.zero,  // no padding for icon column
     );
   }
 
@@ -567,186 +709,361 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   }
 
   Widget _cellDelete(NutritionItem item, {double? width}) {
+    final show = _isExpanded(item);
     return _cellShell(
-      Center(
-        child: IconButton(
-          tooltip: 'Delete',
-          onPressed: () => _deleteItem(item),
-          icon: const Icon(Icons.delete, color: Colors.redAccent),
-          splashRadius: 18,
-          padding: EdgeInsets.zero,
-        ),
-      ),
-      align: Alignment.center,
+      show
+          ? Center(
+              child: IconButton(
+                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                onPressed: () => _deleteItem(item),
+                tooltip: 'Delete',
+              ),
+            )
+          : const SizedBox(height: 24), // reserve minimal height
       width: width,
+      align: Alignment.center,
+      minHeight: 44,
     );
   }
 
-  Future<IntakeSchedule?> _openSchedulePicker(BuildContext context, IntakeSchedule initial) async {
-    final result = await showModalBottomSheet<IntakeSchedule>(
-      context: context,
-      useRootNavigator: true,  // ensures it appears above the modal
-      backgroundColor: Colors.black,
-      isScrollControlled: true,
-      builder: (ctx) {
-        IntakeMode mode = initial.mode;
-        Set<int> dows = {...initial.daysOfWeek};
-        Set<int> decan = {...initial.decanDays};
-        bool repeat = initial.repeat;
-        TimeOfDay time = initial.time;
+  Future<IntakeSchedule?> _openSchedulePicker(BuildContext ctx, NutritionItem item) {
+    // ✅ Hardening: Prevent double-open from rapid taps
+    if (_schedulePickerOpen) return Future.value(null);
+    _schedulePickerOpen = true;
 
-        return StatefulBuilder(
-          builder: (context, setM) {
-            Widget chip(bool selected, String label, VoidCallback onTap) {
-              return FilterChip(
-                label: Text(
-                  label,
-                  style: TextStyle(color: selected ? Colors.black : Colors.white),
-                ),
-                selected: selected,
-                onSelected: (_) => onTap(),
-                selectedColor: Colors.white,
-                backgroundColor: const Color(0xFF111111),
-                checkmarkColor: Colors.black,
-                side: const BorderSide(color: Colors.white24),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-              );
-            }
+    final completer = Completer<IntakeSchedule?>();
+    
+    void finish(IntakeSchedule? r) {
+      if (!_schedulePickerOpen) return;
+      _schedulePickerOpen = false;
+      if (!completer.isCompleted) {
+        completer.complete(r);
+      }
+    }
 
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Mode toggle
-                  Row(
-                    children: [
-                      ChoiceChip(
-                        label: const Text('Weekdays'),
-                        selected: mode == IntakeMode.weekday,
-                        onSelected: (v) => setM(() => mode = IntakeMode.weekday),
-                      ),
-                      const SizedBox(width: 8),
-                      ChoiceChip(
-                        label: const Text('Decan days'),
-                        selected: mode == IntakeMode.decan,
-                        onSelected: (v) => setM(() => mode = IntakeMode.decan),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white70),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
+    // ✅ Null-safe initial schedule fallback
+    final initial = item.schedule ?? IntakeSchedule(
+      mode: IntakeMode.weekday,
+      daysOfWeek: const {1,2,3,4,5}, // Mon–Fri sensible default
+      decanDays: const <int>{},
+      time: TimeOfDay(hour: 9, minute: 0),
+      repeat: true,
+    );
 
-                  // Multi-select
-                  if (mode == IntakeMode.weekday) ...[
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: List.generate(7, (i) {
-                        final dayNum = i + 1; // 1..7
-                        const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                        final selected = dows.contains(dayNum);
-                        return chip(selected, labels[i], () {
-                          setM(() {
-                            if (selected) {
-                              dows.remove(dayNum);
-                            } else {
-                              dows.add(dayNum);
-                            }
-                          });
-                        });
-                      }),
-                    ),
-                  ] else ...[
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: List.generate(10, (i) {
-                        final dayNum = i + 1; // 1..10
-                        final selected = decan.contains(dayNum);
-                        return chip(selected, 'Day $dayNum', () {
-                          setM(() {
-                            if (selected) {
-                              decan.remove(dayNum);
-                            } else {
-                              decan.add(dayNum);
-                            }
-                          });
-                        });
-                      }),
-                    ),
-                  ],
+    // Local working state
+    var mode = initial.mode;
+    var dows = Set<int>.from(initial.daysOfWeek);
+    var decans = Set<int>.from(initial.decanDays);
+    var time = initial.time;
+    var repeat = initial.repeat;
 
-                  const SizedBox(height: 16),
+    IntakeSchedule _build() => initial.copyWith(
+          mode: mode,
+          daysOfWeek: dows,
+          decanDays: decans,
+          time: time,
+          repeat: repeat,
+        );
 
-                  // Time + repeat
-                  Row(
-                    children: [
-                      TextButton.icon(
-                        icon: const Icon(Icons.schedule, color: Colors.white70),
-                        label: Text(
-                          time.format(context),
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        onPressed: () async {
-                          final picked = await showTimePicker(
-                            context: context,
-                            initialTime: time,
-                            useRootNavigator: true,  // ensures it appears above the modal
-                          );
-                          if (picked != null) setM(() => time = picked);
-                        },
-                      ),
-                      const Spacer(),
-                      const Text('Repeat', style: TextStyle(color: Colors.white70)),
-                      Checkbox(
-                        value: repeat,
-                        onChanged: (v) => setM(() => repeat = v ?? true),
-                        activeColor: Colors.white,
-                        checkColor: Colors.black,
-                        side: const BorderSide(color: Colors.white54),
-                      ),
-                    ],
-                  ),
+    OverlayEntry? overlayEntry;
 
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: FilledButton(
-                      onPressed: () {
-                        final s = initial.copyWith(
-                          mode: mode,
-                          daysOfWeek: dows,
-                          decanDays: decan,
-                          repeat: repeat,
-                          time: time,
-                        );
-                        Navigator.pop(context, s);
+    void _close(IntakeSchedule? result) {
+      overlayEntry?.remove();
+      overlayEntry = null;
+      finish(result);
+    }
+
+    // ✅ Dark theme fixes so buttons/text are readable on black
+    final base = Theme.of(ctx);
+    final darkOverlayTheme = base.copyWith(
+      colorScheme: base.colorScheme.brightness == Brightness.dark
+          ? base.colorScheme
+          : base.colorScheme.copyWith(brightness: Brightness.dark),
+      dialogBackgroundColor: Colors.black,
+      scaffoldBackgroundColor: Colors.black,
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: Colors.white),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: const BorderSide(color: Colors.white24),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          foregroundColor: Colors.black,
+          backgroundColor: Colors.white,
+        ),
+      ),
+      checkboxTheme: const CheckboxThemeData(
+        side: BorderSide(color: Colors.white54),
+        checkColor: WidgetStatePropertyAll(Colors.black),
+        fillColor: WidgetStatePropertyAll(Colors.white),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(foregroundColor: Colors.white70),
+      ),
+    );
+
+    // ✅ Robust toast helper (handles missing Scaffold)
+    void _toast(BuildContext context, String msg) {
+      final sm = ScaffoldMessenger.maybeOf(context);
+      sm?.showSnackBar(SnackBar(content: Text(msg)));
+    }
+
+    Widget chip(bool selected, String label, VoidCallback onTap) {
+      return FilterChip(
+        label: Text(
+          label,
+          style: TextStyle(color: selected ? Colors.black : Colors.white),
+        ),
+        selected: selected,
+        onSelected: (_) => onTap(),
+        selectedColor: Colors.white,
+        backgroundColor: const Color(0xFF111111),
+        checkmarkColor: Colors.black,
+        side: const BorderSide(color: Colors.white24),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      );
+    }
+
+    overlayEntry = OverlayEntry(
+      builder: (context) {
+        final mq = MediaQuery.of(context);
+        final size = mq.size;
+        final maxH = (size.height * 0.75).clamp(320.0, 600.0);
+        final kb = mq.viewInsets.bottom;
+
+        return Stack(
+          children: [
+            // ✅ Patch A: Proper modal barrier (replaces GestureDetector)
+            ModalBarrier(
+              color: Colors.black54,
+              dismissible: true,
+              onDismiss: () => _close(null),
+            ),
+            // Centered picker
+            SafeArea(
+              minimum: EdgeInsets.only(bottom: kb),
+              child: Center(
+                child: Theme(
+                  data: darkOverlayTheme,
+                  child: BackButtonListener( // ✅ Patch B: Android back button
+                    onBackButtonPressed: () async { _close(null); return true; },
+                    child: Shortcuts( // ✅ Patch B: ESC to close on web/desktop
+                      shortcuts: {
+                        LogicalKeySet(LogicalKeyboardKey.escape): const ActivateIntent(),
                       },
-                      style: FilledButton.styleFrom(backgroundColor: Colors.white),
-                      child: const Text('Save', style: TextStyle(color: Colors.black)),
+                      child: Actions(
+                        actions: {
+                          ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) { _close(null); return null; }),
+                        },
+                        child: TweenAnimationBuilder<double>( // ✅ Patch B: Entry animation
+                          duration: const Duration(milliseconds: 160),
+                          curve: Curves.easeOut,
+                          tween: Tween(begin: 0.95, end: 1.0),
+                          builder: (context, scale, child) => FadeTransition(
+                            opacity: AlwaysStoppedAnimation(scale.clamp(0.95, 1.0)),
+                            child: Transform.scale(scale: scale, child: child),
+                          ),
+                          child: Material(
+                            elevation: 8,
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(16),
+                            clipBehavior: Clip.antiAlias,
+                            child: FocusScope( // ✅ Focus trap for desktop/web
+                              autofocus: true,
+                              canRequestFocus: true,
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(maxWidth: 380, maxHeight: maxH),
+                                child: StatefulBuilder(
+                                  builder: (context, setM) {
+                                    return ScrollConfiguration( // ✅ Remove overscroll glow
+                                      behavior: const ScrollBehavior().copyWith(overscroll: false),
+                                      child: SingleChildScrollView(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          children: [
+                                            // Header row: mode toggles + actions
+                                            Row(
+                                              children: [
+                                                ChoiceChip(
+                                                  label: const Text('Weekdays'),
+                                                  selected: mode == IntakeMode.weekday,
+                                                  onSelected: (sel) => setM(() {
+                                                    mode = IntakeMode.weekday;
+                                                    decans.clear();
+                                                  }),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                ChoiceChip(
+                                                  label: const Text('Decan Days'),
+                                                  selected: mode == IntakeMode.decan,
+                                                  onSelected: (sel) => setM(() {
+                                                    mode = IntakeMode.decan;
+                                                    dows.clear();
+                                                  }),
+                                                ),
+                                                const Spacer(),
+                                                // Delete
+                                                IconButton(
+                                                  tooltip: 'Delete this nutrient',
+                                                  icon: const Icon(Icons.delete_outline_rounded),
+                                                  onPressed: () async {
+                                                    final ok = await showDialog<bool>(
+                                                      context: context,
+                                                      builder: (dialogContext) => AlertDialog(
+                                                        backgroundColor: Colors.black,
+                                                        title: const Text('Delete?', style: TextStyle(color: Colors.white)),
+                                                        content: Text(
+                                                          'Remove "${item.nutrient.isEmpty ? 'this entry' : item.nutrient}"?',
+                                                          style: const TextStyle(color: Colors.white70),
+                                                        ),
+                                                        actions: [
+                                                          TextButton(
+                                                            onPressed: () => Navigator.pop(dialogContext, false),
+                                                            child: const Text('Cancel'),
+                                                          ),
+                                                          TextButton(
+                                                            onPressed: () => Navigator.pop(dialogContext, true),
+                                                            child: const Text('Delete'),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                    if (ok == true) {
+                                                      await _deleteItem(item);
+                                                      _close(null);
+                                                    }
+                                                  },
+                                                ),
+                                                // Close
+                                                IconButton(
+                                                  tooltip: 'Close',
+                                                  icon: const Icon(Icons.close),
+                                                  onPressed: () => _close(null),
+                                                ),
+                                              ],
+                                            ),
+
+                                            const SizedBox(height: 12),
+
+                                            if (mode == IntakeMode.weekday)
+                                              Wrap(
+                                                spacing: 8,
+                                                runSpacing: 8,
+                                                children: List.generate(7, (i) {
+                                                  final day = i + 1; // 1..7
+                                                  return chip(
+                                                    dows.contains(day),
+                                                    const ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i],
+                                                    () => setM(() {
+                                                      if (dows.contains(day)) {
+                                                        dows.remove(day);
+                                                      } else {
+                                                        dows.add(day);
+                                                      }
+                                                    }),
+                                                  );
+                                                }),
+                                              ),
+
+                                            if (mode == IntakeMode.decan)
+                                              Wrap(
+                                                spacing: 8,
+                                                runSpacing: 8,
+                                                children: List.generate(10, (i) {
+                                                  final dd = i + 1; // 1..10
+                                                  return chip(decans.contains(dd), 'Day $dd', () {
+                                                    setM(() {
+                                                      if (decans.contains(dd)) {
+                                                        decans.remove(dd);
+                                                      } else {
+                                                        decans.add(dd);
+                                                      }
+                                                    });
+                                                  });
+                                                }),
+                                              ),
+
+                                            const SizedBox(height: 12),
+
+                                            // Time & repeat
+                                            Row(
+                                              children: [
+                                                OutlinedButton.icon(
+                                                  icon: const Icon(Icons.schedule_rounded, size: 18),
+                                                  label: Text(time.format(context)),
+                                                  onPressed: () async {
+                                                    final picked = await showTimePicker(
+                                                      context: context,
+                                                      initialTime: time,
+                                                      useRootNavigator: true,
+                                                      builder: (c, child) => Theme(data: darkOverlayTheme, child: child!),
+                                                    );
+                                                    if (picked != null) setM(() => time = picked);
+                                                  },
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Checkbox(
+                                                  value: repeat,
+                                                  onChanged: (v) => setM(() => repeat = v ?? true),
+                                                ),
+                                                const Text('Repeat'),
+                                              ],
+                                            ),
+
+                                            const SizedBox(height: 16),
+
+                                            // Save (with empty-selection guard)
+                                            FilledButton(
+                                              onPressed: () {
+                                                if (mode == IntakeMode.weekday && dows.isEmpty) {
+                                                  _toast(context, 'Select at least one weekday');
+                                                  return;
+                                                }
+                                                if (mode == IntakeMode.decan && decans.isEmpty) {
+                                                  _toast(context, 'Select at least one decan day');
+                                                  return;
+                                                }
+                                                _close(_build());
+                                              },
+                                              child: const Text('Save'),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                ],
+                ),
               ),
-            );
-          },
+            ),
+          ],
         );
       },
     );
-    return result;
+
+    // ✅ Patch C: Insert into root overlay (top-most)
+    final overlay = Overlay.maybeOf(ctx, rootOverlay: true);
+    if (overlay != null) {
+      overlay.insert(overlayEntry!);
+    } else {
+      finish(null);
+    }
+
+    return completer.future;
   }
 
   void _addNewItem() async {
@@ -798,15 +1115,26 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       try {
         final saved = await widget.repo.upsert(item);
         if (!mounted) return;
-        final idx = _items.indexWhere((e) => e.id == item.id);
+        
+        // Find by ID, or by reference if ID is empty (new item)
+        final idx = _items.indexWhere((e) => 
+          e.id == saved.id || (item.id.isEmpty && identical(e, item))
+        );
+        
         if (idx >= 0) {
-          setState(() => _items[idx] = saved);
+          setState(() {
+            _items[idx] = saved;  // Update in place
+          });
+        } else {
+          debugPrint('[NutritionGrid] Item not found in list: ${item.id}');
         }
+        
         if (resync && _scheduleChanged[saved.id] == true) {
           await _syncToCalendar(saved);
           _scheduleChanged[saved.id] = false;
         }
-      } catch (_) {
+      } catch (e) {
+        debugPrint('[NutritionGrid] Error saving item: $e');
         // ignore backend here; UI remains usable
       }
     });
