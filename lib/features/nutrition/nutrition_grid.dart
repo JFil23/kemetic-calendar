@@ -444,9 +444,9 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   // Header row (4 columns: Nutrient, Source, Purpose, When)
   TableRow _headerRow() {
     return TableRow(children: [
-      _cellShell(Text('Nutrient', style: _hdrStyle)),
-      _cellShell(Text('Source', style: _hdrStyle)),
-      _cellShell(Text('Purpose', style: _hdrStyle)),
+      _cellShell(Text('Nutrient', style: _hdrStyle.copyWith(fontSize: _hdrFontSize))),
+      _cellShell(Text('Source', style: _hdrStyle.copyWith(fontSize: _hdrFontSize))),
+      _cellShell(Text('Purpose', style: _hdrStyle.copyWith(fontSize: _hdrFontSize))),
       _cellShell(
         Center(
           child: FittedBox(
@@ -554,7 +554,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     final editor = TextFormField(
       initialValue: initial,
       focusNode: _focusFor('$id:$field'),
-      style: _cellStyle,
+      style: _cellStyle.copyWith(fontSize: _hdrFontSize),
       maxLines: lines,
       expands: focused,  // scrolls inside when focused
       keyboardType: TextInputType.multiline,
