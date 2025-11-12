@@ -2561,6 +2561,9 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
 
     if (result != null) {
       await _applyFlowStudioResult(result);
+
+      // 🔄 Force UI to pick up fresh flows/colors immediately
+      await _loadFromDisk();
     }
     
     UiGuards.enableJournalSwipe();
@@ -4183,25 +4186,35 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
     }
 
     // Use shared scheduler for flow notes if we have a saved flow
+    // Only schedule recurring notes when it's safe to do so.
+    // For AI-generated flows or customize-mode (split=1), keep existing per-event bodies.
     if (saved != null && saved.active && saved.rules.isNotEmpty) {
       try {
-        // Check if this is an AI-generated flow before scheduling
-        // (AI flows already have individually-titled events that shouldn't be regenerated)
         final flowRow = await _flowsRepo.getFlowById(saved.id);
-        
-        // Defensive type checking for ai_metadata.generated field
+
+        // Defensive read of AI flag
         final aiGenerated = flowRow?.aiMetadata?['generated'];
         final isAIFlow = aiGenerated is bool && aiGenerated == true;
-        
-        if (isAIFlow) {
+
+        // Decode notes metadata to detect customize-mode; guard null/invalid
+        var isCustomizeMode = false;
+        try {
+          final meta = notesDecode(saved.notes);
+          isCustomizeMode = meta.split == true; // ✅ customize mode check
+        } catch (_) {
+          isCustomizeMode = false; // bad/empty notes → treat as pattern flow
+        }
+
+        if (isAIFlow || isCustomizeMode) {
           if (kDebugMode) {
-            debugPrint('[persistFlowStudio] ✅ Skipping scheduleFlowNotes for AI-generated flow ${saved.id} (preserving individual note titles)');
+            debugPrint(
+              '[persistFlowStudio] Skipping scheduleFlowNotes for '
+              '${isAIFlow ? "AI-generated" : "customize-mode"} flow ${saved.id}'
+            );
           }
-          
-          // TODO: Add analytics once analytics service is integrated
-          // Example: _analyticsService.logEvent('ai_flow_schedule_skipped', {'flowId': saved.id});
+          // Preserve existing future events/details
         } else {
-          // Only regenerate notes for manually-created flows with recurring rules
+          // Safe path: pattern-based flows only. Regenerate future notes.
           await scheduleFlowNotes(
             flowId: saved.id,
             rules: saved.rules,
@@ -4209,27 +4222,16 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
             startDate: saved.start,
             endDate: saved.end,
           );
-          
           if (kDebugMode) {
-            debugPrint('[persistFlowStudio] ✅ Scheduled recurring notes for flow ${saved.id}');
+            debugPrint('[persistFlowStudio] Scheduled recurring notes for flow ${saved.id}');
           }
-          
-          // TODO: Add analytics once analytics service is integrated
-          // Example: _analyticsService.logEvent('flow_notes_scheduled', {
-          //   'flowId': saved.id,
-          //   'ruleCount': saved.rules.length,
-          //   'dateRange': '${saved.start} to ${saved.end}',
-          // });
         }
-      } catch (e, stackTrace) {
-        // Log error but don't crash - flow is already saved
+      } catch (e, st) {
         if (kDebugMode) {
-          debugPrint('[persistFlowStudio] ⚠️ Failed to check/schedule flow notes: $e');
-          debugPrint('Stack trace: $stackTrace');
+          debugPrint('[persistFlowStudio] schedule guard error: $e');
+          debugPrint('$st');
         }
-        
-        // TODO: Add error tracking once analytics service is integrated
-        // Example: _analyticsService.logError('flow_schedule_error', e, stackTrace);
+        // Non-fatal: flow already saved
       }
     }
 
