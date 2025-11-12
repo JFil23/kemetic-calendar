@@ -2,11 +2,14 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';   // LogicalKeyboardKey
+import 'package:uuid/uuid.dart';
 
 import '../../core/kemetic_converter.dart';
 import '../../data/nutrition_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../features/calendar/notify.dart';
+
+final _uuid = const Uuid();
 
 /// A widget that displays and edits a table of nutrition items. Each row
 /// corresponds to a [NutritionItem] and can be edited inline. The "When
@@ -31,6 +34,35 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   String? _lastError;
   bool _adding = false; // prevents double-clicks while inserting
   bool _schedulePickerOpen = false; // prevents double-open from rapid taps
+
+  // ✅ Overlay entries for picker and confirm dialog
+  OverlayEntry? _pickerOverlayEntry;
+  OverlayEntry? _confirmBarrierEntry;
+  OverlayEntry? _confirmDialogEntry;
+  bool _confirmOpen = false;
+
+  // Per-row controllers keyed by item.id (temp or real)
+  final Map<String, TextEditingController> _nutrientCtrls = {};
+  final Map<String, TextEditingController> _sourceCtrls = {};
+  final Map<String, TextEditingController> _purposeCtrls = {};
+
+  TextEditingController _ctrlFor(
+    Map<String, TextEditingController> bag,
+    String key,
+    String initial,
+  ) {
+    return bag.putIfAbsent(key, () => TextEditingController(text: initial));
+  }
+
+  void _migrateControllers(String oldId, String newId) {
+    void move(Map<String, TextEditingController> bag) {
+      final c = bag.remove(oldId);
+      if (c != null) bag[newId] = c;
+    }
+    move(_nutrientCtrls);
+    move(_sourceCtrls);
+    move(_purposeCtrls);
+  }
 
   // Column widths for header and body alignment (fixed widths for perfect alignment)
   static const double _rowHeight = 48;
@@ -212,6 +244,13 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
         _items = items;
         _loading = false;
         _lastError = null;
+        
+        // ✅ Sync controller text with loaded items
+        for (final item in items) {
+          _nutrientCtrls[item.id]?.text = item.nutrient;
+          _sourceCtrls[item.id]?.text = item.source;
+          _purposeCtrls[item.id]?.text = item.purpose;
+        }
       });
       debugPrint('[NutritionGrid] Loaded ${items.length} items');
     } on TimeoutException catch (e) {
@@ -254,12 +293,20 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
 
   @override
   void dispose() {
+    // Clean up overlay entries
+    _confirmDialogEntry?.remove();
+    _confirmBarrierEntry?.remove();
+    _pickerOverlayEntry?.remove();
+    
     for (final t in _debouncers.values) {
       t.cancel();
     }
     for (final n in _focusByCell.values) {
       n.dispose();
     }
+    for (final c in _nutrientCtrls.values) c.dispose();
+    for (final c in _sourceCtrls.values) c.dispose();
+    for (final c in _purposeCtrls.values) c.dispose();
     _focusByCell.clear();
     super.dispose();
   }
@@ -492,11 +539,41 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     final minH = focused ? _expandedRowHeight(context) : _rowHeight;
     final bgCol = bg ?? _rowBg(index);
 
+    // ✅ Get controllers for this row
+    final nutrientCtrl = _ctrlFor(_nutrientCtrls, item.id, item.nutrient);
+    final sourceCtrl = _ctrlFor(_sourceCtrls, item.id, item.source);
+    final purposeCtrl = _ctrlFor(_purposeCtrls, item.id, item.purpose);
+
     return TableRow(children: [
-      _cellTextField(item, field: 'nutrient', hint: 'e.g., Magnesium', rowId: item.id, bgColor: bgCol, maxLines: 1),
-      _cellTextField(item, field: 'source', hint: 'e.g., Glycinate', rowId: item.id, bgColor: bgCol, maxLines: 1),
+      _cellTextField(
+        item,
+        field: 'nutrient',
+        hint: 'e.g., Magnesium',
+        rowId: item.id,
+        bgColor: bgCol,
+        maxLines: 1,
+        controller: nutrientCtrl,
+      ),
+      _cellTextField(
+        item,
+        field: 'source',
+        hint: 'e.g., Glycinate',
+        rowId: item.id,
+        bgColor: bgCol,
+        maxLines: 1,
+        controller: sourceCtrl,
+      ),
       // Purpose: wraps when focused; otherwise compact
-      _cellTextField(item, field: 'purpose', hint: 'Why you take it', rowId: item.id, bgColor: bgCol, maxLines: focused ? null : 2, minHeight: minH),
+      _cellTextField(
+        item,
+        field: 'purpose',
+        hint: 'Why you take it',
+        rowId: item.id,
+        bgColor: bgCol,
+        maxLines: focused ? null : 2,
+        minHeight: minH,
+        controller: purposeCtrl,
+      ),
       _cellSchedule(item, bgColor: bgCol, minHeight: minH),
     ]);
   }
@@ -539,6 +616,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     String? rowId,
     double? minHeight,
     Color? bgColor,
+    TextEditingController? controller, // ✅ NEW
   }) {
     final id = rowId ?? item.id;
     final focused = _isFocusedRow(id);
@@ -552,7 +630,8 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     };
 
     final editor = TextFormField(
-      initialValue: initial,
+      controller: controller, // ✅ Use controller if present
+      initialValue: controller == null ? initial : null, // ✅ Only use initialValue when no controller
       focusNode: _focusFor('$id:$field'),
       style: _cellStyle.copyWith(fontSize: _hdrFontSize),
       maxLines: lines,
@@ -708,6 +787,72 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     );
   }
 
+  Future<bool> _showConfirmAbovePicker({
+    required BuildContext ctxInPickerTree,
+    required String label,
+  }) async {
+    if (_confirmOpen) return false; // re-entrancy guard
+
+    final overlay = Overlay.of(ctxInPickerTree, rootOverlay: true);
+    if (overlay == null || _pickerOverlayEntry == null) return false;
+
+    _confirmOpen = true;
+    final completer = Completer<bool>();
+
+    _confirmBarrierEntry = OverlayEntry(
+      maintainState: true,
+      builder: (_) => const ModalBarrier(
+        dismissible: false,
+        color: Colors.black54,
+      ),
+    );
+
+    _confirmDialogEntry = OverlayEntry(
+      maintainState: true,
+      builder: (_) => Center(
+        child: Material(
+          type: MaterialType.transparency,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: AlertDialog(
+              backgroundColor: Colors.black,
+              title: const Text('Delete?', style: TextStyle(color: Colors.white)),
+              content: Text(
+                'Remove "$label"?',
+                style: const TextStyle(color: Colors.white70),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => _closeConfirm(completer, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => _closeConfirm(completer, true),
+                  child: const Text('Delete'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Insert after the picker entry (tail entries render on top)
+    overlay.insert(_confirmBarrierEntry!);
+    overlay.insert(_confirmDialogEntry!);
+
+    return completer.future;
+  }
+
+  void _closeConfirm(Completer<bool> completer, bool value) {
+    _confirmDialogEntry?.remove();
+    _confirmBarrierEntry?.remove();
+    _confirmDialogEntry = null;
+    _confirmBarrierEntry = null;
+    _confirmOpen = false;
+    if (!completer.isCompleted) completer.complete(value);
+  }
+
   Widget _cellDelete(NutritionItem item, {double? width}) {
     final show = _isExpanded(item);
     return _cellShell(
@@ -765,11 +910,18 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
           repeat: repeat,
         );
 
-    OverlayEntry? overlayEntry;
-
     void _close(IntakeSchedule? result) {
-      overlayEntry?.remove();
-      overlayEntry = null;
+      // If confirm is open, remove it first so nothing is orphaned
+      if (_confirmOpen) {
+        _confirmDialogEntry?.remove();
+        _confirmBarrierEntry?.remove();
+        _confirmDialogEntry = null;
+        _confirmBarrierEntry = null;
+        _confirmOpen = false;
+      }
+
+      _pickerOverlayEntry?.remove();
+      _pickerOverlayEntry = null;
       finish(result);
     }
 
@@ -829,7 +981,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       );
     }
 
-    overlayEntry = OverlayEntry(
+    _pickerOverlayEntry = OverlayEntry(
       builder: (context) {
         final mq = MediaQuery.of(context);
         final size = mq.size;
@@ -914,26 +1066,9 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                                                   tooltip: 'Delete this nutrient',
                                                   icon: const Icon(Icons.delete_outline_rounded),
                                                   onPressed: () async {
-                                                    final ok = await showDialog<bool>(
-                                                      context: context,
-                                                      builder: (dialogContext) => AlertDialog(
-                                                        backgroundColor: Colors.black,
-                                                        title: const Text('Delete?', style: TextStyle(color: Colors.white)),
-                                                        content: Text(
-                                                          'Remove "${item.nutrient.isEmpty ? 'this entry' : item.nutrient}"?',
-                                                          style: const TextStyle(color: Colors.white70),
-                                                        ),
-                                                        actions: [
-                                                          TextButton(
-                                                            onPressed: () => Navigator.pop(dialogContext, false),
-                                                            child: const Text('Cancel'),
-                                                          ),
-                                                          TextButton(
-                                                            onPressed: () => Navigator.pop(dialogContext, true),
-                                                            child: const Text('Delete'),
-                                                          ),
-                                                        ],
-                                                      ),
+                                                    final ok = await _showConfirmAbovePicker(
+                                                      ctxInPickerTree: context,
+                                                      label: item.nutrient.isEmpty ? 'this entry' : item.nutrient,
                                                     );
                                                     if (ok == true) {
                                                       await _deleteItem(item);
@@ -1058,7 +1193,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     // ✅ Patch C: Insert into root overlay (top-most)
     final overlay = Overlay.maybeOf(ctx, rootOverlay: true);
     if (overlay != null) {
-      overlay.insert(overlayEntry!);
+      overlay.insert(_pickerOverlayEntry!);
     } else {
       finish(null);
     }
@@ -1070,9 +1205,10 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     if (_adding) return;
     setState(() => _adding = true);
 
+    final tempId = 'temp-${_uuid.v4()}';
     // placeholder row (disabled until schedule is set)
     final local = NutritionItem(
-      id: '', // will be set after save
+      id: tempId,
       nutrient: '',
       source: '',
       purpose: '',
@@ -1092,8 +1228,20 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     try {
       final saved = await widget.repo.upsert(local);
       if (!mounted) return;
-      final i = _items.indexOf(local);
-      if (i >= 0) setState(() => _items[i] = saved);
+
+      final i = _items.indexWhere((e) => e.id == tempId || e.id == saved.id);
+      if (i >= 0) {
+        final idChanged = saved.id != tempId;
+        if (idChanged) _migrateControllers(tempId, saved.id);
+        setState(() => _items[i] = saved);
+
+        // keep controllers in sync after server normalization
+        _nutrientCtrls[saved.id]?.text = saved.nutrient;
+        _sourceCtrls[saved.id]?.text = saved.source;
+        _purposeCtrls[saved.id]?.text = saved.purpose;
+      } else {
+        await _loadItems();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1102,6 +1250,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
             backgroundColor: Colors.red,
           ),
         );
+        setState(() => _items.removeWhere((e) => e.id == tempId));
       }
     } finally {
       if (mounted) setState(() => _adding = false);
@@ -1109,33 +1258,38 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   }
 
   void _saveDebounced(NutritionItem item, {required bool resync}) {
-    final key = item.id.isNotEmpty ? item.id : item.hashCode.toString();
+    final key = item.id; // temp or real, always non-empty after add
     _debouncers[key]?.cancel();
-    _debouncers[key] = Timer(const Duration(milliseconds: 400), () async {
+    _debouncers[key] = Timer(const Duration(milliseconds: 350), () async {
       try {
         final saved = await widget.repo.upsert(item);
         if (!mounted) return;
-        
-        // Find by ID, or by reference if ID is empty (new item)
-        final idx = _items.indexWhere((e) => 
-          e.id == saved.id || (item.id.isEmpty && identical(e, item))
-        );
-        
+
+        // Find by current item.id OR the saved id
+        int idx = _items.indexWhere((e) => e.id == item.id || e.id == saved.id);
+
         if (idx >= 0) {
-          setState(() {
-            _items[idx] = saved;  // Update in place
-          });
+          final idChanged = saved.id != item.id && item.id.startsWith('temp-');
+
+          if (idChanged) _migrateControllers(item.id, saved.id);
+
+          setState(() => _items[idx] = saved);
+
+          // keep controller text aligned with saved values
+          _nutrientCtrls[saved.id]?.text = saved.nutrient;
+          _sourceCtrls[saved.id]?.text = saved.source;
+          _purposeCtrls[saved.id]?.text = saved.purpose;
         } else {
-          debugPrint('[NutritionGrid] Item not found in list: ${item.id}');
+          debugPrint('[NutritionGrid] Not found after save: item.id=${item.id}, saved.id=${saved.id}');
+          await _loadItems();
         }
-        
-        if (resync && _scheduleChanged[saved.id] == true) {
+
+        if (resync && saved.id.isNotEmpty && (_scheduleChanged[saved.id] == true)) {
           await _syncToCalendar(saved);
           _scheduleChanged[saved.id] = false;
         }
       } catch (e) {
-        debugPrint('[NutritionGrid] Error saving item: $e');
-        // ignore backend here; UI remains usable
+        debugPrint('[NutritionGrid] save error: $e');
       }
     });
   }

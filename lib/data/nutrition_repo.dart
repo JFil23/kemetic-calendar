@@ -145,6 +145,40 @@ class NutritionItem {
       );
 }
 
+/// Extension to add copyWith method to NutritionItem
+extension NutritionItemCopy on NutritionItem {
+  NutritionItem copyWith({
+    String? id,
+    String? nutrient,
+    String? source,
+    String? purpose,
+    IntakeSchedule? schedule,
+    bool? enabled,
+  }) {
+    return NutritionItem(
+      id: id ?? this.id,
+      nutrient: nutrient ?? this.nutrient,
+      source: source ?? this.source,
+      purpose: purpose ?? this.purpose,
+      schedule: schedule ?? this.schedule,
+      enabled: enabled ?? this.enabled,
+    );
+  }
+}
+
+/// UUID validation helper - checks if a string is a valid UUID format
+bool _isRealUuid(String s) {
+  // Accepts v1–v5 UUIDs (with hyphens)
+  final re = RegExp(
+    r'^[0-9a-fA-F]{8}-'
+    r'[0-9a-fA-F]{4}-'
+    r'[1-5][0-9a-fA-F]{3}-'
+    r'[89abAB][0-9a-fA-F]{3}-'
+    r'[0-9a-fA-F]{12}$'
+  );
+  return re.hasMatch(s);
+}
+
 /// Repository for CRUD operations on nutrition items. This uses Supabase
 /// directly and applies row level security so that each user only sees
 /// their own items. Use [NutritionRepo.getAll] to fetch existing items,
@@ -191,8 +225,8 @@ class NutritionRepo {
     }
   }
 
-  /// Inserts or updates a nutrition item. When [item.id] is empty, the
-  /// database generates a new UUID and returns it in the response.
+  /// Inserts or updates a nutrition item. When [item.id] is empty or a temp ID,
+  /// the database generates a new UUID and returns it in the response.
   Future<NutritionItem> upsert(NutritionItem item) async {
     final user = _client.auth.currentUser;
     if (user == null) throw StateError('No user session');
@@ -200,7 +234,10 @@ class NutritionRepo {
     final payload = item.toInsert(userId: user.id)
       ..removeWhere((k, v) => v == null);
 
-    if (item.id.isNotEmpty) payload['id'] = item.id;
+    // ✅ Only include id when it's a real UUID (not a temp/string placeholder)
+    if (item.id.isNotEmpty && _isRealUuid(item.id)) {
+      payload['id'] = item.id;
+    }
 
     try {
       final row = await _client
