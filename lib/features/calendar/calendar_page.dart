@@ -4263,33 +4263,82 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
     setState(() {});
   }
 
+  // Helper: calculate 1 hour after a given time
+  TimeOfDay _oneHourAfter(TimeOfDay t) =>
+      TimeOfDay(hour: (t.hour + 1) % 24, minute: t.minute);
+
+  // Helper: normalize string for comparison
+  String _norm(String s) => s.trim().toLowerCase();
+
+  // Helper: parse comma-separated sources from title
+  List<String> _parseSourcesFromTitle(String? title) =>
+      (title == null || title.trim().isEmpty)
+          ? const []
+          : title.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+
+  // Helper: merge sources (dedupe, sort, comma-separated)
+  String _mergeSources(List<String> existing, String add) {
+    final map = <String, String>{};
+    for (final s in existing) map[_norm(s)] = s;
+    if (add.trim().isNotEmpty) map[_norm(add)] = add.trim();
+    final out = map.values.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return out.join(', ');
+  }
+
+  // Helper: find existing nutrition flow for the same schedule
+  _Flow? _findNutritionFlowForSchedule({
+    required bool isWeekdayMode,
+    required Set<int> weekdays,
+    required Set<int> decanDays,
+    required TimeOfDay tod,
+  }) {
+    for (final f in _flows) {
+      if (!f.active || f.name != 'Intake') continue;
+      for (final r in f.rules) {
+        if (isWeekdayMode && r is _RuleWeek) {
+          final wk = r.weekdays.length == weekdays.length && r.weekdays.every(weekdays.contains);
+          final tm = r.start?.hour == tod.hour && r.start?.minute == tod.minute;
+          if (wk && tm) return f;
+        }
+        if (!isWeekdayMode && r is _RuleDates) {
+          final tm = r.start?.hour == tod.hour && r.start?.minute == tod.minute;
+          if (tm && r.dates.isNotEmpty) return f; // simple/works for nutrition
+        }
+      }
+    }
+    return null;
+  }
+
   /// Public callback that converts nutrition intent to flow and persists it
   /// This is the single source of truth - reuses existing _persistFlowStudioResult
   CreateFlowFromNutrition get createFlowFromNutrition => (intent) async {
-    // Helper: calculate 1 hour after a given time
-    TimeOfDay _oneHourAfter(TimeOfDay t) =>
-        TimeOfDay(hour: (t.hour + 1) % 24, minute: t.minute);
-    
-    // Build private rules
-    final List<FlowRule> rules = [];
+    // 1) Look for an existing flow at the same schedule
+    final existing = _findNutritionFlowForSchedule(
+      isWeekdayMode: intent.isWeekdayMode,
+      weekdays: intent.weekdays,
+      decanDays: intent.decanDays,
+      tod: intent.timeOfDay,
+    );
+
+    // 2) Build rules (always 1 hour)
+    final rules = <FlowRule>[];
     if (intent.isWeekdayMode) {
       rules.add(_RuleWeek(
         weekdays: intent.weekdays,
         allDay: false,
         start: intent.timeOfDay,
-        end: _oneHourAfter(intent.timeOfDay), // ✅ always 1 hour
+        end: _oneHourAfter(intent.timeOfDay),
       ));
     } else {
-      // Build matching date list over the selected range
+      // Build dates for selected decan days within picker range
       final dates = <DateTime>{};
-      for (var d = 0; d < intent.endDate.difference(intent.startDate).inDays; d++) {
-        final date = DateTime(intent.startDate.year, intent.startDate.month, intent.startDate.day)
-            .add(Duration(days: d));
-        // ✅ Correct converter call:
-        final k = KemeticMath.fromGregorian(date);
+      final start = DateUtils.dateOnly(intent.startDate);
+      final end = DateUtils.dateOnly(intent.endDate);
+      for (DateTime d = start; !d.isAfter(end); d = d.add(const Duration(days: 1))) {
+        final k = KemeticMath.fromGregorian(d);
         final dayInDecan = ((k.kDay - 1) % 10) + 1;
         if (intent.decanDays.contains(dayInDecan)) {
-          dates.add(DateTime(date.year, date.month, date.day));
+          dates.add(DateUtils.dateOnly(d));
         }
       }
       if (dates.isNotEmpty) {
@@ -4297,38 +4346,39 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
           dates: dates,
           allDay: false,
           start: intent.timeOfDay,
-          end: _oneHourAfter(intent.timeOfDay), // ✅ always 1 hour
+          end: _oneHourAfter(intent.timeOfDay),
         ));
       }
     }
 
-    // Build private _Flow
-    final _notesEncoded = notesEncode(
+    // 3) Merge sources into the TITLE (comma-separated)
+    final prevTitle = existing != null ? notesDecode(existing.notes).title : null;
+    final mergedTitle = _mergeSources(_parseSourcesFromTitle(prevTitle), intent.noteTitle);
+
+    // 4) Encode notes — title must be appended (notesEncode has no 'title' param)
+    final notesEncoded = notesEncode(
       kemetic: false,
       split: false,
       overview: intent.noteDetails,
-    ) + (intent.noteTitle.isNotEmpty ? ';title=${Uri.encodeComponent(intent.noteTitle)}' : '');
-    
-    final _Flow flow = _Flow(
-      id: -1,
-      name: intent.flowName,
-      color: Color(intent.colorArgb),
+    ) + (mergedTitle.isNotEmpty ? ';title=${Uri.encodeComponent(mergedTitle)}' : '');
+
+    // 5) Save (update if existing, else create)
+    final flow = _Flow(
+      id: existing?.id ?? -1,
+      name: 'Intake',
+      color: const Color(0xFFD4AF37),
       active: true,
       rules: rules,
       start: intent.startDate,
       end: intent.endDate,
-      notes: _notesEncoded,
+      notes: notesEncoded,
     );
 
-    // Use the SAME path as Flow Studio
-    final _FlowStudioResult result = _FlowStudioResult(
+    await _persistFlowStudioResult(_FlowStudioResult(
       savedFlow: flow,
       plannedNotes: const [],
-    );
+    ));
 
-    await _persistFlowStudioResult(result);
-    
-    // ✅ Refresh in-memory notes from DB and repaint views
     await _loadFromDisk();
     if (mounted) setState(() {});
   };
@@ -7485,6 +7535,12 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _splitByPeriod = meta.split;
       _overviewCtrl.text = meta.overview;
 
+      // For pattern-based flows (like nutrition), load events so the editor shows titles/details.
+      if (!_splitByPeriod && f.id > 0) {
+        // Load asynchronously after setState completes
+        Future.microtask(() => _loadFlowEventsForEditing(f.id));
+      }
+
       // reset selections
       _selectedDecanDays.clear();
       _selectedWeekdays.clear();
@@ -7735,7 +7791,29 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     }
   }
 
-  /// Convert database events to _NoteDraft objects in _draftsByDay
+  /// Load flow events for editing (populates drafts for pattern-based flows)
+  Future<void> _loadFlowEventsForEditing(int flowId) async {
+    try {
+      final repo = UserEventsRepo(Supabase.instance.client);
+      final recs = await repo.getEventsForFlow(flowId);
+      final evts = recs.map((r) => UserEvent(
+        id: r.id ?? '',
+        clientEventId: r.clientEventId,
+        title: r.title,
+        detail: r.detail,
+        location: r.location,
+        allDay: r.allDay,
+        startsAt: r.startsAtUtc,
+        endsAt: r.endsAtUtc,
+        flowLocalId: r.flowLocalId,
+      )).toList();
+      _convertEventsToDrafts(evts); // your existing converter populates draft controllers
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('[loadFlowEventsForEditing] $e');
+    }
+  }
+
   /// ✅ Handles multiple events per day correctly (Map of Lists)
   void _convertEventsToDrafts(List<UserEvent> events) {
     // Step 1: Dispose all existing drafts properly (nested loop for lists)
