@@ -8,6 +8,7 @@ import '../../core/kemetic_converter.dart';
 import '../../data/nutrition_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../features/calendar/notify.dart';
+import '../../features/calendar/calendar_page.dart' show FlowFromNutritionIntent, CreateFlowFromNutrition;
 
 final _uuid = const Uuid();
 
@@ -19,8 +20,14 @@ final _uuid = const Uuid();
 class NutritionGridWidget extends StatefulWidget {
   final NutritionRepo repo;
   final UserEventsRepo eventsRepo;
+  final CreateFlowFromNutrition? onCreateFlow;
 
-  const NutritionGridWidget({Key? key, required this.repo, required this.eventsRepo}) : super(key: key);
+  const NutritionGridWidget({
+    Key? key,
+    required this.repo,
+    required this.eventsRepo,
+    this.onCreateFlow,
+  }) : super(key: key);
 
   @override
   State<NutritionGridWidget> createState() => _NutritionGridWidgetState();
@@ -40,6 +47,10 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   OverlayEntry? _confirmBarrierEntry;
   OverlayEntry? _confirmDialogEntry;
   bool _confirmOpen = false;
+
+  // ✅ Time picker overlay entries
+  OverlayEntry? _timePickerEntry;
+  bool _timePickerOpen = false;
 
   // Per-row controllers keyed by item.id (temp or real)
   final Map<String, TextEditingController> _nutrientCtrls = {};
@@ -296,6 +307,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     // Clean up overlay entries
     _confirmDialogEntry?.remove();
     _confirmBarrierEntry?.remove();
+    _timePickerEntry?.remove();
     _pickerOverlayEntry?.remove();
     
     for (final t in _debouncers.values) {
@@ -853,6 +865,77 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     if (!completer.isCompleted) completer.complete(value);
   }
 
+  Future<TimeOfDay?> _showTimePickerAbovePicker({
+    required BuildContext ctxInPickerTree,
+    required TimeOfDay initialTime,
+  }) async {
+    if (_timePickerOpen) return null;
+
+    final overlay = Overlay.of(ctxInPickerTree, rootOverlay: true);
+    if (overlay == null || _pickerOverlayEntry == null) return null;
+
+    _timePickerOpen = true;
+    final completer = Completer<TimeOfDay?>();
+
+    // recreate the same overlay theme used in _openSchedulePicker
+    final base = Theme.of(ctxInPickerTree);
+    final darkOverlayTheme = base.copyWith(
+      colorScheme: base.colorScheme.brightness == Brightness.dark
+          ? base.colorScheme
+          : base.colorScheme.copyWith(brightness: Brightness.dark),
+      dialogBackgroundColor: Colors.black,
+      scaffoldBackgroundColor: Colors.black,
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: Colors.white),
+      ),
+    );
+
+    _timePickerEntry = OverlayEntry(
+      maintainState: true,
+      builder: (ctx) => Material(
+        type: MaterialType.transparency,
+        child: Navigator(
+          onPopPage: (route, result) {
+            final did = route.didPop(result);
+            _closeTimePicker(completer, result is TimeOfDay ? result : null);
+            return did;
+          },
+          pages: [
+            MaterialPage(
+              child: Stack(
+                children: [
+                  ModalBarrier(
+                    dismissible: true,
+                    color: Colors.black54,
+                    onDismiss: () => Navigator.of(ctx).maybePop(),
+                  ),
+                  Center(
+                    child: Theme(
+                      data: darkOverlayTheme,
+                      child: _NoClipDialog(
+                        child: _TimePickerShell(initialTime: initialTime),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    overlay.insert(_timePickerEntry!);
+    return completer.future;
+  }
+
+  void _closeTimePicker(Completer<TimeOfDay?> completer, TimeOfDay? value) {
+    _timePickerEntry?.remove();
+    _timePickerEntry = null;
+    _timePickerOpen = false;
+    if (!completer.isCompleted) completer.complete(value);
+  }
+
   Widget _cellDelete(NutritionItem item, {double? width}) {
     final show = _isExpanded(item);
     return _cellShell(
@@ -900,14 +983,14 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     var dows = Set<int>.from(initial.daysOfWeek);
     var decans = Set<int>.from(initial.decanDays);
     var time = initial.time;
-    var repeat = initial.repeat;
+    var addAsFlow = false;
 
     IntakeSchedule _build() => initial.copyWith(
           mode: mode,
           daysOfWeek: dows,
           decanDays: decans,
           time: time,
-          repeat: repeat,
+          repeat: true, // ✅ always repeat
         );
 
     void _close(IntakeSchedule? result) {
@@ -918,6 +1001,13 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
         _confirmDialogEntry = null;
         _confirmBarrierEntry = null;
         _confirmOpen = false;
+      }
+
+      // If time picker is open, remove it first
+      if (_timePickerOpen) {
+        _timePickerEntry?.remove();
+        _timePickerEntry = null;
+        _timePickerOpen = false;
       }
 
       _pickerOverlayEntry?.remove();
@@ -1127,28 +1217,26 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
 
                                             const SizedBox(height: 12),
 
-                                            // Time & repeat
+                                            // Time & Add as flow
                                             Row(
                                               children: [
                                                 OutlinedButton.icon(
                                                   icon: const Icon(Icons.schedule_rounded, size: 18),
                                                   label: Text(time.format(context)),
                                                   onPressed: () async {
-                                                    final picked = await showTimePicker(
-                                                      context: context,
+                                                    final picked = await _showTimePickerAbovePicker(
+                                                      ctxInPickerTree: context,
                                                       initialTime: time,
-                                                      useRootNavigator: true,
-                                                      builder: (c, child) => Theme(data: darkOverlayTheme, child: child!),
                                                     );
                                                     if (picked != null) setM(() => time = picked);
                                                   },
                                                 ),
-                                                const SizedBox(width: 12),
+                                                const SizedBox(width: 16),
                                                 Checkbox(
-                                                  value: repeat,
-                                                  onChanged: (v) => setM(() => repeat = v ?? true),
+                                                  value: addAsFlow,
+                                                  onChanged: (v) => setM(() => addAsFlow = v ?? false),
                                                 ),
-                                                const Text('Repeat'),
+                                                const Text('Add as flow'),
                                               ],
                                             ),
 
@@ -1156,7 +1244,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
 
                                             // Save (with empty-selection guard)
                                             FilledButton(
-                                              onPressed: () {
+                                              onPressed: () async {
                                                 if (mode == IntakeMode.weekday && dows.isEmpty) {
                                                   _toast(context, 'Select at least one weekday');
                                                   return;
@@ -1165,7 +1253,42 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                                                   _toast(context, 'Select at least one decan day');
                                                   return;
                                                 }
-                                                _close(_build());
+                                                
+                                                final schedule = _build();
+                                                
+                                                // Create flow if checkbox is checked
+                                                if (addAsFlow && widget.onCreateFlow != null) {
+                                                  const int gold = 0xFFD4AF37;
+                                                  
+                                                  final now = DateTime.now();
+                                                  final startDate = DateTime(now.year, now.month, now.day);
+                                                  final endDate = startDate.add(const Duration(days: 30));
+                                                  
+                                                  final noteTitle = (item.source.isNotEmpty) ? item.source : 'Intake';
+                                                  final noteDetails = [
+                                                    if (item.nutrient.isNotEmpty) item.nutrient,
+                                                    if (item.purpose.isNotEmpty) item.purpose,
+                                                  ].join(' - ');
+                                                  
+                                                  final isWeekday = (mode == IntakeMode.weekday);
+                                                  
+                                                  await widget.onCreateFlow!(
+                                                    FlowFromNutritionIntent(
+                                                      flowName: 'Intake',
+                                                      colorArgb: gold,
+                                                      startDate: startDate,
+                                                      endDate: endDate,
+                                                      noteTitle: noteTitle,
+                                                      noteDetails: noteDetails,
+                                                      isWeekdayMode: isWeekday,
+                                                      weekdays: isWeekday ? dows : <int>{},
+                                                      decanDays: isWeekday ? <int>{} : decans,
+                                                      timeOfDay: time,
+                                                    ),
+                                                  );
+                                                }
+                                                
+                                                _close(schedule);
                                               },
                                               child: const Text('Save'),
                                             ),
@@ -1420,6 +1543,46 @@ class _ErrorState extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _NoClipDialog extends StatelessWidget {
+  final Widget child;
+
+  const _NoClipDialog({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      type: MaterialType.transparency,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 360),
+        margin: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        clipBehavior: Clip.antiAlias, // nice edges
+        child: child,
+      ),
+    );
+  }
+}
+
+class _TimePickerShell extends StatelessWidget {
+  final TimeOfDay initialTime;
+
+  const _TimePickerShell({required this.initialTime});
+
+  @override
+  Widget build(BuildContext context) {
+    // use the stock dialog so accessibility/localization stay correct
+    return TimePickerDialog(
+      initialTime: initialTime,
+      helpText: 'Select time',
+      cancelText: 'Cancel',
+      confirmText: 'OK',
     );
   }
 }

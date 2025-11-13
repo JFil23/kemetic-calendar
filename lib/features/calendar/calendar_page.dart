@@ -33,9 +33,34 @@ import 'package:mobile/widgets/month_name_text.dart';
 import 'package:mobile/core/day_key.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
+/// Public intent used by Nutrition to ask CalendarPage to create a flow
+class FlowFromNutritionIntent {
+  final String flowName;      // "Intake"
+  final int colorArgb;        // 0xFFD4AF37
+  final DateTime startDate;   // today
+  final DateTime endDate;     // today + 30 days
+  final String noteTitle;     // item.source
+  final String noteDetails;   // "nutrient - purpose"
+  final bool isWeekdayMode;   // true => weekdays, false => decan days
+  final Set<int> weekdays;    // if isWeekdayMode == true
+  final Set<int> decanDays;   // if isWeekdayMode == false
+  final TimeOfDay timeOfDay;  // start time
 
+  FlowFromNutritionIntent({
+    required this.flowName,
+    required this.colorArgb,
+    required this.startDate,
+    required this.endDate,
+    required this.noteTitle,
+    required this.noteDetails,
+    required this.isWeekdayMode,
+    required this.weekdays,
+    required this.decanDays,
+    required this.timeOfDay,
+  });
+}
 
-
+typedef CreateFlowFromNutrition = Future<void> Function(FlowFromNutritionIntent intent);
 
 
 
@@ -4238,6 +4263,72 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
     setState(() {});
   }
 
+  /// Public callback that converts nutrition intent to flow and persists it
+  /// This is the single source of truth - reuses existing _persistFlowStudioResult
+  CreateFlowFromNutrition get createFlowFromNutrition => (intent) async {
+    // Build private rules
+    final List<FlowRule> rules = [];
+    if (intent.isWeekdayMode) {
+      rules.add(_RuleWeek(
+        weekdays: intent.weekdays,
+        allDay: false,
+        start: intent.timeOfDay,
+        end: null,
+      ));
+    } else {
+      // Build matching date list over the selected range
+      final dates = <DateTime>{};
+      for (var d = 0; d < intent.endDate.difference(intent.startDate).inDays; d++) {
+        final date = DateTime(intent.startDate.year, intent.startDate.month, intent.startDate.day)
+            .add(Duration(days: d));
+        // ✅ Correct converter call:
+        final k = KemeticMath.fromGregorian(date);
+        final dayInDecan = ((k.kDay - 1) % 10) + 1;
+        if (intent.decanDays.contains(dayInDecan)) {
+          dates.add(DateTime(date.year, date.month, date.day));
+        }
+      }
+      if (dates.isNotEmpty) {
+        rules.add(_RuleDates(
+          dates: dates,
+          allDay: false,
+          start: intent.timeOfDay,
+          end: null,
+        ));
+      }
+    }
+
+    // Build private _Flow
+    final _notesEncoded = notesEncode(
+      kemetic: false,
+      split: false,
+      overview: intent.noteDetails,
+    ) + (intent.noteTitle.isNotEmpty ? ';title=${Uri.encodeComponent(intent.noteTitle)}' : '');
+    
+    final _Flow flow = _Flow(
+      id: -1,
+      name: intent.flowName,
+      color: Color(intent.colorArgb),
+      active: true,
+      rules: rules,
+      start: intent.startDate,
+      end: intent.endDate,
+      notes: _notesEncoded,
+    );
+
+    // Use the SAME path as Flow Studio
+    final _FlowStudioResult result = _FlowStudioResult(
+      savedFlow: flow,
+      plannedNotes: const [],
+    );
+
+    await _persistFlowStudioResult(result);
+    
+    // ✅ Refresh in-memory notes from DB and repaint views
+    await _loadFromDisk();
+    if (mounted) setState(() {});
+  };
+
   /// Schedules all note occurrences for a flow to the calendar
   /// This is the shared logic used by both Flow Studio and Inbox imports
   Future<void> scheduleFlowNotes({
@@ -4266,7 +4357,27 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
       
       for (final rule in rules) {
         if (rule.matches(ky: kDate.kYear, km: kDate.kMonth, kd: kDate.kDay, g: date)) {
-          final noteTitle = flowNotes ?? 'Flow Event';
+          // Look up flow object for fallback name
+          _Flow? flow;
+          try {
+            flow = _flows.firstWhere((f) => f.id == flowId);
+          } catch (_) {
+            flow = null;
+          }
+          
+          String noteTitle = flow?.name ?? 'Flow Event';
+          String? noteDetail;
+          
+          if (flowNotes != null && flowNotes.isNotEmpty) {
+            try {
+              final meta = notesDecode(flowNotes);
+              noteTitle = meta.title ?? flow?.name ?? 'Flow Event';
+              noteDetail = meta.overview.isNotEmpty ? meta.overview : null;
+            } catch (_) {
+              noteTitle = flow?.name ?? 'Flow Event';
+            }
+          }
+          
           final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
           final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
           
@@ -4302,13 +4413,15 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
           
           // Preserve legacy detail prefix to indicate local flow id for older clients
           final String prefix = 'flowLocalId=${flowId};';
-          final String detailPayload = prefix + (flowNotes?.trim() ?? '');
+          final String? detailPayload = (noteDetail != null && noteDetail.isNotEmpty)
+              ? (prefix + noteDetail)
+              : prefix;
           
           await repo.upsertByClientId(
             clientEventId: cid,
             title: noteTitle,
             startsAtUtc: startsAt.toUtc(),
-            detail: detailPayload.isEmpty ? null : detailPayload,
+            detail: detailPayload,
             allDay: rule.allDay,
             endsAtUtc: endsAt?.toUtc(),
             flowLocalId: flowId, // ✅ FIX: Set flow_local_id for recurring flow notes
@@ -4510,6 +4623,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
     return JournalSwipeLayer(
       controller: _journalController,
       isPortrait: isPortrait,
+      onCreateFlow: createFlowFromNutrition,
       child: _buildCalendarScrollView(),
     );
   }
@@ -8666,11 +8780,12 @@ String notesEncode({
   return parts.join(';');
 }
 
-({bool kemetic, bool split, String overview, String? maatKey}) notesDecode(String? notes) {
+({bool kemetic, bool split, String overview, String? maatKey, String? title}) notesDecode(String? notes) {
   bool kemetic = false;
   bool split = false;
   String overview = '';
   String? maatKey;
+  String? title;
   if (notes != null && notes.isNotEmpty) {
     for (final token in notes.split(';')) {
       final t = token.trim();
@@ -8678,9 +8793,10 @@ String notesEncode({
       if (t == 'split=1') split = true;
       if (t.startsWith('ov=')) overview = Uri.decodeComponent(t.substring(3));
       if (t.startsWith('maat=')) maatKey = t.substring(5);
+      if (t.startsWith('title=')) title = Uri.decodeComponent(t.substring(6)); // NEW
     }
   }
-  return (kemetic: kemetic, split: split, overview: overview, maatKey: maatKey);
+  return (kemetic: kemetic, split: split, overview: overview, maatKey: maatKey, title: title);
 }
 
 

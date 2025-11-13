@@ -15,18 +15,21 @@ import '../../data/journal_repo.dart';
 import '../../data/nutrition_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../nutrition/nutrition_grid.dart';
+import '../calendar/calendar_page.dart' show CreateFlowFromNutrition;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class JournalOverlay extends StatefulWidget {
   final JournalController controller;
   final bool isPortrait;
   final VoidCallback onClose;
+  final CreateFlowFromNutrition? onCreateFlow;
 
   const JournalOverlay({
     Key? key,
     required this.controller,
     required this.isPortrait,
     required this.onClose,
+    this.onCreateFlow,
   }) : super(key: key);
 
   @override
@@ -597,6 +600,7 @@ class _JournalOverlayState extends State<JournalOverlay>
       return NutritionGridWidget(
         repo: NutritionRepo(Supabase.instance.client),
         eventsRepo: UserEventsRepo(Supabase.instance.client),
+        onCreateFlow: widget.onCreateFlow,
       );
     }
     return _buildEditor(); // existing editor builder

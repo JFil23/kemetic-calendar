@@ -5,6 +5,7 @@ import 'journal_overlay.dart';
 import 'journal_constants.dart';
 import '../../core/ui_guards.dart';
 import '../../main.dart';
+import '../calendar/calendar_page.dart' show CreateFlowFromNutrition;
 
 class JournalSwipeLayer extends StatefulWidget {
   const JournalSwipeLayer({
@@ -12,11 +13,13 @@ class JournalSwipeLayer extends StatefulWidget {
     required this.child,
     required this.controller,
     required this.isPortrait,
+    this.onCreateFlow,
   }) : super(key: key);
 
   final Widget child;
   final JournalController controller; // your existing data/controller
   final bool isPortrait;
+  final CreateFlowFromNutrition? onCreateFlow;
 
   @override
   State<JournalSwipeLayer> createState() => _JournalSwipeLayerState();
@@ -77,6 +80,7 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
         controller: widget.controller,
         onClose: _closeJournal,
         isPortrait: widget.isPortrait,
+        onCreateFlow: widget.onCreateFlow,
       ),
     );
     Overlay.of(context).insert(_overlayEntry!);
