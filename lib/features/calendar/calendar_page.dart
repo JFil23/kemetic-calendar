@@ -4266,6 +4266,10 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
   /// Public callback that converts nutrition intent to flow and persists it
   /// This is the single source of truth - reuses existing _persistFlowStudioResult
   CreateFlowFromNutrition get createFlowFromNutrition => (intent) async {
+    // Helper: calculate 1 hour after a given time
+    TimeOfDay _oneHourAfter(TimeOfDay t) =>
+        TimeOfDay(hour: (t.hour + 1) % 24, minute: t.minute);
+    
     // Build private rules
     final List<FlowRule> rules = [];
     if (intent.isWeekdayMode) {
@@ -4273,7 +4277,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
         weekdays: intent.weekdays,
         allDay: false,
         start: intent.timeOfDay,
-        end: null,
+        end: _oneHourAfter(intent.timeOfDay), // ✅ always 1 hour
       ));
     } else {
       // Build matching date list over the selected range
@@ -4293,7 +4297,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
           dates: dates,
           allDay: false,
           start: intent.timeOfDay,
-          end: null,
+          end: _oneHourAfter(intent.timeOfDay), // ✅ always 1 hour
         ));
       }
     }
@@ -4401,14 +4405,25 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
           );
           
           DateTime? endsAt;
-          if (!rule.allDay && rule.end != null) {
-            endsAt = DateTime(
-              date.year,
-              date.month,
-              date.day,
-              rule.end!.hour,
-              rule.end!.minute,
-            );
+          if (!rule.allDay) {
+            if (rule.end != null) {
+              endsAt = DateTime(
+                date.year,
+                date.month,
+                date.day,
+                rule.end!.hour,
+                rule.end!.minute,
+              );
+            } else {
+              // ✅ Defense-in-depth: default to 1 hour if end is missing
+              endsAt = DateTime(
+                date.year,
+                date.month,
+                date.day,
+                startHour,
+                startMinute,
+              ).add(const Duration(hours: 1));
+            }
           }
           
           // Preserve legacy detail prefix to indicate local flow id for older clients

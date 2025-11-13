@@ -1256,7 +1256,10 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                                                 
                                                 final schedule = _build();
                                                 
-                                                // Create flow if checkbox is checked
+                                                // ✅ Close picker immediately
+                                                _close(schedule);
+                                                
+                                                // Create flow asynchronously (fire-and-forget) if checkbox is checked
                                                 if (addAsFlow && widget.onCreateFlow != null) {
                                                   const int gold = 0xFFD4AF37;
                                                   
@@ -1272,23 +1275,28 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                                                   
                                                   final isWeekday = (mode == IntakeMode.weekday);
                                                   
-                                                  await widget.onCreateFlow!(
-                                                    FlowFromNutritionIntent(
-                                                      flowName: 'Intake',
-                                                      colorArgb: gold,
-                                                      startDate: startDate,
-                                                      endDate: endDate,
-                                                      noteTitle: noteTitle,
-                                                      noteDetails: noteDetails,
-                                                      isWeekdayMode: isWeekday,
-                                                      weekdays: isWeekday ? dows : <int>{},
-                                                      decanDays: isWeekday ? <int>{} : decans,
-                                                      timeOfDay: time,
-                                                    ),
-                                                  );
+                                                  // Fire-and-forget so UI closes immediately
+                                                  Future.microtask(() async {
+                                                    try {
+                                                      await widget.onCreateFlow!(
+                                                        FlowFromNutritionIntent(
+                                                          flowName: 'Intake',
+                                                          colorArgb: gold,
+                                                          startDate: startDate,
+                                                          endDate: endDate,
+                                                          noteTitle: noteTitle,
+                                                          noteDetails: noteDetails,
+                                                          isWeekdayMode: isWeekday,
+                                                          weekdays: isWeekday ? dows : <int>{},
+                                                          decanDays: isWeekday ? <int>{} : decans,
+                                                          timeOfDay: time,
+                                                        ),
+                                                      );
+                                                    } catch (e) {
+                                                      debugPrint('[NutritionGrid] onCreateFlow error: $e');
+                                                    }
+                                                  });
                                                 }
-                                                
-                                                _close(schedule);
                                               },
                                               child: const Text('Save'),
                                             ),

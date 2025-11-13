@@ -874,6 +874,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         // Timeline grid
         Expanded(
           child: ListView.builder(
+            clipBehavior: Clip.none,
             controller: _scrollController,
             cacheExtent: 600, // 🔧 OPTIMIZATION: Cache more items
             itemCount: 24,
@@ -902,6 +903,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         ),
       ),
       child: Stack(
+        clipBehavior: Clip.none, // allow events to span into next hour
         children: [
           // Hour label
           Positioned(
