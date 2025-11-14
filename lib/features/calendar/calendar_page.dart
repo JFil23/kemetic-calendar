@@ -4270,6 +4270,17 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
   // Helper: normalize string for comparison
   String _norm(String s) => s.trim().toLowerCase();
 
+  // Helper: clean event detail by stripping legacy flowLocalId= prefix
+  String _cleanDetail(String? s) {
+    if (s == null || s.isEmpty) return '';
+    var t = s;
+    if (t.startsWith('flowLocalId=')) {
+      final i = t.indexOf(';');
+      t = (i >= 0 && i < t.length - 1) ? t.substring(i + 1) : '';
+    }
+    return t.trim();
+  }
+
   // Helper: parse comma-separated sources from title
   List<String> _parseSourcesFromTitle(String? title) =>
       (title == null || title.trim().isEmpty)
@@ -6014,6 +6025,17 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
   // ---------- tiny utilities (local to this page) ----------
 
+  // Helper: clean event detail by stripping legacy flowLocalId= prefix
+  String _cleanDetail(String? s) {
+    if (s == null || s.isEmpty) return '';
+    var t = s;
+    if (t.startsWith('flowLocalId=')) {
+      final i = t.indexOf(';');
+      t = (i >= 0 && i < t.length - 1) ? t.substring(i + 1) : '';
+    }
+    return t.trim();
+  }
+
   String _fmtTime(TimeOfDay t) {
     final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
     final m = t.minute.toString().padLeft(2, '0');
@@ -7535,8 +7557,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _splitByPeriod = meta.split;
       _overviewCtrl.text = meta.overview;
 
-      // For pattern-based flows (like nutrition), load events so the editor shows titles/details.
-      if (!_splitByPeriod && f.id > 0) {
+      // Load events for every flow so titles/details prefill and are editable
+      if (f.id > 0) {
         // Load asynchronously after setState completes
         Future.microtask(() => _loadFlowEventsForEditing(f.id));
       }
@@ -7838,7 +7860,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       // Populate controllers
       draft.titleCtrl.text = event.title;
       draft.locationCtrl.text = event.location ?? '';
-      draft.detailCtrl.text = event.detail ?? '';
+      draft.detailCtrl.text = _cleanDetail(event.detail);
       
       // Set times
       draft.allDay = event.allDay;
