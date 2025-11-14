@@ -925,6 +925,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               left: 60 + block.leftOffset,
               top: minutesIntoHour.toDouble(),
               child: GestureDetector(
+                behavior: HitTestBehavior.opaque, // ✅ full-rect hit target (not just text)
                 onTap: () => _showEventDetail(block.event),
                 child: _buildEventBlock(block),
               ),

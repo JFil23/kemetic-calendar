@@ -1011,6 +1011,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           width: columnWidth,
           height: height,
           child: GestureDetector(
+            behavior: HitTestBehavior.opaque, // ✅ full-rect hit target
             onTap: () => _showEventDetail(event),
             child: Container(
               margin: const EdgeInsets.only(right: 4, bottom: 2),

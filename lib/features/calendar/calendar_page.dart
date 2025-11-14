@@ -7488,8 +7488,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           getDecanLabel: (km, di) =>
           (_MonthCard.decans[km] ?? const ['I','II','III'])[di],
           fmt: (d) => _fmtGregorian(d),
-          onEdit: () {
-            _loadFlowForEdit(f);
+          onEdit: () async {
+            await _loadFlowForEdit(f);
             Navigator.of(context).pop();
           },
           isMaatInstance: (f.notes ?? '').contains('maat='),
@@ -7530,7 +7530,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   }
 
   // Load an existing flow into the editor (best-effort reconstruction of rules)
-  void _loadFlowForEdit(_Flow f) {
+  Future<void> _loadFlowForEdit(_Flow f) async {
     // Add debug logging
     if (kDebugMode) {
       debugPrint('[loadFlowForEdit] Loading flow ${f.id} "${f.name}" with color=${f.color.value.toRadixString(16)}');
@@ -7557,12 +7557,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _splitByPeriod = meta.split;
       _overviewCtrl.text = meta.overview;
 
-      // Load events for every flow so titles/details prefill and are editable
-      if (f.id > 0) {
-        // Load asynchronously after setState completes
-        Future.microtask(() => _loadFlowEventsForEditing(f.id));
-      }
-
       // reset selections
       _selectedDecanDays.clear();
       _selectedWeekdays.clear();
@@ -7581,26 +7575,33 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           _splitByPeriod = false;
           _selectedWeekdays.addAll(r.weekdays);
         } else if (r is _RuleDates) {
-          _splitByPeriod = true;
-          // build spans first
-          _rebuildSpans();
-          // seed per-period picks
-          for (final g in r.dates) {
-            if (_useKemetic) {
+          // ✅ Nutrition flows using Kemetic dates should use the simple Decan selector
+          if (f.name == 'Intake' && _useKemetic) {
+            _splitByPeriod = false;         // not customize mode
+            _selectedDecanDays.clear();
+            for (final g in r.dates) {
               final k = KemeticMath.fromGregorian(g);
-              if (k.kMonth == 13) continue;
-              final di = ((k.kDay - 1) ~/ 10);
-              final inDec = ((k.kDay - 1) % 10) + 1;
-              final key = '${k.kYear}-${k.kMonth}-$di';
-              final set = _perDecanSel[key] ?? <int>{};
-              set.add(inDec);
-              _perDecanSel[key] = set;
-            } else {
-              final mon = _mondayOf(g);
-              final key = _iso(mon);
-              final set = _perWeekSel[key] ?? <int>{};
-              set.add(g.weekday);
-              _perWeekSel[key] = set;
+              if (k.kMonth == 13) continue; // skip epagomenal if needed
+              final inDecan = ((k.kDay - 1) % 10) + 1;
+              _selectedDecanDays.add(inDecan);
+            }
+          } else {
+            // original customize-mode path for non-nutrition flows
+            _splitByPeriod = true;
+            _rebuildSpans();
+            for (final g in r.dates) {
+              if (_useKemetic) {
+                final k = KemeticMath.fromGregorian(g);
+                if (k.kMonth == 13) continue;
+                final di = ((k.kDay - 1) ~/ 10);
+                final inDec = ((k.kDay - 1) % 10) + 1;
+                final key = '${k.kYear}-${k.kMonth}-$di';
+                (_perDecanSel[key] ??= <int>{}).add(inDec);
+              } else {
+                final mon = _mondayOf(g);
+                final key = _iso(mon);
+                (_perWeekSel[key] ??= <int>{}).add(g.weekday);
+              }
             }
           }
         }
@@ -7610,6 +7611,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _syncReady = true;
       _applySelectionToDrafts();
     });
+
+    // ✅ Load events outside setState (await so drafts populate reliably)
+    if (f.id > 0) {
+      await _loadFlowEventsForEditing(f.id);
+    }
   }
 
   /// Load AI-generated flow by ID and populate Flow Studio
@@ -7905,7 +7911,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         _nameCtrl = TextEditingController(text: _editing?.name ?? '');
         _active = _editing?.active ?? true;
         if (_editing != null) {
-          _loadFlowForEdit(_editing!);
+          // Load asynchronously in initState (can't await here)
+          Future.microtask(() => _loadFlowForEdit(_editing!));
         }
       } catch (_) {
         // Not in existing flows, load from database (AI-generated flow)
@@ -8296,6 +8303,15 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         ),
         const SizedBox(height: 6),
         _toggleCustomizeButton(),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: _openOverviewEditor,
+            icon: const Icon(Icons.subject, color: _silver), // ✅ consistent color
+            label: const Text('Overview'),
+          ),
+        ),
         const SizedBox(height: 8),
         if (_weekSpans.isEmpty)
           const Text('No weeks in this range.',
