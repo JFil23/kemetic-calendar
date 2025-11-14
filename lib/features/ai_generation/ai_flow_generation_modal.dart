@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/ai_flow_generation_service.dart';
+import '../../models/ai_flow_generation_response.dart';
 import '../../widgets/kemetic_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart';
 import '../../widgets/ai_generation_diagnostic.dart';
@@ -178,16 +179,17 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       };
       final ianaTimezone = timezoneMap[offsetHours] ?? 'America/Los_Angeles';
 
-      final request = AIFlowGenerationRequest(
+      // ✅ Debug: Confirm we're about to call the service
+      debugPrint('[AI Modal] About to call _service.generate()...');
+
+      // Generate flow using new simplified service API
+      final response = await _service.generate(
         description: _descriptionController.text.trim(),
-        startDate: _formatDate(_startDate!),
-        endDate: _formatDate(_endDate!),
+        startDate: _startDate!,
+        endDate: _endDate!,
         flowColor: colorAsHex,
         timezone: ianaTimezone, // ✅ IANA format (e.g., "America/Los_Angeles") for Edge Function
       );
-
-      // Generate flow
-      final response = await _service.generateFlow(request);
 
       if (!mounted) return;
 
@@ -195,6 +197,8 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       Navigator.of(context).pop(response);
 
       // Show success message
+      final flowName = response.flowName ?? 'Flow';
+      final notesCount = response.notesCount ?? 0;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -203,7 +207,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Created "${response.flowName}" with ${response.rules.length} rules',
+                  'Created "$flowName" with $notesCount events',
                   style: const TextStyle(color: Colors.white),
                 ),
               ),
@@ -214,14 +218,13 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
           duration: const Duration(seconds: 3),
         ),
       );
-    } on AIFlowGenerationError catch (e) {
+    } catch (e, stackTrace) {
       if (!mounted) return;
-      setState(() {
-        _error = e.message;
-        _isGenerating = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
+      
+      // ✅ Log the actual error for debugging
+      debugPrint('[AI Modal] Error during generation: $e');
+      debugPrint('[AI Modal] Stack trace: $stackTrace');
+      
       setState(() {
         _error = 'Something went wrong. Please try again.';
         _isGenerating = false;

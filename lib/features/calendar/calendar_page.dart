@@ -25,6 +25,7 @@ import '../../data/share_models.dart';
 import '../../widgets/inbox_icon_with_badge.dart';
 import '../ai_generation/ai_flow_generation_modal.dart';
 import '../../services/ai_flow_generation_service.dart';
+import '../../models/ai_flow_generation_response.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
@@ -61,6 +62,12 @@ class FlowFromNutritionIntent {
 }
 
 typedef CreateFlowFromNutrition = Future<void> Function(FlowFromNutritionIntent intent);
+
+// Decide if you auto-open the editor
+const bool _openEditorAfterAIGeneration = true;
+
+// AI-style trigger (nutrition-style pattern)
+typedef CreateFlowFromAI = Future<void> Function(AIFlowGenerationResponse result);
 
 
 
@@ -2621,6 +2628,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                         MaterialPageRoute(
                           builder: (_) => _FlowStudioPage(
                             existingFlows: _flows,
+                            onCreateFlowFromAI: createFlowFromAI,
                           ),
                         ),
                       );
@@ -2634,6 +2642,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                           builder: (_) => _FlowStudioPage(
                             existingFlows: _flows,
                             editFlowId: id,
+                            onCreateFlowFromAI: createFlowFromAI,
                           ),
                         ),
                       );
@@ -2672,6 +2681,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                                 MaterialPageRoute(
                                   builder: (_) => _FlowStudioPage(
                                     existingFlows: _flows,
+                                    onCreateFlowFromAI: createFlowFromAI,
                                   ),
                                 ),
                               );
@@ -2722,6 +2732,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                         MaterialPageRoute(
                           builder: (_) => _FlowStudioPage(
                             existingFlows: _flows,
+                            onCreateFlowFromAI: createFlowFromAI,
                           ),
                         ),
                       );
@@ -2736,6 +2747,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                 MaterialPageRoute(
                   builder: (_) => _FlowStudioPage(
                     existingFlows: _flows,
+                    onCreateFlowFromAI: createFlowFromAI,
                   ),
                 ),
               );
@@ -2753,6 +2765,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
         return _FlowStudioPage(
           existingFlows: _flows,
           editFlowId: flowId,
+          onCreateFlowFromAI: createFlowFromAI,
         );
       },
     );
@@ -2771,6 +2784,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
               MaterialPageRoute(
                 builder: (_) => _FlowStudioPage(
                   existingFlows: _flows,
+                  onCreateFlowFromAI: createFlowFromAI,
                 ),
               ),
             );
@@ -2784,6 +2798,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                 builder: (_) => _FlowStudioPage(
                   existingFlows: _flows,
                   editFlowId: id,
+                  onCreateFlowFromAI: createFlowFromAI,
                 ),
               ),
             );
@@ -2822,6 +2837,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                       MaterialPageRoute(
                         builder: (_) => _FlowStudioPage(
                           existingFlows: _flows,
+                          onCreateFlowFromAI: createFlowFromAI,
                         ),
                       ),
                     );
@@ -4394,6 +4410,47 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
     if (mounted) setState(() {});
   };
 
+  /// Public callback that handles AI-generated flow response
+  /// This is the single source of truth - reuses existing _loadFromDisk and Flow Studio
+  CreateFlowFromAI get createFlowFromAI => (result) async {
+    if (!result.success) {
+      final s = ScaffoldMessenger.of(context);
+      s.hideCurrentSnackBar();
+      s.showSnackBar(const SnackBar(content: Text('AI generation failed.')));
+      return;
+    }
+
+    // Server already persisted the flow + events
+    await _loadFromDisk();
+    if (!mounted) return;
+    setState(() {});
+
+    if (_openEditorAfterAIGeneration && result.flowId != null) {
+      // Find the flow in _flows (it was just loaded by _loadFromDisk)
+      try {
+        final flow = _flows.firstWhere((f) => f.id == result.flowId);
+        await Navigator.of(context).push<_FlowStudioResult>(
+          MaterialPageRoute(
+            builder: (_) => _FlowStudioPage(
+              existingFlows: _flows,
+              editFlowId: result.flowId,
+              onCreateFlowFromAI: createFlowFromAI,
+            ),
+          ),
+        );
+      } catch (_) {
+        // Flow not found (shouldn't happen, but handle gracefully)
+        final s = ScaffoldMessenger.of(context);
+        s.hideCurrentSnackBar();
+        s.showSnackBar(const SnackBar(content: Text('Flow created. Refresh to see it.')));
+      }
+    } else {
+      final s = ScaffoldMessenger.of(context);
+      s.hideCurrentSnackBar();
+      s.showSnackBar(const SnackBar(content: Text('AI flow created.')));
+    }
+  };
+
   /// Schedules all note occurrences for a flow to the calendar
   /// This is the shared logic used by both Flow Studio and Inbox imports
   Future<void> scheduleFlowNotes({
@@ -5954,11 +6011,13 @@ class _FlowStudioPage extends StatefulWidget {
   const _FlowStudioPage({
     required this.existingFlows,
     this.editFlowId,
+    this.onCreateFlowFromAI,
     super.key,
   });
 
   final List<_Flow> existingFlows;
   final int? editFlowId;
+  final CreateFlowFromAI? onCreateFlowFromAI;
 
   @override
   State<_FlowStudioPage> createState() => _FlowStudioPageState();
@@ -5991,9 +6050,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
   // per-period mode
   bool _splitByPeriod = false; // toggle to show rows per decan/week
-  
-  // AI mode flag
-  bool _isAIGeneratedFlow = false;
 
   // cached spans + per-period selections
   List<_KemeticDecanSpan> _kemeticSpans = const [];
@@ -7124,37 +7180,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
   // ---------- save/delete ----------
 
-  /// Show AI Flow Generation Modal
-  Future<void> _showAIGenerationModal() async {
-    final result = await showModalBottomSheet<AIFlowGenerationResponse>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const AIFlowGenerationModal(),
-    );
-
-    if (result != null && result.flowId != null && mounted) {
-      // AI generated a flow! Close modal and open Flow Studio with the generated flow
-      Navigator.pop(context); // Close AI generation modal
-      
-      // Open Flow Studio with the generated flow ID
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => _FlowStudioPage(
-            existingFlows: const [], // Will be loaded from editFlowId
-            editFlowId: result.flowId,
-          ),
-        ),
-      );
-      
-      // Refresh calendar after Flow Studio closes
-      if (mounted) {
-        setState(() {});
-      }
-    }
-  }
-
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
@@ -7332,10 +7357,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       print('SHARE ERROR: $e');
     }
 
-    // Reset AI mode flag after save - flow is now a normal editable flow
-    if (_isAIGeneratedFlow) {
-      _isAIGeneratedFlow = false;
-    }
 
     Navigator.of(context, rootNavigator: true)
         .pop(_FlowStudioResult(savedFlow: flow, plannedNotes: planned));
@@ -7618,206 +7639,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     }
   }
 
-  /// Load AI-generated flow by ID and populate Flow Studio
-  Future<void> _loadAIGeneratedFlow(int flowId) async {
-    try {
-      // 1. Fetch the flow from database
-      final repo = FlowsRepo(Supabase.instance.client);
-      final flow = await repo.getFlowById(flowId);
-      if (flow == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Flow not found')),
-          );
-        }
-        return;
-      }
-      
-      // 2. Convert FlowRow to _Flow
-      final flowObj = _Flow(
-        id: flow.id,
-        name: flow.name,
-        color: Color(rgbToArgb(flow.color)),
-        active: flow.active,
-        start: flow.startDate,
-        end: flow.endDate,
-        notes: flow.notes,
-        rules: const [],  // AI flows have no recurring rules
-        shareId: null,
-      );
-      
-      // 3. Fetch events for this flow
-      final eventsRepo = UserEventsRepo(Supabase.instance.client);
-      final eventRecords = await eventsRepo.getEventsForFlow(flowId);
-      
-      // Convert record type to UserEvent objects
-      final userEvents = eventRecords.map((record) {
-        return UserEvent(
-          id: record.id ?? '', // id is String? (UUID from database)
-          clientEventId: record.clientEventId,
-          title: record.title,
-          detail: record.detail,
-          location: record.location,
-          allDay: record.allDay,
-          startsAt: record.startsAtUtc,
-          endsAt: record.endsAtUtc,
-          flowLocalId: record.flowLocalId,
-        );
-      }).toList();
-      
-      if (kDebugMode) {
-        print('🔍 [AI Flow Init] flowId: $flowId');
-        print('🔍 [AI Flow Init] userEvents.length: ${userEvents.length}');
-        print('🔍 [AI Flow Init] titles: ${userEvents.map((e) => e.title).toList()}');
-      }
-      
-      // 4. 🚨 CRITICAL ORDERING: Set context BEFORE initializing selections
-      // _populateGregorianSelections() needs _startDate to calculate week indices
-      // _convertEventsToDrafts() needs _useKemetic to build correct date keys
-      final meta = notesDecode(flowObj.notes);
-      _startDate = flowObj.start == null ? null : _dateOnly(flowObj.start!);
-      _endDate = flowObj.end == null ? null : _dateOnly(flowObj.end!);
-      _useKemetic = meta.kemetic;
-      _splitByPeriod = true;  // Force customize mode for AI flows
-      
-      _syncReady = true;
-      // 5. Build spans now that mode is known
-      _rebuildSpans();
-      
-      // 6. Graceful fallback if no events loaded
-      if (userEvents.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                "We created your Flow but couldn't load scheduled blocks. You can add blocks below.",
-              ),
-              duration: Duration(seconds: 5),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        
-        // Manual hydration of header fields (no _loadFlowForEdit call)
-        setState(() {
-          _editing = flowObj;
-          _nameCtrl.text = flowObj.name;
-          _active = flowObj.active;
-          
-          final idx = _flowPalette.indexWhere((c) => c.value == flowObj.color.value);
-          _selectedColorIndex = idx >= 0 ? idx : 0;
-          
-          _overviewCtrl.text = meta.overview ?? '';
-          
-          _isAIGeneratedFlow = true;
-        });
-        return;
-      }
-      
-      // 7. NOW initialize AI flow selections (depends on _startDate, _endDate, _useKemetic set above)
-      // Convert events to drafts and populate _draftsByDay
-      _convertEventsToDrafts(userEvents);
-      
-      // 8. Clear and populate selection state
-      _perWeekSel.clear();
-      _perDecanSel.clear();
-      
-      if (_hasFullRange && _draftsByDay.isNotEmpty) {
-        if (_useKemetic) {
-          _populateKemeticSelections(userEvents);
-        } else {
-          _populateGregorianSelections(userEvents);
-        }
-      }
-
-      _applySelectionToDrafts(); // one entry point
-      
-      // 9. Count ALL notes for analytics
-      _originalEventCount = _draftsByDay.values
-          .fold<int>(0, (sum, list) => sum + list.length);
-      
-      if (kDebugMode) {
-        print('🔍 [AI Flow Init] _originalEventCount: $_originalEventCount (days: ${_draftsByDay.keys.length})');
-      }
-      
-      // 10. 🔑 CRITICAL: Manually hydrate header fields WITHOUT calling _loadFlowForEdit()
-      setState(() {
-        _editing = flowObj;
-        
-        // Header fields only
-        _nameCtrl.text = flowObj.name;
-        _active = flowObj.active;
-        
-        // Color picker
-        final idx = _flowPalette.indexWhere((c) => c.value == flowObj.color.value);
-        _selectedColorIndex = idx >= 0 ? idx : 0;
-        
-        // Overview
-        _overviewCtrl.text = meta.overview ?? '';
-        
-        // 🚨 LOCK IN AI MODE - this prevents _loadFlowForEdit from being called
-        _isAIGeneratedFlow = true;
-        
-        // Note: _startDate, _endDate, _useKemetic, _splitByPeriod already set above
-      });
-      
-      // 11. Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.auto_awesome, color: Color(0xFFD4AF37)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text('✨ Generated "${flowObj.name}" with ${userEvents.length} events. Review and save!'),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF1E3A5F),
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading AI flow: $e')),
-        );
-      }
-    }
-  }
-
-  /// Populate Kemetic selections based on events
-  void _populateKemeticSelections(List<UserEvent> events) {
-    for (final event in events) {
-      final localStart = event.startsAt.toLocal();
-      final (:kYear, :kMonth, :kDay) = KemeticMath.fromGregorian(localStart);
-      
-      // Calculate decan index and day within decan
-      final di = ((kDay - 1) ~/ 10); // decan index (0-3)
-      final inDec = ((kDay - 1) % 10) + 1; // day in decan (1-10)
-      final key = '$kYear-$kMonth-$di';
-      
-      final set = _perDecanSel[key] ?? <int>{};
-      set.add(inDec);
-      _perDecanSel[key] = set;
-    }
-  }
-
-  /// Populate Gregorian weekday selections based on events
-  void _populateGregorianSelections(List<UserEvent> events) {
-    for (final event in events) {
-      final localStart = event.startsAt.toLocal();
-      final mondayOfWeek = _mondayOf(localStart);
-      final weekKey = _iso(mondayOfWeek);
-      final weekday = localStart.weekday;
-      
-      final set = _perWeekSel[weekKey] ?? <int>{};
-      set.add(weekday);
-      _perWeekSel[weekKey] = set;
-    }
-  }
 
   /// Load flow events for editing (populates drafts for pattern-based flows)
   Future<void> _loadFlowEventsForEditing(int flowId) async {
@@ -7902,24 +7723,28 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   void initState() {
     super.initState();
 
-    // Load AI-generated flow if provided
+    // Load flow if editing (all flows, including AI, go through standard path)
     if (widget.editFlowId != null) {
-      // Check if it's in existing flows first
       try {
         _editing = widget.existingFlows.firstWhere((f) => f.id == widget.editFlowId);
-        // Load from existing flows
         _nameCtrl = TextEditingController(text: _editing?.name ?? '');
         _active = _editing?.active ?? true;
         if (_editing != null) {
-          // Load asynchronously in initState (can't await here)
           Future.microtask(() => _loadFlowForEdit(_editing!));
         }
       } catch (_) {
-        // Not in existing flows, load from database (AI-generated flow)
-        _editing = null;
-        _nameCtrl = TextEditingController();
-        _active = true;
-        _loadAIGeneratedFlow(widget.editFlowId!);
+        // Flow not found - handle gracefully
+        if (kDebugMode) {
+          debugPrint('[FlowStudio] Flow ${widget.editFlowId} not found. Ensure _loadFromDisk() ran first.');
+        }
+        // Show error (or you could close the page)
+        Future.microtask(() {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Flow not found. Please refresh.')),
+            );
+          }
+        });
       }
     } else {
       // Initialize for new flow creation
@@ -8409,6 +8234,23 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     );
   }
 
+  // ---------- AI generation handler ----------
+
+  Future<void> _showAIGenerationModal() async {
+    if (widget.onCreateFlowFromAI == null) return;
+    
+    final result = await showModalBottomSheet<AIFlowGenerationResponse>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const AIFlowGenerationModal(),
+    );
+
+    if (result != null && mounted && widget.onCreateFlowFromAI != null) {
+      await widget.onCreateFlowFromAI!(result);
+    }
+  }
+
   // ---------- close handler ----------
 
   Future<void> _handleClose() async {
@@ -8418,8 +8260,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       return;
     }
 
-    // Check if this is an AI-generated flow that hasn't been saved yet
-    final shouldDelete = _isAIGeneratedFlow && _editing != null && _editing!.id != null;
+    // Note: AI flows are already persisted by Edge Function, so no special delete-on-cancel needed
+    
+    // Check if we should confirm deletion
+    final shouldDelete = _editing != null && _editing!.id != null;
     
     if (shouldDelete) {
       // Confirm deletion
@@ -8506,7 +8350,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           // ✨ NEW: AI Generation Button
           IconButton(
             icon: const Icon(Icons.auto_awesome, color: Color(0xFFD4AF37)),
-            onPressed: _showAIGenerationModal,
+            onPressed: widget.onCreateFlowFromAI != null ? _showAIGenerationModal : null,
             tooltip: 'Generate with AI',
           ),
           // Only show the dropdown when there's at least one existing flow

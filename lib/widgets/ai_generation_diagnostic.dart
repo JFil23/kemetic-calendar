@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -37,6 +38,10 @@ class _AIGenerationDiagnosticWidgetState
     try {
       final supabase = Supabase.instance.client;
 
+      // Session precheck (for debugging)
+      final s = supabase.auth.currentSession;
+      debugPrint('[Diag] hasSession=${s != null}  exp=${s?.expiresAt}');
+
       // TEST 1: Check authentication
       _log('🔍 TEST 1: Checking authentication...');
       final session = supabase.auth.currentSession;
@@ -52,7 +57,10 @@ class _AIGenerationDiagnosticWidgetState
       _log('✅ PASS: Authenticated');
       _log('   → User ID: $userId');
       _log('   → Email: $email');
-      _log('   → Token: ${session.accessToken.substring(0, 20)}...');
+      _log('   → Token (first 20): ${session.accessToken.substring(0, 20)}...');
+      _log('');
+      _log('🔑 FULL ACCESS TOKEN (copy for curl):');
+      _log('   ${session.accessToken}');
 
       // TEST 2: Check Edge Function availability
       _log('');
@@ -149,6 +157,101 @@ class _AIGenerationDiagnosticWidgetState
     }
   }
 
+  Future<void> _runSmokeTest() async {
+    setState(() {
+      _logs.clear();
+      _testing = true;
+    });
+
+    try {
+      final supabase = Supabase.instance.client;
+
+      // 0) Confirm you're authenticated and the SDK has a JWT
+      _log('🔍 SMOKE TEST: Starting...');
+      final session = supabase.auth.currentSession;
+      if (session == null) {
+        _log('❌ No session. Sign in first.');
+        return;
+      }
+      _log('✅ Session OK. ExpiresAt: ${session.expiresAt}');
+
+      // 1) Build a safe, present-day payload
+      String ymd(DateTime d) =>
+          "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+      final now = DateTime.now();
+      final start = ymd(now);
+      final end = ymd(now.add(const Duration(days: 6)));
+
+      final payload = {
+        "description": "practice guitar (smoke test)",
+        "startDate": start,
+        "endDate": end,
+        "timezone": "America/Los_Angeles",
+        "flowColor": "#4dd0e1",
+      };
+
+      // 2) Invoke the Edge Function
+      _log('');
+      _log('🚀 Invoking ai_generate_flow with:');
+      _log('   description: ${payload["description"]}');
+      _log('   startDate: ${payload["startDate"]}');
+      _log('   endDate: ${payload["endDate"]}');
+      _log('   timezone: ${payload["timezone"]}');
+      _log('   flowColor: ${payload["flowColor"]}');
+      _log('');
+
+      try {
+        final res = await supabase.functions.invoke(
+          'ai_generate_flow',
+          body: payload,
+        );
+
+        _log('✅ Function OK: Status ${res.status}');
+        if (res.data is Map) {
+          final data = res.data as Map;
+          if (data['success'] == true) {
+            _log('✅ SUCCESS: Flow created!');
+            _log('   → flowId: ${data['flowId']}');
+            _log('   → flowName: ${data['flowName']}');
+            _log('   → notesCount: ${data['notesCount']}');
+            _log('   → modelUsed: ${data['modelUsed']}');
+            _log('   → cached: ${data['cached']}');
+          } else {
+            _log('❌ FAIL: success=false');
+            _log('   → error: ${data['error']}');
+            _log('   → message: ${data['message']}');
+          }
+        } else {
+          _log('   → Response data: ${res.data}');
+        }
+      } on FunctionException catch (e, st) {
+        _log('❌ FunctionException');
+        _log('   → status: ${e.status}');
+        _log('   → details: ${e.details}');
+        _log('   → reasonPhrase: ${e.reasonPhrase}');
+        _log('');
+        _log('Stack trace:');
+        _log('$st');
+      } catch (e, st) {
+        _log('❌ Unknown error: $e');
+        _log('');
+        _log('Stack trace:');
+        _log('$st');
+      }
+
+      _log('');
+      _log('═══════════════════════════════════');
+      _log('📋 SMOKE TEST COMPLETE');
+      _log('═══════════════════════════════════');
+      _log('If you see errors, check:');
+      _log('  • Supabase Dashboard → Functions → ai_generate_flow → Logs');
+      _log('  • Look for the first error line in the logs');
+      
+    } finally {
+      setState(() => _testing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -159,24 +262,39 @@ class _AIGenerationDiagnosticWidgetState
       backgroundColor: Colors.black,
       body: Column(
         children: [
-          // Run button
+          // Run buttons
           Padding(
             padding: const EdgeInsets.all(16),
-            child: ElevatedButton.icon(
-              onPressed: _testing ? null : _runDiagnostics,
-              icon: _testing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.play_arrow),
-              label: Text(_testing ? 'Running Tests...' : 'Run Diagnostics'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD4AF37), // Gold
-                foregroundColor: Colors.black,
-                minimumSize: const Size(double.infinity, 48),
-              ),
+            child: Column(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _testing ? null : _runSmokeTest,
+                  icon: _testing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check_circle),
+                  label: Text(_testing ? 'Running...' : 'Run Smoke Test'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF66BB6A), // Green
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _testing ? null : _runDiagnostics,
+                  icon: const Icon(Icons.bug_report),
+                  label: const Text('Run Full Diagnostics'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFD4AF37), // Gold
+                    side: const BorderSide(color: Color(0xFFD4AF37)),
+                    minimumSize: const Size(double.infinity, 48),
+                  ),
+                ),
+              ],
             ),
           ),
           
@@ -185,11 +303,9 @@ class _AIGenerationDiagnosticWidgetState
             const Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                'This diagnostic tool will:\n'
-                '1. Check if you\'re signed in\n'
-                '2. Check if the Edge Function exists\n'
-                '3. Test AI generation\n\n'
-                'Tap "Run Diagnostics" to start',
+                'Smoke Test: Quick test of the full AI generation flow\n'
+                'Full Diagnostics: Detailed step-by-step testing\n\n'
+                'Tap "Run Smoke Test" for a quick check',
                 style: TextStyle(color: Colors.white70),
                 textAlign: TextAlign.center,
               ),
