@@ -4124,11 +4124,23 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
     throw ArgumentError('Unknown rule type');
   }
 
-  List<FlowRule> _parseRules(String rulesJson) {
-    if (rulesJson.isEmpty) return [];
+  List<FlowRule> _parseRules(dynamic rulesInput) {
+    if (rulesInput == null) return [];
+
     try {
-      final parsed = jsonDecode(rulesJson) as List;
-      return parsed.map((j) => CalendarPage.ruleFromJson(j as Map<String, dynamic>)).toList();
+      final List parsed;
+      if (rulesInput is String) {
+        if (rulesInput.trim().isEmpty) return [];
+        parsed = jsonDecode(rulesInput) as List;
+      } else if (rulesInput is List) {
+        parsed = rulesInput;
+      } else {
+        return [];
+      }
+
+      return parsed
+          .map((j) => CalendarPage.ruleFromJson(j as Map<String, dynamic>))
+          .toList();
     } catch (_) {
       return [];
     }

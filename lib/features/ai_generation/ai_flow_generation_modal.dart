@@ -115,20 +115,6 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       return;
     }
 
-    // ✅ VALIDATE: Maximum 10 days
-    final daysDiff = _endDate!.difference(_startDate!).inDays + 1;
-    
-    if (daysDiff > 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Maximum 10 days per flow. Try a shorter range.'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
-
     setState(() {
       _isGenerating = true;
       _error = null;
@@ -470,14 +456,11 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                       const SizedBox(height: 8),
                       Builder(
                         builder: (context) {
-                          final daysDiff = _endDate!.difference(_startDate!).inDays + 1;
-                          final isOverLimit = daysDiff > 10;
                           return Text(
-                            'Duration: ${_formatDateRange()}${isOverLimit ? ' (max 10)' : ''}',
-                            style: TextStyle(
-                              color: isOverLimit ? Colors.red : const Color(0xFF999999),
+                            'Duration: ${_formatDateRange()}',
+                            style: const TextStyle(
+                              color: Color(0xFF999999),
                               fontSize: 14,
-                              fontWeight: isOverLimit ? FontWeight.w600 : FontWeight.normal,
                             ),
                           );
                         },
