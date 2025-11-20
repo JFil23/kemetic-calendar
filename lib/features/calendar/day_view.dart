@@ -12,6 +12,8 @@ import '../sharing/share_flow_sheet.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
 
+const double _kMinEventBlockHeight = 64.0;  // was 32.0
+
 // ========================================
 // EVENT LAYOUT ENGINE
 // ========================================
@@ -961,9 +963,15 @@ class _DayViewGridState extends State<DayViewGrid> {
       durationMinutes = 180;
     }
     
+    // ✅ Add minimum height to prevent overflow (accounts for padding + text content)
+    final double rawHeight = durationMinutes.toDouble();
+    final double height = rawHeight < _kMinEventBlockHeight 
+        ? _kMinEventBlockHeight 
+        : rawHeight;
+    
     return Container(
       width: block.width,
-      height: durationMinutes.toDouble(),
+      height: height,
       margin: const EdgeInsets.only(right: 4, bottom: 2),
       decoration: BoxDecoration(
         color: event.color.withOpacity(0.2),
@@ -973,6 +981,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         borderRadius: BorderRadius.circular(4),
       ),
       padding: const EdgeInsets.all(4),
+      clipBehavior: Clip.hardEdge, // ✅ Prevent overflow
       child: _buildEventTextContents(event, durationMinutes),
     );
   }
@@ -988,6 +997,8 @@ class _DayViewGridState extends State<DayViewGrid> {
         durationMinutes > 45;
     
     return Column(
+      mainAxisSize: MainAxisSize.min, // ✅ Don't expand unnecessarily
+      mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Flow name first (if available)
@@ -1014,7 +1025,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               fontWeight: FontWeight.w500,
               color: Colors.white,
             ),
-            maxLines: hasFlow ? 1 : 2,
+            maxLines: (hasFlow || durationMinutes < 90) ? 1 : 2, // ✅ Conditional line limit
             overflow: TextOverflow.ellipsis,
           )
         else

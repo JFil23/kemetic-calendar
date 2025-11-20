@@ -945,7 +945,17 @@ class CalendarPage extends StatefulWidget {
   
   // Global key for accessing calendar state from other pages
   static final GlobalKey<_CalendarPageState> globalKey = GlobalKey<_CalendarPageState>();
-  
+
+  // Helper: Extract date from UTC milliseconds, treating it as a calendar day label
+  // This avoids timezone rollback by not using .toLocal() on the instant
+  static DateTime _dateFromUtcLabelMs(num ms) {
+    final utcDate = DateTime.fromMillisecondsSinceEpoch(ms.toInt(), isUtc: true);
+    // Treat the Y/M/D as a label, not something to shift across zones
+    return DateUtils.dateOnly(
+      DateTime(utcDate.year, utcDate.month, utcDate.day),
+    );
+  }
+
   // Static method for parsing rules from JSON (used by inbox import)
   static FlowRule ruleFromJson(Map<String, dynamic> j) {
     final allDay = (j['allDay'] ?? true) as bool;
@@ -986,9 +996,14 @@ class CalendarPage extends StatefulWidget {
         return _RuleDates(
           dates: {
             for (final n in (j['dates'] as List))
-              DateUtils.dateOnly(
-                DateTime.fromMillisecondsSinceEpoch((n as num).toInt()),
-              ),
+              if (n is num)
+                // ✅ Use helper to avoid timezone shift
+                _dateFromUtcLabelMs(n)
+              else if (n is String)
+                // ISO string format
+                DateUtils.dateOnly(DateTime.parse(n))
+              else
+                DateUtils.dateOnly(DateTime.now()),
           },
           allDay: allDay,
           start: start,
@@ -1713,11 +1728,21 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
   /// Flow occurrences that apply to a given Kemetic date (computed on demand).
   List<_FlowOccurrence> _getFlowOccurrences(int kYear, int kMonth, int kDay) {
     final g = KemeticMath.toGregorian(kYear, kMonth, kDay);
+    final gDate = DateUtils.dateOnly(g); // 🔧 Normalize UTC → local date-only for fair comparison
     final out = <_FlowOccurrence>[];
     for (final f in _flows) {
       if (!f.active) continue;
-      if (f.start != null && g.isBefore(DateUtils.dateOnly(f.start!))) continue;
-      if (f.end != null && g.isAfter(DateUtils.dateOnly(f.end!))) continue;
+      
+      // ✅ FIX: If flow uses explicit dates rule, ignore start/end boundary filters
+      // The rule dates themselves are the source of truth
+      bool hasExplicitDatesRule = f.rules.isNotEmpty && f.rules.first is _RuleDates;
+      
+      if (!hasExplicitDatesRule) {
+        // Only apply boundary checks for period-based flows (week/decan rules)
+        if (f.start != null && gDate.isBefore(DateUtils.dateOnly(f.start!))) continue;
+        if (f.end != null && gDate.isAfter(DateUtils.dateOnly(f.end!))) continue;
+      }
+      
       for (final r in f.rules) {
         if (r.matches(ky: kYear, km: kMonth, kd: kDay, g: g)) {
           out.add(_FlowOccurrence(

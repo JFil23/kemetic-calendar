@@ -543,6 +543,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   static const double _headerH = kLandscapeHeaderHeight;   // day number header (shared constant)
   static const double _daySepW = 1.0;    // day separator
   static const double _hourSepH = 1.0;   // hour separator
+  static const double _kLandscapeEventMinHeight = 56.0;  // was 32.0
 
   // 🔧 UPDATED: Use shared color constants
   static const Color _gold = _landscapeGold;
@@ -1002,7 +1003,11 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       if (durationMinutes > 180) {
         durationMinutes = 180;
       }
-      final height = (durationMinutes / 60.0) * _rowH;
+      // ✅ Add minimum height to prevent overflow (accounts for padding + text content)
+      final double rawHeight = (durationMinutes / 60.0) * _rowH;
+      final double height = rawHeight < _kLandscapeEventMinHeight 
+          ? _kLandscapeEventMinHeight 
+          : rawHeight;
 
       widgets.add(
         Positioned(
@@ -1023,6 +1028,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                 ),
                 borderRadius: BorderRadius.circular(4), // ✅ Radius 4 (not 6)
               ),
+              clipBehavior: Clip.hardEdge, // ✅ Prevent overflow
               child: _buildEventBlockContent(event, durationMinutes),
             ),
           ),
@@ -1043,6 +1049,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         durationMinutes > 45;
 
     return Column(
+      mainAxisSize: MainAxisSize.min, // ✅ Don't expand unnecessarily
+      mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Flow name first (if available)
@@ -1069,7 +1077,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               fontWeight: FontWeight.w500, // ✅ w500 not w600
               color: Colors.white,
             ),
-            maxLines: hasFlow ? 1 : 2,
+            maxLines: (hasFlow || durationMinutes < 90) ? 1 : 2, // ✅ Conditional line limit
             overflow: TextOverflow.ellipsis,
           )
         else
