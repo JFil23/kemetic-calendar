@@ -5488,6 +5488,7 @@ class _DecanRow extends StatelessWidget {
               onTap: () => onDayTap(context, kMonth, day),
               showGregorian: showGregorian,
               dayKey: _getKemeticDayKey(kYear, kMonth, day),
+              kYear: kYear,
             ),
           ),
         );
@@ -5505,6 +5506,7 @@ class _DayChip extends StatelessWidget {
   final Key? anchorKey;
   final bool showGregorian;
   final String dayKey;
+  final int? kYear;
 
   const _DayChip({
     super.key,  // Add key parameter
@@ -5516,6 +5518,7 @@ class _DayChip extends StatelessWidget {
     required this.showGregorian,
     this.anchorKey,
     required this.dayKey,
+    this.kYear,
   });
 
   @override
@@ -5532,6 +5535,7 @@ class _DayChip extends StatelessWidget {
 
     return KemeticDayButton(
       dayKey: dayKey,
+      kYear: kYear,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
@@ -5717,6 +5721,7 @@ class _EpagomenalCard extends StatelessWidget {
                         onTap: () => onDayTap(context, 13, n),
                         showGregorian: showGregorian,
                         dayKey: 'epagomenal_${n}_$kYear', // Epagomenal days use their own key format
+                        kYear: kYear,
                       ),
                     ),
                   );

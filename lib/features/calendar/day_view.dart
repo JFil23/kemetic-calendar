@@ -642,6 +642,7 @@ class _DayViewPageState extends State<DayViewPage> {
               alignment: Alignment.center,
               child: KemeticDayButton(
                 dayKey: _getKemeticDayKey(_currentKy, _currentKm, _currentKd),
+                kYear: _currentKy,
                 child: Text(
                   // Show: "Renwet 2, 2025" (Kemetic date + Gregorian year)
                   '${monthName.split(' ').first} $_currentKd, $gregorianYear',
