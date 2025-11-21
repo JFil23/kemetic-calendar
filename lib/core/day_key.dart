@@ -86,21 +86,19 @@ String kemeticDayKey(int kMonth, int kDay) {
 }
 
 // =============================================================================
-// EPAGOMENAL DAYS (Month 13) - NOT SUPPORTED IN dayInfoMap
+// EPAGOMENAL DAYS (Month 13) - NOW SUPPORTED IN dayInfoMap
 // =============================================================================
-// NOTE: Epagomenal days (Heriu Renpet - the 5-6 sacred transition days) use
-// a DIFFERENT key format in the codebase:
+// NOTE: Epagomenal days (Heriu Renpet - the 5 sacred transition days) now
+// use the standard key format in dayInfoMap:
 //
-//   Format: 'epagomenal_{day}_{year}'
-//   Example: 'epagomenal_1_2025'
+//   Format: 'epagomenal_{day}_1'
+//   Example: 'epagomenal_1_1', 'epagomenal_2_1', etc.
 //
-// These keys do NOT exist in dayInfoMap. Long-press will not show detail cards
-// for epagomenal days. This is by design - these sacred days are treated as
-// special transition periods outside the normal calendar structure.
+// All 5 days use decan 1 (days 1-5 all fall in decan 1).
+// The kemeticDayKey(13, kDay) function will generate the correct format.
 //
-// Location: calendar_page.dart line ~4998
-//
-// DO NOT change epagomenal key generation - it is intentionally separate.
+// Legacy note: Some code may still use 'epagomenal_{day}_{year}' format.
+// Both formats may exist in the codebase for backward compatibility.
 // =============================================================================
 
 
