@@ -9,6 +9,8 @@ import '../../data/user_events_repo.dart';
 import '../../repositories/inbox_repo.dart';
 import '../calendar/calendar_page.dart';
 import 'dart:convert';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/gestures.dart';
 
 class InboxPage extends StatefulWidget {
   const InboxPage({Key? key}) : super(key: key);
@@ -887,6 +889,25 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
       children: [
         SizedBox(
           width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => InboxFlowDetailsPage(item: widget.item),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD4AF37),
+              foregroundColor: Colors.black,
+            ),
+            child: const Text('View Full Details'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
           height: 56,
           child: _buildImportButton(),
         ),
@@ -1205,3 +1226,121 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
   }
 
 }
+
+class InboxFlowDetailsPage extends StatelessWidget {
+  final InboxShareItem item;
+
+  const InboxFlowDetailsPage({super.key, required this.item});
+
+  bool _isLikelyUrl(String text) {
+    final lower = text.toLowerCase();
+    return lower.startsWith('http://') || lower.startsWith('https://');
+  }
+
+  List<TextSpan> _buildTextSpans(String text) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'(https?://\S+)', multiLine: true);
+    int start = 0;
+
+    for (final match in regex.allMatches(text)) {
+      if (match.start > start) {
+        spans.add(TextSpan(text: text.substring(start, match.start)));
+      }
+      final url = match.group(0)!;
+      spans.add(
+        TextSpan(
+          text: url,
+          style: const TextStyle(
+            decoration: TextDecoration.underline,
+            color: Color(0xFF4DA3FF),
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () async {
+              final uri = Uri.parse(url);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+        ),
+      );
+      start = match.end;
+    }
+
+    if (start < text.length) {
+      spans.add(TextSpan(text: text.substring(start)));
+    }
+
+    return spans;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final payload = item.payloadJson ?? <String, dynamic>{};
+    final name = (payload['name'] as String?) ?? item.title;
+    final overview = (payload['overview'] as String?) ?? '';
+    final active = (payload['active'] as bool?) ?? true;
+    final colorInt = (payload['color'] as int?) ?? 0xFFD4AF37;
+    final color = Color(colorInt);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF000000),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: Text(name),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.white24, width: 1),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                active ? 'Active' : 'Inactive',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: active
+                      ? const Color(0xFF4CAF50)
+                      : const Color(0xFFB0B0B0),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (overview.isNotEmpty) ...[
+            const Text(
+              'Overview',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 4),
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFFDDDDDD),
+                  height: 1.4,
+                ),
+                children: _buildTextSpans(overview),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          // TODO: extend with schedule / rules if you want parity with Flow Studio
+        ],
+      ),
+    );
+  }
+}
+

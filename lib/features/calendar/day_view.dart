@@ -6,6 +6,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/gestures.dart';
 import 'calendar_page.dart';
 import 'landscape_month_view.dart';
 import '../sharing/share_flow_sheet.dart';
@@ -193,6 +195,9 @@ class DayViewPage extends StatefulWidget {
   final String Function(int km) getMonthName;
   final void Function(int?)? onManageFlows; // NEW: Callback to open My Flows
   final void Function(int ky, int km, int kd)? onAddNote;
+  /// Called when user taps "End Flow" on a flow event in the info bar.
+  /// If null, the End Flow button is hidden.
+  final void Function(int flowId)? onEndFlow;
 
   const DayViewPage({
     super.key,
@@ -205,6 +210,7 @@ class DayViewPage extends StatefulWidget {
     required this.getMonthName,
     this.onManageFlows, // NEW
     this.onAddNote, // 🔧 NEW
+    this.onEndFlow,
   });
 
   @override
@@ -429,6 +435,7 @@ class _DayViewPageState extends State<DayViewPage> {
                       onScrollChanged: _onScrollChanged,          // 🔧 NEW
                       onManageFlows: widget.onManageFlows, // NEW: Pass callback down
                       onAddNote: widget.onAddNote,
+                      onEndFlow: widget.onEndFlow, // Pass End Flow callback down
                     );
                   },
                 ),
@@ -666,6 +673,49 @@ class _DayViewPageState extends State<DayViewPage> {
     return '${date.month}/${date.day}/${date.year}';
   }
 
+  /// Detect whether a string looks like an HTTP/HTTPS URL.
+  bool _isLikelyUrl(String text) {
+    final lower = text.toLowerCase();
+    return lower.startsWith('http://') || lower.startsWith('https://');
+  }
+
+  /// Turn a block of text into TextSpans with clickable URLs.
+  List<TextSpan> _buildTextSpans(String text) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'(https?://\S+)', multiLine: true);
+    int start = 0;
+
+    for (final match in regex.allMatches(text)) {
+      if (match.start > start) {
+        spans.add(TextSpan(text: text.substring(start, match.start)));
+      }
+      final url = match.group(0)!;
+      spans.add(
+        TextSpan(
+          text: url,
+          style: const TextStyle(
+            decoration: TextDecoration.underline,
+            color: Color(0xFF4DA3FF),
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () async {
+              final uri = Uri.parse(url);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+        ),
+      );
+      start = match.end;
+    }
+
+    if (start < text.length) {
+      spans.add(TextSpan(text: text.substring(start)));
+    }
+
+    return spans;
+  }
+
   String _getGregorianMonthName(int month) {
     const months = [
       'January', 'February', 'March', 'April', 'May', 'June',
@@ -690,6 +740,7 @@ class DayViewGrid extends StatefulWidget {
   final void Function(double offset)? onScrollChanged; // 🔧 NEW
   final void Function(int? flowId)? onManageFlows; // NEW
   final void Function(int ky, int km, int kd)? onAddNote;
+  final void Function(int flowId)? onEndFlow;
 
   const DayViewGrid({
     super.key,
@@ -703,6 +754,7 @@ class DayViewGrid extends StatefulWidget {
     this.onScrollChanged,          // 🔧 NEW
     this.onManageFlows, // NEW
     this.onAddNote, // 🔧 NEW
+    this.onEndFlow,
   });
 
   @override
@@ -737,6 +789,49 @@ class _DayViewGridState extends State<DayViewGrid> {
     if (_scrollController.hasClients && widget.onScrollChanged != null) {
       widget.onScrollChanged!(_scrollController.offset);
     }
+  }
+
+  /// Detect whether a string looks like an HTTP/HTTPS URL.
+  bool _isLikelyUrl(String text) {
+    final lower = text.toLowerCase();
+    return lower.startsWith('http://') || lower.startsWith('https://');
+  }
+
+  /// Turn a block of text into TextSpans with clickable URLs.
+  List<TextSpan> _buildTextSpans(String text) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'(https?://\S+)', multiLine: true);
+    int start = 0;
+
+    for (final match in regex.allMatches(text)) {
+      if (match.start > start) {
+        spans.add(TextSpan(text: text.substring(start, match.start)));
+      }
+      final url = match.group(0)!;
+      spans.add(
+        TextSpan(
+          text: url,
+          style: const TextStyle(
+            decoration: TextDecoration.underline,
+            color: Color(0xFF4DA3FF),
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () async {
+              final uri = Uri.parse(url);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+        ),
+      );
+      start = match.end;
+    }
+
+    if (start < text.length) {
+      spans.add(TextSpan(text: text.substring(start)));
+    }
+
+    return spans;
   }
 
   void _scrollToSavedOrCurrentTime() {
@@ -1296,20 +1391,38 @@ class _DayViewGridState extends State<DayViewGrid> {
                 ],
               ),
               
-              // Location
+              // Location (clickable)
               if (event.location != null && event.location!.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, size: 16, color: Color(0xFF808080)),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        event.location!,
-                        style: const TextStyle(color: Color(0xFF808080)),
+                InkWell(
+                  onTap: () async {
+                    final loc = event.location!.trim();
+                    Uri uri;
+                    if (_isLikelyUrl(loc)) {
+                      uri = Uri.parse(loc);
+                    } else {
+                      final q = Uri.encodeComponent(loc);
+                      uri = Uri.parse('https://maps.google.com/?q=$q');
+                    }
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 16, color: Color(0xFF808080)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          event.location!,
+                          style: const TextStyle(
+                            color: Color(0xFF808080),
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
               
@@ -1335,11 +1448,13 @@ class _DayViewGridState extends State<DayViewGrid> {
                     return const SizedBox.shrink();
                   }
                   
-                  return Text(
-                    displayDetail,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
+                  return RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                      ),
+                      children: _buildTextSpans(displayDetail),
                     ),
                   );
                 },
@@ -1352,11 +1467,29 @@ class _DayViewGridState extends State<DayViewGrid> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // End Flow only if this event is tied to a flow and callback provided
+                  if (event.flowId != null && widget.onEndFlow != null)
+                    TextButton.icon(
+                      onPressed: () {
+                        final id = event.flowId;
+                        Navigator.pop(context);
+                        if (id != null) {
+                          widget.onEndFlow!(id);
+                        }
+                      },
+                      icon: const Icon(Icons.stop_circle, color: Color(0xFFFFC145)),
+                      label: const Text(
+                        'End Flow',
+                        style: TextStyle(color: Color(0xFFFFC145)),
+                      ),
+                    ),
                   TextButton.icon(
-                    onPressed: widget.onManageFlows == null ? null : () {
-                      Navigator.pop(context); // Close the detail sheet
-                      widget.onManageFlows!(null); // Navigate to My Flows
-                    },
+                    onPressed: widget.onManageFlows == null
+                        ? null
+                        : () {
+                            Navigator.pop(context);
+                            widget.onManageFlows!(null);
+                          },
                     icon: Icon(
                       Icons.view_timeline, 
                       color: widget.onManageFlows == null 

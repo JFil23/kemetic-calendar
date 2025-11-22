@@ -28,6 +28,8 @@ import '../../services/ai_flow_generation_service.dart';
 import '../../models/ai_flow_generation_response.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/gestures.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/widgets/month_name_text.dart';
@@ -2734,6 +2736,39 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                         await _loadFromDisk();
                       }
                     },
+                    getFlowNotes: (flowId) {
+                      final result = <({int ky, int km, int kd, _Note note})>[];
+                      final notesMap = _notes;
+                      notesMap.forEach((key, list) {
+                        final parts = key.split('-');
+                        if (parts.length != 3) return;
+                        final ky = int.tryParse(parts[0]);
+                        final km = int.tryParse(parts[1]);
+                        final kd = int.tryParse(parts[2]);
+                        if (ky == null || km == null || kd == null) return;
+                        for (final note in list) {
+                          if (note.flowId == flowId) {
+                            result.add((ky: ky, km: km, kd: kd, note: note));
+                          }
+                        }
+                      });
+                      // Sort by Gregorian date, then by start time if available
+                      result.sort((a, b) {
+                        final ga = KemeticMath.toGregorian(a.ky, a.km, a.kd);
+                        final gb = KemeticMath.toGregorian(b.ky, b.km, b.kd);
+                        final cmp = ga.compareTo(gb);
+                        if (cmp != 0) return cmp;
+                        final sa = a.note.start;
+                        final sb = b.note.start;
+                        if (sa == null && sb == null) return 0;
+                        if (sa == null) return -1;
+                        if (sb == null) return 1;
+                        final ma = sa.hour * 60 + sa.minute;
+                        final mb = sb.hour * 60 + sb.minute;
+                        return ma.compareTo(mb);
+                      });
+                      return result;
+                    },
                   ),
                 ),
               );
@@ -2889,6 +2924,39 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
             if (importedFlowId != null) {
               await _loadFromDisk();
             }
+          },
+          getFlowNotes: (flowId) {
+            final result = <({int ky, int km, int kd, _Note note})>[];
+            final notesMap = _notes;
+            notesMap.forEach((key, list) {
+              final parts = key.split('-');
+              if (parts.length != 3) return;
+              final ky = int.tryParse(parts[0]);
+              final km = int.tryParse(parts[1]);
+              final kd = int.tryParse(parts[2]);
+              if (ky == null || km == null || kd == null) return;
+              for (final note in list) {
+                if (note.flowId == flowId) {
+                  result.add((ky: ky, km: km, kd: kd, note: note));
+                }
+              }
+            });
+            // Sort by Gregorian date, then by start time if available
+            result.sort((a, b) {
+              final ga = KemeticMath.toGregorian(a.ky, a.km, a.kd);
+              final gb = KemeticMath.toGregorian(b.ky, b.km, b.kd);
+              final cmp = ga.compareTo(gb);
+              if (cmp != 0) return cmp;
+              final sa = a.note.start;
+              final sb = b.note.start;
+              if (sa == null && sb == null) return 0;
+              if (sa == null) return -1;
+              if (sb == null) return 1;
+              final ma = sa.hour * 60 + sa.minute;
+              final mb = sb.hour * 60 + sb.minute;
+              return ma.compareTo(mb);
+            });
+            return result;
           },
         );
       },
@@ -3199,6 +3267,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
           getMonthName: getMonthName,
           onManageFlows: (flowId) => _getFlowStudioCallback()(flowId),
           onAddNote: (ky, km, kd) => _openDaySheet(ky, km, kd, allowDateChange: true),
+          onEndFlow: _endFlow,
         ),
       ),
     ).then((_) {
@@ -4712,6 +4781,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
           _openDaySheet(ky, km, kd, allowDateChange: true);
         },
         onMonthChanged: _handleLandscapeMonthChanged, // ✅ ADD CALLBACK
+        onEndFlow: _endFlow,
       );
     }
 
@@ -5479,7 +5549,7 @@ class _DecanRow extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.only(right: j == 9 ? 0 : 6),
             child: _DayChip(
-              key: ValueKey('k:$kYear-$kMonth-$day|${showGregorian ? "G" : "K"}'), // 🔑 Unique key with mode
+              key: ValueKey('m:$kMonth-d:$day|${showGregorian ? "G" : "K"}'), // ✅ Stable identity - year is in parent
               anchorKey: isToday ? todayDayKey : null, // 🔑 attach
               label: label,
               isToday: isToday,
@@ -5713,6 +5783,7 @@ class _EpagomenalCard extends StatelessWidget {
                     child: Padding(
                       padding: EdgeInsets.only(right: i == epiCount - 1 ? 0 : 6),
                       child: _DayChip(
+                        key: ValueKey('epagomenal-$n|${showGregorian ? "G" : "K"}'), // ✅ Stable identity without kYear
                         anchorKey: isToday ? todayDayKey : null, // 🔑
                         label: label,
                         isToday: isToday,
@@ -5720,7 +5791,7 @@ class _EpagomenalCard extends StatelessWidget {
                         flowColors: flowColors,
                         onTap: () => onDayTap(context, 13, n),
                         showGregorian: showGregorian,
-                        dayKey: 'epagomenal_${n}_$kYear', // Epagomenal days use their own key format
+                        dayKey: 'epagomenal_${n}_1', // ✅ Constant year for stable identity
                         kYear: kYear,
                       ),
                     ),
@@ -7569,6 +7640,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           },
           isMaatInstance: (f.notes ?? '').contains('maat='),
           onEndMaatFlow: null, // Flow Studio can't end flows (no access to _endFlow)
+          getFlowNotes: null, // Flow Studio doesn't have access to _notes
         ),
       ),
     );
@@ -8531,6 +8603,7 @@ class _FlowPreviewPage extends StatelessWidget {
     required this.onEdit,
     this.onEndMaatFlow,
     this.isMaatInstance = false,
+    this.getFlowNotes,
   });
 
   final _Flow flow;
@@ -8544,6 +8617,186 @@ class _FlowPreviewPage extends StatelessWidget {
   /// if provided & [isMaatInstance] true, show a gold-outline "End Flow" button.
   final VoidCallback? onEndMaatFlow;
   final bool isMaatInstance;
+  
+  /// Function to collect all notes for a given flow ID
+  final List<({int ky, int km, int kd, _Note note})> Function(int flowId)? getFlowNotes;
+
+  bool _isLikelyUrl(String text) {
+    final lower = text.toLowerCase();
+    return lower.startsWith('http://') || lower.startsWith('https://');
+  }
+
+  List<TextSpan> _buildTextSpans(String text) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'(https?://\S+)', multiLine: true);
+    int start = 0;
+
+    for (final match in regex.allMatches(text)) {
+      if (match.start > start) {
+        spans.add(TextSpan(text: text.substring(start, match.start)));
+      }
+      final url = match.group(0)!;
+      spans.add(
+        TextSpan(
+          text: url,
+          style: const TextStyle(
+            decoration: TextDecoration.underline,
+            color: Color(0xFF4DA3FF),
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () async {
+              final uri = Uri.parse(url);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+        ),
+      );
+      start = match.end;
+    }
+
+    if (start < text.length) {
+      spans.add(TextSpan(text: text.substring(start)));
+    }
+
+    return spans;
+  }
+
+  /// Collect all notes in _notes that belong to this flow
+  List<({int ky, int km, int kd, _Note note})> _collectFlowNotes() {
+    if (getFlowNotes == null) return [];
+    return getFlowNotes!(flow.id);
+  }
+
+  /// Pretty "9:00 AM – 10:00 AM" formatting for note times
+  String _formatNoteTimeRange(_Note note) {
+    if (note.allDay || note.start == null || note.end == null) {
+      return 'All day';
+    }
+
+    String fmtTime(TimeOfDay t) {
+      final h = t.hour;
+      final m = t.minute;
+      final period = h >= 12 ? 'PM' : 'AM';
+      final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+      return '$hour12:${m.toString().padLeft(2, '0')} $period';
+    }
+
+    return '${fmtTime(note.start!)} – ${fmtTime(note.end!)}';
+  }
+
+  /// Single card UI for each day's note content
+  Widget _buildDayDetailCard(({int ky, int km, int kd, _Note note}) entry) {
+    final note = entry.note;
+    final g = KemeticMath.toGregorian(entry.ky, entry.km, entry.kd);
+    final dateLabel = fmt(g);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0D0F),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title (same as day card title)
+          Text(
+            note.title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+
+          // Date
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.calendar_today, size: 13, color: Color(0xFF808080)),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  dateLabel,
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF808080)),
+                ),
+              ),
+            ],
+          ),
+
+          // Time (if not all-day)
+          if (!note.allDay && note.start != null && note.end != null) ...[
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                const Icon(Icons.access_time, size: 13, color: Color(0xFF808080)),
+                const SizedBox(width: 4),
+                Text(
+                  _formatNoteTimeRange(note),
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF808080)),
+                ),
+              ],
+            ),
+          ],
+
+          // Location (clickable)
+          if (note.location != null && note.location!.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            InkWell(
+              onTap: () async {
+                final loc = note.location!.trim();
+                Uri uri;
+                if (_isLikelyUrl(loc)) {
+                  uri = Uri.parse(loc);
+                } else {
+                  final q = Uri.encodeComponent(loc);
+                  uri = Uri.parse('https://maps.google.com/?q=$q');
+                }
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.location_on, size: 13, color: Color(0xFF808080)),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      note.location!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF808080),
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Details text (this is what you see in the day card) - with clickable URLs
+          if (note.detail != null && note.detail!.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFFDDDDDD),
+                  height: 1.4,
+                ),
+                children: _buildTextSpans(note.detail!),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   List<Widget> _buildSchedule(BuildContext context) {
     final rows = <TableRow>[];
@@ -8662,6 +8915,8 @@ class _FlowPreviewPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final flowNotes = _collectFlowNotes();
+    
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -8733,9 +8988,19 @@ class _FlowPreviewPage extends StatelessWidget {
             gradient: silverGloss,
           ),
           const SizedBox(height: 6),
-          Text(
-            (overview.trim().isEmpty) ? '—' : overview.trim(),
-            style: const TextStyle(color: Colors.white, height: 1.35),
+          Builder(
+            builder: (context) {
+              final displayOverview = overview.trim().isEmpty ? '—' : overview.trim();
+              if (displayOverview == '—') {
+                return Text(displayOverview, style: const TextStyle(color: Colors.white, height: 1.35));
+              }
+              return RichText(
+                text: TextSpan(
+                  style: const TextStyle(color: Colors.white, height: 1.35),
+                  children: _buildTextSpans(displayOverview),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 16),
 
@@ -8764,6 +9029,18 @@ class _FlowPreviewPage extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           ..._buildSchedule(context),
+
+          // Show the actual day card content for this flow
+          if (flowNotes.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const GlossyText(
+              text: 'Day Details',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              gradient: silverGloss,
+            ),
+            const SizedBox(height: 8),
+            for (final entry in flowNotes) _buildDayDetailCard(entry),
+          ],
         ],
       ),
     );
@@ -8838,6 +9115,7 @@ class _FlowsViewerPage extends StatefulWidget {
     required this.openMaatFlows,
     required this.onEndFlow,
     this.onImportFlow,
+    this.getFlowNotes,
   });
 
   final List<_Flow> flows;
@@ -8847,6 +9125,7 @@ class _FlowsViewerPage extends StatefulWidget {
   final VoidCallback openMaatFlows; // <-- NEW
   final void Function(int flowId) onEndFlow;
   final Future<void> Function(int? importedFlowId)? onImportFlow;
+  final List<({int ky, int km, int kd, _Note note})> Function(int flowId)? getFlowNotes;
 
   @override
   State<_FlowsViewerPage> createState() => _FlowsViewerPageState();
@@ -8904,7 +9183,9 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
                     Navigator.of(context).pop();
                   }
                       : null,
-
+                  getFlowNotes: widget.getFlowNotes != null
+                      ? (flowId) => widget.getFlowNotes!(flowId)
+                      : null,
                 ),
               ),
             )

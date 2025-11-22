@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart'; // For DragStartBehavior
+import 'package:url_launcher/url_launcher.dart';
 import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart'; // For KemeticMath
 import '../sharing/share_flow_sheet.dart';
@@ -37,6 +38,7 @@ class LandscapeMonthView extends StatelessWidget {
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
+  final void Function(int flowId)? onEndFlow;
 
   const LandscapeMonthView({
     super.key,
@@ -50,6 +52,7 @@ class LandscapeMonthView extends StatelessWidget {
     this.onManageFlows,
     this.onAddNote,
     this.onMonthChanged, // ✅ NEW CALLBACK
+    this.onEndFlow,
   });
 
   @override
@@ -65,6 +68,7 @@ class LandscapeMonthView extends StatelessWidget {
       onManageFlows: onManageFlows,
       onAddNote: onAddNote,
       onMonthChanged: onMonthChanged, // ✅ PASS CALLBACK DOWN
+      onEndFlow: onEndFlow,
     );
   }
 }
@@ -85,6 +89,7 @@ class LandscapeMonthPager extends StatefulWidget {
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
+  final void Function(int flowId)? onEndFlow;
 
   const LandscapeMonthPager({
     super.key,
@@ -98,6 +103,7 @@ class LandscapeMonthPager extends StatefulWidget {
     this.onManageFlows,
     this.onAddNote,
     this.onMonthChanged, // ✅ NEW CALLBACK
+    this.onEndFlow,
   });
 
   @override
@@ -497,6 +503,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           getMonthName: widget.getMonthName,
           onManageFlows: widget.onManageFlows,
           onAddNote: widget.onAddNote,
+          onEndFlow: widget.onEndFlow,
         );
       },
     );
@@ -518,6 +525,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
   final String Function(int km) getMonthName;
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
+  final void Function(int flowId)? onEndFlow;
 
   const LandscapeMonthGridBody({
     super.key,
@@ -530,6 +538,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
     required this.getMonthName,
     this.onManageFlows,
     this.onAddNote,
+    this.onEndFlow,
   });
 
   @override
@@ -1235,31 +1244,51 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                   ],
                 ),
 
-                // Location
+                // Location (clickable)
                 if (event.location != null && event.location!.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on, size: 16, color: Color(0xFF808080)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          event.location!,
-                          style: const TextStyle(color: Color(0xFF808080)),
+                  InkWell(
+                    onTap: () async {
+                      final loc = event.location!.trim();
+                      Uri uri;
+                      if (_isLikelyUrl(loc)) {
+                        uri = Uri.parse(loc);
+                      } else {
+                        final q = Uri.encodeComponent(loc);
+                        uri = Uri.parse('https://maps.google.com/?q=$q');
+                      }
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_on, size: 16, color: Color(0xFF808080)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            event.location!,
+                            style: const TextStyle(
+                              color: Color(0xFF808080),
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
 
                 // Details
                 if (event.detail != null && event.detail!.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  Text(
-                    event.detail!,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                      ),
+                      children: _buildTextSpans(event.detail!),
                     ),
                   ),
                 ],
@@ -1270,11 +1299,29 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // End Flow only if this event is tied to a flow and callback provided
+                    if (event.flowId != null && widget.onEndFlow != null)
+                      TextButton.icon(
+                        onPressed: () {
+                          final id = event.flowId;
+                          Navigator.pop(context);
+                          if (id != null) {
+                            widget.onEndFlow!(id);
+                          }
+                        },
+                        icon: const Icon(Icons.stop_circle, color: _landscapeGold),
+                        label: const Text(
+                          'End Flow',
+                          style: TextStyle(color: _landscapeGold),
+                        ),
+                      ),
                     TextButton.icon(
-                      onPressed: widget.onManageFlows == null ? null : () {
-                        Navigator.pop(context);
-                        widget.onManageFlows!(null);
-                      },
+                      onPressed: widget.onManageFlows == null
+                          ? null
+                          : () {
+                              Navigator.pop(context);
+                              widget.onManageFlows!(null);
+                            },
                       icon: Icon(
                         Icons.view_timeline,
                         color: widget.onManageFlows == null
@@ -1337,6 +1384,49 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     if (hour < 12) return '$hour AM';
     if (hour == 12) return '12 PM';
     return '${hour - 12} PM';
+  }
+
+  /// Detect whether a string looks like an HTTP/HTTPS URL.
+  bool _isLikelyUrl(String text) {
+    final lower = text.toLowerCase();
+    return lower.startsWith('http://') || lower.startsWith('https://');
+  }
+
+  /// Turn a block of text into TextSpans with clickable URLs.
+  List<TextSpan> _buildTextSpans(String text) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'(https?://\S+)', multiLine: true);
+    int start = 0;
+
+    for (final match in regex.allMatches(text)) {
+      if (match.start > start) {
+        spans.add(TextSpan(text: text.substring(start, match.start)));
+      }
+      final url = match.group(0)!;
+      spans.add(
+        TextSpan(
+          text: url,
+          style: const TextStyle(
+            decoration: TextDecoration.underline,
+            color: Color(0xFF4DA3FF),
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () async {
+              final uri = Uri.parse(url);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+        ),
+      );
+      start = match.end;
+    }
+
+    if (start < text.length) {
+      spans.add(TextSpan(text: text.substring(start)));
+    }
+
+    return spans;
   }
 
   String _formatTimeRange(int startMin, int endMin) {
