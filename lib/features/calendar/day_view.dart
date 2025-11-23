@@ -673,10 +673,102 @@ class _DayViewPageState extends State<DayViewPage> {
     return '${date.month}/${date.day}/${date.year}';
   }
 
-  /// Detect whether a string looks like an HTTP/HTTPS URL.
+  /// Detect whether a string looks like a URL, email, or phone number.
   bool _isLikelyUrl(String text) {
-    final lower = text.toLowerCase();
-    return lower.startsWith('http://') || lower.startsWith('https://');
+    final lower = text.toLowerCase().trim();
+    
+    // Already has protocol
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return true;
+    }
+    
+    // Email pattern (check early - most specific)
+    if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
+      return true;
+    }
+    
+    // Phone number pattern (check for phone-like formatting)
+    final phonePattern = RegExp(r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$');
+    final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
+    if (phonePattern.hasMatch(lower) || (digitsOnly.length >= 10 && digitsOnly.length <= 15 && RegExp(r'^\+?[0-9]+$').hasMatch(digitsOnly))) {
+      return true;
+    }
+    
+    // Known service domains (most reliable)
+    final knownServices = [
+      r'zoom\.us',
+      r'meet\.google\.com',
+      r'youtube\.com',
+      r'youtu\.be',
+      r'facebook\.com',
+      r'instagram\.com',
+      r'twitter\.com',
+      r'linkedin\.com',
+      r'tiktok\.com',
+      r'discord\.gg',
+      r'slack\.com',
+      r'teams\.microsoft\.com',
+    ];
+    
+    for (final service in knownServices) {
+      if (RegExp(service).hasMatch(lower)) {
+        return true;
+      }
+    }
+    
+    // Generic domain pattern (but require at least one dot and TLD, no spaces)
+    if (RegExp(r'^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}(/.*)?$').hasMatch(lower) && 
+        lower.contains('.') && 
+        !lower.contains(' ')) { // No spaces = likely URL, not address
+      return true;
+    }
+    
+    // www. prefix
+    if (lower.startsWith('www\.')) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  /// Launch URL/email/phone, or treat as address and open in Maps.
+  Future<void> _launchLocation(String raw) async {
+    final loc = raw.trim();
+    if (loc.isEmpty) return;
+
+    Uri uri;
+
+    if (_isLikelyUrl(loc)) {
+      final lower = loc.toLowerCase();
+
+      // Already a full URL
+      if (lower.startsWith('http://') || lower.startsWith('https://')) {
+        uri = Uri.parse(loc);
+      }
+      // Email
+      else if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
+        uri = Uri.parse('mailto:$loc');
+      }
+      // Phone
+      else {
+        final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
+        final phonePattern = RegExp(r'^\+?[0-9]{7,15}$');
+        if (phonePattern.hasMatch(digitsOnly)) {
+          uri = Uri.parse('tel:$loc');
+        } else {
+          // Bare domain or known service → assume https
+          uri = Uri.parse('https://$loc');
+        }
+      }
+    } else {
+      // Not URL/email/phone → treat as address (Maps)
+      final q = Uri.encodeComponent(loc);
+      uri = Uri.parse('https://maps.google.com/?q=$q');
+    }
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   /// Turn a block of text into TextSpans with clickable URLs.
@@ -791,10 +883,102 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
   }
 
-  /// Detect whether a string looks like an HTTP/HTTPS URL.
+  /// Detect whether a string looks like a URL, email, or phone number.
   bool _isLikelyUrl(String text) {
-    final lower = text.toLowerCase();
-    return lower.startsWith('http://') || lower.startsWith('https://');
+    final lower = text.toLowerCase().trim();
+    
+    // Already has protocol
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return true;
+    }
+    
+    // Email pattern (check early - most specific)
+    if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
+      return true;
+    }
+    
+    // Phone number pattern (check for phone-like formatting)
+    final phonePattern = RegExp(r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$');
+    final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
+    if (phonePattern.hasMatch(lower) || (digitsOnly.length >= 10 && digitsOnly.length <= 15 && RegExp(r'^\+?[0-9]+$').hasMatch(digitsOnly))) {
+      return true;
+    }
+    
+    // Known service domains (most reliable)
+    final knownServices = [
+      r'zoom\.us',
+      r'meet\.google\.com',
+      r'youtube\.com',
+      r'youtu\.be',
+      r'facebook\.com',
+      r'instagram\.com',
+      r'twitter\.com',
+      r'linkedin\.com',
+      r'tiktok\.com',
+      r'discord\.gg',
+      r'slack\.com',
+      r'teams\.microsoft\.com',
+    ];
+    
+    for (final service in knownServices) {
+      if (RegExp(service).hasMatch(lower)) {
+        return true;
+      }
+    }
+    
+    // Generic domain pattern (but require at least one dot and TLD, no spaces)
+    if (RegExp(r'^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}(/.*)?$').hasMatch(lower) && 
+        lower.contains('.') && 
+        !lower.contains(' ')) { // No spaces = likely URL, not address
+      return true;
+    }
+    
+    // www. prefix
+    if (lower.startsWith('www\.')) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  /// Launch URL/email/phone, or treat as address and open in Maps.
+  Future<void> _launchLocation(String raw) async {
+    final loc = raw.trim();
+    if (loc.isEmpty) return;
+
+    Uri uri;
+
+    if (_isLikelyUrl(loc)) {
+      final lower = loc.toLowerCase();
+
+      // Already a full URL
+      if (lower.startsWith('http://') || lower.startsWith('https://')) {
+        uri = Uri.parse(loc);
+      }
+      // Email
+      else if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
+        uri = Uri.parse('mailto:$loc');
+      }
+      // Phone
+      else {
+        final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
+        final phonePattern = RegExp(r'^\+?[0-9]{7,15}$');
+        if (phonePattern.hasMatch(digitsOnly)) {
+          uri = Uri.parse('tel:$loc');
+        } else {
+          // Bare domain or known service → assume https
+          uri = Uri.parse('https://$loc');
+        }
+      }
+    } else {
+      // Not URL/email/phone → treat as address (Maps)
+      final q = Uri.encodeComponent(loc);
+      uri = Uri.parse('https://maps.google.com/?q=$q');
+    }
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   /// Turn a block of text into TextSpans with clickable URLs.
@@ -1089,8 +1273,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     
     final showTitle = event.title.trim().isNotEmpty;
     final showLocation = event.location != null &&
-        event.location!.trim().isNotEmpty &&
-        durationMinutes > 45;
+        event.location!.trim().isNotEmpty;
     
     return Column(
       mainAxisSize: MainAxisSize.min, // ✅ Don't expand unnecessarily
@@ -1138,18 +1321,22 @@ class _DayViewGridState extends State<DayViewGrid> {
             overflow: TextOverflow.ellipsis,
           ),
         
-        // Location (if space allows)
+        // Location (clickable)
         if (showLocation)
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Text(
-              event.location!.trim(),
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.white.withOpacity(0.7),
+            child: InkWell(
+              onTap: () => _launchLocation(event.location!.trim()),
+              child: Text(
+                event.location!.trim(),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.white.withOpacity(0.7),
+                  decoration: TextDecoration.underline,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
       ],
@@ -1395,19 +1582,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               if (event.location != null && event.location!.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 InkWell(
-                  onTap: () async {
-                    final loc = event.location!.trim();
-                    Uri uri;
-                    if (_isLikelyUrl(loc)) {
-                      uri = Uri.parse(loc);
-                    } else {
-                      final q = Uri.encodeComponent(loc);
-                      uri = Uri.parse('https://maps.google.com/?q=$q');
-                    }
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
-                    }
-                  },
+                  onTap: () => _launchLocation(event.location!.trim()),
                   child: Row(
                     children: [
                       const Icon(Icons.location_on, size: 16, color: Color(0xFF808080)),
