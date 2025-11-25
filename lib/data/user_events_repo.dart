@@ -356,12 +356,25 @@ class UserEventsRepo {
 
     final filtered = (rows as List).cast<Map<String, dynamic>>().where((row) {
       final int? fid = (row['flow_local_id'] as num?)?.toInt();
-      if (fid == null) return true; // keep unassigned notes (free-floating notes)
+      
+      // Standalone events (no flow) are fine
+      if (fid == null) return true;
+      
+      // 🚫 Orphaned event: has flow_local_id but no flow row (flow was deleted)
       final Map<String, dynamic>? flow = row['flows'] as Map<String, dynamic>?;
-      if (flow == null) return false; // flow missing or not visible via RLS
+      if (flow == null) {
+        // Orphaned event - skip it
+        return false;
+      }
+      
+      // If there's a flow, it must be active
       final bool active = (flow['active'] as bool?) ?? false;
+      if (!active) {
+        // Flow exists but is inactive - skip it
+        return false;
+      }
 
-      // Treat flows as "ended" ONLY if they're inactive OR their end_date is in the past.
+      // Treat flows as "ended" ONLY if their end_date is in the past.
       // If end_date is in the future (or today), we still want to see them on the calendar.
       final String? endDateStr = flow['end_date'] as String?;
       bool expired = false;
@@ -371,7 +384,7 @@ class UserEventsRepo {
         expired = endDate.isBefore(now);
       }
 
-      return active && !expired;
+      return !expired; // Only return true if flow is active AND not expired
     }).map((row) => (
     clientEventId: row['client_event_id'] as String?,  // ✅ ADDED THIS LINE
     title: row['title'] as String,
@@ -473,7 +486,6 @@ class UserEventsRepo {
     DateTime? endDate,
     String? notes,
     required String rules,
-    bool isHidden = false, // NEW: Add parameter with default
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -489,7 +501,6 @@ class UserEventsRepo {
       'end_date': endDate?.toIso8601String(),
       'notes': notes,
       'rules': jsonDecode(rules),
-      'is_hidden': isHidden, // NEW: Include in payload
     };
 
     if (id == null || id <= 0) {
@@ -513,16 +524,15 @@ class UserEventsRepo {
 
   /// Fetch all flows for the signed-in user.
   Future<List<({
-  int id,
-  String name,
-  int color,
-  bool active,
-  DateTime? startDate,
-  DateTime? endDate,
-  String? notes,
-  String rules,
-  String? shareId, // NEW: Include shareId
-  bool isHidden, // NEW: Include isHidden
+    int id,
+    String name,
+    int color,
+    bool active,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? notes,
+    String rules,
+    String? shareId, // NEW: Include shareId
   })>> getAllFlows() async {
     final user = _client.auth.currentUser;
     if (user == null) return [];
@@ -531,6 +541,7 @@ class UserEventsRepo {
         .from('flows')
         .select()
         .eq('user_id', user.id)
+        .eq('active', true)  // 👈 FIX: Only load active flows
         .order('created_at', ascending: false);
 
     return (res as List).map((row) => (
@@ -543,7 +554,6 @@ class UserEventsRepo {
     notes: row['notes'] as String?,
     rules: jsonEncode(row['rules']),
     shareId: row['share_id'] as String?, // NEW: Include share_id
-    isHidden: (row['is_hidden'] as bool?) ?? false, // NEW: Read from database
     )).toList();
   }
 

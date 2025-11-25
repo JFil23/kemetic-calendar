@@ -39,13 +39,20 @@ class EventLayoutEngine {
       final endMin = note.allDay ? 17 * 60 : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
       
       // Get flow color
-      Color eventColor = Colors.blue;
-      if (note.flowId != null) {
+      Color eventColor = Colors.blue; // sensible default
+      
+      // 1) per-note manual color wins
+      if (note.manualColor != null) {
+        eventColor = note.manualColor!;
+      }
+      // 2) flow color if this note belongs to a flow
+      else if (note.flowId != null) {
         final flow = flowIndex[note.flowId];
         if (flow != null) {
           eventColor = flow.color;
         }
       }
+      // 3) fallback color for plain notes (already set above)
 
       events.add(EventItem(
         title: note.title,
@@ -118,6 +125,7 @@ class NoteData {
   final TimeOfDay? start;
   final TimeOfDay? end;
   final int? flowId;
+  final Color? manualColor;
 
   const NoteData({
     required this.title,
@@ -127,6 +135,7 @@ class NoteData {
     this.start,
     this.end,
     this.flowId,
+    this.manualColor,
   });
 }
 

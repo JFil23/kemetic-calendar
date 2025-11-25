@@ -958,13 +958,20 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       final startMin = note.allDay ? 9 * 60 : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
       final endMin = note.allDay ? 17 * 60 : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
 
-      Color eventColor = Colors.blue;
-      if (note.flowId != null) {
+      Color eventColor = Colors.blue; // sensible default
+      
+      // 1) per-note manual color wins
+      if (note.manualColor != null) {
+        eventColor = note.manualColor!;
+      }
+      // 2) flow color if this note belongs to a flow
+      else if (note.flowId != null) {
         final flow = widget.flowIndex[note.flowId];
         if (flow != null) {
           eventColor = flow.color;
         }
       }
+      // 3) fallback color for plain notes (already set above)
 
       events.add(_EventItem(
         title: note.title,
