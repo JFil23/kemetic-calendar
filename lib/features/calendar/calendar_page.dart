@@ -7051,6 +7051,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   // AI mode flag
   bool _isAIGeneratedFlow = false;
 
+  // Loading flag for async flow loading
+  bool _isLoadingFlow = false;
+
   // cached spans + per-period selections
   List<_KemeticDecanSpan> _kemeticSpans = const [];
   List<_WeekSpan> _weekSpans = const [];
@@ -8823,6 +8826,270 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     }
   }
 
+  /// Load a flow by ID from database (for imported or AI flows not in existingFlows)
+  Future<void> _loadFlowByIdFromDb(int flowId) async {
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] START: flowId=$flowId');
+    }
+    
+    final flowsRepo = FlowsRepo(Supabase.instance.client);
+    final eventsRepo = UserEventsRepo(Supabase.instance.client);
+    
+    // 1️⃣ Load the flow row
+    final flowRow = await flowsRepo.getFlowById(flowId);
+    if (flowRow == null) {
+      if (kDebugMode) {
+        print('🔍 [LoadFlow] ERROR: Flow not found');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Flow not found')),
+        );
+      }
+      return;
+    }
+
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] Flow found: name="${flowRow.name}", startDate=${flowRow.startDate}, endDate=${flowRow.endDate}');
+    }
+
+    // If this is an AI-generated flow, keep the existing AI path
+    final isAiGenerated = (flowRow.aiMetadata?['generated'] as bool?) == true;
+    if (isAiGenerated) {
+      if (kDebugMode) {
+        print('🔍 [LoadFlow] Detected AI flow, delegating to _loadAIGeneratedFlow');
+      }
+      await _loadAIGeneratedFlow(flowId);
+      return;
+    }
+
+    // 2️⃣ Load all events for this flow (this is what the importer writes)
+    final eventRecords = await eventsRepo.getEventsForFlow(flowId);
+    
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] Loaded ${eventRecords.length} event records');
+    }
+    
+    // ✅ CORRECTED: Map records → UserEvent using the same helper as AI path
+    final userEvents = eventRecords.map((record) {
+      return UserEvent(
+        id: record.id ?? '',
+        clientEventId: record.clientEventId,
+        title: record.title,
+        detail: record.detail,
+        location: record.location,
+        allDay: record.allDay,
+        startsAt: record.startsAtUtc,
+        endsAt: record.endsAtUtc,
+        flowLocalId: record.flowLocalId,
+      );
+    }).toList();
+
+    // If there are *no* events, fall back to the existing rule-based loader
+    if (userEvents.isEmpty) {
+      if (kDebugMode) {
+        print('🔍 [LoadFlow] No events found, using rule-based loader fallback');
+      }
+      final rules = flowRow.rules
+          .map((r) => CalendarPage.ruleFromJson(r as Map<String, dynamic>))
+          .toList();
+
+      final f = _Flow(
+        id: flowRow.id,
+        name: flowRow.name,
+        color: Color(rgbToArgb(flowRow.color)),
+        active: flowRow.active,
+        start: flowRow.startDate,
+        end: flowRow.endDate,
+        notes: flowRow.notes,
+        rules: rules,
+        shareId: null,
+        isHidden: false,
+      );
+
+      _editing = f;
+      _nameCtrl.text = f.name;
+      _active = f.active;
+      _loadFlowForEdit(f);
+      return;
+    }
+
+    // 3️⃣ Calculate start / end dates from the imported events
+    userEvents.sort((a, b) => a.startsAt.compareTo(b.startsAt));
+    final firstDate = userEvents.first.startsAt.toLocal();
+    final lastDate = userEvents.last.startsAt.toLocal();
+    final startDate = _dateOnly(flowRow.startDate ?? firstDate);
+    final endDate = _dateOnly(flowRow.endDate ?? lastDate);
+
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] Calculated dates:');
+      print('  firstDate from events: $firstDate');
+      print('  lastDate from events: $lastDate');
+      print('  flowRow.startDate: ${flowRow.startDate}');
+      print('  flowRow.endDate: ${flowRow.endDate}');
+      print('  final startDate: $startDate');
+      print('  final endDate: $endDate');
+    }
+
+    // 4️⃣ Build _Flow model for the editor
+    final rules = flowRow.rules
+        .map((r) => CalendarPage.ruleFromJson(r as Map<String, dynamic>))
+        .toList();
+
+    final f = _Flow(
+      id: flowRow.id,
+      name: flowRow.name,
+      color: Color(rgbToArgb(flowRow.color)),
+      active: flowRow.active,
+      start: startDate,
+      end: endDate,
+      notes: flowRow.notes,
+      rules: rules,
+      shareId: null,
+      isHidden: false,
+    );
+
+    // 5️⃣ Decode notes meta (overview, kemetic flag, split)
+    final meta = notesDecode(f.notes);
+    
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] Decoded meta: kemetic=${meta.kemetic}, overview="${meta.overview}"');
+    }
+    
+    // Clear existing drafts before converting
+    for (final dayList in _draftsByDay.values) {
+      for (final draft in dayList) {
+        draft.dispose();
+      }
+    }
+    _draftsByDay.clear();
+
+    // 6️⃣ 🚨 CRITICAL ORDERING: Set context BEFORE initializing selections
+    // _populateGregorianSelections() needs _startDate to calculate week indices
+    // _convertEventsToDrafts() needs _useKemetic to build correct date keys
+    // Match AI flow path EXACTLY: set dates OUTSIDE setState
+    _startDate = startDate;
+    _endDate = endDate;
+    _useKemetic = meta.kemetic;
+    _splitByPeriod = true;  // imported flows behave like customize mode
+    _syncReady = true;
+    
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] Set state variables OUTSIDE setState:');
+      print('  _startDate: $_startDate');
+      print('  _endDate: $_endDate');
+      print('  _useKemetic: $_useKemetic');
+      print('  _splitByPeriod: $_splitByPeriod');
+      print('  _syncReady: $_syncReady');
+      print('  _hasFullRange: $_hasFullRange');
+    }
+    
+    // 7️⃣ Build spans now that mode is known (BEFORE converting events, like AI path)
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] Calling _rebuildSpans() (first call)');
+    }
+    _rebuildSpans();
+    
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] After first _rebuildSpans():');
+      print('  _kemeticSpans.length: ${_kemeticSpans.length}');
+      print('  _weekSpans.length: ${_weekSpans.length}');
+    }
+    
+    // 8️⃣ NOW convert events → drafts (same helper AI uses)
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] Converting ${userEvents.length} events to drafts');
+    }
+    _convertEventsToDrafts(userEvents);
+
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] After _convertEventsToDrafts():');
+      print('  _draftsByDay.length: ${_draftsByDay.length}');
+      print('  _draftsByDay.keys: ${_draftsByDay.keys.toList()}');
+    }
+
+    // 9️⃣ Clear and populate selection state
+    _perWeekSel.clear();
+    _perDecanSel.clear();
+    
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] Populating selections: _hasFullRange=$_hasFullRange, _draftsByDay.isNotEmpty=${_draftsByDay.isNotEmpty}');
+    }
+    
+    if (_hasFullRange && _draftsByDay.isNotEmpty) {
+      if (_useKemetic) {
+        _populateKemeticSelections(userEvents);
+      } else {
+        _populateGregorianSelections(userEvents);
+      }
+      
+      if (kDebugMode) {
+        print('🔍 [LoadFlow] After populating selections:');
+        print('  _perDecanSel.length: ${_perDecanSel.length}');
+        print('  _perWeekSel.length: ${_perWeekSel.length}');
+      }
+    } else {
+      if (kDebugMode) {
+        print('🔍 [LoadFlow] SKIPPED selection population: _hasFullRange=$_hasFullRange, _draftsByDay.isNotEmpty=${_draftsByDay.isNotEmpty}');
+      }
+    }
+
+    // 🔟 Apply selections to drafts (calls _rebuildSpans() again, like AI path)
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] Calling _applySelectionToDrafts() (will call _rebuildSpans() again)');
+    }
+    _applySelectionToDrafts();
+    
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] After _applySelectionToDrafts():');
+      print('  _kemeticSpans.length: ${_kemeticSpans.length}');
+      print('  _weekSpans.length: ${_weekSpans.length}');
+    }
+
+    // 1️⃣1️⃣ 🔑 CRITICAL: Manually hydrate header fields WITHOUT setting dates again
+    // Match AI flow path: dates already set above, only set header fields here
+    if (!mounted) {
+      if (kDebugMode) {
+        print('🔍 [LoadFlow] ERROR: Widget not mounted, aborting setState');
+      }
+      return;
+    }
+    
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] About to call setState with header fields:');
+      print('  _editing will be: ${f.name}');
+      print('  _startDate (already set): $_startDate');
+      print('  _endDate (already set): $_endDate');
+    }
+    
+    setState(() {
+      _editing = f;
+      _nameCtrl.text = f.name;
+      _active = f.active;
+      
+      final idx = _flowPalette.indexWhere((c) => c.value == f.color.value);
+      _selectedColorIndex = idx >= 0 ? idx : 0;
+      
+      _overviewCtrl.text = meta.overview ?? '';
+      
+      // ⛔️ Do NOT set dates here - they're already set above (like AI path)
+      // ⛔️ Do NOT set _useKemetic, _splitByPeriod, _syncReady - already set above
+      // ⛔️ Do NOT set _isAIGeneratedFlow - this is an imported flow
+    });
+
+    if (kDebugMode) {
+      print('🔍 [LoadFlow] After setState:');
+      print('  _editing: ${_editing?.name}');
+      print('  _startDate: $_startDate');
+      print('  _endDate: $_endDate');
+      print('  _hasFullRange: $_hasFullRange');
+      print('  _draftsByDay.length: ${_draftsByDay.length}');
+      print('  _kemeticSpans.length: ${_kemeticSpans.length}');
+      print('  _weekSpans.length: ${_weekSpans.length}');
+      print('🔍 [LoadFlow] END');
+    }
+  }
+
   /// Populate Kemetic selections based on events
   void _populateKemeticSelections(List<UserEvent> events) {
     for (final event in events) {
@@ -8911,29 +9178,81 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
   // ---------- scaffold ----------
 
+  /// Helper to load a flow from DB with loading spinner
+  void _loadFromDbWithSpinner(int flowId) {
+    if (kDebugMode) {
+      print('🔧 [FlowStudio] _loadFromDbWithSpinner: flowId=$flowId');
+    }
+    
+    _nameCtrl = TextEditingController();
+    _active = true;
+    _isLoadingFlow = true;
+    
+    _loadFlowByIdFromDb(flowId).then((_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingFlow = false;
+      });
+    }).catchError((e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingFlow = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading flow: $e')),
+      );
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    
+    if (kDebugMode) {
+      print('🔧 [FlowStudio] initState: editFlowId=${widget.editFlowId}, '
+            'existingFlows=${widget.existingFlows.length}');
+    }
 
-    // Load AI-generated flow if provided
+    // Load flow if provided
     if (widget.editFlowId != null) {
-      // Check if it's in existing flows first
-      try {
-        _editing = widget.existingFlows.firstWhere((f) => f.id == widget.editFlowId);
-        // Load from existing flows
-        _nameCtrl = TextEditingController(text: _editing?.name ?? '');
-        _active = _editing?.active ?? true;
-        if (_editing != null) {
+      final id = widget.editFlowId!;
+      final match = widget.existingFlows.where((f) => f.id == id).toList();
+
+      if (match.isNotEmpty) {
+        final flow = match.first;
+        
+        if (kDebugMode) {
+          print('🔧 [FlowStudio] Found flow in existingFlows: id=$id, name="${flow.name}", shareId=${flow.shareId}');
+        }
+        
+        // ✅ CRITICAL: If flow has shareId, it's imported and needs event-based loading
+        // Imported flows have events in DB that _loadFlowForEdit doesn't load
+        if (flow.shareId != null) {
+          if (kDebugMode) {
+            print('🔍 [FlowStudio] Import detected (shareId=${flow.shareId}) → using _loadFlowByIdFromDb');
+          }
+          _loadFromDbWithSpinner(id);
+        } else {
+          if (kDebugMode) {
+            print('📝 [FlowStudio] Local/custom flow → using _loadFlowForEdit');
+          }
+          // ✅ Flow is already in existingFlows and NOT imported → treat like normal/custom flow
+          _editing = flow;
+          _nameCtrl = TextEditingController(text: _editing!.name);
+          _active = _editing!.active;
           _loadFlowForEdit(_editing!);
         }
-      } catch (_) {
-        // Not in existing flows, load from database (AI-generated flow)
-        _editing = null;
-        _nameCtrl = TextEditingController();
-        _active = true;
-        _loadAIGeneratedFlow(widget.editFlowId!);
+      } else {
+        if (kDebugMode) {
+          print('🔎 [FlowStudio] Flow id=$id not in existingFlows → loading from DB');
+        }
+        // ✅ Flow not in existing list (AI or imported) → load from DB
+        _loadFromDbWithSpinner(id);
       }
     } else {
+      if (kDebugMode) {
+        print('✨ [FlowStudio] New flow creation mode');
+      }
       // Initialize for new flow creation
       _editing = null;
       _nameCtrl = TextEditingController();
@@ -9494,6 +9813,26 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Show loading indicator while loading flow from DB
+    if (_isLoadingFlow) {
+      return Scaffold(
+        backgroundColor: _bg,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          elevation: 0.5,
+          leading: IconButton(
+            tooltip: 'Close',
+            icon: const Icon(Icons.close, color: Colors.white),
+            onPressed: _handleClose,
+          ),
+          title: const Text('Flow Studio', style: TextStyle(color: Colors.white)),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(

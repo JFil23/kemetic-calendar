@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:async';
@@ -193,7 +194,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
 
     // Check if it's an email
     if (_isValidEmail(query)) {
-      print('[ShareFlowSheet] Detected email: $query');
+      debugPrint('[ShareFlowSheet] Detected email: $query');
       setState(() {
         _searchResults = [];
         _searching = false;
@@ -204,7 +205,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
 
     // Check if it's a @handle search
     if (query.startsWith('@') && query.length >= 2) {
-      print('[ShareFlowSheet] Searching for handle: $query');
+      debugPrint('[ShareFlowSheet] Searching for handle: $query');
       
       _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
         try {
@@ -217,7 +218,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
             });
           }
         } catch (e) {
-          print('[ShareFlowSheet] Search error: $e');
+          debugPrint('[ShareFlowSheet] Search error: $e');
           if (mounted) {
             setState(() {
               _searchResults = [];
@@ -396,7 +397,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       _searchResults = [];
     });
 
-    print('[ShareFlowSheet] Added user: ${user.handle}');
+    debugPrint('[ShareFlowSheet] Added user: ${user.handle}');
   }
 
   void _removeRecipient(ShareRecipient recipient) {
@@ -404,84 +405,123 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
   }
 
   Future<void> _sendShares() async {
-    print('[ShareFlowSheet] _sendShares() called');
-    print('[ShareFlowSheet] Recipients: ${_recipients.length}');
+    debugPrint('[ShareFlowSheet] _sendShares() called');
+    debugPrint('[ShareFlowSheet] Recipients: ${_recipients.length}');
     
     if (_recipients.isEmpty) {
-      print('[ShareFlowSheet] No recipients, returning');
+      debugPrint('[ShareFlowSheet] No recipients, returning');
       return;
     }
 
     setState(() => _sending = true);
-    print('[ShareFlowSheet] Set _sending = true');
+    debugPrint('[ShareFlowSheet] Set _sending = true');
 
     try {
-      print('[ShareFlowSheet] Calling shareFlow...');
+      debugPrint('[ShareFlowSheet] Calling shareFlow...');
       final results = await _repo.shareFlow(
         flowId: widget.flowId,
         recipients: _recipients,
         suggestedSchedule: null,  // No schedule suggestion - Ma'at flows have their own
       );
 
-      print('[ShareFlowSheet] shareFlow returned ${results.length} results');
-      print('[ShareFlowSheet] Results: $results');
+      debugPrint('[ShareFlowSheet] shareFlow returned ${results.length} results');
+      debugPrint('[ShareFlowSheet] Results: $results');
 
       if (!mounted) {
-        print('[ShareFlowSheet] Widget not mounted, returning');
+        debugPrint('[ShareFlowSheet] Widget not mounted, returning');
         return;
       }
 
-      // Count successes - check for shareUrl instead of status
-      final successCount = results.where((r) => r.shareUrl != null).length;
-      final failCount = results.length - successCount;
+      // Count successes based on status and error
+      final successCount = results.where(
+        (r) => (r.status == 'sent' || r.status == 'viewed' || r.status == 'imported') 
+            && r.error == null,
+      ).length;
+      final failCount = results.where(
+        (r) => r.error != null || r.status == null,
+      ).length;
       
-      print('[ShareFlowSheet] Success count: $successCount');
-      print('[ShareFlowSheet] Fail count: $failCount');
+      if (kDebugMode) {
+        debugPrint('[ShareFlowSheet] Results breakdown:');
+        for (final r in results) {
+          debugPrint('[ShareFlowSheet]   - shareId=${r.shareId}, status=${r.status}, error=${r.error}');
+        }
+        debugPrint('[ShareFlowSheet] Success count: $successCount');
+        debugPrint('[ShareFlowSheet] Fail count: $failCount');
+      }
 
-      if (successCount > 0) {
-        print('[ShareFlowSheet] ✅ At least one share succeeded');
+      if (successCount > 0 && failCount == 0) {
+        if (kDebugMode) {
+          debugPrint('[ShareFlowSheet] ✅ All shares succeeded');
+        }
         
-        // Collect share URLs for external shares
-        final shareUrls = results
-            .where((r) => r.shareUrl != null)
-            .map((r) => r.shareUrl!)
-            .toList();
-        
-        print('[ShareFlowSheet] Share URLs: ${shareUrls.length}');
-        print('[ShareFlowSheet] URLs: $shareUrls');
-        
-        // Show success snackbar FIRST
+        // Show success snackbar
         if (mounted) {
-          print('[ShareFlowSheet] Showing success snackbar...');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Shared with $successCount person(s)!'),
-              backgroundColor: const Color(0xFFD4AF37),
+            const SnackBar(
+              content: Text('Flow shared successfully'),
+              backgroundColor: Color(0xFFD4AF37),
             ),
           );
         }
+      } else if (successCount > 0 && failCount > 0) {
+        if (kDebugMode) {
+          debugPrint('[ShareFlowSheet] ⚠️ Partial success: $successCount succeeded, $failCount failed');
+        }
+        // Show partial success snackbar
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Shared with $successCount, failed for $failCount'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } else {
+        if (kDebugMode) {
+          debugPrint('[ShareFlowSheet] ❌ All shares failed');
+        }
+        // Show failure snackbar
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to share flow — please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+      
+      // Collect share URLs for external shares (if any)
+      final shareUrls = results
+          .where((r) => r.shareUrl != null)
+          .map((r) => r.shareUrl!)
+          .toList();
+      
+      if (shareUrls.isNotEmpty && kDebugMode) {
+        debugPrint('[ShareFlowSheet] Share URLs: ${shareUrls.length}');
         
         // Open system share dialog and WAIT for it to complete
         if (shareUrls.isNotEmpty && mounted) {
-          print('[ShareFlowSheet] Opening system share dialog with ${shareUrls.length} URLs...');
+          debugPrint('[ShareFlowSheet] Opening system share dialog with ${shareUrls.length} URLs...');
           
           await Share.share(
             shareUrls.join('\n\n'),
             subject: 'Check out this Ma\'at flow!',
           );
           
-          print('[ShareFlowSheet] System share dialog completed');
+          debugPrint('[ShareFlowSheet] System share dialog completed');
         } else {
-          print('[ShareFlowSheet] No share URLs or not mounted, skipping dialog');
+          debugPrint('[ShareFlowSheet] No share URLs or not mounted, skipping dialog');
         }
         
         // THEN close the sheet AFTER share dialog completes
         if (mounted) {
-          print('[ShareFlowSheet] Closing sheet...');
+          debugPrint('[ShareFlowSheet] Closing sheet...');
           Navigator.pop(context, true);
         }
       } else {
-        print('[ShareFlowSheet] ❌ No successful shares');
+        debugPrint('[ShareFlowSheet] ❌ No successful shares');
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -493,8 +533,8 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
         }
       }
     } catch (e, stackTrace) {
-      print('[ShareFlowSheet] ❌ ERROR: $e');
-      print('[ShareFlowSheet] Stack trace: $stackTrace');
+      debugPrint('[ShareFlowSheet] ❌ ERROR: $e');
+      debugPrint('[ShareFlowSheet] Stack trace: $stackTrace');
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -506,9 +546,17 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       }
     } finally {
       if (mounted) {
-        print('[ShareFlowSheet] Setting _sending = false');
+        debugPrint('[ShareFlowSheet] Setting _sending = false');
         setState(() => _sending = false);
       }
     }
   }
 }
+
+
+
+
+
+
+
+

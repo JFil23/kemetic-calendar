@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/share_models.dart';
+import '../../data/share_repo.dart';
 import '../../repositories/inbox_repo.dart';
 import 'shared_flow_details_entry.dart';
 import 'conversation_user.dart';
@@ -119,6 +120,93 @@ class InboxConversationPage extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => SharedFlowDetailsEntry(share: share),
+                      ),
+                    );
+                  },
+                  onLongPress: () {
+                    showModalBottomSheet(
+                      context: context,
+                      backgroundColor: const Color(0xFF0D0D0F),
+                      builder: (context) => SafeArea(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(
+                              leading: Icon(
+                                isMine ? Icons.undo : Icons.delete,
+                                color: Colors.red,
+                              ),
+                              title: Text(
+                                isMine ? 'Unsend Flow' : 'Delete Flow',
+                                style: const TextStyle(color: Colors.red),
+                              ),
+                              onTap: () async {
+                                Navigator.pop(context);
+
+                                final confirmed = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    backgroundColor: const Color(0xFF0D0D0F),
+                                    title: Text(
+                                      isMine ? 'Unsend this flow?' : 'Delete this flow?',
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                    content: Text(
+                                      isMine
+                                          ? 'This will remove this flow from the conversation for both you and the recipient. They may have already seen it.'
+                                          : 'This will hide this flow from your inbox and conversation. '
+                                            'It may still be visible to the sender until they delete or unsend it.',
+                                      style: const TextStyle(color: Colors.white70),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context, true),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: Colors.red,
+                                        ),
+                                        child: Text(isMine ? 'Unsend' : 'Delete'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+
+                                if (confirmed != true) return;
+
+                                final shareRepo = ShareRepo(Supabase.instance.client);
+
+                                bool ok;
+                                if (isMine) {
+                                  ok = await shareRepo.unsendShare(
+                                    share.shareId,
+                                    isFlow: share.isFlow,
+                                  );
+                                } else {
+                                  ok = await shareRepo.deleteInboxItem(
+                                    share.shareId,
+                                    isFlow: share.isFlow,
+                                  );
+                                }
+
+                                if (!ok && context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        isMine
+                                            ? 'Could not unsend this flow. Please try again.'
+                                            : 'Could not delete this flow. Please try again.',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },

@@ -1,6 +1,8 @@
 // lib/data/share_repo.dart
 // ShareRepo - Repository Layer for Flow Sharing System
 
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'share_models.dart';
 
@@ -15,8 +17,10 @@ class ShareRepo {
     required List<ShareRecipient> recipients,
     SuggestedSchedule? suggestedSchedule,
   }) async {
-    print('[ShareRepo] Current user: ${_client.auth.currentUser?.id}');
-    print('[ShareRepo] Current session: ${_client.auth.currentSession?.accessToken != null}');
+    if (kDebugMode) {
+      print('[ShareRepo] Current user: ${_client.auth.currentUser?.id}');
+      print('[ShareRepo] Current session: ${_client.auth.currentSession?.accessToken != null}');
+    }
     
     try {
       final response = await _client.functions.invoke(
@@ -28,60 +32,84 @@ class ShareRepo {
         },
       );
 
-      // Parse response
-      print('[ShareRepo] Raw response: ${response.data}');
-
-      if (response.data == null) {
-        print('[ShareRepo] ERROR: response.data is null');
-        throw Exception('Edge Function returned null response');
+      if (kDebugMode) {
+        print('[ShareRepo] create_flow_share status=${response.status}');
+        print('[ShareRepo] create_flow_share body=${response.data}');
       }
 
-      final data = response.data as Map<String, dynamic>;
-      print('[ShareRepo] Response data keys: ${data.keys}');
+      // Handle HTTP errors
+      if (response.status >= 400) {
+        if (kDebugMode) {
+          print('[ShareRepo] HTTP error: ${response.status}');
+        }
+        return [
+          ShareResult(
+            status: null,
+            error: 'HTTP ${response.status}',
+          ),
+        ];
+      }
 
-      // Safe cast with null check - try both 'shares' and 'results'
-      final sharesList = (data['shares'] as List<dynamic>?) ?? 
-                        (data['results'] as List<dynamic>?) ?? [];
-      print('[ShareRepo] Shares list length: ${sharesList.length}');
+      // Parse response body
+      if (response.data == null) {
+        if (kDebugMode) {
+          print('[ShareRepo] ERROR: response.data is null');
+        }
+        return [
+          ShareResult(
+            status: null,
+            error: 'Edge Function returned null response',
+          ),
+        ];
+      }
+
+      final Map<String, dynamic> body = response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : (jsonDecode(response.data as String) as Map<String, dynamic>);
+
+      if (kDebugMode) {
+        print('[ShareRepo] Response data keys: ${body.keys}');
+      }
+
+      // Extract shares list
+      final sharesList = (body['shares'] as List<dynamic>? ?? [])
+          .cast<Map<String, dynamic>>();
+
+      if (kDebugMode) {
+        print('[ShareRepo] Shares list length: ${sharesList.length}');
+      }
 
       if (sharesList.isEmpty) {
-        print('[ShareRepo] WARNING: Empty shares list in response');
-        return [];
+        if (kDebugMode) {
+          print('[ShareRepo] WARNING: Empty shares list in response');
+        }
+        return [
+          ShareResult(
+            status: null,
+            error: 'No shares returned from create_flow_share',
+          ),
+        ];
       }
 
-      return sharesList.map((item) {
-        print('[ShareRepo] Processing share item: $item');
-        
-        // Handle both direct ShareResult.fromJson and manual parsing
-        if (item is Map<String, dynamic>) {
-          // Try ShareResult.fromJson first
-          try {
-            return ShareResult.fromJson(item);
-          } catch (e) {
-            print('[ShareRepo] ShareResult.fromJson failed, parsing manually: $e');
-            
-            final recipientData = item['recipient'] as Map<String, dynamic>;
-            
-            return ShareResult(
-              recipient: ShareRecipient(
-                type: ShareRecipientType.values.firstWhere(
-                  (t) => t.toString().split('.').last == recipientData['type'],
-                  orElse: () => ShareRecipientType.email,
-                ),
-                value: recipientData['value'] as String,
-              ),
-              status: item['status'] as String? ?? 'sent',
-              shareId: item['share_id'] as String?,
-              shareUrl: item['share_url'] as String?,
-              error: item['error'] as String?,
-            );
-          }
+      // Parse each share row from the database
+      final results = <ShareResult>[];
+      for (final row in sharesList) {
+        if (kDebugMode) {
+          print('[ShareRepo] Processing share row: $row');
         }
-        
-        throw Exception('Invalid share item format: $item');
-      }).toList();
-    } catch (e) {
-      print('[ShareRepo] Error sharing flow: $e');
+        results.add(ShareResult.fromJson(row));
+      }
+
+      if (kDebugMode) {
+        print('[ShareRepo] Parsed ${results.length} share results');
+      }
+
+      return results;
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print('[ShareRepo] Error sharing flow: $e');
+        print('[ShareRepo] Stack trace: $stackTrace');
+      }
       rethrow;
     }
   }
@@ -201,29 +229,79 @@ class ShareRepo {
     }
   }
 
-  /// Delete an inbox item (soft delete)
-  Future<bool> deleteInboxItem(String shareId, {required bool isFlow}) async {
+  /// Low-level helper: soft-delete a share row by role (sender or recipient).
+  /// Returns true if rows were actually updated, false otherwise.
+  Future<bool> _softDeleteShare({
+    required String shareId,
+    required bool isFlow,
+    required String roleColumn, // 'sender_id' or 'recipient_id'
+  }) async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) {
-        print('[ShareRepo] No authenticated user for delete');
+        if (kDebugMode) {
+          debugPrint('[ShareRepo] No authenticated user for softDelete');
+        }
         return false;
       }
 
       final table = isFlow ? 'flow_shares' : 'event_shares';
-      
-      await _client
+
+      if (kDebugMode) {
+        debugPrint(
+          '[ShareRepo] softDelete shareId=$shareId table=$table roleColumn=$roleColumn userId=$userId',
+        );
+      }
+
+      final now = DateTime.now().toUtc().toIso8601String();
+
+      // Use .select('id') to force response and verify rows were actually updated
+      final response = await _client
           .from(table)
-          .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})  // ✅ SOFT DELETE
+          .update({'deleted_at': now})
           .eq('id', shareId)
-          .eq('recipient_id', userId);  // ✅ Security: only delete your own shares
-      
-      print('[ShareRepo] Soft deleted inbox item: $shareId');
-      return true;
-    } catch (e) {
-      print('[ShareRepo] Error soft deleting inbox item: $e');
+          .eq(roleColumn, userId)
+          .select('id');
+
+      if (response is List && response.isNotEmpty) {
+        if (kDebugMode) {
+          debugPrint('[ShareRepo] ✓ softDelete success for shareId=$shareId');
+        }
+        return true;
+      }
+
+      if (kDebugMode) {
+        debugPrint(
+          '[ShareRepo] ✗ softDelete affected 0 rows for shareId=$shareId. '
+          'Check shareId, roleColumn, and RLS.',
+        );
+      }
+      return false;
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('[ShareRepo] ✗ softDelete error: $e');
+        debugPrint('[ShareRepo] Stack trace: $stackTrace');
+      }
       return false;
     }
+  }
+
+  /// Delete from your inbox (you are the recipient).
+  Future<bool> deleteInboxItem(String shareId, {required bool isFlow}) {
+    return _softDeleteShare(
+      shareId: shareId,
+      isFlow: isFlow,
+      roleColumn: 'recipient_id',
+    );
+  }
+
+  /// Unsend something you sent (you are the sender).
+  Future<bool> unsendShare(String shareId, {required bool isFlow}) {
+    return _softDeleteShare(
+      shareId: shareId,
+      isFlow: isFlow,
+      roleColumn: 'sender_id',
+    );
   }
 
   /// Search for users by handle
@@ -264,3 +342,4 @@ class ShareRepo {
         .map((data) => data.isNotEmpty ? data.first['count'] as int? ?? 0 : 0);
   }
 }
+

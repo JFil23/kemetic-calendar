@@ -1,6 +1,8 @@
 // lib/data/share_models.dart
 // Share Models & Contracts for Flow Sharing System
 
+import 'package:flutter/foundation.dart';
+
 /// Suggested schedule for shared flows
 class SuggestedSchedule {
   final String startDate;
@@ -77,15 +79,15 @@ class ShareRecipient {
 
 /// Result of a share operation
 class ShareResult {
-  final ShareRecipient recipient;
-  final String status; // 'sent', 'failed', 'blocked'
+  final ShareRecipient? recipient; // Optional - Edge function doesn't return it
+  final String? status; // 'sent', 'viewed', 'imported', or null if error
   final String? shareId; // UUID of the share record
   final String? shareUrl; // Share URL for external shares (email/phone)
   final String? error; // Error message if status = 'failed'
 
   ShareResult({
-    required this.recipient,
-    required this.status,
+    this.recipient,
+    this.status,
     this.shareId,
     this.shareUrl,
     this.error,
@@ -93,17 +95,17 @@ class ShareResult {
 
   factory ShareResult.fromJson(Map<String, dynamic> json) {
     return ShareResult(
-      recipient: ShareRecipient.fromJson(json['recipient'] as Map<String, dynamic>),
-      status: json['status'] as String? ?? 'sent',
-      shareId: json['share_id'] as String?,
+      recipient: null, // Edge function doesn't return recipient in the share row
+      status: json['status'] as String?,
+      shareId: json['id'] as String?, // Edge returns 'id' from flow_shares table
       shareUrl: json['share_url'] as String?,
-      error: json['error'] as String?,
+      error: null, // Errors are handled at the response level
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'recipient': recipient.toJson(),
+      if (recipient != null) 'recipient': recipient!.toJson(),
       'status': status,
       'share_id': shareId,
       'share_url': shareUrl,
@@ -111,7 +113,7 @@ class ShareResult {
     };
   }
 
-  bool get isSuccess => error == null && shareUrl != null;
+  bool get isSuccess => error == null && (status == 'sent' || status == 'viewed' || status == 'imported');
   bool get isError => error != null;
 }
 
@@ -160,9 +162,15 @@ class InboxShareItem {
   });
 
   factory InboxShareItem.fromJson(Map<String, dynamic> json) {
-    return InboxShareItem(
+    final kind = json['kind'] as String? ?? 'flow'; // Fallback to 'flow' if missing
+    
+    if (kDebugMode) {
+      debugPrint('[InboxItem] Parsing: shareId=${json['share_id']}, kind=$kind');
+    }
+    
+    final result = InboxShareItem(
       shareId: json['share_id'] as String,
-      kind: json['kind'] as String,
+      kind: kind,
       recipientId: json['recipient_id'] as String,
       senderId: json['sender_id'] as String,
       
@@ -195,6 +203,12 @@ class InboxShareItem {
       recipientDisplayName: json['recipient_display_name'] as String?,
       recipientAvatarUrl: json['recipient_avatar_url'] as String?,
     );
+    
+    if (kDebugMode) {
+      debugPrint('[InboxItem] Created: shareId=${result.shareId}, kind=${result.kind}, isFlow=${result.isFlow}');
+    }
+    
+    return result;
   }
 
   Map<String, dynamic> toJson() {
@@ -235,4 +249,6 @@ class InboxShareItem {
     }
   }
 }
+
+
 

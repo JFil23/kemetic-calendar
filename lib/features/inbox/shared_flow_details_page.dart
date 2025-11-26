@@ -1,171 +1,638 @@
 // lib/features/inbox/shared_flow_details_page.dart
-// Preview page for non-imported shared flows with Import button
+// Dual-mode details page: supports both imported flows (flowId) and non-imported shares (share)
 
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/material.dart' show DateUtils;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:mobile/shared/glossy_text.dart';
+
 import '../../data/share_models.dart';
+import '../../data/flows_repo.dart';
+import '../../data/user_events_repo.dart';
 import '../../repositories/inbox_repo.dart';
+import '../../shared/glossy_text.dart';
 import '../../features/calendar/calendar_page.dart' show CalendarPage, notesDecode;
+import '../../features/calendar/kemetic_month_metadata.dart' show getMonthById;
 import '../../widgets/flow_start_date_picker.dart';
 
-class SharedFlowDetailsPage extends StatelessWidget {
-  final InboxShareItem share;
+const Color _bg = Color(0xFF000000);
 
-  const SharedFlowDetailsPage({required this.share, super.key});
+/// Simple container for flow span summary (day count + date range)
+class _FlowSpanSummary {
+  final int dayCount;
+  final DateTime start;
+  final DateTime end;
+
+  const _FlowSpanSummary({
+    required this.dayCount,
+    required this.start,
+    required this.end,
+  });
+}
+
+class SharedFlowDetailsPage extends StatefulWidget {
+  final InboxShareItem? share; // non-imported
+  final int? flowId;           // imported
+
+  const SharedFlowDetailsPage({
+    Key? key,
+    this.share,
+    this.flowId,
+  })  : assert(share != null || flowId != null,
+            'Either share or flowId must be provided'),
+        super(key: key);
+
+  @override
+  State<SharedFlowDetailsPage> createState() => _SharedFlowDetailsPageState();
+}
+
+class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
+  late final Future<_SharedFlowData> _flowFuture;
+  Future<_FlowSpanSummary?>? _spanFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.flowId != null) {
+      _flowFuture = _loadFromDb(widget.flowId!);
+      _spanFuture = _loadSpanSummary(); // ✅ Only for imported flows
+    } else {
+      _flowFuture = Future.value(_fromShare(widget.share!));
+      _spanFuture = Future.value(null); // ✅ Not imported yet - no events
+    }
+  }
+
+  Future<_FlowSpanSummary?> _loadSpanSummary() async {
+    // ✅ Only works for imported flows (widget.flowId != null)
+    if (widget.flowId == null) return null;
+
+    try {
+      final repo = UserEventsRepo(Supabase.instance.client);
+      final records = await repo.getEventsForFlow(widget.flowId!);
+
+      if (records.isEmpty) return null;
+
+      DateTime minDate = DateUtils.dateOnly(records.first.startsAtUtc.toLocal());
+      DateTime maxDate = minDate;
+      final dayKeys = <String>{};
+
+      for (final r in records) {
+        final local = r.startsAtUtc.toLocal();
+        final only = DateUtils.dateOnly(local);
+
+        if (only.isBefore(minDate)) minDate = only;
+        if (only.isAfter(maxDate)) maxDate = only;
+
+        // simple key to count distinct days
+        dayKeys.add('${only.year}-${only.month}-${only.day}');
+      }
+
+      return _FlowSpanSummary(
+        dayCount: dayKeys.length,
+        start: minDate,
+        end: maxDate,
+      );
+    } catch (e) {
+      // If RLS or anything else blocks this, just don't show the label
+      if (kDebugMode) {
+        print('[SharedFlowDetailsPage] span summary error: $e');
+      }
+      return null;
+    }
+  }
+
+  Future<_SharedFlowData> _loadFromDb(int flowId) async {
+    final repo = FlowsRepo(Supabase.instance.client);
+    final row = await repo.getFlowById(flowId);
+    if (row == null) {
+      throw Exception('Flow not found');
+    }
+
+    return _SharedFlowData(
+      name: row.name,
+      color: row.color,
+      notes: row.notes ?? '',
+      rulesJson: (row.rules as List<dynamic>? ?? const []),
+      suggestedScheduleJson: null,
+      isImported: true,
+      flowId: flowId,
+      share: null,
+    );
+  }
+
+  _SharedFlowData _fromShare(InboxShareItem share) {
+    final payload = share.payloadJson ?? const <String, dynamic>{};
+
+    return _SharedFlowData(
+      name: payload['name'] as String? ?? 'Untitled Flow',
+      color: (payload['color'] as int?) ?? 0xFF4DD0E1,
+      notes: payload['notes'] as String? ?? '',
+      rulesJson: (payload['rules'] as List<dynamic>? ?? const []),
+      suggestedScheduleJson: share.suggestedSchedule?.toJson(),
+      isImported: false,
+      flowId: null,
+      share: share,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final payload = share.payloadJson ?? {};
-    final notes = payload['notes'] as String? ?? '';
-    
-    // Decode notes to get overview (same pattern as _FlowDetailsPage)
-    final meta = notesDecode(notes);
-    final overview = meta.overview ?? '';
+    return FutureBuilder<_SharedFlowData>(
+      future: _flowFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Scaffold(
+            appBar: AppBar(backgroundColor: Colors.black),
+            body: Center(child: Text('Error: ${snapshot.error}')),
+          );
+        }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF000000),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF000000),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFFD4AF37)),
-        title: const Text(
-          'Flow',
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Title
-                GlossyText(
-                  text: share.title,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  gradient: goldGloss,
-                ),
-                const SizedBox(height: 24),
-                
-                // Overview
-                if (overview.isNotEmpty) ...[
-                  Text(
-                    overview,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-                
-                // TODO: Add schedule preview based on payload['rules'] when ready
-              ],
+        if (!snapshot.hasData) {
+          return const Scaffold(
+            backgroundColor: _bg,
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final data = snapshot.data!;
+        final meta = notesDecode(data.notes);
+        final overview = meta.overview ?? '';
+        final kemetic = meta.kemetic;
+        final split = meta.split;
+
+        final rulesJson = data.rulesJson
+            .whereType<Map<String, dynamic>>()
+            .toList();
+
+        return Scaffold(
+          backgroundColor: _bg,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            elevation: 0.5,
+            title: const Text(
+              'Flow',
+              style: TextStyle(color: Colors.white),
             ),
           ),
-          
-          // Import button
-          SafeArea(
-            minimum: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => _onImportPressed(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4AF37),
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'Import to my calendar',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+          body: Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  padding:
+                      const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 24.0),
+                  children: [
+                    // Name
+                    GlossyText(
+                      text: data.name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      gradient: goldGloss,
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Overview
+                    const GlossyText(
+                      text: 'Overview',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      gradient: goldGloss,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      overview.trim().isEmpty ? '—' : overview.trim(),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Mode
+                    Row(
+                      children: [
+                        Text(
+                          kemetic ? 'Kemetic' : 'Gregorian',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
+                          ),
+                        ),
+                        if (split)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 8),
+                            child: Text(
+                              'Custom dates',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Schedule
+                    const GlossyText(
+                      text: 'Schedule',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      gradient: goldGloss,
+                    ),
+                    const SizedBox(height: 4),
+
+                    // ⭐️ New tiny range/length label (only for imported flows)
+                    FutureBuilder<_FlowSpanSummary?>(
+                      future: _spanFuture,
+                      builder: (context, snapshot) {
+                        final summary = snapshot.data;
+                        if (summary == null) {
+                          return const SizedBox.shrink();
+                        }
+
+                        String fmt(DateTime d) {
+                          const months = [
+                            'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+                          ];
+                          final m = months[d.month - 1];
+                          return '$m ${d.day}, ${d.year}';
+                        }
+
+                        final label =
+                            '${summary.dayCount} day${summary.dayCount == 1 ? '' : 's'} • '
+                            '${fmt(summary.start)} → ${fmt(summary.end)}';
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            label,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    if (rulesJson.isEmpty)
+                      const Text(
+                        'No schedule information.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey,
+                        ),
+                      )
+                    else
+                      _SharedFlowSchedulePreview(
+                        rulesJson: rulesJson,
+                        kemetic: kemetic,
+                      ),
+                  ],
                 ),
               ),
-            ),
+
+              // Footer
+              SafeArea(
+                minimum: const EdgeInsets.all(16),
+                child: data.isImported
+                    ? _ImportedFlowFooter(flowId: data.flowId!)
+                    : _SharedFlowImportFooter(flowData: data),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
-  }
-
-  Future<void> _onImportPressed(BuildContext context) async {
-    // Determine initial date from suggested schedule or default to tomorrow
-    DateTime? initial;
-    if (share.suggestedSchedule != null) {
-      try {
-        initial = DateTime.parse(share.suggestedSchedule!.startDate);
-      } catch (e) {
-        // Fallback to tomorrow if parsing fails
-        initial = DateTime.now().add(const Duration(days: 1));
-      }
-    } else {
-      initial = DateTime.now().add(const Duration(days: 1));
-    }
-
-    // Show date picker
-    final picked = await FlowStartDatePicker.show(
-      context,
-      initialDate: initial,
-    );
-    
-    if (picked == null || !context.mounted) return;
-
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
-        ),
-      ),
-    );
-
-    try {
-      final inboxRepo = InboxRepo(Supabase.instance.client);
-      final flowId = await inboxRepo.importSharedFlow(
-        share: share,
-        overrideStartDate: picked,
-      );
-
-      if (!context.mounted) return;
-
-      // Close loading and preview
-      Navigator.pop(context); // Close loading
-      Navigator.pop(context); // Close preview
-
-      // Navigate to Flow Studio with the imported flow
-      await Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => CalendarPage(initialFlowIdToEdit: flowId),
-        ),
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-
-      // Close loading
-      Navigator.pop(context);
-
-      // Show error
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to import: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 }
 
+/// Simple container for the data we need to render the details page.
+class _SharedFlowData {
+  final String name;
+  final int color;
+  final String notes;
+  final List<dynamic> rulesJson;
+  final Map<String, dynamic>? suggestedScheduleJson;
+  final bool isImported;
+  final int? flowId;
+  final InboxShareItem? share;
+
+  _SharedFlowData({
+    required this.name,
+    required this.color,
+    required this.notes,
+    required this.rulesJson,
+    required this.suggestedScheduleJson,
+    required this.isImported,
+    required this.flowId,
+    required this.share,
+  });
+}
+
+class _SharedFlowSchedulePreview extends StatelessWidget {
+  final List<Map<String, dynamic>> rulesJson;
+  final bool kemetic;
+
+  const _SharedFlowSchedulePreview({
+    Key? key,
+    required this.rulesJson,
+    required this.kemetic,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    if (rulesJson.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final ruleJson = rulesJson.first;
+    final type = ruleJson['type'] as String?;
+
+    if (type == 'decan') {
+      return _buildDecanRuleFromJson(ruleJson);
+    } else if (type == 'week') {
+      return _buildWeekRuleFromJson(ruleJson);
+    } else if (type == 'dates') {
+      return _buildDatesRuleFromJson(ruleJson);
+    }
+
+    return const Text(
+      'Custom schedule',
+      style: TextStyle(fontSize: 13, color: Colors.white70),
+    );
+  }
+
+  Widget _buildDecanRuleFromJson(Map<String, dynamic> json) {
+    final months =
+        (json['months'] as List<dynamic>? ?? const []).cast<int>()..sort();
+    final decans =
+        (json['decans'] as List<dynamic>? ?? const []).cast<int>()..sort();
+    final days =
+        (json['daysInDecan'] as List<dynamic>? ?? const []).cast<int>()
+          ..sort();
+
+    final monthLabels = months
+        .map((m) => getMonthById(m).displayFull)
+        .join(', ');
+
+    final decanLabels =
+        decans.map((d) => ['I', 'II', 'III'][d - 1]).join(', ');
+
+    if (days.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Months: $monthLabels',
+            style:
+                const TextStyle(fontSize: 13, color: Colors.white),
+          ),
+          Text(
+            'Decans: $decanLabels',
+            style:
+                const TextStyle(fontSize: 13, color: Colors.white),
+          ),
+          Text(
+            'Days in decan: ${days.join(', ')}',
+            style:
+                const TextStyle(fontSize: 13, color: Colors.white),
+          ),
+        ],
+      );
+    } else {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Months: $monthLabels',
+            style:
+                const TextStyle(fontSize: 13, color: Colors.white),
+          ),
+          Text(
+            'Decans: $decanLabels (all days)',
+            style:
+                const TextStyle(fontSize: 13, color: Colors.white),
+          ),
+        ],
+      );
+    }
+  }
+
+  Widget _buildWeekRuleFromJson(Map<String, dynamic> json) {
+    final weekdays =
+        (json['weekdays'] as List<dynamic>? ?? const []).cast<int>()
+          ..sort();
+
+    const weekdayNames = <int, String>{
+      DateTime.monday: 'Mon',
+      DateTime.tuesday: 'Tue',
+      DateTime.wednesday: 'Wed',
+      DateTime.thursday: 'Thu',
+      DateTime.friday: 'Fri',
+      DateTime.saturday: 'Sat',
+      DateTime.sunday: 'Sun',
+    };
+
+    final labels =
+        weekdays.map((w) => weekdayNames[w] ?? 'Day $w').join(', ');
+
+    return Text(
+      'Repeats on: $labels',
+      style: const TextStyle(fontSize: 13, color: Colors.white),
+    );
+  }
+
+  Widget _buildDatesRuleFromJson(Map<String, dynamic> json) {
+    final msList =
+        (json['dates'] as List<dynamic>? ?? const []).cast<int>();
+    if (msList.isEmpty) {
+      return const Text(
+        'No dates selected',
+        style: TextStyle(fontSize: 13, color: Colors.white70),
+      );
+    }
+
+    final dates = msList
+        .map((ms) =>
+            DateUtils.dateOnly(DateTime.fromMillisecondsSinceEpoch(ms)))
+        .toList()
+      ..sort();
+
+    String fmt(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    if (dates.length == 1) {
+      return Text(
+        'Occurs on: ${fmt(dates.first)}',
+        style: const TextStyle(fontSize: 13, color: Colors.white),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Occurs on ${dates.length} dates',
+          style: const TextStyle(fontSize: 13, color: Colors.white),
+        ),
+        Text(
+          'From ${fmt(dates.first)} to ${fmt(dates.last)}',
+          style: const TextStyle(fontSize: 13, color: Colors.white70),
+        ),
+      ],
+    );
+  }
+}
+
+class _ImportedFlowFooter extends StatelessWidget {
+  final int flowId;
+
+  const _ImportedFlowFooter({
+    Key? key,
+    required this.flowId,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CalendarPage(
+                initialFlowIdToEdit: flowId,
+              ),
+            ),
+          );
+        },
+        child: const Text('Edit Flow'),
+      ),
+    );
+  }
+}
+
+class _SharedFlowImportFooter extends StatefulWidget {
+  final _SharedFlowData flowData;
+
+  const _SharedFlowImportFooter({
+    Key? key,
+    required this.flowData,
+  }) : super(key: key);
+
+  @override
+  State<_SharedFlowImportFooter> createState() =>
+      _SharedFlowImportFooterState();
+}
+
+class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
+  DateTime? _selectedStart;
+  bool _isWorking = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final suggestedStr =
+        widget.flowData.suggestedScheduleJson?['start_date'] as String?;
+    final DateTime? suggestedDate =
+        suggestedStr != null ? DateTime.tryParse(suggestedStr) : null;
+
+    final displayDate = _selectedStart ?? suggestedDate;
+
+    final label = displayDate == null
+        ? 'Select a start date'
+        : 'Start: ${displayDate.year}-${displayDate.month.toString().padLeft(2, '0')}-${displayDate.day.toString().padLeft(2, '0')}';
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: _isWorking
+                ? null
+                : () async {
+                    final picked = await FlowStartDatePicker.show(
+                      context,
+                      initialDate: displayDate ?? DateTime.now(),
+                    );
+
+                    if (picked != null && mounted) {
+                      setState(() => _selectedStart = picked);
+                    }
+                  },
+            child: Text(label),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _isWorking
+                ? null
+                : () async {
+                    if (_selectedStart == null && suggestedDate == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content:
+                              Text('Please select a start date first.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    setState(() => _isWorking = true);
+
+                    try {
+                      final client = Supabase.instance.client;
+                      final inboxRepo = InboxRepo(client);
+                      final share = widget.flowData.share!;
+
+                      final flowId = await inboxRepo.importSharedFlow(
+                        share: share,
+                        overrideStartDate:
+                            _selectedStart ?? suggestedDate,
+                      );
+
+                      if (!mounted) return;
+
+                      // Small delay to ensure events are written to DB before navigation
+                      await Future.delayed(const Duration(milliseconds: 150));
+
+                      if (!mounted) return;
+
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CalendarPage(
+                            initialFlowIdToEdit: flowId,
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Import failed: $e')),
+                      );
+                      setState(() => _isWorking = false);
+                    }
+                  },
+            child:
+                Text(_isWorking ? 'Importing…' : 'Import Flow'),
+          ),
+        ),
+      ],
+    );
+  }
+}

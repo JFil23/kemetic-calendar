@@ -265,8 +265,8 @@ class InboxRepo {
         print('[InboxRepo] ✓ Share marked as imported');
       }
       
-      // Schedule the flow's notes immediately
-      await _scheduleImportedFlow(flowId, share);
+      // Schedule the flow's notes immediately (using the selected start date)
+      await _scheduleImportedFlow(flowId, share, startDate: startDate);
       
       return flowId;
     } catch (e, stackTrace) {
@@ -279,7 +279,130 @@ class InboxRepo {
   }
   
   /// Schedule notes for a newly imported flow
-  Future<void> _scheduleImportedFlow(int flowId, InboxShareItem item) async {
+  /// ✅ FIXED: Uses sender's event snapshots if available, preserving exact titles/details/locations
+  Future<void> _scheduleImportedFlow(
+    int flowId,
+    InboxShareItem item, {
+    DateTime? startDate,
+  }) async {
+    try {
+      final payloadJson = item.payloadJson;
+      if (payloadJson == null) return;
+      
+      final repo = UserEventsRepo(_client);
+      final start = startDate ?? DateTime.now();
+      
+      // Clear existing notes for this flow
+      await repo.deleteByFlowId(flowId, fromDate: start.toUtc());
+      
+      if (kDebugMode) {
+        print('[InboxRepo] _scheduleImportedFlow for flowId=$flowId');
+        print('[InboxRepo] payloadJson keys: ${payloadJson.keys}');
+      }
+      
+      // ✅ 1. Use sender's event snapshots if present (NEW SHARES)
+      final events = payloadJson['events'] as List<dynamic>?;
+      if (events != null && events.isNotEmpty) {
+        if (kDebugMode) {
+          print('[InboxRepo] Importing ${events.length} snapshot events for flow $flowId');
+        }
+        
+        final baseDate = DateTime(start.year, start.month, start.day);
+        int count = 0;
+        
+        for (final raw in events) {
+          final e = raw as Map<String, dynamic>;
+          
+          final offset = (e['offset_days'] as num?)?.toInt() ?? 0;
+          final date = baseDate.add(Duration(days: offset));
+          
+          final allDay = e['all_day'] as bool? ?? false;
+          final title = (e['title'] as String?) ?? item.title;
+          final detail = (e['detail'] as String?) ?? '';
+          final location = e['location'] as String?;
+          
+          int startHour = 9;
+          int startMinute = 0;
+          int? endHour;
+          int? endMinute;
+          
+          final startTime = e['start_time'] as String?;
+          final endTime = e['end_time'] as String?;
+          
+          if (!allDay && startTime != null && startTime.length >= 5) {
+            startHour = int.parse(startTime.substring(0, 2));
+            startMinute = int.parse(startTime.substring(3, 5));
+          }
+          if (!allDay && endTime != null && endTime.length >= 5) {
+            endHour = int.parse(endTime.substring(0, 2));
+            endMinute = int.parse(endTime.substring(3, 5));
+          }
+          
+          final kDate = KemeticMath.fromGregorian(date);
+          
+          final cid = EventCidUtil.buildClientEventId(
+            ky: kDate.kYear,
+            km: kDate.kMonth,
+            kd: kDate.kDay,
+            title: title,
+            startHour: startHour,
+            startMinute: startMinute,
+            allDay: allDay,
+            flowId: flowId,
+          );
+          
+          final startsAt = DateTime(date.year, date.month, date.day, startHour, startMinute);
+          
+          DateTime? endsAt;
+          if (!allDay) {
+            if (endHour != null && endMinute != null) {
+              endsAt = DateTime(date.year, date.month, date.day, endHour, endMinute);
+            } else {
+              endsAt = startsAt.add(const Duration(hours: 1));
+            }
+          }
+          
+          await repo.upsertByClientId(
+            clientEventId: cid,
+            title: title,          // ✅ exactly sender title
+            startsAtUtc: startsAt.toUtc(),
+            detail: detail,        // ✅ exactly sender detail
+            location: location,    // ✅ exactly sender location
+            allDay: allDay,
+            endsAtUtc: endsAt?.toUtc(),
+            flowLocalId: flowId,
+          );
+          
+          count++;
+        }
+        
+        if (kDebugMode) {
+          print('[InboxRepo] ✓ Scheduled $count events from snapshot for flow $flowId');
+        }
+        return; // ✅ Don't fall back to rules - we have the real data
+      }
+      
+      // 2. Fallback for old shares with no events[]: use rules-based logic
+      if (kDebugMode) {
+        print('[InboxRepo] No events[] in payload, falling back to rules-based scheduling for flowId=$flowId');
+      }
+      await _scheduleImportedFlowFromRules(flowId, item, startDate: start);
+    } catch (e, stack) {
+      if (kDebugMode) {
+        print('[InboxRepo] ✗ Failed to schedule imported flow $flowId: $e');
+        print(stack);
+      }
+      // Don't rethrow - scheduling failure shouldn't fail the import
+    }
+  }
+  
+  /// Fallback: Schedule events from rules (loses individual note data)
+  /// Only used for old shares that don't have events[] in payloadJson
+  Future<void> _scheduleImportedFlowFromRules(
+    int flowId,
+    InboxShareItem item, {
+    DateTime? startDate,
+  }) async {
     try {
       final payloadJson = item.payloadJson;
       if (payloadJson == null) return;
@@ -287,17 +410,13 @@ class InboxRepo {
       final rulesData = payloadJson['rules'] as List?;
       if (rulesData == null || rulesData.isEmpty) return;
       
-      // Parse rules using CalendarPage's static method
       final rules = rulesData.map((r) => 
         CalendarPage.ruleFromJson(r as Map<String, dynamic>)
       ).toList();
       
       final repo = UserEventsRepo(_client);
-      final start = DateTime.now();
+      final start = startDate ?? DateTime.now();
       final end = start.add(const Duration(days: 90));
-      
-      // Clear existing notes for this flow
-      await repo.deleteByFlowId(flowId, fromDate: start.toUtc());
       
       int scheduledCount = 0;
       
@@ -338,18 +457,18 @@ class InboxRepo {
             );
             
             scheduledCount++;
+            break; // Only one event per day
           }
         }
       }
       
       if (kDebugMode) {
-        print('[InboxRepo] ✓ Scheduled $scheduledCount notes for flow $flowId');
+        print('[InboxRepo] ✓ Scheduled $scheduledCount notes from rules for flow $flowId');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('[InboxRepo] ✗ Failed to schedule: $e');
+        print('[InboxRepo] ✗ Failed to schedule from rules: $e');
       }
-      // Don't rethrow - scheduling failure shouldn't fail the import
     }
   }
 }

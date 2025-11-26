@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
@@ -226,67 +227,133 @@ class _InboxPageState extends State<InboxPage> {
     required InboxShareItem lastItem,
     required bool hasUnread,
   }) {
-    return ListTile(
-      leading: CircleAvatar(
-        radius: 24,
-        backgroundColor: _gold.withOpacity(0.2),
-        backgroundImage: otherProfile.avatarUrl != null
-            ? NetworkImage(otherProfile.avatarUrl!)
-            : null,
-        child: otherProfile.avatarUrl == null
-            ? Text(
-                (otherProfile.displayName ?? otherProfile.handle ?? '?')
-                    .characters
-                    .take(2)
-                    .toString()
-                    .toUpperCase(),
-                style: const TextStyle(
+    return Dismissible(
+      key: Key('conversation_$otherUserId'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        color: Colors.red,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      confirmDismiss: (_) async {
+        return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: const Color(0xFF0D0D0F),
+            title: const Text(
+              'Delete Conversation?',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: Text(
+              'This will remove all shared flows/messages with '
+              '${otherProfile.displayName ?? otherProfile.handle ?? 'this user'} '
+              'from your inbox. It will not affect them.',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ?? false;
+      },
+      onDismissed: (_) async {
+        final shareRepo = ShareRepo(Supabase.instance.client);
+        final currentUserId = _inboxRepo.currentUserId;
+        if (currentUserId == null) return;
+
+        // Get the latest snapshot of messages in this conversation
+        final items = await _inboxRepo.watchConversationWith(otherUserId).first;
+
+        for (final item in items) {
+          final isMine = item.senderId == currentUserId;
+          final isFlow = item.isFlow;
+          final shareId = item.shareId;
+
+          bool ok;
+          if (isMine) {
+            ok = await shareRepo.unsendShare(shareId, isFlow: isFlow);
+          } else {
+            ok = await shareRepo.deleteInboxItem(shareId, isFlow: isFlow);
+          }
+
+          if (!ok && kDebugMode) {
+            debugPrint(
+              '[InboxPage] Failed to ${isMine ? 'unsend' : 'delete'} shareId=$shareId',
+            );
+          }
+        }
+      },
+      child: ListTile(
+        leading: CircleAvatar(
+          radius: 24,
+          backgroundColor: _gold.withOpacity(0.2),
+          backgroundImage: otherProfile.avatarUrl != null
+              ? NetworkImage(otherProfile.avatarUrl!)
+              : null,
+          child: otherProfile.avatarUrl == null
+              ? Text(
+                  (otherProfile.displayName ?? otherProfile.handle ?? '?')
+                      .characters
+                      .take(2)
+                      .toString()
+                      .toUpperCase(),
+                  style: const TextStyle(
+                    color: _gold,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+              : null,
+        ),
+        title: Text(
+          otherProfile.displayName ?? otherProfile.handle ?? 'User',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: hasUnread ? FontWeight.bold : FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          lastItem.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.7),
+            fontSize: 14,
+          ),
+        ),
+        trailing: hasUnread
+            ? Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
                   color: _gold,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  shape: BoxShape.circle,
                 ),
               )
             : null,
-      ),
-      title: Text(
-        otherProfile.displayName ?? otherProfile.handle ?? 'User',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: hasUnread ? FontWeight.bold : FontWeight.w600,
-        ),
-      ),
-      subtitle: Text(
-        lastItem.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: Colors.white.withOpacity(0.7),
-          fontSize: 14,
-        ),
-      ),
-      trailing: hasUnread
-          ? Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: _gold,
-                shape: BoxShape.circle,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => InboxConversationPage(
+                otherUserId: otherUserId,
+                otherProfile: otherProfile,
               ),
-            )
-          : null,
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => InboxConversationPage(
-              otherUserId: otherUserId,
-              otherProfile: otherProfile,
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
