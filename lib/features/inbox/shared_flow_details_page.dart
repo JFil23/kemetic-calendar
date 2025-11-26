@@ -47,6 +47,7 @@ class SharedFlowDetailsPage extends StatelessWidget {
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                   ),
+                  gradient: goldGloss,
                 ),
                 const SizedBox(height: 24),
                 

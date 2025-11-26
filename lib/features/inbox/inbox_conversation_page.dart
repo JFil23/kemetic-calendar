@@ -6,10 +6,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/share_models.dart';
 import '../../repositories/inbox_repo.dart';
 import 'shared_flow_details_entry.dart';
+import 'conversation_user.dart';
 
 class InboxConversationPage extends StatelessWidget {
   final String otherUserId;
-  final _ConversationUser otherProfile;
+  final ConversationUser otherProfile;
 
   const InboxConversationPage({
     required this.otherUserId,

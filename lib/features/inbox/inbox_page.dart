@@ -10,6 +10,7 @@ import '../../repositories/inbox_repo.dart';
 import '../calendar/calendar_page.dart';
 import '../../utils/event_cid_util.dart';
 import 'inbox_conversation_page.dart';
+import 'conversation_user.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
@@ -195,12 +196,12 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
   
-  _ConversationUser _resolveOtherProfile(InboxShareItem item, String currentUserId) {
+  ConversationUser _resolveOtherProfile(InboxShareItem item, String currentUserId) {
     final isMine = item.senderId == currentUserId;
     
     if (!isMine) {
       // Item was sent TO me, so sender is the "other" person
-      return _ConversationUser(
+      return ConversationUser(
         id: item.senderId,
         displayName: item.senderName,
         handle: item.senderHandle,
@@ -209,7 +210,7 @@ class _InboxPageState extends State<InboxPage> {
     } else {
       // Item was sent BY me, so recipient is the "other" person
       // TODO: Once backend adds recipient profile fields, use those
-      return _ConversationUser(
+      return ConversationUser(
         id: item.recipientId,
         displayName: item.recipientDisplayName ?? 'User',
         handle: item.recipientHandle ?? 'user',
@@ -221,7 +222,7 @@ class _InboxPageState extends State<InboxPage> {
   Widget _buildConversationBar({
     required BuildContext context,
     required String otherUserId,
-    required _ConversationUser otherProfile,
+    required ConversationUser otherProfile,
     required InboxShareItem lastItem,
     required bool hasUnread,
   }) {
@@ -288,20 +289,6 @@ class _InboxPageState extends State<InboxPage> {
       },
     );
   }
-}
-
-class _ConversationUser {
-  final String id;
-  final String? displayName;
-  final String? handle;
-  final String? avatarUrl;
-
-  _ConversationUser({
-    required this.id,
-    this.displayName,
-    this.handle,
-    this.avatarUrl,
-  });
 
   Widget _buildEmptyState() {
     return Center(
@@ -334,26 +321,10 @@ class _ConversationUser {
       ),
     );
   }
-
-
-  String _formatTimeAgo(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays > 7) {
-      return '${date.month}/${date.day}';
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays}d';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m';
-    } else {
-      return 'now';
-    }
-  }
 }
 
+
+// Legacy code below - keeping for FlowPreviewCard compatibility
 // Preview Card Widget
 class FlowPreviewCard extends StatefulWidget {
   final InboxShareItem item;
@@ -1141,6 +1112,7 @@ class InboxFlowDetailsPage extends StatelessWidget {
     );
   }
 }
+
 
 
 
