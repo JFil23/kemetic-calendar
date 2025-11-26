@@ -9,7 +9,7 @@ import '../../repositories/inbox_repo.dart';
 import 'shared_flow_details_entry.dart';
 import 'conversation_user.dart';
 
-class InboxConversationPage extends StatelessWidget {
+class InboxConversationPage extends StatefulWidget {
   final String otherUserId;
   final ConversationUser otherProfile;
 
@@ -18,6 +18,13 @@ class InboxConversationPage extends StatelessWidget {
     required this.otherProfile,
     super.key,
   });
+
+  @override
+  State<InboxConversationPage> createState() => _InboxConversationPageState();
+}
+
+class _InboxConversationPageState extends State<InboxConversationPage> {
+  final Set<String> _locallyDeleted = <String>{};
 
   @override
   Widget build(BuildContext context) {
@@ -38,12 +45,12 @@ class InboxConversationPage extends StatelessWidget {
             CircleAvatar(
               radius: 16,
               backgroundColor: const Color(0xFFD4AF37).withOpacity(0.2),
-              backgroundImage: otherProfile.avatarUrl != null
-                  ? NetworkImage(otherProfile.avatarUrl!)
+              backgroundImage: widget.otherProfile.avatarUrl != null
+                  ? NetworkImage(widget.otherProfile.avatarUrl!)
                   : null,
-              child: otherProfile.avatarUrl == null
+              child: widget.otherProfile.avatarUrl == null
                   ? Text(
-                      (otherProfile.displayName ?? otherProfile.handle ?? '?')
+                      (widget.otherProfile.displayName ?? widget.otherProfile.handle ?? '?')
                           .characters
                           .take(2)
                           .toString()
@@ -58,7 +65,7 @@ class InboxConversationPage extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              otherProfile.displayName ?? otherProfile.handle ?? 'User',
+              widget.otherProfile.displayName ?? widget.otherProfile.handle ?? 'User',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 17,
@@ -69,7 +76,7 @@ class InboxConversationPage extends StatelessWidget {
         ),
       ),
       body: StreamBuilder<List<InboxShareItem>>(
-        stream: inboxRepo.watchConversationWith(otherUserId),
+        stream: inboxRepo.watchConversationWith(widget.otherUserId),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
@@ -95,7 +102,17 @@ class InboxConversationPage extends StatelessWidget {
             );
           }
 
-          final items = snapshot.data!;
+          var items = snapshot.data ?? const <InboxShareItem>[];
+
+          // Optional: clean up local cache for items the backend no longer sends
+          final streamIds = items.map((e) => e.shareId).toSet();
+          _locallyDeleted.removeWhere((id) => !streamIds.contains(id));
+
+          // Filter out locally deleted items
+          items = items
+              .where((item) => !_locallyDeleted.contains(item.shareId))
+              .toList();
+
           if (items.isEmpty) {
             return const Center(
               child: Text(
@@ -178,18 +195,15 @@ class InboxConversationPage extends StatelessWidget {
 
                                 final shareRepo = ShareRepo(Supabase.instance.client);
 
-                                bool ok;
-                                if (isMine) {
-                                  ok = await shareRepo.unsendShare(
-                                    share.shareId,
-                                    isFlow: share.isFlow,
-                                  );
-                                } else {
-                                  ok = await shareRepo.deleteInboxItem(
-                                    share.shareId,
-                                    isFlow: share.isFlow,
-                                  );
-                                }
+                                final bool ok = isMine
+                                    ? await shareRepo.unsendShare(
+                                        share.shareId,
+                                        isFlow: share.isFlow,
+                                      )
+                                    : await shareRepo.deleteInboxItem(
+                                        share.shareId,
+                                        isFlow: share.isFlow,
+                                      );
 
                                 if (!ok && context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -200,6 +214,19 @@ class InboxConversationPage extends StatelessWidget {
                                             : 'Could not delete this flow. Please try again.',
                                       ),
                                       backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                } else if (ok && mounted) {
+                                  setState(() {
+                                    _locallyDeleted.add(share.shareId);
+                                  });
+
+                                  // Optional: quick success toast
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(isMine ? 'Flow unsent' : 'Flow deleted'),
+                                      duration: const Duration(seconds: 1),
+                                      backgroundColor: Colors.green,
                                     ),
                                   );
                                 }

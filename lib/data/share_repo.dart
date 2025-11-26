@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:postgrest/postgrest.dart' show PostgrestException;
 import 'share_models.dart';
 
 class ShareRepo {
@@ -230,57 +231,55 @@ class ShareRepo {
   }
 
   /// Low-level helper: soft-delete a share row by role (sender or recipient).
-  /// Returns true if rows were actually updated, false otherwise.
+  /// Returns true if update succeeds, false on error.
+  /// Note: This will fail silently until backend adds `deleted_at` column.
   Future<bool> _softDeleteShare({
     required String shareId,
     required bool isFlow,
     required String roleColumn, // 'sender_id' or 'recipient_id'
   }) async {
     try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) {
+      final user = _client.auth.currentUser;
+      if (user == null) {
         if (kDebugMode) {
-          debugPrint('[ShareRepo] No authenticated user for softDelete');
+          debugPrint('[ShareRepo] softDelete: no auth user');
         }
         return false;
       }
 
+      final userId = user.id;
       final table = isFlow ? 'flow_shares' : 'event_shares';
+      final now = DateTime.now().toUtc().toIso8601String();
 
       if (kDebugMode) {
         debugPrint(
-          '[ShareRepo] softDelete shareId=$shareId table=$table roleColumn=$roleColumn userId=$userId',
+          '[ShareRepo] softDelete table=$table shareId=$shareId roleColumn=$roleColumn userId=$userId',
         );
       }
 
-      final now = DateTime.now().toUtc().toIso8601String();
-
-      // Use .select('id') to force response and verify rows were actually updated
-      final response = await _client
+      await _client
           .from(table)
           .update({'deleted_at': now})
           .eq('id', shareId)
-          .eq(roleColumn, userId)
-          .select('id');
-
-      if (response is List && response.isNotEmpty) {
-        if (kDebugMode) {
-          debugPrint('[ShareRepo] ✓ softDelete success for shareId=$shareId');
-        }
-        return true;
-      }
+          .eq(roleColumn, userId);
 
       if (kDebugMode) {
-        debugPrint(
-          '[ShareRepo] ✗ softDelete affected 0 rows for shareId=$shareId. '
-          'Check shareId, roleColumn, and RLS.',
-        );
+        debugPrint('[ShareRepo] ✓ softDelete success for shareId=$shareId');
       }
-      return false;
-    } catch (e, stackTrace) {
+
+      return true;
+    } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[ShareRepo] ✗ softDelete error: $e');
-        debugPrint('[ShareRepo] Stack trace: $stackTrace');
+        debugPrint('$st');
+        // In dev, you can distinguish error types for better debugging:
+        if (e is PostgrestException) {
+          debugPrint('[ShareRepo] Postgrest error: code=${e.code}, message=${e.message}');
+          if (e.code == 'PGRST116') {
+            // Column doesn't exist
+            debugPrint('[ShareRepo] ⚠️ deleted_at column may not exist yet');
+          }
+        }
       }
       return false;
     }

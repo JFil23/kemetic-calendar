@@ -33,6 +33,8 @@ import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/widgets/month_name_text.dart';
 import 'package:mobile/core/day_key.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/gestures.dart';
 
 
 
@@ -9964,7 +9966,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
 /* ---------------- Flow Preview Page (read-only) ---------------- */
 
-class _FlowPreviewPage extends StatelessWidget {
+class _FlowPreviewPage extends StatefulWidget {
   const _FlowPreviewPage({
     required this.flow,
     required this.kemetic,
@@ -9989,8 +9991,62 @@ class _FlowPreviewPage extends StatelessWidget {
   final VoidCallback? onEndMaatFlow;
   final bool isMaatInstance;
 
+  @override
+  State<_FlowPreviewPage> createState() => _FlowPreviewPageState();
+}
+
+class _FlowPreviewPageState extends State<_FlowPreviewPage> {
+  late final UserEventsRepo _userEventsRepo;
+
+  // The record type matches getEventsForFlow() in user_events_repo.dart
+  List<({
+    String? id,
+    String? clientEventId,
+    String title,
+    String? detail,
+    String? location,
+    bool allDay,
+    DateTime startsAtUtc,
+    DateTime? endsAtUtc,
+    int? flowLocalId,
+  })> _events = const [];
+
+  bool _loadingEvents = false;
+  Object? _eventsError;
+
+  @override
+  void initState() {
+    super.initState();
+    _userEventsRepo = UserEventsRepo(Supabase.instance.client);
+    _loadEvents();
+  }
+
+  Future<void> _loadEvents() async {
+    setState(() {
+      _loadingEvents = true;
+      _eventsError = null;
+    });
+
+    try {
+      final events = await _userEventsRepo.getEventsForFlow(widget.flow.id);
+      if (!mounted) return;
+      setState(() {
+        _events = events;
+        _loadingEvents = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _eventsError = e;
+        _loadingEvents = false;
+      });
+    }
+  }
+
   List<Widget> _buildSchedule(BuildContext context) {
     final rows = <TableRow>[];
+    final flow = widget.flow;
+    final kemetic = widget.kemetic;
 
     TextStyle head = const TextStyle(
       color: Colors.white70,
@@ -10045,7 +10101,7 @@ class _FlowPreviewPage extends StatelessWidget {
           if (k.kMonth == 13) continue; // skip epagomenal
           final di = ((k.kDay - 1) ~/ 10); // 0..2
           final inDec = ((k.kDay - 1) % 10) + 1;
-          final name = '${getMonthById(k.kMonth).displayFull} • ${getDecanLabel(k.kMonth, di)}';
+          final name = '${getMonthById(k.kMonth).displayFull} • ${widget.getDecanLabel(k.kMonth, di)}';
           (map[name] ??= <int>[]).add(inDec);
         }
         final keys = map.keys.toList()..sort();
@@ -10106,6 +10162,8 @@ class _FlowPreviewPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final flow = widget.flow;
+
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -10113,13 +10171,13 @@ class _FlowPreviewPage extends StatelessWidget {
         elevation: 0.5,
         title: const Text('Flow', style: TextStyle(color: Colors.white)),
         actions: [
-          if (isMaatInstance && onEndMaatFlow != null)
+          if (widget.isMaatInstance && widget.onEndMaatFlow != null)
             OutlinedButton(
               style: OutlinedButton.styleFrom(
                 foregroundColor: _gold,
                 side: const BorderSide(color: _gold, width: 1.2),
               ),
-              onPressed: onEndMaatFlow,
+              onPressed: widget.onEndMaatFlow,
               child: const Text('End Flow'),
             ),
           PopupMenuButton<String>(
@@ -10127,9 +10185,9 @@ class _FlowPreviewPage extends StatelessWidget {
             tooltip: 'Flow options',
             onSelected: (value) {
               if (value == 'edit') {
-                onEdit();
+                widget.onEdit();
               } else if (value == 'share') {
-                _openShareSheet(context, flow);
+                _openShareSheet(context, widget.flow);
               }
             },
             itemBuilder: (context) => [
@@ -10178,8 +10236,8 @@ class _FlowPreviewPage extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            (overview.trim().isEmpty) ? '—' : overview.trim(),
-                  style: const TextStyle(color: Colors.white, height: 1.35),
+            (widget.overview.trim().isEmpty) ? '—' : widget.overview.trim(),
+            style: const TextStyle(color: Colors.white, height: 1.35),
           ),
           const SizedBox(height: 16),
 
@@ -10188,12 +10246,12 @@ class _FlowPreviewPage extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  kemetic ? 'Kemetic' : 'Gregorian',
+                  widget.kemetic ? 'Kemetic' : 'Gregorian',
                   style: const TextStyle(color: Colors.white70),
                 ),
               ),
               Text(
-                '${fmt(flow.start)} → ${fmt(flow.end)}',
+                '${widget.fmt(flow.start)} → ${widget.fmt(flow.end)}',
                 style: const TextStyle(color: Colors.white70),
               ),
             ],
@@ -10208,9 +10266,288 @@ class _FlowPreviewPage extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           ..._buildSchedule(context),
+          
+          const SizedBox(height: 24),
+
+          // Days & Notes (event-level note fields)
+          const GlossyText(
+            text: 'Days & Notes',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            gradient: silverGloss,
+          ),
+          const SizedBox(height: 6),
+          if (_loadingEvents)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_eventsError != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'Could not load flow days/notes.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.redAccent,
+                ),
+              ),
+            )
+          else if (_events.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'No days or notes for this flow yet.',
+                style: TextStyle(fontSize: 14, color: Colors.white70),
+              ),
+            )
+          else
+            ..._events.map(_buildEventTile),
         ],
       ),
     );
+  }
+
+  Widget _buildEventTile((
+    {
+      String? id,
+      String? clientEventId,
+      String title,
+      String? detail,
+      String? location,
+      bool allDay,
+      DateTime startsAtUtc,
+      DateTime? endsAtUtc,
+      int? flowLocalId,
+    }
+  ) e) {
+    final localStart = e.startsAtUtc.toLocal();
+    final localEnd = e.endsAtUtc?.toLocal();
+    final hasDetail = (e.detail != null && e.detail!.trim().isNotEmpty);
+    final hasLocation = (e.location != null && e.location!.trim().isNotEmpty);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111111),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x22FFFFFF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title + date/time
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  e.title.isEmpty ? '(Untitled day)' : e.title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _formatEventTime(localStart, localEnd, e.allDay),
+                style: const TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+            ],
+          ),
+
+          if (hasDetail) ...[
+            const SizedBox(height: 8),
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 13, color: Colors.white),
+                children: _buildDetailSpans(e.detail!.trim()),
+              ),
+            ),
+          ],
+
+          if (hasLocation) ...[
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => _launchLocationFromPreview(e.location!.trim()),
+              child: Text(
+                e.location!.trim(),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.white,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _formatEventTime(
+    DateTime start,
+    DateTime? end,
+    bool allDay,
+  ) {
+    if (allDay) {
+      return widget.fmt(start);
+    }
+
+    final startTime = TimeOfDay.fromDateTime(start);
+    final startTimeStr = startTime.format(context);
+
+    if (end == null) {
+      return '${widget.fmt(start)} · $startTimeStr';
+    }
+
+    final endTime = TimeOfDay.fromDateTime(end);
+    final endTimeStr = endTime.format(context);
+
+    final sameDay = start.year == end.year &&
+        start.month == end.month &&
+        start.day == end.day;
+
+    if (sameDay) {
+      return '${widget.fmt(start)} · $startTimeStr–$endTimeStr';
+    }
+
+    return '${widget.fmt(start)} $startTimeStr → ${widget.fmt(end)} $endTimeStr';
+  }
+
+  List<TextSpan> _buildDetailSpans(String text) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'(https?://\S+)', multiLine: true);
+    int start = 0;
+
+    for (final match in regex.allMatches(text)) {
+      if (match.start > start) {
+        spans.add(TextSpan(text: text.substring(start, match.start)));
+      }
+      final url = match.group(0)!;
+      spans.add(
+        TextSpan(
+          text: url,
+          style: const TextStyle(
+            decoration: TextDecoration.underline,
+            color: Color(0xFF4DA3FF),
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () async {
+              final uri = Uri.parse(url);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+        ),
+      );
+      start = match.end;
+    }
+
+    if (start < text.length) {
+      spans.add(TextSpan(text: text.substring(start)));
+    }
+
+    return spans;
+  }
+
+  bool _isLikelyUrl(String text) {
+    final lower = text.toLowerCase().trim();
+    
+    // Already has protocol
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return true;
+    }
+    
+    // Email pattern (check early - most specific)
+    if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
+      return true;
+    }
+    
+    // Phone number pattern (check for phone-like formatting)
+    final phonePattern = RegExp(r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$');
+    final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
+    if (phonePattern.hasMatch(lower) || (digitsOnly.length >= 10 && digitsOnly.length <= 15 && RegExp(r'^\+?[0-9]+$').hasMatch(digitsOnly))) {
+      return true;
+    }
+    
+    // Known service domains (most reliable)
+    final knownServices = [
+      r'zoom\.us',
+      r'meet\.google\.com',
+      r'youtube\.com',
+      r'youtu\.be',
+      r'facebook\.com',
+      r'instagram\.com',
+      r'twitter\.com',
+      r'linkedin\.com',
+      r'tiktok\.com',
+      r'discord\.gg',
+      r'slack\.com',
+      r'teams\.microsoft\.com',
+    ];
+    
+    for (final service in knownServices) {
+      if (RegExp(service).hasMatch(lower)) {
+        return true;
+      }
+    }
+    
+    // Generic domain pattern (but require at least one dot and TLD, no spaces)
+    if (RegExp(r'^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}(/.*)?$').hasMatch(lower) && 
+        lower.contains('.') && 
+        !lower.contains(' ')) { // No spaces = likely URL, not address
+      return true;
+    }
+    
+    // www. prefix
+    if (lower.startsWith('www\.')) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  Future<void> _launchLocationFromPreview(String raw) async {
+    final loc = raw.trim();
+    if (loc.isEmpty) return;
+
+    Uri uri;
+
+    if (_isLikelyUrl(loc)) {
+      final lower = loc.toLowerCase();
+
+      // Already a full URL
+      if (lower.startsWith('http://') || lower.startsWith('https://')) {
+        uri = Uri.parse(loc);
+      }
+      // Email
+      else if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
+        uri = Uri.parse('mailto:$loc');
+      }
+      // Phone
+      else {
+        final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
+        final phonePattern = RegExp(r'^\+?[0-9]{7,15}$');
+        if (phonePattern.hasMatch(digitsOnly)) {
+          uri = Uri.parse('tel:$loc');
+        } else {
+          // Bare domain or known service → assume https
+          uri = Uri.parse('https://$loc');
+        }
+      }
+    } else {
+      // Not URL/email/phone → treat as address (Maps)
+      final q = Uri.encodeComponent(loc);
+      uri = Uri.parse('https://maps.google.com/?q=$q');
+    }
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   static Future<void> _openShareSheet(BuildContext context, _Flow flow) async {

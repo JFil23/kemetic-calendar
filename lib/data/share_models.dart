@@ -117,10 +117,44 @@ class ShareResult {
   bool get isError => error != null;
 }
 
+/// Type-safe enum for inbox share kinds
+enum InboxShareKind {
+  flow,
+  event;
+
+  static InboxShareKind? tryFromString(String raw) {
+    switch (raw) {
+      case 'flow':
+        return InboxShareKind.flow;
+      case 'event':
+        return InboxShareKind.event;
+      default:
+        return null;
+    }
+  }
+
+  static InboxShareKind fromString(String raw) {
+    final kind = tryFromString(raw);
+    if (kind == null && kDebugMode) {
+      debugPrint('[InboxShareKind] Unknown kind: $raw, defaulting to flow');
+    }
+    return kind ?? InboxShareKind.flow;
+  }
+
+  String get asString {
+    switch (this) {
+      case InboxShareKind.flow:
+        return 'flow';
+      case InboxShareKind.event:
+        return 'event';
+    }
+  }
+}
+
 /// Unified inbox item for shared flows and events
 class InboxShareItem {
   final String shareId;
-  final String kind; // 'flow' or 'event'
+  final InboxShareKind kind;
   final String recipientId;
   final String senderId;
   final String? senderHandle;  // ✅ NULLABLE
@@ -131,6 +165,7 @@ class InboxShareItem {
   final DateTime createdAt;
   final DateTime? viewedAt;
   final DateTime? importedAt;
+  final DateTime? deletedAt; // ✅ new - represents soft deletion
   final SuggestedSchedule? suggestedSchedule;
   final DateTime? eventDate; // For event shares
   final Map<String, dynamic>? payloadJson; // ✅ NULLABLE
@@ -153,6 +188,7 @@ class InboxShareItem {
     required this.createdAt,
     this.viewedAt,
     this.importedAt,
+    this.deletedAt,         // ✅ new
     this.suggestedSchedule,
     this.eventDate,
     this.payloadJson,       // ✅ NOT REQUIRED
@@ -162,15 +198,13 @@ class InboxShareItem {
   });
 
   factory InboxShareItem.fromJson(Map<String, dynamic> json) {
-    final kind = json['kind'] as String? ?? 'flow'; // Fallback to 'flow' if missing
-    
     if (kDebugMode) {
-      debugPrint('[InboxItem] Parsing: shareId=${json['share_id']}, kind=$kind');
+      debugPrint('[InboxItem] Parsing: shareId=${json['share_id']}, kind=${json['kind']}');
     }
     
     final result = InboxShareItem(
       shareId: json['share_id'] as String,
-      kind: kind,
+      kind: InboxShareKind.fromString(json['kind'] as String? ?? 'flow'),
       recipientId: json['recipient_id'] as String,
       senderId: json['sender_id'] as String,
       
@@ -188,6 +222,9 @@ class InboxShareItem {
       importedAt: json['imported_at'] != null 
           ? DateTime.parse(json['imported_at'] as String) 
           : null,
+      deletedAt: json['deleted_at'] != null      // ✅ new
+          ? DateTime.parse(json['deleted_at'] as String)
+          : null,
       suggestedSchedule: json['suggested_schedule'] != null
           ? SuggestedSchedule.fromJson(json['suggested_schedule'] as Map<String, dynamic>)
           : null,
@@ -196,7 +233,7 @@ class InboxShareItem {
           : null,
       
       // ✅ CRITICAL FIX: Handle NULL payloadJson
-      payloadJson: (json['payload_json'] as Map<String, dynamic>?) ?? {},
+      payloadJson: (json['payload_json'] as Map<String, dynamic>?) ?? const <String, dynamic>{},
       
       // Future-friendly recipient profile fields (will be null until backend adds)
       recipientHandle: json['recipient_handle'] as String?,
@@ -205,7 +242,7 @@ class InboxShareItem {
     );
     
     if (kDebugMode) {
-      debugPrint('[InboxItem] Created: shareId=${result.shareId}, kind=${result.kind}, isFlow=${result.isFlow}');
+      debugPrint('[InboxItem] Created: shareId=${result.shareId}, kind=${result.kind.asString}, isFlow=${result.isFlow}');
     }
     
     return result;
@@ -214,7 +251,7 @@ class InboxShareItem {
   Map<String, dynamic> toJson() {
     return {
       'share_id': shareId,
-      'kind': kind,
+      'kind': kind.asString, // ✅ use enum's string representation
       'recipient_id': recipientId,
       'sender_id': senderId,
       'sender_handle': senderHandle,
@@ -225,6 +262,7 @@ class InboxShareItem {
       'created_at': createdAt.toIso8601String(),
       'viewed_at': viewedAt?.toIso8601String(),
       'imported_at': importedAt?.toIso8601String(),
+      'deleted_at': deletedAt?.toIso8601String(), // ✅ new
       'suggested_schedule': suggestedSchedule?.toJson(),
       'event_date': eventDate?.toIso8601String(),
       'payload_json': payloadJson,
@@ -235,10 +273,11 @@ class InboxShareItem {
   }
 
   // Computed properties
-  bool get isFlow => kind == 'flow';
-  bool get isEvent => kind == 'event';
-  bool get isUnread => viewedAt == null;
-  bool get isImported => importedAt != null;
+  bool get isFlow => kind == InboxShareKind.flow;
+  bool get isEvent => kind == InboxShareKind.event;
+  bool get isDeleted => deletedAt != null;
+  bool get isUnread => viewedAt == null && !isDeleted;
+  bool get isImported => importedAt != null && !isDeleted;
 
   String get subtitle {
     final handle = senderHandle ?? 'unknown';

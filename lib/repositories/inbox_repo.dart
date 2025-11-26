@@ -75,26 +75,9 @@ class InboxRepo {
     }
   }
   
-  /// Mark a share as imported (called after successful import)
-  Future<bool> markImported(String shareId, {required bool isFlow}) async {
-    try {
-      final table = isFlow ? 'flow_shares' : 'event_shares';
-      await _client
-          .from(table)
-          .update({'imported_at': DateTime.now().toUtc().toIso8601String()})
-          .eq('id', shareId);
-      
-      if (kDebugMode) {
-        print('[InboxRepo] Marked $shareId as imported in $table');
-      }
-      
-      return true;
-    } catch (e) {
-      if (kDebugMode) {
-        print('[InboxRepo] Error marking imported: $e');
-      }
-      return false;
-    }
+  /// Mark a share as imported (delegates to ShareRepo)
+  Future<bool> markImported(String shareId, {required bool isFlow}) {
+    return _shareRepo.markImported(shareId, isFlow: isFlow);
   }
   
   /// Clear import status (manually called or triggered by deletion)
@@ -151,6 +134,9 @@ class InboxRepo {
       final Map<String, List<InboxShareItem>> grouped = {};
       
       for (final item in items) {
+        // ✅ Skip deleted items
+        if (item.isDeleted) continue;
+        
         final otherId = _getOtherUserId(item, uid);
         if (otherId == null) continue;
         grouped.putIfAbsent(otherId, () => []).add(item);
@@ -174,7 +160,7 @@ class InboxRepo {
       final conv = items.where((item) {
         final a = item.senderId == uid && item.recipientId == otherUserId;
         final b = item.senderId == otherUserId && item.recipientId == uid;
-        return a || b;
+        return (a || b) && !item.isDeleted; // ✅ don't show deleted
       }).toList()
         ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
       
