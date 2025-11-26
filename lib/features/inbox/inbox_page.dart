@@ -8,6 +8,8 @@ import '../../data/share_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../repositories/inbox_repo.dart';
 import '../calendar/calendar_page.dart';
+import '../../utils/event_cid_util.dart';
+import 'inbox_conversation_page.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
@@ -25,164 +27,22 @@ class _InboxPageState extends State<InboxPage> {
   static const _gold = Color(0xFFD4AF37);
   static const _silver = Color(0xFFB0B0B0);
 
-  final _shareRepo = ShareRepo(Supabase.instance.client);
-  final _inboxRepo = InboxRepo(Supabase.instance.client);
-  List<InboxShareItem> _items = [];
-  bool _isLoading = true;
-  String? _error;
-  int _unreadCount = 0;
-  
-  // NEW: Cache of actual import statuses
-  final Map<String, bool> _importStatusCache = {};
+  late final InboxRepo _inboxRepo;
+  late final ShareRepo _shareRepo;
 
   @override
   void initState() {
     super.initState();
-    _loadInboxItems();
-  }
-
-  Future<void> _loadInboxItems() async {
-    print('📬 [InboxPage] Starting _loadInboxItems()');
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      print('📬 [InboxPage] Calling _shareRepo.getInboxItems()...');
-      final items = await _shareRepo.getInboxItems();
-      print('📬 [InboxPage] Received ${items.length} items from repo');
-      
-      if (items.isNotEmpty) {
-        print('📬 [InboxPage] First item: ${items[0].title} from @${items[0].senderHandle}');
-      } else {
-        print('⚠️  [InboxPage] Items list is EMPTY');
-      }
-      
-      final unreadCount = await _shareRepo.getUnreadCount();
-      print('📬 [InboxPage] Unread count: $unreadCount');
-      
-      // NEW: Check actual import status for each flow share
-      for (final item in items) {
-        if (item.isFlow) {
-          final isImported = await _inboxRepo.isFlowCurrentlyImported(item.shareId);
-          _importStatusCache[item.shareId] = isImported;
-        } else {
-          // For events, keep the simple check
-          _importStatusCache[item.shareId] = item.importedAt != null;
-        }
-      }
-      
-      if (mounted) {
-        setState(() {
-          _items = items;
-          _unreadCount = unreadCount;
-          _isLoading = false;
-        });
-        print('📬 [InboxPage] State updated with ${_items.length} items');
-      }
-    } catch (e, stackTrace) {
-      print('❌ [InboxPage] Error in _loadInboxItems: $e');
-      print('❌ Stack trace: $stackTrace');
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
-      }
-    }
+    final client = Supabase.instance.client;
+    _shareRepo = ShareRepo(client);
+    _inboxRepo = InboxRepo(client);
   }
 
   Future<void> _handleRefresh() async {
-    await _loadInboxItems();
+    // Stream auto-updates; small delay to let stream catch up
+    await Future<void>.delayed(const Duration(milliseconds: 300));
   }
 
-  Future<void> _onItemTap(InboxShareItem item) async {
-    // Mark as viewed immediately
-    if (item.viewedAt == null) {
-      try {
-        await _shareRepo.markViewed(item.shareId, isFlow: item.isFlow);
-        
-        // Update local state manually (no copyWith method)
-        final index = _items.indexWhere((i) => i.shareId == item.shareId);
-        if (index != -1) {
-          setState(() {
-            _items[index] = InboxShareItem(
-              shareId: item.shareId,
-              kind: item.kind,
-              recipientId: item.recipientId,
-              senderId: item.senderId,
-              senderHandle: item.senderHandle,
-              senderName: item.senderName,
-              senderAvatar: item.senderAvatar,
-              payloadId: item.payloadId,
-              title: item.title,
-              createdAt: item.createdAt,
-              viewedAt: DateTime.now(), // ✅ Mark as viewed
-              importedAt: item.importedAt,
-              suggestedSchedule: item.suggestedSchedule,
-              eventDate: item.eventDate,
-              payloadJson: item.payloadJson,
-            );
-          });
-        }
-      } catch (e) {
-        print('Failed to mark as viewed: $e');
-      }
-    }
-
-    // Show preview modal
-    if (!mounted) return;
-    final result = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => FlowPreviewCard(
-        item: item,
-        importStatusCache: _importStatusCache,
-        onImportComplete: () => _loadInboxItems(), // Refresh after import
-      ),
-    );
-
-    // Refresh inbox if flow was imported
-    if (result is int) {  // ✅ Only reload if flow was imported
-      // Small delay to let database update propagate
-      await Future.delayed(const Duration(milliseconds: 300));
-      await _loadInboxItems();
-    }
-  }
-
-  Future<void> _onDismiss(InboxShareItem item) async {
-    // Optimistically remove from UI
-    setState(() {
-      _items.removeWhere((i) => i.shareId == item.shareId);
-    });
-
-    try {
-      // Delete from database
-      await _shareRepo.deleteInboxItem(item.shareId, isFlow: item.isFlow);
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Share dismissed'),
-          duration: Duration(seconds: 2),
-          backgroundColor: Colors.black87,
-        ),
-      );
-    } catch (e) {
-      // Restore item on error
-      await _loadInboxItems();
-      
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to dismiss: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -195,36 +55,42 @@ class _InboxPageState extends State<InboxPage> {
           icon: const Icon(Icons.close, color: _gold),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Inbox',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (_unreadCount > 0) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: _gold,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$_unreadCount',
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+        title: StreamBuilder<int>(
+          stream: _shareRepo.watchUnreadCount(),
+          builder: (context, snapshot) {
+            final unreadCount = snapshot.data ?? 0;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Inbox',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
-            ],
-          ],
+                if (unreadCount > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _gold,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$unreadCount',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            );
+          },
         ),
       ),
       body: _buildBody(),
@@ -232,71 +98,210 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(_gold),
-        ),
-      );
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, color: Colors.red, size: 48),
-            const SizedBox(height: 16),
-            const Text(
-              'Failed to load inbox',
-              style: TextStyle(
-                color: _silver,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                _error!,
-                style: const TextStyle(
-                  color: _silver,
-                  fontSize: 12,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadInboxItems,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _gold,
-                foregroundColor: Colors.black,
-              ),
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_items.isEmpty) {
-      return _buildEmptyState();
-    }
-
     return RefreshIndicator(
       onRefresh: _handleRefresh,
       color: _gold,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _items.length,
-        itemBuilder: (context, index) {
-          final item = _items[index];
-          return _buildInboxCard(item);
+      child: StreamBuilder<Map<String, List<InboxShareItem>>>(
+        stream: _inboxRepo.watchConversations(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Failed to load inbox',
+                    style: TextStyle(
+                      color: _silver,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      '${snapshot.error}',
+                      style: const TextStyle(
+                        color: _silver,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _handleRefresh,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _gold,
+                      foregroundColor: Colors.black,
+                    ),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (!snapshot.hasData) {
+            return const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(_gold),
+              ),
+            );
+          }
+
+          final threads = snapshot.data!;
+          if (threads.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          final entries = threads.entries.toList()
+            ..sort((a, b) {
+              // Sort by newest message in thread (descending)
+              final aLast = a.value.last.createdAt;
+              final bLast = b.value.last.createdAt;
+              return bLast.compareTo(aLast);
+            });
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: entries.length,
+            itemBuilder: (context, index) {
+              final otherUserId = entries[index].key;
+              final items = entries[index].value;
+              final last = items.last;
+              final currentUserId = _inboxRepo.currentUserId;
+              
+              if (currentUserId == null) {
+                return const SizedBox.shrink();
+              }
+              
+              final otherProfile = _resolveOtherProfile(last, currentUserId);
+              final hasUnread = items.any((i) => i.isUnread);
+
+              return _buildConversationBar(
+                context: context,
+                otherUserId: otherUserId,
+                otherProfile: otherProfile,
+                lastItem: last,
+                hasUnread: hasUnread,
+              );
+            },
+          );
         },
       ),
     );
   }
+  
+  _ConversationUser _resolveOtherProfile(InboxShareItem item, String currentUserId) {
+    final isMine = item.senderId == currentUserId;
+    
+    if (!isMine) {
+      // Item was sent TO me, so sender is the "other" person
+      return _ConversationUser(
+        id: item.senderId,
+        displayName: item.senderName,
+        handle: item.senderHandle,
+        avatarUrl: item.senderAvatar,
+      );
+    } else {
+      // Item was sent BY me, so recipient is the "other" person
+      // TODO: Once backend adds recipient profile fields, use those
+      return _ConversationUser(
+        id: item.recipientId,
+        displayName: item.recipientDisplayName ?? 'User',
+        handle: item.recipientHandle ?? 'user',
+        avatarUrl: item.recipientAvatarUrl,
+      );
+    }
+  }
+  
+  Widget _buildConversationBar({
+    required BuildContext context,
+    required String otherUserId,
+    required _ConversationUser otherProfile,
+    required InboxShareItem lastItem,
+    required bool hasUnread,
+  }) {
+    return ListTile(
+      leading: CircleAvatar(
+        radius: 24,
+        backgroundColor: _gold.withOpacity(0.2),
+        backgroundImage: otherProfile.avatarUrl != null
+            ? NetworkImage(otherProfile.avatarUrl!)
+            : null,
+        child: otherProfile.avatarUrl == null
+            ? Text(
+                (otherProfile.displayName ?? otherProfile.handle ?? '?')
+                    .characters
+                    .take(2)
+                    .toString()
+                    .toUpperCase(),
+                style: const TextStyle(
+                  color: _gold,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              )
+            : null,
+      ),
+      title: Text(
+        otherProfile.displayName ?? otherProfile.handle ?? 'User',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: hasUnread ? FontWeight.bold : FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        lastItem.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.7),
+          fontSize: 14,
+        ),
+      ),
+      trailing: hasUnread
+          ? Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: _gold,
+                shape: BoxShape.circle,
+              ),
+            )
+          : null,
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => InboxConversationPage(
+              otherUserId: otherUserId,
+              otherProfile: otherProfile,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ConversationUser {
+  final String id;
+  final String? displayName;
+  final String? handle;
+  final String? avatarUrl;
+
+  _ConversationUser({
+    required this.id,
+    this.displayName,
+    this.handle,
+    this.avatarUrl,
+  });
 
   Widget _buildEmptyState() {
     return Center(
@@ -330,200 +335,6 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
-  Widget _buildInboxCard(InboxShareItem item) {
-    final isUnread = item.viewedAt == null;
-    final isImported = item.importedAt != null;
-
-    return Dismissible(
-      key: Key(item.shareId),
-      direction: DismissDirection.endToStart,
-      onDismissed: (_) => _onDismiss(item),
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.8),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Icon(Icons.delete_outline, color: Colors.white),
-      ),
-      child: InkWell(
-        onTap: () => _onItemTap(item),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: _cardBg,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isUnread ? _gold.withOpacity(0.3) : Colors.white.withOpacity(0.1),
-              width: isUnread ? 2 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              // Unread dot indicator
-              if (isUnread)
-                Container(
-                  width: 8,
-                  height: 8,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: const BoxDecoration(
-                    color: _gold,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              
-              // Sender avatar
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: _gold.withOpacity(0.2),
-                backgroundImage: item.senderAvatar != null
-                    ? NetworkImage(item.senderAvatar!)
-                    : null,
-                child: item.senderAvatar == null
-                    ? Text(
-                        (item.senderName ?? 'U')[0].toUpperCase(),
-                        style: const TextStyle(
-                          color: _gold,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 16),
-              
-              // Content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Sender info + timestamp
-                    Row(
-                      children: [
-                        Expanded(
-                          child: RichText(
-                            text: TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: item.senderName ?? 'Unknown User',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: ' @${item.senderHandle ?? 'unknown'}',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.5),
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        Text(
-                          _formatTimeAgo(item.createdAt),
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    
-                    // Flow title
-                    Text(
-                      item.title,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: isUnread ? FontWeight.w600 : FontWeight.w500,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    
-                    // Status badges
-                    Row(
-                      children: [
-                        if (isImported)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'Imported',
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        if (isUnread) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _gold.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'New',
-                              style: TextStyle(
-                                color: _gold,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                        const SizedBox(width: 8),
-                        Icon(
-                          item.isFlow ? Icons.view_timeline : Icons.event,
-                          size: 14,
-                          color: Colors.white.withOpacity(0.5),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          item.isFlow ? 'Flow' : 'Event',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Chevron
-              Icon(
-                Icons.chevron_right,
-                color: Colors.white.withOpacity(0.3),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   String _formatTimeAgo(DateTime date) {
     final now = DateTime.now();
@@ -1169,7 +980,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
             final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
             final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
             
-            final cid = _buildCid(
+            final cid = EventCidUtil.buildClientEventId(
               ky: kDate.kYear,
               km: kDate.kMonth,
               kd: kDate.kDay,
@@ -1211,19 +1022,6 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
     }
   }
 
-  String _buildCid({
-    required int ky,
-    required int km,
-    required int kd,
-    required String title,
-    required int startHour,
-    required int startMinute,
-    required bool allDay,
-    required int flowId,
-  }) {
-    final startMin = allDay ? 540 : (startHour * 60 + startMinute);
-    return 'ky=$ky-km=$km-kd=$kd|s=$startMin|t=${Uri.encodeComponent(title)}|f=$flowId';
-  }
 
 }
 
@@ -1343,4 +1141,6 @@ class InboxFlowDetailsPage extends StatelessWidget {
     );
   }
 }
+
+
 

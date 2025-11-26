@@ -1008,7 +1008,12 @@ const List<_MaatFlowTemplate> kMaatFlowTemplates = [
 GlobalKey keyForMonth(int ky, int km) => GlobalObjectKey('y${ky}m${km}');
 
 class CalendarPage extends StatefulWidget {
-  const CalendarPage({super.key});
+  final int? initialFlowIdToEdit;
+  
+  const CalendarPage({
+    super.key,
+    this.initialFlowIdToEdit,
+  });
   
   // Global key for accessing calendar state from other pages
   static final GlobalKey<_CalendarPageState> globalKey = GlobalKey<_CalendarPageState>();
@@ -1758,6 +1763,59 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
 
   String _kKey(int ky, int km, int kd) => '$ky-$km-$kd';
 
+  /// Get flow colors for a given day (for month grid dots).
+  /// Derives colors from notes in _notes, not from recomputed flow occurrences.
+  List<Color> getFlowColorsForDay(int kYear, int kMonth, int kDay) {
+    final notes = _getNotes(kYear, kMonth, kDay);
+    final flowIds = notes
+        .where((n) => n.flowId != null && n.flowId != -1)
+        .map((n) => n.flowId!)
+        .toSet();
+
+    final colors = <Color>[];
+    for (final fid in flowIds) {
+      try {
+        final flow = _flows.firstWhere((f) => f.id == fid);
+        if (!colors.contains(flow.color)) {
+          colors.add(flow.color);
+          if (colors.length == 3) break; // Cap to 3 colors
+        }
+      } catch (_) {
+        // Flow not found, skip
+      }
+    }
+    return colors;
+  }
+
+  /// Get flow colors for a given day using a notes getter function.
+  /// Used by stateless widgets that can't access instance methods.
+  List<Color> getFlowColorsForDayFromNotes(
+    int kYear,
+    int kMonth,
+    int kDay,
+    List<_Note> Function(int kMonth, int kDay) notesGetter,
+  ) {
+    final notes = notesGetter(kMonth, kDay);
+    final flowIds = notes
+        .where((n) => n.flowId != null && n.flowId != -1)
+        .map((n) => n.flowId!)
+        .toSet();
+
+    final colors = <Color>[];
+    for (final fid in flowIds) {
+      try {
+        final flow = _flows.firstWhere((f) => f.id == fid);
+        if (!colors.contains(flow.color)) {
+          colors.add(flow.color);
+          if (colors.length == 3) break; // Cap to 3 colors
+        }
+      } catch (_) {
+        // Flow not found, skip
+      }
+    }
+    return colors;
+  }
+
   List<_Note> _getNotes(int kYear, int kMonth, int kDay) {
     final key = _kKey(kYear, kMonth, kDay);
     if (kDebugMode) {
@@ -1780,11 +1838,15 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
   /// Flow occurrences that apply to a given Kemetic date (computed on demand).
   List<_FlowOccurrence> _getFlowOccurrences(int kYear, int kMonth, int kDay) {
     final g = KemeticMath.toGregorian(kYear, kMonth, kDay);
+    final gDate = DateUtils.dateOnly(g);
     final out = <_FlowOccurrence>[];
     for (final f in _flows) {
       if (!f.active) continue;
-      if (f.start != null && g.isBefore(DateUtils.dateOnly(f.start!))) continue;
-      if (f.end != null && g.isAfter(DateUtils.dateOnly(f.end!))) continue;
+      if (f.isHidden) continue; // repeating notes should NOT appear as flows
+      final start = f.start != null ? DateUtils.dateOnly(f.start!) : null;
+      final end = f.end != null ? DateUtils.dateOnly(f.end!) : null;
+      if (start != null && gDate.isBefore(start)) continue;
+      if (end != null && gDate.isAfter(end)) continue;
       for (final r in f.rules) {
         if (r.matches(ky: kYear, km: kMonth, kd: kDay, g: g)) {
           out.add(_FlowOccurrence(
@@ -4274,7 +4336,17 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
         return; // Don't load data yet - wait for restart
       }
       
-      _loadFromDisk();
+      // 1) First load everything from disk
+      _loadFromDisk().then((_) {
+        // 2) After flows are loaded, if we have an initial flow to edit, open it
+        if (mounted && widget.initialFlowIdToEdit != null) {
+          _openFlowEditorDirectly(widget.initialFlowIdToEdit!);
+        }
+      });
+    } else if (widget.initialFlowIdToEdit != null) {
+      // Already initialized (flows loaded), but widget has an initial flow id
+      // e.g., if CalendarPage got rebuilt with a different target flow
+      _openFlowEditorDirectly(widget.initialFlowIdToEdit!);
     }
   }
 
@@ -5467,8 +5539,9 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
       }
     }
     
-    // Schedule new notes
-    for (var date = start; date.isBefore(end); date = date.add(const Duration(days: 1))) {
+    // Schedule new notes (inclusive of end date)
+    var date = start;
+    while (!date.isAfter(end)) {
       final kDate = KemeticMath.fromGregorian(date);
       
       for (final rule in rules) {
@@ -5764,7 +5837,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                 monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
                 onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
                 notesGetter: (m, d) => _getNotes(kYear, m, d),
-                flowsGetter: (m, d) => _getFlowOccurrences(kYear, m, d),
+                flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
                 showGregorian: _showGregorian,
               );
             },
@@ -5783,7 +5856,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
             todayDayKey: _todayDayKey, // 🔑 pass day anchor
             onDayTap: (c, m, d) => _openDayView(c, kToday.kYear, m, d),
             notesGetter: (m, d) => _getNotes(kToday.kYear, m, d),
-            flowsGetter: (m, d) => _getFlowOccurrences(kToday.kYear, m, d),
+            flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
             showGregorian: _showGregorian,
           ),
         ),
@@ -5801,7 +5874,7 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                 monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
                 onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
                 notesGetter: (m, d) => _getNotes(kYear, m, d),
-                flowsGetter: (m, d) => _getFlowOccurrences(kYear, m, d),
+                flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
                 showGregorian: _showGregorian,
               );
             },
@@ -5826,6 +5899,14 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
     }
     return index;
   }
+
+  @visibleForTesting
+  int filteredNoteCountForDay(int kYear, int kMonth, int kDay) {
+    // Unified logic: all views read from _notes (which is the canonical source).
+    // Zombie filters are already applied during _loadFromDisk, so we just count.
+    final key = _kKey(kYear, kMonth, kDay);
+    return (_notes[key] ?? const []).length;
+  }
 }
 
 
@@ -5838,7 +5919,7 @@ class _YearSection extends StatelessWidget {
     required this.todayMonth,
     required this.todayDay,
     required this.notesGetter,
-    required this.flowsGetter,
+    required this.flowColorsGetter,
     required this.onDayTap,
     required this.showGregorian,
     this.monthAnchorKeyProvider,
@@ -5852,9 +5933,7 @@ class _YearSection extends StatelessWidget {
 
   // existing notes
   final List<_Note> Function(int kMonth, int kDay) notesGetter;
-
-  // flow occurrences for a given day
-  final List<_FlowOccurrence> Function(int kMonth, int kDay) flowsGetter;
+  final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
 
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
   final Key? Function(int kMonth)? monthAnchorKeyProvider;
@@ -5876,7 +5955,7 @@ class _YearSection extends StatelessWidget {
           todayDay: td,
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
-          flowsGetter: flowsGetter,
+          flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
@@ -5890,7 +5969,7 @@ class _YearSection extends StatelessWidget {
           todayDay: td,
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
-          flowsGetter: flowsGetter,
+          flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
@@ -5904,7 +5983,7 @@ class _YearSection extends StatelessWidget {
           todayDay: td,
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
-          flowsGetter: flowsGetter,
+          flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
@@ -5918,7 +5997,7 @@ class _YearSection extends StatelessWidget {
           todayDay: td,
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
-          flowsGetter: flowsGetter,
+          flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
@@ -5934,7 +6013,7 @@ class _YearSection extends StatelessWidget {
           todayDay: td,
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
-          flowsGetter: flowsGetter,
+          flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
@@ -5948,7 +6027,7 @@ class _YearSection extends StatelessWidget {
           todayDay: td,
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
-          flowsGetter: flowsGetter,
+          flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
@@ -5962,7 +6041,7 @@ class _YearSection extends StatelessWidget {
           todayDay: td,
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
-          flowsGetter: flowsGetter,
+          flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
@@ -5976,7 +6055,7 @@ class _YearSection extends StatelessWidget {
           todayDay: td,
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
-          flowsGetter: flowsGetter,
+          flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
@@ -5992,7 +6071,7 @@ class _YearSection extends StatelessWidget {
           todayDay: td,
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
-          flowsGetter: flowsGetter,
+          flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
@@ -6006,7 +6085,7 @@ class _YearSection extends StatelessWidget {
           todayDay: td,
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
-          flowsGetter: flowsGetter,
+          flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
@@ -6020,7 +6099,7 @@ class _YearSection extends StatelessWidget {
           todayDay: td,
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
-          flowsGetter: flowsGetter,
+          flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
@@ -6034,7 +6113,7 @@ class _YearSection extends StatelessWidget {
           todayDay: td,
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
-          flowsGetter: flowsGetter,
+          flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
         ),
@@ -6046,7 +6125,7 @@ class _YearSection extends StatelessWidget {
           todayDay: td,
           todayDayKey: todayDayKey,
           notesGetter: (m, d) => notesGetter(13, d),
-          flowsGetter: (m, d) => flowsGetter(13, d),
+          flowColorsGetter: flowColorsGetter,
           onDayTap: (c, m, d) => onDayTap(c, 13, d),
           showGregorian: showGregorian,
         ),
@@ -6069,7 +6148,7 @@ class _MonthCard extends StatelessWidget {
   final bool showGregorian;
 
   final List<_Note> Function(int kMonth, int kDay) notesGetter;
-  final List<_FlowOccurrence> Function(int kMonth, int kDay) flowsGetter;
+  final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
 
   // Optional overrides for taps (used by the detail page)
@@ -6084,7 +6163,7 @@ class _MonthCard extends StatelessWidget {
     required this.todayMonth,
     required this.todayDay,
     required this.notesGetter,
-    required this.flowsGetter,
+    required this.flowColorsGetter,
     required this.onDayTap,
     required this.showGregorian,
     this.todayDayKey,
@@ -6132,7 +6211,7 @@ class _MonthCard extends StatelessWidget {
           todayDay: todayDay,
           showGregorian: showGregorian,
           notesGetter: notesGetter,
-          flowsGetter: flowsGetter,
+          flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           decanIndex: null,
         ),
@@ -6151,7 +6230,7 @@ class _MonthCard extends StatelessWidget {
           todayDay: todayDay,
           showGregorian: showGregorian,
           notesGetter: notesGetter,
-          flowsGetter: flowsGetter,
+          flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           decanIndex: decanIndex,
         ),
@@ -6279,7 +6358,7 @@ class _MonthCard extends StatelessWidget {
                   todayDay: todayDay,
                   todayDayKey: isMonthToday ? todayDayKey : null,
                   notesGetter: notesGetter,
-                  flowsGetter: flowsGetter,
+                  flowColorsGetter: flowColorsGetter,
                   onDayTap: onDayTap,
                   showGregorian: showGregorian,
                 ),
@@ -6291,31 +6370,7 @@ class _MonthCard extends StatelessWidget {
       ),
     );
   }
-}
-@visibleForTesting
-int filteredNoteCountForDay({
-  required int kMonth,
-  required int day,
-  required List<_FlowOccurrence> Function(int kMonth, int kDay) flowsGetter,
-  required List<_Note> Function(int kMonth, int kDay) notesGetter,
-}) {
-  final flows = flowsGetter(kMonth, day);
-  final notes = notesGetter(kMonth, day);
 
-  final hasFlowBacked = notes.any((n) => n.flowId != null);
-  if (flows.isEmpty && hasFlowBacked) {
-    return 0;
-  }
-
-  final activeFlowIds = <int>{for (final o in flows) o.flow.id};
-  var count = 0;
-  for (final n in notes) {
-    final fid = n.flowId;
-    if (fid == null || activeFlowIds.contains(fid)) {
-      count++;
-    }
-  }
-  return count;
 }
 
 /// Helper function to generate Kemetic day keys for the info dropdown
@@ -6349,7 +6404,7 @@ class _DecanRow extends StatelessWidget {
   final bool showGregorian;
 
   final List<_Note> Function(int kMonth, int kDay) notesGetter;
-  final List<_FlowOccurrence> Function(int kMonth, int kDay) flowsGetter;
+  final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
 
   const _DecanRow({
@@ -6359,7 +6414,7 @@ class _DecanRow extends StatelessWidget {
     required this.todayMonth,
     required this.todayDay,
     required this.notesGetter,
-    required this.flowsGetter,
+    required this.flowColorsGetter,
     required this.onDayTap,
     required this.showGregorian,
     required this.todayDayKey,
@@ -6373,22 +6428,9 @@ class _DecanRow extends StatelessWidget {
         final day = decanIndex * 10 + (j + 1); // 1..30
         final isToday = isMonthToday && (todayDay == day);
 
-        final noteCount = filteredNoteCountForDay(
-          kMonth: kMonth,
-          day: day,
-          flowsGetter: flowsGetter,
-          notesGetter: notesGetter,
-        );
-        final flows = flowsGetter(kMonth, day);
-
-        // Unique colors for dots (cap to 3)
-        final flowColors = <Color>[];
-        for (final occ in flows) {
-          if (!flowColors.contains(occ.flow.color)) {
-            flowColors.add(occ.flow.color);
-            if (flowColors.length == 3) break;
-          }
-        }
+        final notes = notesGetter(kMonth, day);
+        final noteCount = notes.length;
+        final flowColors = flowColorsGetter(kYear, kMonth, day);
 
         final label = showGregorian
             ? '${safeLocalDisplay(KemeticMath.toGregorian(kYear, kMonth, day)).day}'
@@ -6523,7 +6565,7 @@ class _EpagomenalCard extends StatelessWidget {
     this.todayMonth,
     this.todayDay,
     required this.notesGetter,
-    required this.flowsGetter,
+    required this.flowColorsGetter,
     required this.onDayTap,
     required this.showGregorian,
     this.todayDayKey,
@@ -6533,7 +6575,7 @@ class _EpagomenalCard extends StatelessWidget {
   final int? todayMonth;
   final int? todayDay;
   final List<_Note> Function(int kMonth, int kDay) notesGetter;
-  final List<_FlowOccurrence> Function(int kMonth, int kDay) flowsGetter;
+  final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
   final Key? todayDayKey;
   final bool showGregorian;
@@ -6605,20 +6647,9 @@ class _EpagomenalCard extends StatelessWidget {
                   final n = i + 1; // 1..5 or 1..6
                   final isToday = isMonthToday && (todayDay == n);
 
-                  final noteCount = filteredNoteCountForDay(
-                    kMonth: 13,
-                    day: n,
-                    flowsGetter: flowsGetter,
-                    notesGetter: notesGetter,
-                  );
-                  final flows = flowsGetter(13, n);
-                  final flowColors = <Color>[];
-                  for (final occ in flows) {
-                    if (!flowColors.contains(occ.flow.color)) {
-                      flowColors.add(occ.flow.color);
-                      if (flowColors.length == 3) break;
-                    }
-                  }
+                  final notes = notesGetter(13, n);
+                  final noteCount = notes.length;
+                  final flowColors = flowColorsGetter(kYear, 13, n);
 
                   final label = showGregorian
                       ? '${KemeticMath.toGregorian(kYear, 13, n).day}'
@@ -6660,7 +6691,7 @@ class _MonthDetailPage extends StatefulWidget {
     required this.todayDay,
     required this.showGregorian,
     required this.notesGetter,
-    required this.flowsGetter,
+    required this.flowColorsGetter,
     required this.onDayTap,
     required this.decanIndex, // null => month view; 0..2 => specific decan
   });
@@ -6672,7 +6703,7 @@ class _MonthDetailPage extends StatefulWidget {
   final int? todayDay;
   final bool showGregorian;
   final List<_Note> Function(int kMonth, int kDay) notesGetter;
-  final List<_FlowOccurrence> Function(int kMonth, int kDay) flowsGetter;
+  final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
   final int? decanIndex;
 
@@ -6749,7 +6780,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                   todayDay: widget.todayDay,
                   todayDayKey: null,
                   notesGetter: widget.notesGetter,
-                  flowsGetter: widget.flowsGetter,
+                  flowColorsGetter: widget.flowColorsGetter,
                   onDayTap: widget.onDayTap,
                   showGregorian: widget.showGregorian,
                   onMonthHeaderTap: (_) => setState(() => _currentDecanIndex = null),

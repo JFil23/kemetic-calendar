@@ -132,6 +132,11 @@ class InboxShareItem {
   final SuggestedSchedule? suggestedSchedule;
   final DateTime? eventDate; // For event shares
   final Map<String, dynamic>? payloadJson; // ✅ NULLABLE
+  
+  // Future-friendly recipient profile (currently null until backend adds)
+  final String? recipientHandle;
+  final String? recipientDisplayName;
+  final String? recipientAvatarUrl;
 
   InboxShareItem({
     required this.shareId,
@@ -149,6 +154,9 @@ class InboxShareItem {
     this.suggestedSchedule,
     this.eventDate,
     this.payloadJson,       // ✅ NOT REQUIRED
+    this.recipientHandle,
+    this.recipientDisplayName,
+    this.recipientAvatarUrl,
   });
 
   factory InboxShareItem.fromJson(Map<String, dynamic> json) {
@@ -181,6 +189,11 @@ class InboxShareItem {
       
       // ✅ CRITICAL FIX: Handle NULL payloadJson
       payloadJson: (json['payload_json'] as Map<String, dynamic>?) ?? {},
+      
+      // Future-friendly recipient profile fields (will be null until backend adds)
+      recipientHandle: json['recipient_handle'] as String?,
+      recipientDisplayName: json['recipient_display_name'] as String?,
+      recipientAvatarUrl: json['recipient_avatar_url'] as String?,
     );
   }
 
@@ -201,6 +214,9 @@ class InboxShareItem {
       'suggested_schedule': suggestedSchedule?.toJson(),
       'event_date': eventDate?.toIso8601String(),
       'payload_json': payloadJson,
+      'recipient_handle': recipientHandle,
+      'recipient_display_name': recipientDisplayName,
+      'recipient_avatar_url': recipientAvatarUrl,
     };
   }
 
@@ -219,3 +235,4 @@ class InboxShareItem {
     }
   }
 }
+

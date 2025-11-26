@@ -6,12 +6,23 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
 import '../data/share_models.dart';
+import '../data/share_repo.dart';
+import '../data/user_events_repo.dart';
+import '../features/calendar/calendar_page.dart' show CalendarPage, KemeticMath;
+import '../utils/event_cid_util.dart';
 
 class InboxRepo {
   final SupabaseClient _client;
+  final ShareRepo _shareRepo;
   
-  InboxRepo(this._client);
+  InboxRepo(this._client) : _shareRepo = ShareRepo(_client);
+  
+  String? get currentUserId => _client.auth.currentUser?.id;
+  
+  /// Watch inbox items stream (delegates to ShareRepo)
+  Stream<List<InboxShareItem>> watchInbox() => _shareRepo.watchInbox();
 
   /// Check if a shared flow is currently imported and exists in user's flows
   /// 
@@ -128,6 +139,217 @@ class InboxRepo {
         print('[InboxRepo] Error loading shares: $e');
       }
       return [];
+    }
+  }
+  
+  /// Watch conversations grouped by other user ID (DM-style)
+  Stream<Map<String, List<InboxShareItem>>> watchConversations() {
+    return watchInbox().map((items) {
+      final uid = currentUserId;
+      if (uid == null) return <String, List<InboxShareItem>>{};
+      
+      final Map<String, List<InboxShareItem>> grouped = {};
+      
+      for (final item in items) {
+        final otherId = _getOtherUserId(item, uid);
+        if (otherId == null) continue;
+        grouped.putIfAbsent(otherId, () => []).add(item);
+      }
+      
+      // Sort each thread by createdAt ascending (older → newer)
+      for (final list in grouped.values) {
+        list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      }
+      
+      return grouped;
+    });
+  }
+  
+  /// Watch a specific conversation with another user
+  Stream<List<InboxShareItem>> watchConversationWith(String otherUserId) {
+    return watchInbox().map((items) {
+      final uid = currentUserId;
+      if (uid == null) return <InboxShareItem>[];
+      
+      final conv = items.where((item) {
+        final a = item.senderId == uid && item.recipientId == otherUserId;
+        final b = item.senderId == otherUserId && item.recipientId == uid;
+        return a || b;
+      }).toList()
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      
+      return conv;
+    });
+  }
+  
+  /// Get the "other" user ID from a share item
+  String? _getOtherUserId(InboxShareItem item, String uid) {
+    if (item.senderId == uid) return item.recipientId;
+    if (item.recipientId == uid) return item.senderId;
+    return null;
+  }
+  
+  /// Import a shared flow with optional start date override
+  /// Returns the new flow ID on success
+  Future<int> importSharedFlow({
+    required InboxShareItem share,
+    DateTime? overrideStartDate,
+  }) async {
+    if (kDebugMode) {
+      print('[InboxRepo] Starting import for: ${share.title}');
+    }
+    
+    try {
+      final payloadJson = share.payloadJson;
+      if (payloadJson == null) {
+        throw Exception('No flow data available to import');
+      }
+      
+      final name = payloadJson['name'] as String;
+      final color = payloadJson['color'] as int;
+      final notes = payloadJson['notes'] as String?;
+      final rulesData = payloadJson['rules']; // This is a List
+      
+      // Determine start date
+      DateTime? startDate = overrideStartDate;
+      if (startDate == null && share.suggestedSchedule != null) {
+        try {
+          startDate = DateTime.parse(share.suggestedSchedule!.startDate);
+        } catch (e) {
+          if (kDebugMode) {
+            print('[InboxRepo] Failed to parse start date: $e');
+          }
+        }
+      }
+      
+      if (kDebugMode) {
+        print('[InboxRepo] Flow data: name=$name, color=$color');
+        print('[InboxRepo] Rules type: ${rulesData.runtimeType}');
+      }
+      
+      // Convert rules from List to JSON String
+      final rulesString = jsonEncode(rulesData);
+      
+      // Import the flow using UserEventsRepo
+      final userEventsRepo = UserEventsRepo(_client);
+      final flowId = await userEventsRepo.upsertFlow(
+        name: name,
+        color: color,
+        active: true,
+        startDate: startDate,
+        notes: notes,
+        rules: rulesString,
+      );
+      
+      if (kDebugMode) {
+        print('[InboxRepo] ✓ Flow created with ID: $flowId');
+      }
+      
+      // Link the flow to the share for re-import tracking
+      await userEventsRepo.updateFlowShareId(
+        flowId: flowId,
+        shareId: share.shareId,
+      );
+      
+      if (kDebugMode) {
+        print('[InboxRepo] ✓ Flow linked to share: ${share.shareId}');
+      }
+      
+      // Mark the share as imported
+      final success = await markImported(share.shareId, isFlow: true);
+      if (!success) {
+        throw Exception('Failed to mark share as imported');
+      }
+      
+      if (kDebugMode) {
+        print('[InboxRepo] ✓ Share marked as imported');
+      }
+      
+      // Schedule the flow's notes immediately
+      await _scheduleImportedFlow(flowId, share);
+      
+      return flowId;
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print('[InboxRepo] ✗ Import failed: $e');
+        print('[InboxRepo] Stack trace: $stackTrace');
+      }
+      rethrow;
+    }
+  }
+  
+  /// Schedule notes for a newly imported flow
+  Future<void> _scheduleImportedFlow(int flowId, InboxShareItem item) async {
+    try {
+      final payloadJson = item.payloadJson;
+      if (payloadJson == null) return;
+      
+      final rulesData = payloadJson['rules'] as List?;
+      if (rulesData == null || rulesData.isEmpty) return;
+      
+      // Parse rules using CalendarPage's static method
+      final rules = rulesData.map((r) => 
+        CalendarPage.ruleFromJson(r as Map<String, dynamic>)
+      ).toList();
+      
+      final repo = UserEventsRepo(_client);
+      final start = DateTime.now();
+      final end = start.add(const Duration(days: 90));
+      
+      // Clear existing notes for this flow
+      await repo.deleteByFlowId(flowId, fromDate: start.toUtc());
+      
+      int scheduledCount = 0;
+      
+      for (var date = start; date.isBefore(end); date = date.add(const Duration(days: 1))) {
+        final kDate = KemeticMath.fromGregorian(date);
+        
+        for (final rule in rules) {
+          if (rule.matches(ky: kDate.kYear, km: kDate.kMonth, kd: kDate.kDay, g: date)) {
+            final noteTitle = payloadJson['name'] as String? ?? item.title;
+            final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
+            final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
+            
+            final cid = EventCidUtil.buildClientEventId(
+              ky: kDate.kYear,
+              km: kDate.kMonth,
+              kd: kDate.kDay,
+              title: noteTitle,
+              startHour: startHour,
+              startMinute: startMinute,
+              allDay: rule.allDay,
+              flowId: flowId,
+            );
+            
+            final startsAt = DateTime(date.year, date.month, date.day, startHour, startMinute);
+            DateTime? endsAt;
+            if (!rule.allDay && rule.end != null) {
+              endsAt = DateTime(date.year, date.month, date.day, rule.end!.hour, rule.end!.minute);
+            }
+            
+            await repo.upsertByClientId(
+              clientEventId: cid,
+              title: noteTitle,
+              startsAtUtc: startsAt.toUtc(),
+              detail: '',
+              allDay: rule.allDay,
+              endsAtUtc: endsAt?.toUtc(),
+              flowLocalId: flowId,
+            );
+            
+            scheduledCount++;
+          }
+        }
+      }
+      
+      if (kDebugMode) {
+        print('[InboxRepo] ✓ Scheduled $scheduledCount notes for flow $flowId');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[InboxRepo] ✗ Failed to schedule: $e');
+      }
+      // Don't rethrow - scheduling failure shouldn't fail the import
     }
   }
 }
