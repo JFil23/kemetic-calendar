@@ -101,8 +101,26 @@ class ShareRepo {
         results.add(ShareResult.fromJson(row));
       }
 
+      // Parse errors array if present
+      final errorsList = (body['errors'] as List<dynamic>? ?? [])
+          .cast<Map<String, dynamic>>();
+
+      if (errorsList.isNotEmpty) {
+        if (kDebugMode) {
+          print('[ShareRepo] Errors from Edge function: $errorsList');
+        }
+        // Create ShareResult objects for errors
+        for (final err in errorsList) {
+          results.add(ShareResult(
+            status: null,
+            error: err['error'] as String? ?? 'Unknown error',
+            shareId: null,
+          ));
+        }
+      }
+
       if (kDebugMode) {
-        print('[ShareRepo] Parsed ${results.length} share results');
+        print('[ShareRepo] Parsed ${results.length} share results (${sharesList.length} successes, ${errorsList.length} errors)');
       }
 
       return results;
@@ -324,13 +342,61 @@ class ShareRepo {
 
   /// Watch inbox for real-time updates
   Stream<List<InboxShareItem>> watchInbox() {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) {
+      if (kDebugMode) {
+        debugPrint('[watchInbox] No authenticated user, returning empty stream');
+      }
+      return Stream.value(const []);
+    }
+
     return _client
         .from('inbox_share_items_filtered')
         .stream(primaryKey: ['share_id'])
         .order('created_at', ascending: false)
-        .map((data) => data
-            .map((item) => InboxShareItem.fromJson(item as Map<String, dynamic>))
-            .toList());
+        .map((data) {
+          final list = (data as List?) ?? const [];
+          
+          // ✅ Explicit client-side filter: sent OR received (defensive check)
+          final filtered = list
+              .cast<Map<String, dynamic>>()
+              .where((row) {
+                final senderId = row['sender_id'] as String?;
+                final recipientId = row['recipient_id'] as String?;
+                return senderId == uid || recipientId == uid;
+              })
+              .toList();
+          
+          if (kDebugMode) {
+            debugPrint('[watchInbox] ${list.length} raw items, ${filtered.length} filtered (uid=$uid)');
+            // ✅ Add detailed logging for first few rows (raw JSON)
+            for (final row in filtered.take(3)) {
+              debugPrint('[watchInbox] share_id=${row['share_id']} '
+                  'sender=${row['sender_id']} recipient=${row['recipient_id']} '
+                  'title=${row['title']}');
+            }
+          }
+          
+          // Parse to InboxShareItem and log payload info
+          final items = filtered
+              .map((item) => InboxShareItem.fromJson(item))
+              .toList();
+          
+          if (kDebugMode) {
+            debugPrint('[watchInbox] ${items.length} parsed items');
+            for (final item in items.take(3)) {
+              final hasPayload = item.payloadJson != null && item.payloadJson!.isNotEmpty;
+              debugPrint(
+                '[watchInbox] shareId=${item.shareId} kind=${item.kind.asString} '
+                'title=${item.title} '
+                'hasPayload=$hasPayload '
+                'payloadKeys=${item.payloadJson?.keys.toList()}',
+              );
+            }
+          }
+          
+          return items;
+        });
   }
 
   /// Watch unread count for real-time updates

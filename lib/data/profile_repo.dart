@@ -103,28 +103,61 @@ class ProfileRepo {
   }
 
   /// Search for users by handle (for @handle search in ShareFlowSheet)
+  /// @deprecated Use searchUsers instead
   Future<List<UserSearchResult>> searchUsersByHandle(String query) async {
+    return searchUsers(query);
+  }
+
+  /// Search for users by handle OR display_name
+  /// Supports typing "Jordan", "jordanphillips", or "@jordan" - all work
+  Future<List<UserSearchResult>> searchUsers(String rawQuery) async {
     try {
-      final cleanQuery = query.startsWith('@') ? query.substring(1) : query;
-      if (cleanQuery.isEmpty || cleanQuery.length < 2) {
-        return [];
-      }
+      final query = rawQuery.trim();
+      if (query.length < 2) return [];
 
-      print('[ProfileRepo] Searching for handles matching: $cleanQuery');
+      final clean = query.startsWith('@') ? query.substring(1) : query;
+      if (clean.isEmpty) return [];
 
-      final response = await _client
+      print('[ProfileRepo] Searching for users matching: $clean');
+
+      // 1️⃣ Search by handle prefix
+      final handleResponse = await _client
           .from('profiles')
           .select('id, handle, display_name, avatar_url, email')
-          .ilike('handle', '$cleanQuery%')
+          .ilike('handle', '$clean%')
           .eq('allow_incoming_shares', true)
           .limit(10);
 
-      print('[ProfileRepo] Search returned ${response.length} results');
+      final handleRows = (handleResponse as List?) ?? const [];
 
-      return (response as List).map((json) {
+      // 2️⃣ Search by display_name substring
+      final nameResponse = await _client
+          .from('profiles')
+          .select('id, handle, display_name, avatar_url, email')
+          .ilike('display_name', '%$clean%')
+          .eq('allow_incoming_shares', true)
+          .limit(10);
+
+      final nameRows = (nameResponse as List?) ?? const [];
+
+      // 3️⃣ Combine + dedupe by id
+      final Map<String, Map<String, dynamic>> combined = {};
+
+      for (final row in handleRows) {
+        final id = row['id'] as String;
+        combined[id] = row as Map<String, dynamic>;
+      }
+      for (final row in nameRows) {
+        final id = row['id'] as String;
+        combined[id] = row as Map<String, dynamic>;
+      }
+
+      print('[ProfileRepo] Search returned ${combined.length} unique results');
+
+      return combined.values.map((json) {
         return UserSearchResult(
           userId: json['id'] as String,
-          handle: json['handle'] as String,
+          handle: json['handle'] as String?,
           displayName: json['display_name'] as String?,
           avatarUrl: json['avatar_url'] as String?,
           email: json['email'] as String?,
@@ -152,23 +185,23 @@ class ProfileRepo {
   }
 }
 
-/// User search result for @handle search
+/// User search result for user search
 class UserSearchResult {
   final String userId;
-  final String handle;
+  final String? handle;  // ✅ Made nullable
   final String? displayName;
   final String? avatarUrl;
   final String? email;
 
   UserSearchResult({
     required this.userId,
-    required this.handle,
+    this.handle,  // ✅ Not required
     this.displayName,
     this.avatarUrl,
     this.email,
   });
 
-  String get name => displayName ?? '@$handle';
+  String get name => displayName ?? (handle != null ? '@$handle' : 'User');
 
   /// Convert to ShareRecipient
   ShareRecipient toRecipient() {

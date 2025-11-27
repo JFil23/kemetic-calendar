@@ -147,6 +147,14 @@ class InboxRepo {
         list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       }
       
+      if (kDebugMode) {
+        debugPrint('[watchConversations] ${grouped.length} conversations, keys: ${grouped.keys.toList()}');
+        // ✅ Add per-thread logging
+        for (final entry in grouped.entries) {
+          debugPrint('[watchConversations] otherId=${entry.key} items=${entry.value.length}');
+        }
+      }
+      
       return grouped;
     });
   }
@@ -186,15 +194,14 @@ class InboxRepo {
     }
     
     try {
-      final payloadJson = share.payloadJson;
-      if (payloadJson == null) {
-        throw Exception('No flow data available to import');
-      }
+      // ✅ Make import resilient - handle null/empty payload gracefully
+      final payloadJson = share.payloadJson ?? const <String, dynamic>{};
       
-      final name = payloadJson['name'] as String;
-      final color = payloadJson['color'] as int;
+      // ✅ Use nullable casts with fallbacks to prevent type errors
+      final name = (payloadJson['name'] as String?) ?? share.title;
+      final color = payloadJson['color'] as int? ?? 0xFF4DD0E1;
       final notes = payloadJson['notes'] as String?;
-      final rulesData = payloadJson['rules']; // This is a List
+      final rulesData = payloadJson['rules'] as List<dynamic>? ?? const [];
       
       // Determine start date
       DateTime? startDate = overrideStartDate;

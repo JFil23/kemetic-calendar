@@ -1,6 +1,7 @@
 // lib/features/inbox/inbox_conversation_page.dart
 // Conversation view showing sent/received flows as chat bubbles
 
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/share_models.dart';
@@ -133,6 +134,11 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                 alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
                 child: GestureDetector(
                   onTap: () {
+                    if (kDebugMode) {
+                      debugPrint('[InboxConversationPage] tapped share '
+                          'shareId=${share.shareId} kind=${share.kind.asString} '
+                          'title=${share.title}');
+                    }
                     Navigator.push(
                       context,
                       MaterialPageRoute(

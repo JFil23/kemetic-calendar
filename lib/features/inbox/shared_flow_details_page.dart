@@ -1,7 +1,7 @@
 // lib/features/inbox/shared_flow_details_page.dart
 // Dual-mode details page: supports both imported flows (flowId) and non-imported shares (share)
 
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart' show DateUtils;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -113,6 +113,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       color: row.color,
       notes: row.notes ?? '',
       rulesJson: (row.rules as List<dynamic>? ?? const []),
+      eventsJson: const [], // ✅ Imported flows don't have events[] in payload
       suggestedScheduleJson: null,
       isImported: true,
       flowId: flowId,
@@ -121,13 +122,64 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   }
 
   _SharedFlowData _fromShare(InboxShareItem share) {
-    final payload = share.payloadJson ?? const <String, dynamic>{};
+    // ✅ 1) Try typed model first
+    final payload = share.flowPayload;
+
+    if (payload != null) {
+      // Convert typed events to JSON format for _SharedFlowData
+      final eventsJson = payload.events.map((e) => <String, dynamic>{
+        'offset_days': e.offsetDays,
+        'title': e.title,
+        'detail': e.detail,
+        'location': e.location,
+        'all_day': e.allDay,
+        'start_time': e.startTime,
+        'end_time': e.endTime,
+      }).toList();
+
+      if (kDebugMode) {
+        debugPrint('[SharedFlowDetailsPage._fromShare] Using typed payload model');
+        debugPrint('  shareId=${share.shareId}');
+        debugPrint('  name=${payload.name}, events=${payload.events.length}');
+        debugPrint('  rules count=${payload.rules.length}');
+      }
+
+      return _SharedFlowData(
+        name: payload.name,
+        color: payload.color ?? 0xFF4DD0E1,
+        notes: payload.notes ?? '',
+        rulesJson: payload.rules,
+        eventsJson: eventsJson, // ✅ List<dynamic> format
+        suggestedScheduleJson: share.suggestedSchedule?.toJson(),
+        isImported: false,
+        flowId: null,
+        share: share,
+      );
+    }
+
+    // ✅ 2) Fallback to existing manual parsing
+    final payloadMap = share.payloadJson ?? const <String, dynamic>{};
+
+    if (kDebugMode) {
+      debugPrint('[SharedFlowDetailsPage._fromShare] Using manual parsing fallback');
+      debugPrint('  shareId=${share.shareId}');
+      debugPrint('  payload keys=${payloadMap.keys.toList()}');
+      debugPrint('  events count=${(payloadMap['events'] as List<dynamic>?)?.length ?? 0}');
+      debugPrint('  rules count=${(payloadMap['rules'] as List<dynamic>?)?.length ?? 0}');
+    }
+
+    // ✅ Use share.title as fallback if payload['name'] is missing
+    final nameFromPayload = payloadMap['name'] as String?;
+    final safeName = (nameFromPayload != null && nameFromPayload.trim().isNotEmpty)
+        ? nameFromPayload.trim()
+        : (share.title.trim().isNotEmpty ? share.title.trim() : 'Untitled Flow');
 
     return _SharedFlowData(
-      name: payload['name'] as String? ?? 'Untitled Flow',
-      color: (payload['color'] as int?) ?? 0xFF4DD0E1,
-      notes: payload['notes'] as String? ?? '',
-      rulesJson: (payload['rules'] as List<dynamic>? ?? const []),
+      name: safeName,
+      color: (payloadMap['color'] as int?) ?? 0xFF4DD0E1,
+      notes: payloadMap['notes'] as String? ?? '',
+      rulesJson: (payloadMap['rules'] as List<dynamic>? ?? const []),
+      eventsJson: (payloadMap['events'] as List<dynamic>? ?? const []),
       suggestedScheduleJson: share.suggestedSchedule?.toJson(),
       isImported: false,
       flowId: null,
@@ -156,7 +208,10 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
 
         final data = snapshot.data!;
         final meta = notesDecode(data.notes);
-        final overview = meta.overview ?? '';
+        // ✅ Show overview from notesDecode, or fallback to raw notes if overview is empty
+        final overview = meta.overview?.trim().isNotEmpty == true 
+            ? meta.overview!.trim() 
+            : (data.notes.trim().isNotEmpty ? data.notes.trim() : '');
         final kemetic = meta.kemetic;
         final split = meta.split;
 
@@ -202,8 +257,11 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                       gradient: goldGloss,
                     ),
                     const SizedBox(height: 4),
+                    // ✅ Show overview if available, otherwise show raw notes, otherwise show dash
                     Text(
-                      overview.trim().isEmpty ? '—' : overview.trim(),
+                      overview.isNotEmpty 
+                          ? overview 
+                          : (data.notes.trim().isNotEmpty ? data.notes.trim() : '—'),
                       style: const TextStyle(
                         fontSize: 14,
                         color: Colors.white,
@@ -298,6 +356,25 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                         rulesJson: rulesJson,
                         kemetic: kemetic,
                       ),
+                    const SizedBox(height: 24),
+
+                    // Events section - always show if events exist
+                    // ✅ Removed isImported check since we set it to false for inbox shares
+                    if (data.eventsJson.isNotEmpty) ...[
+                      const GlossyText(
+                        text: 'Events',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        gradient: goldGloss,
+                      ),
+                      const SizedBox(height: 4),
+                      ...data.eventsJson.map((e) {
+                        final event = e as Map<String, dynamic>;
+                        return _SharedEventTile(event: event);
+                      }).toList(),
+                    ],
                   ],
                 ),
               ),
@@ -323,6 +400,7 @@ class _SharedFlowData {
   final int color;
   final String notes;
   final List<dynamic> rulesJson;
+  final List<dynamic> eventsJson; // ✅ Added for events[] array
   final Map<String, dynamic>? suggestedScheduleJson;
   final bool isImported;
   final int? flowId;
@@ -333,6 +411,7 @@ class _SharedFlowData {
     required this.color,
     required this.notes,
     required this.rulesJson,
+    required this.eventsJson, // ✅ Added
     required this.suggestedScheduleJson,
     required this.isImported,
     required this.flowId,
@@ -491,6 +570,112 @@ class _SharedFlowSchedulePreview extends StatelessWidget {
           style: const TextStyle(fontSize: 13, color: Colors.white70),
         ),
       ],
+    );
+  }
+}
+
+/// Widget to display a single event from the events[] array in payloadJson
+class _SharedEventTile extends StatelessWidget {
+  final Map<String, dynamic> event;
+
+  const _SharedEventTile({
+    Key? key,
+    required this.event,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final title = (event['title'] as String?) ?? 'Untitled Event';
+    final detail = event['detail'] as String?;
+    final location = event['location'] as String?;
+    final allDay = event['all_day'] as bool? ?? false;
+    final startTime = event['start_time'] as String?;
+    final endTime = event['end_time'] as String?;
+    final offsetDays = (event['offset_days'] as num?)?.toInt() ?? 0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111111),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x22FFFFFF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title and offset
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              if (offsetDays > 0)
+                Text(
+                  'Day $offsetDays',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.white70,
+                  ),
+                ),
+            ],
+          ),
+
+          // Time
+          if (!allDay && startTime != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              endTime != null ? '$startTime - $endTime' : startTime,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.white70,
+              ),
+            ),
+          ] else if (allDay) ...[
+            const SizedBox(height: 4),
+            const Text(
+              'All day',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white70,
+              ),
+            ),
+          ],
+
+          // Detail
+          if (detail != null && detail.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              detail.trim(),
+              style: const TextStyle(
+                fontSize: 13,
+                color: Colors.white,
+              ),
+            ),
+          ],
+
+          // Location
+          if (location != null && location.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              location.trim(),
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF4DA3FF),
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

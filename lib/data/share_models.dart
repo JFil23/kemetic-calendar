@@ -2,6 +2,7 @@
 // Share Models & Contracts for Flow Sharing System
 
 import 'package:flutter/foundation.dart';
+import 'flow_share_snapshot.dart';
 
 /// Suggested schedule for shared flows
 class SuggestedSchedule {
@@ -232,8 +233,8 @@ class InboxShareItem {
           ? DateTime.parse(json['event_date'] as String) 
           : null,
       
-      // ✅ CRITICAL FIX: Handle NULL payloadJson
-      payloadJson: (json['payload_json'] as Map<String, dynamic>?) ?? const <String, dynamic>{},
+      // ✅ CRITICAL FIX: Keep payloadJson nullable (don't convert null to empty map)
+      payloadJson: json['payload_json'] as Map<String, dynamic>?,
       
       // Future-friendly recipient profile fields (will be null until backend adds)
       recipientHandle: json['recipient_handle'] as String?,
@@ -287,7 +288,22 @@ class InboxShareItem {
       return 'Event shared by @$handle';
     }
   }
+
+  /// Typed accessor for flow payload (parses payloadJson on-demand)
+  FlowSharePayload? get flowPayload {
+    if (!isFlow || payloadJson == null) return null;
+    try {
+      return FlowSharePayload.fromJson(payloadJson!);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[InboxShareItem] ⚠️ Failed to parse flow payload: $e');
+        debugPrint('[InboxShareItem] payloadJson keys: ${payloadJson!.keys.toList()}');
+      }
+      return null;
+    }
+  }
 }
+
 
 
 
