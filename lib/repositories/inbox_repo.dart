@@ -311,7 +311,12 @@ class InboxRepo {
           
           final allDay = e['all_day'] as bool? ?? false;
           final title = (e['title'] as String?) ?? item.title;
-          final detail = (e['detail'] as String?) ?? '';
+          final rawDetail = (e['detail'] as String?) ?? '';
+          // Remove legacy "flowLocalId=123;1)" prefix if present (defensive)
+          final detail = rawDetail.replaceFirst(
+            RegExp(r'^flowLocalId=\d+;\d+\)\s*'),
+            '',
+          );
           final location = e['location'] as String?;
           
           int startHour = 9;

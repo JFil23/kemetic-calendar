@@ -21,8 +21,8 @@ class InboxIconWithBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<int>(
-      future: ShareRepo(Supabase.instance.client).getUnreadCount(),
+    return StreamBuilder<int>(
+      stream: ShareRepo(Supabase.instance.client).watchUnreadCount(),
       builder: (context, snapshot) {
         final unreadCount = snapshot.data ?? 0;
         
@@ -82,4 +82,5 @@ class InboxIconWithBadge extends StatelessWidget {
     );
   }
 }
+
 

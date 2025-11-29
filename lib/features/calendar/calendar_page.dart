@@ -2294,9 +2294,8 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
                 item.note.end!.minute,
               );
             }
-            final String prefix = toId >= 0 ? 'flowLocalId=$toId;' : '';
             final String? det = item.note.detail;
-            final String detailPayload = prefix + (det?.trim() ?? '');
+            final String detailPayload = det?.trim() ?? '';
             await repo.upsertByClientId(
               clientEventId: cid,
               title: item.note.title,
@@ -2628,9 +2627,8 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
           } else {
             endsAt = null;
           }
-          final String prefix = noteFlowId >= 0 ? 'flowLocalId=${noteFlowId};' : '';
           final String? det = persisted.detail;
-          final String detailPayload = prefix + (det?.trim() ?? '');
+          final String detailPayload = det?.trim() ?? '';
           
           // 🔍 DIAGNOSTIC LOGGING: Before upsert
           print('🔍 ABOUT TO UPSERT:');
