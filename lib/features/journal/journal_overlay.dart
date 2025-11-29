@@ -632,43 +632,52 @@ class _JournalOverlayState extends State<JournalOverlay>
   }
 
   Widget _buildEditor() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      // FIX #2: ALL content layers coexist in one Stack
-      child: Stack(
-        children: [
-          // Layer 1: Text (bottom layer)
-          if (_currentMode == JournalV2Mode.type)
-            _buildTextLayer()
-          else
-            Opacity(
-              opacity: 0.3,
-              child: IgnorePointer(child: _buildTextLayer()),
-            ),
-          
-          // Layer 2: ONE unified drawing canvas (handles ALL strokes)
-          if (FeatureFlags.hasDrawing && _currentDrawingBlock != null)
-            IgnorePointer(
-              ignoring: _currentMode == JournalV2Mode.type,
-              child: DrawingCanvas(
-                key: ValueKey(_currentDrawingBlock!.id),
-                initialBlock: _currentDrawingBlock!,
-                onChanged: _onDrawingChanged,
-                currentTool: _currentDrawingTool,
-                currentColor: _currentMode == JournalV2Mode.highlight
-                    ? const Color(0x88FFEB3B) // Yellow highlighter
-                    : Colors.white, // White pen
-                currentWidth: _currentMode == JournalV2Mode.highlight
-                    ? 12.0
-                    : 2.0,
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return AnimatedPadding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        // FIX #2: ALL content layers coexist in one Stack
+        child: Stack(
+          children: [
+            // Layer 1: Text (bottom layer)
+            if (_currentMode == JournalV2Mode.type)
+              _buildTextLayer()
+            else
+              Opacity(
+                opacity: 0.3,
+                child: IgnorePointer(child: _buildTextLayer()),
               ),
-            ),
-        ],
+            
+            // Layer 2: ONE unified drawing canvas (handles ALL strokes)
+            if (FeatureFlags.hasDrawing && _currentDrawingBlock != null)
+              IgnorePointer(
+                ignoring: _currentMode == JournalV2Mode.type,
+                child: DrawingCanvas(
+                  key: ValueKey(_currentDrawingBlock!.id),
+                  initialBlock: _currentDrawingBlock!,
+                  onChanged: _onDrawingChanged,
+                  currentTool: _currentDrawingTool,
+                  currentColor: _currentMode == JournalV2Mode.highlight
+                      ? const Color(0x88FFEB3B) // Yellow highlighter
+                      : Colors.white, // White pen
+                  currentWidth: _currentMode == JournalV2Mode.highlight
+                      ? 12.0
+                      : 2.0,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildTextLayer() {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
     if (FeatureFlags.hasRichText && widget.controller.currentDocument != null) {
       final doc = widget.controller.currentDocument!;
       final paragraphBlocks = doc.blocks.whereType<ParagraphBlock>();
@@ -706,11 +715,15 @@ class _JournalOverlayState extends State<JournalOverlay>
         border: InputBorder.none,
         contentPadding: EdgeInsets.zero,
       ),
+      scrollPadding: EdgeInsets.only(bottom: bottomInset + 32),
+      keyboardType: TextInputType.multiline,
+      textInputAction: TextInputAction.newline,
+      scrollPhysics: const BouncingScrollPhysics(),
+      enableInteractiveSelection: true,
       onChanged: _handleTextChanged,
     );
   }
 }
-
 
 
 

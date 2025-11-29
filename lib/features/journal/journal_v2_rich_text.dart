@@ -225,11 +225,18 @@ class RichTextEditorState extends State<RichTextEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
     return TextField(
       controller: _controller,
       focusNode: _focusNode,
       maxLines: null,
       expands: true,
+      keyboardType: TextInputType.multiline,
+      textInputAction: TextInputAction.newline,
+      scrollPhysics: const BouncingScrollPhysics(),
+      scrollPadding: EdgeInsets.only(bottom: bottomInset + 32),
+      enableInteractiveSelection: true,
       textAlignVertical: TextAlignVertical.top,
       style: const TextStyle(
         color: Colors.white,
