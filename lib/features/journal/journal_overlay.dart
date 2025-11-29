@@ -59,6 +59,7 @@ class _JournalOverlayState extends State<JournalOverlay>
   bool _showingArchive = false;
   DrawingBlock? _currentDrawingBlock;
   DrawingTool _currentDrawingTool = DrawingTool.pen;
+  bool _keyboardVisible = false;
   
   // Universal undo/redo system
   late JournalUndoSystem _undoSystem;
@@ -372,6 +373,7 @@ class _JournalOverlayState extends State<JournalOverlay>
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
+    if (_focusNode.hasFocus || _keyboardVisible) return;
     if (_animationController.isAnimating) return;
     
     final dx = details.delta.dx;
@@ -388,6 +390,7 @@ class _JournalOverlayState extends State<JournalOverlay>
   }
 
   void _onPanEnd(DragEndDetails details) {
+    if (_focusNode.hasFocus || _keyboardVisible) return;
     if (widget.isPortrait) {
       if (_dragOffset < -50) {
         _close();
@@ -405,6 +408,7 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   @override
   Widget build(BuildContext context) {
+    _keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
     final size = MediaQuery.of(context).size;
     
     // Show archive if requested
