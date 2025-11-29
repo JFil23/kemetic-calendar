@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/share_models.dart';
+import '../../data/share_repo.dart';
 import '../../data/flows_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../repositories/inbox_repo.dart';
@@ -53,12 +54,49 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   @override
   void initState() {
     super.initState();
+    
+    // Mark as viewed if current user is the recipient (only for non-imported shares)
+    if (widget.share != null) {
+      _markAsViewedIfRecipient();
+    }
+    
     if (widget.flowId != null) {
       _flowFuture = _loadFromDb(widget.flowId!);
       _spanFuture = _loadSpanSummary(); // ✅ Only for imported flows
     } else {
       _flowFuture = Future.value(_fromShare(widget.share!));
       _spanFuture = Future.value(null); // ✅ Not imported yet - no events
+    }
+  }
+
+  /// Mark the share as viewed if the current user is the recipient
+  /// Only works for non-imported shares (when share is provided)
+  Future<void> _markAsViewedIfRecipient() async {
+    // Only works for non-imported shares (when share is provided)
+    if (widget.share == null) return;
+
+    final share = widget.share!;
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+
+    if (currentUserId == null) return;
+
+    if (share.recipientId == currentUserId && share.viewedAt == null) {
+      final repo = ShareRepo(Supabase.instance.client);
+      try {
+        await repo.markViewed(share.shareId, isFlow: share.isFlow);
+
+        if (kDebugMode) {
+          debugPrint(
+            '[SharedFlowDetailsPage] Marked share ${share.shareId} as viewed',
+          );
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint(
+            '[SharedFlowDetailsPage] Failed to mark viewed: $e',
+          );
+        }
+      }
     }
   }
 

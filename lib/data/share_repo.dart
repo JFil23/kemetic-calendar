@@ -401,10 +401,29 @@ class ShareRepo {
 
   /// Watch unread count for real-time updates
   Stream<int> watchUnreadCount() {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) {
+      return Stream.value(0);
+    }
+
+    // Stream the filtered items and compute unread on the client.
+    // Only count items this user *received* and hasn't viewed/deleted.
     return _client
-        .from('inbox_unread_count_filtered')
-        .stream(primaryKey: ['recipient_id'])
-        .map((data) => data.isNotEmpty ? data.first['count'] as int? ?? 0 : 0);
+        .from('inbox_share_items_filtered')
+        .stream(primaryKey: ['share_id'])
+        .map((rows) {
+          final unread = rows.where((row) {
+            final viewedAt = row['viewed_at'];
+            final deletedAt = row['deleted_at'];
+            final recipientId = row['recipient_id'];
+
+            // ✅ Only count flows this user *received* and hasn't viewed/deleted.
+            return recipientId == uid &&
+                viewedAt == null &&
+                deletedAt == null;
+          }).length;
+          return unread;
+        });
   }
 }
 
