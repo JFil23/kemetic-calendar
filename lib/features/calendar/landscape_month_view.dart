@@ -12,6 +12,7 @@ import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart'; // For KemeticMath
 import '../sharing/share_flow_sheet.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
+import 'dart:math' as math;
 
 // ========================================
 // SHARED CONSTANTS FOR LANDSCAPE VIEW
@@ -993,63 +994,74 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       return a.title.compareTo(b.title);
     });
 
-    // Assign columns to avoid overlaps
-    final widgets = <Widget>[];
     const columnGap = 4.0;
-    
-    final columnAssignments = _assignColumns(events);
-    final maxCols = columnAssignments.values.isEmpty 
-      ? 1 
-      : (columnAssignments.values.reduce((a, b) => a > b ? a : b) + 1);
+    final widgets = <Widget>[];
 
-    final availableWidth = colW - (columnGap * (maxCols - 1));
-    final columnWidth = availableWidth / maxCols;
-
-    for (int i = 0; i < events.length; i++) {
-      final event = events[i];
-      final col = columnAssignments[event] ?? 0;
-      final left = (day - 1) * (colW + _daySepW) + (col * (columnWidth + columnGap));
-      final top = (event.startMin / 60.0) * _rowH;
-      
-      // ✅ FIX 5: Calculate and clamp duration like day view
-      int durationMinutes = event.endMin - event.startMin;
-      if (durationMinutes <= 0) {
-        durationMinutes = 15;
+    // Cluster events by overlap so width is only reduced when events overlap in time
+    int idx = 0;
+    while (idx < events.length) {
+      final cluster = <_EventItem>[];
+      int clusterEnd = events[idx].endMin;
+      cluster.add(events[idx]);
+      int j = idx + 1;
+      while (j < events.length && events[j].startMin < clusterEnd) {
+        cluster.add(events[j]);
+        clusterEnd = math.max(clusterEnd, events[j].endMin);
+        j++;
       }
-      if (durationMinutes > 180) {
-        durationMinutes = 180;
-      }
-      // ✅ Add minimum height to prevent overflow (accounts for padding + text content)
-      final double rawHeight = (durationMinutes / 60.0) * _rowH;
-      final double height = rawHeight < _kLandscapeEventMinHeight 
-          ? _kLandscapeEventMinHeight 
-          : rawHeight;
 
-      widgets.add(
-        Positioned(
-          left: left,
-          top: top,
-          width: columnWidth,
-          height: height,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque, // ✅ full-rect hit target
-            onTap: () => _showEventDetail(event),
-            child: Container(
-              margin: const EdgeInsets.only(right: 4, bottom: 2),
-              padding: const EdgeInsets.all(4), // ✅ Match day view exactly
-              decoration: BoxDecoration(
-                color: event.color.withOpacity(0.20),
-                border: Border(
-                  left: BorderSide(color: event.color, width: 3), // ✅ Left border only
+      final columnAssignments = _assignColumns(cluster);
+      final maxCols = columnAssignments.values.isEmpty
+          ? 1
+          : (columnAssignments.values.reduce((a, b) => a > b ? a : b) + 1);
+      final availableWidth = colW - (columnGap * (maxCols - 1));
+      final columnWidth = availableWidth / maxCols;
+
+      for (final event in cluster) {
+        final col = columnAssignments[event] ?? 0;
+        final left = (day - 1) * (colW + _daySepW) + (col * (columnWidth + columnGap));
+        final top = (event.startMin / 60.0) * _rowH;
+        
+        int durationMinutes = event.endMin - event.startMin;
+        if (durationMinutes <= 0) {
+          durationMinutes = 15;
+        }
+        if (durationMinutes > 180) {
+          durationMinutes = 180;
+        }
+        final double rawHeight = (durationMinutes / 60.0) * _rowH;
+        final double height = rawHeight < _kLandscapeEventMinHeight 
+            ? _kLandscapeEventMinHeight 
+            : rawHeight;
+
+        widgets.add(
+          Positioned(
+            left: left,
+            top: top,
+            width: columnWidth,
+            height: height,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _showEventDetail(event),
+              child: Container(
+                margin: const EdgeInsets.only(right: 4, bottom: 2),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: event.color.withOpacity(0.20),
+                  border: Border(
+                    left: BorderSide(color: event.color, width: 3),
+                  ),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                borderRadius: BorderRadius.circular(4), // ✅ Radius 4 (not 6)
+                clipBehavior: Clip.hardEdge,
+                child: _buildEventBlockContent(event, durationMinutes),
               ),
-              clipBehavior: Clip.hardEdge, // ✅ Prevent overflow
-              child: _buildEventBlockContent(event, durationMinutes),
             ),
           ),
-        ),
-      );
+        );
+      }
+
+      idx = j;
     }
 
     return widgets;
@@ -1561,4 +1573,3 @@ class _EventItem {
 // Landscape Month View - Full month grid with INFINITE scrolling
 // Styled to match day_view.dart's beautiful detail sheets
 //
-
