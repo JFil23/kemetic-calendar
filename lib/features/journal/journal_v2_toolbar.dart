@@ -63,12 +63,6 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
         final currentValue = _currentAttrs.strikethrough;
         newAttrs = _currentAttrs.copyWith(strikethrough: !currentValue);
         break;
-      case 'highlight':
-        final isOn = _currentAttrs.backgroundColor != null;
-        newAttrs = _currentAttrs.copyWith(
-          backgroundColor: isOn ? null : '#FFF6A3', // soft yellow highlight
-        );
-        break;
       default:
         return;
     }
@@ -108,8 +102,6 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
                 _buildFormatButton('U', 'underline', _currentAttrs.underline, underline: true),
                 const SizedBox(width: 4),
                 _buildFormatButton('S', 'strikethrough', _currentAttrs.strikethrough, strikethrough: true),
-                const SizedBox(width: 4),
-                _buildFormatButton('H', 'highlight', _currentAttrs.backgroundColor != null),
               ],
             ),
           ],
@@ -180,25 +172,15 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
     bool underline = false,
     bool strikethrough = false,
   }) {
-    final isHighlight = format == 'highlight';
-    final Color activeBg = isHighlight ? const Color(0xFFFFF6A3) : const Color(0xFF333333);
-    final Color inactiveBg = isHighlight ? Colors.transparent : Colors.transparent;
-    final Color borderColor = isHighlight
-        ? const Color(0xFFD4AF37)
-        : (isActive ? const Color(0xFFD4AF37) : const Color(0xFF666666));
-    final Color textColor = isHighlight
-        ? (isActive ? const Color(0xFF3A3211) : const Color(0xFFD4AF37))
-        : (isActive ? const Color(0xFFD4AF37) : const Color(0xFF999999));
-
     return GestureDetector(
       onTap: () => _toggleFormat(format),
       child: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: isActive ? activeBg : inactiveBg,
+          color: isActive ? const Color(0xFF333333) : Colors.transparent,
           border: Border.all(
-            color: borderColor,
+            color: isActive ? const Color(0xFFD4AF37) : const Color(0xFF666666),
             width: 1.5,
           ),
           borderRadius: BorderRadius.circular(6),
@@ -207,7 +189,7 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
           child: Text(
             label,
             style: TextStyle(
-              color: textColor,
+              color: isActive ? const Color(0xFFD4AF37) : const Color(0xFF999999),
               fontSize: 16,
               fontWeight: bold ? FontWeight.bold : FontWeight.normal,
               fontStyle: italic ? FontStyle.italic : FontStyle.normal,
