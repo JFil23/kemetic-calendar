@@ -7014,6 +7014,95 @@ class _NoteDraft {
   }
 }
 
+class _DraftNoteData {
+  final String title;
+  final String location;
+  final String detail;
+  final bool allDay;
+  final int? startMinutes; // null when all-day
+  final int? endMinutes;   // null when all-day
+
+  const _DraftNoteData({
+    required this.title,
+    required this.location,
+    required this.detail,
+    required this.allDay,
+    required this.startMinutes,
+    required this.endMinutes,
+  });
+
+  factory _DraftNoteData.fromDraft(_NoteDraft draft) {
+    return _DraftNoteData(
+      title: draft.titleCtrl.text,
+      location: draft.locationCtrl.text,
+      detail: draft.detailCtrl.text,
+      allDay: draft.allDay,
+      startMinutes: draft.allDay || draft.start == null
+          ? null
+          : draft.start!.hour * 60 + draft.start!.minute,
+      endMinutes: draft.allDay || draft.end == null
+          ? null
+          : draft.end!.hour * 60 + draft.end!.minute,
+    );
+  }
+
+  _NoteDraft toDraft() {
+    final d = _NoteDraft();
+    d.titleCtrl.text = title;
+    d.locationCtrl.text = location;
+    d.detailCtrl.text = detail;
+    d.allDay = allDay;
+    if (!allDay && startMinutes != null && endMinutes != null) {
+      d.start = TimeOfDay(hour: (startMinutes! ~/ 60) % 24, minute: startMinutes! % 60);
+      d.end = TimeOfDay(hour: (endMinutes! ~/ 60) % 24, minute: endMinutes! % 60);
+    } else {
+      d.start = null;
+      d.end = null;
+    }
+    return d;
+  }
+}
+
+class _FlowStudioDraft {
+  final int? editingFlowId;
+  final bool editingIsHidden;
+  final String name;
+  final bool active;
+  final int selectedColorIndex;
+  final bool useKemetic;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final bool splitByPeriod;
+  final Set<int> selectedDecanDays;
+  final Set<int> selectedWeekdays;
+  final Map<String, Set<int>> perDecanSel;
+  final Map<String, Set<int>> perWeekSel;
+  final Map<String, List<_DraftNoteData>> draftsByDay;
+  final Map<String, _DraftNoteData> draftsByPattern;
+  final String overview;
+  final bool isAIGeneratedFlow;
+
+  const _FlowStudioDraft({
+    required this.editingFlowId,
+    required this.editingIsHidden,
+    required this.name,
+    required this.active,
+    required this.selectedColorIndex,
+    required this.useKemetic,
+    required this.startDate,
+    required this.endDate,
+    required this.splitByPeriod,
+    required this.selectedDecanDays,
+    required this.selectedWeekdays,
+    required this.perDecanSel,
+    required this.perWeekSel,
+    required this.draftsByDay,
+    required this.draftsByPattern,
+    required this.overview,
+    required this.isAIGeneratedFlow,
+  });
+}
+
 /// One concrete selected day derived from the chips.
 class _SelectedDay {
   final String key; // "ky-km-kd"
@@ -7076,6 +7165,8 @@ class _FlowStudioPage extends StatefulWidget {
 }
 
 class _FlowStudioPageState extends State<_FlowStudioPage> {
+  static _FlowStudioDraft? _sessionDraft;
+  bool _suppressDraftSave = false;
   _Flow? _editing;
 
   // basic
@@ -7198,6 +7289,116 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
   static String _iso(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  _FlowStudioDraft? _captureDraft() {
+    final hasContent = _nameCtrl.text.trim().isNotEmpty ||
+        _overviewCtrl.text.trim().isNotEmpty ||
+        _draftsByDay.isNotEmpty ||
+        _draftsByPattern.isNotEmpty ||
+        _startDate != null ||
+        _endDate != null;
+
+    if (!hasContent) return null;
+
+    Map<String, List<_DraftNoteData>> cloneDraftsByDay = {};
+    _draftsByDay.forEach((k, list) {
+      cloneDraftsByDay[k] = list.map(_DraftNoteData.fromDraft).toList();
+    });
+
+    final cloneDraftsByPattern = _draftsByPattern.map(
+      (k, v) => MapEntry(k, _DraftNoteData.fromDraft(v)),
+    );
+
+    return _FlowStudioDraft(
+      editingFlowId: _editing?.id,
+      editingIsHidden: _editing?.isHidden ?? false,
+      name: _nameCtrl.text,
+      active: _active,
+      selectedColorIndex: _selectedColorIndex,
+      useKemetic: _useKemetic,
+      startDate: _startDate,
+      endDate: _endDate,
+      splitByPeriod: _splitByPeriod,
+      selectedDecanDays: Set<int>.from(_selectedDecanDays),
+      selectedWeekdays: Set<int>.from(_selectedWeekdays),
+      perDecanSel: _perDecanSel.map((k, v) => MapEntry(k, Set<int>.from(v))),
+      perWeekSel: _perWeekSel.map((k, v) => MapEntry(k, Set<int>.from(v))),
+      draftsByDay: cloneDraftsByDay,
+      draftsByPattern: cloneDraftsByPattern,
+      overview: _overviewCtrl.text,
+      isAIGeneratedFlow: _isAIGeneratedFlow,
+    );
+  }
+
+  void _restoreDraft(_FlowStudioDraft draft) {
+    setState(() {
+      // Recreate minimal editing stub if we need to preserve the ID/hidden status
+      if (draft.editingFlowId != null) {
+        final colorIdx = draft.selectedColorIndex.clamp(0, _flowPalette.length - 1);
+        _editing = _Flow(
+          id: draft.editingFlowId!,
+          name: draft.name.isEmpty ? '' : draft.name,
+          color: _flowPalette[colorIdx],
+          active: draft.active,
+          rules: const [],
+          start: draft.startDate,
+          end: draft.endDate,
+          notes: '',
+          isHidden: draft.editingIsHidden,
+          shareId: null,
+        );
+      } else {
+        _editing = null;
+      }
+
+      _nameCtrl.text = draft.name;
+      _active = draft.active;
+      _selectedColorIndex = draft.selectedColorIndex.clamp(0, _flowPalette.length - 1);
+      _useKemetic = draft.useKemetic;
+      _startDate = draft.startDate;
+      _endDate = draft.endDate;
+      _splitByPeriod = draft.splitByPeriod;
+      _selectedDecanDays
+        ..clear()
+        ..addAll(draft.selectedDecanDays);
+      _selectedWeekdays
+        ..clear()
+        ..addAll(draft.selectedWeekdays);
+      _perDecanSel
+        ..clear()
+        ..addAll(draft.perDecanSel.map((k, v) => MapEntry(k, Set<int>.from(v))));
+      _perWeekSel
+        ..clear()
+        ..addAll(draft.perWeekSel.map((k, v) => MapEntry(k, Set<int>.from(v))));
+
+      // Rebuild drafts
+      for (final list in _draftsByDay.values) {
+        for (final d in list) {
+          d.dispose();
+        }
+      }
+      for (final d in _draftsByPattern.values) {
+        d.dispose();
+      }
+      _draftsByDay
+        ..clear()
+        ..addAll(draft.draftsByDay.map((k, list) =>
+            MapEntry(k, list.map((n) => n.toDraft()).toList())));
+      _draftsByPattern
+        ..clear()
+        ..addAll(draft.draftsByPattern.map((k, n) => MapEntry(k, n.toDraft())));
+
+      _overviewCtrl.text = draft.overview;
+      _isAIGeneratedFlow = draft.isAIGeneratedFlow;
+
+      _syncReady = true;
+      _rebuildSpans();
+    });
+  }
+
+  void _clearSessionDraft() {
+    _sessionDraft = null;
+  }
 
 
   static const _wdLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -8441,12 +8642,16 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _isAIGeneratedFlow = false;
     }
 
+    _clearSessionDraft();
+    _suppressDraftSave = true;
     Navigator.of(context, rootNavigator: true)
         .pop(_FlowStudioResult(savedFlow: flow, plannedNotes: planned));
   }
 
   void _delete() {
     if (_editing == null) return;
+    _clearSessionDraft();
+    _suppressDraftSave = true;
     Navigator.of(context, rootNavigator: true)
         .pop(_FlowStudioResult(deleteFlowId: _editing!.id));
   }
@@ -8631,6 +8836,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _syncReady = false; // prevent any sync during wipe/reset
       _rebuildSpans(); // clears spans; no sync happens
     });
+
+    _clearSessionDraft();
   }
 
   // Load an existing flow into the editor (best-effort reconstruction of rules)
@@ -9316,11 +9523,22 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _splitByPeriod = true;
       _syncReady = true; // new editor can sync once range exists
       _rebuildSpans(); // harmless if range empty; no sync without range
+
+      if (_sessionDraft != null) {
+        _restoreDraft(_sessionDraft!);
+        _sessionDraft = null;
+      }
     }
   }
 
   @override
   void dispose() {
+    if (!_suppressDraftSave) {
+      _sessionDraft = _captureDraft();
+    } else {
+      _sessionDraft = null;
+    }
+
     _nameCtrl.dispose();
     _overviewCtrl.dispose();
       for (final dayList in _draftsByDay.values) {
@@ -9914,6 +10132,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
               onSelected: (v) {
                 if (v == 1) _openFlowPicker();
                 if (v == 2) _clearEditorForNew();
+                if (v == 3) _clearEditorForNew();
               },
               itemBuilder: (ctx) => const [
                 PopupMenuItem(
@@ -9928,6 +10147,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                   child: ListTile(
                     leading: Icon(Icons.add),
                     title: Text('New flow'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 3,
+                  child: ListTile(
+                    leading: Icon(Icons.refresh),
+                    title: Text('Reset fields'),
                   ),
                 ),
               ],
