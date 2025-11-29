@@ -830,25 +830,20 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
 
                       if (!mounted) return;
 
-                      // Small delay to ensure events are written to DB before navigation
+                      // Keep this delay so DB writes fully settle before we leave
                       await Future.delayed(const Duration(milliseconds: 150));
 
                       if (!mounted) return;
 
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => CalendarPage(
-                            initialFlowIdToEdit: flowId,
-                          ),
-                        ),
-                      );
+                      // ✅ Only pop on success, and return the new flowId
+                      Navigator.pop<int>(context, flowId);
                     } catch (e) {
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Import failed: $e')),
                       );
                       setState(() => _isWorking = false);
+                      // ❌ DO NOT pop here – stay so they can retry
                     }
                   },
             child:

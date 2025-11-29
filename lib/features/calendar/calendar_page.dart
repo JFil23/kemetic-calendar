@@ -18,7 +18,7 @@ import '../profile/profile_page.dart';
 import '../journal/journal_controller.dart';
 import '../journal/journal_swipe_layer.dart';
 import '../../core/ui_guards.dart';
-import '../../main.dart';
+import '../../main.dart' show routeObserver;
 import '../../data/share_repo.dart';
 import '../sharing/share_flow_sheet.dart';
 import '../../data/share_models.dart';
@@ -1076,7 +1076,8 @@ class CalendarPage extends StatefulWidget {
   State<CalendarPage> createState() => _CalendarPageState();
 }
 
-class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver {
+class _CalendarPageState extends State<CalendarPage>
+    with WidgetsBindingObserver, RouteAware {
 
   // Track whether the clientEventId migration has been executed.
   // This ensures the migration runs at most once per app session to avoid
@@ -1094,6 +1095,10 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
     if (!mounted) return;
     setState(() => _dataVersion++);
   }
+
+  // ✅ RouteObserver subscription tracking
+  bool _isSubscribed = false;
+  DateTime? _lastRefreshTime;
 
   /* ───── today + notes + flows state ───── */
 
@@ -1734,6 +1739,10 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
 
   @override
   void dispose() {
+    // ✅ Unsubscribe from RouteObserver
+    if (_isSubscribed) {
+      routeObserver.unsubscribe(this);
+    }
     WidgetsBinding.instance.removeObserver(this);
     debugPrint('');
     debugPrint('🗑️  _CalendarPageState DISPOSING');
@@ -1742,6 +1751,43 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
     _journalController.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  // ✅ Called when we pop back to Calendar from another page
+  @override
+  void didPopNext() {
+    _refreshAfterReturn();
+  }
+
+  // ✅ Fallback: app comes back to foreground
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final now = DateTime.now();
+      if (_lastRefreshTime == null ||
+          now.difference(_lastRefreshTime!) > const Duration(seconds: 2)) {
+        _refreshAfterReturn();
+      }
+    }
+  }
+
+  // ✅ Refresh when returning to this page
+  Future<void> _refreshAfterReturn() async {
+    if (!mounted) return;
+
+    // Small delay to make sure any DB writes (like imports) are done
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
+
+    try {
+      await _loadFromDisk(); // reuse your existing loader
+      _lastRefreshTime = DateTime.now();
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[CalendarPage] Error refreshing: $e');
+      }
+    }
   }
   
   // ✅ Rotation reconcile: re-center on last view after rotation settles
@@ -4321,6 +4367,15 @@ class _CalendarPageState extends State<CalendarPage> with WidgetsBindingObserver
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    
+    // ✅ Subscribe to RouteObserver FIRST (before _initOnce check)
+    final route = ModalRoute.of(context);
+    if (route is PageRoute && !_isSubscribed) {
+      routeObserver.subscribe(this, route);
+      _isSubscribed = true;
+    }
+    
+    // ✅ PRESERVE existing _initOnce logic
     if (!_initOnce) {
       _initOnce = true;
       

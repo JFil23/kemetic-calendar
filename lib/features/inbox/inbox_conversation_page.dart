@@ -133,18 +133,31 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
               return Align(
                 alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
                 child: GestureDetector(
-                  onTap: () {
+                  onTap: () async {
                     if (kDebugMode) {
                       debugPrint('[InboxConversationPage] tapped share '
                           'shareId=${share.shareId} kind=${share.kind.asString} '
                           'title=${share.title}');
                     }
-                    Navigator.push(
+                    final importedFlowId = await Navigator.push<int>(
                       context,
                       MaterialPageRoute(
                         builder: (_) => SharedFlowDetailsEntry(share: share),
                       ),
                     );
+
+                    if (importedFlowId != null && mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Flow imported successfully! Open Flow Studio to edit.'),
+                          backgroundColor: Color(0xFFD4AF37),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+
+                      // (Optional later): open Flow Studio modal here once we extract it.
+                      // await openFlowStudioModal(context, editFlowId: importedFlowId);
+                    }
                   },
                   onLongPress: () {
                     showModalBottomSheet(
