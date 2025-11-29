@@ -94,17 +94,19 @@ class _JournalOverlayState extends State<JournalOverlay>
         _richTextEditorKey = GlobalKey<RichTextEditorState>();
       }
       
-      if (FeatureFlags.hasDrawing && widget.controller.currentDocument != null) {
-        final doc = widget.controller.currentDocument!;
-        final drawingBlocks = doc.blocks.whereType<DrawingBlock>();
-        if (drawingBlocks.isNotEmpty) {
-          _currentDrawingBlock = drawingBlocks.first;
-        } else {
-          _currentDrawingBlock = DrawingBlock(
-            id: 'draw-${DateTime.now().millisecondsSinceEpoch}',
-            strokes: [],
-          );
+      if (FeatureFlags.hasDrawing) {
+        final doc = widget.controller.currentDocument;
+        if (doc != null) {
+          final drawingBlocks = doc.blocks.whereType<DrawingBlock>();
+          if (drawingBlocks.isNotEmpty) {
+            _currentDrawingBlock = drawingBlocks.first;
+          }
         }
+
+        _currentDrawingBlock ??= DrawingBlock(
+          id: 'draw-${DateTime.now().millisecondsSinceEpoch}',
+          strokes: [],
+        );
       }
     }
 
@@ -179,8 +181,6 @@ class _JournalOverlayState extends State<JournalOverlay>
       
       if (mode == JournalV2Mode.draw) {
         _currentDrawingTool = DrawingTool.pen;
-      } else if (mode == JournalV2Mode.highlight) {
-        _currentDrawingTool = DrawingTool.highlighter;
       }
     });
   }
@@ -265,56 +265,8 @@ class _JournalOverlayState extends State<JournalOverlay>
       after: null,
     );
     
-    // Remove all pen strokes
-    final remainingStrokes = _currentDrawingBlock!.strokes
-        .where((stroke) => stroke.tool != 'pen')
-        .toList();
-    
-    final newDrawingBlock = DrawingBlock(
-      id: _currentDrawingBlock!.id,
-      strokes: remainingStrokes,
-    );
-    
-    setState(() {
-      _currentDrawingBlock = newDrawingBlock;
-    });
-    
-    final blocks = List<JournalBlock>.from(doc.blocks);
-    final drawingIndex = blocks.indexWhere((b) => b is DrawingBlock);
-    
-    if (drawingIndex >= 0) {
-      if (remainingStrokes.isEmpty) {
-        blocks.removeAt(drawingIndex);
-      } else {
-        blocks[drawingIndex] = newDrawingBlock;
-      }
-    }
-    
-    final newDoc = JournalDocument(
-      version: doc.version,
-      blocks: blocks,
-      meta: doc.meta,
-    );
-    
-    _undoSystem.updateLastAction(newDoc);
-    widget.controller.updateDocument(newDoc);
-  }
-
-  void _onClearHighlights() {
-    final doc = widget.controller.currentDocument;
-    if (doc == null || _currentDrawingBlock == null) return;
-    
-    // Record undo action
-    _undoSystem.recordAction(
-      type: JournalActionType.highlightStroke,
-      before: doc,
-      after: null,
-    );
-    
-    // Remove all highlighter strokes
-    final remainingStrokes = _currentDrawingBlock!.strokes
-        .where((stroke) => stroke.tool != 'highlighter')
-        .toList();
+    // Remove all strokes
+    final remainingStrokes = <DrawingStroke>[];
     
     final newDrawingBlock = DrawingBlock(
       id: _currentDrawingBlock!.id,
@@ -385,9 +337,7 @@ class _JournalOverlayState extends State<JournalOverlay>
     final doc = widget.controller.currentDocument!;
     
     // Determine action type
-    final actionType = _currentMode == JournalV2Mode.highlight
-        ? JournalActionType.highlightStroke
-        : JournalActionType.drawStroke;
+    const actionType = JournalActionType.drawStroke;
     
     // Record undo action
     _undoSystem.recordAction(
@@ -623,7 +573,6 @@ class _JournalOverlayState extends State<JournalOverlay>
           onRedo: _onRedo,
           onInsertChart: _onInsertChart,
           onClearDrawing: _onClearDrawing,
-          onClearHighlights: _onClearHighlights,
           canUndo: _undoSystem.canUndo,
           canRedo: _undoSystem.canRedo,
         ),
@@ -633,44 +582,64 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   Widget _buildEditor() {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final keyboardVisible = bottomInset > 0;
 
-    return AnimatedPadding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        // FIX #2: ALL content layers coexist in one Stack
-        child: Stack(
-          children: [
-            // Layer 1: Text (bottom layer)
-            if (_currentMode == JournalV2Mode.type)
-              _buildTextLayer()
-            else
-              Opacity(
-                opacity: 0.3,
-                child: IgnorePointer(child: _buildTextLayer()),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Text area (take remaining space)
+          Expanded(
+            child: AnimatedPadding(
+              padding: EdgeInsets.only(
+                bottom: _currentMode == JournalV2Mode.type ? bottomInset : 0,
               ),
-            
-            // Layer 2: ONE unified drawing canvas (handles ALL strokes)
-            if (FeatureFlags.hasDrawing && _currentDrawingBlock != null)
-              IgnorePointer(
-                ignoring: _currentMode == JournalV2Mode.type,
-                child: DrawingCanvas(
-                  key: ValueKey(_currentDrawingBlock!.id),
-                  initialBlock: _currentDrawingBlock!,
-                  onChanged: _onDrawingChanged,
-                  currentTool: _currentDrawingTool,
-                  currentColor: _currentMode == JournalV2Mode.highlight
-                      ? const Color(0x88FFEB3B) // Yellow highlighter
-                      : Colors.white, // White pen
-                  currentWidth: _currentMode == JournalV2Mode.highlight
-                      ? 12.0
-                      : 2.0,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 160),
+                child: IgnorePointer(
+                  ignoring: _currentMode == JournalV2Mode.draw,
+                  child: _buildTextLayer(),
                 ),
               ),
-          ],
-        ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Drawing area lives below text
+          if (FeatureFlags.hasDrawing)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              height: keyboardVisible ? 0 : 220,
+              child: keyboardVisible
+                  ? const SizedBox.shrink()
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0A0A0A),
+                          border: Border.all(color: const Color(0xFF333333), width: 1),
+                        ),
+                        clipBehavior: Clip.hardEdge,
+                        child: _currentDrawingBlock == null
+                            ? const SizedBox.shrink()
+                            : IgnorePointer(
+                                ignoring: _currentMode != JournalV2Mode.draw,
+                                child: DrawingCanvas(
+                                  key: ValueKey(_currentDrawingBlock!.id),
+                                  initialBlock: _currentDrawingBlock!,
+                                  onChanged: _onDrawingChanged,
+                                  currentTool: _currentDrawingTool,
+                                  currentColor: Colors.white,
+                                  currentWidth: 2.0,
+                                ),
+                              ),
+                      ),
+                    ),
+            ),
+        ],
       ),
     );
   }
@@ -724,6 +693,3 @@ class _JournalOverlayState extends State<JournalOverlay>
     );
   }
 }
-
-
-

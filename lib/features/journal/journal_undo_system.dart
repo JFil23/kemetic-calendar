@@ -1,12 +1,11 @@
 // lib/features/journal/journal_undo_system.dart
-// Universal undo/redo for ALL journal actions (text, drawing, highlighting)
+// Universal undo/redo for journal actions (text and drawing)
 
 import 'journal_v2_document_model.dart';
 
 enum JournalActionType {
   textEdit,
   drawStroke,
-  highlightStroke,
 }
 
 class JournalAction {
@@ -91,8 +90,6 @@ class JournalUndoSystem {
         return 'Text edit';
       case JournalActionType.drawStroke:
         return 'Drawing';
-      case JournalActionType.highlightStroke:
-        return 'Highlight';
     }
   }
 

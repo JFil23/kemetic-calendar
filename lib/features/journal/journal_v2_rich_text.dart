@@ -58,6 +58,10 @@ class _FormattedTextEditingController extends TextEditingController {
     return (baseStyle ?? const TextStyle()).copyWith(
       fontWeight: attrs.bold ? FontWeight.bold : null,
       fontStyle: attrs.italic ? FontStyle.italic : null,
+      backgroundColor: attrs.backgroundColor != null
+          ? _parseColor(attrs.backgroundColor!)
+          : null,
+      color: attrs.color != null ? _parseColor(attrs.color!) : null,
       decoration: decorations.isEmpty 
           ? TextDecoration.none 
           : decorations.length == 1 
@@ -66,6 +70,15 @@ class _FormattedTextEditingController extends TextEditingController {
       decorationColor: Colors.white,
       decorationThickness: 2.0,
     );
+  }
+
+  Color _parseColor(String value) {
+    var hex = value.replaceFirst('#', '');
+    if (hex.length == 6) {
+      hex = 'FF$hex';
+    }
+    final intColor = int.tryParse(hex, radix: 16) ?? 0xFFFFFFFF;
+    return Color(intColor);
   }
 }
 
@@ -164,6 +177,9 @@ class RichTextEditorState extends State<RichTextEditor> {
     }
 
     final optimizedOps = _optimizeOps(newOps);
+    if (_opsEqual(_currentBlock.ops, optimizedOps)) {
+      return; // No change; avoid stacking duplicate formatting operations
+    }
     final newBlock = ParagraphBlock(id: _currentBlock.id, ops: optimizedOps);
 
     setState(() {
@@ -201,7 +217,18 @@ class RichTextEditorState extends State<RichTextEditor> {
     return a.bold == b.bold &&
         a.italic == b.italic &&
         a.underline == b.underline &&
-        a.strikethrough == b.strikethrough;
+        a.strikethrough == b.strikethrough &&
+        a.color == b.color &&
+        a.backgroundColor == b.backgroundColor;
+  }
+
+  bool _opsEqual(List<TextOp> a, List<TextOp> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].insert != b[i].insert) return false;
+      if (!_attrsEqual(a[i].attrs, b[i].attrs)) return false;
+    }
+    return true;
   }
 
   void _handleTextChanged(String text) {
