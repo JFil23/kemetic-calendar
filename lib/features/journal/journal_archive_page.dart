@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../data/journal_repo.dart';
 import 'journal_controller.dart';
 import 'journal_v2_document_model.dart';
+import 'journal_v2_drawing.dart';
 import 'dart:convert';
 
 class JournalArchivePage extends StatefulWidget {
@@ -31,6 +32,8 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   JournalEntry? _selectedEntry;
   bool _isEditing = false;
   late TextEditingController _editController;
+  JournalDocument? _editingDocument;
+  DrawingBlock? _editDrawingBlock;
 
   @override
   void initState() {
@@ -60,9 +63,19 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   }
 
   void _openEntry(JournalEntry entry) {
+    final doc = _entryToDocument(entry);
+    final drawingBlocks = doc.blocks.whereType<DrawingBlock>();
+
     setState(() {
       _selectedEntry = entry;
       _isEditing = false;
+      _editingDocument = doc;
+      _editDrawingBlock = drawingBlocks.isNotEmpty
+          ? drawingBlocks.first
+          : DrawingBlock(
+              id: 'draw-${DateTime.now().millisecondsSinceEpoch}',
+              strokes: [],
+            );
       _editController.text = _getEntryText(entry);
     });
   }
@@ -84,10 +97,30 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     if (_selectedEntry == null) return;
     
     try {
-      // Save the edited text
+      // Save the edited text + drawing as a document
+      final paragraph = ParagraphBlock(
+        id: 'p-${_selectedEntry!.gregDate.millisecondsSinceEpoch}',
+        ops: [
+          TextOp(insert: _editController.text.isEmpty ? '\n' : _editController.text),
+        ],
+      );
+
+      final blocks = <JournalBlock>[
+        paragraph,
+        if (_editDrawingBlock != null) _editDrawingBlock!,
+      ];
+
+      final doc = JournalDocument(
+        version: kJournalDocVersion,
+        blocks: blocks,
+        meta: const {},
+      );
+
+      final body = jsonEncode(doc.toJson());
+
       await widget.repo.upsert(
         localDate: _selectedEntry!.gregDate,
-        body: _editController.text,
+        body: body,
       );
       
       setState(() {
@@ -127,6 +160,32 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     } catch (e) {
       return entry.body;
     }
+  }
+
+  JournalDocument _entryToDocument(JournalEntry entry) {
+    try {
+      if (entry.body.startsWith('{') && entry.body.contains('"version"')) {
+        final docJson = jsonDecode(entry.body) as Map<String, dynamic>;
+        return JournalDocument.fromJson(docJson);
+      }
+    } catch (_) {
+      // fall through to plain text
+    }
+    // fallback: plain text -> document with empty drawing block
+    return JournalDocument(
+      version: kJournalDocVersion,
+      blocks: [
+        ParagraphBlock(
+          id: 'p-${DateTime.now().millisecondsSinceEpoch}',
+          ops: [TextOp(insert: entry.body.isEmpty ? '\n' : entry.body)],
+        ),
+        DrawingBlock(
+          id: 'draw-${DateTime.now().millisecondsSinceEpoch}',
+          strokes: [],
+        ),
+      ],
+      meta: const {},
+    );
   }
 
   String _getPreviewText(JournalEntry entry) {
@@ -269,61 +328,80 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final previewText = _getPreviewText(entry);
     final charCount = _getActualTextLength(entry);
 
-    return InkWell(
-      onTap: () {
-        print('🔵 Entry tapped: ${entry.gregDate}');
-        _openEntry(entry);
+    return Dismissible(
+      key: ValueKey(entry.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        color: Colors.red.withOpacity(0.8),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      onDismissed: (_) async {
+        await widget.repo.deleteByDate(entry.gregDate);
+        setState(() {
+          _entries.remove(entry);
+          if (_selectedEntry?.id == entry.id) {
+            _selectedEntry = null;
+            _isEditing = false;
+          }
+        });
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Date header
-                  Text(
-                    '$dayOfWeek, $monthName ${date.day}',
-                    style: const TextStyle(
-                      color: Color(0xFFD4AF37),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+      child: InkWell(
+        onTap: () {
+          _openEntry(entry);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Date header
+                    Text(
+                      '$dayOfWeek, $monthName ${date.day}',
+                      style: const TextStyle(
+                        color: Color(0xFFD4AF37),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  
-                  // Preview text
-                  Text(
-                    previewText,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      height: 1.4,
+                    const SizedBox(height: 4),
+                    
+                    // Preview text
+                    Text(
+                      previewText,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  
-                  // Character count
-                  Text(
-                    '$charCount characters',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
-                      fontSize: 12,
+                    const SizedBox(height: 4),
+                    
+                    // Character count
+                    Text(
+                      '$charCount characters',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.5),
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Icon(
-              Icons.chevron_right,
-              color: Colors.white.withOpacity(0.3),
-              size: 20,
-            ),
-          ],
+              const SizedBox(width: 16),
+              Icon(
+                Icons.chevron_right,
+                color: Colors.white.withOpacity(0.3),
+                size: 20,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -337,6 +415,9 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final dayOfWeek = _getDayOfWeek(date);
     final monthName = _getMonthName(date.month);
     final entryText = _getEntryText(entry);
+    final entryDoc = _entryToDocument(entry);
+    final drawingBlocks = entryDoc.blocks.whereType<DrawingBlock>();
+    final drawingBlock = drawingBlocks.isNotEmpty ? drawingBlocks.first : null;
 
     return Column(
       children: [
@@ -365,45 +446,107 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: _isEditing ? _buildEditView() : _buildReadView(entryText),
+            child: _isEditing
+                ? _buildEditView()
+                : _buildReadView(entryText, drawingBlock),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildReadView(String text) {
+  Widget _buildReadView(String text, DrawingBlock? drawing) {
     return SingleChildScrollView(
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 16,
-          height: 1.5,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEditView() {
-    return Column(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: _editController,
-            maxLines: null,
-            expands: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            text,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
               height: 1.5,
             ),
-            decoration: const InputDecoration(
-              hintText: 'Write your journal entry...',
-              hintStyle: TextStyle(color: Color(0xFF666666)),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
+          ),
+          if (drawing != null && drawing.strokes.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                height: 220,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A0A0A),
+                  border: Border.all(color: const Color(0xFF333333), width: 1),
+                ),
+                child: IgnorePointer(
+                  child: DrawingCanvas(
+                    initialBlock: drawing,
+                    onChanged: (_) {},
+                    currentTool: DrawingTool.pen,
+                    currentColor: Colors.white,
+                    currentWidth: 2.0,
+                  ),
+                ),
+              ),
             ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditView() {
+    final drawing = _editDrawingBlock;
+
+    return Column(
+      children: [
+        Expanded(
+          child: Column(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _editController,
+                  maxLines: null,
+                  expands: true,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: 'Write your journal entry...',
+                    hintStyle: TextStyle(color: Color(0xFF666666)),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (drawing != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    height: 220,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0A0A0A),
+                      border: Border.all(color: const Color(0xFF333333), width: 1),
+                    ),
+                    child: DrawingCanvas(
+                      initialBlock: drawing,
+                      onChanged: (block) {
+                        setState(() {
+                          _editDrawingBlock = block;
+                        });
+                      },
+                      currentTool: DrawingTool.pen,
+                      currentColor: Colors.white,
+                      currentWidth: 2.0,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 16),
@@ -448,4 +591,3 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     );
   }
 }
-
