@@ -9,10 +9,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart'; // For DragStartBehavior
 import 'package:url_launcher/url_launcher.dart';
 import 'day_view.dart'; // For NoteData, FlowData
-import 'calendar_page.dart'; // For KemeticMath
+import 'calendar_page.dart' show KemeticMath, CreateFlowFromNutrition;
 import '../sharing/share_flow_sheet.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'dart:math' as math;
+import '../nutrition/nutrition_grid.dart';
+import '../../data/nutrition_repo.dart';
+import '../../data/user_events_repo.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ========================================
 // SHARED CONSTANTS FOR LANDSCAPE VIEW
@@ -40,6 +44,7 @@ class LandscapeMonthView extends StatelessWidget {
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
   final void Function(int flowId)? onEndFlow;
+  final CreateFlowFromNutrition? onCreateFlow;
 
   const LandscapeMonthView({
     super.key,
@@ -54,6 +59,7 @@ class LandscapeMonthView extends StatelessWidget {
     this.onAddNote,
     this.onMonthChanged, // ✅ NEW CALLBACK
     this.onEndFlow,
+    this.onCreateFlow,
   });
 
   @override
@@ -70,6 +76,7 @@ class LandscapeMonthView extends StatelessWidget {
       onAddNote: onAddNote,
       onMonthChanged: onMonthChanged, // ✅ PASS CALLBACK DOWN
       onEndFlow: onEndFlow,
+      onCreateFlow: onCreateFlow,
     );
   }
 }
@@ -91,6 +98,7 @@ class LandscapeMonthPager extends StatefulWidget {
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
   final void Function(int flowId)? onEndFlow;
+  final CreateFlowFromNutrition? onCreateFlow;
 
   const LandscapeMonthPager({
     super.key,
@@ -105,6 +113,7 @@ class LandscapeMonthPager extends StatefulWidget {
     this.onAddNote,
     this.onMonthChanged, // ✅ NEW CALLBACK
     this.onEndFlow,
+    this.onCreateFlow,
   });
 
   @override
@@ -164,6 +173,71 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     final delta = page - _centerPage;
     final total = _baseTotalMonths + delta;  // ✅ Use canonical base
     return _fromTotalMonths(total);
+  }
+
+  void _openNutritionSheet() {
+    final topInset = MediaQuery.of(context).padding.top + kToolbarHeight;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final nutritionRepo = NutritionRepo(Supabase.instance.client);
+    final eventsRepo = UserEventsRepo(Supabase.instance.client);
+
+    showGeneralDialog(
+      context: context,
+      useRootNavigator: true,
+      barrierLabel: 'Nutrition',
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      transitionBuilder: (ctx, anim, _, child) {
+        final offset = Tween(begin: const Offset(0, -1), end: Offset.zero)
+            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic));
+        return SlideTransition(position: offset, child: child);
+      },
+      pageBuilder: (ctx, _, __) {
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => Navigator.of(ctx, rootNavigator: true).pop(),
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: topInset,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: screenWidth - 24,
+                    maxHeight: screenHeight * 0.75,
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _landscapeBg,
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(12),
+                        ),
+                        border: Border.all(color: _landscapeGold.withOpacity(0.5), width: 1),
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: NutritionGridWidget(
+                        repo: nutritionRepo,
+                        eventsRepo: eventsRepo,
+                        onCreateFlow: widget.onCreateFlow,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -386,6 +460,13 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
               ),
               // Flow Studio button - OUTSIDE GestureDetector (no gesture interference)
               IconButton(
+                tooltip: 'Nutrition',
+                icon: const Icon(Icons.table_chart_outlined, color: _landscapeGold),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                onPressed: _openNutritionSheet,
+              ),
+              // Flow Studio button - OUTSIDE GestureDetector (no gesture interference)
+              IconButton(
                 tooltip: 'Flow Studio',
                 icon: const Icon(Icons.view_timeline, color: _landscapeGold),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -505,6 +586,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           onManageFlows: widget.onManageFlows,
           onAddNote: widget.onAddNote,
           onEndFlow: widget.onEndFlow,
+          onCreateFlow: widget.onCreateFlow,
         );
       },
     );
@@ -527,6 +609,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int flowId)? onEndFlow;
+  final CreateFlowFromNutrition? onCreateFlow;
 
   const LandscapeMonthGridBody({
     super.key,
@@ -540,6 +623,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
     this.onManageFlows,
     this.onAddNote,
     this.onEndFlow,
+    this.onCreateFlow,
   });
 
   @override
@@ -661,6 +745,71 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       targetOffset.clamp(0.0, _hGrid.position.maxScrollExtent),
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
+    );
+  }
+
+  void _openNutritionSheet() {
+    final topInset = MediaQuery.of(context).padding.top + kToolbarHeight;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final nutritionRepo = NutritionRepo(Supabase.instance.client);
+    final eventsRepo = UserEventsRepo(Supabase.instance.client);
+
+    showGeneralDialog(
+      context: context,
+      useRootNavigator: true,
+      barrierLabel: 'Nutrition',
+      barrierDismissible: true,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      transitionBuilder: (ctx, anim, _, child) {
+        final offset = Tween(begin: const Offset(0, -1), end: Offset.zero)
+            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic));
+        return SlideTransition(position: offset, child: child);
+      },
+      pageBuilder: (ctx, _, __) {
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => Navigator.of(ctx, rootNavigator: true).pop(),
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: topInset,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: screenWidth - 24,
+                    maxHeight: screenHeight * 0.75,
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _bg,
+                          borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.circular(12),
+                        ),
+                        border: Border.all(color: _gold.withOpacity(0.5), width: 1),
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: NutritionGridWidget(
+                        repo: nutritionRepo,
+                        eventsRepo: eventsRepo,
+                        onCreateFlow: widget.onCreateFlow,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1306,14 +1455,13 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                 const SizedBox(height: 20),
 
                 // Action buttons (matching day view style)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // End Flow only if this event is tied to a flow and callback provided
-                    if (event.flowId != null && widget.onEndFlow != null)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                    if (widget.onEndFlow != null)
                       TextButton.icon(
                         onPressed: () {
-                          final id = event.flowId;
+                          final id = flow?.id ?? event.flowId;
                           Navigator.pop(context);
                           if (id != null) {
                             widget.onEndFlow!(id);

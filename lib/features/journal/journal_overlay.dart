@@ -12,24 +12,18 @@ import 'journal_v2_drawing.dart';
 import 'journal_undo_system.dart';
 import 'journal_archive_page.dart';
 import '../../data/journal_repo.dart';
-import '../../data/nutrition_repo.dart';
-import '../../data/user_events_repo.dart';
-import '../nutrition/nutrition_grid.dart';
-import '../calendar/calendar_page.dart' show CreateFlowFromNutrition;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class JournalOverlay extends StatefulWidget {
   final JournalController controller;
   final bool isPortrait;
   final VoidCallback onClose;
-  final CreateFlowFromNutrition? onCreateFlow;
 
   const JournalOverlay({
     Key? key,
     required this.controller,
     required this.isPortrait,
     required this.onClose,
-    this.onCreateFlow,
   }) : super(key: key);
 
   @override
@@ -43,9 +37,6 @@ class _JournalOverlayState extends State<JournalOverlay>
   late TextEditingController _textController;
   late ScrollController _scrollController;
   late FocusNode _focusNode;
-
-  // Toggle between Journal (false) and Nutrition (true)
-  bool _showNutrition = false;
 
   double _dragOffset = 0;
 
@@ -469,7 +460,7 @@ class _JournalOverlayState extends State<JournalOverlay>
                     children: [
                       _buildHeader(),
                       // Show the journal toolbar only in Journal mode
-                      if (_showToolbar && !_showNutrition) _buildToolbar(),
+                      if (_showToolbar) _buildToolbar(),
                       Expanded(child: _buildContent()),
                     ],
                   ),
@@ -494,7 +485,7 @@ class _JournalOverlayState extends State<JournalOverlay>
         children: [
           // Journal button
           TextButton(
-            onPressed: () => setState(() => _showNutrition = false),
+            onPressed: () {},
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               minimumSize: Size.zero,
@@ -503,37 +494,35 @@ class _JournalOverlayState extends State<JournalOverlay>
             child: Text(
               'Journal',
               style: TextStyle(
-                color: !_showNutrition ? const Color(0xFFD4AF37) : Colors.white70,
+                color: const Color(0xFFD4AF37),
                 fontSize: 18,
-                fontWeight: !_showNutrition ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          // Nutrition button (only if feature is enabled)
-          if (FeatureFlags.hasNutrition) ...[
-            const SizedBox(width: 8),
-            TextButton(
-              onPressed: () => setState(() => _showNutrition = true),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                'Nutrition',
-                style: TextStyle(
-                  color: _showNutrition ? const Color(0xFFD4AF37) : Colors.white70,
-                  fontSize: 18,
-                  fontWeight: _showNutrition ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
-            ),
-          ],
           const Spacer(),
           IconButton(
             icon: const Icon(Icons.history, color: Color(0xFFD4AF37)),
             onPressed: _openArchive,
             tooltip: 'View archive',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Color(0xFFD4AF37)),
+            onPressed: () async {
+              await widget.controller.clearToday();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Cleared today\'s journal'),
+                    backgroundColor: Color(0xFFD4AF37),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            tooltip: 'Clear today',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
@@ -550,13 +539,6 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   /// Returns either the Journal editor (default) or the Nutrition grid.
   Widget _buildContent() {
-    if (FeatureFlags.hasNutrition && _showNutrition) {
-      return NutritionGridWidget(
-        repo: NutritionRepo(Supabase.instance.client),
-        eventsRepo: UserEventsRepo(Supabase.instance.client),
-        onCreateFlow: widget.onCreateFlow,
-      );
-    }
     return _buildEditor(); // existing editor builder
   }
 

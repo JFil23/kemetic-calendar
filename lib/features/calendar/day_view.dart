@@ -4,6 +4,7 @@
 // Uses EventLayoutEngine for consistent positioning
 //
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -13,6 +14,7 @@ import 'landscape_month_view.dart';
 import '../sharing/share_flow_sheet.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
+import '../journal/journal_event_badge.dart';
 
 const double _kMinEventBlockHeight = 64.0;  // was 32.0
 
@@ -207,6 +209,7 @@ class DayViewPage extends StatefulWidget {
   /// Called when user taps "End Flow" on a flow event in the info bar.
   /// If null, the End Flow button is hidden.
   final void Function(int flowId)? onEndFlow;
+  final Future<void> Function(String text)? onAppendToJournal;
 
   const DayViewPage({
     super.key,
@@ -220,6 +223,7 @@ class DayViewPage extends StatefulWidget {
     this.onManageFlows, // NEW
     this.onAddNote, // 🔧 NEW
     this.onEndFlow,
+    this.onAppendToJournal,
   });
 
   @override
@@ -445,6 +449,7 @@ class _DayViewPageState extends State<DayViewPage> {
                       onManageFlows: widget.onManageFlows, // NEW: Pass callback down
                       onAddNote: widget.onAddNote,
                       onEndFlow: widget.onEndFlow, // Pass End Flow callback down
+                      onAppendToJournal: widget.onAppendToJournal,
                     );
                   },
                 ),
@@ -842,6 +847,7 @@ class DayViewGrid extends StatefulWidget {
   final void Function(int? flowId)? onManageFlows; // NEW
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int flowId)? onEndFlow;
+  final Future<void> Function(String text)? onAppendToJournal;
 
   const DayViewGrid({
     super.key,
@@ -856,6 +862,7 @@ class DayViewGrid extends StatefulWidget {
     this.onManageFlows, // NEW
     this.onAddNote, // 🔧 NEW
     this.onEndFlow,
+    this.onAppendToJournal,
   });
 
   @override
@@ -1212,16 +1219,16 @@ class _DayViewGridState extends State<DayViewGrid> {
           // Event blocks
           ...hourBlocks.map((block) {
             final minutesIntoHour = block.event.startMin % 60;
-            return Positioned(
-              left: 60 + block.leftOffset,
-              top: minutesIntoHour.toDouble(),
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque, // ✅ full-rect hit target (not just text)
-                onTap: () => _showEventDetail(block.event),
-                child: _buildEventBlock(block),
-              ),
-            );
-          }),
+          return Positioned(
+            left: 60 + block.leftOffset,
+            top: minutesIntoHour.toDouble(),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque, // ✅ full-rect hit target (not just text)
+              onTap: () => _showEventDetail(block.event),
+              child: _buildEventBlock(block),
+            ),
+          );
+        }),
           
           // Current time indicator (only on today)
           if (_isToday() && _isCurrentHour(hour)) _buildNowLine(),
@@ -1413,6 +1420,68 @@ class _DayViewGridState extends State<DayViewGrid> {
     return '${date.month}/${date.day}/${date.year}';
   }
 
+  String _buildBadgeToken(EventItem event) {
+    final g = KemeticMath.toGregorian(widget.ky, widget.km, widget.kd);
+    final dayStart = DateTime(g.year, g.month, g.day);
+    final start = dayStart.add(Duration(minutes: event.startMin));
+    final end = dayStart.add(Duration(minutes: event.endMin));
+    final id = 'badge-${DateTime.now().microsecondsSinceEpoch}';
+    return EventBadgeToken.buildToken(
+      id: id,
+      title: event.title.isEmpty ? 'Scheduled block' : event.title,
+      start: start,
+      end: end,
+      color: event.color,
+      description: event.detail,
+    );
+  }
+
+  Future<void> _quickAddToJournal(EventItem event) async {
+    final cb = widget.onAppendToJournal;
+    if (cb == null) return;
+
+    final token = _buildBadgeToken(event);
+    try {
+      await cb('$token ');
+    } catch (_) {
+      // ignore errors silently to avoid blocking UI
+    }
+  }
+
+  Widget _buildEndFlowButton(int? flowId) {
+    final enabled = widget.onEndFlow != null && flowId != null;
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: Color(0xFFFFC145)),
+        foregroundColor: const Color(0xFFFFC145),
+      ),
+      onPressed: enabled
+          ? () {
+              Navigator.pop(context);
+              widget.onEndFlow!(flowId!);
+            }
+          : null,
+      icon: const Icon(Icons.stop_circle),
+      label: const Text('End Flow'),
+    );
+  }
+
+  Future<void> _handleAddToJournal(EventItem event, {BuildContext? sheetContext}) async {
+    if (sheetContext != null) {
+      Navigator.pop(sheetContext);
+    }
+    await _quickAddToJournal(event);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Added to journal'),
+          backgroundColor: Color(0xFFFFC145),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   // Show event detail sheet
   void _showEventDetail(EventItem event) {
     final flow = widget.flowIndex[event.flowId];
@@ -1452,9 +1521,26 @@ class _DayViewGridState extends State<DayViewGrid> {
             children: [
               // Header row with flow badge and menu
               // Check if this is a nutrition event (detail contains "Source:" pattern)
-              if (flow == null && event.detail != null && event.detail!.contains('Source:')) ...[
-                Row(
-                  children: [
+              // Header row with badges, End Flow, and menu
+              Row(
+                children: [
+                  if (flow != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: flow.color.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        flow.name,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: flow.color,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    )
+                  else if (event.detail != null && event.detail!.contains('Source:'))
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -1477,65 +1563,55 @@ class _DayViewGridState extends State<DayViewGrid> {
                         ],
                       ),
                     ),
-                    const Spacer(),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
-              if (flow != null) ...[
-                Row(
-                  children: [
-                    // Flow name badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: flow.color.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        flow.name,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: flow.color,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    // 3-dot menu
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert, color: Color(0xFFD4AF37)),
-                      tooltip: 'Event options',
-                      onSelected: (value) async {
-                        if (value == 'edit') {
-                          Navigator.pop(context);
-                          if (widget.onManageFlows != null) {
-                            widget.onManageFlows!(flow.id);
-                          }
-                        } else if (value == 'share') {
-                          Navigator.pop(context);
-                          final result = await showModalBottomSheet<bool>(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (context) => ShareFlowSheet(
-                              flowId: flow.id,
-                              flowTitle: flow.name,
+                  const Spacer(),
+                  _buildEndFlowButton(flow?.id ?? event.flowId),
+                  const SizedBox(width: 8),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Color(0xFFD4AF37)),
+                    tooltip: 'Event options',
+                    onSelected: (value) async {
+                      if (value == 'journal') {
+                        await _handleAddToJournal(event, sheetContext: context);
+                      } else if (value == 'edit' && flow != null) {
+                        Navigator.pop(context);
+                        if (widget.onManageFlows != null) {
+                          widget.onManageFlows!(flow.id);
+                        }
+                      } else if (value == 'share' && flow != null) {
+                        Navigator.pop(context);
+                        final result = await showModalBottomSheet<bool>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => ShareFlowSheet(
+                            flowId: flow.id,
+                            flowTitle: flow.name,
+                          ),
+                        );
+                        
+                        if (result == true && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Flow shared successfully!'),
+                              backgroundColor: Color(0xFFD4AF37),
+                              duration: Duration(seconds: 2),
                             ),
                           );
-                          
-                          if (result == true && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Flow shared successfully!'),
-                                backgroundColor: Color(0xFFD4AF37),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          }
                         }
-                      },
-                      itemBuilder: (context) => [
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'journal',
+                        child: Row(
+                          children: const [
+                            Icon(Icons.check_circle, color: Color(0xFFD4AF37)),
+                            SizedBox(width: 12),
+                            Text('Done / Add to journal', style: TextStyle(color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                      if (flow != null)
                         const PopupMenuItem(
                           value: 'edit',
                           child: Row(
@@ -1546,6 +1622,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                             ],
                           ),
                         ),
+                      if (flow != null)
                         const PopupMenuItem(
                           value: 'share',
                           child: Row(
@@ -1556,13 +1633,12 @@ class _DayViewGridState extends State<DayViewGrid> {
                             ],
                           ),
                         ),
-                      ],
-                      color: const Color(0xFF000000),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
+                    ],
+                    color: const Color(0xFF000000),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               
               // Note title
               Text(
@@ -1651,22 +1727,6 @@ class _DayViewGridState extends State<DayViewGrid> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // End Flow only if this event is tied to a flow and callback provided
-                  if (event.flowId != null && widget.onEndFlow != null)
-                    TextButton.icon(
-                      onPressed: () {
-                        final id = event.flowId;
-                        Navigator.pop(context);
-                        if (id != null) {
-                          widget.onEndFlow!(id);
-                        }
-                      },
-                      icon: const Icon(Icons.stop_circle, color: Color(0xFFFFC145)),
-                      label: const Text(
-                        'End Flow',
-                        style: TextStyle(color: Color(0xFFFFC145)),
-                      ),
-                    ),
                   TextButton.icon(
                     onPressed: widget.onManageFlows == null
                         ? null
@@ -1725,4 +1785,3 @@ class _DayViewGridState extends State<DayViewGrid> {
 // Day View - 24-hour timeline with pixel-perfect event layout
 // Uses EventLayoutEngine for consistent positioning
 //
-

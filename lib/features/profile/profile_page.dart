@@ -6,6 +6,7 @@ import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../../widgets/inbox_icon_with_badge.dart';
 import 'edit_profile_page.dart';
+import '../settings/settings_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final String userId;
@@ -64,6 +65,15 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         actions: [
           InboxIconWithBadge(),
+          IconButton(
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings, color: Color(0xFFD4AF37)),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+            },
+          ),
         ],
       ),
       body: _loading

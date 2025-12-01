@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -35,6 +36,9 @@ import 'package:mobile/core/day_key.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
+import '../reminders/reminder_service.dart';
+import '../reminders/reminder_model.dart';
+import '../../data/reminders_repo.dart';
 
 
 
@@ -1096,6 +1100,12 @@ class _CalendarPageState extends State<CalendarPage>
     setState(() => _dataVersion++);
   }
 
+  // Build a reminder id that is unique per event occurrence and alert time.
+  String _reminderIdForNote(_Note n, DateTime alertUtc) {
+    final base = n.id ?? n.title;
+    return '$base-${alertUtc.toIso8601String()}';
+  }
+
   // ✅ RouteObserver subscription tracking
   bool _isSubscribed = false;
   DateTime? _lastRefreshTime;
@@ -1117,6 +1127,29 @@ class _CalendarPageState extends State<CalendarPage>
 
   // Repository instances
   late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
+  // Reminders (Flutter-only layer)
+  late final ReminderService _reminderService = ReminderService();
+  StreamSubscription<List<Reminder>>? _reminderSub; // unused now (safety)
+  bool _remindersLoaded = false;
+  bool _remindersEnabled = false; // disable floating badges for now
+  bool _settingsCatchUp = true;
+  bool _settingsEndOfDay = true;
+  bool _settingsMissedOnOpen = true;
+  DateTime? _lastSummaryShownDay;
+  late final RemindersRepo _remindersRepo = RemindersRepo(Supabase.instance.client);
+  List<Reminder> _floatingReminders = [];
+  bool _overlayActive = false;
+
+  Future<void> _loadReminderSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _settingsCatchUp = prefs.getBool('settings:catchUpReminders') ?? true;
+        _settingsEndOfDay = prefs.getBool('settings:endOfDaySummary') ?? true;
+        _settingsMissedOnOpen = prefs.getBool('settings:missedOnOpen') ?? true;
+      });
+    } catch (_) {}
+  }
 
   /* ───── ClientEventId utilities ───── */
   /// Build a canonical clientEventId from Kemetic date, title, time and flow id.
@@ -1559,6 +1592,15 @@ class _CalendarPageState extends State<CalendarPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     
+    _loadReminderSettings();
+
+    // Load local reminders cache and check any due on startup.
+    _reminderService.load().then((_) {
+      _remindersLoaded = true;
+      _floatingReminders = [];
+    });
+    // We no longer listen to every change to avoid UI loops; checks happen on load/resume/refresh.
+    
     // ✅ Load persisted state first, fallback to today
     _loadPersistedViewState();
 
@@ -1744,6 +1786,8 @@ class _CalendarPageState extends State<CalendarPage>
       routeObserver.unsubscribe(this);
     }
     WidgetsBinding.instance.removeObserver(this);
+    _reminderSub?.cancel();
+    _reminderService.dispose();
     debugPrint('');
     debugPrint('🗑️  _CalendarPageState DISPOSING');
     debugPrint('   Total builds: $_buildCount');
@@ -1768,6 +1812,7 @@ class _CalendarPageState extends State<CalendarPage>
           now.difference(_lastRefreshTime!) > const Duration(seconds: 2)) {
         _refreshAfterReturn();
       }
+      _checkDueReminders();
     }
   }
 
@@ -1783,10 +1828,228 @@ class _CalendarPageState extends State<CalendarPage>
       await _loadFromDisk(); // reuse your existing loader
       _lastRefreshTime = DateTime.now();
       if (mounted) setState(() {});
+      _checkDueReminders();
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[CalendarPage] Error refreshing: $e');
       }
+    }
+  }
+
+  Future<void> _checkDueReminders() async {
+    if (!_remindersEnabled) return;
+    if (!_remindersLoaded || !mounted) return;
+    if (!_settingsCatchUp && !_settingsMissedOnOpen && !_settingsEndOfDay) return;
+    try {
+      final nowUtc = DateTime.now().toUtc();
+      // Use local cache only for now to avoid id mismatches causing reappearing chips
+      List<Reminder> due = _reminderService.dueReminders(nowUtc);
+      if (due.isEmpty) {
+        if (_floatingReminders.isNotEmpty && mounted) {
+          setState(() => _floatingReminders = []);
+        }
+        return;
+      }
+
+      // Mark as shown locally so they stop re-queuing
+      for (final r in due) {
+        _reminderService.markStatus(r.id, ReminderStatus.shownInApp);
+      }
+
+      // De-dupe and update overlay
+      final seen = <String>{};
+      // Cap to at most 5 to avoid UI overload
+      setState(() {
+        _floatingReminders = [
+          for (final r in due)
+            if (seen.add(r.id)) r,
+        ].take(5).toList();
+        _overlayActive = _floatingReminders.isNotEmpty;
+      });
+
+      // End-of-day summary trigger (local only): after 9pm local, show once per day
+      await _maybeShowEndOfDaySummary(due);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[Reminders] _checkDueReminders failed: $e');
+      }
+    }
+  }
+
+  void _showReminderSheet(List<Reminder> due) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF000000),
+      builder: (_) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Reminders',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...due.map((r) {
+                  final local = r.alertAtUtc.toLocal();
+                  final timeStr =
+                      '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      r.title,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      timeStr +
+                          (r.detail != null && r.detail!.isNotEmpty
+                              ? ' • ${r.detail}'
+                              : ''),
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    trailing: TextButton(
+                      onPressed: () {
+                        _reminderService.markStatus(
+                            r.id, ReminderStatus.completed);
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text(
+                        'Done',
+                        style: TextStyle(color: Color(0xFFD4AF37)),
+                      ),
+                    ),
+                  );
+                }),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text(
+                      'Close',
+                      style: TextStyle(color: Color(0xFFD4AF37)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _maybeShowEndOfDaySummary(List<Reminder> dueAll) async {
+    if (!_settingsEndOfDay) return;
+    final now = DateTime.now();
+    final localDate = DateUtils.dateOnly(now);
+    if (now.hour < 21) return; // after 9pm local
+    if (_lastSummaryShownDay != null &&
+        DateUtils.isSameDay(_lastSummaryShownDay, localDate)) {
+      return;
+    }
+
+    List<Reminder> dueToday = dueAll.where((r) {
+      final local = r.alertAtUtc.toLocal();
+      return DateUtils.isSameDay(local, localDate) &&
+          r.status != ReminderStatus.completed;
+    }).toList();
+
+    if (dueToday.isEmpty) {
+      _lastSummaryShownDay = localDate;
+      return;
+    }
+
+    _lastSummaryShownDay = localDate;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF000000),
+      isScrollControlled: true,
+      builder: (_) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Today’s reminders',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...dueToday.map((r) {
+                  final local = r.alertAtUtc.toLocal();
+                  final timeStr =
+                      '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+                  return CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: r.status == ReminderStatus.completed,
+                    onChanged: (_) {
+                      _completeReminder(r, addToJournal: false);
+                    },
+                    title: Text(
+                      r.title,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      timeStr +
+                          (r.detail != null && r.detail!.isNotEmpty
+                              ? ' • ${r.detail}'
+                              : ''),
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    activeColor: const Color(0xFFD4AF37),
+                    checkColor: Colors.black,
+                  );
+                }),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text(
+                      'Close',
+                      style: TextStyle(color: Color(0xFFD4AF37)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildReminderOverlays() {
+    return const SizedBox.shrink();
+  }
+
+  Future<void> _completeReminder(Reminder r, {bool addToJournal = true}) async {
+    try {
+      _reminderService.markStatus(r.id, ReminderStatus.completed);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[Reminder] completeReminder failed: $e');
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _floatingReminders.removeWhere((x) => x.id == r.id);
+        _overlayActive = _floatingReminders.isNotEmpty;
+      });
     }
   }
   
@@ -1925,6 +2188,7 @@ class _CalendarPageState extends State<CalendarPage>
     final k = _kKey(kYear, kMonth, kDay);
     final list = _notes.putIfAbsent(k, () => <_Note>[]);
     list.add(_Note(
+      id: null,
       title: title.trim(),
       detail: detail?.trim(),
       location: (location == null || location.trim().isEmpty)
@@ -2280,6 +2544,7 @@ class _CalendarPageState extends State<CalendarPage>
       return list.map((n) {
         if ((n.flowId ?? -1) == fromId) {
           final updatedNote = _Note(
+            id: n.id,
             title: n.title,
             detail: n.detail,
             location: n.location,
@@ -2640,6 +2905,7 @@ class _CalendarPageState extends State<CalendarPage>
           final int noteFlowId = (n.flowId ?? finalFlowId) ?? -1;
           // Create a persisted copy of the note with the selected flow id.
           final _Note persisted = _Note(
+            id: n.id,
             title: n.title,
             detail: n.detail,
             location: n.location,
@@ -3284,10 +3550,38 @@ class _CalendarPageState extends State<CalendarPage>
   /* ───── Day View Navigation ───── */
 
   void _openDayView(BuildContext ctx, int kYear, int kMonth, int kDay) {
-    // Adapter: Convert _Note to NoteData
+    // Adapter: Convert _Note to NoteData, and prime reminders for the day
     final notesForDayFn = (int y, int m, int d) {
       final key = '$y-$m-$d';
       final notes = _notes[key] ?? [];
+
+      // Create/update local reminders for timed events on this day (Flutter-only)
+      for (final n in notes) {
+        if (n.allDay || n.start == null) continue;
+        final alertLocal = DateTime(
+          y,
+          m,
+          d,
+          n.start!.hour,
+          n.start!.minute,
+        );
+        final alertUtc = alertLocal.toUtc();
+        final rid = _reminderIdForNote(n, alertUtc);
+        _reminderService.addOrUpdate(
+          Reminder(
+            id: rid,
+            eventId: n.id?.toString(),
+            title: n.title,
+            detail: n.detail,
+            alertAtUtc: alertUtc,
+            flowId: n.flowId?.toString(),
+            createdAt: DateTime.now().toUtc(),
+            updatedAt: DateTime.now().toUtc(),
+          ),
+        );
+
+      }
+
       return notes.map((n) => NoteData(
         title: n.title,
         detail: n.detail,
@@ -3328,6 +3622,11 @@ class _CalendarPageState extends State<CalendarPage>
           getMonthName: getMonthName,
           onManageFlows: (flowId) => _getFlowStudioCallback()(flowId),
           onAddNote: (ky, km, kd) => _openDaySheet(ky, km, kd, allowDateChange: true),
+          onAppendToJournal: (text) async {
+            if (_journalInitialized) {
+              await _journalController.appendToToday(text);
+            }
+          },
         ),
       ),
     ).then((_) {
@@ -12250,6 +12549,7 @@ class _EventSearchDelegate extends SearchDelegate<void> {
 /* ───────────────────────── Simple Note model ───────────────────────── */
 
 class _Note {
+  final String? id; // optional persistent id
   final String title;
   final String? detail;
   final String? location;
@@ -12264,6 +12564,7 @@ class _Note {
   final Color? manualColor;
 
   const _Note({
+    this.id,
     required this.title,
     this.detail,
     this.location,

@@ -2,16 +2,82 @@
 // Rich text editor using custom TextEditingController for formatting
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'journal_v2_document_model.dart';
+import 'journal_event_badge.dart';
 import 'journal_v2_toolbar.dart';
 
 /// Custom controller that renders formatted text
 class _FormattedTextEditingController extends TextEditingController {
   ParagraphBlock block;
-  
-  _FormattedTextEditingController({required this.block}) 
+  // Persist badge expansion state across rebuilds so toggle doesn't vanish
+  final Map<String, bool> _badgeExpansion = {};
+
+  _FormattedTextEditingController({required this.block})
       : super(text: _opsToPlainText(block.ops));
+
+  @override
+  set value(TextEditingValue newValue) {
+    final protected = _protectEventBadgeTokens(super.value, newValue);
+    assert(() {
+      _debugLogValueChange('value.set', super.value, newValue, protected);
+      return true;
+    }());
+    super.value = protected;
+  }
   
+  // helper to find badge ranges in text
+  List<TextRange> _findBadgeRanges(String text) {
+    final regex = RegExp(r'⟦EVENT_BADGE([\s\S]*?)⟧');
+    return regex.allMatches(text).map((m) => TextRange(start: m.start, end: m.end)).toList();
+  }
+
+  TextEditingValue _protectEventBadgeTokens(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final oldText = oldValue.text;
+    final newText = newValue.text;
+
+    if (oldText.isEmpty || oldText == newText) {
+      return newValue;
+    }
+
+    final oldRanges = _findBadgeRanges(oldText);
+    if (oldRanges.isEmpty) {
+      return newValue;
+    }
+
+    // Let formatter handle reroute; just clamp selection away from badges here.
+    final protectedRanges = _findBadgeRanges(newText);
+    final selection = _clampSelectionOutsideBadges(protectedRanges, newValue.selection);
+    return newValue.copyWith(selection: selection, composing: TextRange.empty);
+  }
+
+  TextSelection _clampSelectionOutsideBadges(
+    List<TextRange> ranges,
+    TextSelection selection,
+  ) {
+    var sel = selection;
+    for (final r in ranges) {
+      if (sel.start > r.start && sel.start < r.end) {
+        sel = sel.copyWith(baseOffset: r.end, extentOffset: r.end);
+      }
+      if (sel.end > r.start && sel.end < r.end) {
+        sel = sel.copyWith(baseOffset: sel.baseOffset, extentOffset: r.end);
+      }
+    }
+    return sel;
+  }
+
+  bool _listEq(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   static String _opsToPlainText(List<TextOp> ops) {
     return ops.map((op) => op.insert).join();
   }
@@ -35,17 +101,94 @@ class _FormattedTextEditingController extends TextEditingController {
     }
 
     final spans = <InlineSpan>[];
-    
+    final baseStyle = style ?? const TextStyle();
+
     for (final op in block.ops) {
-      spans.add(
-        TextSpan(
-          text: op.insert,
-          style: _buildTextStyle(op.attrs, style),
-        ),
-      );
+      spans.addAll(_buildSpansForText(op.insert, _buildTextStyle(op.attrs, baseStyle)));
     }
 
-    return TextSpan(children: spans, style: style);
+    return TextSpan(children: spans, style: baseStyle);
+  }
+
+  List<InlineSpan> _buildSpansForText(String text, TextStyle style) {
+    final spans = <InlineSpan>[];
+    const startTag = '⟦EVENT_BADGE';
+    const endTag = '⟧';
+    int cursor = 0;
+
+    assert(() {
+      if (text.contains(startTag)) {
+        debugPrint('[badge-span] building spans for text len=${text.length}');
+      }
+      return true;
+    }());
+
+    while (true) {
+      final start = text.indexOf(startTag, cursor);
+      if (start == -1) break;
+      final end = text.indexOf(endTag, start + startTag.length);
+
+      // If we can't find a closing tag, treat remainder as plain text
+      if (end == -1) {
+        spans.add(TextSpan(text: text.substring(cursor), style: style));
+        return spans;
+      }
+
+      // Add any plain text before the token
+      if (start > cursor) {
+        spans.add(TextSpan(text: text.substring(cursor, start), style: style));
+      }
+
+      final rawContent = text.substring(start + startTag.length, end).trim();
+      final token = EventBadgeToken.parse(rawContent);
+
+      if (token != null) {
+        // Guard token with zero-width spaces so caret/composing never land inside,
+        // and key the widget so its state (expanded/collapsed) survives rebuilds.
+        final expanded = _badgeExpansion[token.id] ?? false;
+        spans.add(const TextSpan(text: '\u200b', style: TextStyle(letterSpacing: 0)));
+        spans.add(WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: KeyedSubtree(
+            key: ValueKey('badge-${token.id}'),
+            child: EventBadgeWidget(
+              token: token,
+              initialExpanded: expanded,
+              onToggle: (next) => _badgeExpansion[token.id] = next,
+            ),
+          ),
+        ));
+        spans.add(const TextSpan(text: '\u200b', style: TextStyle(letterSpacing: 0)));
+        assert(() {
+          debugPrint('[badge-span] token matched id=${token.id}');
+          return true;
+        }());
+      } else {
+        // Fallback: render nothing (preserve text length via zero width) to avoid raw token spill
+        spans.add(const WidgetSpan(child: SizedBox.shrink()));
+      }
+
+      cursor = end + endTag.length;
+    }
+
+    // Trailing text after the last token
+    if (cursor < text.length) {
+      spans.add(TextSpan(text: text.substring(cursor), style: style));
+    }
+
+    return spans;
+  }
+  
+  void _debugLogValueChange(
+    String where,
+    TextEditingValue oldValue,
+    TextEditingValue incoming,
+    TextEditingValue protected,
+  ) {
+    final hasOld = oldValue.text.contains('⟦EVENT_BADGE');
+    final hasIncoming = incoming.text.contains('⟦EVENT_BADGE');
+    final hasProtected = protected.text.contains('⟦EVENT_BADGE');
+    debugPrint('[badge-debug][$where] old=${oldValue.text.length} incoming=${incoming.text.length} protected=${protected.text.length} | tokens old=$hasOld incoming=$hasIncoming protected=$hasProtected');
   }
   
   TextStyle _buildTextStyle(TextAttrs? attrs, TextStyle? baseStyle) {
@@ -82,6 +225,102 @@ class _FormattedTextEditingController extends TextEditingController {
   }
 }
 
+class _BadgeProtectingFormatter extends TextInputFormatter {
+  List<TextRange> _findBadgeRanges(String text) {
+    final regex = RegExp(r'⟦EVENT_BADGE([^⟧]+)⟧');
+    return regex.allMatches(text).map((m) => TextRange(start: m.start, end: m.end)).toList();
+  }
+
+  List<String> _badgeSubstrings(String text, List<TextRange> ranges) {
+    return ranges.map((r) => text.substring(r.start, r.end)).toList();
+  }
+
+  TextSelection _clampSelectionOutsideBadges(
+    List<TextRange> ranges,
+    TextSelection selection,
+  ) {
+    var sel = selection;
+    for (final r in ranges) {
+      if (sel.start > r.start && sel.start < r.end) {
+        sel = sel.copyWith(baseOffset: r.end, extentOffset: r.end);
+      }
+      if (sel.end > r.start && sel.end < r.end) {
+        sel = sel.copyWith(baseOffset: sel.baseOffset, extentOffset: r.end);
+      }
+    }
+    return sel;
+  }
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final oldText = oldValue.text;
+    final newText = newValue.text;
+
+    if (oldText.isEmpty || oldText == newText) {
+      return newValue;
+    }
+
+    final oldRanges = _findBadgeRanges(oldText);
+    if (oldRanges.isEmpty) return newValue;
+
+    final newRanges = _findBadgeRanges(newText);
+
+    // If badge count or content changed, reroute the edit (don't revert, don't edit the badge).
+    final oldSubs = _badgeSubstrings(oldText, oldRanges);
+    final newSubs = _badgeSubstrings(newText, newRanges);
+    bool badgesChanged = oldSubs.length != newSubs.length;
+    if (!badgesChanged) {
+      for (int i = 0; i < oldSubs.length; i++) {
+        if (oldSubs[i] != newSubs[i]) {
+          badgesChanged = true;
+          break;
+        }
+      }
+    }
+
+    // Detect if caret/composing is inside a badge; if so, reroute insertion to after that badge.
+    bool insideBadge = false;
+    TextRange? targetBadge;
+    for (final r in newRanges) {
+      if ((newValue.selection.start > r.start && newValue.selection.start < r.end) ||
+          (newValue.selection.end > r.start && newValue.selection.end < r.end) ||
+          (newValue.composing.start > r.start && newValue.composing.start < r.end)) {
+        insideBadge = true;
+        targetBadge = r;
+        break;
+      }
+    }
+
+    if (badgesChanged || insideBadge) {
+      // Compute insertion delta: text added compared to oldText.
+      final delta = newText.length - oldText.length;
+      String insert = '';
+      if (delta > 0) {
+        // naive diff: take the tail that wasn't in oldText
+        final startIdx = newValue.selection.start - delta;
+        if (startIdx >= 0 && startIdx + delta <= newText.length) {
+          insert = newText.substring(startIdx, startIdx + delta);
+        }
+      }
+
+      // Reroute: keep oldText, append insert after the badge (or at end if none).
+      final badgeEnd = targetBadge?.end ?? oldText.length;
+      final reroutedText = oldText.substring(0, badgeEnd) + insert + oldText.substring(badgeEnd);
+      final newCaret = badgeEnd + insert.length;
+      final sel = TextSelection.collapsed(offset: newCaret);
+      return TextEditingValue(
+        text: reroutedText,
+        selection: sel,
+        composing: TextRange.empty,
+      );
+    }
+
+    // Clamp selection to avoid landing inside badges
+    final clampedSel = _clampSelectionOutsideBadges(newRanges, newValue.selection);
+    return newValue.copyWith(selection: clampedSel, composing: TextRange.empty);
+  }
+}
+
 /// Rich text editor with visual formatting
 class RichTextEditor extends StatefulWidget {
   final ParagraphBlock initialBlock;
@@ -104,6 +343,7 @@ class RichTextEditorState extends State<RichTextEditor> {
   late FocusNode _focusNode;
   ParagraphBlock _currentBlock = ParagraphBlock(id: '', ops: []);
   bool _isUpdating = false;
+  late final List<TextInputFormatter> _formatters;
 
   @override
   void initState() {
@@ -111,6 +351,7 @@ class RichTextEditorState extends State<RichTextEditor> {
     _currentBlock = widget.initialBlock;
     _controller = _FormattedTextEditingController(block: _currentBlock);
     _focusNode = FocusNode();
+    _formatters = [_BadgeProtectingFormatter()];
   }
 
   @override
@@ -270,6 +511,7 @@ class RichTextEditorState extends State<RichTextEditor> {
         fontSize: 16,
         height: 1.5,
       ),
+      inputFormatters: _formatters,
       cursorColor: const Color(0xFFD4AF37),
       decoration: const InputDecoration(
         border: InputBorder.none,

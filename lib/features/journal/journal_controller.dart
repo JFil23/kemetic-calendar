@@ -326,6 +326,27 @@ class JournalController {
     }
   }
 
+  /// Clear today's entry (draft/document) and persist immediately.
+  Future<void> clearToday() async {
+    try {
+      if (_isDocumentMode) {
+        _currentDocument = JournalDocument.fromPlainText('');
+        _currentDraft = '';
+        _hasUnsavedChanges = true;
+        await _saveLocalDocument();
+      } else {
+        _currentDraft = '';
+        _currentDocument = null;
+        _hasUnsavedChanges = true;
+        await _saveLocalDraft();
+      }
+      onDraftChanged?.call();
+      await _autosave();
+    } catch (e) {
+      _log('clearToday error: $e');
+    }
+  }
+
   /// Finalize yesterday's entry if we detected a day rollover
   Future<void> finalizeYesterdayIfNeeded() async {
     try {

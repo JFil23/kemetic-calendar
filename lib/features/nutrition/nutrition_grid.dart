@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';   // LogicalKeyboardKey
+import 'package:flutter/foundation.dart'; // setEquals
 import 'package:uuid/uuid.dart';
 
 import '../../core/kemetic_converter.dart';
@@ -73,6 +74,70 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     move(_nutrientCtrls);
     move(_sourceCtrls);
     move(_purposeCtrls);
+  }
+
+  // Utility to compare schedules for equality (mode + days + time)
+  bool _schedulesMatch(IntakeSchedule a, IntakeSchedule b) {
+    if (a.mode != b.mode) return false;
+    final sameDays = a.mode == IntakeMode.weekday
+        ? setEquals(a.daysOfWeek, b.daysOfWeek)
+        : setEquals(a.decanDays, b.decanDays);
+    final sameTime = a.time.hour == b.time.hour && a.time.minute == b.time.minute;
+    return sameDays && sameTime;
+  }
+
+  /// Build a combined FlowFromNutritionIntent for all items that share the given schedule.
+  FlowFromNutritionIntent _buildCombinedFlowIntent({
+    required IntakeSchedule schedule,
+    required String currentItemId,
+  }) {
+    const int gold = 0xFFD4AF37;
+    final now = DateTime.now();
+    final startDate = DateTime(now.year, now.month, now.day);
+    final endDate = startDate.add(const Duration(days: 30));
+    final isWeekday = (schedule.mode == IntakeMode.weekday);
+
+    // Gather items that share the same schedule
+    final batch = <NutritionItem>[];
+    for (final it in _items) {
+      if (_schedulesMatch(it.schedule, schedule)) {
+        batch.add(it);
+      }
+    }
+    // Ensure the current item is present (by id) to include edits in-flight
+    if (!batch.any((it) => it.id == currentItemId)) {
+      final current = _items.firstWhere((it) => it.id == currentItemId, orElse: () => batch.isNotEmpty ? batch.first : _items.first);
+      batch.add(current);
+    }
+
+    final sources = <String>{
+      for (final it in batch)
+        if (it.source.trim().isNotEmpty) it.source.trim(),
+    };
+    final nutrients = <String>{
+      for (final it in batch)
+        if (it.nutrient.trim().isNotEmpty) it.nutrient.trim(),
+    };
+
+    final noteTitle = sources.isEmpty
+        ? 'Intake'
+        : (sources.length == 1 ? sources.first : sources.join(', '));
+    final detailText = nutrients.isEmpty
+        ? null
+        : (nutrients.length == 1 ? nutrients.first : nutrients.join(', '));
+
+    return FlowFromNutritionIntent(
+      flowName: 'Intake',
+      colorArgb: gold,
+      startDate: startDate,
+      endDate: endDate,
+      noteTitle: noteTitle,
+      noteDetails: detailText,
+      isWeekdayMode: isWeekday,
+      weekdays: isWeekday ? Set<int>.from(schedule.daysOfWeek) : <int>{},
+      decanDays: isWeekday ? <int>{} : Set<int>.from(schedule.decanDays),
+      timeOfDay: schedule.time,
+    );
   }
 
   // Column widths for header and body alignment (fixed widths for perfect alignment)
@@ -1258,40 +1323,16 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                                                 
                                                 // ✅ Close picker immediately
                                                 _close(schedule);
-                                                
+
                                                 // Create flow asynchronously (fire-and-forget) if checkbox is checked
                                                 if (addAsFlow && widget.onCreateFlow != null) {
-                                                  const int gold = 0xFFD4AF37;
-                                                  
-                                                  final now = DateTime.now();
-                                                  final startDate = DateTime(now.year, now.month, now.day);
-                                                  final endDate = startDate.add(const Duration(days: 30));
-                                                  
-                                                  final noteTitle = (item.source.isNotEmpty) ? item.source : 'Intake';
-                                                  final noteDetails = [
-                                                    if (item.nutrient.isNotEmpty) item.nutrient,
-                                                    if (item.purpose.isNotEmpty) item.purpose,
-                                                  ].join(' - ');
-                                                  
-                                                  final isWeekday = (mode == IntakeMode.weekday);
-                                                  
-                                                  // Fire-and-forget so UI closes immediately
+                                                  final intent = _buildCombinedFlowIntent(
+                                                    schedule: schedule,
+                                                    currentItemId: item.id,
+                                                  );
                                                   Future.microtask(() async {
                                                     try {
-                                                      await widget.onCreateFlow!(
-                                                        FlowFromNutritionIntent(
-                                                          flowName: 'Intake',
-                                                          colorArgb: gold,
-                                                          startDate: startDate,
-                                                          endDate: endDate,
-                                                          noteTitle: noteTitle,
-                                                          noteDetails: noteDetails,
-                                                          isWeekdayMode: isWeekday,
-                                                          weekdays: isWeekday ? dows : <int>{},
-                                                          decanDays: isWeekday ? <int>{} : decans,
-                                                          timeOfDay: time,
-                                                        ),
-                                                      );
+                                                      await widget.onCreateFlow!(intent);
                                                     } catch (e) {
                                                       debugPrint('[NutritionGrid] onCreateFlow error: $e');
                                                     }
@@ -1594,4 +1635,3 @@ class _TimePickerShell extends StatelessWidget {
     );
   }
 }
-
