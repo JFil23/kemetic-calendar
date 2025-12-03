@@ -3622,6 +3622,7 @@ class _CalendarPageState extends State<CalendarPage>
           getMonthName: getMonthName,
           onManageFlows: (flowId) => _getFlowStudioCallback()(flowId),
           onAddNote: (ky, km, kd) => _openDaySheet(ky, km, kd, allowDateChange: true),
+          onEndFlow: (id) => _endFlow(id),
           onAppendToJournal: (text) async {
             if (_journalInitialized) {
               await _journalController.appendToToday(text);
