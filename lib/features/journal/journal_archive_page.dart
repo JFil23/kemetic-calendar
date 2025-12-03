@@ -480,7 +480,42 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     );
   }
 
-  Widget _buildBadgeSection(List<EventBadgeToken> badges) {
+  Widget _buildBadgeSection(List<EventBadgeToken> badges, {double? maxHeight}) {
+    final badgeList = badges
+        .map((token) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: EventBadgeWidget(token: token),
+            ))
+        .toList();
+
+    Widget badgeBody;
+    if (badges.isEmpty) {
+      badgeBody = const Text(
+        'No badges for this entry',
+        style: TextStyle(color: Color(0xFF666666)),
+      );
+    } else {
+      if (maxHeight != null) {
+        badgeBody = ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: Scrollbar(
+            thumbVisibility: true,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: badgeList,
+              ),
+            ),
+          ),
+        );
+      } else {
+        badgeBody = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: badgeList,
+        );
+      }
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -488,21 +523,18 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
         color: const Color(0xFF0A0A0A),
         border: Border.all(color: const Color(0xFF333333), width: 1),
         borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black54,
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-      child: badges.isEmpty
-          ? const Text(
-              'No badges for this entry',
-              style: TextStyle(color: Color(0xFF666666)),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: badges.map((token) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: EventBadgeWidget(token: token),
-                );
-              }).toList(),
-            ),
+      constraints: maxHeight != null
+          ? BoxConstraints(maxHeight: maxHeight)
+          : const BoxConstraints(),
+      child: badgeBody,
     );
   }
 
@@ -529,6 +561,9 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final badges = _editingDocument != null
         ? JournalBadgeUtils.tokensFromDocument(_editingDocument!)
         : <EventBadgeToken>[];
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final keyboardVisible = bottomInset > 0;
+    final badgeHeight = keyboardVisible ? 0.0 : 220.0;
 
     return Column(
       children: [
@@ -560,9 +595,18 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
             ],
           ),
         ),
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          height: badgeHeight,
+          child: badgeHeight == 0
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: _buildBadgeSection(badges, maxHeight: 220),
+                ),
+        ),
         const SizedBox(height: 12),
-        _buildBadgeSection(badges),
-        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
