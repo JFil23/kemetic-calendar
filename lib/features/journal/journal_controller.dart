@@ -7,6 +7,7 @@ import '../../data/journal_repo.dart';
 import '../../core/feature_flags.dart';
 import 'journal_v2_document_model.dart';
 import 'journal_constants.dart';
+import 'journal_badge_utils.dart';
 import '../../main.dart';
 
 class JournalController {
@@ -59,6 +60,16 @@ class JournalController {
     _log('init: complete');
   }
 
+  Future<void> _applyDocument(JournalDocument doc, {bool saveLocal = false}) async {
+    final normalized = JournalBadgeUtils.normalizeDocument(doc);
+    _currentDocument = normalized;
+    _currentDraft = _documentToPlainText(normalized);
+
+    if (saveLocal) {
+      await _saveLocalDocument();
+    }
+  }
+
   /// Load draft for today (V1 behavior)
   Future<void> _loadDraftForToday() async {
     final today = _today;
@@ -107,8 +118,7 @@ class JournalController {
     if (localDocJson != null && localDocJson.isNotEmpty) {
       try {
         final docMap = jsonDecode(localDocJson) as Map<String, dynamic>;
-        _currentDocument = JournalDocument.fromJson(docMap);
-        _currentDraft = _documentToPlainText(_currentDocument!);
+        await _applyDocument(JournalDocument.fromJson(docMap), saveLocal: true);
         _log('_loadDocumentForToday: loaded from local storage (${_currentDraft.length} chars)');
         onDraftChanged?.call();
         return;
@@ -125,28 +135,24 @@ class JournalController {
         if (entry.body.startsWith('{') && entry.body.contains('"version"')) {
           // It's a document
           final docMap = jsonDecode(entry.body) as Map<String, dynamic>;
-          _currentDocument = JournalDocument.fromJson(docMap);
-          _currentDraft = _documentToPlainText(_currentDocument!);
+          await _applyDocument(JournalDocument.fromJson(docMap));
           _log('_loadDocumentForToday: loaded document from server (${_currentDraft.length} chars)');
         } else {
           // It's plain text - migrate to document
-          _currentDocument = JournalDocument.fromPlainText(entry.body);
-          _currentDraft = entry.body;
+          await _applyDocument(JournalDocument.fromPlainText(entry.body));
           _log('_loadDocumentForToday: migrated plain text to document (${_currentDraft.length} chars)');
         }
         
         await _saveLocalDocument();
       } else {
         // Create new empty document
-        _currentDocument = JournalDocument.fromPlainText('');
-        _currentDraft = '';
+        await _applyDocument(JournalDocument.fromPlainText(''));
         _log('_loadDocumentForToday: no entry found, created new document');
       }
     } catch (e) {
       _log('_loadDocumentForToday error: $e');
       // Fallback to empty document
-      _currentDocument = JournalDocument.fromPlainText('');
-      _currentDraft = '';
+      await _applyDocument(JournalDocument.fromPlainText(''));
     }
 
     onDraftChanged?.call();
@@ -158,7 +164,7 @@ class JournalController {
     for (final block in doc.blocks) {
       if (block is ParagraphBlock) {
         for (final op in block.ops) {
-          buffer.write(op.insert);
+          buffer.write(JournalBadgeUtils.stripBadges(op.insert));
         }
       }
     }
@@ -167,6 +173,7 @@ class JournalController {
 
   /// Convert plain text to document
   JournalDocument _plainTextToDocument(String text) {
+    final cleanedText = JournalBadgeUtils.stripBadges(text);
     if (_currentDocument != null) {
       // Update existing document's first paragraph
       final blocks = List<JournalBlock>.from(_currentDocument!.blocks);
@@ -174,13 +181,13 @@ class JournalController {
         final firstBlock = blocks.first as ParagraphBlock;
         blocks[0] = ParagraphBlock(
           id: firstBlock.id,
-          ops: [TextOp(insert: text.isEmpty ? '\n' : text)],
+          ops: [TextOp(insert: cleanedText.isEmpty ? '\n' : cleanedText)],
         );
       } else {
         // No paragraph block, create one
         blocks.insert(0, ParagraphBlock(
           id: 'p-${DateTime.now().millisecondsSinceEpoch}',
-          ops: [TextOp(insert: text.isEmpty ? '\n' : text)],
+          ops: [TextOp(insert: cleanedText.isEmpty ? '\n' : cleanedText)],
         ));
       }
       
@@ -191,7 +198,7 @@ class JournalController {
       );
     } else {
       // Create new document
-      return JournalDocument.fromPlainText(text);
+      return JournalDocument.fromPlainText(cleanedText);
     }
   }
 
@@ -229,10 +236,12 @@ class JournalController {
 
   /// Update document directly (V2)
   Future<void> updateDocument(JournalDocument document) async {
-    if (_currentDocument == document) return;
+    final normalized = JournalBadgeUtils.normalizeDocument(document);
+    if (_currentDocument == normalized) return;
     
-    _currentDocument = document;
-    _currentDraft = _documentToPlainText(document);
+    _isDocumentMode = true;
+    _currentDocument = normalized;
+    _currentDraft = _documentToPlainText(normalized);
     _hasUnsavedChanges = true;
     
     await _saveLocalDocument();
@@ -409,11 +418,18 @@ class JournalController {
   Future<int> appendToToday(String content) async {
     if (content.trim().isEmpty) return 0;
 
-    if (_isDocumentMode && _currentDocument != null) {
-      return await appendToDocument(content);
+    final appendPosition = _currentDraft.length;
+    final containsBadges = JournalBadgeUtils.hasBadges(content);
+
+    if ((_isDocumentMode && _currentDocument != null) ||
+        (containsBadges && FeatureFlags.isJournalV2Active)) {
+      _currentDocument ??= JournalDocument.fromPlainText(_currentDraft);
+      _isDocumentMode = true;
+      final appendedAt = await appendToDocument(content);
+      _log('appendToToday: appended ${content.length} chars at position $appendedAt');
+      return appendedAt;
     }
 
-    final appendPosition = _currentDraft.length;
     final newText = _currentDraft.isEmpty
         ? content
         : '$_currentDraft\n\n$content';
@@ -427,6 +443,7 @@ class JournalController {
   /// Append content to document (V2)
   Future<int> appendToDocument(String content) async {
     if (content.trim().isEmpty) return 0;
+    final appendStart = _currentDraft.length;
 
     // Ensure we have a document to append to
     if (!_isDocumentMode || _currentDocument == null) {
@@ -434,7 +451,19 @@ class JournalController {
       _isDocumentMode = true;
     }
 
-    final doc = _currentDocument!;
+    var doc = JournalBadgeUtils.normalizeDocument(_currentDocument!);
+    final badgeTokens = JournalBadgeUtils.extractRawTokens(content);
+    if (badgeTokens.isNotEmpty) {
+      doc = JournalBadgeUtils.mergeBadges(doc, badgeTokens);
+    }
+
+    final cleanedContent = JournalBadgeUtils.stripBadges(content).trim();
+
+    if (cleanedContent.isEmpty) {
+      await updateDocument(doc);
+      return appendStart;
+    }
+
     final blocks = List<JournalBlock>.from(doc.blocks);
 
     // Find first paragraph block or create one
@@ -450,7 +479,7 @@ class JournalController {
     final paragraph = blocks[paragraphIndex] as ParagraphBlock;
     final newOps = List<TextOp>.from(paragraph.ops);
     final needsSpacing = newOps.isNotEmpty && !newOps.last.insert.endsWith('\n');
-    final insertText = needsSpacing ? '\n\n$content' : content;
+    final insertText = needsSpacing ? '\n\n$cleanedContent' : cleanedContent;
     newOps.add(TextOp(insert: insertText));
 
     blocks[paragraphIndex] = ParagraphBlock(id: paragraph.id, ops: newOps);
@@ -461,11 +490,9 @@ class JournalController {
       meta: doc.meta,
     );
 
-    _currentDocument = newDoc;
-    _currentDraft = _documentToPlainText(newDoc);
     await updateDocument(newDoc);
 
-    return _currentDraft.length - content.length;
+    return appendStart;
   }
 
   /// Load journal entry for a specific date
@@ -489,19 +516,18 @@ class JournalController {
           // V2 document format
           try {
             final docJson = jsonDecode(entry.body) as Map<String, dynamic>;
-            _currentDocument = JournalDocument.fromJson(docJson);
-            _currentDraft = _documentToPlainText(_currentDocument!);
+            await _applyDocument(JournalDocument.fromJson(docJson));
             _isDocumentMode = true;
             _log('loadDate: loaded V2 document');
           } catch (e) {
             _log('loadDate: failed to parse document, falling back to plain text: $e');
-            _currentDraft = entry.body;
+            _currentDraft = JournalBadgeUtils.stripBadgesFromPlainText(entry.body);
             _currentDocument = null;
             _isDocumentMode = false;
           }
         } else {
           // Plain text format (V1)
-          _currentDraft = entry.body;
+          _currentDraft = JournalBadgeUtils.stripBadgesFromPlainText(entry.body);
           _currentDocument = null;
           _isDocumentMode = false;
           _log('loadDate: loaded V1 plain text');

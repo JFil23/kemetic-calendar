@@ -14,7 +14,6 @@ class JournalV2Toolbar extends StatefulWidget {
   final VoidCallback onUndo;
   final VoidCallback onRedo;
   final VoidCallback onInsertChart;
-  final VoidCallback onClearDrawing;
   final bool canUndo;
   final bool canRedo;
 
@@ -26,7 +25,6 @@ class JournalV2Toolbar extends StatefulWidget {
     required this.onUndo,
     required this.onRedo,
     required this.onInsertChart,
-    required this.onClearDrawing,
     this.canUndo = false,
     this.canRedo = false,
   }) : super(key: key);
@@ -79,43 +77,28 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Mode selector row
+          // Mode selector row (Type only)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildModeButton(JournalV2Mode.type, Icons.text_fields, 'Type'),
-              const SizedBox(width: 8),
-              _buildModeButton(JournalV2Mode.draw, Icons.brush, 'Draw'),
             ],
           ),
           
-          // Format buttons row (only in Type mode)
-          if (_currentMode == JournalV2Mode.type) ...[
-            const SizedBox(height: 8),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildFormatButton('B', 'bold', _currentAttrs.bold, bold: true),
-                const SizedBox(width: 4),
-                _buildFormatButton('I', 'italic', _currentAttrs.italic, italic: true),
-                const SizedBox(width: 4),
-                _buildFormatButton('U', 'underline', _currentAttrs.underline, underline: true),
-                const SizedBox(width: 4),
-                _buildFormatButton('S', 'strikethrough', _currentAttrs.strikethrough, strikethrough: true),
-              ],
-            ),
-          ],
-          
-          // Clear buttons row (only in Draw mode)
-          if (_currentMode == JournalV2Mode.draw) ...[
-            const SizedBox(height: 8),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildClearButton('Clear Drawing', Icons.brush, widget.onClearDrawing),
-              ],
-            ),
-          ],
+          // Format buttons row
+          const SizedBox(height: 8),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildFormatButton('B', 'bold', _currentAttrs.bold, bold: true),
+              const SizedBox(width: 4),
+              _buildFormatButton('I', 'italic', _currentAttrs.italic, italic: true),
+              const SizedBox(width: 4),
+              _buildFormatButton('U', 'underline', _currentAttrs.underline, underline: true),
+              const SizedBox(width: 4),
+              _buildFormatButton('S', 'strikethrough', _currentAttrs.strikethrough, strikethrough: true),
+            ],
+          ),
           
           // Status bar with undo/redo
           const SizedBox(height: 8),
@@ -201,42 +184,6 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
               decorationColor: isActive ? const Color(0xFFD4AF37) : const Color(0xFF999999),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildClearButton(String label, IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          border: Border.all(
-            color: const Color(0xFF666666),
-            width: 1.5,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: const Color(0xFF999999),
-              size: 16,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF999999),
-                fontSize: 12,
-                fontWeight: FontWeight.normal,
-              ),
-            ),
-          ],
         ),
       ),
     );

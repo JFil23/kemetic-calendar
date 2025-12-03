@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 import '../../data/journal_repo.dart';
 import 'journal_controller.dart';
 import 'journal_v2_document_model.dart';
-import 'journal_v2_drawing.dart';
 import 'journal_v2_rich_text.dart';
+import 'journal_badge_utils.dart';
+import 'journal_event_badge.dart';
 import 'dart:convert';
 
 class JournalArchivePage extends StatefulWidget {
@@ -34,7 +35,6 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   bool _isEditing = false;
   late TextEditingController _editController;
   JournalDocument? _editingDocument;
-  DrawingBlock? _editDrawingBlock;
 
   @override
   void initState() {
@@ -65,19 +65,12 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
 
   void _openEntry(JournalEntry entry) {
     final doc = _entryToDocument(entry);
-    final drawingBlocks = doc.blocks.whereType<DrawingBlock>();
 
     setState(() {
       _selectedEntry = entry;
       _isEditing = false;
       _editingDocument = doc;
-      _editDrawingBlock = drawingBlocks.isNotEmpty
-          ? drawingBlocks.first
-          : DrawingBlock(
-              id: 'draw-${DateTime.now().millisecondsSinceEpoch}',
-              strokes: [],
-            );
-      _editController.text = _getEntryText(entry);
+      _editController.text = doc.toPlainText();
     });
   }
 
@@ -98,24 +91,26 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     if (_selectedEntry == null) return;
     
     try {
-      // Save the edited text + drawing as a document
-      final paragraph = ParagraphBlock(
-        id: 'p-${_selectedEntry!.gregDate.millisecondsSinceEpoch}',
-        ops: [
-          TextOp(insert: _editController.text.isEmpty ? '\n' : _editController.text),
-        ],
-      );
+      // Save the edited document with badges + drawing
+      JournalDocument doc = _editingDocument ??
+          JournalDocument.fromPlainText(_editController.text);
 
-      final blocks = <JournalBlock>[
-        paragraph,
-        if (_editDrawingBlock != null) _editDrawingBlock!,
-      ];
+      final blocks = List<JournalBlock>.from(doc.blocks);
 
-      final doc = JournalDocument(
-        version: kJournalDocVersion,
-        blocks: blocks,
-        meta: const {},
-      );
+      // Ensure paragraph block exists
+      int paragraphIndex = blocks.indexWhere((b) => b is ParagraphBlock);
+      if (paragraphIndex == -1) {
+        blocks.insert(
+          0,
+          ParagraphBlock(
+            id: 'p-${_selectedEntry!.gregDate.millisecondsSinceEpoch}',
+            ops: [TextOp(insert: _editController.text.isEmpty ? '\n' : _editController.text)],
+          ),
+        );
+      }
+
+      doc = JournalDocument(version: doc.version, blocks: blocks, meta: doc.meta);
+      doc = JournalBadgeUtils.normalizeDocument(doc);
 
       final body = jsonEncode(doc.toJson());
 
@@ -149,44 +144,37 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
 
   String _getEntryText(JournalEntry entry) {
     try {
-      // Check if it's a V2 document
-      if (entry.body.startsWith('{') && entry.body.contains('"version"')) {
-        final docJson = jsonDecode(entry.body) as Map<String, dynamic>;
-        final doc = JournalDocument.fromJson(docJson);
-        return doc.toPlainText();
-      } else {
-        // Plain text
-        return entry.body;
-      }
+      final doc = _entryToDocument(entry);
+      return doc.toPlainText();
     } catch (e) {
-      return entry.body;
+      return JournalBadgeUtils.stripBadgesFromPlainText(entry.body);
     }
   }
 
   JournalDocument _entryToDocument(JournalEntry entry) {
+    JournalDocument doc;
     try {
       if (entry.body.startsWith('{') && entry.body.contains('"version"')) {
         final docJson = jsonDecode(entry.body) as Map<String, dynamic>;
-        return JournalDocument.fromJson(docJson);
+        doc = JournalDocument.fromJson(docJson);
+      } else {
+        doc = JournalDocument.fromPlainText(entry.body);
       }
     } catch (_) {
       // fall through to plain text
+      doc = JournalDocument(
+        version: kJournalDocVersion,
+        blocks: [
+          ParagraphBlock(
+            id: 'p-${DateTime.now().millisecondsSinceEpoch}',
+            ops: [TextOp(insert: entry.body.isEmpty ? '\n' : entry.body)],
+          ),
+        ],
+        meta: const {},
+      );
     }
-    // fallback: plain text -> document with empty drawing block
-    return JournalDocument(
-      version: kJournalDocVersion,
-      blocks: [
-        ParagraphBlock(
-          id: 'p-${DateTime.now().millisecondsSinceEpoch}',
-          ops: [TextOp(insert: entry.body.isEmpty ? '\n' : entry.body)],
-        ),
-        DrawingBlock(
-          id: 'draw-${DateTime.now().millisecondsSinceEpoch}',
-          strokes: [],
-        ),
-      ],
-      meta: const {},
-    );
+
+    return JournalBadgeUtils.normalizeDocument(doc);
   }
 
   String _getPreviewText(JournalEntry entry) {
@@ -417,8 +405,6 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final monthName = _getMonthName(date.month);
     final entryText = _getEntryText(entry);
     final entryDoc = _entryToDocument(entry);
-    final drawingBlocks = entryDoc.blocks.whereType<DrawingBlock>();
-    final drawingBlock = drawingBlocks.isNotEmpty ? drawingBlocks.first : null;
 
     return Column(
       children: [
@@ -449,14 +435,14 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
             padding: const EdgeInsets.all(16),
             child: _isEditing
                 ? _buildEditView()
-                : _buildReadView(entryDoc, drawingBlock),
+                : _buildReadView(entryDoc),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildReadView(JournalDocument doc, DrawingBlock? drawing) {
+  Widget _buildReadView(JournalDocument doc) {
     final paragraphs = doc.blocks.whereType<ParagraphBlock>();
     final baseStyle = const TextStyle(
       color: Colors.white,
@@ -464,6 +450,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
       height: 1.5,
     );
 
+    final badges = JournalBadgeUtils.tokensFromDocument(doc);
     final spans = <InlineSpan>[];
     if (paragraphs.isNotEmpty) {
       for (final p in paragraphs) {
@@ -474,6 +461,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
             expansionState: null,
             onToggle: null,
             compact: false,
+            renderBadgesInline: false,
           ));
         }
         spans.add(const TextSpan(text: '\n'));
@@ -485,36 +473,62 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           RichText(text: TextSpan(style: baseStyle, children: spans)),
-          if (drawing != null && drawing.strokes.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                height: 220,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0A0A0A),
-                  border: Border.all(color: const Color(0xFF333333), width: 1),
-                ),
-                child: IgnorePointer(
-                  child: DrawingCanvas(
-                    initialBlock: drawing,
-                    onChanged: (_) {},
-                    currentTool: DrawingTool.pen,
-                    currentColor: Colors.white,
-                    currentWidth: 2.0,
-                  ),
-                ),
-              ),
-            ),
-          ],
+          const SizedBox(height: 16),
+          _buildBadgeSection(badges),
         ],
       ),
     );
   }
 
+  Widget _buildBadgeSection(List<EventBadgeToken> badges) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0A0A),
+        border: Border.all(color: const Color(0xFF333333), width: 1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: badges.isEmpty
+          ? const Text(
+              'No badges for this entry',
+              style: TextStyle(color: Color(0xFF666666)),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: badges.map((token) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: EventBadgeWidget(token: token),
+                );
+              }).toList(),
+            ),
+    );
+  }
+
   Widget _buildEditView() {
-    final drawing = _editDrawingBlock;
+    // Use current document paragraph as initial block
+    ParagraphBlock initialBlock;
+    if (_editingDocument != null) {
+      final paragraphs = _editingDocument!.blocks.whereType<ParagraphBlock>();
+      if (paragraphs.isNotEmpty) {
+        initialBlock = paragraphs.first;
+      } else {
+        initialBlock = ParagraphBlock(
+          id: 'p-${DateTime.now().millisecondsSinceEpoch}',
+          ops: [TextOp(insert: _editController.text.isEmpty ? '\n' : _editController.text)],
+        );
+      }
+    } else {
+      initialBlock = ParagraphBlock(
+        id: 'p-${DateTime.now().millisecondsSinceEpoch}',
+        ops: [TextOp(insert: _editController.text.isEmpty ? '\n' : _editController.text)],
+      );
+    }
+
+    final badges = _editingDocument != null
+        ? JournalBadgeUtils.tokensFromDocument(_editingDocument!)
+        : <EventBadgeToken>[];
 
     return Column(
       children: [
@@ -522,50 +536,32 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
           child: Column(
             children: [
               Expanded(
-                child: TextField(
-                  controller: _editController,
-                  maxLines: null,
-                  expands: true,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    height: 1.5,
-                  ),
-                  decoration: const InputDecoration(
-                    hintText: 'Write your journal entry...',
-                    hintStyle: TextStyle(color: Color(0xFF666666)),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                  ),
+                child: RichTextEditor(
+                  initialBlock: initialBlock,
+                  onChanged: (block) {
+                    setState(() {
+                      final doc = _editingDocument ?? _entryToDocument(_selectedEntry!);
+                      final blocks = List<JournalBlock>.from(doc.blocks);
+                      final pIdx = blocks.indexWhere((b) => b is ParagraphBlock);
+                      if (pIdx >= 0) {
+                        blocks[pIdx] = block;
+                      } else {
+                        blocks.insert(0, block);
+                      }
+                      _editingDocument = JournalDocument(
+                        version: doc.version,
+                        blocks: blocks,
+                        meta: doc.meta,
+                      );
+                    });
+                  },
                 ),
               ),
-              const SizedBox(height: 12),
-              if (drawing != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    height: 220,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0A0A0A),
-                      border: Border.all(color: const Color(0xFF333333), width: 1),
-                    ),
-                    child: DrawingCanvas(
-                      initialBlock: drawing,
-                      onChanged: (block) {
-                        setState(() {
-                          _editDrawingBlock = block;
-                        });
-                      },
-                      currentTool: DrawingTool.pen,
-                      currentColor: Colors.white,
-                      currentWidth: 2.0,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
+        const SizedBox(height: 12),
+        _buildBadgeSection(badges),
         const SizedBox(height: 16),
         Row(
           children: [
@@ -608,4 +604,3 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     );
   }
 }
-

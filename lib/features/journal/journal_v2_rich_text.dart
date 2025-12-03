@@ -17,6 +17,7 @@ class JournalBadgeSpanBuilder {
     Map<String, bool>? expansionState,
     BadgeToggleCallback? onToggle,
     bool compact = false,
+    bool renderBadgesInline = true,
   }) {
     final spans = <InlineSpan>[];
     const startTag = '⟦EVENT_BADGE';
@@ -43,38 +44,40 @@ class JournalBadgeSpanBuilder {
       final token = EventBadgeToken.parse(rawContent);
 
       if (token != null) {
-        final expanded = expansionState != null ? (expansionState[token.id] ?? false) : false;
+        if (renderBadgesInline) {
+          final expanded = expansionState != null ? (expansionState[token.id] ?? false) : false;
 
-        // Force badge to a new block with breathing room
-        // In edit mode (compact), ensure badges are on their own line
-        if (spans.isNotEmpty) {
-          spans.add(const TextSpan(text: '\n'));
-        }
+          // Force badge to a new block with breathing room
+          // In edit mode (compact), ensure badges are on their own line
+          if (spans.isNotEmpty) {
+            spans.add(const TextSpan(text: '\n'));
+          }
 
-        spans.add(
-          WidgetSpan(
-            alignment: PlaceholderAlignment.baseline,
-            baseline: TextBaseline.alphabetic,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: double.infinity),
-                child: KeyedSubtree(
-                  key: ValueKey('badge-${token.id}'),
-                  child: EventBadgeWidget(
-                    token: token,
-                    initialExpanded: compact ? false : expanded,
-                    onToggle: onToggle != null ? (next) => onToggle(token.id, next) : null,
+          spans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.baseline,
+              baseline: TextBaseline.alphabetic,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: double.infinity),
+                  child: KeyedSubtree(
+                    key: ValueKey('badge-${token.id}'),
+                    child: EventBadgeWidget(
+                      token: token,
+                      initialExpanded: compact ? false : expanded,
+                      onToggle: onToggle != null ? (next) => onToggle(token.id, next) : null,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        );
+          );
 
-        // Extra spacing after badge so following text/badges do not collide
-        spans.add(const TextSpan(text: '\n'));
-      } else {
+          // Extra spacing after badge so following text/badges do not collide
+          spans.add(const TextSpan(text: '\n'));
+        }
+      } else if (renderBadgesInline) {
         // Fallback: render nothing (preserve text length via zero width) to avoid raw token spill
         spans.add(const WidgetSpan(child: SizedBox.shrink()));
       }
@@ -243,6 +246,7 @@ class _FormattedTextEditingController extends TextEditingController {
           onExternalBadgeToggle?.call(id, expanded);
         },
         compact: true,
+        renderBadgesInline: false,
       ));
     }
 

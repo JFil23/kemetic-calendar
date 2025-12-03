@@ -8,11 +8,12 @@ import '../../core/feature_flags.dart';
 import 'journal_v2_toolbar.dart';
 import 'journal_v2_document_model.dart';
 import 'journal_v2_rich_text.dart';
-import 'journal_v2_drawing.dart';
 import 'journal_undo_system.dart';
 import 'journal_archive_page.dart';
 import '../../data/journal_repo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'journal_event_badge.dart';
+import 'journal_badge_utils.dart';
 
 class JournalOverlay extends StatefulWidget {
   final JournalController controller;
@@ -42,14 +43,12 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   // V2 state
   bool _showToolbar = false;
-  JournalV2Mode _currentMode = JournalV2Mode.type;
   TextAttrs _currentAttrs = const TextAttrs();
   GlobalKey<RichTextEditorState>? _richTextEditorKey;
+  final Map<String, bool> _badgeExpansion = {};
   
   // Archive state
   bool _showingArchive = false;
-  DrawingBlock? _currentDrawingBlock;
-  DrawingTool _currentDrawingTool = DrawingTool.pen;
   bool _keyboardVisible = false;
   
   // Universal undo/redo system
@@ -80,32 +79,17 @@ class _JournalOverlayState extends State<JournalOverlay>
     _undoSystem = JournalUndoSystem();
     
     if (FeatureFlags.isJournalV2Active) {
-      _showToolbar = FeatureFlags.hasRichText || FeatureFlags.hasDrawing;
+      _showToolbar = FeatureFlags.hasRichText;
       
       if (FeatureFlags.hasRichText) {
         _richTextEditorKey = GlobalKey<RichTextEditorState>();
-      }
-      
-      if (FeatureFlags.hasDrawing) {
-        final doc = widget.controller.currentDocument;
-        if (doc != null) {
-          final drawingBlocks = doc.blocks.whereType<DrawingBlock>();
-          if (drawingBlocks.isNotEmpty) {
-            _currentDrawingBlock = drawingBlocks.first;
-          }
-        }
-
-        _currentDrawingBlock ??= DrawingBlock(
-          id: 'draw-${DateTime.now().millisecondsSinceEpoch}',
-          strokes: [],
-        );
       }
     }
 
     _animationController.forward();
 
     Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted && _currentMode == JournalV2Mode.type) {
+      if (mounted) {
         _focusNode.requestFocus();
       }
     });
@@ -158,23 +142,12 @@ class _JournalOverlayState extends State<JournalOverlay>
   // TOOLBAR CALLBACKS
 
   void _onToolbarModeChanged(JournalV2Mode mode) {
-    setState(() {
-      _currentMode = mode;
-      
-      if (mode == JournalV2Mode.type) {
-        // Switch to typing - request focus
-        Future.delayed(const Duration(milliseconds: 100), () {
-          if (mounted) _focusNode.requestFocus();
-        });
-      } else {
-        // Switch to drawing - unfocus keyboard
-        _focusNode.unfocus();
-      }
-      
-      if (mode == JournalV2Mode.draw) {
-        _currentDrawingTool = DrawingTool.pen;
-      }
-    });
+    // Type is the only mode; keep focus on text when requested.
+    if (mode == JournalV2Mode.type) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) _focusNode.requestFocus();
+      });
+    }
   }
 
   void _onFormatChanged(TextAttrs attrs) {
@@ -203,12 +176,6 @@ class _JournalOverlayState extends State<JournalOverlay>
           final plainText = paragraphBlocks.first.ops.map((op) => op.insert).join();
           _textController.text = plainText;
         }
-        
-        // Update drawing
-        final drawingBlocks = previousDoc.blocks.whereType<DrawingBlock>();
-        if (drawingBlocks.isNotEmpty) {
-          _currentDrawingBlock = drawingBlocks.first;
-        }
       });
     }
   }
@@ -232,62 +199,12 @@ class _JournalOverlayState extends State<JournalOverlay>
           final plainText = paragraphBlocks.first.ops.map((op) => op.insert).join();
           _textController.text = plainText;
         }
-        
-        // Update drawing
-        final drawingBlocks = nextDoc.blocks.whereType<DrawingBlock>();
-        if (drawingBlocks.isNotEmpty) {
-          _currentDrawingBlock = drawingBlocks.first;
-        }
       });
     }
   }
 
   void _onInsertChart() {
     // Not implemented yet
-  }
-
-  void _onClearDrawing() {
-    final doc = widget.controller.currentDocument;
-    if (doc == null || _currentDrawingBlock == null) return;
-    
-    // Record undo action
-    _undoSystem.recordAction(
-      type: JournalActionType.drawStroke,
-      before: doc,
-      after: null,
-    );
-    
-    // Remove all strokes
-    final remainingStrokes = <DrawingStroke>[];
-    
-    final newDrawingBlock = DrawingBlock(
-      id: _currentDrawingBlock!.id,
-      strokes: remainingStrokes,
-    );
-    
-    setState(() {
-      _currentDrawingBlock = newDrawingBlock;
-    });
-    
-    final blocks = List<JournalBlock>.from(doc.blocks);
-    final drawingIndex = blocks.indexWhere((b) => b is DrawingBlock);
-    
-    if (drawingIndex >= 0) {
-      if (remainingStrokes.isEmpty) {
-        blocks.removeAt(drawingIndex);
-      } else {
-        blocks[drawingIndex] = newDrawingBlock;
-      }
-    }
-    
-    final newDoc = JournalDocument(
-      version: doc.version,
-      blocks: blocks,
-      meta: doc.meta,
-    );
-    
-    _undoSystem.updateLastAction(newDoc);
-    widget.controller.updateDocument(newDoc);
   }
 
   void _onRichTextChanged(ParagraphBlock block) {
@@ -309,46 +226,6 @@ class _JournalOverlayState extends State<JournalOverlay>
       blocks[paragraphIndex] = block;
     } else {
       blocks.insert(0, block);
-    }
-    
-    final newDoc = JournalDocument(
-      version: doc.version,
-      blocks: blocks,
-      meta: doc.meta,
-    );
-    
-    // Update the undo action with the new document
-    _undoSystem.updateLastAction(newDoc);
-    
-    widget.controller.updateDocument(newDoc);
-  }
-
-  void _onDrawingChanged(DrawingBlock block) {
-    if (!FeatureFlags.hasDrawing || widget.controller.currentDocument == null) return;
-    
-    final doc = widget.controller.currentDocument!;
-    
-    // Determine action type
-    const actionType = JournalActionType.drawStroke;
-    
-    // Record undo action
-    _undoSystem.recordAction(
-      type: actionType,
-      before: doc,
-      after: null, // Will be set below
-    );
-    
-    setState(() {
-      _currentDrawingBlock = block;
-    });
-    
-    final blocks = List<JournalBlock>.from(doc.blocks);
-    
-    final drawingIndex = blocks.indexWhere((b) => b is DrawingBlock);
-    if (drawingIndex >= 0) {
-      blocks[drawingIndex] = block;
-    } else {
-      blocks.add(block);
     }
     
     final newDoc = JournalDocument(
@@ -558,7 +435,6 @@ class _JournalOverlayState extends State<JournalOverlay>
           onUndo: _onUndo,
           onRedo: _onRedo,
           onInsertChart: _onInsertChart,
-          onClearDrawing: _onClearDrawing,
           canUndo: _undoSystem.canUndo,
           canRedo: _undoSystem.canRedo,
         ),
@@ -578,53 +454,19 @@ class _JournalOverlayState extends State<JournalOverlay>
           Expanded(
             child: AnimatedPadding(
               padding: EdgeInsets.only(
-                bottom: _currentMode == JournalV2Mode.type ? bottomInset : 0,
+                bottom: bottomInset,
               ),
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 160),
-                child: IgnorePointer(
-                  ignoring: _currentMode == JournalV2Mode.draw,
-                  child: _buildTextLayer(),
-                ),
+                child: _buildTextLayer(),
               ),
             ),
           ),
           const SizedBox(height: 12),
-          // Drawing area lives below text
-          if (FeatureFlags.hasDrawing)
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              height: keyboardVisible ? 0 : 220,
-              child: keyboardVisible
-                  ? const SizedBox.shrink()
-                  : ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0A0A0A),
-                          border: Border.all(color: const Color(0xFF333333), width: 1),
-                        ),
-                        clipBehavior: Clip.hardEdge,
-                        child: _currentDrawingBlock == null
-                            ? const SizedBox.shrink()
-                            : IgnorePointer(
-                                ignoring: _currentMode != JournalV2Mode.draw,
-                                child: DrawingCanvas(
-                                  key: ValueKey(_currentDrawingBlock!.id),
-                                  initialBlock: _currentDrawingBlock!,
-                                  onChanged: _onDrawingChanged,
-                                  currentTool: _currentDrawingTool,
-                                  currentColor: Colors.white,
-                                  currentWidth: 2.0,
-                                ),
-                              ),
-                      ),
-                    ),
-            ),
+          // Badge area (replaces drawing canvas)
+          _buildBadgeArea(keyboardVisible),
         ],
       ),
     );
@@ -676,6 +518,67 @@ class _JournalOverlayState extends State<JournalOverlay>
       scrollPhysics: const BouncingScrollPhysics(),
       enableInteractiveSelection: true,
       onChanged: _handleTextChanged,
+    );
+  }
+
+  List<EventBadgeToken> _extractBadges() {
+    final doc = widget.controller.currentDocument;
+    if (doc == null) return [];
+
+    return JournalBadgeUtils.tokensFromDocument(doc);
+  }
+
+  Widget _buildBadgeArea(bool keyboardVisible) {
+    final badges = _extractBadges();
+    final height = keyboardVisible ? 0.0 : 220.0;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      height: height,
+      child: height == 0
+          ? const SizedBox.shrink()
+          : ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A0A0A),
+                  border: Border.all(color: const Color(0xFF333333), width: 1),
+                ),
+                child: badges.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No badges yet',
+                          style: TextStyle(color: Color(0xFF666666)),
+                        ),
+                      )
+                    : Scrollbar(
+                        thumbVisibility: true,
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: badges.map((token) {
+                              final expanded = _badgeExpansion[token.id] ?? false;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: EventBadgeWidget(
+                                  token: token,
+                                  initialExpanded: expanded,
+                                  onToggle: (next) {
+                                    setState(() {
+                                      _badgeExpansion[token.id] = next;
+                                    });
+                                  },
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+              ),
+            ),
     );
   }
 }
