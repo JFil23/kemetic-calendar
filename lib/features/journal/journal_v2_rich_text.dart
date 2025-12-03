@@ -7,13 +7,100 @@ import 'journal_v2_document_model.dart';
 import 'journal_event_badge.dart';
 import 'journal_v2_toolbar.dart';
 
+typedef BadgeToggleCallback = void Function(String badgeId, bool expanded);
+
+/// Shared badge-aware span builder for both editor and archive rendering.
+class JournalBadgeSpanBuilder {
+  static List<InlineSpan> build({
+    required String text,
+    required TextStyle style,
+    Map<String, bool>? expansionState,
+    BadgeToggleCallback? onToggle,
+    bool compact = false,
+  }) {
+    final spans = <InlineSpan>[];
+    const startTag = '⟦EVENT_BADGE';
+    const endTag = '⟧';
+    int cursor = 0;
+
+    while (true) {
+      final start = text.indexOf(startTag, cursor);
+      if (start == -1) break;
+      final end = text.indexOf(endTag, start + startTag.length);
+
+      // If we can't find a closing tag, treat remainder as plain text
+      if (end == -1) {
+        spans.add(TextSpan(text: text.substring(cursor), style: style));
+        return spans;
+      }
+
+      // Add any plain text before the token
+      if (start > cursor) {
+        spans.add(TextSpan(text: text.substring(cursor, start), style: style));
+      }
+
+      final rawContent = text.substring(start + startTag.length, end).trim();
+      final token = EventBadgeToken.parse(rawContent);
+
+      if (token != null) {
+        final expanded = expansionState != null ? (expansionState[token.id] ?? false) : false;
+
+        // Force badge to a new block with breathing room
+        // In edit mode (compact), ensure badges are on their own line
+        if (spans.isNotEmpty) {
+          spans.add(const TextSpan(text: '\n'));
+        }
+
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: double.infinity),
+                child: KeyedSubtree(
+                  key: ValueKey('badge-${token.id}'),
+                  child: EventBadgeWidget(
+                    token: token,
+                    initialExpanded: compact ? false : expanded,
+                    onToggle: onToggle != null ? (next) => onToggle(token.id, next) : null,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        // Extra spacing after badge so following text/badges do not collide
+        spans.add(const TextSpan(text: '\n'));
+      } else {
+        // Fallback: render nothing (preserve text length via zero width) to avoid raw token spill
+        spans.add(const WidgetSpan(child: SizedBox.shrink()));
+      }
+
+      cursor = end + endTag.length;
+    }
+
+    // Trailing text after the last token
+    if (cursor < text.length) {
+      spans.add(TextSpan(text: text.substring(cursor), style: style));
+    }
+
+    return spans;
+  }
+}
+
 /// Custom controller that renders formatted text
 class _FormattedTextEditingController extends TextEditingController {
   ParagraphBlock block;
   // Persist badge expansion state across rebuilds so toggle doesn't vanish
   final Map<String, bool> _badgeExpansion = {};
+  bool get anyBadgeExpanded => _badgeExpansion.values.any((v) => v);
+  Map<String, bool> get badgeExpansion => Map.unmodifiable(_badgeExpansion);
+  final BadgeToggleCallback? onExternalBadgeToggle;
 
-  _FormattedTextEditingController({required this.block})
+  _FormattedTextEditingController({required this.block, this.onExternalBadgeToggle})
       : super(text: _opsToPlainText(block.ops));
 
   @override
@@ -82,6 +169,49 @@ class _FormattedTextEditingController extends TextEditingController {
     return ops.map((op) => op.insert).join();
   }
   
+  /// Add/remove real newline padding around a badge token to force spacing.
+  void onBadgeToggled(String badgeId, bool expanded) {
+    _badgeExpansion[badgeId] = expanded;
+
+    final textStr = value.text;
+    final badgeRegex = RegExp(
+      r'⟦EVENT_BADGE[\s\S]*?id=' + RegExp.escape(badgeId) + r'[\s\S]*?⟧',
+    );
+    final match = badgeRegex.firstMatch(textStr);
+    if (match == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => notifyListeners());
+      onExternalBadgeToggle?.call(badgeId, expanded);
+      return;
+    }
+
+    final token = match.group(0)!;
+    final beforeIdx = match.start;
+    final afterIdx = match.end;
+
+    String prefix = textStr.substring(0, beforeIdx);
+    String suffix = textStr.substring(afterIdx);
+
+    prefix = prefix.replaceFirst(RegExp(r'\n*$'), '');
+    suffix = suffix.replaceFirst(RegExp(r'^\n*'), '');
+
+    final beforeLines = expanded ? 8 : 1;
+    final afterLines = expanded ? 8 : 1;
+    final padBefore = '\n' * beforeLines;
+    final padAfter = '\n' * afterLines;
+
+    final newText = '$prefix$padBefore$token$padAfter$suffix';
+    final newSelOffset = (prefix.length + padBefore.length + token.length).clamp(0, newText.length);
+
+    value = value.copyWith(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newSelOffset),
+      composing: TextRange.empty,
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => notifyListeners());
+    onExternalBadgeToggle?.call(badgeId, expanded);
+  }
+
   void updateBlock(ParagraphBlock newBlock) {
     block = newBlock;
     final newText = _opsToPlainText(block.ops);
@@ -104,79 +234,19 @@ class _FormattedTextEditingController extends TextEditingController {
     final baseStyle = style ?? const TextStyle();
 
     for (final op in block.ops) {
-      spans.addAll(_buildSpansForText(op.insert, _buildTextStyle(op.attrs, baseStyle)));
+      spans.addAll(JournalBadgeSpanBuilder.build(
+        text: op.insert,
+        style: _buildTextStyle(op.attrs, baseStyle),
+        expansionState: _badgeExpansion,
+        onToggle: (id, expanded) {
+          onBadgeToggled(id, expanded);
+          onExternalBadgeToggle?.call(id, expanded);
+        },
+        compact: true,
+      ));
     }
 
     return TextSpan(children: spans, style: baseStyle);
-  }
-
-  List<InlineSpan> _buildSpansForText(String text, TextStyle style) {
-    final spans = <InlineSpan>[];
-    const startTag = '⟦EVENT_BADGE';
-    const endTag = '⟧';
-    int cursor = 0;
-
-    assert(() {
-      if (text.contains(startTag)) {
-        debugPrint('[badge-span] building spans for text len=${text.length}');
-      }
-      return true;
-    }());
-
-    while (true) {
-      final start = text.indexOf(startTag, cursor);
-      if (start == -1) break;
-      final end = text.indexOf(endTag, start + startTag.length);
-
-      // If we can't find a closing tag, treat remainder as plain text
-      if (end == -1) {
-        spans.add(TextSpan(text: text.substring(cursor), style: style));
-        return spans;
-      }
-
-      // Add any plain text before the token
-      if (start > cursor) {
-        spans.add(TextSpan(text: text.substring(cursor, start), style: style));
-      }
-
-      final rawContent = text.substring(start + startTag.length, end).trim();
-      final token = EventBadgeToken.parse(rawContent);
-
-      if (token != null) {
-        // Guard token with zero-width spaces so caret/composing never land inside,
-        // and key the widget so its state (expanded/collapsed) survives rebuilds.
-        final expanded = _badgeExpansion[token.id] ?? false;
-        spans.add(const TextSpan(text: '\u200b', style: TextStyle(letterSpacing: 0)));
-        spans.add(WidgetSpan(
-          alignment: PlaceholderAlignment.middle,
-          child: KeyedSubtree(
-            key: ValueKey('badge-${token.id}'),
-            child: EventBadgeWidget(
-              token: token,
-              initialExpanded: expanded,
-              onToggle: (next) => _badgeExpansion[token.id] = next,
-            ),
-          ),
-        ));
-        spans.add(const TextSpan(text: '\u200b', style: TextStyle(letterSpacing: 0)));
-        assert(() {
-          debugPrint('[badge-span] token matched id=${token.id}');
-          return true;
-        }());
-      } else {
-        // Fallback: render nothing (preserve text length via zero width) to avoid raw token spill
-        spans.add(const WidgetSpan(child: SizedBox.shrink()));
-      }
-
-      cursor = end + endTag.length;
-    }
-
-    // Trailing text after the last token
-    if (cursor < text.length) {
-      spans.add(TextSpan(text: text.substring(cursor), style: style));
-    }
-
-    return spans;
   }
   
   void _debugLogValueChange(
@@ -251,6 +321,22 @@ class _BadgeProtectingFormatter extends TextInputFormatter {
     return sel;
   }
 
+  TextRange _clampRangeOutsideBadges(
+    List<TextRange> ranges,
+    TextRange range,
+  ) {
+    var res = range;
+    for (final r in ranges) {
+      if (res.start > r.start && res.start < r.end) {
+        res = TextRange(start: r.end, end: r.end);
+      }
+      if (res.end > r.start && res.end < r.end) {
+        res = TextRange(start: res.start, end: r.end);
+      }
+    }
+    return res;
+  }
+
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
     final oldText = oldValue.text;
@@ -265,59 +351,19 @@ class _BadgeProtectingFormatter extends TextInputFormatter {
 
     final newRanges = _findBadgeRanges(newText);
 
-    // If badge count or content changed, reroute the edit (don't revert, don't edit the badge).
-    final oldSubs = _badgeSubstrings(oldText, oldRanges);
-    final newSubs = _badgeSubstrings(newText, newRanges);
-    bool badgesChanged = oldSubs.length != newSubs.length;
-    if (!badgesChanged) {
-      for (int i = 0; i < oldSubs.length; i++) {
-        if (oldSubs[i] != newSubs[i]) {
-          badgesChanged = true;
-          break;
-        }
-      }
+    // Reject if badge count changes (corruption protection)
+    if (oldRanges.length != newRanges.length) {
+      return oldValue;
     }
 
-    // Detect if caret/composing is inside a badge; if so, reroute insertion to after that badge.
-    bool insideBadge = false;
-    TextRange? targetBadge;
-    for (final r in newRanges) {
-      if ((newValue.selection.start > r.start && newValue.selection.start < r.end) ||
-          (newValue.selection.end > r.start && newValue.selection.end < r.end) ||
-          (newValue.composing.start > r.start && newValue.composing.start < r.end)) {
-        insideBadge = true;
-        targetBadge = r;
-        break;
-      }
-    }
-
-    if (badgesChanged || insideBadge) {
-      // Compute insertion delta: text added compared to oldText.
-      final delta = newText.length - oldText.length;
-      String insert = '';
-      if (delta > 0) {
-        // naive diff: take the tail that wasn't in oldText
-        final startIdx = newValue.selection.start - delta;
-        if (startIdx >= 0 && startIdx + delta <= newText.length) {
-          insert = newText.substring(startIdx, startIdx + delta);
-        }
-      }
-
-      // Reroute: keep oldText, append insert after the badge (or at end if none).
-      final badgeEnd = targetBadge?.end ?? oldText.length;
-      final reroutedText = oldText.substring(0, badgeEnd) + insert + oldText.substring(badgeEnd);
-      final newCaret = badgeEnd + insert.length;
-      final sel = TextSelection.collapsed(offset: newCaret);
-      return TextEditingValue(
-        text: reroutedText,
-        selection: sel,
-        composing: TextRange.empty,
-      );
-    }
-
-    // Clamp selection to avoid landing inside badges
+    // Just clamp selection/composing outside badge ranges - NO REROUTE
     final clampedSel = _clampSelectionOutsideBadges(newRanges, newValue.selection);
-    return newValue.copyWith(selection: clampedSel, composing: TextRange.empty);
+    final clampedComp = _clampRangeOutsideBadges(newRanges, newValue.composing);
+    
+    return newValue.copyWith(
+      selection: clampedSel,
+      composing: clampedComp.isValid ? clampedComp : TextRange.empty,
+    );
   }
 }
 
@@ -326,12 +372,16 @@ class RichTextEditor extends StatefulWidget {
   final ParagraphBlock initialBlock;
   final Function(ParagraphBlock) onChanged;
   final TextAttrs currentAttrs;
+  final ValueChanged<bool>? onBadgeExpansionChanged;
+  final bool readOnly;
 
   const RichTextEditor({
     Key? key,
     required this.initialBlock,
     required this.onChanged,
     this.currentAttrs = const TextAttrs(),
+    this.onBadgeExpansionChanged,
+    this.readOnly = false,
   }) : super(key: key);
 
   @override
@@ -344,12 +394,20 @@ class RichTextEditorState extends State<RichTextEditor> {
   ParagraphBlock _currentBlock = ParagraphBlock(id: '', ops: []);
   bool _isUpdating = false;
   late final List<TextInputFormatter> _formatters;
+  bool _badgeExpanded = false;
+  final ScrollController _textScrollController = ScrollController();
+  final ScrollController _readScrollController = ScrollController();
+  TextSelection? _savedSelection;
+  double? _savedTextScrollOffset;
 
   @override
   void initState() {
     super.initState();
     _currentBlock = widget.initialBlock;
-    _controller = _FormattedTextEditingController(block: _currentBlock);
+    _controller = _FormattedTextEditingController(
+      block: _currentBlock,
+      onExternalBadgeToggle: _handleBadgeToggle,
+    );
     _focusNode = FocusNode();
     _formatters = [_BadgeProtectingFormatter()];
   }
@@ -367,6 +425,8 @@ class RichTextEditorState extends State<RichTextEditor> {
 
   @override
   void dispose() {
+    _textScrollController.dispose();
+    _readScrollController.dispose();
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -491,20 +551,67 @@ class RichTextEditorState extends State<RichTextEditor> {
     widget.onChanged(newBlock);
   }
 
+  void _handleBadgeToggle(String badgeId, bool expanded) {
+    _controller.onBadgeToggled(badgeId, expanded);
+    final anyExpanded = _controller.anyBadgeExpanded;
+    if (_badgeExpanded != anyExpanded) {
+      if (anyExpanded) {
+        // Preserve caret and scroll before switching to read-only view
+        _savedSelection = _controller.selection;
+        if (_textScrollController.hasClients) {
+          _savedTextScrollOffset = _textScrollController.offset;
+        }
+      }
+      setState(() => _badgeExpanded = anyExpanded);
+      widget.onBadgeExpansionChanged?.call(anyExpanded);
+      if (anyExpanded) {
+        _focusNode.unfocus();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final showReadOnly = widget.readOnly || _badgeExpanded;
 
+    if (!showReadOnly) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_savedSelection != null && _controller.selection != _savedSelection) {
+          _controller.selection = _savedSelection!;
+        }
+        if (_savedTextScrollOffset != null && _textScrollController.hasClients) {
+          final max = _textScrollController.position.maxScrollExtent;
+          final target = _savedTextScrollOffset!.clamp(0, max).toDouble();
+          _textScrollController.jumpTo(target);
+          _savedTextScrollOffset = null;
+        }
+      });
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (showReadOnly) {
+          return _buildReadOnlyView(constraints);
+        }
+        return _buildEditableView(bottomInset);
+      },
+    );
+  }
+
+  Widget _buildEditableView(double bottomInset) {
     return TextField(
       controller: _controller,
       focusNode: _focusNode,
       maxLines: null,
       expands: true,
+      scrollController: _textScrollController,
+      readOnly: widget.readOnly,
       keyboardType: TextInputType.multiline,
       textInputAction: TextInputAction.newline,
       scrollPhysics: const BouncingScrollPhysics(),
       scrollPadding: EdgeInsets.only(bottom: bottomInset + 32),
-      enableInteractiveSelection: true,
+      enableInteractiveSelection: !widget.readOnly,
       textAlignVertical: TextAlignVertical.top,
       style: const TextStyle(
         color: Colors.white,
@@ -522,6 +629,44 @@ class RichTextEditorState extends State<RichTextEditor> {
         ),
       ),
       onChanged: _handleTextChanged,
+    );
+  }
+
+  Widget _buildReadOnlyView(BoxConstraints constraints) {
+    final baseStyle = const TextStyle(
+      color: Colors.white,
+      fontSize: 16,
+      height: 1.5,
+    );
+
+    final spans = <InlineSpan>[];
+    for (final op in _currentBlock.ops) {
+      spans.addAll(JournalBadgeSpanBuilder.build(
+        text: op.insert,
+        style: baseStyle,
+        expansionState: _controller.badgeExpansion,
+        onToggle: _handleBadgeToggle,
+        compact: false,
+      ));
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_savedTextScrollOffset != null && _readScrollController.hasClients) {
+        final max = _readScrollController.position.maxScrollExtent;
+        final target = _savedTextScrollOffset!.clamp(0, max).toDouble();
+        _readScrollController.jumpTo(target);
+      }
+    });
+
+    return SingleChildScrollView(
+      controller: _readScrollController,
+      physics: const ClampingScrollPhysics(),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+        child: RichText(
+          text: TextSpan(style: baseStyle, children: spans),
+        ),
+      ),
     );
   }
 }

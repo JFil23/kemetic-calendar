@@ -427,35 +427,45 @@ class JournalController {
   /// Append content to document (V2)
   Future<int> appendToDocument(String content) async {
     if (content.trim().isEmpty) return 0;
-    
-    if (_isDocumentMode && _currentDocument != null) {
-      // Append to last paragraph block
-      final blocks = List<JournalBlock>.from(_currentDocument!.blocks);
-      if (blocks.isNotEmpty && blocks.last is ParagraphBlock) {
-        final lastBlock = blocks.last as ParagraphBlock;
-        final newOps = List<TextOp>.from(lastBlock.ops);
-        newOps.add(TextOp(insert: '\n\n$content'));
-        
-        blocks[blocks.length - 1] = ParagraphBlock(
-          id: lastBlock.id,
-          ops: newOps,
-        );
-        
-        _currentDocument = JournalDocument(
-          version: _currentDocument!.version,
-          blocks: blocks,
-          meta: _currentDocument!.meta,
-        );
-        
-        _currentDraft = _documentToPlainText(_currentDocument!);
-        await updateDocument(_currentDocument!);
-        
-        return _currentDraft.length - content.length;
-      }
+
+    // Ensure we have a document to append to
+    if (!_isDocumentMode || _currentDocument == null) {
+      _currentDocument ??= JournalDocument.fromPlainText(_currentDraft);
+      _isDocumentMode = true;
     }
-    
-    // Fallback to plain text append
-    return await appendToToday(content);
+
+    final doc = _currentDocument!;
+    final blocks = List<JournalBlock>.from(doc.blocks);
+
+    // Find first paragraph block or create one
+    int paragraphIndex = blocks.indexWhere((b) => b is ParagraphBlock);
+    if (paragraphIndex == -1) {
+      blocks.add(ParagraphBlock(
+        id: 'p-${DateTime.now().millisecondsSinceEpoch}',
+        ops: [TextOp(insert: '\n')],
+      ));
+      paragraphIndex = blocks.length - 1;
+    }
+
+    final paragraph = blocks[paragraphIndex] as ParagraphBlock;
+    final newOps = List<TextOp>.from(paragraph.ops);
+    final needsSpacing = newOps.isNotEmpty && !newOps.last.insert.endsWith('\n');
+    final insertText = needsSpacing ? '\n\n$content' : content;
+    newOps.add(TextOp(insert: insertText));
+
+    blocks[paragraphIndex] = ParagraphBlock(id: paragraph.id, ops: newOps);
+
+    final newDoc = JournalDocument(
+      version: doc.version,
+      blocks: blocks,
+      meta: doc.meta,
+    );
+
+    _currentDocument = newDoc;
+    _currentDraft = _documentToPlainText(newDoc);
+    await updateDocument(newDoc);
+
+    return _currentDraft.length - content.length;
   }
 
   /// Load journal entry for a specific date

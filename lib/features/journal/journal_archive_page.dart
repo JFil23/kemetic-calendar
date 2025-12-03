@@ -6,6 +6,7 @@ import '../../data/journal_repo.dart';
 import 'journal_controller.dart';
 import 'journal_v2_document_model.dart';
 import 'journal_v2_drawing.dart';
+import 'journal_v2_rich_text.dart';
 import 'dart:convert';
 
 class JournalArchivePage extends StatefulWidget {
@@ -448,26 +449,42 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
             padding: const EdgeInsets.all(16),
             child: _isEditing
                 ? _buildEditView()
-                : _buildReadView(entryText, drawingBlock),
+                : _buildReadView(entryDoc, drawingBlock),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildReadView(String text, DrawingBlock? drawing) {
+  Widget _buildReadView(JournalDocument doc, DrawingBlock? drawing) {
+    final paragraphs = doc.blocks.whereType<ParagraphBlock>();
+    final baseStyle = const TextStyle(
+      color: Colors.white,
+      fontSize: 16,
+      height: 1.5,
+    );
+
+    final spans = <InlineSpan>[];
+    if (paragraphs.isNotEmpty) {
+      for (final p in paragraphs) {
+        for (final op in p.ops) {
+          spans.addAll(JournalBadgeSpanBuilder.build(
+            text: op.insert,
+            style: baseStyle,
+            expansionState: null,
+            onToggle: null,
+            compact: false,
+          ));
+        }
+        spans.add(const TextSpan(text: '\n'));
+      }
+    }
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              height: 1.5,
-            ),
-          ),
+          RichText(text: TextSpan(style: baseStyle, children: spans)),
           if (drawing != null && drawing.strokes.isNotEmpty) ...[
             const SizedBox(height: 16),
             ClipRRect(
@@ -591,3 +608,4 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     );
   }
 }
+
