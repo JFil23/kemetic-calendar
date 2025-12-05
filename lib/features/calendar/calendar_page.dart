@@ -6420,14 +6420,17 @@ class _CalendarPageState extends State<CalendarPage>
         iconTheme: const IconThemeData(color: _gold), // ensure action icons use rich gold
         title: GestureDetector(
           onTap: () => setState(() => _showGregorian = !_showGregorian),
-          child: GlossyText(
-            text: "Ma'at",
-            gradient: _showGregorian ? whiteGloss : goldGloss,
-            style: _titleGold.copyWith(
-              fontSize: (_titleGold.fontSize ?? 22.0).roundToDouble(),
-              letterSpacing: 0,
-              // shadows off for button text; mask + small shadows = haze
-              shadows: null,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 6.0),
+            child: GlossyText(
+              text: "ḥꜣw",
+              gradient: _showGregorian ? whiteGloss : goldGloss,
+              style: _titleGold.copyWith(
+                fontSize: (_titleGold.fontSize ?? 22.0).roundToDouble(),
+                letterSpacing: 0,
+                // shadows off for button text; mask + small shadows = haze
+                shadows: null,
+              ),
             ),
           ),
         ),
@@ -8260,10 +8263,12 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       for (final k in wantDayKeys) {
         final existing = _draftsByDay[k];
         if (existing == null || existing.isEmpty) {
-          _draftsByDay.putIfAbsent(
-            k,
-            () => _splitByPeriod ? <_NoteDraft>[_NoteDraft()] : <_NoteDraft>[],
-          );
+          if (!_draftsByDay.containsKey(k) || (_draftsByDay[k]?.isEmpty ?? true)) {
+            _draftsByDay.putIfAbsent(
+              k,
+              () => _splitByPeriod ? <_NoteDraft>[_NoteDraft()] : <_NoteDraft>[],
+            );
+          }
         }
       }
     }
@@ -10201,8 +10206,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
         _syncReady = false;
         _convertEventsToDrafts(userEvents);
-        _syncReady = true;
-        _rebuildSpans();
+        _rebuildSpans(); // safe while _syncReady is false
         if (_hasFullRange && _draftsByDay.isNotEmpty) {
           if (_useKemetic) {
             _populateKemeticSelections(userEvents);
@@ -10210,6 +10214,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             _populateGregorianSelections(userEvents);
           }
           // Do NOT call _applySelectionToDrafts() here to avoid duplicates
+        }
+        if (mounted) {
+          setState(() {
+            _syncReady = true;
+          });
+        } else {
+          _syncReady = true;
         }
       } else {
         _endDate = _startDate;
