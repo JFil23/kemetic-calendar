@@ -7,6 +7,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import 'calendar_page.dart';
@@ -192,6 +193,8 @@ class PositionedEventBlock {
   });
 }
 
+// Lightweight draft event used for long-press creation.
+
 // ========================================
 // DAY VIEW PAGE (Main entry point)
 // ========================================
@@ -206,6 +209,26 @@ class DayViewPage extends StatefulWidget {
   final String Function(int km) getMonthName;
   final void Function(int?)? onManageFlows; // NEW: Callback to open My Flows
   final void Function(int ky, int km, int kd)? onAddNote;
+  final void Function(
+    int ky,
+    int km,
+    int kd, {
+    TimeOfDay? start,
+    TimeOfDay? end,
+    bool allDay,
+  })? onOpenAddNoteWithTime;
+  // Optional: create a timed event directly (long-press)
+  final void Function(
+    int ky,
+    int km,
+    int kd, {
+    required String title,
+    String? detail,
+    String? location,
+    required TimeOfDay start,
+    required TimeOfDay end,
+    bool allDay,
+  })? onCreateTimedEvent;
   /// Called when user taps "End Flow" on a flow event in the info bar.
   /// If null, the End Flow button is hidden.
   final void Function(int flowId)? onEndFlow;
@@ -222,6 +245,8 @@ class DayViewPage extends StatefulWidget {
     required this.getMonthName,
     this.onManageFlows, // NEW
     this.onAddNote, // 🔧 NEW
+    this.onOpenAddNoteWithTime,
+    this.onCreateTimedEvent, // NEW
     this.onEndFlow,
     this.onAppendToJournal,
   });
@@ -436,23 +461,25 @@ class _DayViewPageState extends State<DayViewPage> {
                   onPageChanged: _onPageChanged,
                   itemBuilder: (context, index) {
                     final kDate = _dateForPage(index);
-                    return DayViewGrid(
-                      key: ValueKey('${kDate.kYear}-${kDate.kMonth}-${kDate.kDay}'), // Add key
-                      ky: kDate.kYear,
-                      km: kDate.kMonth,
-                      kd: kDate.kDay,
-                      notes: widget.notesForDay(kDate.kYear, kDate.kMonth, kDate.kDay),
-                      showGregorian: widget.showGregorian,
+                  return DayViewGrid(
+                    key: ValueKey('${kDate.kYear}-${kDate.kMonth}-${kDate.kDay}'), // Add key
+                    ky: kDate.kYear,
+                    km: kDate.kMonth,
+                    kd: kDate.kDay,
+                    notes: widget.notesForDay(kDate.kYear, kDate.kMonth, kDate.kDay),
+                    showGregorian: widget.showGregorian,
                       flowIndex: widget.flowIndex,
                       initialScrollOffset: _savedScrollOffset,    // 🔧 NEW
                       onScrollChanged: _onScrollChanged,          // 🔧 NEW
                       onManageFlows: widget.onManageFlows, // NEW: Pass callback down
                       onAddNote: widget.onAddNote,
+                      onOpenAddNoteWithTime: widget.onOpenAddNoteWithTime,
+                      onCreateTimedEvent: widget.onCreateTimedEvent,
                       onEndFlow: widget.onEndFlow, // Pass End Flow callback down
                       onAppendToJournal: widget.onAppendToJournal,
                     );
                   },
-                ),
+              ),
               ),
             ],
           );
@@ -846,6 +873,25 @@ class DayViewGrid extends StatefulWidget {
   final void Function(double offset)? onScrollChanged; // 🔧 NEW
   final void Function(int? flowId)? onManageFlows; // NEW
   final void Function(int ky, int km, int kd)? onAddNote;
+  final void Function(
+    int ky,
+    int km,
+    int kd, {
+    TimeOfDay? start,
+    TimeOfDay? end,
+    bool allDay,
+  })? onOpenAddNoteWithTime;
+  final void Function(
+    int ky,
+    int km,
+    int kd, {
+    required String title,
+    String? detail,
+    String? location,
+    required TimeOfDay start,
+    required TimeOfDay end,
+    bool allDay,
+  })? onCreateTimedEvent;
   final void Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
 
@@ -861,6 +907,8 @@ class DayViewGrid extends StatefulWidget {
     this.onScrollChanged,          // 🔧 NEW
     this.onManageFlows, // NEW
     this.onAddNote, // 🔧 NEW
+    this.onOpenAddNoteWithTime,
+    this.onCreateTimedEvent, // NEW
     this.onEndFlow,
     this.onAppendToJournal,
   });
@@ -876,6 +924,8 @@ class _DayViewGridState extends State<DayViewGrid> {
   List<PositionedEventBlock>? _cachedBlocks;
   int? _cachedNotesHash;
   bool _hasScrolledToInitial = false; // Added for scroll persistence
+  int? _tempDragStartMin; // minutes since midnight
+  int? _pressStartMin;    // start minute when long press began
 
   @override
   void initState() {
@@ -1215,7 +1265,37 @@ class _DayViewGridState extends State<DayViewGrid> {
               ),
             ),
           ),
-          
+
+          // Long-press area (covers event region, not label)
+          Positioned.fill(
+            left: 60,
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onLongPressStart: (details) {
+                // Ignore if scrolling in progress
+                if (_scrollController.hasClients &&
+                    _scrollController.position.isScrollingNotifier.value) {
+                  return;
+                }
+                // Small delay to avoid triggering during slight drags
+                Future.delayed(const Duration(milliseconds: 120), () {
+                  if (!mounted) return;
+                  if (_scrollController.hasClients &&
+                      _scrollController.position.isScrollingNotifier.value) {
+                    return;
+                  }
+                  _handleLongPressStart(hour, details.localPosition);
+                });
+              },
+              onLongPressMoveUpdate: (details) {
+                _handleLongPressMove(details);
+              },
+              onLongPressEnd: (_) {
+                _handleLongPressEnd();
+              },
+            ),
+          ),
+
           // Event blocks
           ...hourBlocks.map((block) {
             final minutesIntoHour = block.event.startMin % 60;
@@ -1229,13 +1309,126 @@ class _DayViewGridState extends State<DayViewGrid> {
             ),
           );
         }),
-          
+
           // Current time indicator (only on today)
           if (_isToday() && _isCurrentHour(hour)) _buildNowLine(),
+
+          // Temp drag block rendered above everything
+          ..._buildTempDragBlockForHour(hour),
         ],
       ),
     );
   }
+
+  void _handleLongPressStart(int hour, Offset localPosition) {
+    HapticFeedback.mediumImpact();
+
+    final minutesIntoHour = (localPosition.dy / 60.0 * 60).round().clamp(0, 59);
+    final totalMinutes = (hour * 60) + minutesIntoHour;
+    final snappedMinutes = (totalMinutes / 15).round() * 15;
+
+    _pressStartMin = snappedMinutes.clamp(0, 24 * 60 - 1);
+    _tempDragStartMin = _pressStartMin;
+
+    setState(() {});
+  }
+
+  void _handleLongPressMove(LongPressMoveUpdateDetails details) {
+    if (_pressStartMin == null) return;
+    final deltaMinutes =
+        (details.localOffsetFromOrigin.dy / 60.0 * 60).round();
+    final newStart = (_pressStartMin! + deltaMinutes)
+        .clamp(0, (24 * 60) - 1);
+    final snapped = (newStart / 15).round() * 15;
+    _tempDragStartMin = snapped;
+    setState(() {});
+  }
+
+  void _handleLongPressEnd() {
+    final startMin = _tempDragStartMin;
+    _pressStartMin = null;
+    _tempDragStartMin = null;
+    if (startMin == null) return;
+
+    final endMin = (startMin + 60).clamp(0, 24 * 60);
+    final startHour = (startMin ~/ 60) % 24;
+    final startMinute = startMin % 60;
+    final endHour = (endMin ~/ 60) % 24;
+    final endMinute = endMin % 60;
+
+    if (widget.onOpenAddNoteWithTime != null) {
+      widget.onOpenAddNoteWithTime!(
+        widget.ky,
+        widget.km,
+        widget.kd,
+        start: TimeOfDay(hour: startHour, minute: startMinute),
+        end: TimeOfDay(hour: endHour, minute: endMinute),
+        allDay: false,
+      );
+      return;
+    }
+
+    if (widget.onCreateTimedEvent != null) {
+      widget.onCreateTimedEvent!(
+        widget.ky,
+        widget.km,
+        widget.kd,
+        title: '',
+        detail: null,
+        location: null,
+        start: TimeOfDay(hour: startHour, minute: startMinute),
+        end: TimeOfDay(hour: endHour, minute: endMinute),
+        allDay: false,
+      );
+    }
+  }
+
+  List<Widget> _buildTempDragBlockForHour(int hour) {
+    if (_tempDragStartMin == null) return const [];
+    final startMin = _tempDragStartMin!;
+    final endMin = (startMin + 60).clamp(0, 24 * 60);
+
+    // overlap with this hour
+    final hourStart = hour * 60;
+    final hourEnd = hourStart + 60;
+    final overlapStart = startMin.clamp(hourStart, hourEnd);
+    final overlapEnd = endMin.clamp(hourStart, hourEnd);
+    if (overlapEnd <= overlapStart) return const [];
+
+    final minutesIntoHour = overlapStart - hourStart;
+    final durationMinutes = (overlapEnd - overlapStart).clamp(5, 180);
+
+    return [
+      Positioned(
+        left: 60,
+        top: minutesIntoHour.toDouble(),
+        child: Container(
+          width: (MediaQuery.of(context).size.width - 100) / 3,
+          height: durationMinutes.toDouble().clamp(_kMinEventBlockHeight, 180.0),
+          margin: const EdgeInsets.only(right: 4, bottom: 2),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFC145).withOpacity(0.2),
+            border: const Border(
+              left: BorderSide(color: Color(0xFFFFC145), width: 3),
+            ),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          padding: const EdgeInsets.all(4),
+          child: const Text(
+            'New Event',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
+    ];
+  }
+
 
   Widget _buildEventBlock(PositionedEventBlock block) {
     final event = block.event;
@@ -1781,6 +1974,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     return '${formatTime(startHour, startMinute)} – ${formatTime(endHour, endMinute)}';
   }
 }
+
 
 // Day View - 24-hour timeline with pixel-perfect event layout
 // Uses EventLayoutEngine for consistent positioning

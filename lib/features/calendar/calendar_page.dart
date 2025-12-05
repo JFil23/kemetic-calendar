@@ -3796,6 +3796,18 @@ class _CalendarPageState extends State<CalendarPage>
           getMonthName: getMonthName,
           onManageFlows: (flowId) => _getFlowStudioCallback()(flowId),
           onAddNote: (ky, km, kd) => _openDaySheet(ky, km, kd, allowDateChange: true),
+          onOpenAddNoteWithTime: (ky, km, kd, {TimeOfDay? start, TimeOfDay? end, bool allDay = false}) {
+            _openDaySheet(
+              ky,
+              km,
+              kd,
+              allowDateChange: true,
+              initialStartTime: start,
+              initialEndTime: end,
+              initialAllDay: allDay,
+            );
+          },
+          onCreateTimedEvent: _handleCreateTimedEvent,
           onEndFlow: (id) => _endFlow(id),
           onAppendToJournal: (text) async {
             if (_journalInitialized) {
@@ -3822,11 +3834,39 @@ class _CalendarPageState extends State<CalendarPage>
 
   /* ───── Day Sheet ───── */
 
+  Future<void> _handleCreateTimedEvent(
+    int ky,
+    int km,
+    int kd, {
+    required String title,
+    String? detail,
+    String? location,
+    required TimeOfDay start,
+    required TimeOfDay end,
+    bool allDay = false,
+  }) async {
+    await _saveSingleNoteOnly(
+      selYear: ky,
+      selMonth: km,
+      selDay: kd,
+      title: title,
+      detail: detail,
+      location: location,
+      allDay: allDay,
+      startTime: allDay ? null : start,
+      endTime: allDay ? null : end,
+      color: null,
+    );
+  }
+
   void _openDaySheet(
       int kYear,
       int kMonth,
       int kDay, {
         bool allowDateChange = false,
+        TimeOfDay? initialStartTime,
+        TimeOfDay? initialEndTime,
+        bool initialAllDay = false,
       }) {
     debugPrint('');
     debugPrint('┌─────────────────────────────────────┐');
@@ -3859,9 +3899,9 @@ class _CalendarPageState extends State<CalendarPage>
     final controllerLocation = TextEditingController();
     final controllerDetail = TextEditingController();
 
-    bool allDay = false;
-    TimeOfDay? startTime = const TimeOfDay(hour: 12, minute: 0);
-    TimeOfDay? endTime = const TimeOfDay(hour: 13, minute: 0);
+    bool allDay = initialAllDay;
+    TimeOfDay? startTime = initialStartTime ?? const TimeOfDay(hour: 12, minute: 0);
+    TimeOfDay? endTime = initialEndTime ?? const TimeOfDay(hour: 13, minute: 0);
     
     // Repeat state
     NoteRepeatOption repeatOption = NoteRepeatOption.never;
