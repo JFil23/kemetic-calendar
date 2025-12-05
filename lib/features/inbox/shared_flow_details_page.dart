@@ -12,7 +12,7 @@ import '../../data/flows_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../repositories/inbox_repo.dart';
 import '../../shared/glossy_text.dart';
-import '../../features/calendar/calendar_page.dart' show CalendarPage, notesDecode;
+import '../../features/calendar/calendar_page.dart' show CalendarPage, notesDecode, ImportFlowData;
 import '../../features/calendar/kemetic_month_metadata.dart' show getMonthById;
 import '../../widgets/flow_start_date_picker.dart';
 
@@ -818,32 +818,39 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
                     setState(() => _isWorking = true);
 
                     try {
-                      final client = Supabase.instance.client;
-                      final inboxRepo = InboxRepo(client);
                       final share = widget.flowData.share!;
+                      final payload = share.payloadJson;
+                      if (payload == null) {
+                        throw Exception('No flow data available');
+                      }
 
-                      final flowId = await inboxRepo.importSharedFlow(
-                        share: share,
-                        overrideStartDate:
-                            _selectedStart ?? suggestedDate,
+                      final flowId = await CalendarPage.importFlowFromShare(
+                        context,
+                        ImportFlowData(
+                          share: share,
+                          name: (payload['name'] as String?) ?? share.title,
+                          color: payload['color'] as int? ?? 0xFF4DD0E1,
+                          notes: payload['notes'] as String?,
+                          rules: payload['rules'] as List<dynamic>? ?? const [],
+                          suggestedStartDate: _selectedStart ?? suggestedDate,
+                        ),
                       );
 
                       if (!mounted) return;
 
-                      // Keep this delay so DB writes fully settle before we leave
-                      await Future.delayed(const Duration(milliseconds: 150));
-
-                      if (!mounted) return;
-
-                      // ✅ Only pop on success, and return the new flowId
-                      Navigator.pop<int>(context, flowId);
+                      if (flowId != null) {
+                        final inboxRepo = InboxRepo(Supabase.instance.client);
+                        await inboxRepo.markImported(share.shareId, isFlow: true);
+                        Navigator.pop<int>(context, flowId);
+                      } else {
+                        setState(() => _isWorking = false);
+                      }
                     } catch (e) {
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Import failed: $e')),
                       );
                       setState(() => _isWorking = false);
-                      // ❌ DO NOT pop here – stay so they can retry
                     }
                   },
             child:

@@ -81,6 +81,16 @@ class UserEventsRepo {
   UserEventsRepo(this._client);
   final SupabaseClient _client;
 
+  /// Returns true if end_date is null or today-or-later (UTC date-only).
+  bool _isActiveByEndDateStr(String? endDateStr) {
+    if (endDateStr == null) return true;
+    final end = DateTime.parse(endDateStr).toUtc();
+    final endDateOnly = DateTime.utc(end.year, end.month, end.day);
+    final now = DateTime.now().toUtc();
+    final today = DateTime.utc(now.year, now.month, now.day);
+    return !endDateOnly.isBefore(today);
+  }
+
   /// Insert (new server id returned).
   Future<UserEvent> addEvent({
     required String title,
@@ -541,10 +551,12 @@ class UserEventsRepo {
         .from('flows')
         .select()
         .eq('user_id', user.id)
-        .eq('active', true)  // 👈 FIX: Only load active flows
+        .eq('active', true)  // 👈 Only load active flows
         .order('created_at', ascending: false);
 
-    return (res as List).map((row) => (
+    return (res as List)
+        .where((row) => _isActiveByEndDateStr(row['end_date'] as String?))
+        .map((row) => (
     id: (row['id'] as num).toInt(),
     name: row['name'] as String,
     color: (row['color'] as num).toInt(),
@@ -554,7 +566,8 @@ class UserEventsRepo {
     notes: row['notes'] as String?,
     rules: jsonEncode(row['rules']),
     shareId: row['share_id'] as String?, // NEW: Include share_id
-    )).toList();
+    ))
+        .toList();
   }
 
   /// Delete a single flow row.

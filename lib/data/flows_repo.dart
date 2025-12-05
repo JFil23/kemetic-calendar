@@ -10,6 +10,16 @@ void _log(String msg) {
   if (kDebugMode) debugPrint('[flows] $msg');
 }
 
+/// Returns true if the end date is unset or today-or-later (UTC date-only).
+bool _isActiveByEndDate(DateTime? endDate) {
+  if (endDate == null) return true;
+  final endUtc = endDate.toUtc();
+  final endDateOnly = DateTime.utc(endUtc.year, endUtc.month, endUtc.day);
+  final now = DateTime.now().toUtc();
+  final today = DateTime.utc(now.year, now.month, now.day);
+  return !endDateOnly.isBefore(today);
+}
+
 @immutable
 class FlowRow {
   final int id;
@@ -107,7 +117,7 @@ class FlowsRepo {
         .where((f) =>
     f.userId == user.id && // guard if RLS is loose
         f.active == true &&
-        f.endDate == null)
+        _isActiveByEndDate(f.endDate))
         .toList());
   }
 
@@ -223,10 +233,15 @@ class FlowsRepo {
         .from(_kFlows)
         .select()
         .eq('user_id', user.id)
+        .eq('active', true)
         .order('created_at', ascending: false);
 
     _log('fetchAll ✓ ${rows.length} rows');
-    return (rows as List).map((r) => FlowRow.fromRow(r as Map<String, dynamic>)).toList();
+    final flows = (rows as List)
+        .map((r) => FlowRow.fromRow(r as Map<String, dynamic>))
+        .where((f) => _isActiveByEndDate(f.endDate))
+        .toList();
+    return flows;
   }
   Future<List<FlowRow>> listMyFlows({int limit = 200}) async {
     final user = _client.auth.currentUser;
@@ -236,10 +251,14 @@ class FlowsRepo {
         .select()
         .eq('user_id', user.id)
         .eq('active', true)
-        .filter('end_date', 'is', null)
         .order('updated_at', ascending: false)
         .limit(limit) as List<dynamic>;
-    return rows.cast<Map<String, dynamic>>().map(FlowRow.fromRow).toList();
+    final flows = rows
+        .cast<Map<String, dynamic>>()
+        .map(FlowRow.fromRow)
+        .where((f) => _isActiveByEndDate(f.endDate))
+        .toList();
+    return flows;
   }
 
   /// Fetch a single flow by ID

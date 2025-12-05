@@ -39,6 +39,7 @@ import 'package:flutter/gestures.dart';
 import '../reminders/reminder_service.dart';
 import '../reminders/reminder_model.dart';
 import '../../data/reminders_repo.dart';
+import '../../utils/event_cid_util.dart';
 
 
 
@@ -606,6 +607,27 @@ class _FlowOccurrence {
   });
 }
 
+class _CandidateEvent {
+  final String clientEventId;
+  final String title;
+  final DateTime startsAtUtc;
+  final DateTime? endsAtUtc;
+  final String? detail;
+  final String? location;
+  final bool allDay;
+  final int flowLocalId;
+  const _CandidateEvent({
+    required this.clientEventId,
+    required this.title,
+    required this.startsAtUtc,
+    this.endsAtUtc,
+    this.detail,
+    this.location,
+    required this.allDay,
+    required this.flowLocalId,
+  });
+}
+
 /// Tiny helpers
 Set<int> _fullRange(int from, int to) => {for (var i = from; i <= to; i++) i};
 Set<int> _emptySet() => <int>{};
@@ -1075,6 +1097,127 @@ class CalendarPage extends StatefulWidget {
     }
     throw ArgumentError('Unknown rule type ${j['type']}');
   }
+
+  // Headless persistence helper: save/delete flows + planned notes without calendar state.
+  static Future<int?> persistFlowStudioResultHeadless(_FlowStudioResult r) async {
+    final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+    final flowsRepo = FlowsRepo(Supabase.instance.client);
+
+    // Deletes
+    if (r.deleteFlowId != null) {
+      await userEventsRepo.deleteByFlowId(r.deleteFlowId!);
+      await userEventsRepo.deleteFlow(r.deleteFlowId!);
+      return r.deleteFlowId;
+    }
+
+    // Saves
+    if (r.savedFlow == null) return null;
+    final f = r.savedFlow!;
+    final rulesJson = jsonEncode(f.rules.map(_CalendarPageState.ruleToJson).toList());
+
+    final savedId = await userEventsRepo.upsertFlow(
+      id: f.id > 0 ? f.id : null,
+      name: f.name,
+      color: f.color.value,
+      active: f.active,
+      startDate: f.start,
+      endDate: f.end,
+      notes: f.notes,
+      rules: rulesJson,
+    );
+
+    // Persist planned notes (with individual titles)
+    if (r.plannedNotes.isNotEmpty) {
+      for (final p in r.plannedNotes) {
+        final n = p.note;
+        final gDay = KemeticMath.toGregorian(p.ky, p.km, p.kd);
+        final startsAt = DateTime(
+          gDay.year,
+          gDay.month,
+          gDay.day,
+          n.start?.hour ?? 9,
+          n.start?.minute ?? 0,
+        );
+        DateTime? endsAt;
+        if (!n.allDay && n.end != null) {
+          endsAt = DateTime(gDay.year, gDay.month, gDay.day, n.end!.hour, n.end!.minute);
+        } else if (!n.allDay) {
+          endsAt = startsAt.add(const Duration(hours: 1));
+        }
+
+        final cid = EventCidUtil.buildClientEventId(
+          ky: p.ky,
+          km: p.km,
+          kd: p.kd,
+          title: n.title,
+          startHour: n.start?.hour ?? 9,
+          startMinute: n.start?.minute ?? 0,
+          allDay: n.allDay,
+          flowId: savedId,
+        );
+
+        await userEventsRepo.upsertByClientId(
+          clientEventId: cid,
+          title: n.title,
+          startsAtUtc: startsAt.toUtc(),
+          detail: (n.detail ?? '').trim().isEmpty ? null : n.detail,
+          location: (n.location ?? '').trim().isEmpty ? null : n.location,
+          allDay: n.allDay,
+          endsAtUtc: endsAt?.toUtc(),
+          flowLocalId: savedId,
+        );
+      }
+    }
+
+    return savedId;
+  }
+
+  static Future<int?> importFlowFromShare(BuildContext context, ImportFlowData data) async {
+    final result = await showModalBottomSheet<_FlowStudioResult?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      builder: (outerCtx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.8,
+          minChildSize: 0.4,
+          maxChildSize: 1.0,
+          snap: true,
+          snapSizes: const [0.8, 1.0],
+          expand: false,
+          builder: (_, __) {
+            return ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: Material(
+                color: Colors.black,
+                child: Navigator(
+                  onGenerateInitialRoutes: (nav, __) => [
+                    MaterialPageRoute(
+                      builder: (ctx) => _FlowStudioPage(
+                        existingFlows: const [],
+                        importData: data,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null && result.savedFlow != null) {
+      final state = CalendarPage.globalKey.currentState;
+      if (state != null) {
+        return await state._persistFlowStudioResult(result);
+      } else {
+        return await CalendarPage.persistFlowStudioResultHeadless(result);
+      }
+    }
+    return null;
+  }
   
   @override
   State<CalendarPage> createState() => _CalendarPageState();
@@ -1104,6 +1247,18 @@ class _CalendarPageState extends State<CalendarPage>
   String _reminderIdForNote(_Note n, DateTime alertUtc) {
     final base = n.id ?? n.title;
     return '$base-${alertUtc.toIso8601String()}';
+  }
+
+  // UI still filters by end date even though repos do, because _flows is an
+  // in-memory cache that can contain stale rows until the next sync. This keeps
+  // ended flows out of visible lists.
+  bool _isActiveByEndDate(DateTime? endDate) {
+    if (endDate == null) return true;
+    final endUtc = endDate.toUtc();
+    final endDateOnly = DateTime.utc(endUtc.year, endUtc.month, endUtc.day);
+    final now = DateTime.now().toUtc();
+    final today = DateTime.utc(now.year, now.month, now.day);
+    return !endDateOnly.isBefore(today);
   }
 
   // ✅ RouteObserver subscription tracking
@@ -2678,7 +2833,26 @@ class _CalendarPageState extends State<CalendarPage>
         await repo.deleteFlow(flowId);
         await _loadFromDisk();
 
-      } catch (_) {}
+      } catch (e, stackTrace) {
+        if (kDebugMode) {
+          debugPrint('[deleteFlow] ✗ Failed to delete flow $flowId: $e');
+          debugPrint('[deleteFlow] Stack trace: $stackTrace');
+        }
+        // Resync local state to match server (restores flow if delete failed)
+        await _loadFromDisk();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete flow. Please try again.'),
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: () => _deleteFlow(flowId),
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
     });
   }
 
@@ -3595,7 +3769,7 @@ class _CalendarPageState extends State<CalendarPage>
 
     // Adapter: Convert _Flow to FlowData
     final flowIndex = <int, FlowData>{};
-    for (final f in _flows.where((f) => f.active && !f.isHidden)) {
+    for (final f in _flows.where((f) => f.active && !f.isHidden && _isActiveByEndDate(f.end))) {
       flowIndex[f.id] = FlowData(
         id: f.id,
         name: f.name,
@@ -4791,10 +4965,10 @@ class _CalendarPageState extends State<CalendarPage>
             final bucket = _notes.putIfAbsent(key, () => <_Note>[]);
 
             // Dedup (title + start time match) so we don't spam UI
-            final already = bucket.any((n) =>
-                n.title == note.title &&
-                n.start?.hour == note.start?.hour &&
-                n.start?.minute == note.start?.minute);
+          final already = bucket.any((n) =>
+              n.flowId == note.flowId &&
+              n.start?.hour == note.start?.hour &&
+              n.start?.minute == note.start?.minute);
 
             if (!already) {
               bucket.add(note);
@@ -4935,7 +5109,7 @@ class _CalendarPageState extends State<CalendarPage>
     print('=== _loadFromDisk END ===');
   }
 
-  Map<String, dynamic> ruleToJson(FlowRule r) {
+  static Map<String, dynamic> ruleToJson(FlowRule r) {
     if (r is _RuleWeek) {
       return {
         'type': 'week',
@@ -4984,10 +5158,36 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
+  bool _rulesEqual(List<dynamic> oldRulesJson, List<FlowRule> newRules) {
+    if (oldRulesJson.length != newRules.length) return false;
+    List<Map<String, dynamic>> _normalize(List<Map<String, dynamic>> list) {
+      list.sort((a, b) => (a['type'] as String? ?? '').compareTo(b['type'] as String? ?? ''));
+      return list;
+    }
+
+    final oldNormalized = _normalize(oldRulesJson
+        .map((r) => Map<String, dynamic>.from(r as Map))
+        .toList());
+    final newNormalized = _normalize(newRules
+        .map(ruleToJson)
+        .map((r) => Map<String, dynamic>.from(r))
+        .toList());
+    return jsonEncode(oldNormalized) == jsonEncode(newNormalized);
+  }
+
+  bool _isColorOnlyChange(FlowRow oldFlow, _Flow newFlow) {
+    if (oldFlow.name != newFlow.name) return false;
+    if (oldFlow.notes != newFlow.notes) return false;
+    if (oldFlow.startDate != newFlow.start) return false;
+    if (oldFlow.endDate != newFlow.end) return false;
+    if (!_rulesEqual(oldFlow.rules, newFlow.rules)) return false;
+    return oldFlow.color != newFlow.color.value;
+  }
+
 
 // Persist flows + planned notes coming back from Flow Studio
   // AFTER
-  Future<void> _persistFlowStudioResult(_FlowStudioResult r) async {
+  Future<int?> _persistFlowStudioResult(_FlowStudioResult r) async {
     final repo = UserEventsRepo(Supabase.instance.client);
 
     // 1) Deletes take precedence
@@ -5005,6 +5205,18 @@ class _CalendarPageState extends State<CalendarPage>
         if (kDebugMode) {
           debugPrint('[persistFlowStudio] ⚠️ Failed to delete notes: $e');
         }
+        rethrow; // bubble up so we don't silently keep the flow
+      }
+      try {
+        await repo.deleteFlow(r.deleteFlowId!);
+        if (kDebugMode) {
+          debugPrint('[persistFlowStudio] ✓ Deleted flow from database');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[persistFlowStudio] ⚠️ Failed to delete flow: $e');
+        }
+        rethrow; // bubble up and avoid thinking it was removed
       }
       // Remove the flow from memory
       _flows.removeWhere((f) => f.id == r.deleteFlowId);
@@ -5012,13 +5224,29 @@ class _CalendarPageState extends State<CalendarPage>
       if (kDebugMode) {
         debugPrint('[persistFlowStudio] ✓ Flow deletion complete');
       }
-      return;
+      return r.deleteFlowId;
     }
 
     // 2) Save/create flow if provided
     _Flow? saved;
+    FlowRow? oldFlowRow;
     if (r.savedFlow != null) {
-      final rulesJson = jsonEncode(r.savedFlow!.rules.map(ruleToJson).toList());
+      // Capture previous state for change detection (best-effort)
+      if (r.savedFlow!.id > 0) {
+        try {
+          oldFlowRow = await _flowsRepo.getFlowById(r.savedFlow!.id);
+        } catch (_) {
+          oldFlowRow = null;
+        }
+      }
+
+      // ✅ For imported flows (with plannedNotes), clear rules to prevent rule-based rescheduling
+      // The rules are already cleared in _save() when widget.importData != null,
+      // but we also check here as a safety measure
+      final bool hasSnapshotEvents = r.plannedNotes.isNotEmpty;
+      final rulesJson = hasSnapshotEvents 
+          ? jsonEncode([]) 
+          : jsonEncode(r.savedFlow!.rules.map(ruleToJson).toList());
 
       final savedId = await repo.upsertFlow(
         id: r.savedFlow!.id > 0 ? r.savedFlow!.id : null,
@@ -5043,6 +5271,7 @@ class _CalendarPageState extends State<CalendarPage>
         start: r.savedFlow!.start,
         end: r.savedFlow!.end,
         notes: r.savedFlow!.notes,
+        shareId: r.savedFlow!.shareId,
         isHidden: r.savedFlow!.isHidden, // Preserve hidden status
       );
 
@@ -5062,23 +5291,85 @@ class _CalendarPageState extends State<CalendarPage>
 
     // 3) Apply planned notes locally
     final flowId = saved?.id ?? r.savedFlow?.id ?? -1;
-    for (final p in r.plannedNotes) {
-      _addNote(
-        p.ky,
-        p.km,
-        p.kd,
-        p.note.title,
-        p.note.detail,
-        location: p.note.location,
-        allDay: p.note.allDay,
-        start: p.note.start,
-        end: p.note.end,
-        flowId: flowId >= 0 ? flowId : p.note.flowId,
-      );
+    if (r.plannedNotes.isNotEmpty) {
+      final repo2 = UserEventsRepo(Supabase.instance.client);
+      for (final p in r.plannedNotes) {
+        final n = p.note;
+        final noteFlowId = (n.flowId ?? flowId) ?? -1;
+
+        // Add to in-memory notes
+        _addNote(
+          p.ky,
+          p.km,
+          p.kd,
+          n.title,
+          n.detail,
+          location: n.location,
+          allDay: n.allDay,
+          start: n.start,
+          end: n.end,
+          flowId: noteFlowId >= 0 ? noteFlowId : null,
+        );
+
+        // Persist to database
+        final cid = EventCidUtil.buildClientEventId(
+          ky: p.ky,
+          km: p.km,
+          kd: p.kd,
+          title: n.title,
+          startHour: n.start?.hour ?? 9,
+          startMinute: n.start?.minute ?? 0,
+          allDay: n.allDay,
+          flowId: noteFlowId,
+        );
+
+        final gDay = KemeticMath.toGregorian(p.ky, p.km, p.kd);
+        final startsAt = DateTime(
+          gDay.year,
+          gDay.month,
+          gDay.day,
+          n.start?.hour ?? 9,
+          n.start?.minute ?? 0,
+        );
+
+        DateTime? endsAt;
+        if (!n.allDay && n.end != null) {
+          endsAt = DateTime(gDay.year, gDay.month, gDay.day, n.end!.hour, n.end!.minute);
+        } else if (!n.allDay) {
+          endsAt = startsAt.add(const Duration(hours: 1));
+        }
+
+        await repo2.upsertByClientId(
+          clientEventId: cid,
+          title: n.title,
+          startsAtUtc: startsAt.toUtc(),
+          detail: (n.detail ?? '').trim().isEmpty ? null : n.detail,
+          location: (n.location ?? '').trim().isEmpty ? null : n.location,
+          allDay: n.allDay,
+          endsAtUtc: endsAt?.toUtc(),
+          flowLocalId: noteFlowId >= 0 ? noteFlowId : null,
+        );
+      }
     }
 
     // Use shared scheduler for flow notes if we have a saved flow
     if (saved != null && saved.active && saved.rules.isNotEmpty) {
+      // If we have planned notes, skip rule-based scheduling to preserve titles/times.
+      if (r.plannedNotes.isNotEmpty) {
+        if (kDebugMode) {
+          debugPrint('[persistFlowStudio] ✅ Skipping scheduleFlowNotes - using plannedNotes with individual titles');
+        }
+        setState(() {});
+        return saved.id;
+      }
+      // If rules list was cleared (e.g., snapshot-only imports), skip scheduling.
+      if (saved.rules.isEmpty) {
+        if (kDebugMode) {
+          debugPrint('[persistFlowStudio] ✅ Skipping scheduleFlowNotes - flow has no rules (snapshot-only)');
+        }
+        setState(() {});
+        return saved.id;
+      }
       try {
         // Check if this is an AI-generated flow before scheduling
         // (AI flows already have individually-titled events that shouldn't be regenerated)
@@ -5096,17 +5387,26 @@ class _CalendarPageState extends State<CalendarPage>
           // TODO: Add analytics once analytics service is integrated
           // Example: _analyticsService.logEvent('ai_flow_schedule_skipped', {'flowId': saved.id});
         } else {
-          // Only regenerate notes for manually-created flows with recurring rules
-          await scheduleFlowNotes(
-            flowId: saved.id,
-            rules: saved.rules,
-            flowNotes: saved.notes,
-            startDate: saved.start,
-            endDate: saved.end,
-          );
-          
-          if (kDebugMode) {
-            debugPrint('[persistFlowStudio] ✅ Scheduled recurring notes for flow ${saved.id}');
+          // Imported flow with only color change? Skip reschedule.
+          if (saved.shareId != null &&
+              oldFlowRow != null &&
+              _isColorOnlyChange(oldFlowRow, saved)) {
+            if (kDebugMode) {
+              debugPrint('[persistFlowStudio] ⚠️ Skipping reschedule for color-only change on imported flow ${saved.id}');
+            }
+          } else {
+            // Only regenerate notes for manually-created flows with recurring rules
+            await scheduleFlowNotes(
+              flowId: saved.id,
+              rules: saved.rules,
+              flowNotes: saved.notes,
+              startDate: saved.start,
+              endDate: saved.end,
+            );
+            
+            if (kDebugMode) {
+              debugPrint('[persistFlowStudio] ✅ Scheduled recurring notes for flow ${saved.id}');
+            }
           }
           
           // TODO: Add analytics once analytics service is integrated
@@ -5129,6 +5429,7 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     setState(() {});
+    return saved?.id;
   }
 
   /// Schedules all note occurrences for a flow to the calendar
@@ -5329,7 +5630,7 @@ class _CalendarPageState extends State<CalendarPage>
     final repo = UserEventsRepo(Supabase.instance.client);
 
     // 6. Persist the flow row to Supabase, storing rules as JSON.
-    final rulesJson = jsonEncode([ruleToJson(rule)]);
+    final rulesJson = jsonEncode([_CalendarPageState.ruleToJson(rule)]);
 
     final int flowId = await repo.upsertFlow(
       id: null,
@@ -5840,18 +6141,13 @@ class _CalendarPageState extends State<CalendarPage>
     DateTime? endDate,
   }) async {
     final repo = UserEventsRepo(Supabase.instance.client);
-    final start = startDate ?? DateTime.now();
-    final end = endDate ?? start.add(const Duration(days: 90)); // Default 90 days
-    
+    final scheduleStart = startDate ?? DateTime.now();
+    final scheduleEnd = endDate ?? scheduleStart.add(const Duration(days: 90)); // Default 90 days
+
     if (kDebugMode) {
-      debugPrint('[scheduleFlowNotes] Starting for flowId=$flowId from $start to $end');
+      debugPrint('[scheduleFlowNotes] Starting for flowId=$flowId from $scheduleStart to $scheduleEnd');
     }
-    
-    // Clear existing scheduled notes for this flow
-    await repo.deleteByFlowId(flowId, fromDate: DateTime.now().toUtc());
-    
-    int scheduledCount = 0;
-    
+
     // Look up flow object for name and metadata
     _Flow? flow;
     try {
@@ -5859,11 +6155,21 @@ class _CalendarPageState extends State<CalendarPage>
     } catch (_) {
       flow = null;
     }
-    
+
+    final flowStart = flow?.start ?? DateTime(1970);
+    final flowEnd = flow?.end ?? DateTime(2100);
+    final hasOverlap = !flowEnd.isBefore(scheduleStart) && !flowStart.isAfter(scheduleEnd);
+    if (!hasOverlap) {
+      if (kDebugMode) {
+        debugPrint('[scheduleFlowNotes] ⚠️ No overlap: flow ($flowStart-$flowEnd) vs schedule ($scheduleStart-$scheduleEnd)');
+      }
+      return;
+    }
+
     String noteTitle = flow?.name ?? 'Flow Event';
     String? noteDetail;
     String? noteLocation;
-    
+
     // Decode flow.notes to extract detail and location for repeating notes
     if (flowNotes != null && flowNotes.isNotEmpty) {
       try {
@@ -5876,7 +6182,6 @@ class _CalendarPageState extends State<CalendarPage>
           // Legacy flowNotes format - try notesDecode
           try {
             final decoded = notesDecode(flowNotes);
-            noteTitle = decoded.overview.isNotEmpty ? decoded.overview : (flow?.name ?? noteTitle);
             if (decoded.overview.isNotEmpty) noteDetail = decoded.overview;
           } catch (_) {
             // Ignore if decode fails
@@ -5886,83 +6191,121 @@ class _CalendarPageState extends State<CalendarPage>
         // Not JSON, try legacy format
         try {
           final decoded = notesDecode(flowNotes);
-          noteTitle = decoded.overview.isNotEmpty ? decoded.overview : (flow?.name ?? noteTitle);
           if (decoded.overview.isNotEmpty) noteDetail = decoded.overview;
         } catch (_) {
           // Ignore if both fail
         }
       }
     }
-    
-    // Schedule new notes (inclusive of end date)
-    var date = start;
-    while (!date.isAfter(end)) {
-      final kDate = KemeticMath.fromGregorian(date);
-      
-      for (final rule in rules) {
-        if (rule.matches(ky: kDate.kYear, km: kDate.kMonth, kd: kDate.kDay, g: date)) {
-          final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
-          final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
-          
-          final cid = _buildCid(
-            ky: kDate.kYear,
-            km: kDate.kMonth,
-            kd: kDate.kDay,
-            title: noteTitle,
-            startHour: startHour,
-            startMinute: startMinute,
-            allDay: rule.allDay,
-            flowId: flowId,
-          );
-          
-          final startsAt = DateTime(
-            date.year,
-            date.month,
-            date.day,
-            startHour,
-            startMinute,
-          );
-          
-          DateTime? endsAt;
-          if (!rule.allDay) {
-            if (rule.end != null) {
-              endsAt = DateTime(
-                date.year,
-                date.month,
-                date.day,
-                rule.end!.hour,
-                rule.end!.minute,
-              );
-            } else {
-              // Default to 1 hour if end is missing
-              endsAt = DateTime(
-                date.year,
-                date.month,
-                date.day,
-                startHour,
-                startMinute,
-              ).add(const Duration(hours: 1));
+
+    // Build candidate events first; only delete/insert if we have any.
+    final candidateEvents = <_CandidateEvent>[];
+    try {
+      var date = scheduleStart;
+      while (!date.isAfter(scheduleEnd)) {
+        final kDate = KemeticMath.fromGregorian(date);
+
+        for (final rule in rules) {
+          if (rule.matches(ky: kDate.kYear, km: kDate.kMonth, kd: kDate.kDay, g: date)) {
+            final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
+            final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
+
+            final cid = _buildCid(
+              ky: kDate.kYear,
+              km: kDate.kMonth,
+              kd: kDate.kDay,
+              title: noteTitle,
+              startHour: startHour,
+              startMinute: startMinute,
+              allDay: rule.allDay,
+              flowId: flowId,
+            );
+
+            final startsAt = DateTime(
+              date.year,
+              date.month,
+              date.day,
+              startHour,
+              startMinute,
+            );
+
+            DateTime? endsAt;
+            if (!rule.allDay) {
+              if (rule.end != null) {
+                endsAt = DateTime(
+                  date.year,
+                  date.month,
+                  date.day,
+                  rule.end!.hour,
+                  rule.end!.minute,
+                );
+              } else {
+                // Default to 1 hour if end is missing
+                endsAt = DateTime(
+                  date.year,
+                  date.month,
+                  date.day,
+                  startHour,
+                  startMinute,
+                ).add(const Duration(hours: 1));
+              }
             }
+
+            candidateEvents.add(_CandidateEvent(
+              clientEventId: cid,
+              title: noteTitle,
+              startsAtUtc: startsAt.toUtc(),
+              endsAtUtc: endsAt?.toUtc(),
+              detail: noteDetail,
+              location: noteLocation,
+              allDay: rule.allDay,
+              flowLocalId: flowId,
+            ));
           }
-          
-          await repo.upsertByClientId(
-            clientEventId: cid,
-            title: noteTitle,
-            startsAtUtc: startsAt.toUtc(),
-            detail: noteDetail, // Use actual detail, not the prefix
-            location: noteLocation, // Pass location
-            allDay: rule.allDay,
-            endsAtUtc: endsAt?.toUtc(),
-            flowLocalId: flowId,
-          );
-          
-          scheduledCount++;
         }
+
+        date = date.add(const Duration(days: 1));
       }
+    } catch (e, stack) {
+      if (kDebugMode) {
+        debugPrint('[scheduleFlowNotes] ⚠️ Generation failed for flowId=$flowId: $e');
+        debugPrint(stack.toString());
+      }
+      return;
     }
-    
-    if (kDebugMode) {
-      debugPrint('[scheduleFlowNotes] Scheduled $scheduledCount notes for flowId=$flowId');
+
+    if (candidateEvents.isEmpty) {
+      if (kDebugMode) {
+        debugPrint('[scheduleFlowNotes] ⚠️ No events generated for flowId=$flowId; skipping delete.');
+      }
+      return;
+    }
+
+    try {
+    // Clear existing scheduled notes for this flow after successful generation
+    await repo.deleteByFlowId(flowId, fromDate: scheduleStart.toUtc());
+
+      for (final ev in candidateEvents) {
+        await repo.upsertByClientId(
+          clientEventId: ev.clientEventId,
+          title: ev.title,
+          startsAtUtc: ev.startsAtUtc,
+          detail: ev.detail,
+          location: ev.location,
+          allDay: ev.allDay,
+          endsAtUtc: ev.endsAtUtc,
+          flowLocalId: ev.flowLocalId,
+        );
+      }
+
+      if (kDebugMode) {
+        debugPrint('[scheduleFlowNotes] Scheduled ${candidateEvents.length} notes for flowId=$flowId');
+      }
+    } catch (e, stack) {
+      if (kDebugMode) {
+        debugPrint('[scheduleFlowNotes] ⚠️ CRITICAL: delete/insert failed for flowId=$flowId: $e');
+        debugPrint(stack.toString());
+      }
     }
   }
 
@@ -6244,7 +6587,7 @@ class _CalendarPageState extends State<CalendarPage>
   // Helper method to build flow index for landscape month view
   Map<int, FlowData> _buildFlowIndex() {
     final index = <int, FlowData>{};
-    for (final f in _flows.where((f) => f.active)) {
+    for (final f in _flows.where((f) => f.active && _isActiveByEndDate(f.end))) {
       index[f.id] = FlowData(
         id: f.id,
         name: f.name,
@@ -7426,6 +7769,23 @@ class _EditorGroup {
 }
 
 /// A note to add on a specific Kemetic day (result payload).
+class ImportFlowData {
+  final InboxShareItem share;
+  final String name;
+  final int color;
+  final String? notes;
+  final List<dynamic> rules;
+  final DateTime? suggestedStartDate;
+  const ImportFlowData({
+    required this.share,
+    required this.name,
+    required this.color,
+    this.notes,
+    required this.rules,
+    this.suggestedStartDate,
+  });
+}
+
 class _PlannedNote {
   final int ky, km, kd; // Kemetic Y/M/D
   final _Note note;
@@ -7454,11 +7814,13 @@ class _FlowStudioPage extends StatefulWidget {
   const _FlowStudioPage({
     required this.existingFlows,
     this.editFlowId,
+    this.importData,
     super.key,
   });
 
   final List<_Flow> existingFlows;
   final int? editFlowId;
+  final ImportFlowData? importData;
 
   @override
   State<_FlowStudioPage> createState() => _FlowStudioPageState();
@@ -7896,10 +8258,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
       // Seed missing wanted keys (one empty draft per day in customize mode).
       for (final k in wantDayKeys) {
-        _draftsByDay.putIfAbsent(
-          k,
-          () => _splitByPeriod ? <_NoteDraft>[_NoteDraft()] : <_NoteDraft>[],
-        );
+        final existing = _draftsByDay[k];
+        if (existing == null || existing.isEmpty) {
+          _draftsByDay.putIfAbsent(
+            k,
+            () => _splitByPeriod ? <_NoteDraft>[_NoteDraft()] : <_NoteDraft>[],
+          );
+        }
       }
     }
     // When !_hasFullRange: do not remove/seed; fallback render will show seeded shells.
@@ -8913,15 +9278,21 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       return true;
     });
 
+    // ✅ For imported flows, clear rules to prevent rule-based rescheduling
+    // This ensures snapshot events are the single source of truth
+    final bool isImportedFlow = widget.importData != null;
+    final List<FlowRule> rulesToSave = isImportedFlow ? <FlowRule>[] : rules;
+
     final flow = _Flow(
       id: _editing?.id ?? -1,
       name: name,
       color: _flowPalette[_selectedColorIndex],
       active: _active,
-      rules: rules,
+      rules: rulesToSave, // ✅ Empty rules for imported flows
       start: _startDate,
       end: _endDate,
       notes: notes,
+      shareId: null,
       isHidden: _editing?.isHidden ?? false, // Preserve hidden status if editing
     );
 
@@ -9740,6 +10111,126 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
   // ---------- scaffold ----------
 
+  /// Initialize Flow Studio from inbox import data
+  Future<void> _initializeFromImport(ImportFlowData data) async {
+    _nameCtrl = TextEditingController(text: data.name);
+    _active = true;
+    _isLoadingFlow = true;
+    setState(() {});
+
+    try {
+      final colorIdx = _flowPalette.indexWhere((c) => c.value == data.color);
+      _selectedColorIndex = colorIdx >= 0 ? colorIdx : 0;
+
+      _startDate = data.suggestedStartDate != null
+          ? _dateOnly(data.suggestedStartDate!)
+          : _dateOnly(DateTime.now());
+
+      if (data.notes != null) {
+        try {
+          final meta = notesDecode(data.notes!);
+          _useKemetic = meta.kemetic;
+          _splitByPeriod = meta.split;
+          _overviewCtrl.text = meta.overview;
+        } catch (_) {}
+      } else {
+        _useKemetic = false;
+        _splitByPeriod = true;
+      }
+
+      final payload = data.share.payloadJson;
+      final eventsJson = payload?['events'] as List<dynamic>?;
+
+    if (eventsJson != null && eventsJson.isNotEmpty) {
+      final baseDate = _startDate ?? DateTime.now();
+      final userEvents = <UserEvent>[];
+      for (final e in eventsJson) {
+        try {
+            final offset = (e['offset_days'] as num?)?.toInt() ?? 0;
+            final date = baseDate.add(Duration(days: offset));
+
+            int sh = 9, sm = 0;
+            final st = e['start_time'] as String?;
+            if (st != null && st.length >= 5) {
+              sh = int.parse(st.substring(0, 2));
+              sm = int.parse(st.substring(3, 5));
+            }
+
+            int? eh, em;
+            final et = e['end_time'] as String?;
+            if (et != null && et.length >= 5) {
+              eh = int.parse(et.substring(0, 2));
+              em = int.parse(et.substring(3, 5));
+            }
+
+            final allDay = e['all_day'] as bool? ?? false;
+            final startsAt = DateTime(date.year, date.month, date.day, sh, sm);
+            DateTime? endsAt;
+            if (!allDay) {
+              if (eh != null && em != null) {
+                endsAt = DateTime(date.year, date.month, date.day, eh, em);
+              } else {
+                endsAt = startsAt.add(const Duration(hours: 1));
+              }
+            }
+
+            userEvents.add(UserEvent(
+              id: '',
+              title: (e['title'] as String?) ?? data.name,
+              detail: (e['detail'] as String?) ?? '',
+              location: (e['location'] as String?) ?? '',
+              allDay: allDay,
+              startsAt: startsAt,
+              endsAt: endsAt,
+              flowLocalId: null,
+            ));
+          } catch (_) {
+            // skip malformed event
+          }
+        }
+
+        if (userEvents.isNotEmpty) {
+          final allDates = userEvents
+              .map((ev) => _dateOnly(ev.startsAt.toLocal()))
+              .toList()
+            ..sort();
+          _endDate = allDates.last;
+        } else {
+          _endDate = _startDate;
+        }
+
+        _syncReady = false;
+        _convertEventsToDrafts(userEvents);
+        _syncReady = true;
+        _rebuildSpans();
+        if (_hasFullRange && _draftsByDay.isNotEmpty) {
+          if (_useKemetic) {
+            _populateKemeticSelections(userEvents);
+          } else {
+            _populateGregorianSelections(userEvents);
+          }
+          // Do NOT call _applySelectionToDrafts() here to avoid duplicates
+        }
+      } else {
+        _endDate = _startDate;
+        _syncReady = true;
+        _rebuildSpans();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading import: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingFlow = false;
+        });
+      }
+    }
+  }
+
   /// Helper to load a flow from DB with loading spinner
   void _loadFromDbWithSpinner(int flowId) {
     if (kDebugMode) {
@@ -9775,6 +10266,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             'existingFlows=${widget.existingFlows.length}');
     }
 
+    if (widget.importData != null) {
+      _initializeFromImport(widget.importData!);
+      return;
+    }
+
     // Load flow if provided
     if (widget.editFlowId != null) {
       final id = widget.editFlowId!;
@@ -9792,6 +10288,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         if (flow.shareId != null) {
           if (kDebugMode) {
             print('🔍 [FlowStudio] Import detected (shareId=${flow.shareId}) → using _loadFlowByIdFromDb');
+          }
+          _loadFromDbWithSpinner(id);
+        } else if (flow.rules.isEmpty) {
+          if (kDebugMode) {
+            print('🔍 [FlowStudio] Snapshot-only flow detected (rules empty) → using _loadFlowByIdFromDb');
           }
           _loadFromDbWithSpinner(id);
         } else {
@@ -11472,9 +11973,25 @@ class _FlowsViewerPage extends StatefulWidget {
 }
 
 class _FlowsViewerPageState extends State<_FlowsViewerPage> {
+  // UI still filters by end date even though repos do, because _flows is an
+  // in-memory cache that can contain stale rows until the next sync. This keeps
+  // ended flows out of the view.
+  bool _isActiveByEndDate(DateTime? endDate) {
+    if (endDate == null) return true;
+    final endUtc = endDate.toUtc();
+    final endDateOnly = DateTime.utc(endUtc.year, endUtc.month, endUtc.day);
+    final now = DateTime.now().toUtc();
+    final today = DateTime.utc(now.year, now.month, now.day);
+    return !endDateOnly.isBefore(today);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final items = widget.flows.where((f) => f.active && !f.isHidden).toList()
+    final items = widget.flows.where((f) =>
+      f.active &&
+      !f.isHidden &&
+      _isActiveByEndDate(f.end)
+    ).toList()
       ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
 

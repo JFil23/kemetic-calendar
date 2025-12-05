@@ -34,6 +34,15 @@ class InboxRepo {
   /// 3. After deletion: trigger clears imported_at, this returns false
   /// 4. Re-import: button reactivates because no matching flow exists
   Future<bool> isFlowCurrentlyImported(String shareId) async {
+    bool _isActiveByEndDateStr(String? endDateStr) {
+      if (endDateStr == null) return true;
+      final end = DateTime.parse(endDateStr).toUtc();
+      final endDateOnly = DateTime.utc(end.year, end.month, end.day);
+      final now = DateTime.now().toUtc();
+      final today = DateTime.utc(now.year, now.month, now.day);
+      return !endDateOnly.isBefore(today);
+    }
+
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) {
@@ -45,14 +54,17 @@ class InboxRepo {
       // This finds the USER'S imported copy, not the sender's original
       final flowResponse = await _client
           .from('flows')
-          .select('id, active, share_id')
+          .select('id, active, share_id, end_date')
           .eq('user_id', userId)        // User's flows only
           .eq('share_id', shareId)      // Linked to this inbox share
+          .eq('active', true)           // Must be active
           .maybeSingle();
-      
-      // Flow is imported if it exists and is active
-      final exists = flowResponse != null && (flowResponse['active'] as bool? ?? true);
-      
+
+      // Flow is imported if it exists, is active, and not past end_date
+      final exists = flowResponse != null &&
+          (flowResponse['active'] as bool? ?? false) &&
+          _isActiveByEndDateStr(flowResponse['end_date'] as String?);
+
       if (kDebugMode) {
         print('[InboxRepo] isFlowCurrentlyImported($shareId)');
         print('[InboxRepo]   userId: $userId');
@@ -61,6 +73,7 @@ class InboxRepo {
           print('[InboxRepo]   flow_id: ${flowResponse['id']}');
           print('[InboxRepo]   active: ${flowResponse['active']}');
           print('[InboxRepo]   share_id: ${flowResponse['share_id']}');
+          print('[InboxRepo]   end_date: ${flowResponse['end_date']}');
         } else {
           print('[InboxRepo]   No flow found with share_id=$shareId');
         }
