@@ -2,6 +2,9 @@
 // Journal V2 Toolbar - Fixed for ScrollView
 
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import '../calendar/calendar_page.dart' show KemeticMath;
+import '../calendar/kemetic_month_metadata.dart' show getMonthById;
 import 'journal_controller.dart';
 import 'journal_v2_document_model.dart';
 
@@ -36,6 +39,7 @@ class JournalV2Toolbar extends StatefulWidget {
 class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
   JournalV2Mode _currentMode = JournalV2Mode.type;
   TextAttrs _currentAttrs = const TextAttrs();
+  bool _showKemetic = true; // default to Kemetic view for date tracker
 
   void _handleModeChange(JournalV2Mode mode) {
     setState(() => _currentMode = mode);
@@ -71,18 +75,35 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final dateLabel = _showKemetic
+        ? _formatKemetic(now)
+        : _formatGregorian(now);
+
     return Container(
       padding: const EdgeInsets.all(12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Mode selector row (Type only)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildModeButton(JournalV2Mode.type, Icons.text_fields, 'Type'),
-            ],
+          // Current day tracker (toggle Kemetic/Gregorian on tap)
+          GestureDetector(
+            onTap: () {
+              setState(() => _showKemetic = !_showKemetic);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Center(
+                child: Text(
+                  dateLabel,
+                  style: const TextStyle(
+                    color: Color(0xFFC8CCD2), // silver like decan labels
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           ),
           
           // Format buttons row
@@ -108,42 +129,25 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
     );
   }
 
+  String _formatKemetic(DateTime g) {
+    final k = KemeticMath.fromGregorian(g);
+    final month = getMonthById(k.kMonth).displayFull;
+    return '$month ${k.kDay}';
+  }
+
+  String _formatGregorian(DateTime g) {
+    const months = [
+      'January','February','March','April','May','June',
+      'July','August','September','October','November','December'
+    ];
+    final month = months[g.month - 1];
+    return '$month ${g.day}';
+  }
+
   Widget _buildModeButton(JournalV2Mode mode, IconData icon, String label) {
     final isActive = _currentMode == mode;
     
-    return GestureDetector(
-      onTap: () => _handleModeChange(mode),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF333333) : Colors.transparent,
-          border: Border.all(
-            color: isActive ? const Color(0xFFD4AF37) : const Color(0xFF666666),
-            width: 1.5,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isActive ? const Color(0xFFD4AF37) : const Color(0xFF999999),
-              size: 18,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? const Color(0xFFD4AF37) : const Color(0xFF999999),
-                fontSize: 14,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return const SizedBox.shrink(); // mode button no longer shown
   }
 
   Widget _buildFormatButton(
