@@ -661,7 +661,9 @@ class _SharedEventTile extends StatelessWidget {
     final allDay = event['all_day'] as bool? ?? false;
     final startTime = event['start_time'] as String?;
     final endTime = event['end_time'] as String?;
-    final offsetDays = (event['offset_days'] as num?)?.toInt() ?? 0;
+    final int? offsetDays = (event['offset_days'] as num?)?.toInt();
+    final int? dayNumber =
+        offsetDays != null ? (offsetDays + 1) : null; // Snapshot offsets are zero-based
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -681,21 +683,21 @@ class _SharedEventTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
-              if (offsetDays > 0)
-                Text(
-                  'Day $offsetDays',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.white70,
-                  ),
-                ),
+            ),
+          ),
+          if (dayNumber != null)
+            Text(
+              'Day $dayNumber',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.white70,
+              ),
+            ),
             ],
           ),
 
