@@ -181,7 +181,9 @@ class _InboxPageState extends State<InboxPage> {
               }
               
               final otherProfile = _resolveOtherProfile(last, currentUserId);
-              final hasUnread = items.any((i) => i.isUnread);
+              final hasUnread = items.any(
+                (i) => i.recipientId == currentUserId && i.isUnread,
+              );
 
               return _buildConversationBar(
                 context: context,
@@ -189,6 +191,7 @@ class _InboxPageState extends State<InboxPage> {
                 otherProfile: otherProfile,
                 lastItem: last,
                 hasUnread: hasUnread,
+                items: items,
               );
             },
           );
@@ -226,6 +229,7 @@ class _InboxPageState extends State<InboxPage> {
     required ConversationUser otherProfile,
     required InboxShareItem lastItem,
     required bool hasUnread,
+    required List<InboxShareItem> items,
   }) {
     return Dismissible(
       key: Key('conversation_$otherUserId'),
@@ -343,6 +347,9 @@ class _InboxPageState extends State<InboxPage> {
               )
             : null,
         onTap: () {
+          // Mark unread incoming items as viewed when opening the thread
+          _markConversationRead(items);
+
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -355,6 +362,24 @@ class _InboxPageState extends State<InboxPage> {
         },
       ),
     );
+  }
+
+  Future<void> _markConversationRead(List<InboxShareItem> items) async {
+    final currentUserId = _inboxRepo.currentUserId;
+    if (currentUserId == null) return;
+
+    final shareRepo = ShareRepo(Supabase.instance.client);
+
+    for (final item in items) {
+      final isIncoming = item.recipientId == currentUserId;
+      if (isIncoming && item.viewedAt == null) {
+        try {
+          await shareRepo.markViewed(item.shareId, isFlow: item.isFlow);
+        } catch (_) {
+          // swallow errors; badge will refresh on next stream update
+        }
+      }
+    }
   }
 
   Widget _buildEmptyState() {
@@ -1179,7 +1204,5 @@ class InboxFlowDetailsPage extends StatelessWidget {
     );
   }
 }
-
-
 
 
