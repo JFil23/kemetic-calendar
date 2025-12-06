@@ -208,6 +208,7 @@ class DayViewPage extends StatefulWidget {
   final Map<int, FlowData> flowIndex;
   final String Function(int km) getMonthName;
   final void Function(int?)? onManageFlows; // NEW: Callback to open My Flows
+  final VoidCallback? onOpenFlowStudio; // NEW: dedicated Flow Studio launcher
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(
     int ky,
@@ -244,6 +245,7 @@ class DayViewPage extends StatefulWidget {
     required this.flowIndex,
     required this.getMonthName,
     this.onManageFlows, // NEW
+    this.onOpenFlowStudio, // NEW
     this.onAddNote, // 🔧 NEW
     this.onOpenAddNoteWithTime,
     this.onCreateTimedEvent, // NEW
@@ -548,7 +550,7 @@ class _DayViewPageState extends State<DayViewPage> {
                     tooltip: 'Flow Studio',
                     icon: const Icon(Icons.view_timeline, color: Color(0xFFFFC145)),
                     padding: const EdgeInsets.symmetric(horizontal: 4), // 🔧 Reduced padding
-                    onPressed: widget.onManageFlows != null ? () => widget.onManageFlows!(null) : null,
+                    onPressed: widget.onOpenFlowStudio,
                   ),
                   // 🔧 NEW: Add note button
                   IconButton(

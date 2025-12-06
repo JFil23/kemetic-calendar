@@ -3221,6 +3221,100 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
 
+  // Directly open My Flows list (no Flow Hub chooser).
+  void _openMyFlowsList() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx2) => _FlowsViewerPage(
+          flows: _flows,
+          fmtGregorian: (d) => d == null
+              ? '--'
+              : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
+          onCreateNew: () async {
+            final edited = await Navigator.of(ctx2).push<_FlowStudioResult>(
+              MaterialPageRoute(
+                builder: (_) => _FlowStudioPage(
+                  existingFlows: _flows,
+                ),
+              ),
+            );
+            if (edited != null) await _persistFlowStudioResult(edited);
+            await _loadFromDisk();
+          },
+          onEditFlow: (id) async {
+            final edited = await Navigator.of(ctx2).push<_FlowStudioResult>(
+              MaterialPageRoute(
+                builder: (_) => _FlowStudioPage(
+                  existingFlows: _flows,
+                  editFlowId: id,
+                ),
+              ),
+            );
+            if (edited != null) await _persistFlowStudioResult(edited);
+            await _loadFromDisk();
+          },
+          openMaatFlows: () {
+            Navigator.of(ctx2).push(
+              MaterialPageRoute(
+                builder: (ctx3) => _MaatCategoriesPage(
+                  hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
+                  onPickTemplate: (tpl) {
+                    Navigator.of(ctx3).push(
+                      MaterialPageRoute(
+                        builder: (ctx4) => _MaatFlowTemplateDetailPage(
+                          template: tpl,
+                          addInstance: ({
+                            required _MaatFlowTemplate template,
+                            required DateTime startDate,
+                            required bool useKemetic,
+                          }) async {
+                            final id = await _addMaatFlowInstance(
+                              template: template,
+                              startDate: startDate,
+                              useKemetic: useKemetic,
+                            );
+                            return id;
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                  onCreateNew: () async {
+                    final edited = await Navigator.of(ctx2).push<_FlowStudioResult>(
+                      MaterialPageRoute(
+                        builder: (_) => _FlowStudioPage(
+                          existingFlows: _flows,
+                        ),
+                      ),
+                    );
+                    if (edited != null) await _persistFlowStudioResult(edited);
+                  },
+                ),
+              ),
+            );
+          },
+          onEndFlow: (id) => _endFlow(id),
+          onImportFlow: (importedFlowId) async {
+            if (importedFlowId != null) {
+              await _loadFromDisk();
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  // Manage Flows callback: jump straight to My Flows (or specific flow editor if id provided).
+  void Function(int? flowId) _getMyFlowsCallback() {
+    return (int? flowId) {
+      if (flowId != null) {
+        _openFlowEditorDirectly(flowId);
+        return;
+      }
+      _openMyFlowsList();
+    };
+  }
+
   // Flow Studio callback that opens the Flow Hub (same as main calendar)
   void Function(int? flowId) _getFlowStudioCallback() {
     return (int? flowId) {
@@ -3799,7 +3893,8 @@ class _CalendarPageState extends State<CalendarPage>
           notesForDay: notesForDayFn,
           flowIndex: flowIndex,
           getMonthName: getMonthName,
-          onManageFlows: (flowId) => _getFlowStudioCallback()(flowId),
+          onManageFlows: (flowId) => _getMyFlowsCallback()(flowId),
+          onOpenFlowStudio: () => _getFlowStudioCallback()(null),
           onAddNote: (ky, km, kd) => _openDaySheet(ky, km, kd, allowDateChange: true),
           onOpenAddNoteWithTime: (ky, km, kd, {TimeOfDay? start, TimeOfDay? end, bool allDay = false}) {
             _openDaySheet(
@@ -6439,7 +6534,7 @@ class _CalendarPageState extends State<CalendarPage>
         },
         flowIndex: _buildFlowIndex(),
         getMonthName: (km) => getMonthById(km).displayFull,
-        onManageFlows: _getFlowStudioCallback(),
+        onManageFlows: _getMyFlowsCallback(),
         onAddNote: (ky, km, kd) {
           if (kDebugMode) {
             print('\n🎯 [CALLBACK] onAddNote received from landscape');
