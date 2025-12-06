@@ -51,6 +51,36 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   late final Future<_SharedFlowData> _flowFuture;
   Future<_FlowSpanSummary?>? _spanFuture;
 
+  /// Merge duplicate events (same day/title/time/detail/location) to avoid double rendering
+  List<Map<String, dynamic>> _dedupeEvents(List<Map<String, dynamic>> events) {
+    final seen = <String, Map<String, dynamic>>{};
+
+    String keyFor(Map<String, dynamic> e) {
+      final title = (e['title'] as String? ?? '').trim().toLowerCase();
+      final offset = (e['offset_days'] as num?)?.toInt() ?? 0;
+      final allDay = (e['all_day'] as bool?) ?? false;
+      final start = (e['start_time'] as String? ?? '').trim().toLowerCase();
+      final end = (e['end_time'] as String? ?? '').trim().toLowerCase();
+      final detail = (e['detail'] as String? ?? '').trim().toLowerCase();
+      final location = (e['location'] as String? ?? '').trim().toLowerCase();
+      return [
+        title,
+        'off:$offset',
+        allDay ? 'allDay' : 'timed',
+        's:$start',
+        'e:$end',
+        'd:$detail',
+        'l:$location',
+      ].join('|');
+    }
+
+    for (final e in events) {
+      final k = keyFor(e);
+      seen[k] = e; // keep latest; they are equivalent for display
+    }
+    return seen.values.toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -256,6 +286,9 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
         final rulesJson = data.rulesJson
             .whereType<Map<String, dynamic>>()
             .toList();
+        final eventsJson = _dedupeEvents(
+          data.eventsJson.whereType<Map<String, dynamic>>().toList(),
+        );
 
         return Scaffold(
           backgroundColor: _bg,
@@ -398,7 +431,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
 
                     // Events section - always show if events exist
                     // ✅ Removed isImported check since we set it to false for inbox shares
-                    if (data.eventsJson.isNotEmpty) ...[
+                    if (eventsJson.isNotEmpty) ...[
                       const GlossyText(
                         text: 'Events',
                         style: TextStyle(
@@ -408,8 +441,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                         gradient: goldGloss,
                       ),
                       const SizedBox(height: 4),
-                      ...data.eventsJson.map((e) {
-                        final event = e as Map<String, dynamic>;
+                      ...eventsJson.map((event) {
                         return _SharedEventTile(event: event);
                       }).toList(),
                     ],
