@@ -3222,96 +3222,125 @@ class _CalendarPageState extends State<CalendarPage>
 
 
   // Directly open My Flows list (no Flow Hub chooser).
-  void _openMyFlowsList() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (ctx2) => _FlowsViewerPage(
-          flows: _flows,
-          fmtGregorian: (d) => d == null
-              ? '--'
-              : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
-          onCreateNew: () async {
-            final edited = await Navigator.of(ctx2).push<_FlowStudioResult>(
-              MaterialPageRoute(
-                builder: (_) => _FlowStudioPage(
-                  existingFlows: _flows,
-                ),
-              ),
-            );
-            if (edited != null) await _persistFlowStudioResult(edited);
-            await _loadFromDisk();
-          },
-          onEditFlow: (id) async {
-            final edited = await Navigator.of(ctx2).push<_FlowStudioResult>(
-              MaterialPageRoute(
-                builder: (_) => _FlowStudioPage(
-                  existingFlows: _flows,
-                  editFlowId: id,
-                ),
-              ),
-            );
-            if (edited != null) await _persistFlowStudioResult(edited);
-            await _loadFromDisk();
-          },
-          openMaatFlows: () {
-            Navigator.of(ctx2).push(
-              MaterialPageRoute(
-                builder: (ctx3) => _MaatCategoriesPage(
-                  hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
-                  onPickTemplate: (tpl) {
-                    Navigator.of(ctx3).push(
-                      MaterialPageRoute(
-                        builder: (ctx4) => _MaatFlowTemplateDetailPage(
-                          template: tpl,
-                          addInstance: ({
-                            required _MaatFlowTemplate template,
-                            required DateTime startDate,
-                            required bool useKemetic,
-                          }) async {
-                            final id = await _addMaatFlowInstance(
-                              template: template,
-                              startDate: startDate,
-                              useKemetic: useKemetic,
-                            );
-                            return id;
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                  onCreateNew: () async {
-                    final edited = await Navigator.of(ctx2).push<_FlowStudioResult>(
-                      MaterialPageRoute(
-                        builder: (_) => _FlowStudioPage(
-                          existingFlows: _flows,
-                        ),
-                      ),
-                    );
-                    if (edited != null) await _persistFlowStudioResult(edited);
-                  },
-                ),
-              ),
-            );
-          },
-          onEndFlow: (id) => _endFlow(id),
-          onImportFlow: (importedFlowId) async {
-            if (importedFlowId != null) {
-              await _loadFromDisk();
-            }
-          },
-        ),
-      ),
+  void _openMyFlowsList({int? initialFlowId}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalCtx) {
+        return FractionallySizedBox(
+          heightFactor: 0.9,
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: Navigator(
+              onGenerateInitialRoutes: (nav, __) {
+                return [
+                  MaterialPageRoute(
+                    builder: (ctx2) {
+                      // If a flowId was provided, push editor after first frame.
+                      if (initialFlowId != null) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          nav.push(
+                            MaterialPageRoute(
+                              builder: (_) => _FlowStudioPage(
+                                existingFlows: _flows,
+                                editFlowId: initialFlowId,
+                              ),
+                            ),
+                          );
+                        });
+                      }
+
+                      return _FlowsViewerPage(
+                        flows: _flows,
+                        fmtGregorian: (d) => d == null
+                            ? '--'
+                            : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
+                        onCreateNew: () async {
+                          final edited = await nav.push<_FlowStudioResult>(
+                            MaterialPageRoute(
+                              builder: (_) => _FlowStudioPage(
+                                existingFlows: _flows,
+                              ),
+                            ),
+                          );
+                          if (edited != null) await _persistFlowStudioResult(edited);
+                          await _loadFromDisk();
+                        },
+                        onEditFlow: (id) async {
+                          final edited = await nav.push<_FlowStudioResult>(
+                            MaterialPageRoute(
+                              builder: (_) => _FlowStudioPage(
+                                existingFlows: _flows,
+                                editFlowId: id,
+                              ),
+                            ),
+                          );
+                          if (edited != null) await _persistFlowStudioResult(edited);
+                          await _loadFromDisk();
+                        },
+                        openMaatFlows: () {
+                          nav.push(
+                            MaterialPageRoute(
+                              builder: (ctx3) => _MaatCategoriesPage(
+                                hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
+                                onPickTemplate: (tpl) {
+                                  Navigator.of(ctx3).push(
+                                    MaterialPageRoute(
+                                      builder: (ctx4) => _MaatFlowTemplateDetailPage(
+                                        template: tpl,
+                                        addInstance: ({
+                                          required _MaatFlowTemplate template,
+                                          required DateTime startDate,
+                                          required bool useKemetic,
+                                        }) async {
+                                          final id = await _addMaatFlowInstance(
+                                            template: template,
+                                            startDate: startDate,
+                                            useKemetic: useKemetic,
+                                          );
+                                          return id;
+                                        },
+                                      ),
+                                    ),
+                                  );
+                                },
+                                onCreateNew: () async {
+                                  final edited = await nav.push<_FlowStudioResult>(
+                                    MaterialPageRoute(
+                                      builder: (_) => _FlowStudioPage(
+                                        existingFlows: _flows,
+                                      ),
+                                    ),
+                                  );
+                                  if (edited != null) await _persistFlowStudioResult(edited);
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                        onEndFlow: (id) => _endFlow(id),
+                        onImportFlow: (importedFlowId) async {
+                          if (importedFlowId != null) {
+                            await _loadFromDisk();
+                          }
+                        },
+                      );
+                    },
+                  ),
+                ];
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
   // Manage Flows callback: jump straight to My Flows (or specific flow editor if id provided).
   void Function(int? flowId) _getMyFlowsCallback() {
     return (int? flowId) {
-      if (flowId != null) {
-        _openFlowEditorDirectly(flowId);
-        return;
-      }
-      _openMyFlowsList();
+      _openMyFlowsList(initialFlowId: flowId);
     };
   }
 
