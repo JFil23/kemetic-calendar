@@ -9,6 +9,9 @@ import 'journal_v2_rich_text.dart';
 import 'journal_badge_utils.dart';
 import 'journal_event_badge.dart';
 import 'dart:convert';
+import '../calendar/calendar_page.dart' show KemeticMath;
+import '../calendar/kemetic_month_metadata.dart' show getMonthById;
+import 'package:flutter/cupertino.dart';
 
 class JournalArchivePage extends StatefulWidget {
   final JournalRepo repo;
@@ -35,6 +38,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   bool _isEditing = false;
   late TextEditingController _editController;
   JournalDocument? _editingDocument;
+  bool _useKemetic = true; // default to Kemetic
 
   @override
   void initState() {
@@ -202,6 +206,41 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     return months[month - 1];
   }
 
+  String _formatArchiveDate(DateTime greg) {
+    final dow = _getDayOfWeek(greg);
+    if (_useKemetic) {
+      final k = KemeticMath.fromGregorian(greg);
+      final month = getMonthById(k.kMonth).displayFull;
+      return '$dow, $month ${k.kDay}';
+    }
+    final month = _getMonthName(greg.month);
+    return '$dow, $month ${greg.day}';
+  }
+
+  Widget _buildModeToggle() {
+    // Styled like Flow Studio toggle, slightly compact
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: CupertinoSegmentedControl<bool>(
+        groupValue: _useKemetic,
+        padding: const EdgeInsets.all(2),
+        children: const {
+          true: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Text('Kemetic'),
+          ),
+          false: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Text('Gregorian'),
+          ),
+        },
+        onValueChanged: (v) {
+          setState(() => _useKemetic = v);
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -296,24 +335,30 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: _entries.length,
-      separatorBuilder: (context, index) => const Divider(
-        color: Color(0xFF333333),
-        height: 1,
-      ),
-      itemBuilder: (context, index) {
-        final entry = _entries[index];
-        return _buildEntryCard(entry);
-      },
+    return Column(
+      children: [
+        _buildModeToggle(),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: _entries.length,
+            separatorBuilder: (context, index) => const Divider(
+              color: Color(0xFF333333),
+              height: 1,
+            ),
+            itemBuilder: (context, index) {
+              final entry = _entries[index];
+              return _buildEntryCard(entry);
+            },
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildEntryCard(JournalEntry entry) {
     final date = entry.gregDate;
-    final dayOfWeek = _getDayOfWeek(date);
-    final monthName = _getMonthName(date.month);
+    final header = _formatArchiveDate(date);
     final previewText = _getPreviewText(entry);
     final charCount = _getActualTextLength(entry);
 
@@ -350,7 +395,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
                   children: [
                     // Date header
                     Text(
-                      '$dayOfWeek, $monthName ${date.day}',
+                      header,
                       style: const TextStyle(
                         color: Color(0xFFD4AF37),
                         fontSize: 16,
@@ -401,8 +446,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     
     final entry = _selectedEntry!;
     final date = entry.gregDate;
-    final dayOfWeek = _getDayOfWeek(date);
-    final monthName = _getMonthName(date.month);
+    final header = _formatArchiveDate(date);
     final entryText = _getEntryText(entry);
     final entryDoc = _entryToDocument(entry);
 
@@ -419,7 +463,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
             ),
           ),
           child: Text(
-            '$dayOfWeek, $monthName ${date.day}',
+            header,
             style: const TextStyle(
               color: Color(0xFFD4AF37),
               fontSize: 20,
@@ -648,4 +692,3 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     );
   }
 }
-
