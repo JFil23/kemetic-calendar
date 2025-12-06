@@ -18,6 +18,7 @@ import 'utils/ics_parser.dart';
 import 'core/kemetic_converter.dart';
 import 'features/sharing/share_preview_page.dart';
 import 'features/inbox/inbox_page.dart';
+import 'utils/event_cid_util.dart';
 
 import 'utils/hive_local_storage_web.dart';
 import 'core/theme/app_theme.dart';
@@ -576,11 +577,18 @@ class _AuthGateState extends State<AuthGate> {
     bool allDay = false,
     required int flowId,
   }) {
-    final int sMin = (allDay || startHour == null || startMinute == null)
-        ? 9 * 60  // Default to 9:00 AM for all-day events
-        : (startHour * 60 + startMinute);
-    final String tSlug = title.replaceAll(RegExp(r'[^\w\s]'), '').trim();
-    return 'ky=$ky-km=$km-kd=$kd|s=$sMin|t=$tSlug|f=$flowId';
+    final int sHour = (allDay || startHour == null) ? 9 : startHour;
+    final int sMinute = (allDay || startMinute == null) ? 0 : startMinute;
+    return EventCidUtil.buildClientEventId(
+      ky: ky,
+      km: km,
+      kd: kd,
+      title: title,
+      startHour: sHour,
+      startMinute: sMinute,
+      allDay: allDay,
+      flowId: flowId,
+    );
   }
 
   Future<void> _signInWithGoogle() async {

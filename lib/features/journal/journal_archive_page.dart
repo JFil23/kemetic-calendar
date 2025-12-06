@@ -648,3 +648,4 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     );
   }
 }
+

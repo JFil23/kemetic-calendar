@@ -1307,12 +1307,8 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   /* ───── ClientEventId utilities ───── */
-  /// Build a canonical clientEventId from Kemetic date, title, time and flow id.
-  /// This helper ensures that every note uses the same format when being persisted
-  /// and deleted. It slugifies the title by stripping non-word characters and
-  /// trimming whitespace. The start time is converted to minutes since midnight,
-  /// defaulting to 9:00 (540) when allDay is true or no start time is provided.
-  /// A flowId of -1 indicates a manual/unlinked note.
+  /// Build a canonical clientEventId using the shared EventCidUtil (URL-encoded).
+  /// Defaults start time to 9:00 when missing or all-day.
   String _buildCid({
     required int ky,
     required int km,
@@ -1323,12 +1319,18 @@ class _CalendarPageState extends State<CalendarPage>
     bool allDay = false,
     required int flowId,
   }) {
-    final int sMin = (allDay || startHour == null || startMinute == null)
-        ? 9 * 60
-        : (startHour * 60 + startMinute);
-    final String tSlug =
-    title.replaceAll(RegExp(r'[^\w\s]'), '').trim();
-    return 'ky=$ky-km=$km-kd=$kd|s=$sMin|t=$tSlug|f=$flowId';
+    final int sHour = (allDay || startHour == null) ? 9 : startHour;
+    final int sMinute = (allDay || startMinute == null) ? 0 : startMinute;
+    return EventCidUtil.buildClientEventId(
+      ky: ky,
+      km: km,
+      kd: kd,
+      title: title,
+      startHour: sHour,
+      startMinute: sMinute,
+      allDay: allDay,
+      flowId: flowId,
+    );
   }
 
   /// Extract the flow id from a unified clientEventId string. Returns -1 if
@@ -2991,6 +2993,7 @@ class _CalendarPageState extends State<CalendarPage>
   // Centralize applying Flow Studio results to calendar state
   Future<void> _applyFlowStudioResult(_FlowStudioResult edited) async {
     int? finalFlowId; // <-- NEW: ensure we know the actual flow id to tag notes
+    bool notesAlreadyPersisted = false; // When true, skip duplicate planned-note persistence
 
     if (edited.deleteFlowId != null) {
       _deleteFlow(edited.deleteFlowId!);
@@ -3001,12 +3004,14 @@ class _CalendarPageState extends State<CalendarPage>
         // ✅ FIX: Persist to database when editing existing flow
         await _persistFlowStudioResult(edited);
         finalFlowId = editFlowId;
+        notesAlreadyPersisted = true; // plannedNotes handled inside _persistFlowStudioResult
       } else {
         finalFlowId = await _saveNewFlow(f); // await save and get server ID
       }
     }
 
-    if (edited.plannedNotes.isNotEmpty) {
+    // Only handle plannedNotes here when we didn't already persist them via _persistFlowStudioResult
+    if (!notesAlreadyPersisted && edited.plannedNotes.isNotEmpty) {
       for (final p in edited.plannedNotes) {
         final n = p.note;
 
@@ -9679,7 +9684,27 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           endsAt: record.endsAtUtc,
           flowLocalId: record.flowLocalId,
         );
-      }).toList();
+      }).toList()
+        ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+
+      // Dedupe by id/cid/composite to avoid duplicate drafts
+      final seen = <String, UserEvent>{};
+      for (final e in userEvents) {
+        String key;
+        if (e.id.isNotEmpty) {
+          key = 'id:${e.id}';
+        } else if (e.clientEventId != null) {
+          key = 'cid:${e.clientEventId}';
+        } else {
+          final endKey = e.endsAt?.toIso8601String() ?? 'NO_END';
+          key = 'cmp|${e.title.trim().toLowerCase()}|${e.startsAt.toIso8601String()}|$endKey|${e.allDay}';
+        }
+        if (!seen.containsKey(key)) {
+          seen[key] = e;
+        }
+      }
+      final dedupedEvents = seen.values.toList()
+        ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
       
       if (kDebugMode) {
         print('🔍 [AI Flow Init] flowId: $flowId');
@@ -9732,7 +9757,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       
       // 7. NOW initialize AI flow selections (depends on _startDate, _endDate, _useKemetic set above)
       // Convert events to drafts and populate _draftsByDay
-      _convertEventsToDrafts(userEvents);
+      _convertEventsToDrafts(dedupedEvents);
       
       // 8. Clear and populate selection state
       _perWeekSel.clear();
@@ -9740,9 +9765,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       
       if (_hasFullRange && _draftsByDay.isNotEmpty) {
         if (_useKemetic) {
-          _populateKemeticSelections(userEvents);
+          _populateKemeticSelections(dedupedEvents);
         } else {
-          _populateGregorianSelections(userEvents);
+          _populateGregorianSelections(dedupedEvents);
         }
       }
 
@@ -11160,9 +11185,84 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
 
     try {
       final events = await _userEventsRepo.getEventsForFlow(widget.flow.id);
+
+      // Dedupe: merge entries that represent the same day/title/time even if their
+      // client_event_id differs (prevents double-rendering). Prefer rows with a DB id,
+      // then with clientEventId, else fallback.
+      String _canonKey((
+        {
+          String? id,
+          String? clientEventId,
+          String title,
+          String? detail,
+          String? location,
+          bool allDay,
+          DateTime startsAtUtc,
+          DateTime? endsAtUtc,
+          int? flowLocalId,
+        }
+      ) e) {
+        final titleKey = e.title.trim().toLowerCase();
+        final startKey = e.startsAtUtc.toIso8601String();
+        final endKey = e.endsAtUtc?.toIso8601String() ?? 'NO_END';
+        final locKey = (e.location ?? '').trim().toLowerCase();
+        final detailKey = (e.detail ?? '').trim().toLowerCase();
+        final flowKey = (e.flowLocalId ?? -1).toString();
+        return [
+          titleKey,
+          startKey,
+          endKey,
+          e.allDay ? 'allDay' : 'timed',
+          locKey,
+          detailKey,
+          flowKey,
+        ].join('|');
+      }
+
+      int _quality((
+        {
+          String? id,
+          String? clientEventId,
+          String title,
+          String? detail,
+          String? location,
+          bool allDay,
+          DateTime startsAtUtc,
+          DateTime? endsAtUtc,
+          int? flowLocalId,
+        }
+      ) e) {
+        if (e.id != null) return 3;
+        if (e.clientEventId != null) return 2;
+        return 1;
+      }
+
+      final merged = <String, ({
+        String? id,
+        String? clientEventId,
+        String title,
+        String? detail,
+        String? location,
+        bool allDay,
+        DateTime startsAtUtc,
+        DateTime? endsAtUtc,
+        int? flowLocalId,
+      })>{};
+
+      for (final e in events) {
+        final key = _canonKey(e);
+        final existing = merged[key];
+        if (existing == null || _quality(e) > _quality(existing)) {
+          merged[key] = e;
+        }
+      }
+
+      final deduped = merged.values.toList()
+        ..sort((a, b) => a.startsAtUtc.compareTo(b.startsAtUtc));
+
       if (!mounted) return;
       setState(() {
-        _events = events;
+        _events = deduped;
         _loadingEvents = false;
       });
     } catch (e) {
