@@ -3892,6 +3892,7 @@ class _CalendarPageState extends State<CalendarPage>
         start: n.start,
         end: n.end,
         flowId: n.flowId,
+        manualColor: n.manualColor,
       )).toList();
     };
 
@@ -5220,10 +5221,12 @@ class _CalendarPageState extends State<CalendarPage>
           // ✅ If it passed all guards → this is a true standalone note
           final localStart = evt.startsAtUtc.toLocal();
           final kDate = KemeticMath.fromGregorian(localStart);
+          final decoded = _decodeDetailColor(rawDetail);
+          final cleanedDetail = _cleanDetail(decoded.detail);
 
           final note = _Note(
             title: evt.title,
-            detail: _cleanDetail(rawDetail), // Use rawDetail for consistency
+            detail: cleanedDetail,
             location: evt.location,
             allDay: evt.allDay,
             start: evt.allDay
@@ -5233,7 +5236,7 @@ class _CalendarPageState extends State<CalendarPage>
                 ? null
                 : TimeOfDay.fromDateTime(evt.endsAtUtc!.toLocal()),
             flowId: -1, // Standalone notes have flowId = -1
-            manualColor: null,
+            manualColor: decoded.color,
           );
 
           final key = _kKey(kDate.kYear, kDate.kMonth, kDate.kDay);
@@ -5656,12 +5659,22 @@ class _CalendarPageState extends State<CalendarPage>
       flowId: -1,
     );
     
+    final encodedDetail = _encodeDetailWithColor(detail, color);
+    final notificationBodyLines = <String>[
+      if (location != null && location.isNotEmpty) location,
+      if (detail != null && detail.isNotEmpty) detail,
+      if (color != null)
+        'Color: ${(color.value & 0x00FFFFFF).toRadixString(16).padLeft(6, '0')}',
+    ];
+    final notificationBody =
+        notificationBodyLines.isEmpty ? null : notificationBodyLines.join('\n');
+
     // Schedule the local notification WITH PERSISTENCE
     await Notify.scheduleAlertWithPersistence(
       clientEventId: unifiedCid,
       scheduledAt: scheduledAt,
       title: title,
-      body: body,
+      body: notificationBody ?? body,
       payload: '{}',
     );
 
@@ -5676,7 +5689,7 @@ class _CalendarPageState extends State<CalendarPage>
         clientEventId: unifiedCid,
         title: title,
         startsAtUtc: scheduledAt.toUtc(),
-        detail: detail,
+        detail: encodedDetail,
         location: location,
         allDay: allDay,
         endsAtUtc: endsAtUtc,
@@ -12001,6 +12014,36 @@ String _cleanDetail(String? s) {
     t = (i >= 0 && i < t.length - 1) ? t.substring(i + 1) : '';
   }
   return t.trim();
+}
+
+/// Extract a stored manual color (encoded as `color=RRGGBB;` prefix) and return
+/// the remaining detail string without the prefix.
+({Color? color, String? detail}) _decodeDetailColor(String? raw) {
+  if (raw == null || raw.isEmpty) return (color: null, detail: null);
+
+  final prefix = RegExp(r'^color=([0-9a-fA-FxX]+);');
+  final match = prefix.firstMatch(raw);
+  if (match != null) {
+    final hex = match.group(1)!;
+    try {
+      final int rgb = hex.toLowerCase().startsWith('0x')
+          ? int.parse(hex)
+          : int.parse('0x$hex');
+      final remainder = raw.substring(match.end);
+      return (color: Color(0xFF000000 | (rgb & 0x00FFFFFF)), detail: remainder);
+    } catch (_) {
+      // fall through to raw detail if parsing fails
+    }
+  }
+  return (color: null, detail: raw);
+}
+
+String? _encodeDetailWithColor(String? detail, Color? color) {
+  if (color == null) return detail;
+  final hex = (color.value & 0x00FFFFFF).toRadixString(16).padLeft(6, '0');
+  final meta = 'color=$hex;';
+  if (detail == null || detail.isEmpty) return meta;
+  return '$meta$detail';
 }
 
 // Helper: label for repeat option
