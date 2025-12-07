@@ -1299,18 +1299,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           ),
 
           // Event blocks
-          ...hourBlocks.map((block) {
-            final minutesIntoHour = block.event.startMin % 60;
-          return Positioned(
-            left: 60 + block.leftOffset,
-            top: minutesIntoHour.toDouble(),
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque, // ✅ full-rect hit target (not just text)
-              onTap: () => _showEventDetail(block.event),
-              child: _buildEventBlock(block),
-            ),
-          );
-        }),
+          ..._buildHourBlocks(hourBlocks),
 
           // Current time indicator (only on today)
           if (_isToday() && _isCurrentHour(hour)) _buildNowLine(),
@@ -1320,6 +1309,98 @@ class _DayViewGridState extends State<DayViewGrid> {
         ],
       ),
     );
+  }
+
+  /// Build event blocks for a single hour with responsive widths and carousel when >3 overlap.
+  List<Widget> _buildHourBlocks(List<PositionedEventBlock> hourBlocks) {
+    if (hourBlocks.isEmpty) return const [];
+
+    final availableWidth = MediaQuery.of(context).size.width - 60 - 16; // left label + padding
+    const double gap = 4.0;
+    final List<Widget> widgets = [];
+
+    // Group by start minute within the hour
+    final Map<int, List<PositionedEventBlock>> groups = {};
+    for (final block in hourBlocks) {
+      final key = block.event.startMin % 60;
+      groups.putIfAbsent(key, () => []).add(block);
+    }
+
+    final sortedKeys = groups.keys.toList()..sort();
+    for (final key in sortedKeys) {
+      final blocks = groups[key]!;
+      final top = key.toDouble();
+      final count = blocks.length;
+
+      if (count <= 3) {
+        double width;
+        List<double> lefts;
+        if (count == 1) {
+          width = availableWidth * 0.8;
+          lefts = [0.0];
+        } else if (count == 2) {
+          width = (availableWidth - gap) / 2;
+          lefts = [0.0, width + gap];
+        } else {
+          width = (availableWidth - 2 * gap) / 3;
+          lefts = [0.0, width + gap, 2 * (width + gap)];
+        }
+
+        for (int i = 0; i < blocks.length; i++) {
+          final adjusted = PositionedEventBlock(
+            event: blocks[i].event,
+            leftOffset: lefts[i],
+            width: width,
+          );
+          widgets.add(
+            Positioned(
+              left: 60 + lefts[i],
+              top: top,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _showEventDetail(adjusted.event),
+                child: _buildEventBlock(adjusted),
+              ),
+            ),
+          );
+        }
+      } else {
+        // >3: horizontal carousel showing 3 at a time
+        final width = (availableWidth - 2 * gap) / 3;
+        widgets.add(
+          Positioned(
+            left: 60,
+            top: top,
+            child: SizedBox(
+              width: availableWidth,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (int i = 0; i < blocks.length; i++) ...[
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _showEventDetail(blocks[i].event),
+                        child: _buildEventBlock(
+                          PositionedEventBlock(
+                            event: blocks[i].event,
+                            leftOffset: 0,
+                            width: width,
+                          ),
+                        ),
+                      ),
+                      if (i != blocks.length - 1) SizedBox(width: gap),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    return widgets;
   }
 
   void _handleLongPressStart(int hour, Offset localPosition) {
