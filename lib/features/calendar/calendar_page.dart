@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'day_view.dart';
 import '../profile/profile_page.dart';
 import '../journal/journal_controller.dart';
+import '../journal/journal_event_badge.dart';
 import '../journal/journal_swipe_layer.dart';
 import '../../core/ui_guards.dart';
 import '../../main.dart' show routeObserver;
@@ -3426,6 +3427,9 @@ class _CalendarPageState extends State<CalendarPage>
                             await _loadFromDisk();
                           }
                         },
+                        onAppendToJournal: _journalInitialized
+                            ? (text) => _journalController.appendToToday(text)
+                            : null,
                       );
                     },
                   ),
@@ -3542,6 +3546,9 @@ class _CalendarPageState extends State<CalendarPage>
                         await _loadFromDisk();
                       }
                     },
+                    onAppendToJournal: _journalInitialized
+                        ? (text) => _journalController.appendToToday(text)
+                        : null,
                   ),
                 ),
               );
@@ -3693,6 +3700,9 @@ class _CalendarPageState extends State<CalendarPage>
               await _loadFromDisk();
             }
           },
+          onAppendToJournal: _journalInitialized
+              ? (text) => _journalController.appendToToday(text)
+              : null,
         );
       },
     );
@@ -6737,6 +6747,16 @@ class _CalendarPageState extends State<CalendarPage>
           _openDaySheet(ky, km, kd, allowDateChange: true);
         },
         onMonthChanged: _handleLandscapeMonthChanged, // ✅ ADD CALLBACK
+        onDeleteNote: (ky, km, kd, evt) => _deleteNoteByEvent(ky, km, kd, evt),
+        onEditNote: (ky, km, kd, evt) async {
+          await _editNoteByEvent(ky, km, kd, evt);
+        },
+        onShareNote: (evt) async {
+          await _shareNoteSimple(evt);
+        },
+        onAppendToJournal: _journalInitialized
+            ? (text) => _journalController.appendToToday(text)
+            : null,
       );
     }
 
@@ -9811,6 +9831,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             _loadFlowForEdit(f);
             Navigator.of(context).pop();
           },
+          onAppendToJournal: null,
           isMaatInstance: (f.notes ?? '').contains('maat='),
           onEndMaatFlow: null, // Flow Studio can't end flows (no access to _endFlow)
         ),
@@ -11461,6 +11482,7 @@ class _FlowPreviewPage extends StatefulWidget {
     required this.getDecanLabel,
     required this.fmt,
     required this.onEdit,
+    this.onAppendToJournal,
     this.onEndMaatFlow,
     this.isMaatInstance = false,
   });
@@ -11472,6 +11494,7 @@ class _FlowPreviewPage extends StatefulWidget {
   final String Function(int km, int di) getDecanLabel;
   final String Function(DateTime? g) fmt;
   final VoidCallback onEdit;
+  final Future<void> Function(String text)? onAppendToJournal;
 
   /// if provided & [isMaatInstance] true, show a gold-outline "End Flow" button.
   final VoidCallback? onEndMaatFlow;
@@ -11601,6 +11624,44 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         _eventsError = e;
         _loadingEvents = false;
       });
+    }
+  }
+
+  String _buildFlowBadgeToken() {
+    DateTime start = widget.flow.start ?? DateTime.now();
+    DateTime end = widget.flow.end ?? start.add(const Duration(hours: 1));
+    if (_events.isNotEmpty) {
+      start = _events.first.startsAtUtc.toLocal();
+      end = (_events.first.endsAtUtc ?? start.add(const Duration(hours: 1))).toLocal();
+    }
+    final id = 'badge-${DateTime.now().microsecondsSinceEpoch}';
+    return EventBadgeToken.buildToken(
+      id: id,
+      title: widget.flow.name.isEmpty ? 'Flow block' : widget.flow.name,
+      start: start,
+      end: end,
+      color: widget.flow.color,
+      description: widget.overview,
+    );
+  }
+
+  Future<void> _handleAddFlowToJournal() async {
+    final cb = widget.onAppendToJournal;
+    if (cb == null) return;
+    final token = _buildFlowBadgeToken();
+    try {
+      await cb('$token ');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Added to journal'),
+            backgroundColor: Color(0xFFFFC145),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (_) {
+      // ignore
     }
   }
 
@@ -11744,14 +11805,26 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Color(0xFFD4AF37)), // ⋮ vertical dots
             tooltip: 'Flow options',
-            onSelected: (value) {
-              if (value == 'edit') {
+            onSelected: (value) async {
+              if (value == 'journal') {
+                await _handleAddFlowToJournal();
+              } else if (value == 'edit') {
                 widget.onEdit();
               } else if (value == 'share') {
                 _openShareSheet(context, widget.flow);
               }
             },
             itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'journal',
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Color(0xFFD4AF37)),
+                    SizedBox(width: 12),
+                    Text('Done / Add to journal', style: TextStyle(color: Colors.white)),
+                  ],
+                ),
+              ),
               const PopupMenuItem(
                 value: 'edit',
                 child: Row(
@@ -12469,6 +12542,7 @@ class _FlowsViewerPage extends StatefulWidget {
     required this.openMaatFlows,
     required this.onEndFlow,
     this.onImportFlow,
+    this.onAppendToJournal,
   });
 
   final List<_Flow> flows;
@@ -12478,6 +12552,7 @@ class _FlowsViewerPage extends StatefulWidget {
   final VoidCallback openMaatFlows; // <-- NEW
   final void Function(int flowId) onEndFlow;
   final Future<void> Function(int? importedFlowId)? onImportFlow;
+  final Future<void> Function(String text)? onAppendToJournal;
 
   @override
   State<_FlowsViewerPage> createState() => _FlowsViewerPageState();
@@ -12544,6 +12619,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
                   (_MonthCard.decans[km] ?? const ['I','II','III'])[di],
                   fmt: widget.fmtGregorian,
                   onEdit: () => widget.onEditFlow(f.id),
+                  onAppendToJournal: widget.onAppendToJournal,
                   isMaatInstance: (f.notes ?? '').contains('maat='),
                   onEndMaatFlow: (f.notes ?? '').contains('maat=')
                       ? () {

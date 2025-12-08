@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart' show KemeticMath, CreateFlowFromNutrition;
 import '../sharing/share_flow_sheet.dart';
+import '../journal/journal_event_badge.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'dart:math' as math;
 import '../nutrition/nutrition_grid.dart';
@@ -44,6 +45,10 @@ class LandscapeMonthView extends StatelessWidget {
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
   final void Function(int flowId)? onEndFlow;
+  final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem evt)? onEditNote;
+  final Future<void> Function(EventItem evt)? onShareNote;
+  final Future<void> Function(String text)? onAppendToJournal;
   final CreateFlowFromNutrition? onCreateFlow;
 
   const LandscapeMonthView({
@@ -59,6 +64,10 @@ class LandscapeMonthView extends StatelessWidget {
     this.onAddNote,
     this.onMonthChanged, // ✅ NEW CALLBACK
     this.onEndFlow,
+    this.onDeleteNote,
+    this.onEditNote,
+    this.onShareNote,
+    this.onAppendToJournal,
     this.onCreateFlow,
   });
 
@@ -76,6 +85,10 @@ class LandscapeMonthView extends StatelessWidget {
       onAddNote: onAddNote,
       onMonthChanged: onMonthChanged, // ✅ PASS CALLBACK DOWN
       onEndFlow: onEndFlow,
+      onDeleteNote: onDeleteNote,
+      onEditNote: onEditNote,
+      onShareNote: onShareNote,
+      onAppendToJournal: onAppendToJournal,
       onCreateFlow: onCreateFlow,
     );
   }
@@ -98,6 +111,10 @@ class LandscapeMonthPager extends StatefulWidget {
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
   final void Function(int flowId)? onEndFlow;
+  final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem evt)? onEditNote;
+  final Future<void> Function(EventItem evt)? onShareNote;
+  final Future<void> Function(String text)? onAppendToJournal;
   final CreateFlowFromNutrition? onCreateFlow;
 
   const LandscapeMonthPager({
@@ -113,6 +130,10 @@ class LandscapeMonthPager extends StatefulWidget {
     this.onAddNote,
     this.onMonthChanged, // ✅ NEW CALLBACK
     this.onEndFlow,
+    this.onDeleteNote,
+    this.onEditNote,
+    this.onShareNote,
+    this.onAppendToJournal,
     this.onCreateFlow,
   });
 
@@ -586,6 +607,10 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           onManageFlows: widget.onManageFlows,
           onAddNote: widget.onAddNote,
           onEndFlow: widget.onEndFlow,
+          onDeleteNote: widget.onDeleteNote,
+          onEditNote: widget.onEditNote,
+          onShareNote: widget.onShareNote,
+          onAppendToJournal: widget.onAppendToJournal,
           onCreateFlow: widget.onCreateFlow,
         );
       },
@@ -609,6 +634,10 @@ class LandscapeMonthGridBody extends StatefulWidget {
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int flowId)? onEndFlow;
+  final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem evt)? onEditNote;
+  final Future<void> Function(EventItem evt)? onShareNote;
+  final Future<void> Function(String text)? onAppendToJournal;
   final CreateFlowFromNutrition? onCreateFlow;
 
   const LandscapeMonthGridBody({
@@ -623,6 +652,10 @@ class LandscapeMonthGridBody extends StatefulWidget {
     this.onManageFlows,
     this.onAddNote,
     this.onEndFlow,
+    this.onDeleteNote,
+    this.onEditNote,
+    this.onShareNote,
+    this.onAppendToJournal,
     this.onCreateFlow,
   });
 
@@ -1103,7 +1136,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     }
 
     // Convert notes to events
-    final events = <_EventItem>[];
+    final events = <EventItem>[];
     for (final note in notes) {
       final startMin = note.allDay ? 9 * 60 : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
       final endMin = note.allDay ? 17 * 60 : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
@@ -1123,7 +1156,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       }
       // 3) fallback color for plain notes (already set above)
 
-      events.add(_EventItem(
+      events.add(EventItem(
+        id: null,
         title: note.title,
         detail: note.detail,
         location: note.location,
@@ -1131,6 +1165,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         endMin: endMin,
         flowId: note.flowId,
         color: eventColor,
+        manualColor: note.manualColor,
+        allDay: note.allDay,
       ));
     }
 
@@ -1149,7 +1185,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     // Cluster events by overlap so width is only reduced when events overlap in time
     int idx = 0;
     while (idx < events.length) {
-      final cluster = <_EventItem>[];
+      final cluster = <EventItem>[];
       int clusterEnd = events[idx].endMin;
       cluster.add(events[idx]);
       int j = idx + 1;
@@ -1191,7 +1227,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             height: height,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: () => _showEventDetail(event),
+              onTap: () => _showEventDetail(event, day),
               child: Container(
                 margin: const EdgeInsets.only(right: 4, bottom: 2),
                 padding: const EdgeInsets.all(4),
@@ -1216,7 +1252,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     return widgets;
   }
 
-  Widget _buildEventBlockContent(_EventItem event, int durationMinutes) {
+  Widget _buildEventBlockContent(EventItem event, int durationMinutes) {
     final flow = widget.flowIndex[event.flowId];
     final hasFlow = flow != null;
 
@@ -1291,7 +1327,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     );
   }
 
-  void _showEventDetail(_EventItem event) {
+  void _showEventDetail(EventItem event, int day) {
     final flow = widget.flowIndex[event.flowId];
 
     showModalBottomSheet(
@@ -1301,18 +1337,17 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
-        return SingleChildScrollView( // Fix for overflow
+        return SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header row with flow badge and menu
-                if (flow != null) ...[
-                  Row(
-                    children: [
-                      // Flow name badge
+                // Header row with badges and menu
+                Row(
+                  children: [
+                    if (flow != null)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
@@ -1328,42 +1363,108 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
+                      )
+                    else if (event.detail != null && event.detail!.contains('Source:'))
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD4AF37).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.local_drink, size: 14, color: Color(0xFFD4AF37)),
+                            SizedBox(width: 4),
+                            Text(
+                              'Nutrition',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFFD4AF37),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const Spacer(),
-                      // 3-dot menu
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, color: Color(0xFFD4AF37)),
-                        tooltip: 'Event options',
-                        onSelected: (value) async {
-                          if (value == 'edit') {
-                            Navigator.pop(context);
-                            if (widget.onManageFlows != null) {
-                              widget.onManageFlows!(flow.id);
-                            }
-                          } else if (value == 'share') {
-                            Navigator.pop(context);
-                            final result = await showModalBottomSheet<bool>(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (context) => ShareFlowSheet(
-                                flowId: flow.id,
-                                flowTitle: flow.name,
+                    const Spacer(),
+                    if (flow != null && widget.onEndFlow != null)
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: _gold),
+                          foregroundColor: _gold,
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          widget.onEndFlow!(flow.id);
+                        },
+                        icon: const Icon(Icons.stop_circle),
+                        label: const Text('End Flow'),
+                      )
+                    else if (flow == null && widget.onDeleteNote != null)
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: _gold),
+                          foregroundColor: _gold,
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          widget.onDeleteNote!(widget.kYear, widget.kMonth, day, event);
+                        },
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('End Note'),
+                      ),
+                    const SizedBox(width: 8),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, color: Color(0xFFD4AF37)),
+                      tooltip: 'Event options',
+                      onSelected: (value) async {
+                        if (value == 'journal') {
+                          await _handleAddToJournal(event, day, sheetContext: context);
+                        } else if (value == 'edit' && flow != null) {
+                          Navigator.pop(context);
+                          widget.onManageFlows?.call(flow.id);
+                        } else if (value == 'share' && flow != null) {
+                          Navigator.pop(context);
+                          final result = await showModalBottomSheet<bool>(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (context) => ShareFlowSheet(
+                              flowId: flow.id,
+                              flowTitle: flow.name,
+                            ),
+                          );
+
+                          if (result == true && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Flow shared successfully!'),
+                                backgroundColor: Color(0xFFD4AF37),
+                                duration: Duration(seconds: 2),
                               ),
                             );
-                            
-                            if (result == true && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Flow shared successfully!'),
-                                  backgroundColor: Color(0xFFD4AF37),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            }
                           }
-                        },
-                        itemBuilder: (context) => [
+                        } else if (value == 'edit_note' && flow == null && widget.onEditNote != null) {
+                          Navigator.pop(context);
+                          await widget.onEditNote!(widget.kYear, widget.kMonth, day, event);
+                        } else if (value == 'share_note' && flow == null && widget.onShareNote != null) {
+                          Navigator.pop(context);
+                          await widget.onShareNote!(event);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'journal',
+                          child: Row(
+                            children: [
+                              Icon(Icons.check_circle, color: Color(0xFFD4AF37)),
+                              SizedBox(width: 12),
+                              Text('Done / Add to journal', style: TextStyle(color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                        if (flow != null)
                           const PopupMenuItem(
                             value: 'edit',
                             child: Row(
@@ -1374,6 +1475,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                               ],
                             ),
                           ),
+                        if (flow != null)
                           const PopupMenuItem(
                             value: 'share',
                             child: Row(
@@ -1384,13 +1486,34 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                               ],
                             ),
                           ),
-                        ],
-                        color: const Color(0xFF000000),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                ],
+                        if (flow == null && widget.onEditNote != null)
+                          const PopupMenuItem(
+                            value: 'edit_note',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, color: Color(0xFFD4AF37)),
+                                SizedBox(width: 12),
+                                Text('Edit Note', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        if (flow == null && widget.onShareNote != null)
+                          const PopupMenuItem(
+                            value: 'share_note',
+                            child: Row(
+                              children: [
+                                Icon(Icons.share, color: Color(0xFFD4AF37)),
+                                SizedBox(width: 12),
+                                Text('Share Note', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                      ],
+                      color: const Color(0xFF000000),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
 
                 // Event title
                 Text(
@@ -1441,38 +1564,39 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                 // Details
                 if (event.detail != null && event.detail!.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                      ),
-                      children: _buildTextSpans(event.detail!),
-                    ),
+                  Builder(
+                    builder: (context) {
+                      String displayDetail = event.detail!;
+                      if (displayDetail.startsWith('flowLocalId=')) {
+                        final semi = displayDetail.indexOf(';');
+                        if (semi > 0 && semi < displayDetail.length - 1) {
+                          displayDetail = displayDetail.substring(semi + 1).trim();
+                        } else {
+                          return const SizedBox.shrink();
+                        }
+                      }
+                      if (displayDetail.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
+                          ),
+                          children: _buildTextSpans(displayDetail),
+                        ),
+                      );
+                    },
                   ),
                 ],
 
                 const SizedBox(height: 20),
 
                 // Action buttons (matching day view style)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                    if (widget.onEndFlow != null)
-                      TextButton.icon(
-                        onPressed: () {
-                          final id = flow?.id ?? event.flowId;
-                          Navigator.pop(context);
-                          if (id != null) {
-                            widget.onEndFlow!(id);
-                          }
-                        },
-                        icon: const Icon(Icons.stop_circle, color: _landscapeGold),
-                        label: const Text(
-                          'End Flow',
-                          style: TextStyle(color: _landscapeGold),
-                        ),
-                      ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
                     TextButton.icon(
                       onPressed: widget.onManageFlows == null
                           ? null
@@ -1483,15 +1607,15 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                       icon: Icon(
                         Icons.view_timeline,
                         color: widget.onManageFlows == null
-                          ? const Color(0xFF404040)
-                          : _gold, // Gold
+                            ? const Color(0xFF404040)
+                            : _gold,
                       ),
                       label: Text(
                         'Manage Flows',
                         style: TextStyle(
                           color: widget.onManageFlows == null
-                            ? const Color(0xFF404040)
-                            : _gold, // Gold
+                              ? const Color(0xFF404040)
+                              : _gold,
                         ),
                       ),
                     ),
@@ -1499,7 +1623,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                       onPressed: () => Navigator.pop(context),
                       child: const Text(
                         'Close',
-                        style: TextStyle(color: _gold), // Gold
+                        style: TextStyle(color: _gold),
                       ),
                     ),
                   ],
@@ -1512,8 +1636,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     );
   }
 
-  Map<_EventItem, int> _assignColumns(List<_EventItem> events) {
-    final assignments = <_EventItem, int>{};
+  Map<EventItem, int> _assignColumns(List<EventItem> events) {
+    final assignments = <EventItem, int>{};
     final columnEndTimes = <int, int>{};
 
     for (final event in events) {
@@ -1542,6 +1666,49 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     if (hour < 12) return '$hour AM';
     if (hour == 12) return '12 PM';
     return '${hour - 12} PM';
+  }
+
+  String _buildBadgeToken(EventItem event, int day) {
+    final g = KemeticMath.toGregorian(widget.kYear, widget.kMonth, day);
+    final dayStart = DateTime(g.year, g.month, g.day);
+    final start = dayStart.add(Duration(minutes: event.startMin));
+    final end = dayStart.add(Duration(minutes: event.endMin));
+    final id = 'badge-${DateTime.now().microsecondsSinceEpoch}';
+    return EventBadgeToken.buildToken(
+      id: id,
+      title: event.title.isEmpty ? 'Scheduled block' : event.title,
+      start: start,
+      end: end,
+      color: event.color,
+      description: event.detail,
+    );
+  }
+
+  Future<void> _quickAddToJournal(EventItem event, int day) async {
+    final cb = widget.onAppendToJournal;
+    if (cb == null) return;
+    final token = _buildBadgeToken(event, day);
+    try {
+      await cb('$token ');
+    } catch (_) {
+      // silent catch – journaling should not block UI
+    }
+  }
+
+  Future<void> _handleAddToJournal(EventItem event, int day, {BuildContext? sheetContext}) async {
+    if (sheetContext != null) {
+      Navigator.pop(sheetContext);
+    }
+    await _quickAddToJournal(event, day);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Added to journal'),
+          backgroundColor: Color(0xFFFFC145),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   /// Detect whether a string looks like a URL, email, or phone number.
@@ -1694,30 +1861,3 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     return '${formatTime(startHour, startMinute)} – ${formatTime(endHour, endMinute)}';
   }
 }
-
-// ========================================
-// HELPER CLASSES
-// ========================================
-
-class _EventItem {
-  final String title;
-  final String? detail;
-  final String? location;
-  final int startMin;
-  final int endMin;
-  final int? flowId;
-  final Color color;
-
-  const _EventItem({
-    required this.title,
-    this.detail,
-    this.location,
-    required this.startMin,
-    required this.endMin,
-    this.flowId,
-    required this.color,
-  });
-}
-// Landscape Month View - Full month grid with INFINITE scrolling
-// Styled to match day_view.dart's beautiful detail sheets
-//
