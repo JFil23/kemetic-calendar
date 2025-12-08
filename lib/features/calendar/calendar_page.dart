@@ -5592,8 +5592,31 @@ class _CalendarPageState extends State<CalendarPage>
 
     // 3) Apply planned notes locally
     final flowId = saved?.id ?? r.savedFlow?.id ?? -1;
+    final aiGenerated =
+        oldFlowRow?.aiMetadata == null ? null : oldFlowRow!.aiMetadata?['generated'];
+    final isAIFlow = aiGenerated is bool && aiGenerated;
+
     if (r.plannedNotes.isNotEmpty) {
       final repo2 = UserEventsRepo(Supabase.instance.client);
+
+      // For AI-generated flows, wipe existing events first to avoid duplicates
+      if (isAIFlow && flowId > 0) {
+        try {
+          await repo2.deleteByFlowId(flowId);
+          if (kDebugMode) {
+            debugPrint(
+              '[persistFlowStudio] Cleared existing events for AI flow $flowId to avoid duplicates',
+            );
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint(
+              '[persistFlowStudio] Failed to clear events for AI flow $flowId: $e',
+            );
+          }
+        }
+      }
+
       for (final p in r.plannedNotes) {
         final n = p.note;
         final noteFlowId = (n.flowId ?? flowId) ?? -1;
@@ -10023,7 +10046,12 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       
       // 7. NOW initialize AI flow selections (depends on _startDate, _endDate, _useKemetic set above)
       // Convert events to drafts and populate _draftsByDay
-      _convertEventsToDrafts(dedupedEvents);
+      _convertEventsToDrafts(
+        dedupedEvents,
+        renumberAiTitles: true,
+        startDateForRenumbering: _startDate,
+        forceTimedDrafts: true,
+      );
       
       // 8. Clear and populate selection state
       _perWeekSel.clear();
@@ -10392,7 +10420,12 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
   /// Convert database events to _NoteDraft objects in _draftsByDay
   /// ✅ Handles multiple events per day correctly (Map of Lists)
-  void _convertEventsToDrafts(List<UserEvent> events) {
+  void _convertEventsToDrafts(
+    List<UserEvent> events, {
+    bool renumberAiTitles = false,
+    DateTime? startDateForRenumbering,
+    bool forceTimedDrafts = false,
+  }) {
     // Step 1: Dispose all existing drafts properly (nested loop for lists)
     for (final dayList in _draftsByDay.values) {
       for (final draft in dayList) {
@@ -10401,9 +10434,31 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     }
     _draftsByDay.clear();
     
+    final dayLabelRegex = RegExp(r'^day\s+(\d+)', caseSensitive: false);
+
     for (final event in events) {
       // Convert UTC to local
       final localStart = event.startsAt.toLocal();
+      final localEnd = event.endsAt?.toLocal();
+      final startDateOnly = _dateOnly(localStart);
+
+      // Renumber common "Day X" prefixes so the first block is always Day 1
+      String title = event.title;
+      if (renumberAiTitles && startDateForRenumbering != null) {
+        final dayOffset =
+            startDateOnly.difference(_dateOnly(startDateForRenumbering)).inDays +
+                1; // clamp below handled by regex guard
+        if (dayOffset > 0) {
+          final m = dayLabelRegex.firstMatch(title.trim());
+          if (m != null) {
+            title = title.replaceRange(
+              m.start,
+              m.end,
+              'Day $dayOffset',
+            );
+          }
+        }
+      }
       
       // Get Kemetic date
       final (:kYear, :kMonth, :kDay) = KemeticMath.fromGregorian(localStart);
@@ -10413,24 +10468,33 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       final draft = _NoteDraft();
       
       // Populate controllers
-      draft.titleCtrl.text = event.title;
+      draft.titleCtrl.text = title;
       draft.locationCtrl.text = event.location ?? '';
       draft.detailCtrl.text = event.detail ?? '';
       
       // Set times
-      draft.allDay = event.allDay;
-      if (!event.allDay) {
-        draft.start = TimeOfDay(
-          hour: localStart.hour,
-          minute: localStart.minute,
-        );
-        
-        if (event.endsAt != null) {
-          final localEnd = event.endsAt!.toLocal();
+      final hasExplicitTime =
+          (localStart.hour != 0 || localStart.minute != 0) ||
+              (localEnd != null &&
+                  (localEnd.hour != 0 || localEnd.minute != 0));
+
+      final treatAsTimed = forceTimedDrafts || (!event.allDay || hasExplicitTime);
+      draft.allDay = treatAsTimed ? false : event.allDay;
+
+      if (treatAsTimed) {
+        final startTime = (localStart.hour == 0 && localStart.minute == 0 && forceTimedDrafts)
+            ? const TimeOfDay(hour: 12, minute: 0)
+            : TimeOfDay(hour: localStart.hour, minute: localStart.minute);
+
+        draft.start = startTime;
+
+        if (localEnd != null) {
           draft.end = TimeOfDay(
             hour: localEnd.hour,
             minute: localEnd.minute,
           );
+        } else {
+          draft.end = _addMinutes(startTime, 60);
         }
       }
       

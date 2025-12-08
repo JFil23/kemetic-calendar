@@ -58,7 +58,7 @@ class EventLayoutEngine {
       // 3) fallback color for plain notes (already set above)
 
       events.add(EventItem(
-        id: note.id?.toString(),
+        id: null,
         title: note.title,
         detail: note.detail,
         location: note.location,
