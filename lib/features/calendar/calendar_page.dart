@@ -40,6 +40,7 @@ import '../reminders/reminder_service.dart';
 import '../reminders/reminder_model.dart';
 import '../../data/reminders_repo.dart';
 import '../../utils/event_cid_util.dart';
+import 'package:share_plus/share_plus.dart';
 
 
 
@@ -2637,6 +2638,94 @@ class _CalendarPageState extends State<CalendarPage>
       );
     }
   }
+
+  int? _findNoteIndexByEvent(int ky, int km, int kd, EventItem evt) {
+    final key = _kKey(ky, km, kd);
+    final list = _notes[key];
+    if (list == null) return null;
+
+    int startHour = evt.startMin ~/ 60;
+    int startMinute = evt.startMin % 60;
+    int endHour = evt.endMin ~/ 60;
+    int endMinute = evt.endMin % 60;
+
+    for (int i = 0; i < list.length; i++) {
+      final n = list[i];
+      if ((n.flowId ?? -1) != -1) continue; // only standalone notes
+      if (n.allDay != evt.allDay) continue;
+      if (!evt.allDay) {
+        if (n.start == null ||
+            n.start!.hour != startHour ||
+            n.start!.minute != startMinute) continue;
+        if (n.end != null &&
+            (n.end!.hour != endHour || n.end!.minute != endMinute)) continue;
+      }
+      final titlesMatch =
+          n.title.trim().toLowerCase() == evt.title.trim().toLowerCase();
+      final locMatch =
+          (n.location ?? '').trim().toLowerCase() == (evt.location ?? '').trim().toLowerCase();
+      final detMatch =
+          (n.detail ?? '').trim().toLowerCase() == (evt.detail ?? '').trim().toLowerCase();
+      if (titlesMatch && locMatch && detMatch) {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  void _deleteNoteByEvent(int ky, int km, int kd, EventItem evt) {
+    final idx = _findNoteIndexByEvent(ky, km, kd, evt);
+    if (idx != null) {
+      _deleteNote(ky, km, kd, idx);
+    }
+  }
+
+  Future<void> _editNoteByEvent(int ky, int km, int kd, EventItem evt) async {
+    final idx = _findNoteIndexByEvent(ky, km, kd, evt);
+    if (idx == null) return;
+    final key = _kKey(ky, km, kd);
+    final note = _notes[key]![idx];
+
+    await Future<void>.delayed(Duration.zero, () {
+      _openDaySheet(
+        ky,
+        km,
+        kd,
+        allowDateChange: false,
+        initialTitle: note.title,
+        initialLocation: note.location,
+        initialDetail: note.detail,
+        initialAllDay: note.allDay,
+        initialStartTime: note.start,
+        initialEndTime: note.end,
+        initialColor: note.manualColor,
+        editingIndex: idx,
+      );
+    });
+  }
+
+  Future<void> _shareNoteSimple(EventItem evt) async {
+    String _fmtTime(int mins) {
+      final h = mins ~/ 60;
+      final m = mins % 60;
+      final period = h >= 12 ? 'PM' : 'AM';
+      final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+      return '$hour12:${m.toString().padLeft(2, '0')} $period';
+    }
+
+    final buffer = StringBuffer();
+    buffer.writeln(evt.title);
+    buffer.writeln('${_fmtTime(evt.startMin)} – ${_fmtTime(evt.endMin)}');
+    if (evt.detail != null && evt.detail!.trim().isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln(evt.detail!.trim());
+    }
+    if (evt.location != null && evt.location!.trim().isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln('Location: ${evt.location!.trim()}');
+    }
+    await Share.share(buffer.toString().trim());
+  }
   final Map<int, int> _flowLocalIdAliases = {}; // ⬅︎ unique: alias map for serverId→localId
 
   // Flows — add/remove/toggle
@@ -3340,7 +3429,12 @@ class _CalendarPageState extends State<CalendarPage>
   // Manage Flows callback: jump straight to My Flows (or specific flow editor if id provided).
   void Function(int? flowId) _getMyFlowsCallback() {
     return (int? flowId) {
-      _openMyFlowsList(initialFlowId: flowId);
+      if (flowId != null) {
+        // Open the existing Flow editor directly when a flowId is provided.
+        _openFlowEditorDirectly(flowId);
+        return;
+      }
+      _openMyFlowsList();
     };
   }
 
@@ -3500,7 +3594,8 @@ class _CalendarPageState extends State<CalendarPage>
     _openFlowStudioSheet(
       rootBuilder: (innerCtx) {
         return _FlowStudioPage(
-          existingFlows: _flows,
+          // Force DB load for full fidelity (rules/notes) when editing.
+          existingFlows: const [],
           editFlowId: flowId,
         );
       },
@@ -3925,6 +4020,15 @@ class _CalendarPageState extends State<CalendarPage>
           getMonthName: getMonthName,
           onManageFlows: (flowId) => _getMyFlowsCallback()(flowId),
           onOpenFlowStudio: () => _getFlowStudioCallback()(null),
+          onDeleteNote: (ky, km, kd, evt) async {
+            _deleteNoteByEvent(ky, km, kd, evt);
+          },
+          onEditNote: (ky, km, kd, evt) async {
+            await _editNoteByEvent(ky, km, kd, evt);
+          },
+          onShareNote: (evt) async {
+            await _shareNoteSimple(evt);
+          },
           onAddNote: (ky, km, kd) => _openDaySheet(ky, km, kd, allowDateChange: true),
           onOpenAddNoteWithTime: (ky, km, kd, {TimeOfDay? start, TimeOfDay? end, bool allDay = false}) {
             _openDaySheet(
@@ -3997,6 +4101,11 @@ class _CalendarPageState extends State<CalendarPage>
         TimeOfDay? initialStartTime,
         TimeOfDay? initialEndTime,
         bool initialAllDay = false,
+        String? initialTitle,
+        String? initialLocation,
+        String? initialDetail,
+        Color? initialColor,
+        int? editingIndex,
       }) {
     debugPrint('');
     debugPrint('┌─────────────────────────────────────┐');
@@ -4025,9 +4134,9 @@ class _CalendarPageState extends State<CalendarPage>
     FixedExtentScrollController(initialItem: (kMonth - 1).clamp(0, 12).toInt());
     final dayCtrl = FixedExtentScrollController(initialItem: (kDay - 1));
 
-    final controllerTitle = TextEditingController();
-    final controllerLocation = TextEditingController();
-    final controllerDetail = TextEditingController();
+    final controllerTitle = TextEditingController(text: initialTitle ?? '');
+    final controllerLocation = TextEditingController(text: initialLocation ?? '');
+    final controllerDetail = TextEditingController(text: initialDetail ?? '');
 
     bool allDay = initialAllDay;
     TimeOfDay? startTime = initialStartTime ?? const TimeOfDay(hour: 12, minute: 0);
@@ -4042,7 +4151,10 @@ class _CalendarPageState extends State<CalendarPage>
     int endCount = 10;
     
     // Color state – index into _flowPalette
-    int selectedColorIndex = 0;
+    int selectedColorIndex = initialColor != null
+        ? _flowPalette.indexWhere((c) => c.value == initialColor.value)
+        : 0;
+    if (selectedColorIndex < 0) selectedColorIndex = 0;
 
     try {
       debugPrint('🚀 Attempting to show modal bottom sheet...');
@@ -4879,14 +4991,19 @@ class _CalendarPageState extends State<CalendarPage>
 
                             final bool isRepeating = repeatOption != NoteRepeatOption.never;
                             
-                            final selectedColor = _flowPalette[selectedColorIndex];
-                            
-                            try {
-                              if (!isRepeating) {
-                                // Single note
-                                await _saveSingleNoteOnly(
-                                  selYear: selYear,
-                                  selMonth: selMonth,
+                          final selectedColor = _flowPalette[selectedColorIndex];
+                          
+                          try {
+                            // If editing an existing note, remove the old one first.
+                            if (editingIndex != null) {
+                              _deleteNote(selYear, selMonth, selDay, editingIndex!);
+                            }
+
+                            if (!isRepeating) {
+                              // Single note
+                              await _saveSingleNoteOnly(
+                                selYear: selYear,
+                                selMonth: selMonth,
                                   selDay: selDay,
                                   title: t,
                                   detail: d.isEmpty ? null : d,

@@ -65,6 +65,8 @@ class EventLayoutEngine {
         endMin: endMin,
         flowId: note.flowId,
         color: eventColor,
+        manualColor: note.manualColor,
+        allDay: note.allDay,
       ));
     }
 
@@ -164,6 +166,8 @@ class EventItem {
   final int endMin;
   final int? flowId;
   final Color color;
+  final Color? manualColor;
+  final bool allDay;
 
   const EventItem({
     required this.title,
@@ -173,6 +177,8 @@ class EventItem {
     required this.endMin,
     this.flowId,
     required this.color,
+    this.manualColor,
+    required this.allDay,
   });
 
   @override
@@ -210,6 +216,9 @@ class DayViewPage extends StatefulWidget {
   final void Function(int?)? onManageFlows; // NEW: Callback to open My Flows
   final VoidCallback? onOpenFlowStudio; // NEW: dedicated Flow Studio launcher
   final void Function(int ky, int km, int kd)? onAddNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem event)? onDeleteNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem event)? onEditNote;
+  final Future<void> Function(EventItem event)? onShareNote;
   final void Function(
     int ky,
     int km,
@@ -247,6 +256,9 @@ class DayViewPage extends StatefulWidget {
     this.onManageFlows, // NEW
     this.onOpenFlowStudio, // NEW
     this.onAddNote, // 🔧 NEW
+    this.onDeleteNote,
+    this.onEditNote,
+    this.onShareNote,
     this.onOpenAddNoteWithTime,
     this.onCreateTimedEvent, // NEW
     this.onEndFlow,
@@ -475,6 +487,9 @@ class _DayViewPageState extends State<DayViewPage> {
                       onScrollChanged: _onScrollChanged,          // 🔧 NEW
                       onManageFlows: widget.onManageFlows, // NEW: Pass callback down
                       onAddNote: widget.onAddNote,
+                      onDeleteNote: widget.onDeleteNote,
+                      onEditNote: widget.onEditNote,
+                      onShareNote: widget.onShareNote,
                       onOpenAddNoteWithTime: widget.onOpenAddNoteWithTime,
                       onCreateTimedEvent: widget.onCreateTimedEvent,
                       onEndFlow: widget.onEndFlow, // Pass End Flow callback down
@@ -875,6 +890,9 @@ class DayViewGrid extends StatefulWidget {
   final void Function(double offset)? onScrollChanged; // 🔧 NEW
   final void Function(int? flowId)? onManageFlows; // NEW
   final void Function(int ky, int km, int kd)? onAddNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem event)? onDeleteNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem event)? onEditNote;
+  final Future<void> Function(EventItem event)? onShareNote;
   final void Function(
     int ky,
     int km,
@@ -909,6 +927,9 @@ class DayViewGrid extends StatefulWidget {
     this.onScrollChanged,          // 🔧 NEW
     this.onManageFlows, // NEW
     this.onAddNote, // 🔧 NEW
+    this.onDeleteNote,
+    this.onEditNote,
+    this.onShareNote,
     this.onOpenAddNoteWithTime,
     this.onCreateTimedEvent, // NEW
     this.onEndFlow,
@@ -928,6 +949,42 @@ class _DayViewGridState extends State<DayViewGrid> {
   bool _hasScrolledToInitial = false; // Added for scroll persistence
   int? _tempDragStartMin; // minutes since midnight
   int? _pressStartMin;    // start minute when long press began
+
+  Widget _buildEndFlowButton(int? flowId) {
+    final enabled = widget.onEndFlow != null && flowId != null;
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: Color(0xFFFFC145)),
+        foregroundColor: const Color(0xFFFFC145),
+      ),
+      onPressed: enabled
+          ? () {
+              Navigator.pop(context);
+              widget.onEndFlow!(flowId!);
+            }
+          : null,
+      icon: const Icon(Icons.stop_circle),
+      label: const Text('End Flow'),
+    );
+  }
+
+  Widget _buildEndNoteButton(EventItem event) {
+    final enabled = widget.onDeleteNote != null;
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: Color(0xFFFFC145)),
+        foregroundColor: const Color(0xFFFFC145),
+      ),
+      onPressed: enabled
+          ? () async {
+              Navigator.pop(context);
+              await widget.onDeleteNote!(widget.ky, widget.km, widget.kd, event);
+            }
+          : null,
+      icon: const Icon(Icons.delete_outline),
+      label: const Text('End Note'),
+    );
+  }
 
   @override
   void initState() {
@@ -1724,24 +1781,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
   }
 
-  Widget _buildEndFlowButton(int? flowId) {
-    final enabled = widget.onEndFlow != null && flowId != null;
-    return OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Color(0xFFFFC145)),
-        foregroundColor: const Color(0xFFFFC145),
-      ),
-      onPressed: enabled
-          ? () {
-              Navigator.pop(context);
-              widget.onEndFlow!(flowId!);
-            }
-          : null,
-      icon: const Icon(Icons.stop_circle),
-      label: const Text('End Flow'),
-    );
-  }
-
   Future<void> _handleAddToJournal(EventItem event, {BuildContext? sheetContext}) async {
     if (sheetContext != null) {
       Navigator.pop(sheetContext);
@@ -1840,7 +1879,10 @@ class _DayViewGridState extends State<DayViewGrid> {
                       ),
                     ),
                   const Spacer(),
-                  _buildEndFlowButton(flow?.id ?? event.flowId),
+                  if (flow != null)
+                    _buildEndFlowButton(flow.id)
+                  else if (widget.onDeleteNote != null)
+                    _buildEndNoteButton(event),
                   const SizedBox(width: 8),
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert, color: Color(0xFFD4AF37)),
@@ -1848,17 +1890,17 @@ class _DayViewGridState extends State<DayViewGrid> {
                     onSelected: (value) async {
                       if (value == 'journal') {
                         await _handleAddToJournal(event, sheetContext: context);
-                      } else if (value == 'edit' && flow != null) {
-                        Navigator.pop(context);
-                        if (widget.onManageFlows != null) {
-                          widget.onManageFlows!(flow.id);
-                        }
-                      } else if (value == 'share' && flow != null) {
-                        Navigator.pop(context);
-                        final result = await showModalBottomSheet<bool>(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
+                    } else if (value == 'edit' && flow != null) {
+                      Navigator.pop(context);
+                      if (widget.onManageFlows != null) {
+                        widget.onManageFlows!(flow.id);
+                      }
+                    } else if (value == 'share' && flow != null) {
+                      Navigator.pop(context);
+                      final result = await showModalBottomSheet<bool>(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
                           builder: (context) => ShareFlowSheet(
                             flowId: flow.id,
                             flowTitle: flow.name,
@@ -1870,15 +1912,21 @@ class _DayViewGridState extends State<DayViewGrid> {
                             const SnackBar(
                               content: Text('Flow shared successfully!'),
                               backgroundColor: Color(0xFFD4AF37),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        }
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
                       }
-                    },
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'journal',
+                    } else if (value == 'edit_note' && flow == null && widget.onEditNote != null) {
+                      Navigator.pop(context);
+                      await widget.onEditNote!(widget.ky, widget.km, widget.kd, event);
+                    } else if (value == 'share_note' && flow == null && widget.onShareNote != null) {
+                      Navigator.pop(context);
+                      await widget.onShareNote!(event);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'journal',
                         child: Row(
                           children: const [
                             Icon(Icons.check_circle, color: Color(0xFFD4AF37)),
@@ -1909,9 +1957,31 @@ class _DayViewGridState extends State<DayViewGrid> {
                             ],
                           ),
                         ),
-                    ],
-                    color: const Color(0xFF000000),
-                  ),
+                      if (flow == null && widget.onEditNote != null)
+                        const PopupMenuItem(
+                          value: 'edit_note',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, color: Color(0xFFD4AF37)),
+                              SizedBox(width: 12),
+                              Text('Edit Note', style: TextStyle(color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                      if (flow == null && widget.onShareNote != null)
+                        const PopupMenuItem(
+                          value: 'share_note',
+                          child: Row(
+                            children: [
+                              Icon(Icons.share, color: Color(0xFFD4AF37)),
+                              SizedBox(width: 12),
+                              Text('Share Note', style: TextStyle(color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                  ],
+                  color: const Color(0xFF000000),
+                ),
                 ],
               ),
               const SizedBox(height: 8),
