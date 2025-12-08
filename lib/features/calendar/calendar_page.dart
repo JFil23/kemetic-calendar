@@ -17,8 +17,6 @@ import 'dart:convert';
 import 'day_view.dart';
 import '../profile/profile_page.dart';
 import '../journal/journal_controller.dart';
-import '../journal/journal_event_badge.dart';
-import '../journal/journal_swipe_layer.dart';
 import '../../core/ui_guards.dart';
 import '../../main.dart' show routeObserver;
 import '../../data/share_repo.dart';
@@ -42,6 +40,16 @@ import '../reminders/reminder_model.dart';
 import '../../data/reminders_repo.dart';
 import '../../utils/event_cid_util.dart';
 import 'package:share_plus/share_plus.dart';
+import '../journal/journal_event_badge.dart';
+import '../journal/journal_swipe_layer.dart';
+
+typedef _QuickAddParse = ({
+  DateTime date,
+  bool allDay,
+  TimeOfDay? start,
+  TimeOfDay? end,
+  String title,
+});
 
 
 
@@ -5109,6 +5117,327 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
+  /* ───── Natural language quick add ───── */
+
+  DateTime _nextWeekday(DateTime base, int weekday) {
+    final delta = (weekday - base.weekday + 7) % 7;
+    final add = delta == 0 ? 7 : delta;
+    return DateUtils.dateOnly(base.add(Duration(days: add)));
+  }
+
+  _QuickAddParse? _parseQuickAdd(String raw) {
+    final input = raw.trim();
+    if (input.isEmpty) return null;
+
+    final now = DateTime.now();
+    DateTime date = DateUtils.dateOnly(now);
+    bool hasDate = false;
+    final lower = input.toLowerCase();
+    final removals = <String>[];
+
+    // Explicit mm/dd(/yy) or m/d
+    final mmdd = RegExp(r'(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?').firstMatch(lower);
+    if (mmdd != null) {
+      int m = int.parse(mmdd.group(1)!);
+      int d = int.parse(mmdd.group(2)!);
+      int y = mmdd.group(3) != null ? int.parse(mmdd.group(3)!) : now.year;
+      if (y < 100) y += 2000;
+      date = DateUtils.dateOnly(DateTime(y, m, d));
+      hasDate = true;
+      removals.add(mmdd.group(0)!);
+    } else {
+      // Month name
+      final months = {
+        'jan': 1, 'january': 1,
+        'feb': 2, 'february': 2,
+        'mar': 3, 'march': 3,
+        'apr': 4, 'april': 4,
+        'may': 5,
+        'jun': 6, 'june': 6,
+        'jul': 7, 'july': 7,
+        'aug': 8, 'august': 8,
+        'sep': 9, 'sept': 9, 'september': 9,
+        'oct': 10, 'october': 10,
+        'nov': 11, 'november': 11,
+        'dec': 12, 'december': 12,
+      };
+      final monthMatch = RegExp(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+(\d{1,2})(?:,\s*(\d{2,4}))?')
+          .firstMatch(lower);
+      if (monthMatch != null) {
+        final m = months[monthMatch.group(1)!]!;
+        final d = int.parse(monthMatch.group(2)!);
+        int y = monthMatch.group(3) != null ? int.parse(monthMatch.group(3)!) : now.year;
+        if (y < 100) y += 2000;
+        date = DateUtils.dateOnly(DateTime(y, m, d));
+        hasDate = true;
+        removals.add(monthMatch.group(0)!);
+      }
+    }
+
+    // Relative terms
+    if (!hasDate) {
+      if (lower.contains('today')) {
+        date = DateUtils.dateOnly(now);
+        hasDate = true;
+        removals.add('today');
+      } else if (lower.contains('tomorrow')) {
+        date = DateUtils.dateOnly(now.add(const Duration(days: 1)));
+        hasDate = true;
+        removals.add('tomorrow');
+      }
+
+      final inDays = RegExp(r'in\s+(\d+)\s+day').firstMatch(lower);
+      if (!hasDate && inDays != null) {
+        final n = int.parse(inDays.group(1)!);
+        date = DateUtils.dateOnly(now.add(Duration(days: n)));
+        hasDate = true;
+        removals.add(inDays.group(0)!);
+      }
+
+      // Weekday names
+      if (!hasDate) {
+        final weekdays = {
+          'mon': DateTime.monday,
+          'tue': DateTime.tuesday,
+          'tues': DateTime.tuesday,
+          'wed': DateTime.wednesday,
+          'thu': DateTime.thursday,
+          'thur': DateTime.thursday,
+          'thurs': DateTime.thursday,
+          'fri': DateTime.friday,
+          'sat': DateTime.saturday,
+          'sun': DateTime.sunday,
+        };
+        final wdMatch = RegExp(r'(next\s+)?(mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)')
+            .firstMatch(lower);
+        if (wdMatch != null) {
+          final wd = weekdays[wdMatch.group(2)!]!;
+          date = _nextWeekday(now, wd);
+          hasDate = true;
+          removals.add(wdMatch.group(0)!);
+        }
+      }
+    }
+
+    // If explicit date is in the past, roll to next year
+    if (hasDate && date.isBefore(DateUtils.dateOnly(now))) {
+      date = DateUtils.dateOnly(DateTime(date.year + 1, date.month, date.day));
+    }
+
+    // Time parsing
+    TimeOfDay? start;
+    TimeOfDay? end;
+    bool allDay = true;
+
+    int toHour(int h, String? ap) {
+      if (ap == null) return h;
+      final l = ap.toLowerCase();
+      if (l == 'am') {
+        return h == 12 ? 0 : h;
+      } else {
+        return h == 12 ? 12 : h + 12;
+      }
+    }
+
+    final range = RegExp(
+      r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:-|–|to)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?',
+      caseSensitive: false,
+    ).firstMatch(lower);
+    if (range != null) {
+      final h1 = int.parse(range.group(1)!);
+      final m1 = range.group(2) != null ? int.parse(range.group(2)!) : 0;
+      final ap1 = range.group(3);
+      final h2 = int.parse(range.group(4)!);
+      final m2 = range.group(5) != null ? int.parse(range.group(5)!) : 0;
+      final ap2 = range.group(6);
+      start = TimeOfDay(hour: toHour(h1, ap1), minute: m1);
+      end = TimeOfDay(hour: toHour(h2, ap2 ?? ap1), minute: m2);
+      allDay = false;
+      removals.add(range.group(0)!);
+    } else {
+      final timeMatch = RegExp(r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)?', caseSensitive: false)
+          .firstMatch(lower);
+      if (timeMatch != null) {
+        final h = int.parse(timeMatch.group(1)!);
+        final m = timeMatch.group(2) != null ? int.parse(timeMatch.group(2)!) : 0;
+        final ap = timeMatch.group(3);
+        start = TimeOfDay(hour: toHour(h, ap), minute: m);
+        end = TimeOfDay(hour: (start.hour + 1) % 24, minute: start.minute);
+        allDay = false;
+        removals.add(timeMatch.group(0)!);
+      }
+    }
+
+    final title = () {
+      var t = input;
+      for (final r in removals) {
+        t = t.replaceFirst(RegExp(RegExp.escape(r), caseSensitive: false), '');
+      }
+      t = t.replaceAll(RegExp(r'\s+'), ' ').trim();
+      return t.isEmpty ? input : t;
+    }();
+
+    return (
+      date: date,
+      allDay: allDay,
+      start: start,
+      end: end,
+      title: title,
+    );
+  }
+
+  Future<void> _openQuickAddSheet() async {
+    final textCtrl = TextEditingController();
+    String? error;
+    final focusNode = FocusNode();
+    bool requestedFocus = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: SafeArea(
+            top: false,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: 120,
+                      maxHeight: constraints.maxHeight,
+                    ),
+                    child: StatefulBuilder(
+                      builder: (context, setSheetState) {
+                        // Request focus after layout/keyboard settle
+                        if (!requestedFocus) {
+                          requestedFocus = true;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            focusNode.requestFocus();
+                          });
+                        }
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Quick add (natural language)',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: textCtrl,
+                              autofocus: false, // defer focus to post-frame to avoid jump
+                              focusNode: focusNode,
+                              style: const TextStyle(color: Colors.white),
+                              decoration: InputDecoration(
+                                hintText: 'e.g., “Fri 3pm-4pm coffee with Amara”',
+                                hintStyle: const TextStyle(color: Colors.white54),
+                                filled: true,
+                                fillColor: const Color(0xFF111111),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: Colors.white24),
+                                ),
+                              ),
+                              minLines: 1,
+                              maxLines: 3,
+                            ),
+                            if (error != null) ...[
+                              const SizedBox(height: 8),
+                              Text(error!, style: const TextStyle(color: Colors.redAccent)),
+                            ],
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFD4AF37),
+                                      foregroundColor: Colors.black,
+                                    ),
+                                    onPressed: () async {
+                                      final parsed = _parseQuickAdd(textCtrl.text);
+                                      if (parsed == null) {
+                                        setSheetState(() {
+                                          error = 'Please enter a description.';
+                                        });
+                                        return;
+                                      }
+                                      final k = KemeticMath.fromGregorian(parsed.date);
+                                      await _saveSingleNoteOnly(
+                                        selYear: k.kYear,
+                                        selMonth: k.kMonth,
+                                        selDay: k.kDay,
+                                        title: parsed.title,
+                                        detail: null,
+                                        location: null,
+                                        allDay: parsed.allDay,
+                                        startTime: parsed.allDay ? null : parsed.start,
+                                        endTime: parsed.allDay ? null : parsed.end,
+                                        color: null,
+                                      );
+                                      if (mounted) {
+                                        Navigator.pop(context);
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Added "${parsed.title}"'),
+                                            backgroundColor: const Color(0xFF1E1E1E),
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    child: const Text('Quick add'),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    _openDaySheet(
+                                      _today.kYear,
+                                      _today.kMonth,
+                                      _today.kDay,
+                                      allowDateChange: true,
+                                    );
+                                  },
+                                  child: const Text(
+                                    'Open full editor',
+                                    style: TextStyle(color: Color(0xFFD4AF37)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+    focusNode.dispose();
+  }
+
 
   /* ───── UI ───── */
   bool _initOnce = false;
@@ -6808,12 +7137,7 @@ class _CalendarPageState extends State<CalendarPage>
           IconButton(
             tooltip: 'New note',
             icon: const _GlossyIcon(Icons.add, gradient: goldGloss),
-            onPressed: () => _openDaySheet(
-              kToday.kYear,
-              kToday.kMonth,
-              kToday.kDay,
-              allowDateChange: true,
-            ),
+            onPressed: _openQuickAddSheet,
           ),
           // My Profile button
           IconButton(
