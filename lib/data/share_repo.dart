@@ -133,6 +133,82 @@ class ShareRepo {
     }
   }
 
+  /// Share an event (user_events) with recipients
+  Future<List<ShareResult>> shareEvent({
+    required String eventId,
+    required List<ShareRecipient> recipients,
+    Map<String, dynamic>? payloadJson,
+  }) async {
+    if (kDebugMode) {
+      print('[ShareRepo] shareEvent: eventId=$eventId recipients=${recipients.length}');
+    }
+
+    try {
+      final response = await _client.functions.invoke(
+        'create_event_share',
+        body: {
+          'event_id': eventId,
+          'recipients': recipients.map((r) => r.toJson()).toList(),
+          if (payloadJson != null) 'payload_json': payloadJson,
+        },
+      );
+
+      if (kDebugMode) {
+        print('[ShareRepo] create_event_share status=${response.status}');
+        print('[ShareRepo] create_event_share body=${response.data}');
+      }
+
+      if (response.status >= 400) {
+        return [
+          ShareResult(
+            status: null,
+            error: 'HTTP ${response.status}',
+          ),
+        ];
+      }
+
+      if (response.data == null) {
+        return [
+          ShareResult(
+            status: null,
+            error: 'Edge Function returned null response',
+          ),
+        ];
+      }
+
+      final Map<String, dynamic> body = response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : (jsonDecode(response.data as String) as Map<String, dynamic>);
+
+      final sharesList = (body['shares'] as List<dynamic>? ?? [])
+          .cast<Map<String, dynamic>>();
+
+      final results = <ShareResult>[];
+      for (final row in sharesList) {
+        results.add(ShareResult.fromJson(row));
+      }
+
+      final errorsList = (body['errors'] as List<dynamic>? ?? [])
+          .cast<Map<String, dynamic>>();
+
+      for (final err in errorsList) {
+        results.add(ShareResult(
+          status: null,
+          error: err['error'] as String? ?? 'Unknown error',
+          shareId: null,
+        ));
+      }
+
+      return results;
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[ShareRepo] Error sharing event: $e');
+        debugPrint('$st');
+      }
+      rethrow;
+    }
+  }
+
   /// Resolve a share link and get flow details for preview
   Future<Map<String, dynamic>> resolveShare({
     required String shareId,
@@ -426,4 +502,3 @@ class ShareRepo {
         });
   }
 }
-

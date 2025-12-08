@@ -58,6 +58,7 @@ class EventLayoutEngine {
       // 3) fallback color for plain notes (already set above)
 
       events.add(EventItem(
+        id: note.id?.toString(),
         title: note.title,
         detail: note.detail,
         location: note.location,
@@ -159,6 +160,7 @@ class FlowData {
 }
 
 class EventItem {
+  final String? id;
   final String title;
   final String? detail;
   final String? location;
@@ -170,6 +172,7 @@ class EventItem {
   final bool allDay;
 
   const EventItem({
+    this.id,
     required this.title,
     this.detail,
     this.location,

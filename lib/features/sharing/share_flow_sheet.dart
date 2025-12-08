@@ -10,13 +10,17 @@ import '../inbox/inbox_conversation_page.dart';
 import '../inbox/conversation_user.dart';
 
 class ShareFlowSheet extends StatefulWidget {
-  final int flowId;
+  final int? flowId;
   final String flowTitle;
+  final String? noteShareText; // When present, share a note instead of a flow
+  final String? eventId; // When present, call create_event_share
 
   const ShareFlowSheet({
     Key? key,
     required this.flowId,
     required this.flowTitle,
+    this.noteShareText,
+    this.eventId,
   }) : super(key: key);
 
   @override
@@ -36,6 +40,9 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
   bool _searching = false;
   bool _sending = false;
   Timer? _searchDebounce;
+
+  bool get _isNoteMode => widget.flowId == null && widget.noteShareText != null;
+  bool get _isEventShare => widget.eventId != null;
 
   @override
   void dispose() {
@@ -67,9 +74,9 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Share Flow',
-                        style: TextStyle(
+                      Text(
+                        _isNoteMode ? 'Share Note' : 'Share Flow',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -88,7 +95,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: _recipients.isEmpty || _sending ? null : _sendShares,
+                  onPressed: (_recipients.isEmpty && !_isNoteMode) || _sending ? null : _sendShares,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD4AF37),
                     foregroundColor: Colors.black,
@@ -433,7 +440,47 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
   Future<void> _sendShares() async {
     debugPrint('[ShareFlowSheet] _sendShares() called');
     debugPrint('[ShareFlowSheet] Recipients: ${_recipients.length}');
-    
+
+    if (_isNoteMode) {
+      final text = widget.noteShareText?.trim() ?? '';
+      if (text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nothing to share'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      if (_isEventShare) {
+        if (_recipients.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please add at least one recipient'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        setState(() => _sending = true);
+        final results = await _repo.shareEvent(
+          eventId: widget.eventId!,
+          recipients: _recipients,
+          payloadJson: null,
+        );
+        _sending = false;
+        final fail = results.where((r) => r.error != null || r.status == null).length;
+        if (mounted) {
+          Navigator.pop(context, fail == 0);
+        }
+        return;
+      } else {
+        await Share.share(text);
+        if (mounted) Navigator.pop(context, true);
+        return;
+      }
+    }
+
     if (_recipients.isEmpty) {
       debugPrint('[ShareFlowSheet] No recipients, returning');
       return;
@@ -445,7 +492,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     try {
       debugPrint('[ShareFlowSheet] Calling shareFlow...');
       final results = await _repo.shareFlow(
-        flowId: widget.flowId,
+        flowId: widget.flowId!,
         recipients: _recipients,
         suggestedSchedule: null,  // No schedule suggestion - Ma'at flows have their own
       );
@@ -581,8 +628,6 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     }
   }
 }
-
-
 
 
 

@@ -2724,7 +2724,19 @@ class _CalendarPageState extends State<CalendarPage>
       buffer.writeln();
       buffer.writeln('Location: ${evt.location!.trim()}');
     }
-    await Share.share(buffer.toString().trim());
+
+    // Open the same sharing UI as flows, but in note mode.
+    await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ShareFlowSheet(
+        flowId: null,
+        flowTitle: evt.title,
+        noteShareText: buffer.toString().trim(),
+        eventId: evt.id,
+      ),
+    );
   }
   final Map<int, int> _flowLocalIdAliases = {}; // ⬅︎ unique: alias map for serverId→localId
 
