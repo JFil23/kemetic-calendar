@@ -5290,7 +5290,9 @@ class _CalendarPageState extends State<CalendarPage>
     final textCtrl = TextEditingController();
     String? error;
     final focusNode = FocusNode();
-    bool requestedFocus = false;
+    final fieldKey = GlobalKey();
+    final scrollCtrl = ScrollController();
+    bool scheduledFocus = false;
 
     await showModalBottomSheet(
       context: context,
@@ -5301,132 +5303,131 @@ class _CalendarPageState extends State<CalendarPage>
       ),
       builder: (ctx) {
         return AnimatedPadding(
-          duration: const Duration(milliseconds: 180),
+          duration: const Duration(milliseconds: 150),
           curve: Curves.easeOut,
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          ),
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: SafeArea(
             top: false,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
+            child: StatefulBuilder(
+              builder: (context, setSheetState) {
+                // Request focus and ensure visibility once after layout/keyboard settle
+                if (!scheduledFocus) {
+                  scheduledFocus = true;
+                  WidgetsBinding.instance.addPostFrameCallback((_) async {
+                    focusNode.requestFocus();
+                    await Future.delayed(const Duration(milliseconds: 50));
+                    if (fieldKey.currentContext != null) {
+                      Scrollable.ensureVisible(
+                        fieldKey.currentContext!,
+                        alignment: 0.1,
+                        duration: const Duration(milliseconds: 150),
+                        curve: Curves.easeOut,
+                      );
+                    }
+                  });
+                }
+
                 return SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
+                  controller: scrollCtrl,
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: 120,
-                      maxHeight: constraints.maxHeight,
-                    ),
-                    child: StatefulBuilder(
-                      builder: (context, setSheetState) {
-                        // Request focus after layout/keyboard settle
-                        if (!requestedFocus) {
-                          requestedFocus = true;
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            focusNode.requestFocus();
-                          });
-                        }
-                        return Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Quick add (natural language)',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Quick add (natural language)',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        key: fieldKey,
+                        controller: textCtrl,
+                        autofocus: false,
+                        focusNode: focusNode,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'e.g., “Fri 3pm-4pm coffee with Amara”',
+                          hintStyle: const TextStyle(color: Colors.white54),
+                          filled: true,
+                          fillColor: const Color(0xFF111111),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.white24),
+                          ),
+                        ),
+                        minLines: 1,
+                        maxLines: 3,
+                      ),
+                      if (error != null) ...[
+                        const SizedBox(height: 8),
+                        Text(error!, style: const TextStyle(color: Colors.redAccent)),
+                      ],
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD4AF37),
+                                foregroundColor: Colors.black,
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: textCtrl,
-                              autofocus: false, // defer focus to post-frame to avoid jump
-                              focusNode: focusNode,
-                              style: const TextStyle(color: Colors.white),
-                              decoration: InputDecoration(
-                                hintText: 'e.g., “Fri 3pm-4pm coffee with Amara”',
-                                hintStyle: const TextStyle(color: Colors.white54),
-                                filled: true,
-                                fillColor: const Color(0xFF111111),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: const BorderSide(color: Colors.white24),
-                                ),
-                              ),
-                              minLines: 1,
-                              maxLines: 3,
-                            ),
-                            if (error != null) ...[
-                              const SizedBox(height: 8),
-                              Text(error!, style: const TextStyle(color: Colors.redAccent)),
-                            ],
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFD4AF37),
-                                      foregroundColor: Colors.black,
+                              onPressed: () async {
+                                final parsed = _parseQuickAdd(textCtrl.text);
+                                if (parsed == null) {
+                                  setSheetState(() {
+                                    error = 'Please enter a description.';
+                                  });
+                                  return;
+                                }
+                                final k = KemeticMath.fromGregorian(parsed.date);
+                                await _saveSingleNoteOnly(
+                                  selYear: k.kYear,
+                                  selMonth: k.kMonth,
+                                  selDay: k.kDay,
+                                  title: parsed.title,
+                                  detail: null,
+                                  location: null,
+                                  allDay: parsed.allDay,
+                                  startTime: parsed.allDay ? null : parsed.start,
+                                  endTime: parsed.allDay ? null : parsed.end,
+                                  color: null,
+                                );
+                                if (mounted) {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Added "${parsed.title}"'),
+                                      backgroundColor: const Color(0xFF1E1E1E),
                                     ),
-                                    onPressed: () async {
-                                      final parsed = _parseQuickAdd(textCtrl.text);
-                                      if (parsed == null) {
-                                        setSheetState(() {
-                                          error = 'Please enter a description.';
-                                        });
-                                        return;
-                                      }
-                                      final k = KemeticMath.fromGregorian(parsed.date);
-                                      await _saveSingleNoteOnly(
-                                        selYear: k.kYear,
-                                        selMonth: k.kMonth,
-                                        selDay: k.kDay,
-                                        title: parsed.title,
-                                        detail: null,
-                                        location: null,
-                                        allDay: parsed.allDay,
-                                        startTime: parsed.allDay ? null : parsed.start,
-                                        endTime: parsed.allDay ? null : parsed.end,
-                                        color: null,
-                                      );
-                                      if (mounted) {
-                                        Navigator.pop(context);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Added "${parsed.title}"'),
-                                            backgroundColor: const Color(0xFF1E1E1E),
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    child: const Text('Quick add'),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.pop(context);
-                                    _openDaySheet(
-                                      _today.kYear,
-                                      _today.kMonth,
-                                      _today.kDay,
-                                      allowDateChange: true,
-                                    );
-                                  },
-                                  child: const Text(
-                                    'Open full editor',
-                                    style: TextStyle(color: Color(0xFFD4AF37)),
-                                  ),
-                                ),
-                              ],
+                                  );
+                                }
+                              },
+                              child: const Text('Quick add'),
                             ),
-                          ],
-                        );
-                      },
-                    ),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _openDaySheet(
+                                _today.kYear,
+                                _today.kMonth,
+                                _today.kDay,
+                                allowDateChange: true,
+                              );
+                            },
+                            child: const Text(
+                              'Open full editor',
+                              style: TextStyle(color: Color(0xFFD4AF37)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 );
               },
@@ -5748,6 +5749,9 @@ class _CalendarPageState extends State<CalendarPage>
 
     print('=== _loadFromDisk END ===');
   }
+
+  /// Allows other screens (e.g., Settings) to trigger a fresh sync of flows/notes.
+  Future<void> reloadFromOutside() => _loadFromDisk();
 
   static Map<String, dynamic> ruleToJson(FlowRule r) {
     if (r is _RuleWeek) {

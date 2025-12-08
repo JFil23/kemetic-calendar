@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../calendar/calendar_page.dart';
+import 'us_holiday_seeder.dart';
+
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -13,6 +16,8 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _catchUpReminders = true;
   bool _endOfDaySummary = true;
   bool _missedOnOpen = true;
+  bool _usHolidaysEnabled = false;
+  bool _seedingHolidays = false;
   bool _loading = true;
 
   @override
@@ -28,6 +33,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _catchUpReminders = prefs.getBool('settings:catchUpReminders') ?? true;
       _endOfDaySummary = prefs.getBool('settings:endOfDaySummary') ?? true;
       _missedOnOpen = prefs.getBool('settings:missedOnOpen') ?? true;
+      _usHolidaysEnabled = prefs.getBool('settings:usHolidaysEnabled') ?? false;
       _loading = false;
     });
   }
@@ -38,6 +44,69 @@ class _SettingsPageState extends State<SettingsPage> {
     await prefs.setBool('settings:catchUpReminders', _catchUpReminders);
     await prefs.setBool('settings:endOfDaySummary', _endOfDaySummary);
     await prefs.setBool('settings:missedOnOpen', _missedOnOpen);
+    await prefs.setBool('settings:usHolidaysEnabled', _usHolidaysEnabled);
+  }
+
+  Future<void> _toggleUsHolidays(bool enabled) async {
+    final previous = _usHolidaysEnabled;
+
+    setState(() {
+      _usHolidaysEnabled = enabled;
+      _seedingHolidays = true;
+    });
+    await _save();
+
+    try {
+      final calendarState = CalendarPage.globalKey.currentState;
+      if (enabled) {
+        final added = await UsHolidaySeeder.seed(years: 2);
+        if (calendarState != null) {
+          await calendarState.reloadFromOutside();
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Loaded $added US holidays'),
+              backgroundColor: Colors.green.shade700,
+            ),
+          );
+        }
+      } else {
+        await UsHolidaySeeder.clear();
+        if (calendarState != null) {
+          await calendarState.reloadFromOutside();
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Removed US holiday notes'),
+              backgroundColor: Colors.green.shade700,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _usHolidaysEnabled = previous;
+        });
+        await _save();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e is StateError ? e.message : 'Could not update holidays: $e',
+            ),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _seedingHolidays = false;
+        });
+      }
+    }
   }
 
   Widget _sectionTitle(String text) => Padding(
@@ -128,6 +197,30 @@ class _SettingsPageState extends State<SettingsPage> {
                 setState(() => _catchUpReminders = v);
                 _save();
               },
+            ),
+            const SizedBox(height: 12),
+            _sectionTitle('Calendar'),
+            SwitchListTile(
+              activeColor: const Color(0xFFD4AF37),
+              title: const Text('US holidays'),
+              subtitle: Text(
+                _seedingHolidays
+                    ? 'Applying holiday notes...'
+                    : 'Auto-add standard US holidays as notes.',
+                style: const TextStyle(color: Colors.white60),
+              ),
+              value: _usHolidaysEnabled,
+              onChanged: _seedingHolidays ? null : (v) => _toggleUsHolidays(v),
+              secondary: _seedingHolidays
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFFD4AF37),
+                      ),
+                    )
+                  : null,
             ),
             const SizedBox(height: 16),
             const Divider(color: Color(0xFF222222)),
