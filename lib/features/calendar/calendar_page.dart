@@ -1041,6 +1041,69 @@ const List<_MaatFlowTemplate> kMaatFlowTemplates = [
   ),
 ];
 
+/// Medu Neter category.
+const List<_MaatFlowTemplate> kMaatFlowTemplatesMeduNeter = [
+  _MaatFlowTemplate(
+    key: 'haw-ten-layers',
+    title: 'ḥꜣw Series: Ten Layers of Time\'s Presence',
+    overview:
+        'A 10-day exploration of ḥꜣw—a Kemetic word that holds meanings of moment, lifetime, environment, and belongings. Each day pairs scholarship with a reflection practice.',
+    color: Color(0xFF6AD19B), // greenish accent
+    days: [
+      _MaatFlowDay(
+        title: 'Day 1 — The Kemetic Quantum: One Word, Many Worlds',
+        detail:
+            'Kemetic scribes worked in a worldview where language didn’t aim for a single, fixed definition. Instead, words carried layers. One root could express time, place, state, and relationship—because the world itself was understood as woven, not separate.\n\nThis is the quantum of ancient thought: that one symbol could radiate several truths at once. A falcon could mean sight, protection, kingship, horizon. A single hieroglyph could lean toward the Netjeru—the diverse expressions of divine order—or toward the rhythms of daily life.\n\nThe word ḥꜣw, written with the twisted-wick ḥ-sign, the vulture ꜣ, and the quail chick w, appears in inscriptions to mark a moment, a reign, a neighborhood, a circumstance. One word, many domains.\n\nPractice:\nChoose an everyday object—a cup, a door, a shadow—and write three meanings it could hold at once. Let your mind expand when you stop forcing one truth.',
+      ),
+      _MaatFlowDay(
+        title: 'Day 2 — Djehuty: He Who Reckons Time',
+        detail:
+            'Among the Netjeru, Djehuty embodies measurement, writing, calculation, and renewal. Scribes invoked him as He Who Reckons Time, the one who keeps cycles aligned with the moon’s rhythm and the solar year.\n\nIn tombs such as Senenmut’s at Deir el-Bahri, astronomical ceilings show decans, lunar phases, and star tables—all realms where Djehuty’s influence was felt. He was not a distant figure but a principle of intelligent order, the inner mathematics of the cosmos.\n\nTo the scribes, timing was never merely mechanical—when you acted shaped what you became. Djehuty’s presence reminded them that a single skill could serve many roles: writing as creation, healing, connection, and harmonizing with Ma’at.\n\nPractice:\nName one talent you have. List three ways it functions in your life. Reflect on how one ability can carry many identities.',
+      ),
+      _MaatFlowDay(
+        title: 'Day 3 — Time Worn as Masks: Deities of the Calendar',
+        detail:
+            'In Kemet, time moved through divine rhythms. Each month carried the name of a festival, many dedicated to the Netjeru: the Month of Tekh (associated with Djehuty), the Month of Pa-en-Ipet (linked to Opet rites), and others.\n\nTemple calendars at Dendera and Edfu inscribed these cycles, making the year a procession of sacred qualities. A month wasn’t an empty box of days—it was an invitation. Time itself wore masks, each guiding mood, labor, and ritual.\n\nRoyal records in Urkunden IV often date events by these months, embedding history within sacred rhythm.\n\nPractice:\nName your next seven days after qualities or Netjeru aspects. Journal how each name influences the way you meet your day.',
+      ),
+      _MaatFlowDay(
+        title: 'Day 4 — ḥꜣw as Moment: The Instant That Anchors Events',
+        detail:
+            'One of the oldest meanings of ḥꜣw is the simple, potent “at the time of.” In inscriptions such as Urk. IV 969 and Cairo 20061, phrases like m-ḥꜣw mark the moment an event unfolds, or describe a reigning king as imi-ḥꜣw.f—“the one who is in his (appointed) time.”\n\nA moment in Kemet was not a neutral tick of a clock—it was a placement, a charged intersection of action and cosmic rhythm.\n\nPractice:\nPause once today and journal: What is the quality of this moment? What small action honors it?\n\nAttested Text (Urkunden IV 969 — Royal Annals):\nTransliteration:\nm-ḥꜣw nsw-bity ḫpr-kꜣ-Rꜥ …\nEnglish:\n“At the time of the King of Upper and Lower Egypt, Kheper-ka-Ra…”\nContext: Used to date events by the reigning king’s moment in time.\n\nAttested Text (Cairo CG 20061 — Royal Stela):\nTransliteration:\n… imi-ḥꜣw.f …\nEnglish:\n“… he who is in his (appointed) time.”\nContext: A title describing the king’s rightful presence within his destined moment.',
+      ),
+      _MaatFlowDay(
+        title: 'Day 5 — ḥꜣw as Lifetime: The Arc of a Life',
+        detail:
+            'In texts like British Museum Papyrus BM 614, ḥꜣw refers to a lifetime—the full span of a person’s earthly journey. In royal inscriptions, it can mark the reign of a ruler, weaving personal epochs into cosmic cycles.\n\nLife was a bend in the Nile: carrying what came before, nourishing the present, flowing into what comes after.\n\nPractice:\nJournal your life as a river. Mark three major bends—turns that shaped who you are now.\n\nAttested Text (BM Papyrus 614, line 14 — Funerary Papyrus):\nTransliteration:\n… ḥꜣw n ḥm.t nṯr …\nEnglish:\n“… the lifetime of the divine woman …”\nContext: Refers to the full span of a woman’s earthly life.',
+      ),
+      _MaatFlowDay(
+        title: 'Day 6 — ḥꜣw as Presence: Being in One’s Time',
+        detail:
+            'When ḥꜣw appears in duty rosters and autobiographies, it often means being in the right moment—present, aligned, in one’s ḥꜣw. Priests in Siut inscriptions are described this way: awake to their role, standing in the moment meant for them.\n\nPresence, in this view, is a sacred alignment—a way of tuning oneself to Ma’at.\n\nPractice:\nSit for one minute and journal what you notice when you give full attention to a single sense.\n\nAttested Text (Siut Tomb Inscriptions — Priest Duty Roster):\nTransliteration:\nḥm-kꜣ ḥr imi-ḥꜣw.f m pr-ḫrw …\nEnglish:\n“The ka-servant who is in his time in the offering-house…”\nContext: A priest performing his ritual duties in the correct, appointed moment.',
+      ),
+      _MaatFlowDay(
+        title: 'Day 7 — ḥꜣw as Neighborhood: The Near Circle',
+        detail:
+            'ḥꜣw also describes the neighborhood—the lived surroundings shaping one’s relationships. Egyptians saw community as an extension of self; proximity formed obligation and meaning.\n\nIn the Peasant’s Tale, ḥꜣw appears in disputes over possessions and local ties. In geographic inscriptions, it marks vicinity or nearness.\n\nPractice:\nJournal the names of three people whose presence shapes your daily world. Reflect on what each brings into your “near circle.”\n\nAttested Text (Hammamat 114,8 — Expedition Inscription):\nTransliteration:\nwḏ mdw m-ḥꜣw-ḥr st …\nEnglish:\n“… issuing the order in front of the place …”\nContext: Uses the ḥꜣw-root to mark spatial relation (in front of / before).\n\nAttested Text (Lesko 98,21 — Ritual / Divine Movement):\nTransliteration:\njr nṯr pn m ḥꜣw.f …\nEnglish:\n“When this god is in his vicinity …”\nContext: Uses ḥꜣw to describe nearness or presence within one’s spatial circle.',
+      ),
+      _MaatFlowDay(
+        title: 'Day 8 — ḥꜣw as Environment: The World That Holds You',
+        detail:
+            'From “neighborhood,” ḥꜣw naturally expands into environment—the broader setting in which a life unfolds. Egyptians mapped closeness, distance, and relation with subtlety, expressing nearness through this same root.\n\nEarthly environments mirrored cosmic ones; landscapes were reflections of order.\n\nPractice:\nLook around your current environment. Journal one detail that feels symbolic of your inner state.\n\nAttested Text (Urkunden IV 584 — Geographic Description):\nTransliteration:\nr-ḥꜣw …\nEnglish:\n“near.”\nContext: Used to describe the area near a landmark or spatial feature.',
+      ),
+      _MaatFlowDay(
+        title: 'Day 9 — ḥꜣw as Belongings: The Objects That Travel With You',
+        detail:
+            'In the Eloquent Peasant, ḥꜣw describes belongings—the items that accompany a person’s identity, responsibilities, and fate. What one carries is part of one’s story.\n\nEgyptian texts often treat personal goods as extensions of the ka, the vital essence that travels with and through a person.\n\nPractice:\nChoose one object you keep close. Journal what story it holds for you.\n\nAttested Text (Eloquent Peasant B1,105 — Narrative Tale):\nTransliteration:\nẖr ḥꜣw.i r ḫrp.k …\nEnglish:\n“As for my belongings, they are under your authority…”\nContext: The peasant appeals for the protection of his property.\n\nAttested Text (Eloquent Peasant B1,135 — Narrative Tale):\nTransliteration:\njr wnn ḥꜣw pn …\nEnglish:\n“If this circumstance exists…”\nContext: Part of a logical argument describing conditions in a legal plea.',
+      ),
+      _MaatFlowDay(
+        title: 'Day 10 — ḥꜣw as Affairs: The Interwoven Dance of Life Events',
+        detail:
+            'Finally, ḥꜣw appears as affairs, circumstances, matters—the web of unfolding situations in which one acts. Egyptians saw events as connected threads rather than isolated points.\n\nYour affairs, like your moments and belongings, are part of the weave of your life.\n\nPractice:\nReview your journal from this series. Identify one situation in your life where time, place, people, and objects all intersect. Write what wisdom appears when you see the whole pattern.\n\nAttested Text (Eloquent Peasant B1,262 — Narrative Tale):\nTransliteration:\njw ḥꜣw pn nfr n jryt …\nEnglish:\n“This affair is good to be done…”\nContext: Used to judge the goodness or propriety of an action within a larger situation.',
+      ),
+    ],
+  ),
+];
+
 /* ─────────────────────────── CALENDAR PAGE (flows + notes) ─────────────────────────── */
 
 GlobalKey keyForMonth(int ky, int km) => GlobalObjectKey('y${ky}m${km}');
@@ -12126,6 +12189,10 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: _gold,
                 side: const BorderSide(color: _gold, width: 1.2),
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                minimumSize: const Size(0, 35),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
               ),
               onPressed: widget.onEndMaatFlow,
               child: const Text('End Flow'),
@@ -13232,6 +13299,8 @@ class _MaatCategoriesPage extends StatelessWidget {
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => _MaatFlowsListPage(
+                    title: 'Kemetic Culture & History',
+                    templates: kMaatFlowTemplates,
                     hasActiveForKey: hasActiveForKey,
                     onPickTemplate: onPickTemplate,
                     onCreateNew: onCreateNew,
@@ -13247,6 +13316,28 @@ class _MaatCategoriesPage extends StatelessWidget {
             ),
             child: const Text('Kemetic Culture & History'),
           ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => _MaatFlowsListPage(
+                    title: 'Medu Neter',
+                    templates: kMaatFlowTemplatesMeduNeter,
+                    hasActiveForKey: hasActiveForKey,
+                    onPickTemplate: onPickTemplate,
+                    onCreateNew: onCreateNew,
+                  ),
+                ),
+              );
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              alignment: Alignment.centerLeft,
+            ),
+            child: const Text('Medu Neter'),
+          ),
           const Divider(height: 12, color: Colors.white10),
         ],
       ),
@@ -13261,12 +13352,16 @@ class _MaatFlowsListPage extends StatelessWidget {
     required this.hasActiveForKey,
     required this.onPickTemplate,
     required this.onCreateNew,
+    required this.title,
+    required this.templates,
     super.key,
   });
 
   final bool Function(String key) hasActiveForKey;
   final void Function(_MaatFlowTemplate tpl) onPickTemplate;
   final VoidCallback onCreateNew;
+  final String title;
+  final List<_MaatFlowTemplate> templates;
 
   @override
   Widget build(BuildContext context) {
@@ -13275,7 +13370,7 @@ class _MaatFlowsListPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0.5,
-        title: const Text("Kemetic Culture & History", style: TextStyle(color: Colors.white)),
+        title: Text(title, style: const TextStyle(color: Colors.white)),
         actions: [
           IconButton(
             tooltip: 'New flow',
@@ -13286,10 +13381,10 @@ class _MaatFlowsListPage extends StatelessWidget {
       ),
       body: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        itemCount: kMaatFlowTemplates.length,
+        itemCount: templates.length,
         separatorBuilder: (_, __) => const Divider(height: 12, color: Colors.white10),
         itemBuilder: (ctx, i) {
-          final t = kMaatFlowTemplates[i];
+          final t = templates[i];
           final added = hasActiveForKey(t.key);
           return ListTile(
             onTap: () => onPickTemplate(t),

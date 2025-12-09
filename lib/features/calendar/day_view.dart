@@ -953,13 +953,22 @@ class _DayViewGridState extends State<DayViewGrid> {
   int? _tempDragStartMin; // minutes since midnight
   int? _pressStartMin;    // start minute when long press began
 
+  ButtonStyle _endButtonStyle() {
+    // Slightly smaller footprint (~12% shorter) to avoid pushing other controls.
+    return OutlinedButton.styleFrom(
+      side: const BorderSide(color: Color(0xFFFFC145)),
+      foregroundColor: const Color(0xFFFFC145),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      minimumSize: const Size(0, 35),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+    );
+  }
+
   Widget _buildEndFlowButton(int? flowId) {
     final enabled = widget.onEndFlow != null && flowId != null;
     return OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Color(0xFFFFC145)),
-        foregroundColor: const Color(0xFFFFC145),
-      ),
+      style: _endButtonStyle(),
       onPressed: enabled
           ? () {
               Navigator.pop(context);
@@ -974,10 +983,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   Widget _buildEndNoteButton(EventItem event) {
     final enabled = widget.onDeleteNote != null;
     return OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Color(0xFFFFC145)),
-        foregroundColor: const Color(0xFFFFC145),
-      ),
+      style: _endButtonStyle(),
       onPressed: enabled
           ? () async {
               Navigator.pop(context);
@@ -1843,18 +1849,22 @@ class _DayViewGridState extends State<DayViewGrid> {
               Row(
                 children: [
                   if (flow != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: flow.color.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        flow.name,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: flow.color,
-                          fontWeight: FontWeight.w500,
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: flow.color.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          flow.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: flow.color,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     )
@@ -1992,6 +2002,8 @@ class _DayViewGridState extends State<DayViewGrid> {
               // Note title
               Text(
                 event.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
