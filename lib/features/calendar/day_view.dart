@@ -58,7 +58,7 @@ class EventLayoutEngine {
       // 3) fallback color for plain notes (already set above)
 
       events.add(EventItem(
-        id: null,
+        id: note.id,
         title: note.title,
         detail: note.detail,
         location: note.location,
@@ -68,6 +68,7 @@ class EventLayoutEngine {
         color: eventColor,
         manualColor: note.manualColor,
         allDay: note.allDay,
+        category: note.category,
       ));
     }
 
@@ -124,6 +125,7 @@ class EventLayoutEngine {
 // ========================================
 
 class NoteData {
+  final String? id;
   final String title;
   final String? detail;
   final String? location;
@@ -132,8 +134,10 @@ class NoteData {
   final TimeOfDay? end;
   final int? flowId;
   final Color? manualColor;
+  final String? category;
 
   const NoteData({
+    this.id,
     required this.title,
     this.detail,
     this.location,
@@ -142,6 +146,7 @@ class NoteData {
     this.end,
     this.flowId,
     this.manualColor,
+    this.category,
   });
 }
 
@@ -170,6 +175,7 @@ class EventItem {
   final Color color;
   final Color? manualColor;
   final bool allDay;
+  final String? category;
 
   const EventItem({
     this.id,
@@ -182,6 +188,7 @@ class EventItem {
     required this.color,
     this.manualColor,
     required this.allDay,
+    this.category,
   });
 
   @override

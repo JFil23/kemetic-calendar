@@ -21,6 +21,7 @@ class UserEvent {
   final DateTime startsAt;
   final DateTime? endsAt;
   final int? flowLocalId;
+  final String? category;
 
   const UserEvent({
     required this.id,
@@ -32,6 +33,7 @@ class UserEvent {
     required this.startsAt,
     this.endsAt,
     this.flowLocalId,
+    this.category,
   });
 
   factory UserEvent.fromRow(Map<String, dynamic> row) {
@@ -48,6 +50,7 @@ class UserEvent {
       startsAt: _parseTs(row['starts_at']).toUtc(),
       endsAt: row['ends_at'] == null ? null : DateTime.parse(row['ends_at'] as String).toUtc(),
       flowLocalId: row['flow_local_id'] != null ? (row['flow_local_id'] as num).toInt() : null,
+      category: row['category'] as String?,
     );
   }
 
@@ -61,6 +64,7 @@ class UserEvent {
       'all_day': allDay,
       'starts_at': startsAt.toUtc().toIso8601String(),
       if (endsAt != null) 'ends_at': endsAt!.toUtc().toIso8601String(),
+      if (category != null) 'category': category,
     };
   }
 
@@ -73,6 +77,7 @@ class UserEvent {
       'all_day': allDay,
       'starts_at': startsAt.toUtc().toIso8601String(),
       if (endsAt != null) 'ends_at': endsAt!.toUtc().toIso8601String(),
+      if (category != null) 'category': category,
     };
   }
 }
@@ -100,6 +105,7 @@ class UserEventsRepo {
     bool allDay = false,
     String? clientEventId,
     DateTime? endsAtUtc,
+    String? category,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) throw StateError('No user session. Please sign in.');
@@ -113,6 +119,7 @@ class UserEventsRepo {
       'starts_at': startsAtUtc.toIso8601String(),
       if (endsAtUtc != null) 'ends_at': endsAtUtc.toIso8601String(),
       if (clientEventId != null) 'client_event_id': clientEventId,
+      if (category != null) 'category': category,
     };
 
     _log('insert → $payload');
@@ -140,6 +147,7 @@ class UserEventsRepo {
     bool allDay = false,
     DateTime? endsAtUtc,
     int? flowLocalId,
+    String? category,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) throw StateError('No user session. Please sign in.');
@@ -154,6 +162,7 @@ class UserEventsRepo {
       'starts_at': startsAtUtc.toIso8601String(),
       if (endsAtUtc != null) 'ends_at': endsAtUtc.toIso8601String(),
       if (flowLocalId != null) 'flow_local_id': flowLocalId,
+      if (category != null) 'category': category,
     };
 
     _log('upsert(client_event_id=$clientEventId) → $payload');
@@ -184,6 +193,7 @@ class UserEventsRepo {
     bool? allDay,
     DateTime? startsAt,
     DateTime? endsAt,
+    String? category,
   }) async {
     final patch = <String, dynamic>{};
     if (title != null) patch['title'] = title;
@@ -192,6 +202,7 @@ class UserEventsRepo {
     if (allDay != null) patch['all_day'] = allDay;
     if (startsAt != null) patch['starts_at'] = startsAt.toUtc().toIso8601String();
     if (endsAt != null) patch['ends_at'] = endsAt.toUtc().toIso8601String();
+    if (category != null) patch['category'] = category;
     if (patch.isEmpty) throw ArgumentError('Nothing to update.');
 
     _log('update($id) → $patch');
@@ -353,13 +364,14 @@ class UserEventsRepo {
   DateTime startsAtUtc,
   DateTime? endsAtUtc,
   int? flowLocalId,
+  String? category,
   })>> getAllEvents({int limit = 500}) async {
     final user = _client.auth.currentUser;
     if (user == null) return [];
 
     final rows = await _client
         .from(_kTable)
-        .select('id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,flows!left(id,active,end_date)')
+        .select('id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,flows!left(id,active,end_date)')
         .eq('user_id', user.id)
         .order('starts_at', ascending: true)
         .limit(limit);
@@ -404,6 +416,7 @@ class UserEventsRepo {
     startsAtUtc: DateTime.parse(row['starts_at'] as String),
     endsAtUtc: row['ends_at'] == null ? null : DateTime.parse(row['ends_at'] as String),
     flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+    category: row['category'] as String?,
     )).toList();
 
     return filtered;
@@ -415,10 +428,11 @@ class UserEventsRepo {
     String title,
     String? detail,
     String? location,
-    bool allDay,
-    DateTime startsAtUtc,
-    DateTime? endsAtUtc,
-    int? flowLocalId,
+  bool allDay,
+  DateTime startsAtUtc,
+  DateTime? endsAtUtc,
+  int? flowLocalId,
+  String? category,
   })>> getEventsForFlow(int flowId) async {
     try {
       final rows = await _client
@@ -432,7 +446,8 @@ class UserEventsRepo {
             all_day,
             starts_at,
             ends_at,
-            flow_local_id
+            flow_local_id,
+            category
           ''')
           .eq('flow_local_id', flowId)
           .order('starts_at', ascending: true);
@@ -450,6 +465,7 @@ class UserEventsRepo {
               ? DateTime.parse(row['ends_at'] as String).toUtc()
               : null,
           flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+          category: row['category'] as String?,
         );
       }).toList();
     } catch (e, st) {

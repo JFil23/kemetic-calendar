@@ -37,6 +37,7 @@ class JournalEntry {
   final DateTime gregDate; // Local date only (no time component)
   final String body;
   final Map<String, dynamic> meta;
+  final String? category;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -46,6 +47,7 @@ class JournalEntry {
     required this.gregDate,
     required this.body,
     required this.meta,
+    required this.category,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -57,6 +59,7 @@ class JournalEntry {
       gregDate: DateTime.parse(json['greg_date'] as String),
       body: json['body'] as String? ?? '',
       meta: (json['meta'] as Map<String, dynamic>?) ?? {},
+      category: json['category'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -69,6 +72,7 @@ class JournalEntry {
       'greg_date': _formatDate(gregDate),
       'body': body,
       'meta': meta,
+      'category': category,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -163,6 +167,7 @@ class JournalRepo {
     required DateTime localDate,
     required String body,
     Map<String, dynamic>? meta,
+    String? category,
   }) async {
     try {
       final userId = _client.auth.currentUser?.id;
@@ -179,6 +184,7 @@ class JournalRepo {
         'greg_date': dateStr,
         'body': body,
         'meta': meta ?? {},
+        if (category != null) 'category': category,
       }, onConflict: 'user_id,greg_date');
 
       _log('upsert: ✓ saved entry for $dateStr');
@@ -212,4 +218,3 @@ class JournalRepo {
     }
   }
 }
-

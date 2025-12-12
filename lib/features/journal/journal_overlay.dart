@@ -446,28 +446,26 @@ class _JournalOverlayState extends State<JournalOverlay>
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final keyboardVisible = bottomInset > 0;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Text area (take remaining space)
-          Expanded(
-            child: AnimatedPadding(
-              padding: EdgeInsets.only(
-                bottom: bottomInset,
-              ),
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Text area (take remaining space)
+            Expanded(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(minHeight: 160),
                 child: _buildTextLayer(),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          // Badge area (replaces drawing canvas)
-          _buildBadgeArea(keyboardVisible),
-        ],
+            const SizedBox(height: 12),
+            // Badge area (replaces drawing canvas)
+            _buildBadgeArea(keyboardVisible),
+          ],
+        ),
       ),
     );
   }

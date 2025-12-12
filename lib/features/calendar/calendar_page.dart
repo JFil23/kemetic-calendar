@@ -7,6 +7,7 @@ import '../../data/flows_repo.dart';
 import 'package:mobile/features/calendar/notify.dart';
 import 'package:flutter/rendering.dart';
 import '../../model/entities.dart';
+import '../../data/note_category.dart';
 import 'dart:io' show File, Directory;
 import 'package:mobile/utils/color_bits.dart';
 import 'package:flutter/foundation.dart';
@@ -2414,6 +2415,7 @@ class _CalendarPageState extends State<CalendarPage>
         TimeOfDay? end,
         int? flowId,
         Color? manualColor,
+        String? category,
       }) {
     final k = _kKey(kYear, kMonth, kDay);
     final list = _notes.putIfAbsent(k, () => <_Note>[]);
@@ -2429,6 +2431,7 @@ class _CalendarPageState extends State<CalendarPage>
       end: allDay ? null : end,
       flowId: flowId,
       manualColor: manualColor,
+      category: category,
     ));
     // Do not schedule notifications here; scheduling is handled by the caller.
     setState(() {});
@@ -2771,6 +2774,7 @@ class _CalendarPageState extends State<CalendarPage>
         initialStartTime: note.start,
         initialEndTime: note.end,
         initialColor: note.manualColor,
+        initialCategory: note.category,
         editingIndex: idx,
       );
     });
@@ -3200,6 +3204,7 @@ class _CalendarPageState extends State<CalendarPage>
           start: n.start,
           end: n.end,
           flowId: n.flowId ?? finalFlowId, // <-- NEW: ensure notes carry the flow id
+          category: n.category,
         );
 
         final gDay = KemeticMath.toGregorian(p.ky, p.km, p.kd);
@@ -3265,6 +3270,8 @@ class _CalendarPageState extends State<CalendarPage>
             start: n.start,
             end: n.end,
             flowId: noteFlowId,
+            manualColor: n.manualColor,
+            category: n.category,
           );
           // Build canonical id using placement and persisted note fields
           final String cid = _buildCid(
@@ -3310,6 +3317,7 @@ class _CalendarPageState extends State<CalendarPage>
             allDay: persisted.allDay,
             endsAtUtc: endsAt?.toUtc(),
             flowLocalId: noteFlowId >= 0 ? noteFlowId : null, // ✅ FIX: Set flow_local_id for Flow Studio saves
+            category: persisted.category,
           );
           
           // 🔍 DIAGNOSTIC LOGGING: After upsert - verify database
@@ -4073,6 +4081,7 @@ class _CalendarPageState extends State<CalendarPage>
       }
 
       return notes.map((n) => NoteData(
+        id: n.id?.toString(),
         title: n.title,
         detail: n.detail,
         location: n.location,
@@ -4081,6 +4090,7 @@ class _CalendarPageState extends State<CalendarPage>
         end: n.end,
         flowId: n.flowId,
         manualColor: n.manualColor,
+        category: n.category,
       )).toList();
     };
 
@@ -4198,6 +4208,7 @@ class _CalendarPageState extends State<CalendarPage>
         String? initialLocation,
         String? initialDetail,
         Color? initialColor,
+        String? initialCategory,
         int? editingIndex,
       }) {
     debugPrint('');
@@ -4234,6 +4245,7 @@ class _CalendarPageState extends State<CalendarPage>
     bool allDay = initialAllDay;
     TimeOfDay? startTime = initialStartTime ?? const TimeOfDay(hour: 12, minute: 0);
     TimeOfDay? endTime = initialEndTime ?? const TimeOfDay(hour: 13, minute: 0);
+    String? selectedCategory = initialCategory;
     
     // Repeat state
     NoteRepeatOption repeatOption = NoteRepeatOption.never;
@@ -4745,6 +4757,48 @@ class _CalendarPageState extends State<CalendarPage>
                         decoration: _darkInput('Details (optional)'),
                       ),
 
+                      const SizedBox(height: 12),
+                      Text(
+                        'Category (optional)',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ) ??
+                            const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final cat in NoteCategory.all)
+                            ChoiceChip(
+                              label: Text(cat),
+                              selected: selectedCategory == cat,
+                              onSelected: (_) => setSheetState(() {
+                                selectedCategory = cat;
+                              }),
+                              selectedColor: const Color(0xFFD4AF37).withOpacity(0.2),
+                              labelStyle: TextStyle(
+                                color: selectedCategory == cat ? const Color(0xFFD4AF37) : Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              backgroundColor: const Color(0xFF1A1A1A),
+                              side: BorderSide(
+                                color: selectedCategory == cat ? const Color(0xFFD4AF37) : Colors.white24,
+                              ),
+                            ),
+                          ActionChip(
+                            label: const Text('Clear', style: TextStyle(color: Colors.white)),
+                            avatar: const Icon(Icons.close, size: 18, color: Colors.white70),
+                            onPressed: selectedCategory == null
+                                ? null
+                                : () => setSheetState(() => selectedCategory = null),
+                            backgroundColor: const Color(0xFF1A1A1A),
+                          ),
+                        ],
+                      ),
+
                       const SizedBox(height: 10),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
@@ -5105,6 +5159,7 @@ class _CalendarPageState extends State<CalendarPage>
                                   startTime: startTime,
                                   endTime: endTime,
                                   color: selectedColor,
+                                  category: selectedCategory,
                                 );
                               } else {
                                 // Repeating note - create hidden flow
@@ -5125,6 +5180,7 @@ class _CalendarPageState extends State<CalendarPage>
                                   endDate: endDate,
                                   endCount: endCount,
                                   color: selectedColor,
+                                  category: selectedCategory,
                                 );
                               }
                             } catch (e, stackTrace) {
@@ -5661,6 +5717,7 @@ class _CalendarPageState extends State<CalendarPage>
                   ? null
                   : TimeOfDay.fromDateTime(evt.endsAtUtc!.toLocal()),
               flowId: flowId,
+              category: evt.category,
             );
 
             final key = _kKey(kDate.kYear, kDate.kMonth, kDate.kDay);
@@ -5769,6 +5826,7 @@ class _CalendarPageState extends State<CalendarPage>
                 : TimeOfDay.fromDateTime(evt.endsAtUtc!.toLocal()),
             flowId: -1, // Standalone notes have flowId = -1
             manualColor: decoded.color,
+            category: evt.category,
           );
 
           final key = _kKey(kDate.kYear, kDate.kMonth, kDate.kDay);
@@ -6039,6 +6097,7 @@ class _CalendarPageState extends State<CalendarPage>
           start: n.start,
           end: n.end,
           flowId: noteFlowId >= 0 ? noteFlowId : null,
+          category: n.category,
         );
 
         // Persist to database
@@ -6078,6 +6137,7 @@ class _CalendarPageState extends State<CalendarPage>
           allDay: n.allDay,
           endsAtUtc: endsAt?.toUtc(),
           flowLocalId: noteFlowId >= 0 ? noteFlowId : null,
+          category: n.category,
         );
       }
     }
@@ -6176,6 +6236,7 @@ class _CalendarPageState extends State<CalendarPage>
     TimeOfDay? startTime,
     TimeOfDay? endTime,
     Color? color,
+    String? category,
   }) async {
     // Add to in-memory notes with manualColor so UI uses it.
     _addNote(
@@ -6189,6 +6250,7 @@ class _CalendarPageState extends State<CalendarPage>
       start: startTime,
       end: endTime,
       manualColor: color,
+      category: category,
     );
 
     // Compute when to alert
@@ -6251,6 +6313,7 @@ class _CalendarPageState extends State<CalendarPage>
         location: location,
         allDay: allDay,
         endsAtUtc: endsAtUtc,
+        category: category,
       );
       
       // Also log to app_events for analytics
@@ -6296,6 +6359,7 @@ class _CalendarPageState extends State<CalendarPage>
     required DateTime? endDate,
     required int endCount,
     required Color color,
+    String? category,
   }) async {
     // 1. First occurrence = selected Kemetic day -> Gregorian
     final DateTime firstOccurrence = KemeticMath.toGregorian(
@@ -6349,6 +6413,7 @@ class _CalendarPageState extends State<CalendarPage>
         startTime: startTime,
         endTime: endTime,
         color: color,
+        category: category,
       );
       return;
     }
@@ -6362,7 +6427,7 @@ class _CalendarPageState extends State<CalendarPage>
       rules: [rule],
       start: firstOccurrence,
       end: horizonEnd,
-      notes: _encodeRepeatingNoteMetadata(detail: detail, location: location),
+      notes: _encodeRepeatingNoteMetadata(detail: detail, location: location, category: category),
       shareId: null,
       isHidden: true, // Critical: these never show in Flow Studio lists
     );
@@ -7122,6 +7187,7 @@ class _CalendarPageState extends State<CalendarPage>
         notesForDay: (ky, km, kd) {
           final notes = _getNotes(ky, km, kd);
           return notes.map((n) => NoteData(
+            id: n.id?.toString(),
             title: n.title,
             detail: n.detail,
             location: n.location,
@@ -7130,6 +7196,7 @@ class _CalendarPageState extends State<CalendarPage>
             end: n.end,
             flowId: n.flowId,
             manualColor: n.manualColor,
+            category: n.category,
           )).toList();
         },
         flowIndex: _buildFlowIndex(),
@@ -8383,6 +8450,7 @@ class _NoteDraft {
   bool allDay = false;
   TimeOfDay? start = const TimeOfDay(hour: 12, minute: 0);
   TimeOfDay? end = const TimeOfDay(hour: 13, minute: 0);
+  String? category;
 
   _Note toNote() {
     final t = titleCtrl.text.trim();
@@ -8395,6 +8463,7 @@ class _NoteDraft {
       allDay: allDay,
       start: allDay ? null : start,
       end: allDay ? null : end,
+      category: category,
     );
   }
 
@@ -8412,6 +8481,7 @@ class _DraftNoteData {
   final bool allDay;
   final int? startMinutes; // null when all-day
   final int? endMinutes;   // null when all-day
+  final String? category;
 
   const _DraftNoteData({
     required this.title,
@@ -8420,6 +8490,7 @@ class _DraftNoteData {
     required this.allDay,
     required this.startMinutes,
     required this.endMinutes,
+    required this.category,
   });
 
   factory _DraftNoteData.fromDraft(_NoteDraft draft) {
@@ -8434,6 +8505,7 @@ class _DraftNoteData {
       endMinutes: draft.allDay || draft.end == null
           ? null
           : draft.end!.hour * 60 + draft.end!.minute,
+      category: draft.category,
     );
   }
 
@@ -8450,6 +8522,7 @@ class _DraftNoteData {
       d.start = null;
       d.end = null;
     }
+    d.category = category;
     return d;
   }
 }
@@ -10377,16 +10450,17 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         return UserEvent(
           id: record.id ?? '', // id is String? (UUID from database)
           clientEventId: record.clientEventId,
-          title: record.title,
-          detail: record.detail,
-          location: record.location,
-          allDay: record.allDay,
-          startsAt: record.startsAtUtc,
-          endsAt: record.endsAtUtc,
-          flowLocalId: record.flowLocalId,
-        );
-      }).toList()
-        ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+        title: record.title,
+        detail: record.detail,
+        location: record.location,
+        allDay: record.allDay,
+        startsAt: record.startsAtUtc,
+        endsAt: record.endsAtUtc,
+        flowLocalId: record.flowLocalId,
+        category: record.category,
+      );
+    }).toList()
+      ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
 
       // Dedupe by id/cid/composite to avoid duplicate drafts
       final seen = <String, UserEvent>{};
@@ -10591,6 +10665,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         startsAt: record.startsAtUtc,
         endsAt: record.endsAtUtc,
         flowLocalId: record.flowLocalId,
+        category: record.category,
       );
     }).toList();
 
@@ -10988,6 +11063,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
             userEvents.add(UserEvent(
               id: '',
+              clientEventId: null,
               title: (e['title'] as String?) ?? data.name,
               detail: (e['detail'] as String?) ?? '',
               location: (e['location'] as String?) ?? '',
@@ -10995,6 +11071,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
               startsAt: startsAt,
               endsAt: endsAt,
               flowLocalId: null,
+              category: null,
             ));
           } catch (_) {
             // skip malformed event
@@ -11909,6 +11986,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     DateTime startsAtUtc,
     DateTime? endsAtUtc,
     int? flowLocalId,
+    String? category,
   })> _events = const [];
 
   bool _loadingEvents = false;
@@ -11944,6 +12022,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           DateTime startsAtUtc,
           DateTime? endsAtUtc,
           int? flowLocalId,
+          String? category,
         }
       ) e) {
         final titleKey = e.title.trim().toLowerCase();
@@ -11960,6 +12039,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           locKey,
           detailKey,
           flowKey,
+          (e.category ?? '').toLowerCase(),
         ].join('|');
       }
 
@@ -11974,6 +12054,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           DateTime startsAtUtc,
           DateTime? endsAtUtc,
           int? flowLocalId,
+          String? category,
         }
       ) e) {
         if (e.id != null) return 3;
@@ -11991,6 +12072,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         DateTime startsAtUtc,
         DateTime? endsAtUtc,
         int? flowLocalId,
+        String? category,
       })>{};
 
       for (final e in events) {
@@ -12347,6 +12429,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       DateTime startsAtUtc,
       DateTime? endsAtUtc,
       int? flowLocalId,
+      String? category,
     }
   ) e) {
     final localStart = e.startsAtUtc.toLocal();
@@ -12637,8 +12720,8 @@ String notesEncode({
 }
 
 // Helper: encode detail and location for repeating notes in flow.notes
-String? _encodeRepeatingNoteMetadata({String? detail, String? location}) {
-  if (detail == null && location == null) return null;
+String? _encodeRepeatingNoteMetadata({String? detail, String? location, String? category}) {
+  if (detail == null && location == null && category == null) return null;
   final parts = <String, dynamic>{'kind': 'repeating_note'};
   if (detail != null && detail.isNotEmpty) {
     parts['detail'] = detail;
@@ -12646,24 +12729,28 @@ String? _encodeRepeatingNoteMetadata({String? detail, String? location}) {
   if (location != null && location.isNotEmpty) {
     parts['location'] = location;
   }
+  if (category != null && category.isNotEmpty) {
+    parts['category'] = category;
+  }
   return jsonEncode(parts);
 }
 
 // Helper: decode detail and location from flow.notes for repeating notes
-({String? detail, String? location}) _decodeRepeatingNoteMetadata(String? notes) {
-  if (notes == null || notes.isEmpty) return (detail: null, location: null);
+({String? detail, String? location, String? category}) _decodeRepeatingNoteMetadata(String? notes) {
+  if (notes == null || notes.isEmpty) return (detail: null, location: null, category: null);
   try {
     final meta = jsonDecode(notes) as Map<String, dynamic>;
     if (meta['kind'] == 'repeating_note') {
       return (
         detail: (meta['detail'] as String?)?.trim(),
         location: (meta['location'] as String?)?.trim(),
+        category: (meta['category'] as String?)?.trim(),
       );
     }
   } catch (_) {
     // Not JSON or not our format
   }
-  return (detail: null, location: null);
+  return (detail: null, location: null, category: null);
 }
 
 // Helper: clean event detail by stripping legacy flowLocalId= prefix
@@ -14090,6 +14177,7 @@ class _Note {
 
   /// Manual color for notes that aren't driven by a flow.
   final Color? manualColor;
+  final String? category; // optional category label
 
   const _Note({
     this.id,
@@ -14101,6 +14189,7 @@ class _Note {
     this.end,
     this.flowId,
     this.manualColor,
+    this.category,
   });
 }
 

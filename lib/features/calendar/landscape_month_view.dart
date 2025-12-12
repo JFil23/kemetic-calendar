@@ -1167,6 +1167,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         color: eventColor,
         manualColor: note.manualColor,
         allDay: note.allDay,
+        category: note.category,
       ));
     }
 
