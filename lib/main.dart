@@ -22,6 +22,7 @@ import 'utils/event_cid_util.dart';
 
 import 'utils/hive_local_storage_web.dart';
 import 'core/theme/app_theme.dart';
+import 'services/calendar_sync_service.dart';
 
 // Conditional import: on web we use URL cleanup + visibility hook; elsewhere no-ops.
 import 'utils/web_history.dart'
@@ -226,6 +227,7 @@ class _AuthGateState extends State<AuthGate> {
   
   // Add these fields for ICS handling:
   StreamSubscription? _intentDataStreamSubscription;
+  CalendarSyncService? _calendarSync;
 
   // One-shot guards
   bool _appOpenLogged = false;
@@ -235,6 +237,7 @@ class _AuthGateState extends State<AuthGate> {
   @override
   void initState() {
     super.initState();
+    _calendarSync = CalendarSyncService(supabase);
 
     // React to auth changes (includes initialSession)
     _authSub = supabase.auth.onAuthStateChange.listen((data) async {
@@ -246,6 +249,11 @@ class _AuthGateState extends State<AuthGate> {
         await _ensureProfile();          // keep profiles hydrated with email
         await _logAppOpenOnce();         // one-shot per cold start
         unawaited(_initNotificationsSafely());
+        unawaited(_calendarSync?.start());
+      }
+
+      if (ev == AuthChangeEvent.signedOut || ev == AuthChangeEvent.userDeleted) {
+        _calendarSync?.stop();
       }
     });
 
@@ -258,6 +266,7 @@ class _AuthGateState extends State<AuthGate> {
     _authSub?.cancel();
     _linkSub?.cancel();
     _intentDataStreamSubscription?.cancel();
+    _calendarSync?.dispose();
     super.dispose();
   }
 

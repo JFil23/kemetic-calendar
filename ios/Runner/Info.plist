@@ -89,5 +89,7 @@
 			</dict>
 		</dict>
 	</array>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Allow Kemetic Calendar to read and write your calendar so your Kemetic events stay in sync with Apple Calendar.</string>
 </dict>
 </plist>

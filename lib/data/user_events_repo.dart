@@ -22,6 +22,8 @@ class UserEvent {
   final DateTime? endsAt;
   final int? flowLocalId;
   final String? category;
+  final DateTime? updatedAt;
+  final DateTime? createdAt;
 
   const UserEvent({
     required this.id,
@@ -34,6 +36,8 @@ class UserEvent {
     this.endsAt,
     this.flowLocalId,
     this.category,
+    this.updatedAt,
+    this.createdAt,
   });
 
   factory UserEvent.fromRow(Map<String, dynamic> row) {
@@ -51,6 +55,8 @@ class UserEvent {
       endsAt: row['ends_at'] == null ? null : DateTime.parse(row['ends_at'] as String).toUtc(),
       flowLocalId: row['flow_local_id'] != null ? (row['flow_local_id'] as num).toInt() : null,
       category: row['category'] as String?,
+      updatedAt: row['updated_at'] == null ? null : DateTime.parse(row['updated_at'] as String).toUtc(),
+      createdAt: row['created_at'] == null ? null : DateTime.parse(row['created_at'] as String).toUtc(),
     );
   }
 
@@ -420,6 +426,31 @@ class UserEventsRepo {
     )).toList();
 
     return filtered;
+  }
+
+  /// Fetch events within a start/end window with metadata (updated_at).
+  Future<List<UserEvent>> getEventsForWindow({
+    required DateTime startUtc,
+    required DateTime endUtc,
+    int limit = 1000,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return [];
+
+    var query = _client
+        .from(_kTable)
+        .select('id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,updated_at,created_at')
+        .eq('user_id', user.id)
+        .gte('starts_at', startUtc.toUtc().toIso8601String())
+        .lte('starts_at', endUtc.toUtc().toIso8601String())
+        .order('starts_at', ascending: true);
+
+    if (limit > 0) {
+      query = query.limit(limit);
+    }
+
+    final rows = await query;
+    return (rows as List).cast<Map<String, dynamic>>().map(UserEvent.fromRow).toList();
   }
 
   Future<List<({
