@@ -1198,6 +1198,7 @@ class CalendarPage extends StatefulWidget {
       endDate: f.end,
       notes: f.notes,
       rules: rulesJson,
+      isHidden: f.isHidden,
     );
 
     // Persist planned notes (with individual titles)
@@ -2837,6 +2838,7 @@ class _CalendarPageState extends State<CalendarPage>
         endDate: flow.end,
         notes: flow.notes,
         rules: rulesJson,
+        isHidden: flow.isHidden,
       );
 
       if (savedId != localId) {
@@ -2984,6 +2986,7 @@ class _CalendarPageState extends State<CalendarPage>
             endDate: f.end,
             notes: f.notes,
             rules: rulesJson,
+            isHidden: f.isHidden,
           );
         } catch (_) {}
       });
@@ -3976,6 +3979,7 @@ class _CalendarPageState extends State<CalendarPage>
           endDate: f.end,
           notes: f.notes,
           rules: rulesJson,
+          isHidden: f.isHidden,
         );
         if (kDebugMode) {
           debugPrint('[endFlow] ✓ Marked flow $flowId as inactive');
@@ -5650,6 +5654,11 @@ class _CalendarPageState extends State<CalendarPage>
       // Load flows into _flows list
       final serverFlows = await repo.getAllFlows();
       for (final f in serverFlows) {
+        final repMeta = _decodeRepeatingNoteMetadata(f.notes);
+        final derivedHidden = f.isHidden ||
+            repMeta.detail != null ||
+            repMeta.location != null ||
+            repMeta.category != null;
         final flow = _Flow(
           id: f.id,
           name: f.name,
@@ -5660,7 +5669,7 @@ class _CalendarPageState extends State<CalendarPage>
           end: f.endDate,
           notes: f.notes,
           shareId: f.shareId, // NEW: Load share_id
-          isHidden: false, // All flows from DB are visible (isHidden is client-only for UI filtering)
+          isHidden: derivedHidden,
         );
         _flows.add(flow);
         // 🔍 DEBUG: Log what color came from database for ALL custom flows
@@ -6022,6 +6031,7 @@ class _CalendarPageState extends State<CalendarPage>
         endDate: r.savedFlow!.end,
         notes: r.savedFlow!.notes,
         rules: rulesJson,
+        isHidden: r.savedFlow!.isHidden,
       );
 
 
@@ -6446,6 +6456,7 @@ class _CalendarPageState extends State<CalendarPage>
       endDate: flow.end,
       notes: flow.notes,
       rules: rulesJson,
+      isHidden: flow.isHidden,
     );
 
     // 7. Insert into in-memory _flows list with correct ID.
@@ -10119,18 +10130,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       isHidden: _editing?.isHidden ?? false, // Preserve hidden status if editing
     );
 
-    // TEST THE EDGE FUNCTION:
-    try {
-      final result = await ShareRepo(Supabase.instance.client).shareFlow(
-        flowId: 207,
-        recipients: [ShareRecipient(type: ShareRecipientType.user, value: 'b247d1fc-2439-4bc7-aae9-f8bdeefb09af')],
-        suggestedSchedule: SuggestedSchedule(startDate: '2025-10-20', weekdays: [1,2,3,4,5], everyOtherDay: false, perWeek: null, timesByWeekday: {'1':'12:00'}),
-      );
-      print('SHARE TEST: $result');
-    } catch (e) {
-      print('SHARE ERROR: $e');
-    }
-
     // Reset AI mode flag after save - flow is now a normal editable flow
     if (_isAIGeneratedFlow) {
       _isAIGeneratedFlow = false;
@@ -10361,7 +10360,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       final meta = notesDecode(f.notes);
       _useKemetic = meta.kemetic;
       _splitByPeriod = meta.split;
-      _overviewCtrl.text = meta.overview;
+      _overviewCtrl.text = _effectiveOverview(f.notes, meta.overview);
 
       // reset selections
       _selectedDecanDays.clear();
@@ -10438,7 +10437,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         notes: flow.notes,
         rules: const [],  // AI flows have no recurring rules
         shareId: null,
-        isHidden: false, // AI flows are visible
+        isHidden: flow.isHidden, // Preserve hidden flag if present
       );
       
       // 3. Fetch events for this flow
@@ -10523,7 +10522,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           final idx = _flowPalette.indexWhere((c) => c.value == flowObj.color.value);
           _selectedColorIndex = idx >= 0 ? idx : 0;
           
-          _overviewCtrl.text = meta.overview ?? '';
+          _overviewCtrl.text = _effectiveOverview(flowObj.notes, meta.overview);
           
           _isAIGeneratedFlow = true;
         });
@@ -10574,7 +10573,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         _selectedColorIndex = idx >= 0 ? idx : 0;
         
         // Overview
-        _overviewCtrl.text = meta.overview ?? '';
+        _overviewCtrl.text = _effectiveOverview(flowObj.notes, meta.overview);
         
         // 🚨 LOCK IN AI MODE - this prevents _loadFlowForEdit from being called
         _isAIGeneratedFlow = true;
@@ -10854,7 +10853,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       final idx = _flowPalette.indexWhere((c) => c.value == f.color.value);
       _selectedColorIndex = idx >= 0 ? idx : 0;
       
-      _overviewCtrl.text = meta.overview ?? '';
+      _overviewCtrl.text = _effectiveOverview(f.notes, meta.overview);
       
       // ⛔️ Do NOT set dates here - they're already set above (like AI path)
       // ⛔️ Do NOT set _useKemetic, _splitByPeriod, _syncReady - already set above
@@ -11018,7 +11017,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           final meta = notesDecode(data.notes!);
           _useKemetic = meta.kemetic;
           _splitByPeriod = meta.split;
-          _overviewCtrl.text = meta.overview;
+          _overviewCtrl.text = _effectiveOverview(data.notes, meta.overview);
         } catch (_) {}
       } else {
         _useKemetic = false;
@@ -12107,6 +12106,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       start = _events.first.startsAtUtc.toLocal();
       end = (_events.first.endsAtUtc ?? start.add(const Duration(hours: 1))).toLocal();
     }
+    final description = _effectiveOverview(widget.flow.notes, widget.overview);
     final id = 'badge-${DateTime.now().microsecondsSinceEpoch}';
     return EventBadgeToken.buildToken(
       id: id,
@@ -12114,7 +12114,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       start: start,
       end: end,
       color: widget.flow.color,
-      description: widget.overview,
+      description: description,
     );
   }
 
@@ -12258,6 +12258,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   @override
   Widget build(BuildContext context) {
     final flow = widget.flow;
+    final displayOverview = _effectiveOverview(flow.notes, widget.overview);
 
     return Scaffold(
       backgroundColor: _bg,
@@ -12347,7 +12348,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           ),
           const SizedBox(height: 6),
           Text(
-            (widget.overview.trim().isEmpty) ? '—' : widget.overview.trim(),
+            (displayOverview.isEmpty) ? '—' : displayOverview,
             style: const TextStyle(color: Colors.white, height: 1.35),
           ),
           const SizedBox(height: 16),
@@ -12434,7 +12435,16 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   ) e) {
     final localStart = e.startsAtUtc.toLocal();
     final localEnd = e.endsAtUtc?.toLocal();
-    final hasDetail = (e.detail != null && e.detail!.trim().isNotEmpty);
+    bool _isCidDetail(String text) {
+      final trimmed = text.trim().replaceAll(RegExp(r'\s+'), '');
+      final withPrefix = trimmed.startsWith('kemet_cid:')
+          ? trimmed.substring('kemet_cid:'.length)
+          : trimmed;
+      final cidPattern = RegExp(r'^ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$');
+      return cidPattern.hasMatch(withPrefix);
+    }
+    final detailText = _stripCidLines(e.detail?.trim() ?? '');
+    final hasDetail = detailText.isNotEmpty && !_isCidDetail(detailText);
     final hasLocation = (e.location != null && e.location!.trim().isNotEmpty);
 
     return Container(
@@ -12476,7 +12486,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
             RichText(
               text: TextSpan(
                 style: const TextStyle(fontSize: 13, color: Colors.white),
-                children: _buildDetailSpans(e.detail!.trim()),
+                children: _buildDetailSpans(detailText),
               ),
             ),
           ],
@@ -12719,6 +12729,23 @@ String notesEncode({
   return (kemetic: kemetic, split: split, overview: overview, maatKey: maatKey);
 }
 
+// Derive a human-friendly overview string, falling back to stored notes content
+// (including repeating-note metadata) when the encoded overview is empty.
+String _effectiveOverview(String? notes, String decodedOverview) {
+  final trimmed = decodedOverview.trim();
+  if (trimmed.isNotEmpty) return trimmed;
+
+  final raw = (notes ?? '').trim();
+  if (raw.isEmpty) return '';
+
+  final repMeta = _decodeRepeatingNoteMetadata(notes);
+  if (repMeta.detail?.trim().isNotEmpty == true) {
+    return repMeta.detail!.trim();
+  }
+
+  return raw;
+}
+
 // Helper: encode detail and location for repeating notes in flow.notes
 String? _encodeRepeatingNoteMetadata({String? detail, String? location, String? category}) {
   if (detail == null && location == null && category == null) return null;
@@ -12762,6 +12789,21 @@ String _cleanDetail(String? s) {
     t = (i >= 0 && i < t.length - 1) ? t.substring(i + 1) : '';
   }
   return t.trim();
+}
+
+// Helper: strip cid-only lines and legacy flowLocalId lines from detail text.
+String _stripCidLines(String detail) {
+  final lines = detail.split(RegExp(r'\r?\n'));
+  final cidRegex = RegExp(r'^(kemet_cid:)?ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$');
+  final kept = lines.where((line) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty) return false; // drop blanks
+    if (trimmed.startsWith('flowLocalId=')) return false;
+    final norm = trimmed.replaceAll(RegExp(r'\s+'), '');
+    if (cidRegex.hasMatch(norm)) return false;
+    return true;
+  }).toList();
+  return kept.join('\n').trim();
 }
 
 /// Extract a stored manual color (encoded as `color=RRGGBB;` prefix) and return

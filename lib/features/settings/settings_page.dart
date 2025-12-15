@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../calendar/calendar_page.dart';
 import 'us_holiday_seeder.dart';
+import '../../services/push_notifications.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -19,6 +21,8 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _usHolidaysEnabled = false;
   bool _seedingHolidays = false;
   bool _loading = true;
+  bool _requestingPush = false;
+  String? _pushStatus;
 
   @override
   void initState() {
@@ -161,6 +165,45 @@ class _SettingsPageState extends State<SettingsPage> {
                 _save();
               },
             ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD4AF37),
+                foregroundColor: Colors.black,
+              ),
+              onPressed: _requestingPush
+                  ? null
+                  : () async {
+                      setState(() {
+                        _requestingPush = true;
+                        _pushStatus = null;
+                      });
+                      final client = Supabase.instance.client;
+                      final push = PushNotifications.instance(client);
+                      final token = await push.requestAndRegisterToken();
+                      if (!mounted) return;
+                      setState(() {
+                        _requestingPush = false;
+                        _pushStatus = token == null ? 'Permission denied or no token' : 'Token saved';
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(token == null
+                              ? 'Notifications not enabled (grant permission to receive push).'
+                              : 'Notifications enabled on this device.'),
+                          backgroundColor: token == null ? Colors.red.shade700 : Colors.green.shade700,
+                        ),
+                      );
+                    },
+              child: Text(_requestingPush ? 'Requesting…' : 'Enable notifications on this device'),
+            ),
+            if (_pushStatus != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                _pushStatus!,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ],
             const SizedBox(height: 8),
             _sectionTitle('Catch-up reminders'),
             SwitchListTile(

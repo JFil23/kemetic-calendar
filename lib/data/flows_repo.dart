@@ -32,6 +32,7 @@ class FlowRow {
   final String? notes;
   final List<dynamic> rules; // store your _FlowRule list as JSON-serializable
   final Map<String, dynamic>? aiMetadata;
+  final bool isHidden;
 
   const FlowRow({
     required this.id,
@@ -44,6 +45,7 @@ class FlowRow {
     required this.notes,
     required this.rules,
     this.aiMetadata,
+    this.isHidden = false,
   });
 
   factory FlowRow.fromRow(Map<String, dynamic> r) {
@@ -70,6 +72,7 @@ class FlowRow {
       endDate: _d(r['end_date']),
       notes: r['notes'] as String?,
       rules: _rulesList,
+      isHidden: (r['is_hidden'] as bool?) ?? false,
       aiMetadata: r['ai_metadata'] != null
           ? Map<String, dynamic>.from(r['ai_metadata'] as Map)
           : null,
@@ -85,6 +88,7 @@ class FlowRow {
     'end_date': endDate?.toIso8601String(),
     'notes': notes,
     'rules': rules,
+    'is_hidden': isHidden,
   };
 
   Map<String, dynamic> toUpdate() => {
@@ -95,6 +99,7 @@ class FlowRow {
     'end_date': endDate?.toIso8601String(),
     'notes': notes,
     'rules': rules,
+    'is_hidden': isHidden,
   };
 }
 

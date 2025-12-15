@@ -1232,6 +1232,30 @@ class _DayViewGridState extends State<DayViewGrid> {
     return seen.values.toList();
   }
 
+  bool _looksLikeCidDetail(String text) {
+    final trimmed = text.trim().replaceAll(RegExp(r'\s+'), '');
+    final withPrefix = trimmed.startsWith('kemet_cid:')
+        ? trimmed.substring('kemet_cid:'.length)
+        : trimmed;
+    final cidPattern = RegExp(r'^ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$');
+    return cidPattern.hasMatch(withPrefix);
+  }
+
+  /// Remove lines that are just cid tokens or legacy flowLocalId lines.
+  String _stripCidLines(String detail) {
+    final lines = detail.split(RegExp(r'\r?\n'));
+    final cidRegex = RegExp(r'^(kemet_cid:)?ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$');
+    final kept = lines.where((line) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) return false; // drop blank lines
+      if (trimmed.startsWith('flowLocalId=')) return false;
+      final norm = trimmed.replaceAll(RegExp(r'\s+'), '');
+      if (cidRegex.hasMatch(norm)) return false;
+      return true;
+    }).toList();
+    return kept.join('\n').trim();
+  }
+
   int _computeNotesHash(List<NoteData> notes) {
     return Object.hashAll(notes.map((n) => Object.hash(
       n.title,
@@ -2070,9 +2094,8 @@ class _DayViewGridState extends State<DayViewGrid> {
                       return const SizedBox.shrink();
                     }
                   }
-                  
-                  // Only show if there's actual content after stripping
-                  if (displayDetail.isEmpty) {
+                  displayDetail = _stripCidLines(displayDetail);
+                  if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
                     return const SizedBox.shrink();
                   }
                   

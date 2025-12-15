@@ -23,6 +23,7 @@ import 'utils/event_cid_util.dart';
 import 'utils/hive_local_storage_web.dart';
 import 'core/theme/app_theme.dart';
 import 'services/calendar_sync_service.dart';
+import 'services/push_notifications.dart';
 
 // Conditional import: on web we use URL cleanup + visibility hook; elsewhere no-ops.
 import 'utils/web_history.dart'
@@ -37,6 +38,9 @@ Future<void> main() async {
   print('🔍 Has ANON_KEY: ${SUPABASE_ANON_KEY.isNotEmpty}');
   
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Register background handler for FCM (no-op on web)
+  registerPushBackgroundHandler();
 
 
   if (SUPABASE_URL.isEmpty || SUPABASE_ANON_KEY.length <= 20) {
@@ -64,6 +68,7 @@ Future<void> main() async {
   // 🚨 Initialize notifications
   // Ensures notification channels and platform-specific setup happen before the app builds.
   await Notify.init();
+  await PushNotifications.instance(Supabase.instance.client).init();
 
   // Web/PWA boot hardening (iOS PWA friendly)
   await _completeWebOAuthIfNeeded();   // 1) exchange ?code once
@@ -249,11 +254,13 @@ class _AuthGateState extends State<AuthGate> {
         await _ensureProfile();          // keep profiles hydrated with email
         await _logAppOpenOnce();         // one-shot per cold start
         unawaited(_initNotificationsSafely());
+        unawaited(PushNotifications.instance(supabase).registerForUser());
         unawaited(_calendarSync?.start());
       }
 
       if (ev == AuthChangeEvent.signedOut || ev == AuthChangeEvent.userDeleted) {
         _calendarSync?.stop();
+        unawaited(PushNotifications.instance(supabase).unregister());
       }
     });
 

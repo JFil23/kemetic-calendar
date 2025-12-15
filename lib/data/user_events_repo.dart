@@ -543,6 +543,7 @@ class UserEventsRepo {
     DateTime? endDate,
     String? notes,
     required String rules,
+    bool isHidden = false,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -558,6 +559,7 @@ class UserEventsRepo {
       'end_date': endDate?.toIso8601String(),
       'notes': notes,
       'rules': jsonDecode(rules),
+      'is_hidden': isHidden,
     };
 
     if (id == null || id <= 0) {
@@ -590,6 +592,7 @@ class UserEventsRepo {
     String? notes,
     String rules,
     String? shareId, // NEW: Include shareId
+    bool isHidden,
   })>> getAllFlows() async {
     final user = _client.auth.currentUser;
     if (user == null) return [];
@@ -613,6 +616,7 @@ class UserEventsRepo {
     notes: row['notes'] as String?,
     rules: jsonEncode(row['rules']),
     shareId: row['share_id'] as String?, // NEW: Include share_id
+    isHidden: (row['is_hidden'] as bool?) ?? false,
     ))
         .toList();
   }

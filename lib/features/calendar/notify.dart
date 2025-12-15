@@ -177,6 +177,39 @@ class Notify {
     _log('Final pending notifications: ${finalPending.length}');
   }
 
+  /// Show an immediate notification without persistence (used for FCM foreground).
+  static Future<void> showInstant({
+    required String title,
+    String? body,
+  }) async {
+    if (!_inited) {
+      await init();
+    }
+
+    const androidDetails = AndroidNotificationDetails(
+      _androidChannelId,
+      _androidChannelName,
+      channelDescription: _androidChannelDesc,
+      importance: Importance.max,
+      priority: Priority.max,
+      enableVibration: true,
+      playSound: true,
+      icon: '@mipmap/ic_launcher',
+      channelShowBadge: true,
+      ticker: 'ticker',
+    );
+
+    const iosDetails = DarwinNotificationDetails();
+    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    await _plugin.show(
+      DateTime.now().millisecondsSinceEpoch.remainder(1000000),
+      title,
+      body,
+      details,
+    );
+  }
+
   /// Helper: schedule something a few seconds out (for your debug button).
   static Future<void> debugScheduleIn({int seconds = 10}) async {
     final when = DateTime.now().add(Duration(seconds: seconds));

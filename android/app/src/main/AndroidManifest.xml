@@ -19,6 +19,8 @@
     <!-- Calendar access for native sync -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <!-- FCM delivery -->
+    <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
 
     <application
         android:label="Kemetic Calendar"
@@ -78,6 +80,11 @@
             android:value="false" />
 
         <meta-data android:name="flutterEmbedding" android:value="2" />
+
+        <!-- Default channel for FCM fallback notifications -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="maat.reminders" />
     </application>
 
     <!-- If you need PROCESS_TEXT for your app logic, keep it here -->
