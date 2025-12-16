@@ -86,6 +86,15 @@
   }
 
 </script>
-<script src="flutter_bootstrap.js" async></script>
+<script>
+  // Cache-bust the bootstrap script to avoid stale service worker bundles after deploys
+  (function () {
+    const cacheBuster = Date.now().toString();
+    const s = document.createElement('script');
+    s.src = 'flutter_bootstrap.js?v=' + cacheBuster;
+    s.async = true;
+    document.body.appendChild(s);
+  })();
+</script>
 </body>
 </html>

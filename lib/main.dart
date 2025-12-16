@@ -242,7 +242,7 @@ class _AuthGateState extends State<AuthGate> {
   @override
   void initState() {
     super.initState();
-    _calendarSync = CalendarSyncService(supabase);
+    _calendarSync = sharedCalendarSyncService(supabase);
 
     // React to auth changes (includes initialSession)
     _authSub = supabase.auth.onAuthStateChange.listen((data) async {
@@ -273,7 +273,7 @@ class _AuthGateState extends State<AuthGate> {
     _authSub?.cancel();
     _linkSub?.cancel();
     _intentDataStreamSubscription?.cancel();
-    _calendarSync?.dispose();
+    unawaited(disposeSharedCalendarSyncService());
     super.dispose();
   }
 

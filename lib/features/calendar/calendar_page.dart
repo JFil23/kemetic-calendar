@@ -5685,10 +5685,9 @@ class _CalendarPageState extends State<CalendarPage>
         for (final f in _flows) f.id: f,
       };
 
-      // We'll only hydrate events for flows that are still active.
-      // NOTE: We *don't* care about end_date here anymore. We just listen to `active`.
+      // We'll only hydrate events for flows that are still active AND visible.
       final activeFlowIds = _flows
-          .where((f) => f.active)
+          .where((f) => f.active && !f.isHidden && _isActiveByEndDate(f.end))
           .map((f) => f.id)
           .toSet(); // 👈 Set for O(1) contains() lookups
 
@@ -5709,8 +5708,12 @@ class _CalendarPageState extends State<CalendarPage>
             // Build _Note, same shape the rest of the app expects
             // 👈 SAFETY NET: Skip events for flows that don't exist or are inactive
             final owningFlow = flowIndex[flowId];
-            if (owningFlow == null || !owningFlow.active) {
-              // skip events that belong to deleted / inactive flows
+            final flowVisible = owningFlow != null &&
+                owningFlow.active &&
+                !owningFlow.isHidden &&
+                _isActiveByEndDate(owningFlow.end);
+            if (!flowVisible) {
+              // skip events that belong to deleted / inactive / hidden / expired flows
               continue;
             }
 

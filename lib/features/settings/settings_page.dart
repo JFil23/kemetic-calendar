@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -5,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../calendar/calendar_page.dart';
 import 'us_holiday_seeder.dart';
 import '../../services/push_notifications.dart';
+import '../../services/calendar_sync_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -20,9 +22,11 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _missedOnOpen = true;
   bool _usHolidaysEnabled = false;
   bool _seedingHolidays = false;
+  bool _syncingCalendar = false;
   bool _loading = true;
   bool _requestingPush = false;
   String? _pushStatus;
+  String? _calendarSyncStatus;
 
   @override
   void initState() {
@@ -111,6 +115,79 @@ class _SettingsPageState extends State<SettingsPage> {
         });
       }
     }
+  }
+
+  Future<void> _syncCalendarNow() async {
+    final client = Supabase.instance.client;
+    if (client.auth.currentSession == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Sign in to sync your calendar.'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _syncingCalendar = true;
+    });
+
+    try {
+      final sync = sharedCalendarSyncService(client);
+      await sync.sync();
+
+      final calendarState = CalendarPage.globalKey.currentState;
+      if (calendarState != null) {
+        await calendarState.reloadFromOutside();
+      }
+
+      if (mounted) {
+        final ts = _formatTimestamp(DateTime.now());
+        setState(() {
+          _calendarSyncStatus = 'Last sync requested: $ts'
+              '${kIsWeb ? ' (PWA native calendar access may be limited)' : ''}';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              kIsWeb
+                  ? 'Requested calendar sync. PWAs on iOS may not expose the native calendar.'
+                  : 'Requested calendar sync on this device.',
+            ),
+            backgroundColor: Colors.green.shade700,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _calendarSyncStatus = 'Sync failed: $e';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Calendar sync failed: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _syncingCalendar = false;
+        });
+      }
+    }
+  }
+
+  String _formatTimestamp(DateTime dt) {
+    final mm = dt.month.toString().padLeft(2, '0');
+    final dd = dt.day.toString().padLeft(2, '0');
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+    return '$mm/$dd $hh:$min';
   }
 
   Widget _sectionTitle(String text) => Padding(
@@ -265,6 +342,37 @@ class _SettingsPageState extends State<SettingsPage> {
                     )
                   : null,
             ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD4AF37),
+                foregroundColor: Colors.black,
+              ),
+              icon: _syncingCalendar
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                      ),
+                    )
+                  : const Icon(Icons.sync),
+              label: Text(_syncingCalendar ? 'Syncing…' : 'Sync calendar now'),
+              onPressed: _syncingCalendar ? null : _syncCalendarNow,
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Push/pull with your device calendar. On PWAs (iOS Safari), native calendar access may be limited.',
+              style: TextStyle(color: Colors.white60, fontSize: 12),
+            ),
+            if (_calendarSyncStatus != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                _calendarSyncStatus!,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ],
             const SizedBox(height: 16),
             const Divider(color: Color(0xFF222222)),
             const SizedBox(height: 16),

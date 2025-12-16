@@ -218,6 +218,22 @@ class CalendarPlatformBridge {
   }
 }
 
+// Shared instance helper so multiple screens reuse the same sync engine/timer.
+CalendarSyncService? _singleton;
+
+CalendarSyncService sharedCalendarSyncService(
+  SupabaseClient client, {
+  CalendarPlatformBridge? platform,
+}) {
+  _singleton ??= CalendarSyncService(client, platform: platform);
+  return _singleton!;
+}
+
+Future<void> disposeSharedCalendarSyncService() async {
+  await _singleton?.dispose();
+  _singleton = null;
+}
+
 /// Sync engine that reconciles native calendars with the Supabase user_events table.
 class CalendarSyncService {
   CalendarSyncService(this._client, {CalendarPlatformBridge? platform})
