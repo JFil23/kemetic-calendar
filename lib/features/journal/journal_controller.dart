@@ -41,6 +41,9 @@ class JournalController {
     return DateTime(now.year, now.month, now.day);
   }
 
+  /// Current journal date (local, no time). Defaults to today after init.
+  DateTime? get currentDate => _currentDate;
+
   String get _todayKey {
     final d = _today;
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -560,9 +563,6 @@ class JournalController {
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
-
-  /// Get the currently loaded date
-  DateTime? get currentDate => _currentDate;
 
   /// Dispose controller
   void dispose() {
