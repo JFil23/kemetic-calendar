@@ -1669,19 +1669,37 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     return '${hour - 12} PM';
   }
 
+  String _stripCidLines(String detail) {
+    final lines = detail.split(RegExp(r'\r?\n'));
+    final cidRegex = RegExp(r'^(kemet_cid:)?ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$');
+    final kept = lines.where((line) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) return false;
+      if (trimmed.startsWith('flowLocalId=')) return false;
+      final norm = trimmed.replaceAll(RegExp(r'\s+'), '');
+      if (cidRegex.hasMatch(norm)) return false;
+      return true;
+    }).toList();
+    return kept.join('\n').trim();
+  }
+
   String _buildBadgeToken(EventItem event, int day) {
     final g = KemeticMath.toGregorian(widget.kYear, widget.kMonth, day);
     final dayStart = DateTime(g.year, g.month, g.day);
     final start = dayStart.add(Duration(minutes: event.startMin));
     final end = dayStart.add(Duration(minutes: event.endMin));
     final id = 'badge-${DateTime.now().microsecondsSinceEpoch}';
+    final rawDesc = event.detail?.trim() ?? '';
+    final cleanedDesc = rawDesc.isEmpty ? null : _stripCidLines(rawDesc);
+    final descForToken =
+        (cleanedDesc == null || cleanedDesc.isEmpty) ? null : cleanedDesc;
     return EventBadgeToken.buildToken(
       id: id,
       title: event.title.isEmpty ? 'Scheduled block' : event.title,
       start: start,
       end: end,
       color: event.color,
-      description: event.detail,
+      description: descForToken,
     );
   }
 

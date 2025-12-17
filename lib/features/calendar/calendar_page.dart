@@ -4242,9 +4242,13 @@ class _CalendarPageState extends State<CalendarPage>
     FixedExtentScrollController(initialItem: (kMonth - 1).clamp(0, 12).toInt());
     final dayCtrl = FixedExtentScrollController(initialItem: (kDay - 1));
 
+    final rawInitialDetail = initialDetail ?? '';
+    final strippedInitialDetail = _stripCidLines(rawInitialDetail);
+    final initialCidMetadata = _extractCidMetadata(rawInitialDetail);
+
     final controllerTitle = TextEditingController(text: initialTitle ?? '');
     final controllerLocation = TextEditingController(text: initialLocation ?? '');
-    final controllerDetail = TextEditingController(text: initialDetail ?? '');
+    final controllerDetail = TextEditingController(text: strippedInitialDetail);
 
     bool allDay = initialAllDay;
     TimeOfDay? startTime = initialStartTime ?? const TimeOfDay(hour: 12, minute: 0);
@@ -4654,7 +4658,9 @@ class _CalendarPageState extends State<CalendarPage>
                               end: n.end,
                             );
                             final location = (n.location?.isEmpty ?? true) ? null : n.location!;
-                            final detail = (n.detail?.isEmpty ?? true) ? null : n.detail!;
+                            final rawDetail = n.detail ?? '';
+                            final cleanedDetail = _stripCidLines(rawDetail);
+                            final hasDetail = cleanedDetail.isNotEmpty;
 
                             return SizedBox(
                               width: double.infinity,
@@ -4677,10 +4683,10 @@ class _CalendarPageState extends State<CalendarPage>
                                             style: const TextStyle(color: Colors.white70, fontSize: 12),
                                           ),
                                         ],
-                                        if (detail != null && detail.trim().isNotEmpty) ...[
+                                        if (hasDetail) ...[
                                           const SizedBox(height: 6),
                                           Text(
-                                            detail,
+                                            cleanedDetail,
                                             style: const TextStyle(
                                               color: Colors.white70,
                                               fontSize: 12,
@@ -5131,6 +5137,16 @@ class _CalendarPageState extends State<CalendarPage>
                             final t = controllerTitle.text.trim();
                             final loc = controllerLocation.text.trim();
                             final d = controllerDetail.text.trim();
+                            String detailForSave = d;
+                            if (initialCidMetadata.isNotEmpty) {
+                              if (editingIndex != null && d == strippedInitialDetail) {
+                                // Preserve original metadata if the user didn't change the text.
+                                detailForSave = rawInitialDetail;
+                              } else {
+                                detailForSave = _appendCidMetadata(d, initialCidMetadata);
+                              }
+                            }
+
                             if (t.isEmpty) return;
 
                             // Validate end time is after start time
@@ -5157,7 +5173,7 @@ class _CalendarPageState extends State<CalendarPage>
                                 selMonth: selMonth,
                                   selDay: selDay,
                                   title: t,
-                                  detail: d.isEmpty ? null : d,
+                                  detail: detailForSave.isEmpty ? null : detailForSave,
                                   location: loc.isEmpty ? null : loc,
                                   allDay: allDay,
                                   startTime: startTime,
@@ -5172,7 +5188,7 @@ class _CalendarPageState extends State<CalendarPage>
                                   selMonth: selMonth,
                                   selDay: selDay,
                                   title: t,
-                                  detail: d.isEmpty ? null : d,
+                                  detail: detailForSave.isEmpty ? null : detailForSave,
                                   location: loc.isEmpty ? null : loc,
                                   allDay: allDay,
                                   startTime: startTime,
@@ -12110,6 +12126,8 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       end = (_events.first.endsAtUtc ?? start.add(const Duration(hours: 1))).toLocal();
     }
     final description = _effectiveOverview(widget.flow.notes, widget.overview);
+    final cleanedDesc = _stripCidLines(description);
+    final descForToken = cleanedDesc.isEmpty ? null : cleanedDesc;
     final id = 'badge-${DateTime.now().microsecondsSinceEpoch}';
     return EventBadgeToken.buildToken(
       id: id,
@@ -12117,7 +12135,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       start: start,
       end: end,
       color: widget.flow.color,
-      description: description,
+      description: descForToken,
     );
   }
 
@@ -12807,6 +12825,30 @@ String _stripCidLines(String detail) {
     return true;
   }).toList();
   return kept.join('\n').trim();
+}
+
+// Helper: collect cid/flowLocalId metadata lines so we can reattach later without showing them.
+String _extractCidMetadata(String detail) {
+  if (detail.isEmpty) return '';
+  final lines = detail.split(RegExp(r'\r?\n'));
+  final cidRegex = RegExp(r'^(kemet_cid:)?ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$');
+  final removed = lines.where((line) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty) return false;
+    if (trimmed.startsWith('flowLocalId=')) return true;
+    final norm = trimmed.replaceAll(RegExp(r'\s+'), '');
+    return cidRegex.hasMatch(norm);
+  }).toList();
+  return removed.join('\n').trim();
+}
+
+// Helper: reattach hidden cid metadata without forcing the user to see it.
+String _appendCidMetadata(String detail, String cidMeta) {
+  if (cidMeta.isEmpty) return detail;
+  if (detail.isEmpty) return cidMeta;
+  final needsBlankLine = !detail.endsWith('\n');
+  final separator = needsBlankLine ? '\n\n' : '\n';
+  return '$detail$separator$cidMeta';
 }
 
 /// Extract a stored manual color (encoded as `color=RRGGBB;` prefix) and return

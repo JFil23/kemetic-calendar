@@ -1799,13 +1799,17 @@ class _DayViewGridState extends State<DayViewGrid> {
     final start = dayStart.add(Duration(minutes: event.startMin));
     final end = dayStart.add(Duration(minutes: event.endMin));
     final id = 'badge-${DateTime.now().microsecondsSinceEpoch}';
+    final rawDesc = event.detail?.trim() ?? '';
+    final cleanedDesc = rawDesc.isEmpty ? null : _stripCidLines(rawDesc);
+    final descForToken =
+        (cleanedDesc == null || cleanedDesc.isEmpty) ? null : cleanedDesc;
     return EventBadgeToken.buildToken(
       id: id,
       title: event.title.isEmpty ? 'Scheduled block' : event.title,
       start: start,
       end: end,
       color: event.color,
-      description: event.detail,
+      description: descForToken,
     );
   }
 
