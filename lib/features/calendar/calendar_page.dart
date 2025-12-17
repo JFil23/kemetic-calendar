@@ -38,6 +38,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import '../reminders/reminder_service.dart';
 import '../reminders/reminder_model.dart';
+import '../reminders/reminder_rule.dart';
+import '../reminders/reminder_rule_store.dart';
+import 'package:uuid/uuid.dart';
 import '../../data/reminders_repo.dart';
 import '../../utils/event_cid_util.dart';
 import 'package:share_plus/share_plus.dart';
@@ -1369,6 +1372,9 @@ class _CalendarPageState extends State<CalendarPage>
   late final RemindersRepo _remindersRepo = RemindersRepo(Supabase.instance.client);
   List<Reminder> _floatingReminders = [];
   bool _overlayActive = false;
+  late final ReminderRuleStore _reminderRuleStore = ReminderRuleStore();
+  final List<ReminderRule> _reminderRules = [];
+  bool _reminderRulesLoaded = false;
 
   Future<void> _loadReminderSettings() async {
     try {
@@ -1417,6 +1423,14 @@ class _CalendarPageState extends State<CalendarPage>
       return int.tryParse(m.group(1)!) ?? -1;
     }
     return -1;
+  }
+
+  String? _reminderRuleIdFromCid(String cid) {
+    if (!cid.startsWith('reminder:')) return null;
+    final parts = cid.split(':');
+    if (parts.length < 2) return null;
+    final id = parts[1].trim();
+    return id.isEmpty ? null : id;
   }
 
   /// Remove legacy clientEventId formats and replace them with unified ones. This
@@ -2284,6 +2298,836 @@ class _CalendarPageState extends State<CalendarPage>
       });
     }
   }
+
+  Future<void> _loadReminderRules() async {
+    if (_reminderRulesLoaded) return;
+    try {
+      final rules = await _reminderRuleStore.load();
+      if (mounted) {
+        setState(() {
+          _reminderRules
+            ..clear()
+            ..addAll(rules.toSet().toList());
+          _reminderRulesLoaded = true;
+        });
+      } else {
+        _reminderRules
+          ..clear()
+          ..addAll(rules.toSet().toList());
+        _reminderRulesLoaded = true;
+      }
+    } catch (_) {
+      _reminderRulesLoaded = true;
+    }
+  }
+
+  Future<void> _saveReminderRules() async {
+    await _reminderRuleStore.saveAll(_reminderRules);
+  }
+
+  Future<void> _upsertReminderRule(ReminderRule rule, {bool refresh = true}) async {
+    final idx = _reminderRules.indexWhere((r) => r.id == rule.id);
+    if (idx >= 0) {
+      _reminderRules[idx] = rule;
+    } else {
+      _reminderRules.add(rule);
+    }
+    await _saveReminderRules();
+    if (mounted) setState(() {});
+    await _syncReminderEvents(refreshUi: refresh);
+  }
+
+  Future<void> _deleteReminderRule(String id) async {
+    _reminderRules.removeWhere((r) => r.id == id);
+    await _saveReminderRules();
+    try {
+      final repo = UserEventsRepo(Supabase.instance.client);
+      await repo.deleteByClientIdPrefix(
+        'reminder:$id:',
+      );
+    } catch (_) {}
+    await _loadFromDisk();
+  }
+
+  List<DateTime> _generateReminderOccurrences(
+    ReminderRule rule,
+    DateTime windowStart,
+    DateTime windowEnd,
+  ) {
+    final dates = <DateTime>[];
+    final startDate = DateUtils.dateOnly(rule.startLocal);
+    final from = windowStart.isAfter(startDate) ? windowStart : startDate;
+
+    int _safeInterval(int value) => value <= 0 ? 1 : value;
+
+    switch (rule.repeat.kind) {
+      case ReminderRepeatKind.none:
+        if (!startDate.isBefore(windowStart) && !startDate.isAfter(windowEnd)) {
+          dates.add(startDate);
+        }
+        break;
+
+      case ReminderRepeatKind.everyNDays:
+        final step = _safeInterval(rule.repeat.interval);
+        DateTime cur = startDate;
+        while (cur.isBefore(from)) {
+          cur = cur.add(Duration(days: step));
+        }
+        while (!cur.isAfter(windowEnd)) {
+          if (!cur.isBefore(from)) dates.add(cur);
+          cur = cur.add(Duration(days: step));
+        }
+        break;
+
+      case ReminderRepeatKind.weekly:
+        final weekdays = rule.repeat.weekdays.isEmpty
+            ? {from.weekday}
+            : rule.repeat.weekdays;
+        DateTime cur = from;
+        while (!cur.isAfter(windowEnd)) {
+          if (!cur.isBefore(startDate) && weekdays.contains(cur.weekday)) {
+            dates.add(cur);
+          }
+          cur = cur.add(const Duration(days: 1));
+        }
+        break;
+
+      case ReminderRepeatKind.monthlyDay:
+        int target = rule.repeat.monthDay ?? startDate.day;
+        target = target.clamp(1, 31);
+        DateTime cursor = DateTime(from.year, from.month, 1);
+        if (cursor.isBefore(startDate)) {
+          cursor = DateTime(startDate.year, startDate.month, 1);
+        }
+        while (!cursor.isAfter(windowEnd)) {
+          final daysInMonth = DateUtils.getDaysInMonth(cursor.year, cursor.month);
+          final day = target.clamp(1, daysInMonth);
+          final occ = DateTime(cursor.year, cursor.month, day);
+          if (!occ.isBefore(from) && !occ.isBefore(startDate) && !occ.isAfter(windowEnd)) {
+            dates.add(occ);
+          }
+          cursor = DateTime(cursor.year, cursor.month + 1, 1);
+        }
+        break;
+
+      case ReminderRepeatKind.kemeticEveryNDecans:
+        final step = _safeInterval(rule.repeat.interval) * 10;
+        DateTime cur = startDate;
+        while (cur.isBefore(from)) {
+          cur = cur.add(Duration(days: step));
+        }
+        while (!cur.isAfter(windowEnd)) {
+          if (!cur.isBefore(startDate)) dates.add(cur);
+          cur = cur.add(Duration(days: step));
+        }
+        break;
+
+      case ReminderRepeatKind.kemeticDecanDay:
+        final target = (rule.repeat.decanDay ?? 1).clamp(1, 10);
+        DateTime cur = from.isBefore(startDate) ? startDate : from;
+        while (!cur.isAfter(windowEnd)) {
+          final k = KemeticMath.fromGregorian(cur);
+          if (k.kMonth != 13) {
+            final dInDecan = ((k.kDay - 1) % 10) + 1;
+            if (dInDecan == target) {
+              dates.add(cur);
+            }
+          }
+          cur = cur.add(const Duration(days: 1));
+        }
+        break;
+
+      case ReminderRepeatKind.kemeticMonthDay:
+        final target = (rule.repeat.kemeticMonthDay ??
+            rule.repeat.monthDay ??
+            startDate.day).clamp(1, 30);
+        DateTime cur = from.isBefore(startDate) ? startDate : from;
+        while (!cur.isAfter(windowEnd)) {
+          final k = KemeticMath.fromGregorian(cur);
+          if (k.kMonth != 13 && k.kDay == target) {
+            dates.add(cur);
+          }
+          cur = cur.add(const Duration(days: 1));
+        }
+        break;
+    }
+
+    dates.sort((a, b) => a.compareTo(b));
+    return dates;
+  }
+
+  String _reminderRepeatLabel(ReminderRule rule) {
+    String ordinal(int n) {
+      if (n >= 11 && n <= 13) return '${n}th';
+      switch (n % 10) {
+        case 1:
+          return '${n}st';
+        case 2:
+          return '${n}nd';
+        case 3:
+          return '${n}rd';
+        default:
+          return '${n}th';
+      }
+    }
+
+    switch (rule.repeat.kind) {
+      case ReminderRepeatKind.none:
+        return 'One-time';
+      case ReminderRepeatKind.everyNDays:
+        return 'Every ${rule.repeat.interval}d';
+      case ReminderRepeatKind.weekly:
+        if (rule.repeat.weekdays.isEmpty) return 'Weekly';
+        const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        final parts = rule.repeat.weekdays.toList()
+          ..sort();
+        return parts.map((d) => labels[(d - 1).clamp(0, 6)]).join('/');
+      case ReminderRepeatKind.monthlyDay:
+        final day = rule.repeat.monthDay ?? rule.startLocal.day;
+        return 'Monthly ${ordinal(day)}-G';
+      case ReminderRepeatKind.kemeticEveryNDecans:
+        final iv = rule.repeat.interval <= 0 ? 1 : rule.repeat.interval;
+        return iv == 1 ? 'Every decan' : 'Every ${iv} decans';
+      case ReminderRepeatKind.kemeticDecanDay:
+        final d = (rule.repeat.decanDay ?? 1).clamp(1, 10);
+        return 'Day $d / Decan';
+      case ReminderRepeatKind.kemeticMonthDay:
+        final d = (rule.repeat.kemeticMonthDay ??
+            rule.repeat.monthDay ??
+            rule.startLocal.day);
+        return 'Monthly ${ordinal(d)}-K';
+    }
+  }
+
+  void _pruneReminderNotes(String ruleId, {DateTime? fromDate}) {
+    final keysToRemove = <String>[];
+    _notes.forEach((k, list) {
+      list.removeWhere((n) {
+        final isTarget = n.isReminder && n.reminderId == ruleId;
+        if (!isTarget) return false;
+        if (fromDate == null) return true;
+        final parts = k.split('-');
+        if (parts.length != 3) return true;
+        final ky = int.tryParse(parts[0]) ?? 0;
+        final km = int.tryParse(parts[1]) ?? 0;
+        final kd = int.tryParse(parts[2]) ?? 0;
+        try {
+          final g = KemeticMath.toGregorian(ky, km, kd);
+          return !g.isBefore(fromDate);
+        } catch (_) {
+          return true;
+        }
+      });
+      if (list.isEmpty) keysToRemove.add(k);
+    });
+    for (final k in keysToRemove) {
+      _notes.remove(k);
+    }
+  }
+
+  void _materializeReminderLocally({
+    required ReminderRule rule,
+    required List<DateTime> occurrences,
+  }) {
+    for (final day in occurrences) {
+      final k = KemeticMath.fromGregorian(day);
+      final startTime = rule.allDay
+          ? null
+          : TimeOfDay(hour: rule.startLocal.hour, minute: rule.startLocal.minute);
+      final endTime = rule.allDay ? null : TimeOfDay.fromDateTime(day.add(const Duration(minutes: 30)));
+      _addNote(
+        k.kYear,
+        k.kMonth,
+        k.kDay,
+        rule.title,
+        null,
+        allDay: rule.allDay,
+        start: startTime,
+        end: endTime,
+        manualColor: rule.color,
+        category: rule.category,
+        isReminder: true,
+        reminderId: rule.id,
+      );
+    }
+  }
+
+  Future<void> _syncReminderEvents({bool refreshUi = false}) async {
+    await _loadReminderRules();
+    final repo = UserEventsRepo(Supabase.instance.client);
+    final today = DateUtils.dateOnly(DateTime.now());
+    final windowEnd = today.add(const Duration(days: 120));
+
+    for (final rule in _reminderRules) {
+      try {
+        await repo.deleteByClientIdPrefix(
+          'reminder:${rule.id}:',
+        );
+      } catch (_) {}
+
+      if (!rule.active) continue;
+
+      final occurrences = _generateReminderOccurrences(rule, today, windowEnd);
+      // Update local cache first so UI reflects immediately even if network fails.
+      _pruneReminderNotes(rule.id, fromDate: today);
+      _materializeReminderLocally(rule: rule, occurrences: occurrences);
+
+      for (final day in occurrences) {
+        final start = rule.allDay
+            ? DateTime(day.year, day.month, day.day, 9, 0)
+            : DateTime(
+                day.year,
+                day.month,
+                day.day,
+                rule.startLocal.hour,
+                rule.startLocal.minute,
+              );
+        final end = rule.allDay ? null : start.add(const Duration(minutes: 30));
+        final cidDate =
+            '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+        final cid = 'reminder:${rule.id}:$cidDate';
+        final encodedDetail = _encodeDetailWithColor(null, rule.color);
+
+        try {
+          await repo.upsertByClientId(
+            clientEventId: cid,
+            title: rule.title,
+            startsAtUtc: start.toUtc(),
+            detail: encodedDetail,
+            location: null,
+            allDay: rule.allDay,
+            endsAtUtc: end?.toUtc(),
+            category: rule.category,
+          );
+        } catch (_) {
+          // non-fatal for individual reminders; local cache already updated
+        }
+      }
+    }
+
+    if (refreshUi) {
+      await _loadFromDisk();
+    }
+  }
+
+  Future<void> _openReminderEditor({ReminderRule? existing}) async {
+    await _loadReminderRules();
+    final now = DateTime.now();
+    final defaultStart = DateTime(now.year, now.month, now.day, now.hour, 0);
+    final titleCtrl = TextEditingController(text: existing?.title ?? '');
+    DateTime startLocal = existing?.startLocal ?? defaultStart;
+    bool allDay = existing?.allDay ?? false;
+    int colorIndex = existing != null
+        ? _flowPalette.indexWhere((c) => c.value == existing.color.value)
+        : 0;
+    if (colorIndex < 0) colorIndex = 0;
+    String? category = existing?.category;
+    ReminderRepeat repeat = existing?.repeat ?? const ReminderRepeat();
+    bool active = existing?.active ?? true;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final scrollController = ScrollController();
+        final media = MediaQuery.of(ctx);
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            bottom: media.viewInsets.bottom + 16,
+            top: 12,
+          ),
+          child: StatefulBuilder(
+            builder: (ctx, setModalState) {
+              String dateLabel(DateTime d) =>
+                  '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
+              String timeLabel(TimeOfDay t) {
+                final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+                final m = t.minute.toString().padLeft(2, '0');
+                final ap = t.period == DayPeriod.am ? 'AM' : 'PM';
+                return '$h:$m $ap';
+              }
+
+              Widget repeatField() {
+                final kind = repeat.kind;
+                switch (kind) {
+                  case ReminderRepeatKind.everyNDays:
+                    return TextFormField(
+                      keyboardType: TextInputType.number,
+                      initialValue: repeat.interval.toString(),
+                      decoration: const InputDecoration(
+                        labelText: 'Every N days',
+                        labelStyle: TextStyle(color: Colors.white70),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white24),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: _gold),
+                        ),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      onChanged: (v) {
+                        final n = int.tryParse(v) ?? 1;
+                        setModalState(() {
+                          repeat = repeat.copyWith(interval: n.clamp(1, 365));
+                        });
+                      },
+                    );
+
+                  case ReminderRepeatKind.weekly:
+                    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                    return Wrap(
+                      spacing: 8,
+                      children: List.generate(7, (i) {
+                        final wd = i + 1;
+                        final selected = repeat.weekdays.contains(wd);
+                        return ChoiceChip(
+                          label: Text(labels[i]),
+                          selected: selected,
+                          onSelected: (_) {
+                            final next = {...repeat.weekdays};
+                            if (selected) {
+                              next.remove(wd);
+                            } else {
+                              next.add(wd);
+                            }
+                            setModalState(() {
+                              repeat = repeat.copyWith(weekdays: next);
+                            });
+                          },
+                        );
+                      }),
+                    );
+
+                  case ReminderRepeatKind.monthlyDay:
+                    return TextFormField(
+                      keyboardType: TextInputType.number,
+                      initialValue: (repeat.monthDay ?? startLocal.day).toString(),
+                      decoration: const InputDecoration(
+                        labelText: 'Day of month (1-31)',
+                        labelStyle: TextStyle(color: Colors.white70),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white24),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: _gold),
+                        ),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      onChanged: (v) {
+                        final n = int.tryParse(v) ?? 1;
+                        setModalState(() {
+                          repeat = repeat.copyWith(monthDay: n.clamp(1, 31));
+                        });
+                      },
+                    );
+
+                  case ReminderRepeatKind.kemeticEveryNDecans:
+                    return TextFormField(
+                      keyboardType: TextInputType.number,
+                      initialValue: repeat.interval.toString(),
+                      decoration: const InputDecoration(
+                        labelText: 'Every N decans',
+                        labelStyle: TextStyle(color: Colors.white70),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white24),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: _gold),
+                        ),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      onChanged: (v) {
+                        final n = int.tryParse(v) ?? 1;
+                        setModalState(() {
+                          repeat = repeat.copyWith(interval: n.clamp(1, 36));
+                        });
+                      },
+                    );
+
+                  case ReminderRepeatKind.kemeticDecanDay:
+                    return TextFormField(
+                      keyboardType: TextInputType.number,
+                      initialValue: (repeat.decanDay ?? 1).toString(),
+                      decoration: const InputDecoration(
+                        labelText: 'Day of decan (1-10)',
+                        labelStyle: TextStyle(color: Colors.white70),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white24),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: _gold),
+                        ),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      onChanged: (v) {
+                        final n = int.tryParse(v) ?? 1;
+                        setModalState(() {
+                          repeat = repeat.copyWith(decanDay: n.clamp(1, 10));
+                        });
+                      },
+                    );
+
+                  case ReminderRepeatKind.kemeticMonthDay:
+                    return TextFormField(
+                      keyboardType: TextInputType.number,
+                      initialValue:
+                          (repeat.kemeticMonthDay ?? startLocal.day.clamp(1, 30)).toString(),
+                      decoration: const InputDecoration(
+                        labelText: 'Day of Kemetic month (1-30)',
+                        labelStyle: TextStyle(color: Colors.white70),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white24),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: _gold),
+                        ),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      onChanged: (v) {
+                        final n = int.tryParse(v) ?? 1;
+                        setModalState(() {
+                          repeat = repeat.copyWith(kemeticMonthDay: n.clamp(1, 30));
+                        });
+                      },
+                    );
+
+                  case ReminderRepeatKind.none:
+                    return const SizedBox.shrink();
+                }
+              }
+
+              return SingleChildScrollView(
+                controller: scrollController,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          existing == null ? 'New Reminder' : 'Edit Reminder',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Switch(
+                          value: active,
+                          activeColor: _gold,
+                          onChanged: (v) => setModalState(() => active = v),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: titleCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Title',
+                        labelStyle: TextStyle(color: Colors.white70),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: Colors.white24),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: _gold),
+                        ),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton.icon(
+                            onPressed: () async {
+                              final picked = await pickDateUniversal(
+                                context: context,
+                                initialDate: startLocal,
+                                allowPast: true,
+                              );
+                              if (picked != null) {
+                                setModalState(() {
+                                  startLocal = DateTime(
+                                    picked.year,
+                                    picked.month,
+                                    picked.day,
+                                    startLocal.hour,
+                                    startLocal.minute,
+                                  );
+                                  if (repeat.kind == ReminderRepeatKind.monthlyDay &&
+                                      repeat.monthDay == null) {
+                                    repeat = repeat.copyWith(monthDay: startLocal.day);
+                                  }
+                                });
+                              }
+                            },
+                            icon: const Icon(Icons.calendar_today, color: _gold),
+                            label: Text(
+                              dateLabel(startLocal),
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextButton.icon(
+                            onPressed: allDay
+                                ? null
+                                : () async {
+                                    final picked = await showTimePicker(
+                                      context: context,
+                                      initialTime: TimeOfDay.fromDateTime(startLocal),
+                                      builder: (c, w) => Theme(
+                                        data: Theme.of(c).copyWith(
+                                          colorScheme: const ColorScheme.dark(
+                                            primary: _gold,
+                                            surface: _bg,
+                                            onSurface: Colors.white,
+                                          ),
+                                        ),
+                                        child: w ?? const SizedBox.shrink(),
+                                      ),
+                                    );
+                                    if (picked != null) {
+                                      setModalState(() {
+                                        startLocal = DateTime(
+                                          startLocal.year,
+                                          startLocal.month,
+                                          startLocal.day,
+                                          picked.hour,
+                                          picked.minute,
+                                        );
+                                      });
+                                    }
+                                  },
+                            icon: const Icon(Icons.access_time, color: _gold),
+                            label: Text(
+                              allDay ? 'All day' : timeLabel(TimeOfDay.fromDateTime(startLocal)),
+                              style: TextStyle(color: allDay ? Colors.white54 : Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: allDay,
+                      onChanged: (v) => setModalState(() => allDay = v),
+                      activeColor: _gold,
+                      title: const Text('All day', style: TextStyle(color: Colors.white)),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Repeat',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 6),
+                    DropdownButton<ReminderRepeatKind>(
+                      value: repeat.kind,
+                      dropdownColor: Colors.black,
+                      iconEnabledColor: _gold,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(
+                          value: ReminderRepeatKind.none,
+                          child: Text('Never', style: TextStyle(color: Colors.white)),
+                        ),
+                        DropdownMenuItem(
+                          value: ReminderRepeatKind.everyNDays,
+                          child: Text('Every N days', style: TextStyle(color: Colors.white)),
+                        ),
+                        DropdownMenuItem(
+                          value: ReminderRepeatKind.weekly,
+                          child: Text('Weekly (pick days)', style: TextStyle(color: Colors.white)),
+                        ),
+                        DropdownMenuItem(
+                          value: ReminderRepeatKind.monthlyDay,
+                          child: Text('Monthly (day of month)', style: TextStyle(color: Colors.white)),
+                        ),
+                        DropdownMenuItem(
+                          value: ReminderRepeatKind.kemeticEveryNDecans,
+                          child: Text('Every N decans', style: TextStyle(color: Colors.white)),
+                        ),
+                        DropdownMenuItem(
+                          value: ReminderRepeatKind.kemeticDecanDay,
+                          child: Text('Day of each decan', style: TextStyle(color: Colors.white)),
+                        ),
+                        DropdownMenuItem(
+                          value: ReminderRepeatKind.kemeticMonthDay,
+                          child: Text('Day of each Kemetic month', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        if (val == null) return;
+                        setModalState(() {
+                          switch (val) {
+                            case ReminderRepeatKind.monthlyDay:
+                              repeat = repeat.copyWith(
+                                kind: val,
+                                monthDay: repeat.monthDay ?? startLocal.day,
+                              );
+                              break;
+                            case ReminderRepeatKind.weekly:
+                              final wd = startLocal.weekday;
+                              final current = repeat.weekdays.isEmpty ? {wd} : repeat.weekdays;
+                              repeat = repeat.copyWith(kind: val, weekdays: current);
+                              break;
+                            case ReminderRepeatKind.everyNDays:
+                              repeat = repeat.copyWith(kind: val, interval: repeat.interval <= 0 ? 1 : repeat.interval);
+                              break;
+                            case ReminderRepeatKind.kemeticEveryNDecans:
+                              repeat = repeat.copyWith(kind: val, interval: repeat.interval <= 0 ? 1 : repeat.interval);
+                              break;
+                            case ReminderRepeatKind.kemeticDecanDay:
+                              repeat = repeat.copyWith(kind: val, decanDay: repeat.decanDay ?? 1);
+                              break;
+                            case ReminderRepeatKind.kemeticMonthDay:
+                              repeat = repeat.copyWith(
+                                kind: val,
+                                kemeticMonthDay: repeat.kemeticMonthDay ?? startLocal.day.clamp(1, 30),
+                              );
+                              break;
+                            case ReminderRepeatKind.none:
+                              repeat = repeat.copyWith(kind: val);
+                              break;
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    repeatField(),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Category',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final cat in NoteCategory.all)
+                          ChoiceChip(
+                            label: Text(cat),
+                            selected: category == cat,
+                            onSelected: (_) => setModalState(() => category = cat),
+                          ),
+                        ChoiceChip(
+                          label: const Text('Clear'),
+                          selected: category == null,
+                          onSelected: (_) => setModalState(() => category = null),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Color',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 36,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _flowPalette.length,
+                        itemBuilder: (_, i) {
+                          final selected = colorIndex == i;
+                          final color = _flowPalette[i];
+                          return InkWell(
+                            onTap: () => setModalState(() => colorIndex = i),
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: _glossFromColor(color),
+                                border: Border.all(
+                                  color: selected ? _gold : Colors.white24,
+                                  width: selected ? 2 : 1,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _gold,
+                          foregroundColor: Colors.black,
+                        ),
+                        onPressed: () async {
+                          final title = titleCtrl.text.trim();
+                          if (title.isEmpty) return;
+                          final id = existing?.id ?? const Uuid().v4();
+                          final rule = ReminderRule(
+                            id: id,
+                            title: title,
+                            startLocal: startLocal,
+                            allDay: allDay,
+                            color: _flowPalette[colorIndex],
+                            category: category,
+                            active: active,
+                            repeat: repeat,
+                          );
+                          await _upsertReminderRule(rule);
+                          if (context.mounted) Navigator.pop(context);
+                        },
+                        child: const Text('Save Reminder'),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+
+    titleCtrl.dispose();
+  }
+
+  ReminderRule? _findReminder(String id) {
+    for (final r in _reminderRules) {
+      if (r.id == id) return r;
+    }
+    return null;
+  }
+
+  Future<void> _editReminderById(String id) async {
+    await _loadReminderRules();
+    final rule = _findReminder(id);
+    if (rule == null) return;
+    await _openReminderEditor(existing: rule);
+  }
+
+  Future<void> _endReminderRule(String id) async {
+    await _loadReminderRules();
+    final idx = _reminderRules.indexWhere((r) => r.id == id);
+    if (idx < 0) return;
+    final updated = _reminderRules[idx].copyWith(active: false);
+    await _upsertReminderRule(updated);
+  }
   
   // ✅ Rotation reconcile: re-center on last view after rotation settles
   @override
@@ -2417,6 +3261,8 @@ class _CalendarPageState extends State<CalendarPage>
         int? flowId,
         Color? manualColor,
         String? category,
+        bool isReminder = false,
+        String? reminderId,
       }) {
     final k = _kKey(kYear, kMonth, kDay);
     final list = _notes.putIfAbsent(k, () => <_Note>[]);
@@ -2433,6 +3279,8 @@ class _CalendarPageState extends State<CalendarPage>
       flowId: flowId,
       manualColor: manualColor,
       category: category,
+      isReminder: isReminder,
+      reminderId: reminderId,
     ));
     // Do not schedule notifications here; scheduling is handled by the caller.
     setState(() {});
@@ -4059,6 +4907,7 @@ class _CalendarPageState extends State<CalendarPage>
 
       // Create/update local reminders for timed events on this day (Flutter-only)
       for (final n in notes) {
+        if (n.isReminder) continue; // reminders manage their own schedule
         if (n.allDay || n.start == null) continue;
         final alertLocal = DateTime(
           y,
@@ -4081,7 +4930,6 @@ class _CalendarPageState extends State<CalendarPage>
             updatedAt: DateTime.now().toUtc(),
           ),
         );
-
       }
 
       return notes.map((n) => NoteData(
@@ -4095,6 +4943,8 @@ class _CalendarPageState extends State<CalendarPage>
         flowId: n.flowId,
         manualColor: n.manualColor,
         category: n.category,
+        isReminder: n.isReminder,
+        reminderId: n.reminderId,
       )).toList();
     };
 
@@ -4150,6 +5000,9 @@ class _CalendarPageState extends State<CalendarPage>
           },
           onCreateTimedEvent: _handleCreateTimedEvent,
           onEndFlow: (id) => _endFlow(id),
+          onEditReminder: (id) => _editReminderById(id),
+          onEndReminder: (id) => _endReminderRule(id),
+          onShareReminder: (evt) => _shareNoteSimple(evt),
           onAppendToJournal: (text) async {
             if (_journalInitialized) {
               await _journalController.appendToToday(text);
@@ -4291,6 +5144,7 @@ class _CalendarPageState extends State<CalendarPage>
         );
 
         final fieldLabel = const TextStyle(fontSize: 12, color: Color(0xFFBFC3C7));
+        bool showReminders = false;
 
         return StatefulBuilder(
           builder: (sheetCtx, setSheetState) {
@@ -4541,6 +5395,173 @@ class _CalendarPageState extends State<CalendarPage>
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('Notes'),
+                            selected: !showReminders,
+                            onSelected: (_) => setSheetState(() => showReminders = false),
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('Reminders'),
+                            selected: showReminders,
+                            onSelected: (_) {
+                              setSheetState(() => showReminders = true);
+                              if (!_reminderRulesLoaded) {
+                                _loadReminderRules();
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      if (showReminders) ...[
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: const GlossyText(
+                            text: 'Reminders',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                            gradient: goldGloss,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        if (!_reminderRulesLoaded)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: Center(
+                              child: CircularProgressIndicator(color: _gold),
+                            ),
+                          )
+                        else if (_reminderRules.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Text(
+                              'No reminders yet',
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          )
+                        else
+                          ListView.separated(
+                            primary: false,
+                            shrinkWrap: true,
+                            controller: null,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _reminderRules.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 12, color: Colors.white12),
+                            itemBuilder: (_, i) {
+                              final r = _reminderRules[i];
+                              final label = _reminderRepeatLabel(r);
+                              return InkWell(
+                                onTap: () async {
+                                  await _openReminderEditor(existing: r);
+                                  setSheetState(() {});
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                    horizontal: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white10,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 10,
+                                        height: 10,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: r.color,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: SizedBox(
+                                          height: 20,
+                                          child: SingleChildScrollView(
+                                            scrollDirection: Axis.horizontal,
+                                            primary: false,
+                                            child: Text(
+                                              r.title,
+                                              style: TextStyle(
+                                                color: r.active
+                                                    ? Colors.white
+                                                    : Colors.white54,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        label,
+                                        style: TextStyle(
+                                          color: r.active ? _gold : Colors.white54,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      PopupMenuButton<String>(
+                                        icon: const Icon(Icons.more_vert, color: Colors.white70),
+                                        color: const Color(0xFF1A1A1A),
+                                        onSelected: (v) async {
+                                          if (v == 'edit') {
+                                            await _openReminderEditor(existing: r);
+                                          } else if (v == 'end') {
+                                            await _endReminderRule(r.id);
+                                          } else if (v == 'delete') {
+                                            await _deleteReminderRule(r.id);
+                                          }
+                                          setSheetState(() {});
+                                        },
+                                        itemBuilder: (context) => const [
+                                          PopupMenuItem(
+                                            value: 'edit',
+                                            child: Text('Edit Reminder', style: TextStyle(color: Colors.white)),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'end',
+                                            child: Text('End Reminder', style: TextStyle(color: Colors.white)),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'delete',
+                                            child: Text('Delete', style: TextStyle(color: Colors.white)),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _gold,
+                              foregroundColor: Colors.black,
+                            ),
+                            onPressed: () async {
+                              await _openReminderEditor();
+                              setSheetState(() {});
+                            },
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add reminder'),
+                          ),
+                        ),
+                      ] else ...[
 
                       // Date (static or wheels)
                       datePicker(),
@@ -5157,9 +6178,9 @@ class _CalendarPageState extends State<CalendarPage>
                             }
 
                             final bool isRepeating = repeatOption != NoteRepeatOption.never;
-                            
-                          final selectedColor = _flowPalette[selectedColorIndex];
-                          
+
+                            final selectedColor = _flowPalette[selectedColorIndex];
+
                           try {
                             // If editing an existing note, remove the old one first.
                             if (editingIndex != null) {
@@ -5231,6 +6252,7 @@ class _CalendarPageState extends State<CalendarPage>
                           child: const Text('Save'),
                         ),
                       ),
+                      ],
                     ],
                   ),
                   ),
@@ -5643,8 +6665,12 @@ class _CalendarPageState extends State<CalendarPage>
         return; // Don't load data yet - wait for restart
       }
       
-      // 1) First load everything from disk
-      _loadFromDisk().then((_) {
+      // 1) Load reminder rules + schedule their instances, then load flows/events
+      _loadReminderRules().then((_) async {
+        try {
+          await _syncReminderEvents(refreshUi: false);
+        } catch (_) {}
+        await _loadFromDisk();
         // 2) After flows are loaded, if we have an initial flow to edit, open it
         if (mounted && widget.initialFlowIdToEdit != null) {
           _openFlowEditorDirectly(widget.initialFlowIdToEdit!);
@@ -5840,6 +6866,8 @@ class _CalendarPageState extends State<CalendarPage>
           final kDate = KemeticMath.fromGregorian(localStart);
           final decoded = _decodeDetailColor(rawDetail);
           final cleanedDetail = _cleanDetail(decoded.detail);
+          final bool isReminderEvent = cid.startsWith('reminder:');
+          final String? reminderRuleId = _reminderRuleIdFromCid(cid);
 
           final note = _Note(
             title: evt.title,
@@ -5855,6 +6883,8 @@ class _CalendarPageState extends State<CalendarPage>
             flowId: -1, // Standalone notes have flowId = -1
             manualColor: decoded.color,
             category: evt.category,
+            isReminder: isReminderEvent,
+            reminderId: reminderRuleId,
           );
 
           final key = _kKey(kDate.kYear, kDate.kMonth, kDate.kDay);
@@ -7227,6 +8257,8 @@ class _CalendarPageState extends State<CalendarPage>
             flowId: n.flowId,
             manualColor: n.manualColor,
             category: n.category,
+            isReminder: n.isReminder,
+            reminderId: n.reminderId,
           )).toList();
         },
         flowIndex: _buildFlowIndex(),
@@ -14265,6 +15297,8 @@ class _Note {
   /// Manual color for notes that aren't driven by a flow.
   final Color? manualColor;
   final String? category; // optional category label
+  final bool isReminder;
+  final String? reminderId;
 
   const _Note({
     this.id,
@@ -14277,6 +15311,8 @@ class _Note {
     this.flowId,
     this.manualColor,
     this.category,
+    this.isReminder = false,
+    this.reminderId,
   });
 }
 

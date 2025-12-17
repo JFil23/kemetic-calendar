@@ -69,6 +69,8 @@ class EventLayoutEngine {
         manualColor: note.manualColor,
         allDay: note.allDay,
         category: note.category,
+        isReminder: note.isReminder,
+        reminderId: note.reminderId,
       ));
     }
 
@@ -135,6 +137,8 @@ class NoteData {
   final int? flowId;
   final Color? manualColor;
   final String? category;
+  final bool isReminder;
+  final String? reminderId;
 
   const NoteData({
     this.id,
@@ -147,6 +151,8 @@ class NoteData {
     this.flowId,
     this.manualColor,
     this.category,
+    this.isReminder = false,
+    this.reminderId,
   });
 }
 
@@ -176,6 +182,8 @@ class EventItem {
   final Color? manualColor;
   final bool allDay;
   final String? category;
+  final bool isReminder;
+  final String? reminderId;
 
   const EventItem({
     this.id,
@@ -189,6 +197,8 @@ class EventItem {
     this.manualColor,
     required this.allDay,
     this.category,
+    this.isReminder = false,
+    this.reminderId,
   });
 
   @override
@@ -229,6 +239,9 @@ class DayViewPage extends StatefulWidget {
   final Future<void> Function(int ky, int km, int kd, EventItem event)? onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem event)? onEditNote;
   final Future<void> Function(EventItem event)? onShareNote;
+  final Future<void> Function(String reminderId)? onEditReminder;
+  final Future<void> Function(String reminderId)? onEndReminder;
+  final Future<void> Function(EventItem event)? onShareReminder;
   final void Function(
     int ky,
     int km,
@@ -269,6 +282,9 @@ class DayViewPage extends StatefulWidget {
     this.onDeleteNote,
     this.onEditNote,
     this.onShareNote,
+    this.onEditReminder,
+    this.onEndReminder,
+    this.onShareReminder,
     this.onOpenAddNoteWithTime,
     this.onCreateTimedEvent, // NEW
     this.onEndFlow,
@@ -500,6 +516,9 @@ class _DayViewPageState extends State<DayViewPage> {
                       onDeleteNote: widget.onDeleteNote,
                       onEditNote: widget.onEditNote,
                       onShareNote: widget.onShareNote,
+                      onEditReminder: widget.onEditReminder,
+                      onEndReminder: widget.onEndReminder,
+                      onShareReminder: widget.onShareReminder,
                       onOpenAddNoteWithTime: widget.onOpenAddNoteWithTime,
                       onCreateTimedEvent: widget.onCreateTimedEvent,
                       onEndFlow: widget.onEndFlow, // Pass End Flow callback down
@@ -903,6 +922,9 @@ class DayViewGrid extends StatefulWidget {
   final Future<void> Function(int ky, int km, int kd, EventItem event)? onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem event)? onEditNote;
   final Future<void> Function(EventItem event)? onShareNote;
+  final Future<void> Function(String reminderId)? onEditReminder;
+  final Future<void> Function(String reminderId)? onEndReminder;
+  final Future<void> Function(EventItem event)? onShareReminder;
   final void Function(
     int ky,
     int km,
@@ -940,6 +962,9 @@ class DayViewGrid extends StatefulWidget {
     this.onDeleteNote,
     this.onEditNote,
     this.onShareNote,
+    this.onEditReminder,
+    this.onEndReminder,
+    this.onShareReminder,
     this.onOpenAddNoteWithTime,
     this.onCreateTimedEvent, // NEW
     this.onEndFlow,
@@ -999,6 +1024,21 @@ class _DayViewGridState extends State<DayViewGrid> {
           : null,
       icon: const Icon(Icons.delete_outline),
       label: const Text('End Note'),
+    );
+  }
+
+  Widget _buildEndReminderButton(EventItem event) {
+    final enabled = widget.onEndReminder != null && event.reminderId != null;
+    return OutlinedButton.icon(
+      style: _endButtonStyle(),
+      onPressed: enabled
+          ? () async {
+              Navigator.pop(context);
+              await widget.onEndReminder!(event.reminderId!);
+            }
+          : null,
+      icon: const Icon(Icons.stop_circle),
+      label: const Text('End Reminder'),
     );
   }
 
@@ -1632,11 +1672,10 @@ class _DayViewGridState extends State<DayViewGrid> {
       durationMinutes = 180;
     }
     
-    // ✅ Add minimum height to prevent overflow (accounts for padding + text content)
+    final double minHeight = event.isReminder ? (_kMinEventBlockHeight / 2) : _kMinEventBlockHeight;
     final double rawHeight = durationMinutes.toDouble();
-    final double height = rawHeight < _kMinEventBlockHeight 
-        ? _kMinEventBlockHeight 
-        : rawHeight;
+    final double baseHeight = event.isReminder ? rawHeight * 0.5 : rawHeight;
+    final double height = baseHeight < minHeight ? minHeight : baseHeight;
     
     return Container(
       width: block.width,
@@ -1844,6 +1883,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   // Show event detail sheet
   void _showEventDetail(EventItem event) {
     final flow = widget.flowIndex[event.flowId];
+    final bool isReminder = event.isReminder;
     
     // 🔍 DEBUG: Comprehensive logging
     if (kDebugMode) {
@@ -1903,6 +1943,22 @@ class _DayViewGridState extends State<DayViewGrid> {
                         ),
                       ),
                     )
+                  else if (isReminder)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD4AF37).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Reminder',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFFD4AF37),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    )
                   else if (event.detail != null && event.detail!.contains('Source:'))
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1925,10 +1981,12 @@ class _DayViewGridState extends State<DayViewGrid> {
                           ),
                         ],
                       ),
-                    ),
+                  ),
                   const Spacer(),
                   if (flow != null)
                     _buildEndFlowButton(flow.id)
+                  else if (isReminder)
+                    _buildEndReminderButton(event)
                   else if (widget.onDeleteNote != null)
                     _buildEndNoteButton(event),
                   const SizedBox(width: 8),
@@ -1964,24 +2022,35 @@ class _DayViewGridState extends State<DayViewGrid> {
                           ),
                         );
                       }
-                    } else if (value == 'edit_note' && flow == null && widget.onEditNote != null) {
+                    } else if (value == 'edit_reminder' &&
+                        isReminder &&
+                        widget.onEditReminder != null &&
+                        event.reminderId != null) {
+                      Navigator.pop(context);
+                      await widget.onEditReminder!(event.reminderId!);
+                    } else if (value == 'share_reminder' &&
+                        isReminder &&
+                        widget.onShareReminder != null) {
+                      Navigator.pop(context);
+                      await widget.onShareReminder!(event);
+                    } else if (value == 'edit_note' && flow == null && !isReminder && widget.onEditNote != null) {
                       Navigator.pop(context);
                       await widget.onEditNote!(widget.ky, widget.km, widget.kd, event);
-                    } else if (value == 'share_note' && flow == null && widget.onShareNote != null) {
+                    } else if (value == 'share_note' && flow == null && !isReminder && widget.onShareNote != null) {
                       Navigator.pop(context);
                       await widget.onShareNote!(event);
                     }
                   },
                   itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'journal',
-                        child: Row(
-                          children: const [
-                            Icon(Icons.check_circle, color: Color(0xFFD4AF37)),
-                            SizedBox(width: 12),
-                            Text('Done / Add to journal', style: TextStyle(color: Colors.white)),
-                          ],
-                        ),
+                      PopupMenuItem(
+                        value: 'journal',
+                          child: Row(
+                            children: const [
+                              Icon(Icons.check_circle, color: Color(0xFFD4AF37)),
+                              SizedBox(width: 12),
+                              Text('Done / Add to journal', style: TextStyle(color: Colors.white)),
+                            ],
+                          ),
                       ),
                       if (flow != null)
                         const PopupMenuItem(
@@ -2005,7 +2074,29 @@ class _DayViewGridState extends State<DayViewGrid> {
                             ],
                           ),
                         ),
-                      if (flow == null && widget.onEditNote != null)
+                      if (isReminder && widget.onEditReminder != null && event.reminderId != null)
+                        const PopupMenuItem(
+                          value: 'edit_reminder',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, color: Color(0xFFD4AF37)),
+                              SizedBox(width: 12),
+                              Text('Edit Reminder', style: TextStyle(color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                      if (isReminder && widget.onShareReminder != null)
+                        const PopupMenuItem(
+                          value: 'share_reminder',
+                          child: Row(
+                            children: [
+                              Icon(Icons.share, color: Color(0xFFD4AF37)),
+                              SizedBox(width: 12),
+                              Text('Share Reminder', style: TextStyle(color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                      if (flow == null && !isReminder && widget.onEditNote != null)
                         const PopupMenuItem(
                           value: 'edit_note',
                           child: Row(
@@ -2016,7 +2107,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                             ],
                           ),
                         ),
-                      if (flow == null && widget.onShareNote != null)
+                      if (flow == null && !isReminder && widget.onShareNote != null)
                         const PopupMenuItem(
                           value: 'share_note',
                           child: Row(

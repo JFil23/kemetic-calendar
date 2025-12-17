@@ -249,17 +249,22 @@ class UserEventsRepo {
 
   /// Delete events by client_event_id prefix (e.g., 'nutrition:item-id:').
   /// Useful for bulk deletion of related events.
-  Future<void> deleteByClientIdPrefix(String prefix) async {
-    _log('deleteByClientIdPrefix($prefix)');
+  Future<void> deleteByClientIdPrefix(String prefix, {DateTime? fromUtc}) async {
+    _log('deleteByClientIdPrefix($prefix, fromUtc=$fromUtc)');
     try {
       final user = _client.auth.currentUser;
       if (user == null) return;
       
-      await _client
+      var query = _client
           .from(_kTable)
           .delete()
           .eq('user_id', user.id)
           .like('client_event_id', '$prefix%');
+      if (fromUtc != null) {
+        query = query.gte('starts_at', fromUtc.toUtc().toIso8601String());
+      }
+      
+      await query;
       
       _log('deleteByClientIdPrefix ✓');
     } on PostgrestException catch (e) {
