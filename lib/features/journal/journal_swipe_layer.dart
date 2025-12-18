@@ -48,16 +48,10 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
   @override
   void initState() {
     super.initState();
-    debugPrint('');
-    debugPrint('🟢 JournalSwipeLayer INITIALIZED');
-    debugPrint('   isPortrait: ${widget.isPortrait}');
-    debugPrint('   canOpenJournalSwipe: ${UiGuards.canOpenJournalSwipe}');
-    debugPrint('');
   }
 
   @override
   void dispose() {
-    debugPrint('🔴 JournalSwipeLayer DISPOSED');
     _closeJournal();
     super.dispose();
   }
@@ -65,10 +59,6 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
   void _openJournal() {
     if (_isJournalOpen) return;
     if (!UiGuards.canOpenJournalSwipe) return;
-
-    debugPrint('');
-    debugPrint('🚀 OPENING JOURNAL OVERLAY');
-    debugPrint('');
 
     setState(() => _isJournalOpen = true);
 
@@ -84,14 +74,11 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
     // analytics
     _trackJournalOpened();
     
-    debugPrint('✅ Journal overlay inserted');
   }
 
   void _closeJournal() {
     if (!_isJournalOpen) return;
 
-    debugPrint('🔒 Closing journal overlay');
-    
     _overlayEntry?.remove();
     _overlayEntry = null;
     setState(() => _isJournalOpen = false);
@@ -106,10 +93,7 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('🏗️  JournalSwipeLayer BUILD (isPortrait: ${widget.isPortrait})');
-    
     if (!_active) {
-      debugPrint('   Skipping gesture detector (landscape mode or not mounted)');
       return widget.child;
     }
 
@@ -120,8 +104,6 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
     // For RTL, flip edges
     final leftSide = isRtl ? null : 0.0;
     final rightSide = isRtl ? 0.0 : null;
-
-    debugPrint('   Adding edge-only swipe pads (edge width: $edge px)');
 
     return Stack(
       children: [

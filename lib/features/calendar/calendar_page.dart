@@ -2479,23 +2479,23 @@ class _CalendarPageState extends State<CalendarPage>
       case ReminderRepeatKind.weekly:
         if (rule.repeat.weekdays.isEmpty) return 'Weekly';
         const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        final parts = rule.repeat.weekdays.toList()
-          ..sort();
-        return parts.map((d) => labels[(d - 1).clamp(0, 6)]).join('/');
+        final parts = rule.repeat.weekdays.toList()..sort();
+        final joined = parts.map((d) => labels[(d - 1).clamp(0, 6)]).join('/');
+        return 'Weekly $joined';
       case ReminderRepeatKind.monthlyDay:
         final day = rule.repeat.monthDay ?? rule.startLocal.day;
-        return 'Monthly ${ordinal(day)}-G';
+        return 'Monthly ${ordinal(day)} – G';
       case ReminderRepeatKind.kemeticEveryNDecans:
         final iv = rule.repeat.interval <= 0 ? 1 : rule.repeat.interval;
-        return iv == 1 ? 'Every decan' : 'Every ${iv} decans';
+        return iv == 1 ? 'Every Decan' : 'Every ${iv} Decans';
       case ReminderRepeatKind.kemeticDecanDay:
         final d = (rule.repeat.decanDay ?? 1).clamp(1, 10);
-        return 'Day $d / Decan';
+        return 'Each Decan · Day $d';
       case ReminderRepeatKind.kemeticMonthDay:
         final d = (rule.repeat.kemeticMonthDay ??
             rule.repeat.monthDay ??
             rule.startLocal.day);
-        return 'Monthly ${ordinal(d)}-K';
+        return 'Monthly ${ordinal(d)} – K';
     }
   }
 
@@ -2938,77 +2938,96 @@ class _CalendarPageState extends State<CalendarPage>
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 6),
-                    DropdownButton<ReminderRepeatKind>(
-                      value: repeat.kind,
-                      dropdownColor: Colors.black,
-                      iconEnabledColor: _gold,
-                      isExpanded: true,
-                      items: const [
-                        DropdownMenuItem(
-                          value: ReminderRepeatKind.none,
-                          child: Text('Never', style: TextStyle(color: Colors.white)),
-                        ),
-                        DropdownMenuItem(
-                          value: ReminderRepeatKind.everyNDays,
-                          child: Text('Every N days', style: TextStyle(color: Colors.white)),
-                        ),
-                        DropdownMenuItem(
-                          value: ReminderRepeatKind.weekly,
-                          child: Text('Weekly (pick days)', style: TextStyle(color: Colors.white)),
-                        ),
-                        DropdownMenuItem(
-                          value: ReminderRepeatKind.monthlyDay,
-                          child: Text('Monthly (day of month)', style: TextStyle(color: Colors.white)),
-                        ),
-                        DropdownMenuItem(
-                          value: ReminderRepeatKind.kemeticEveryNDecans,
-                          child: Text('Every N decans', style: TextStyle(color: Colors.white)),
-                        ),
-                        DropdownMenuItem(
-                          value: ReminderRepeatKind.kemeticDecanDay,
-                          child: Text('Day of each decan', style: TextStyle(color: Colors.white)),
-                        ),
-                        DropdownMenuItem(
-                          value: ReminderRepeatKind.kemeticMonthDay,
-                          child: Text('Day of each Kemetic month', style: TextStyle(color: Colors.white)),
-                        ),
-                      ],
-                      onChanged: (val) {
-                        if (val == null) return;
-                        setModalState(() {
-                          switch (val) {
-                            case ReminderRepeatKind.monthlyDay:
-                              repeat = repeat.copyWith(
-                                kind: val,
-                                monthDay: repeat.monthDay ?? startLocal.day,
-                              );
-                              break;
-                            case ReminderRepeatKind.weekly:
-                              final wd = startLocal.weekday;
-                              final current = repeat.weekdays.isEmpty ? {wd} : repeat.weekdays;
-                              repeat = repeat.copyWith(kind: val, weekdays: current);
-                              break;
-                            case ReminderRepeatKind.everyNDays:
-                              repeat = repeat.copyWith(kind: val, interval: repeat.interval <= 0 ? 1 : repeat.interval);
-                              break;
-                            case ReminderRepeatKind.kemeticEveryNDecans:
-                              repeat = repeat.copyWith(kind: val, interval: repeat.interval <= 0 ? 1 : repeat.interval);
-                              break;
-                            case ReminderRepeatKind.kemeticDecanDay:
-                              repeat = repeat.copyWith(kind: val, decanDay: repeat.decanDay ?? 1);
-                              break;
-                            case ReminderRepeatKind.kemeticMonthDay:
-                              repeat = repeat.copyWith(
-                                kind: val,
-                                kemeticMonthDay: repeat.kemeticMonthDay ?? startLocal.day.clamp(1, 30),
-                              );
-                              break;
-                            case ReminderRepeatKind.none:
-                              repeat = repeat.copyWith(kind: val);
-                              break;
-                          }
-                        });
+                    InkWell(
+                      onTap: () async {
+                        final selected = await showModalBottomSheet<ReminderRepeatKind>(
+                          context: context,
+                          backgroundColor: Colors.black,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                          ),
+                          builder: (_) {
+                            const opts = [
+                              (ReminderRepeatKind.none, 'Never'),
+                              (ReminderRepeatKind.everyNDays, 'Every X days'),
+                              (ReminderRepeatKind.weekly, 'Weekly on…'),
+                              (ReminderRepeatKind.monthlyDay, 'Monthly on date'),
+                              (ReminderRepeatKind.kemeticEveryNDecans, 'Every X decans'),
+                              (ReminderRepeatKind.kemeticDecanDay, 'Same day each decan'),
+                              (ReminderRepeatKind.kemeticMonthDay, 'Same date each Kemetic month'),
+                            ];
+                            return SafeArea(
+                              child: ListView.separated(
+                                shrinkWrap: true,
+                                itemCount: opts.length,
+                                separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.white12),
+                                itemBuilder: (_, i) {
+                                  final (kind, label) = opts[i];
+                                  return ListTile(
+                                    title: Text(label, style: const TextStyle(color: Colors.white)),
+                                    trailing: kind == repeat.kind
+                                        ? const Icon(Icons.check, color: _gold)
+                                        : null,
+                                    onTap: () => Navigator.pop(context, kind),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        );
+                        if (selected != null) {
+                          setModalState(() {
+                            switch (selected) {
+                              case ReminderRepeatKind.monthlyDay:
+                                repeat = repeat.copyWith(
+                                  kind: selected,
+                                  monthDay: repeat.monthDay ?? startLocal.day,
+                                );
+                                break;
+                              case ReminderRepeatKind.weekly:
+                                final wd = startLocal.weekday;
+                                final current = repeat.weekdays.isEmpty ? {wd} : repeat.weekdays;
+                                repeat = repeat.copyWith(kind: selected, weekdays: current);
+                                break;
+                              case ReminderRepeatKind.everyNDays:
+                                repeat = repeat.copyWith(kind: selected, interval: repeat.interval <= 0 ? 1 : repeat.interval);
+                                break;
+                              case ReminderRepeatKind.kemeticEveryNDecans:
+                                repeat = repeat.copyWith(kind: selected, interval: repeat.interval <= 0 ? 1 : repeat.interval);
+                                break;
+                              case ReminderRepeatKind.kemeticDecanDay:
+                                repeat = repeat.copyWith(kind: selected, decanDay: repeat.decanDay ?? 1);
+                                break;
+                              case ReminderRepeatKind.kemeticMonthDay:
+                                repeat = repeat.copyWith(
+                                  kind: selected,
+                                  kemeticMonthDay: repeat.kemeticMonthDay ?? startLocal.day.clamp(1, 30),
+                                );
+                                break;
+                              case ReminderRepeatKind.none:
+                                repeat = repeat.copyWith(kind: selected);
+                                break;
+                            }
+                          });
+                        }
                       },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white24),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _reminderRepeatLabelForPicker(repeat.kind),
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            const Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+                          ],
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     repeatField(),
@@ -3205,20 +3224,7 @@ class _CalendarPageState extends State<CalendarPage>
 
   List<_Note> _getNotes(int kYear, int kMonth, int kDay) {
     final key = _kKey(kYear, kMonth, kDay);
-    if (kDebugMode) {
-      debugPrint('🔎 Day view requesting notes for key: "$key" (ky=$kYear km=$kMonth kd=$kDay)');
-    }
     final result = _notes[key] ?? const [];
-    if (kDebugMode) {
-      debugPrint('🔎 Found ${result.length} notes for this key');
-      if (result.isNotEmpty) {
-        debugPrint('🔎 Titles: ${result.map((n) => n.title).join(", ")}');
-      }
-    }
-    if (result.isNotEmpty && !kDebugMode) {
-      // Keep original print for non-debug builds
-      print('_getNotes($kYear, $kMonth, $kDay) returning ${result.length} notes: ${result.map((n) => n.title).join(", ")}');
-    }
     return result;
   }
 
@@ -5068,6 +5074,8 @@ class _CalendarPageState extends State<CalendarPage>
         String? initialCategory,
         int? editingIndex,
       }) {
+    // Ensure reminder rules are loaded before building the sheet so the list is populated.
+    _loadReminderRules();
     debugPrint('');
     debugPrint('┌─────────────────────────────────────┐');
     debugPrint('│ 📝 OPENING DAY SHEET                │');
@@ -5411,7 +5419,9 @@ class _CalendarPageState extends State<CalendarPage>
                             onSelected: (_) {
                               setSheetState(() => showReminders = true);
                               if (!_reminderRulesLoaded) {
-                                _loadReminderRules();
+                                _loadReminderRules().then((_) {
+                                  if (mounted) setState(() {});
+                                });
                               }
                             },
                           ),
@@ -6812,34 +6822,16 @@ class _CalendarPageState extends State<CalendarPage>
 
           // 🚫 HARD GUARD 1: Any event with a flowLocalId is NOT standalone
           if (evt.flowLocalId != null) {
-            if (kDebugMode) {
-              debugPrint(
-                '[loadFromDisk] ⛔ Skipping event "${evt.title}" '
-                'with flowLocalId=${evt.flowLocalId} in standalone loader.',
-              );
-            }
             continue;
           }
 
           // 🚫 HARD GUARD 2: Legacy flow copies where detail starts with "flowLocalId="
           if (rawDetail.startsWith('flowLocalId=')) {
-            if (kDebugMode) {
-              debugPrint(
-                '[loadFromDisk] 👻 Skipping legacy flow event "${evt.title}" '
-                'with detail starting with "flowLocalId=".',
-              );
-            }
             continue;
           }
 
           // 🚫 HARD GUARD 3: Legacy Ma'at events using "maat:" prefix
           if (cid.startsWith('maat:')) {
-            if (kDebugMode) {
-              debugPrint(
-                '[loadFromDisk] 👻 Skipping legacy Ma\'at event "${evt.title}" '
-                'with clientEventId=$cid.',
-              );
-            }
             continue;
           }
 
@@ -6850,12 +6842,6 @@ class _CalendarPageState extends State<CalendarPage>
             if (match != null) {
               final fVal = int.tryParse(match.group(1) ?? '-1') ?? -1;
               if (fVal != -1) {
-                if (kDebugMode) {
-                  debugPrint(
-                    '[loadFromDisk] 👻 Skipping orphaned flow event "${evt.title}" '
-                    'with clientEventId=$cid (f=$fVal but flowLocalId is null).',
-                  );
-                }
                 continue;
               }
             }
@@ -8183,8 +8169,6 @@ class _CalendarPageState extends State<CalendarPage>
     }
     
     _buildCount++;
-    debugPrint('📔 Journal initialized: $_journalInitialized');
-
     final kToday = _today;
     final size = MediaQuery.sizeOf(context);
     final orientation = MediaQuery.orientationOf(context);
@@ -8285,8 +8269,6 @@ class _CalendarPageState extends State<CalendarPage>
       );
     }
 
-    debugPrint('📱 Rendering: Portrait Scaffold (build #$_buildCount)');
-
     return Scaffold(
       key: CalendarPage.globalKey,
       backgroundColor: _bg,
@@ -8368,7 +8350,6 @@ class _CalendarPageState extends State<CalendarPage>
 
   Widget _buildBodyWithJournal() {
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
-    debugPrint('🔧 _buildBodyWithJournal called: portrait=$isPortrait, initialized=$_journalInitialized');
     
     return JournalSwipeLayer(
       controller: _journalController,
@@ -13841,6 +13822,16 @@ String _cleanDetail(String? s) {
     final i = t.indexOf(';');
     t = (i >= 0 && i < t.length - 1) ? t.substring(i + 1) : '';
   }
+  // Strip kemet_cid / reminder metadata lines
+  final lines = t.split(RegExp(r'\r?\n'));
+  final kept = lines.where((line) {
+    final trimmed = line.trim().toLowerCase();
+    if (trimmed.startsWith('kemet_cid:')) return false;
+    if (trimmed.startsWith('kemetic_cid:')) return false;
+    if (trimmed.startsWith('reminder:')) return false;
+    return trimmed.isNotEmpty;
+  }).toList();
+  t = kept.join('\n');
   return t.trim();
 }
 
@@ -15619,3 +15610,21 @@ class _GoldDivider extends StatelessWidget {
     );
   }
 }
+  String _reminderRepeatLabelForPicker(ReminderRepeatKind kind) {
+    switch (kind) {
+      case ReminderRepeatKind.none:
+        return 'Never';
+      case ReminderRepeatKind.everyNDays:
+        return 'Every X days';
+      case ReminderRepeatKind.weekly:
+        return 'Weekly on…';
+      case ReminderRepeatKind.monthlyDay:
+        return 'Monthly on date';
+      case ReminderRepeatKind.kemeticEveryNDecans:
+        return 'Every X decans';
+      case ReminderRepeatKind.kemeticDecanDay:
+        return 'Same day each decan';
+      case ReminderRepeatKind.kemeticMonthDay:
+        return 'Same date each Kemetic month';
+    }
+  }

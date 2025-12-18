@@ -36,9 +36,17 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _loadProfile() async {
     setState(() => _loading = true);
     final profile = await _repo.getProfile(widget.userId);
+    UserProfile? adjusted = profile;
+    if (profile != null) {
+      final counts = await _repo.computeFlowCountsForUser(widget.userId);
+      adjusted = profile.copyWith(
+        activeFlowsCount: counts.$1,
+        totalFlowEventsCount: counts.$2,
+      );
+    }
     if (mounted) {
       setState(() {
-        _profile = profile;
+        _profile = adjusted;
         _loading = false;
       });
     }

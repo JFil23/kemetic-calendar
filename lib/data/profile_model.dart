@@ -61,5 +61,32 @@ class UserProfile {
 
   String get effectiveName => displayName ?? handle ?? 'User';
   bool get isComplete => handle != null && handle!.isNotEmpty;
-}
 
+  UserProfile copyWith({
+    String? id,
+    String? handle,
+    String? displayName,
+    String? avatarUrl,
+    String? bio,
+    String? location,
+    bool? isDiscoverable,
+    bool? allowIncomingShares,
+    int? activeFlowsCount,
+    int? totalFlowEventsCount,
+    DateTime? createdAt,
+  }) {
+    return UserProfile(
+      id: id ?? this.id,
+      handle: handle ?? this.handle,
+      displayName: displayName ?? this.displayName,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      bio: bio ?? this.bio,
+      location: location ?? this.location,
+      isDiscoverable: isDiscoverable ?? this.isDiscoverable,
+      allowIncomingShares: allowIncomingShares ?? this.allowIncomingShares,
+      activeFlowsCount: activeFlowsCount ?? this.activeFlowsCount,
+      totalFlowEventsCount: totalFlowEventsCount ?? this.totalFlowEventsCount,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+}

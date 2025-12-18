@@ -26,6 +26,42 @@ class ProfileRepo {
     }
   }
 
+  /// Compute accurate flow and flow-event counts for a user using live tables.
+  Future<(int activeFlows, int flowEvents)> computeFlowCountsForUser(String userId) async {
+    try {
+      final nowIso = DateTime.now().toUtc().toIso8601String();
+
+      final flowsResp = await _client
+          .from('flows')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('active', true)
+          .or('end_date.is.null,end_date.gte.$nowIso')
+          .or('is_hidden.is.null,is_hidden.eq.false');
+
+      final flowsList = (flowsResp as List?) ?? const [];
+      final flowIds = flowsList
+          .map((row) => (row['id'] as num?)?.toInt())
+          .whereType<int>()
+          .toList();
+
+      final activeFlows = flowIds.length;
+      if (flowIds.isEmpty) return (0, 0);
+
+      final eventsResp = await _client
+          .from('user_events')
+          .select('id')
+          .eq('user_id', userId)
+          .inFilter('flow_local_id', flowIds);
+
+      final flowEvents = (eventsResp as List?)?.length ?? 0;
+      return (activeFlows, flowEvents);
+    } catch (e) {
+      print('[ProfileRepo] Error computing counts: $e');
+      return (0, 0);
+    }
+  }
+
   /// Fetch profile by handle
   Future<UserProfile?> getProfileByHandle(String handle) async {
     try {
