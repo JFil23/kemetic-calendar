@@ -1315,10 +1315,17 @@ class _CalendarPageState extends State<CalendarPage>
   bool _runOneTimeCacheCleanup = false;
 
   int _dataVersion = 0;
+  final ValueNotifier<int> _dayViewDataVersion = ValueNotifier<int>(0);
   void _bumpDataVersion() {
     // why: force landscape PageView child to reconstruct once when data hydrates
     if (!mounted) return;
     setState(() => _dataVersion++);
+    _notifyDayViewDataChanged();
+  }
+
+  void _notifyDayViewDataChanged() {
+    if (!mounted) return;
+    _dayViewDataVersion.value++;
   }
 
   // Build a reminder id that is unique per event occurrence and alert time.
@@ -1839,6 +1846,13 @@ class _CalendarPageState extends State<CalendarPage>
     WidgetsBinding.instance.addObserver(this);
     
     _loadReminderSettings();
+    // Prime reminder rules + schedule their events regardless of current day,
+    // so the reminder list is always available and the calendar only shows blocks
+    // on their scheduled days.
+    _loadReminderRules().then((_) {
+      _syncReminderEvents(refreshUi: false);
+      if (mounted) setState(() {});
+    });
 
     // Load local reminders cache and check any due on startup.
     _reminderService.load().then((_) {
@@ -2040,6 +2054,7 @@ class _CalendarPageState extends State<CalendarPage>
     debugPrint('');
     _journalController.dispose();
     _scrollCtrl.dispose();
+    _dayViewDataVersion.dispose();
     super.dispose();
   }
 
@@ -2316,8 +2331,71 @@ class _CalendarPageState extends State<CalendarPage>
           ..addAll(rules.toSet().toList());
         _reminderRulesLoaded = true;
       }
+      // If no rules were stored locally (new device), try to rebuild from reminder events on Supabase.
+      if (_reminderRules.isEmpty) {
+        await _hydrateReminderRulesFromEvents();
+      }
     } catch (_) {
       _reminderRulesLoaded = true;
+    }
+  }
+
+  // Rebuild reminder rules from persisted user_events entries that use the reminder CID prefix.
+  Future<void> _hydrateReminderRulesFromEvents() async {
+    try {
+      final repo = UserEventsRepo(Supabase.instance.client);
+      final all = await repo.getAllEvents(limit: 2000);
+      final reminderEvents = all.where((e) => (e.clientEventId ?? '').startsWith('reminder:')).toList();
+      if (reminderEvents.isEmpty) return;
+
+      final Map<String, List<({
+        String? clientEventId,
+        String title,
+        String? detail,
+        String? location,
+        bool allDay,
+        DateTime startsAtUtc,
+        DateTime? endsAtUtc,
+        int? flowLocalId,
+        String? category,
+      })>> byRule = {};
+
+      for (final evt in reminderEvents) {
+        final cid = evt.clientEventId ?? '';
+        final rid = _reminderRuleIdFromCid(cid);
+        if (rid == null || rid.isEmpty) continue;
+        (byRule[rid] ??= []).add(evt);
+      }
+
+      final List<ReminderRule> rebuilt = [];
+      for (final entry in byRule.entries) {
+        final rid = entry.key;
+        final first = entry.value.first;
+        final startLocal = first.startsAtUtc.toLocal();
+        final decoded = _decodeDetailColor(first.detail);
+        rebuilt.add(
+          ReminderRule(
+            id: rid,
+            title: first.title,
+            startLocal: startLocal,
+            allDay: first.allDay,
+            color: decoded.color ?? _flowPalette.first,
+            category: first.category,
+            active: true,
+            repeat: const ReminderRepeat(kind: ReminderRepeatKind.none),
+          ),
+        );
+      }
+
+      if (rebuilt.isNotEmpty) {
+        _reminderRules
+          ..clear()
+          ..addAll(rebuilt);
+        await _saveReminderRules();
+        if (mounted) setState(() {});
+      }
+    } catch (_) {
+      // best-effort hydration; ignore errors
     }
   }
 
@@ -2338,7 +2416,14 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _deleteReminderRule(String id) async {
+    // Remove from local rule list
     _reminderRules.removeWhere((r) => r.id == id);
+    // Prune any cached notes so calendar UI updates immediately
+    _pruneReminderNotes(id, fromDate: null); // remove all cached notes for this reminder
+    if (mounted) {
+      setState(() {});
+      _bumpDataVersion();
+    }
     await _saveReminderRules();
     try {
       final repo = UserEventsRepo(Supabase.instance.client);
@@ -2565,7 +2650,10 @@ class _CalendarPageState extends State<CalendarPage>
         );
       } catch (_) {}
 
-      if (!rule.active) continue;
+      // If inactive, skip regeneration entirely.
+      if (!rule.active) {
+        continue;
+      }
 
       final occurrences = _generateReminderOccurrences(rule, today, windowEnd);
       // Update local cache first so UI reflects immediately even if network fails.
@@ -3141,11 +3229,9 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _endReminderRule(String id) async {
+    // End = remove the reminder entirely (rule + scheduled instances + cached notes).
     await _loadReminderRules();
-    final idx = _reminderRules.indexWhere((r) => r.id == id);
-    if (idx < 0) return;
-    final updated = _reminderRules[idx].copyWith(active: false);
-    await _upsertReminderRule(updated);
+    await _deleteReminderRule(id);
   }
   
   // ✅ Rotation reconcile: re-center on last view after rotation settles
@@ -3254,6 +3340,19 @@ class _CalendarPageState extends State<CalendarPage>
     return out;
   }
 
+  Map<int, FlowData> _buildActiveFlowIndex() {
+    final flowIndex = <int, FlowData>{};
+    for (final f in _flows.where((f) => f.active && !f.isHidden && _isActiveByEndDate(f.end))) {
+      flowIndex[f.id] = FlowData(
+        id: f.id,
+        name: f.name,
+        color: f.color,
+        active: f.active,
+      );
+    }
+    return flowIndex;
+  }
+
   void _addNote(
       int kYear,
       int kMonth,
@@ -3290,6 +3389,7 @@ class _CalendarPageState extends State<CalendarPage>
     ));
     // Do not schedule notifications here; scheduling is handled by the caller.
     setState(() {});
+    _notifyDayViewDataChanged();
   }
 
   void _deleteNote(int kYear, int kMonth, int kDay, int index) {
@@ -3305,6 +3405,7 @@ class _CalendarPageState extends State<CalendarPage>
     list.removeAt(index);
     if (list.isEmpty) _notes.remove(k);
     setState(() {});
+    _notifyDayViewDataChanged();
 
     // ═══════════════════════════════════════════════════════════════
     // 🔧 ENHANCED DELETION - Try multiple CID candidates and fallback
@@ -3678,6 +3779,7 @@ class _CalendarPageState extends State<CalendarPage>
     flow.id = localId;
     _flows.add(flow);
     if (mounted) setState(() {});
+    _notifyDayViewDataChanged();
 
     try {
       final repo = UserEventsRepo(Supabase.instance.client);
@@ -3713,6 +3815,7 @@ class _CalendarPageState extends State<CalendarPage>
         if (savedId >= _nextFlowId) _nextFlowId = savedId + 1;
 
         if (mounted) setState(() {});
+        _notifyDayViewDataChanged();
       }
       return savedId;
     } catch (e) {
@@ -4955,15 +5058,7 @@ class _CalendarPageState extends State<CalendarPage>
     };
 
     // Adapter: Convert _Flow to FlowData
-    final flowIndex = <int, FlowData>{};
-    for (final f in _flows.where((f) => f.active && !f.isHidden && _isActiveByEndDate(f.end))) {
-      flowIndex[f.id] = FlowData(
-        id: f.id,
-        name: f.name,
-        color: f.color,
-        active: f.active,
-      );
-    }
+    final flowIndex = _buildActiveFlowIndex();
 
     // Get month name function
     final getMonthName = (int km) => getMonthById(km).displayFull;
@@ -4980,6 +5075,8 @@ class _CalendarPageState extends State<CalendarPage>
           showGregorian: _showGregorian,
           notesForDay: notesForDayFn,
           flowIndex: flowIndex,
+          flowIndexBuilder: _buildActiveFlowIndex,
+          dataVersion: _dayViewDataVersion,
           getMonthName: getMonthName,
           onManageFlows: (flowId) => _getMyFlowsCallback()(flowId),
           onOpenFlowStudio: () => _getFlowStudioCallback()(null),
@@ -6252,12 +6349,6 @@ class _CalendarPageState extends State<CalendarPage>
                             }
 
                             Navigator.pop(sheetCtx);
-                            _openDaySheet(
-                              selYear,
-                              selMonth,
-                              selDay,
-                              allowDateChange: allowDateChange,
-                            );
                           },
                           child: const Text('Save'),
                         ),
@@ -6697,6 +6788,9 @@ class _CalendarPageState extends State<CalendarPage>
     print('=== _loadFromDisk START ===');
 
     try {
+      // Ensure reminder rules are loaded before hydrating events so we can filter orphaned reminder instances.
+      await _loadReminderRules();
+
       final repo = UserEventsRepo(Supabase.instance.client);
 
       // Flow-first: clear, load flows, then events; join only to known active flows
@@ -6835,7 +6929,7 @@ class _CalendarPageState extends State<CalendarPage>
             continue;
           }
 
-          // 🚫 HARD GUARD 4: Unified CID events (ky=...|f=123) referencing flows.
+          // 🚫 HARD GUARD 4a: Unified CID events (ky=...|f=123) referencing flows.
           // If f != -1 AND evt.flowLocalId == null → orphaned zombie.
           if (cid.contains('|f=')) {
             final match = RegExp(r'\|f=([\-0-9]+)').firstMatch(cid);
@@ -6844,6 +6938,19 @@ class _CalendarPageState extends State<CalendarPage>
               if (fVal != -1) {
                 continue;
               }
+            }
+          }
+
+          // 🚫 HARD GUARD 4b: Reminder instances whose rule no longer exists (or was ended/deleted).
+          if (cid.startsWith('reminder:')) {
+            final rid = _reminderRuleIdFromCid(cid);
+            final exists = rid != null && _reminderRules.any((r) => r.id == rid);
+            if (!exists) {
+              // Try to delete orphaned reminder events.
+              try {
+                await repo.deleteByClientIdPrefix('reminder:${rid ?? ''}:');
+              } catch (_) {}
+              continue;
             }
           }
 
@@ -7030,6 +7137,7 @@ class _CalendarPageState extends State<CalendarPage>
       // Remove the flow from memory
       _flows.removeWhere((f) => f.id == r.deleteFlowId);
       setState(() {});
+      _notifyDayViewDataChanged();
       if (kDebugMode) {
         debugPrint('[persistFlowStudio] ✓ Flow deletion complete');
       }
@@ -7195,6 +7303,7 @@ class _CalendarPageState extends State<CalendarPage>
           debugPrint('[persistFlowStudio] ✅ Skipping scheduleFlowNotes - using plannedNotes with individual titles');
         }
         setState(() {});
+        _notifyDayViewDataChanged();
         return saved.id;
       }
       // If rules list was cleared (e.g., snapshot-only imports), skip scheduling.
@@ -7203,6 +7312,7 @@ class _CalendarPageState extends State<CalendarPage>
           debugPrint('[persistFlowStudio] ✅ Skipping scheduleFlowNotes - flow has no rules (snapshot-only)');
         }
         setState(() {});
+        _notifyDayViewDataChanged();
         return saved.id;
       }
       try {
@@ -7264,6 +7374,7 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     setState(() {});
+    _notifyDayViewDataChanged();
     return saved?.id;
   }
 

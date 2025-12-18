@@ -219,6 +219,21 @@ class PositionedEventBlock {
   });
 }
 
+class _ConstantIntListenable implements ValueListenable<int> {
+  const _ConstantIntListenable(this.value);
+
+  @override
+  final int value;
+
+  @override
+  void addListener(VoidCallback listener) {}
+
+  @override
+  void removeListener(VoidCallback listener) {}
+}
+
+const _kZeroListenable = _ConstantIntListenable(0);
+
 // Lightweight draft event used for long-press creation.
 
 // ========================================
@@ -232,6 +247,8 @@ class DayViewPage extends StatefulWidget {
   final bool showGregorian;
   final List<NoteData> Function(int ky, int km, int kd) notesForDay;
   final Map<int, FlowData> flowIndex;
+  final Map<int, FlowData> Function()? flowIndexBuilder;
+  final ValueListenable<int>? dataVersion;
   final String Function(int km) getMonthName;
   final void Function(int?)? onManageFlows; // NEW: Callback to open My Flows
   final VoidCallback? onOpenFlowStudio; // NEW: dedicated Flow Studio launcher
@@ -275,6 +292,8 @@ class DayViewPage extends StatefulWidget {
     required this.showGregorian,
     required this.notesForDay,
     required this.flowIndex,
+    this.flowIndexBuilder,
+    this.dataVersion,
     required this.getMonthName,
     this.onManageFlows, // NEW
     this.onOpenFlowStudio, // NEW
@@ -442,95 +461,103 @@ class _DayViewPageState extends State<DayViewPage> {
 
   @override
   Widget build(BuildContext context) {
-    final orientation = MediaQuery.of(context).orientation;
-    
-    // Track orientation changes for debugging
-    if (_lastOrientation != null && _lastOrientation != orientation) {
-      if (kDebugMode) {
-        print('\n📱 [DAY VIEW] Orientation changed: $_lastOrientation → $orientation');
-      }
-    }
-    
-    _lastOrientation = orientation;
+    final dataListenable = widget.dataVersion ?? _kZeroListenable;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF000000), // True black
-      body: OrientationBuilder(
-        builder: (context, orientation) {
-          if (orientation == Orientation.landscape) {
-            return LandscapeMonthView(
-              initialKy: _currentKy,
-              initialKm: _currentKm,
-              initialKd: _currentKd,
-              showGregorian: widget.showGregorian,
-              notesForDay: widget.notesForDay,
-              flowIndex: widget.flowIndex,
-              getMonthName: widget.getMonthName,
-              onManageFlows: widget.onManageFlows,
-              onAddNote: widget.onAddNote,
-              onMonthChanged: (ky, km) {
-                // ✅ HANDLE MONTH CHANGE IN DAY VIEW
-                if (kDebugMode) {
-                  print('🔄 [DAY VIEW] Landscape month changed: Year $ky, Month $km');
-                }
-                setState(() {
-                  _currentKy = ky;
-                  _currentKm = km;
-                  // Keep current day if still valid in new month
-                  final maxDay = km == 13 
-                      ? (KemeticMath.isLeapKemeticYear(ky) ? 6 : 5)
-                      : 30;
-                  if (_currentKd > maxDay) {
-                    _currentKd = maxDay;
-                  }
-                });
-              },
-            );
+    return ValueListenableBuilder<int>(
+      valueListenable: dataListenable,
+      builder: (context, _, __) {
+        final orientation = MediaQuery.of(context).orientation;
+
+        // Track orientation changes for debugging
+        if (_lastOrientation != null && _lastOrientation != orientation) {
+          if (kDebugMode) {
+            print('\n📱 [DAY VIEW] Orientation changed: $_lastOrientation → $orientation');
           }
-          
-          // Portrait day view
-          return Column(
-            children: [
-              // Custom Apple-style header
-              _buildAppleStyleHeader(),
-              
-              // Existing page view with timeline
-              Expanded(
-                child: PageView.builder(
-                  controller: _pageController,
-                  onPageChanged: _onPageChanged,
-                  itemBuilder: (context, index) {
-                    final kDate = _dateForPage(index);
-                  return DayViewGrid(
-                    key: ValueKey('${kDate.kYear}-${kDate.kMonth}-${kDate.kDay}'), // Add key
-                    ky: kDate.kYear,
-                    km: kDate.kMonth,
-                    kd: kDate.kDay,
-                    notes: widget.notesForDay(kDate.kYear, kDate.kMonth, kDate.kDay),
-                    showGregorian: widget.showGregorian,
-                      flowIndex: widget.flowIndex,
-                      initialScrollOffset: _savedScrollOffset,    // 🔧 NEW
-                      onScrollChanged: _onScrollChanged,          // 🔧 NEW
-                      onManageFlows: widget.onManageFlows, // NEW: Pass callback down
-                      onAddNote: widget.onAddNote,
-                      onDeleteNote: widget.onDeleteNote,
-                      onEditNote: widget.onEditNote,
-                      onShareNote: widget.onShareNote,
-                      onEditReminder: widget.onEditReminder,
-                      onEndReminder: widget.onEndReminder,
-                      onShareReminder: widget.onShareReminder,
-                      onOpenAddNoteWithTime: widget.onOpenAddNoteWithTime,
-                      onCreateTimedEvent: widget.onCreateTimedEvent,
-                      onEndFlow: widget.onEndFlow, // Pass End Flow callback down
-                      onAppendToJournal: widget.onAppendToJournal,
-                    );
+        }
+        
+        _lastOrientation = orientation;
+        final flowIndex = widget.flowIndexBuilder?.call() ?? widget.flowIndex;
+
+        return Scaffold(
+          backgroundColor: const Color(0xFF000000), // True black
+          body: OrientationBuilder(
+            builder: (context, orientation) {
+              if (orientation == Orientation.landscape) {
+                return LandscapeMonthView(
+                  initialKy: _currentKy,
+                  initialKm: _currentKm,
+                  initialKd: _currentKd,
+                  showGregorian: widget.showGregorian,
+                  notesForDay: widget.notesForDay,
+                  flowIndex: flowIndex,
+                  getMonthName: widget.getMonthName,
+                  onManageFlows: widget.onManageFlows,
+                  onAddNote: widget.onAddNote,
+                  onMonthChanged: (ky, km) {
+                    // ✅ HANDLE MONTH CHANGE IN DAY VIEW
+                    if (kDebugMode) {
+                      print('🔄 [DAY VIEW] Landscape month changed: Year $ky, Month $km');
+                    }
+                    setState(() {
+                      _currentKy = ky;
+                      _currentKm = km;
+                      // Keep current day if still valid in new month
+                      final maxDay = km == 13 
+                          ? (KemeticMath.isLeapKemeticYear(ky) ? 6 : 5)
+                          : 30;
+                      if (_currentKd > maxDay) {
+                        _currentKd = maxDay;
+                      }
+                    });
                   },
-              ),
-              ),
-            ],
-          );
-        },
-      ),
+                );
+              }
+              
+              // Portrait day view
+              return Column(
+                children: [
+                  // Custom Apple-style header
+                  _buildAppleStyleHeader(),
+                  
+                  // Existing page view with timeline
+                  Expanded(
+                    child: PageView.builder(
+                      controller: _pageController,
+                      onPageChanged: _onPageChanged,
+                      itemBuilder: (context, index) {
+                        final kDate = _dateForPage(index);
+                        return DayViewGrid(
+                          key: ValueKey('${kDate.kYear}-${kDate.kMonth}-${kDate.kDay}'), // Add key
+                          ky: kDate.kYear,
+                          km: kDate.kMonth,
+                          kd: kDate.kDay,
+                          notes: widget.notesForDay(kDate.kYear, kDate.kMonth, kDate.kDay),
+                          showGregorian: widget.showGregorian,
+                          flowIndex: flowIndex,
+                          initialScrollOffset: _savedScrollOffset,    // 🔧 NEW
+                          onScrollChanged: _onScrollChanged,          // 🔧 NEW
+                          onManageFlows: widget.onManageFlows, // NEW: Pass callback down
+                          onAddNote: widget.onAddNote,
+                          onDeleteNote: widget.onDeleteNote,
+                          onEditNote: widget.onEditNote,
+                          onShareNote: widget.onShareNote,
+                          onEditReminder: widget.onEditReminder,
+                          onEndReminder: widget.onEndReminder,
+                          onShareReminder: widget.onShareReminder,
+                          onOpenAddNoteWithTime: widget.onOpenAddNoteWithTime,
+                          onCreateTimedEvent: widget.onCreateTimedEvent,
+                          onEndFlow: widget.onEndFlow, // Pass End Flow callback down
+                          onAppendToJournal: widget.onAppendToJournal,
+                        );
+                      },
+                  ),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -981,6 +1008,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   // 🔧 OPTIMIZATION: Cache layout results
   List<PositionedEventBlock>? _cachedBlocks;
   int? _cachedNotesHash;
+  int? _cachedFlowHash;
   bool _hasScrolledToInitial = false; // Added for scroll persistence
   int? _tempDragStartMin; // minutes since midnight
   int? _pressStartMin;    // start minute when long press began
@@ -1291,6 +1319,8 @@ class _DayViewGridState extends State<DayViewGrid> {
       if (trimmed.startsWith('flowLocalId=')) return false;
       final norm = trimmed.replaceAll(RegExp(r'\s+'), '');
       if (cidRegex.hasMatch(norm)) return false;
+      if (norm.toLowerCase().startsWith('kemet_cid:reminder:')) return false;
+      if (norm.toLowerCase().startsWith('reminder:')) return false;
       return true;
     }).toList();
     return kept.join('\n').trim();
@@ -1307,7 +1337,25 @@ class _DayViewGridState extends State<DayViewGrid> {
       n.end?.hour,
       n.end?.minute,
       n.flowId,
+      n.manualColor?.value,
+      n.category,
+      n.isReminder,
+      n.reminderId,
     )));
+  }
+
+  int _computeFlowIndexHash(Map<int, FlowData> flowIndex) {
+    if (flowIndex.isEmpty) return 0;
+    final entries = flowIndex.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    return Object.hashAll(entries.map(
+      (e) => Object.hash(
+        e.key,
+        e.value.name,
+        e.value.color.value,
+        e.value.active,
+      ),
+    ));
   }
 
   @override
@@ -1315,9 +1363,10 @@ class _DayViewGridState extends State<DayViewGrid> {
     // ✅ NEW: Dedupe notes before rendering to handle legacy duplicates
     final dedupedNotes = _dedupeNotesForUI(widget.notes);
     
-    // 🔧 OPTIMIZATION: Only recalculate layout if notes changed
+    // 🔧 OPTIMIZATION: Only recalculate layout if notes or flows changed
     final notesHash = _computeNotesHash(dedupedNotes);
-    if (_cachedBlocks == null || _cachedNotesHash != notesHash) {
+    final flowHash = _computeFlowIndexHash(widget.flowIndex);
+    if (_cachedBlocks == null || _cachedNotesHash != notesHash || _cachedFlowHash != flowHash) {
       final screenWidth = MediaQuery.of(context).size.width;
       final columnWidth = (screenWidth - 100) / 3; // 3 columns max
       
@@ -1337,6 +1386,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         day: widget.kd,
       );
       _cachedNotesHash = notesHash;
+      _cachedFlowHash = flowHash;
     }
 
     return Column(
@@ -1672,10 +1722,14 @@ class _DayViewGridState extends State<DayViewGrid> {
       durationMinutes = 180;
     }
     
-    final double minHeight = event.isReminder ? (_kMinEventBlockHeight / 2) : _kMinEventBlockHeight;
-    final double rawHeight = durationMinutes.toDouble();
-    final double baseHeight = event.isReminder ? rawHeight * 0.5 : rawHeight;
-    final double height = baseHeight < minHeight ? minHeight : baseHeight;
+    // Reminders are always half the height of a 1-hour block, regardless of duration.
+    final double height = event.isReminder
+        ? (_kMinEventBlockHeight / 2)
+        : () {
+            final double rawHeight = durationMinutes.toDouble();
+            final double minHeight = _kMinEventBlockHeight;
+            return rawHeight < minHeight ? minHeight : rawHeight;
+          }();
     
     return Container(
       width: block.width,
