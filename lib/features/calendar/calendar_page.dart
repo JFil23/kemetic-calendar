@@ -1382,6 +1382,8 @@ class _CalendarPageState extends State<CalendarPage>
   late final ReminderRuleStore _reminderRuleStore = ReminderRuleStore();
   final List<ReminderRule> _reminderRules = [];
   bool _reminderRulesLoaded = false;
+  static const _endedReminderPrefsKey = 'reminder:ended_ids';
+  final Set<String> _endedReminderIds = {};
 
   Future<void> _loadReminderSettings() async {
     try {
@@ -2314,26 +2316,97 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
+  List<ReminderRule> _dedupeReminderRules(List<ReminderRule> rules) {
+    String sig(ReminderRule r) {
+      final weekdays = r.repeat.weekdays.toList()..sort();
+      return [
+        r.title.trim().toLowerCase(),
+        r.startLocal.toIso8601String(),
+        r.allDay ? 'allDay' : 'timed',
+        r.color.value.toString(),
+        r.category ?? '',
+        r.active ? 'active' : 'inactive',
+        r.repeat.kind.name,
+        r.repeat.interval,
+        weekdays.join(','),
+        r.repeat.monthDay ?? '',
+        r.repeat.decanDay ?? '',
+        r.repeat.kemeticMonthDay ?? '',
+      ].join('|');
+    }
+
+    final byId = <String, ReminderRule>{};
+    for (final r in rules) {
+      byId.putIfAbsent(r.id, () => r);
+    }
+
+    final bySig = <String, ReminderRule>{};
+    for (final r in byId.values) {
+      bySig.putIfAbsent(sig(r), () => r);
+    }
+
+    return bySig.values.toList();
+  }
+
+  Future<void> _loadEndedReminderIds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList(_endedReminderPrefsKey) ?? const [];
+      _endedReminderIds
+        ..clear()
+        ..addAll(list);
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  Future<void> _saveEndedReminderIds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_endedReminderPrefsKey, _endedReminderIds.toList());
+    } catch (_) {
+      // ignore
+    }
+  }
+
   Future<void> _loadReminderRules() async {
     if (_reminderRulesLoaded) return;
     try {
-      final rules = await _reminderRuleStore.load();
+      await _loadEndedReminderIds();
+      final local = await _reminderRuleStore.load();
+      // Prefer locally cached rules; only hydrate from events if cache is empty
+      // to avoid resurrecting reminders that were intentionally ended/deleted.
+      List<ReminderRule> source;
+      if (local.isNotEmpty) {
+        source = local;
+      } else {
+        final rebuilt = await _hydrateReminderRulesFromEvents();
+        source = rebuilt;
+      }
+      final merged = _dedupeReminderRules(
+        source.where((r) => !_endedReminderIds.contains(r.id)).toList(),
+      );
+
       if (mounted) {
         setState(() {
           _reminderRules
             ..clear()
-            ..addAll(rules.toSet().toList());
+            ..addAll(merged);
           _reminderRulesLoaded = true;
         });
       } else {
         _reminderRules
           ..clear()
-          ..addAll(rules.toSet().toList());
+          ..addAll(merged);
         _reminderRulesLoaded = true;
       }
-      // If no rules were stored locally (new device), try to rebuild from reminder events on Supabase.
-      if (_reminderRules.isEmpty) {
-        await _hydrateReminderRulesFromEvents();
+
+      // Persist merged set so the latest server-state is cached locally, but
+      // do not repopulate if we intentionally keep the list empty.
+      if (merged.isNotEmpty) {
+        await _saveReminderRules();
+      } else {
+        await _reminderRuleStore.saveAll(const []);
       }
     } catch (_) {
       _reminderRulesLoaded = true;
@@ -2341,12 +2414,12 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   // Rebuild reminder rules from persisted user_events entries that use the reminder CID prefix.
-  Future<void> _hydrateReminderRulesFromEvents() async {
+  Future<List<ReminderRule>> _hydrateReminderRulesFromEvents() async {
     try {
       final repo = UserEventsRepo(Supabase.instance.client);
       final all = await repo.getAllEvents(limit: 2000);
       final reminderEvents = all.where((e) => (e.clientEventId ?? '').startsWith('reminder:')).toList();
-      if (reminderEvents.isEmpty) return;
+      if (reminderEvents.isEmpty) return const [];
 
       final Map<String, List<({
         String? clientEventId,
@@ -2370,6 +2443,7 @@ class _CalendarPageState extends State<CalendarPage>
       final List<ReminderRule> rebuilt = [];
       for (final entry in byRule.entries) {
         final rid = entry.key;
+        if (_endedReminderIds.contains(rid)) continue;
         final first = entry.value.first;
         final startLocal = first.startsAtUtc.toLocal();
         final decoded = _decodeDetailColor(first.detail);
@@ -2387,23 +2461,26 @@ class _CalendarPageState extends State<CalendarPage>
         );
       }
 
-      if (rebuilt.isNotEmpty) {
-        _reminderRules
-          ..clear()
-          ..addAll(rebuilt);
-        await _saveReminderRules();
-        if (mounted) setState(() {});
-      }
+      return rebuilt;
     } catch (_) {
       // best-effort hydration; ignore errors
+      return const [];
     }
   }
 
   Future<void> _saveReminderRules() async {
+    final deduped = _dedupeReminderRules(_reminderRules);
+    _reminderRules
+      ..clear()
+      ..addAll(deduped);
     await _reminderRuleStore.saveAll(_reminderRules);
   }
 
   Future<void> _upsertReminderRule(ReminderRule rule, {bool refresh = true}) async {
+    // If a reminder is recreated with the same id, clear any tombstone flag.
+    if (_endedReminderIds.remove(rule.id)) {
+      await _saveEndedReminderIds();
+    }
     final idx = _reminderRules.indexWhere((r) => r.id == rule.id);
     if (idx >= 0) {
       _reminderRules[idx] = rule;
@@ -2416,6 +2493,8 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _deleteReminderRule(String id) async {
+    _endedReminderIds.add(id);
+    await _saveEndedReminderIds();
     // Remove from local rule list
     _reminderRules.removeWhere((r) => r.id == id);
     // Prune any cached notes so calendar UI updates immediately
