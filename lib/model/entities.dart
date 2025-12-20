@@ -140,6 +140,7 @@ class Flow {
   final DateTime? start; // date-only
   final DateTime? end;   // date-only
   final String? notes;   // packed metadata string
+  final bool isReminder;
 
   const Flow({
     required this.id,
@@ -150,6 +151,7 @@ class Flow {
     required this.start,
     required this.end,
     required this.notes,
+    this.isReminder = false,
   });
 
   Flow copyWith({
@@ -161,6 +163,7 @@ class Flow {
     DateTime? start,
     DateTime? end,
     String? notes,
+    bool? isReminder,
   }) {
     return Flow(
       id: id ?? this.id,
@@ -171,6 +174,7 @@ class Flow {
       start: start ?? this.start,
       end: end ?? this.end,
       notes: notes ?? this.notes,
+      isReminder: isReminder ?? this.isReminder,
     );
   }
 
@@ -183,6 +187,7 @@ class Flow {
     'start': start?.toIso8601String(),
     'end': end?.toIso8601String(),
     'notes': notes,
+    'isReminder': isReminder,
   };
 
   factory Flow.fromJson(FlowJson j) => Flow(
@@ -196,5 +201,6 @@ class Flow {
     start: (j['start'] as String?) == null ? null : DateTime.parse(j['start'] as String),
     end: (j['end'] as String?) == null ? null : DateTime.parse(j['end'] as String),
     notes: j['notes'] as String?,
+    isReminder: (j['isReminder'] as bool?) ?? false,
   );
 }

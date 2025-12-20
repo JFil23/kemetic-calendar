@@ -709,6 +709,8 @@ class UserEventsRepo {
     String rules,
     String? shareId, // NEW: Include shareId
     bool isHidden,
+    bool isReminder,
+    String? reminderUuid,
   })>> getAllFlows() async {
     final user = _client.auth.currentUser;
     if (user == null) return [];
@@ -733,6 +735,8 @@ class UserEventsRepo {
     rules: jsonEncode(row['rules']),
     shareId: row['share_id'] as String?, // NEW: Include share_id
     isHidden: (row['is_hidden'] as bool?) ?? false,
+    isReminder: (row['is_reminder'] as bool?) ?? false,
+    reminderUuid: row['reminder_uuid'] as String?,
     ))
         .toList();
   }

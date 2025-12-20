@@ -33,6 +33,8 @@ class FlowRow {
   final List<dynamic> rules; // store your _FlowRule list as JSON-serializable
   final Map<String, dynamic>? aiMetadata;
   final bool isHidden;
+  final bool isReminder;
+  final String? reminderUuid;
 
   const FlowRow({
     required this.id,
@@ -46,6 +48,8 @@ class FlowRow {
     required this.rules,
     this.aiMetadata,
     this.isHidden = false,
+    this.isReminder = false,
+    this.reminderUuid,
   });
 
   factory FlowRow.fromRow(Map<String, dynamic> r) {
@@ -73,6 +77,8 @@ class FlowRow {
       notes: r['notes'] as String?,
       rules: _rulesList,
       isHidden: (r['is_hidden'] as bool?) ?? false,
+      isReminder: (r['is_reminder'] as bool?) ?? false,
+      reminderUuid: r['reminder_uuid'] as String?,
       aiMetadata: r['ai_metadata'] != null
           ? Map<String, dynamic>.from(r['ai_metadata'] as Map)
           : null,
@@ -89,6 +95,8 @@ class FlowRow {
     'notes': notes,
     'rules': rules,
     'is_hidden': isHidden,
+    'is_reminder': isReminder,
+    'reminder_uuid': reminderUuid,
   };
 
   Map<String, dynamic> toUpdate() => {
@@ -100,6 +108,8 @@ class FlowRow {
     'notes': notes,
     'rules': rules,
     'is_hidden': isHidden,
+    'is_reminder': isReminder,
+    'reminder_uuid': reminderUuid,
   };
 }
 
@@ -136,6 +146,8 @@ class FlowsRepo {
     DateTime? endDate,
     String? notes,
     List<dynamic>? rulesJson,
+    bool isReminder = false,
+    String? reminderUuid,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -151,6 +163,8 @@ class FlowsRepo {
       'end_date': endDate?.toUtc().toIso8601String(),
       'notes': notes,
       'rules': rulesJson ?? <dynamic>[],
+      'is_reminder': isReminder,
+      'reminder_uuid': reminderUuid,
     };
 
     if (id == null) {
@@ -177,6 +191,8 @@ class FlowsRepo {
     DateTime? endDate,
     String? notes,
     required List<dynamic> rulesJson,
+    bool isReminder = false,
+    String? reminderUuid,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) throw StateError('No user session.');
@@ -189,6 +205,8 @@ class FlowsRepo {
       'end_date': endDate?.toIso8601String(),
       'notes': notes,
       'rules': rulesJson,
+      'is_reminder': isReminder,
+      'reminder_uuid': reminderUuid,
     };
     _log('insert → $payload');
     final row =
@@ -207,6 +225,8 @@ class FlowsRepo {
     DateTime? endDate,
     String? notes,
     required List<dynamic> rulesJson,
+    bool isReminder = false,
+    String? reminderUuid,
   }) async {
     final patch = {
       'name': name,
@@ -216,6 +236,8 @@ class FlowsRepo {
       'end_date': endDate?.toIso8601String(),
       'notes': notes,
       'rules': rulesJson,
+      'is_reminder': isReminder,
+      'reminder_uuid': reminderUuid,
     };
     _log('update($id) → $patch');
     await _client.from(_kFlows).update(patch).eq('id', id);
@@ -276,5 +298,22 @@ class FlowsRepo {
     
     if (response == null) return null;
     return FlowRow.fromRow(response as Map<String, dynamic>);
+  }
+
+  /// Fetch a flow id by reminder_uuid.
+  Future<int?> getFlowIdByReminderUuid(String reminderUuid) async {
+    try {
+      final response = await _client
+          .from(_kFlows)
+          .select('id')
+          .eq('reminder_uuid', reminderUuid)
+          .maybeSingle();
+      return response?['id'] as int?;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[flows] getFlowIdByReminderUuid failed: $e');
+      }
+      return null;
+    }
   }
 }
