@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 
@@ -281,7 +283,6 @@ extension AIFlowGenerationServiceCheck on AIFlowGenerationService {
     }
   }
 }
-
 
 
 
