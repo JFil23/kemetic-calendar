@@ -11441,23 +11441,18 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   }
 
   void _showFlowPreview(_Flow f) {
-    final meta = notesDecode(f.notes);
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => _FlowPreviewPage(
           flow: f,
-          kemetic: meta.kemetic,
-          split: meta.split,
-          overview: meta.overview,
           getDecanLabel: (km, di) =>
           (_MonthCard.decans[km] ?? const ['I','II','III'])[di],
           fmt: (d) => _fmtGregorian(d),
-          onEdit: () {
-            _loadFlowForEdit(f);
+          onEdit: (flow) {
+            _loadFlowForEdit(flow);
             Navigator.of(context).pop();
           },
           onAppendToJournal: null,
-          isMaatInstance: (f.notes ?? '').contains('maat='),
           onEndMaatFlow: null, // Flow Studio can't end flows (no access to _endFlow)
         ),
       ),
@@ -13214,29 +13209,25 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 class _FlowPreviewPage extends StatefulWidget {
   const _FlowPreviewPage({
     required this.flow,
-    required this.kemetic,
-    required this.split,
-    required this.overview,
     required this.getDecanLabel,
     required this.fmt,
     required this.onEdit,
     this.onAppendToJournal,
     this.onEndMaatFlow,
-    this.isMaatInstance = false,
+    this.flowSequence,
+    this.initialIndex = 0,
   });
 
   final _Flow flow;
-  final bool kemetic;
-  final bool split;
-  final String overview;
+  final List<_Flow>? flowSequence;
+  final int initialIndex;
   final String Function(int km, int di) getDecanLabel;
   final String Function(DateTime? g) fmt;
-  final VoidCallback onEdit;
+  final void Function(_Flow flow) onEdit;
   final Future<void> Function(String text)? onAppendToJournal;
 
-  /// if provided & [isMaatInstance] true, show a gold-outline "End Flow" button.
-  final VoidCallback? onEndMaatFlow;
-  final bool isMaatInstance;
+  /// if provided & flow is a Ma'at instance, show a gold-outline "End Flow" button.
+  final void Function(_Flow flow)? onEndMaatFlow;
 
   @override
   State<_FlowPreviewPage> createState() => _FlowPreviewPageState();
@@ -13245,7 +13236,57 @@ class _FlowPreviewPage extends StatefulWidget {
 class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   late final UserEventsRepo _userEventsRepo;
 
-  // The record type matches getEventsForFlow() in user_events_repo.dart
+  late final List<_Flow> _flowSequence;
+  late int _currentIndex;
+  late final PageController _pageController;
+
+  // Cache events per flow id so we don't re-query when swiping back.
+  final Map<int, List<({
+    String? id,
+    String? clientEventId,
+    String title,
+    String? detail,
+    String? location,
+    bool allDay,
+    DateTime startsAtUtc,
+    DateTime? endsAtUtc,
+    int? flowLocalId,
+    String? category,
+  })>> _eventsByFlow = {};
+  final Map<int, Object?> _eventsErrorByFlow = {};
+  final Set<int> _loadingFlowIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _userEventsRepo = UserEventsRepo(Supabase.instance.client);
+    _flowSequence = (widget.flowSequence ?? [widget.flow]).toList();
+    if (_flowSequence.isEmpty) {
+      _flowSequence.add(widget.flow);
+    } else if (!_flowSequence.any((f) => f.id == widget.flow.id)) {
+      _flowSequence.insert(0, widget.flow);
+    }
+
+    int initial = widget.initialIndex;
+    if (initial < 0 || initial >= _flowSequence.length) {
+      initial = _flowSequence.indexWhere((f) => f.id == widget.flow.id);
+      if (initial < 0) initial = 0;
+    }
+    _currentIndex = initial;
+    _pageController = PageController(initialPage: _currentIndex);
+    _loadEventsFor(_flowSequence[_currentIndex]);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  ({bool kemetic, bool split, String overview, String? maatKey}) _metaFor(_Flow flow) {
+    return notesDecode(flow.notes);
+  }
+
   List<({
     String? id,
     String? clientEventId,
@@ -13257,82 +13298,22 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     DateTime? endsAtUtc,
     int? flowLocalId,
     String? category,
-  })> _events = const [];
-
-  bool _loadingEvents = false;
-  Object? _eventsError;
-
-  @override
-  void initState() {
-    super.initState();
-    _userEventsRepo = UserEventsRepo(Supabase.instance.client);
-    _loadEvents();
-  }
-
-  Future<void> _loadEvents() async {
-    setState(() {
-      _loadingEvents = true;
-      _eventsError = null;
-    });
-
-    try {
-      final events = await _userEventsRepo.getEventsForFlow(widget.flow.id);
-
-      // Dedupe: merge entries that represent the same day/title/time even if their
-      // client_event_id differs (prevents double-rendering). Prefer rows with a DB id,
-      // then with clientEventId, else fallback.
-      String _canonKey((
-        {
-          String? id,
-          String? clientEventId,
-          String title,
-          String? detail,
-          String? location,
-          bool allDay,
-          DateTime startsAtUtc,
-          DateTime? endsAtUtc,
-          int? flowLocalId,
-          String? category,
-        }
-      ) e) {
-        final titleKey = e.title.trim().toLowerCase();
-        final startKey = e.startsAtUtc.toIso8601String();
-        final endKey = e.endsAtUtc?.toIso8601String() ?? 'NO_END';
-        final locKey = (e.location ?? '').trim().toLowerCase();
-        final detailKey = (e.detail ?? '').trim().toLowerCase();
-        final flowKey = (e.flowLocalId ?? -1).toString();
-        return [
-          titleKey,
-          startKey,
-          endKey,
-          e.allDay ? 'allDay' : 'timed',
-          locKey,
-          detailKey,
-          flowKey,
-          (e.category ?? '').toLowerCase(),
-        ].join('|');
-      }
-
-      int _quality((
-        {
-          String? id,
-          String? clientEventId,
-          String title,
-          String? detail,
-          String? location,
-          bool allDay,
-          DateTime startsAtUtc,
-          DateTime? endsAtUtc,
-          int? flowLocalId,
-          String? category,
-        }
-      ) e) {
-        if (e.id != null) return 3;
-        if (e.clientEventId != null) return 2;
-        return 1;
-      }
-
-      final merged = <String, ({
+  })> _dedupeEvents(
+    List<({
+      String? id,
+      String? clientEventId,
+      String title,
+      String? detail,
+      String? location,
+      bool allDay,
+      DateTime startsAtUtc,
+      DateTime? endsAtUtc,
+      int? flowLocalId,
+      String? category,
+    })> events,
+  ) {
+    String _canonKey((
+      {
         String? id,
         String? clientEventId,
         String title,
@@ -13343,58 +13324,154 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         DateTime? endsAtUtc,
         int? flowLocalId,
         String? category,
-      })>{};
-
-      for (final e in events) {
-        final key = _canonKey(e);
-        final existing = merged[key];
-        if (existing == null || _quality(e) > _quality(existing)) {
-          merged[key] = e;
-        }
       }
+    ) e) {
+      final titleKey = e.title.trim().toLowerCase();
+      final startKey = e.startsAtUtc.toIso8601String();
+      final endKey = e.endsAtUtc?.toIso8601String() ?? 'NO_END';
+      final locKey = (e.location ?? '').trim().toLowerCase();
+      final detailKey = (e.detail ?? '').trim().toLowerCase();
+      final flowKey = (e.flowLocalId ?? -1).toString();
+      return [
+        titleKey,
+        startKey,
+        endKey,
+        e.allDay ? 'allDay' : 'timed',
+        locKey,
+        detailKey,
+        flowKey,
+        (e.category ?? '').toLowerCase(),
+      ].join('|');
+    }
 
-      final deduped = merged.values.toList()
-        ..sort((a, b) => a.startsAtUtc.compareTo(b.startsAtUtc));
+    int _quality((
+      {
+        String? id,
+        String? clientEventId,
+        String title,
+        String? detail,
+        String? location,
+        bool allDay,
+        DateTime startsAtUtc,
+        DateTime? endsAtUtc,
+        int? flowLocalId,
+        String? category,
+      }
+    ) e) {
+      if (e.id != null) return 3;
+      if (e.clientEventId != null) return 2;
+      return 1;
+    }
+
+    final merged = <String, ({
+      String? id,
+      String? clientEventId,
+      String title,
+      String? detail,
+      String? location,
+      bool allDay,
+      DateTime startsAtUtc,
+      DateTime? endsAtUtc,
+      int? flowLocalId,
+      String? category,
+    })>{};
+
+    for (final e in events) {
+      final key = _canonKey(e);
+      final existing = merged[key];
+      if (existing == null || _quality(e) > _quality(existing)) {
+        merged[key] = e;
+      }
+    }
+
+    final deduped = merged.values.toList()
+      ..sort((a, b) => a.startsAtUtc.compareTo(b.startsAtUtc));
+    return deduped;
+  }
+
+  Future<void> _loadEventsFor(_Flow flow) async {
+    final flowId = flow.id;
+    if (_loadingFlowIds.contains(flowId) || _eventsByFlow.containsKey(flowId)) {
+      return;
+    }
+
+    setState(() {
+      _loadingFlowIds.add(flowId);
+      _eventsErrorByFlow.remove(flowId);
+    });
+
+    try {
+      final events = await _userEventsRepo.getEventsForFlow(flowId);
+      final deduped = _dedupeEvents(events);
 
       if (!mounted) return;
       setState(() {
-        _events = deduped;
-        _loadingEvents = false;
+        _eventsByFlow[flowId] = deduped;
+        _loadingFlowIds.remove(flowId);
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _eventsError = e;
-        _loadingEvents = false;
+        _eventsErrorByFlow[flowId] = e;
+        _loadingFlowIds.remove(flowId);
       });
     }
   }
 
-  String _buildFlowBadgeToken() {
-    DateTime start = widget.flow.start ?? DateTime.now();
-    DateTime end = widget.flow.end ?? start.add(const Duration(hours: 1));
-    if (_events.isNotEmpty) {
-      start = _events.first.startsAtUtc.toLocal();
-      end = (_events.first.endsAtUtc ?? start.add(const Duration(hours: 1))).toLocal();
+  String _buildFlowBadgeToken(
+    _Flow flow,
+    List<({
+      String? id,
+      String? clientEventId,
+      String title,
+      String? detail,
+      String? location,
+      bool allDay,
+      DateTime startsAtUtc,
+      DateTime? endsAtUtc,
+      int? flowLocalId,
+      String? category,
+    })> events,
+  ) {
+    DateTime start = flow.start ?? DateTime.now();
+    DateTime end = flow.end ?? start.add(const Duration(hours: 1));
+    if (events.isNotEmpty) {
+      start = events.first.startsAtUtc.toLocal();
+      end = (events.first.endsAtUtc ?? start.add(const Duration(hours: 1))).toLocal();
     }
-    final description = _effectiveOverview(widget.flow.notes, widget.overview);
+    final meta = _metaFor(flow);
+    final description = _effectiveOverview(flow.notes, meta.overview);
     final cleanedDesc = _stripCidLines(description);
     final descForToken = cleanedDesc.isEmpty ? null : cleanedDesc;
     final id = 'badge-${DateTime.now().microsecondsSinceEpoch}';
     return EventBadgeToken.buildToken(
       id: id,
-      title: widget.flow.name.isEmpty ? 'Flow block' : widget.flow.name,
+      title: flow.name.isEmpty ? 'Flow block' : flow.name,
       start: start,
       end: end,
-      color: widget.flow.color,
+      color: flow.color,
       description: descForToken,
     );
   }
 
-  Future<void> _handleAddFlowToJournal() async {
+  Future<void> _handleAddFlowToJournal(
+    _Flow flow,
+    List<({
+      String? id,
+      String? clientEventId,
+      String title,
+      String? detail,
+      String? location,
+      bool allDay,
+      DateTime startsAtUtc,
+      DateTime? endsAtUtc,
+      int? flowLocalId,
+      String? category,
+    })> events,
+  ) async {
     final cb = widget.onAppendToJournal;
     if (cb == null) return;
-    final token = _buildFlowBadgeToken();
+    final token = _buildFlowBadgeToken(flow, events);
     try {
       await cb('$token ');
       if (mounted) {
@@ -13411,10 +13488,11 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     }
   }
 
-  List<Widget> _buildSchedule(BuildContext context) {
+  List<Widget> _buildSchedule({
+    required _Flow flow,
+    required bool kemetic,
+  }) {
     final rows = <TableRow>[];
-    final flow = widget.flow;
-    final kemetic = widget.kemetic;
 
     TextStyle head = const TextStyle(
       color: Colors.white70,
@@ -13528,10 +13606,122 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     ];
   }
 
+  Widget _buildFlowBody({
+    required _Flow flow,
+    required ({bool kemetic, bool split, String overview, String? maatKey}) meta,
+    required List<({
+      String? id,
+      String? clientEventId,
+      String title,
+      String? detail,
+      String? location,
+      bool allDay,
+      DateTime startsAtUtc,
+      DateTime? endsAtUtc,
+      int? flowLocalId,
+      String? category,
+    })> events,
+    required bool loading,
+    required Object? error,
+  }) {
+    final displayOverview = _effectiveOverview(flow.notes, meta.overview);
+
+    return ListView(
+      key: PageStorageKey('flow-${flow.id}'),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [
+        // Name
+        GlossyText(
+          text: flow.name,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          gradient: goldGloss,
+        ),
+        const SizedBox(height: 10),
+
+        // Overview
+        const GlossyText(
+          text: 'Overview',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          gradient: silverGloss,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          (displayOverview.isEmpty) ? '—' : displayOverview,
+          style: const TextStyle(color: Colors.white, height: 1.35),
+        ),
+        const SizedBox(height: 16),
+
+        // Date range + mode
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                meta.kemetic ? 'Kemetic' : 'Gregorian',
+                style: const TextStyle(color: Colors.white70),
+              ),
+            ),
+            Text(
+              '${widget.fmt(flow.start)} → ${widget.fmt(flow.end)}',
+              style: const TextStyle(color: Colors.white70),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Schedule
+        const GlossyText(
+          text: 'Schedule',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          gradient: silverGloss,
+        ),
+        const SizedBox(height: 6),
+        ..._buildSchedule(flow: flow, kemetic: meta.kemetic),
+        
+        const SizedBox(height: 24),
+
+        // Days & Notes (event-level note fields)
+        const GlossyText(
+          text: 'Days & Notes',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          gradient: silverGloss,
+        ),
+        const SizedBox(height: 6),
+        if (loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (error != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'Could not load flow days/notes.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.redAccent,
+              ),
+            ),
+          )
+        else if (events.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'No days or notes for this flow yet.',
+              style: TextStyle(fontSize: 14, color: Colors.white70),
+            ),
+          )
+        else
+          ...events.map(_buildEventTile),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final flow = widget.flow;
-    final displayOverview = _effectiveOverview(flow.notes, widget.overview);
+    final currentFlow = _flowSequence[_currentIndex];
+    final currentMeta = _metaFor(currentFlow);
+    final currentEvents = _eventsByFlow[currentFlow.id] ?? const [];
+    final isMaatInstance = currentMeta.maatKey != null;
 
     return Scaffold(
       backgroundColor: _bg,
@@ -13540,7 +13730,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         elevation: 0.5,
         title: const Text('Flow', style: TextStyle(color: Colors.white)),
         actions: [
-          if (widget.isMaatInstance && widget.onEndMaatFlow != null)
+          if (isMaatInstance && widget.onEndMaatFlow != null)
             OutlinedButton(
               style: OutlinedButton.styleFrom(
                 foregroundColor: _gold,
@@ -13550,7 +13740,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
               ),
-              onPressed: widget.onEndMaatFlow,
+              onPressed: () => widget.onEndMaatFlow?.call(currentFlow),
               child: const Text('End Flow'),
             ),
           PopupMenuButton<String>(
@@ -13558,11 +13748,11 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
             tooltip: 'Flow options',
             onSelected: (value) async {
               if (value == 'journal') {
-                await _handleAddFlowToJournal();
+                await _handleAddFlowToJournal(currentFlow, currentEvents);
               } else if (value == 'edit') {
-                widget.onEdit();
+                widget.onEdit(currentFlow);
               } else if (value == 'share') {
-                _openShareSheet(context, widget.flow);
+                _openShareSheet(context, currentFlow);
               }
             },
             itemBuilder: (context) => [
@@ -13602,92 +13792,29 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         ],
 
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        children: [
-          // Name
-          GlossyText(
-            text: flow.name,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-            gradient: goldGloss,
-          ),
-          const SizedBox(height: 10),
-
-          // Overview
-          const GlossyText(
-            text: 'Overview',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            gradient: silverGloss,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            (displayOverview.isEmpty) ? '—' : displayOverview,
-            style: const TextStyle(color: Colors.white, height: 1.35),
-          ),
-          const SizedBox(height: 16),
-
-          // Date range + mode
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  widget.kemetic ? 'Kemetic' : 'Gregorian',
-                  style: const TextStyle(color: Colors.white70),
-                ),
-              ),
-              Text(
-                '${widget.fmt(flow.start)} → ${widget.fmt(flow.end)}',
-                style: const TextStyle(color: Colors.white70),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Schedule
-          const GlossyText(
-            text: 'Schedule',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            gradient: silverGloss,
-          ),
-          const SizedBox(height: 6),
-          ..._buildSchedule(context),
-          
-          const SizedBox(height: 24),
-
-          // Days & Notes (event-level note fields)
-          const GlossyText(
-            text: 'Days & Notes',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            gradient: silverGloss,
-          ),
-          const SizedBox(height: 6),
-          if (_loadingEvents)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_eventsError != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'Could not load flow days/notes.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.redAccent,
-                ),
-              ),
-            )
-          else if (_events.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'No days or notes for this flow yet.',
-                style: TextStyle(fontSize: 14, color: Colors.white70),
-              ),
-            )
-          else
-            ..._events.map(_buildEventTile),
-        ],
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: _flowSequence.length,
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+          _loadEventsFor(_flowSequence[index]);
+        },
+        itemBuilder: (context, index) {
+          final flow = _flowSequence[index];
+          final meta = _metaFor(flow);
+          final events = _eventsByFlow[flow.id] ?? const [];
+          final loading = _loadingFlowIds.contains(flow.id);
+          final error = _eventsErrorByFlow[flow.id];
+          return _buildFlowBody(
+            flow: flow,
+            meta: meta,
+            events: events,
+            loading: loading,
+            error: error,
+          );
+        },
       ),
     );
   }
@@ -14443,21 +14570,17 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
               MaterialPageRoute(
                 builder: (_) => _FlowPreviewPage(
                   flow: f,
-                  kemetic: meta.kemetic,
-                  split: meta.split,
-                  overview: meta.overview,
+                  flowSequence: items,
+                  initialIndex: i,
                   getDecanLabel: (km, di) =>
                   (_MonthCard.decans[km] ?? const ['I','II','III'])[di],
                   fmt: widget.fmtGregorian,
-                  onEdit: () => widget.onEditFlow(f.id),
+                  onEdit: (flow) => widget.onEditFlow(flow.id),
                   onAppendToJournal: widget.onAppendToJournal,
-                  isMaatInstance: (f.notes ?? '').contains('maat='),
-                  onEndMaatFlow: (f.notes ?? '').contains('maat=')
-                      ? () {
-                    widget.onEndFlow(f.id);
+                  onEndMaatFlow: (flow) {
+                    widget.onEndFlow(flow.id);
                     Navigator.of(context).pop();
-                  }
-                      : null,
+                  },
 
                 ),
               ),
