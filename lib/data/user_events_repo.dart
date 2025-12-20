@@ -474,6 +474,76 @@ class UserEventsRepo {
     }).toList();
   }
 
+  /// Fetch reminder tombstones (client_event_id starts with reminder:tombstone:).
+  Future<Set<String>> getReminderTombstoneIds({int limit = 1000}) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return {};
+
+    var query = _client
+        .from(_kTable)
+        .select('client_event_id')
+        .eq('user_id', user.id)
+        .like('client_event_id', 'reminder:tombstone:%')
+        .order('starts_at', ascending: true);
+    if (limit > 0) {
+      query = query.limit(limit);
+    }
+
+    final rows = await query;
+    final ids = <String>{};
+    for (final row in (rows as List)) {
+      final cid = (row as Map<String, dynamic>)['client_event_id'] as String?;
+      if (cid != null && cid.startsWith('reminder:tombstone:')) {
+        final parts = cid.split(':');
+        if (parts.length >= 3 && parts[2].isNotEmpty) {
+          ids.add(parts[2]);
+        }
+      }
+    }
+    return ids;
+  }
+
+  /// Fetch events by client_event_id prefix.
+  Future<List<({
+    String? clientEventId,
+    String title,
+    String? detail,
+    String? location,
+    bool allDay,
+    DateTime startsAtUtc,
+    DateTime? endsAtUtc,
+    int? flowLocalId,
+    String? category,
+  })>> getEventsByPrefix(String prefix, {int limit = 2000}) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return const [];
+
+    var query = _client
+        .from(_kTable)
+        .select('client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category')
+        .eq('user_id', user.id)
+        .like('client_event_id', '$prefix%')
+        .order('starts_at', ascending: true);
+    if (limit > 0) {
+      query = query.limit(limit);
+    }
+
+    final rows = await query;
+    return (rows as List).cast<Map<String, dynamic>>().map((row) {
+      return (
+        clientEventId: row['client_event_id'] as String?,
+        title: (row['title'] as String?) ?? '',
+        detail: row['detail'] as String?,
+        location: row['location'] as String?,
+        allDay: (row['all_day'] as bool?) ?? false,
+        startsAtUtc: DateTime.parse(row['starts_at'] as String),
+        endsAtUtc: row['ends_at'] == null ? null : DateTime.parse(row['ends_at'] as String),
+        flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+        category: row['category'] as String?,
+      );
+    }).toList();
+  }
+
   /// Fetch events within a start/end window with metadata (updated_at).
   Future<List<UserEvent>> getEventsForWindow({
     required DateTime startUtc,

@@ -2378,24 +2378,15 @@ class _CalendarPageState extends State<CalendarPage>
     if (_reminderRulesLoaded) return;
     try {
       await _loadEndedReminderIds();
-      final local = await _reminderRuleStore.load();
-      final fromEvents = await _hydrateReminderRulesFromEvents();
-
-      // Merge event-derived repeat metadata into local cache when local is missing it.
-      final byId = <String, ReminderRule>{
-        for (final r in local.where((r) => !_endedReminderIds.contains(r.id))) r.id: r,
-      };
-      for (final ev in fromEvents) {
-        if (_endedReminderIds.contains(ev.id)) continue;
-        final existing = byId[ev.id];
-        if (existing == null) {
-          byId[ev.id] = ev;
-        } else {
-          byId[ev.id] = _mergeReminderRule(existing, ev);
-        }
+      final serverRules = await _hydrateReminderRulesFromMeta();
+      List<ReminderRule> source = serverRules;
+      if (source.isEmpty) {
+        source = await _reminderRuleStore.load();
       }
 
-      final merged = _dedupeReminderRules(byId.values.toList());
+      final merged = _dedupeReminderRules(
+        source.where((r) => !_endedReminderIds.contains(r.id)).toList(),
+      );
 
       if (mounted) {
         setState(() {
@@ -2423,57 +2414,30 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
-  // Rebuild reminder rules from persisted user_events entries that use the reminder CID prefix.
-  Future<List<ReminderRule>> _hydrateReminderRulesFromEvents() async {
+  // Load reminder rules from meta events stored in user_events with prefix "reminder:rule:".
+  Future<List<ReminderRule>> _hydrateReminderRulesFromMeta() async {
     try {
       final repo = UserEventsRepo(Supabase.instance.client);
-      final reminderEvents = await repo.getReminderEvents(limit: 5000);
-      if (reminderEvents.isEmpty) return const [];
-
-      final Map<String, List<({
-        String? clientEventId,
-        String title,
-        String? detail,
-        String? location,
-        bool allDay,
-        DateTime startsAtUtc,
-        DateTime? endsAtUtc,
-        int? flowLocalId,
-        String? category,
-      })>> byRule = {};
-
-      for (final evt in reminderEvents) {
-        final cid = evt.clientEventId ?? '';
-        final rid = _reminderRuleIdFromCid(cid);
-        if (rid == null || rid.isEmpty) continue;
-        (byRule[rid] ??= []).add(evt);
-      }
+      final rows = await repo.getEventsByPrefix('reminder:rule:', limit: 5000);
+      if (rows.isEmpty) return const [];
 
       final List<ReminderRule> rebuilt = [];
-      for (final entry in byRule.entries) {
-        final rid = entry.key;
-        if (_endedReminderIds.contains(rid)) continue;
-        final first = entry.value.first;
-        final startLocal = first.startsAtUtc.toLocal();
-        final decoded = _decodeDetailColor(first.detail);
-        final repeat = _decodeReminderRepeat(decoded.detail);
-        rebuilt.add(
-          ReminderRule(
-            id: rid,
-            title: first.title,
-            startLocal: startLocal,
-            allDay: first.allDay,
-            color: decoded.color ?? _flowPalette.first,
-            category: first.category,
-            active: true,
-            repeat: repeat,
-          ),
-        );
+      for (final row in rows) {
+        final cid = row.clientEventId ?? '';
+        if (!cid.startsWith('reminder:rule:')) continue;
+        final detail = row.detail;
+        if (detail == null || detail.isEmpty) continue;
+        try {
+          final map = Map<String, dynamic>.from(jsonDecode(detail) as Map);
+          final rule = ReminderRule.fromJson(map);
+          if (_endedReminderIds.contains(rule.id)) continue;
+          rebuilt.add(rule);
+        } catch (_) {
+          continue;
+        }
       }
-
       return rebuilt;
     } catch (_) {
-      // best-effort hydration; ignore errors
       return const [];
     }
   }
@@ -2491,6 +2455,20 @@ class _CalendarPageState extends State<CalendarPage>
     if (_endedReminderIds.remove(rule.id)) {
       await _saveEndedReminderIds();
     }
+    // Persist meta rule as a deterministic user_event for cross-device sync.
+    try {
+      final repo = UserEventsRepo(Supabase.instance.client);
+      await repo.upsertByClientId(
+        clientEventId: 'reminder:rule:${rule.id}',
+        title: rule.title,
+        startsAtUtc: rule.startLocal.toUtc(),
+        detail: jsonEncode(rule.toJson()),
+        location: null,
+        allDay: true,
+        endsAtUtc: null,
+        category: rule.category,
+      );
+    } catch (_) {}
     final idx = _reminderRules.indexWhere((r) => r.id == rule.id);
     if (idx >= 0) {
       _reminderRules[idx] = rule;
@@ -2505,6 +2483,12 @@ class _CalendarPageState extends State<CalendarPage>
   Future<void> _deleteReminderRule(String id) async {
     _endedReminderIds.add(id);
     await _saveEndedReminderIds();
+    // Remove rule meta event and occurrences
+    try {
+      final repo = UserEventsRepo(Supabase.instance.client);
+      await repo.deleteByClientIdPrefix('reminder:rule:$id');
+      await repo.deleteByClientIdPrefix('reminder:$id:');
+    } catch (_) {}
     // Remove from local rule list
     _reminderRules.removeWhere((r) => r.id == id);
     // Prune any cached notes so calendar UI updates immediately
@@ -7196,7 +7180,8 @@ class _CalendarPageState extends State<CalendarPage>
           if (cid.startsWith('reminder:')) {
             final rid = _reminderRuleIdFromCid(cid);
             final exists = rid != null && _reminderRules.any((r) => r.id == rid);
-            if (!exists) {
+            final ended = rid != null && _endedReminderIds.contains(rid);
+            if (!exists || ended) {
               continue;
             }
           }
