@@ -2379,18 +2379,23 @@ class _CalendarPageState extends State<CalendarPage>
     try {
       await _loadEndedReminderIds();
       final local = await _reminderRuleStore.load();
-      // Prefer locally cached rules; only hydrate from events if cache is empty
-      // to avoid resurrecting reminders that were intentionally ended/deleted.
-      List<ReminderRule> source;
-      if (local.isNotEmpty) {
-        source = local;
-      } else {
-        final rebuilt = await _hydrateReminderRulesFromEvents();
-        source = rebuilt;
+      final fromEvents = await _hydrateReminderRulesFromEvents();
+
+      // Merge event-derived repeat metadata into local cache when local is missing it.
+      final byId = <String, ReminderRule>{
+        for (final r in local.where((r) => !_endedReminderIds.contains(r.id))) r.id: r,
+      };
+      for (final ev in fromEvents) {
+        if (_endedReminderIds.contains(ev.id)) continue;
+        final existing = byId[ev.id];
+        if (existing == null) {
+          byId[ev.id] = ev;
+        } else {
+          byId[ev.id] = _mergeReminderRule(existing, ev);
+        }
       }
-      final merged = _dedupeReminderRules(
-        source.where((r) => !_endedReminderIds.contains(r.id)).toList(),
-      );
+
+      final merged = _dedupeReminderRules(byId.values.toList());
 
       if (mounted) {
         setState(() {
@@ -2422,8 +2427,7 @@ class _CalendarPageState extends State<CalendarPage>
   Future<List<ReminderRule>> _hydrateReminderRulesFromEvents() async {
     try {
       final repo = UserEventsRepo(Supabase.instance.client);
-      final all = await repo.getAllEvents(limit: 2000);
-      final reminderEvents = all.where((e) => (e.clientEventId ?? '').startsWith('reminder:')).toList();
+      final reminderEvents = await repo.getReminderEvents(limit: 5000);
       if (reminderEvents.isEmpty) return const [];
 
       final Map<String, List<({
@@ -2452,6 +2456,7 @@ class _CalendarPageState extends State<CalendarPage>
         final first = entry.value.first;
         final startLocal = first.startsAtUtc.toLocal();
         final decoded = _decodeDetailColor(first.detail);
+        final repeat = _decodeReminderRepeat(decoded.detail);
         rebuilt.add(
           ReminderRule(
             id: rid,
@@ -2461,7 +2466,7 @@ class _CalendarPageState extends State<CalendarPage>
             color: decoded.color ?? _flowPalette.first,
             category: first.category,
             active: true,
-            repeat: const ReminderRepeat(kind: ReminderRepeatKind.none),
+            repeat: repeat,
           ),
         );
       }
@@ -2550,6 +2555,80 @@ class _CalendarPageState extends State<CalendarPage>
         .whereType<int>()
         .where((n) => n >= min && n <= max)
         .toSet();
+  }
+
+  String _encodeReminderDetail(ReminderRule rule) {
+    final repeatJson = jsonEncode(rule.repeat.toJson());
+    final meta = 'repeat=$repeatJson;';
+    return _encodeDetailWithColor(meta, rule.color) ?? meta;
+  }
+
+  ReminderRepeat _decodeReminderRepeat(String? detail) {
+    if (detail == null || detail.isEmpty) return const ReminderRepeat();
+    final marker = 'repeat=';
+    final idx = detail.indexOf(marker);
+    if (idx < 0) return const ReminderRepeat();
+    final start = idx + marker.length;
+    final end = detail.indexOf(';', start);
+    final jsonStr = (end >= 0) ? detail.substring(start, end) : detail.substring(start);
+    try {
+      final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+      return ReminderRepeat.fromJson(map);
+    } catch (_) {
+      return const ReminderRepeat();
+    }
+  }
+
+  ReminderRule _mergeReminderRule(ReminderRule local, ReminderRule remote) {
+    final localRepeat = local.repeat;
+    final remoteRepeat = remote.repeat;
+
+    bool _isEmptyRepeat(ReminderRepeat r) {
+      switch (r.kind) {
+        case ReminderRepeatKind.none:
+          return true;
+        case ReminderRepeatKind.weekly:
+          return r.weekdays.isEmpty;
+        case ReminderRepeatKind.monthlyDay:
+          return r.monthDays.isEmpty && r.kemeticMonthDays.isEmpty && r.decanDays.isEmpty;
+        case ReminderRepeatKind.kemeticDecanDay:
+          return r.decanDays.isEmpty;
+        case ReminderRepeatKind.kemeticMonthDay:
+          return r.kemeticMonthDays.isEmpty && r.monthDays.isEmpty;
+        case ReminderRepeatKind.everyNDays:
+        case ReminderRepeatKind.kemeticEveryNDecans:
+          return false;
+      }
+    }
+
+    ReminderRepeat pickRepeat() {
+      if (_isEmptyRepeat(localRepeat) && !_isEmptyRepeat(remoteRepeat)) {
+        return remoteRepeat;
+      }
+      if (localRepeat.kind == remoteRepeat.kind) {
+        return localRepeat.copyWith(
+          interval: localRepeat.interval > 0 ? localRepeat.interval : remoteRepeat.interval,
+          weekdays: localRepeat.weekdays.isNotEmpty ? localRepeat.weekdays : remoteRepeat.weekdays,
+          monthDays: localRepeat.monthDays.isNotEmpty ? localRepeat.monthDays : remoteRepeat.monthDays,
+          decanDays: localRepeat.decanDays.isNotEmpty ? localRepeat.decanDays : remoteRepeat.decanDays,
+          kemeticMonthDays: localRepeat.kemeticMonthDays.isNotEmpty
+              ? localRepeat.kemeticMonthDays
+              : remoteRepeat.kemeticMonthDays,
+          monthDay: localRepeat.monthDay ?? remoteRepeat.monthDay,
+        );
+      }
+      return localRepeat;
+    }
+
+    return local.copyWith(
+      repeat: pickRepeat(),
+      color: local.color,
+      category: local.category ?? remote.category,
+      title: local.title.isNotEmpty ? local.title : remote.title,
+      startLocal: local.startLocal,
+      allDay: local.allDay,
+      active: local.active,
+    );
   }
 
   List<DateTime> _generateReminderOccurrences(
@@ -2807,7 +2886,7 @@ class _CalendarPageState extends State<CalendarPage>
         final cidDate =
             '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
         final cid = 'reminder:${rule.id}:$cidDate';
-        final encodedDetail = _encodeDetailWithColor(null, rule.color);
+        final encodedDetail = _encodeReminderDetail(rule);
 
         try {
           await repo.upsertByClientId(
@@ -7125,10 +7204,6 @@ class _CalendarPageState extends State<CalendarPage>
             final rid = _reminderRuleIdFromCid(cid);
             final exists = rid != null && _reminderRules.any((r) => r.id == rid);
             if (!exists) {
-              // Try to delete orphaned reminder events.
-              try {
-                await repo.deleteByClientIdPrefix('reminder:${rid ?? ''}:');
-              } catch (_) {}
               continue;
             }
           }
@@ -14364,6 +14439,11 @@ String _cleanDetail(String? s) {
   if (s == null || s.isEmpty) return '';
   var t = s;
   if (t.startsWith('flowLocalId=')) {
+    final i = t.indexOf(';');
+    t = (i >= 0 && i < t.length - 1) ? t.substring(i + 1) : '';
+  }
+  // Strip reminder metadata embedded in detail
+  if (t.startsWith('repeat=')) {
     final i = t.indexOf(';');
     t = (i >= 0 && i < t.length - 1) ? t.substring(i + 1) : '';
   }
