@@ -12255,7 +12255,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       if (isAiImport) {
         _useKemetic = false;
         _splitByPeriod = true;
-        _overviewCtrl.text = data.overview ?? '';
+        if ((data.overview ?? '').isNotEmpty) {
+          _overviewCtrl.text = data.overview!;
+        } else {
+          _overviewCtrl.clear();
+        }
       } else if (data.notes != null) {
         try {
           final meta = notesDecode(data.notes!);
@@ -12348,9 +12352,22 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             _populateKemeticSelections(userEvents);
           } else {
             _populateGregorianSelections(userEvents);
+            // For AI imports, ensure per-week selections are set from events
+            if (isAiImport) {
+              _perWeekSel.clear();
+              for (final ev in userEvents) {
+                final monday = _mondayOf(ev.startsAt.toLocal());
+                final key = _iso(monday);
+                final wd = ev.startsAt.toLocal().weekday;
+                final set = _perWeekSel[key] ?? <int>{};
+                set.add(wd);
+                _perWeekSel[key] = set;
+              }
+              _applySelectionToDrafts();
+            }
           }
-          // Apply selection once after population
-          _applySelectionToDrafts();
+          // Apply selection once after population (non-AI imports)
+          if (!isAiImport) _applySelectionToDrafts();
         }
         if (mounted) {
           setState(() {
