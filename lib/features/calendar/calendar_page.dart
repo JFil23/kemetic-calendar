@@ -7161,8 +7161,9 @@ class _CalendarPageState extends State<CalendarPage>
       // The rules are already cleared in _save() when widget.importData != null,
       // but we also check here as a safety measure
       final bool hasSnapshotEvents = r.plannedNotes.isNotEmpty;
-      final rulesJson = hasSnapshotEvents 
-          ? jsonEncode([]) 
+      final bool isAiLocal = r.savedFlow?.shareId == 'ai-local';
+      final rulesJson = (hasSnapshotEvents && !isAiLocal)
+          ? jsonEncode([])
           : jsonEncode(r.savedFlow!.rules.map(ruleToJson).toList());
 
       final savedId = await repo.upsertFlow(
@@ -9751,6 +9752,7 @@ class ImportFlowData {
   final String? notes;
   final List<dynamic> rules;
   final DateTime? suggestedStartDate;
+  final String? overview;
   const ImportFlowData({
     required this.share,
     required this.name,
@@ -9758,6 +9760,7 @@ class ImportFlowData {
     this.notes,
     required this.rules,
     this.suggestedStartDate,
+    this.overview,
   });
 }
 
@@ -11079,26 +11082,41 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       builder: (context) => const AIFlowGenerationModal(),
     );
 
-    if (result != null && result.flowId != null && mounted) {
-      // AI generated a flow! Close modal and open Flow Studio with the generated flow
-      Navigator.pop(context); // Close AI generation modal
-      
-      // Open Flow Studio with the generated flow ID
+    if (!mounted || result == null) return;
+
+    // Prefer DB-loaded flow if flowId is present
+    if (result.flowId != null) {
+      Navigator.pop(context);
       await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => _FlowStudioPage(
-            existingFlows: const [], // Will be loaded from editFlowId
+            existingFlows: const [],
             editFlowId: result.flowId,
           ),
         ),
       );
-      
-      // Refresh calendar after Flow Studio closes
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
+      return;
     }
+
+    // Fallback: seed Flow Studio directly from AI response (no DB flowId)
+    final baseStart = _startDate ?? DateTime.now();
+    final importData = _aiImportDataFromResponse(result, baseStart);
+    if (importData == null) return;
+
+    Navigator.pop(context);
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _FlowStudioPage(
+          existingFlows: const [],
+          editFlowId: null,
+          importData: importData,
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
   }
 
   Future<void> _save() async {
@@ -11256,8 +11274,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     });
 
     // ✅ For imported flows, clear rules to prevent rule-based rescheduling
-    // This ensures snapshot events are the single source of truth
-    final bool isImportedFlow = widget.importData != null;
+    // But keep rules for AI imports (payloadId == 'ai-local') so schedule displays
+    final bool isAiImport = widget.importData?.share.payloadId == 'ai-local';
+    final bool isImportedFlow = widget.importData != null && !isAiImport;
     final List<FlowRule> rulesToSave = isImportedFlow ? <FlowRule>[] : rules;
 
     final flow = _Flow(
@@ -11265,11 +11284,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       name: name,
       color: _flowPalette[_selectedColorIndex],
       active: _active,
-      rules: rulesToSave, // ✅ Empty rules for imported flows
+      rules: rulesToSave, // ✅ Empty rules for non-AI imports
       start: _startDate,
       end: _endDate,
       notes: notes,
-      shareId: null,
+      shareId: widget.importData?.share.shareId,
       isHidden: _editing?.isHidden ?? false, // Preserve hidden status if editing
     );
 
@@ -12016,6 +12035,82 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     }
   }
 
+  ImportFlowData? _aiImportDataFromResponse(
+    AIFlowGenerationResponse resp,
+    DateTime baseStart,
+  ) {
+    try {
+      // Parse notes: accept already-decoded list or JSON string
+      List<dynamic> notesList;
+      if (resp.notes is List) {
+        notesList = resp.notes as List;
+      } else if (resp.notes is String) {
+        final raw = resp.notes as String;
+        final decoded = jsonDecode(raw);
+        notesList = decoded is List ? decoded : [];
+      } else {
+        notesList = const [];
+      }
+      if (notesList.isEmpty) return null;
+
+      // Build events expected by _initializeFromImport
+      final events = <Map<String, dynamic>>[];
+      for (final n in notesList) {
+        if (n is Map<String, dynamic>) {
+          final dayIdx = (n['day_index'] as num?)?.toInt() ?? 0;
+          final title = (n['title'] as String?) ?? 'Note ${dayIdx + 1}';
+          final detail = (n['details'] as String?) ?? '';
+          final allDay = n['all_day'] as bool? ?? n['allDay'] as bool? ?? false;
+          final st = n['start_time'] as String? ??
+              n['startTime'] as String? ??
+              n['startsAt'] as String?;
+          final et = n['end_time'] as String? ??
+              n['endTime'] as String? ??
+              n['endsAt'] as String?;
+          events.add({
+            'offset_days': dayIdx,
+            'title': title,
+            'detail': detail,
+            'all_day': allDay,
+            'start_time': st ?? '00:00',
+            'end_time': et ?? (allDay ? '00:00' : '01:00'),
+          });
+        }
+      }
+      if (events.isEmpty) return null;
+
+      // Build dummy share item (local-only)
+      final share = InboxShareItem(
+        shareId: 'ai-local-${DateTime.now().millisecondsSinceEpoch}',
+        kind: InboxShareKind.flow,
+        recipientId: '',
+        senderId: '',
+        payloadId: 'ai-local',
+        title: resp.flowName ?? 'AI Flow',
+        createdAt: DateTime.now(),
+        payloadJson: {'events': events},
+      );
+
+      // Convert color hex -> ARGB int
+      final hex = resp.flowColor ?? '#4dd0e1';
+      final cleaned = hex.replaceFirst('#', '');
+      final rgb = int.tryParse(cleaned, radix: 16) ?? 0x4dd0e1;
+      final colorInt = 0xFF000000 | rgb;
+
+      return ImportFlowData(
+        share: share,
+        name: resp.flowName ?? 'AI Flow',
+        color: colorInt,
+        notes: resp.notes is String ? resp.notes as String : jsonEncode(resp.notes),
+        rules: const [],
+        suggestedStartDate: baseStart,
+        overview: resp.overviewSummary ?? resp.overviewTitle ?? '',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Populate Kemetic selections based on events
   void _populateKemeticSelections(List<UserEvent> events) {
     for (final event in events) {
@@ -12155,7 +12250,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           ? _dateOnly(data.suggestedStartDate!)
           : _dateOnly(DateTime.now());
 
-      if (data.notes != null) {
+      // For AI imports (payloadId == 'ai-local'), force Gregorian/simple mode
+      final isAiImport = data.share.payloadId == 'ai-local';
+      if (isAiImport) {
+        _useKemetic = false;
+        _splitByPeriod = true;
+        _overviewCtrl.text = data.overview ?? '';
+      } else if (data.notes != null) {
         try {
           final meta = notesDecode(data.notes!);
           _useKemetic = meta.kemetic;
@@ -12165,6 +12266,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       } else {
         _useKemetic = false;
         _splitByPeriod = true;
+        _overviewCtrl.text = data.overview ?? '';
       }
 
       final payload = data.share.payloadJson;
@@ -12231,7 +12333,15 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         }
 
         _syncReady = false;
-        _convertEventsToDrafts(userEvents);
+        // Sort events by start time to maintain Day 1..N ordering
+        userEvents.sort((a, b) => a.startsAt.compareTo(b.startsAt));
+
+        _convertEventsToDrafts(
+          userEvents,
+          renumberAiTitles: true,
+          startDateForRenumbering: _startDate,
+          forceTimedDrafts: true, // allow time editing even if all_day true
+        );
         _rebuildSpans(); // safe while _syncReady is false
         if (_hasFullRange && _draftsByDay.isNotEmpty) {
           if (_useKemetic) {
@@ -12239,7 +12349,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           } else {
             _populateGregorianSelections(userEvents);
           }
-          // Do NOT call _applySelectionToDrafts() here to avoid duplicates
+          // Apply selection once after population
+          _applySelectionToDrafts();
         }
         if (mounted) {
           setState(() {

@@ -31,26 +31,36 @@ class AIFlowGenerationRequest {
 
 /// Response model from AI flow generation
 class AIFlowGenerationResponse {
-  final String flowName;
-  final String flowColor;
-  final List<FlowRule> rules;
-  final String? notes;
+  final String? flowName;
+  final String? flowColor;
+  final List<dynamic>? notes;
+  final int? notesCount;
+  final bool success;
+  final bool? cached;
+  final String? modelUsed;
 
   AIFlowGenerationResponse({
-    required this.flowName,
-    required this.flowColor,
-    required this.rules,
+    required this.success,
+    this.flowName,
+    this.flowColor,
     this.notes,
+    this.notesCount,
+    this.cached,
+    this.modelUsed,
   });
 
   factory AIFlowGenerationResponse.fromJson(Map<String, dynamic> json) {
+    final notesRaw = json['notes'];
     return AIFlowGenerationResponse(
-      flowName: json['flowName'] as String,
-      flowColor: json['flowColor'] as String,
-      rules: (json['rules'] as List)
-          .map((r) => FlowRule.fromJson(r as Map<String, dynamic>))
-          .toList(),
-      notes: json['notes'] as String?,
+      success: (json['success'] as bool?) ?? false,
+      flowName: json['flowName'] as String? ?? json['flow_name'] as String?,
+      flowColor: json['flowColor'] as String? ?? json['flow_color'] as String?,
+      notes: notesRaw is List ? notesRaw : null,
+      notesCount: json['notesCount'] as int? ??
+          json['notes_count'] as int? ??
+          (notesRaw is List ? notesRaw.length : null),
+      cached: json['cached'] as bool?,
+      modelUsed: json['modelUsed'] as String? ?? json['model_used'] as String?,
     );
   }
 }
@@ -168,30 +178,41 @@ class AIFlowGenerationService {
         );
       }
 
-      // Step 5: Parse response
-      final data = response.data is String
-          ? <String, dynamic>{}  // Handle string responses
-          : Map<String, dynamic>.from(response.data);
+      // Step 5: Parse response (defensive)
+      try {
+        final data = response.data is String
+            ? Map<String, dynamic>.from(
+                jsonDecode(response.data as String) as Map,
+              )
+            : Map<String, dynamic>.from(response.data as Map);
 
-      _log('✅ Response data: $data');
+        _log('✅ Response data: $data');
 
-      // Check for error in response body
-      if (data.containsKey('error')) {
-        _logError('❌ Error in response: ${data['error']}');
+        // Check for error in response body
+        if (data.containsKey('error')) {
+          _logError('❌ Error in response: ${data['error']}');
+          throw AIFlowGenerationError(
+            message: data['error'].toString(),
+            statusCode: response.status,
+            details: data,
+          );
+        }
+
+        // Step 6: Create response object
+        final aiResponse = AIFlowGenerationResponse.fromJson(data);
+        _log('🎉 AI generation successful!');
+        _log('   - Flow name: ${aiResponse.flowName}');
+        _log('   - Notes count: ${aiResponse.notesCount ?? aiResponse.notes?.length ?? 0}');
+
+        return aiResponse;
+      } catch (e, stackTrace) {
+        _logError('❌ Parse error: $e');
+        _logError('📚 Stack trace:\n$stackTrace');
         throw AIFlowGenerationError(
-          message: data['error'].toString(),
+          message: 'Failed to parse response',
           statusCode: response.status,
-          details: data,
         );
       }
-
-      // Step 6: Create response object
-      final aiResponse = AIFlowGenerationResponse.fromJson(data);
-      _log('🎉 AI generation successful!');
-      _log('   - Flow name: ${aiResponse.flowName}');
-      _log('   - Rules count: ${aiResponse.rules.length}');
-
-      return aiResponse;
       
     } on AIFlowGenerationError {
       // Re-throw our custom errors
@@ -260,8 +281,6 @@ extension AIFlowGenerationServiceCheck on AIFlowGenerationService {
     }
   }
 }
-
-
 
 
 

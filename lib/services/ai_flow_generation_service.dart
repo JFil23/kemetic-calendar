@@ -78,12 +78,28 @@ class AIFlowGenerationService {
       debugPrint('[AI invoke] FAIL ❌ ${res.data}');
     }
 
-    // 4) Parse response (existing logic)
-    final data = res.data;
-    final map = data is String
-        ? json.decode(data) as Map<String, dynamic>
-        : data as Map<String, dynamic>;
+    // 4) Parse response (defensive)
+    try {
+      final data = res.data;
+      final map = data is String
+          ? json.decode(data) as Map<String, dynamic>
+          : Map<String, dynamic>.from(data as Map);
 
-    return AIFlowGenerationResponse.fromJson(map);
+      return AIFlowGenerationResponse.fromJson(map);
+    } catch (e, st) {
+      debugPrint('[AI invoke] parse error: $e');
+      debugPrint('$st');
+      return const AIFlowGenerationResponse(
+        success: false,
+        flowId: null,
+        flowName: null,
+        flowColor: null,
+        notes: null,
+        notesCount: null,
+        events: null,
+        modelUsed: null,
+        cached: null,
+      );
+    }
   }
 }
