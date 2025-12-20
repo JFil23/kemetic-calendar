@@ -17,17 +17,19 @@ class ReminderRepeat {
   final ReminderRepeatKind kind;
   final int interval; // Used for everyNDays / kemeticEveryNDecans
   final Set<int> weekdays; // 1=Mon..7=Sun
-  final int? monthDay; // Gregorian day-of-month (1-31)
-  final int? decanDay; // 1-10
-  final int? kemeticMonthDay; // 1-30
+  final int? monthDay; // legacy single day (1-31)
+  final Set<int> monthDays; // Gregorian day-of-month (1-31)
+  final Set<int> decanDays; // 1-10
+  final Set<int> kemeticMonthDays; // 1-30
 
   const ReminderRepeat({
     this.kind = ReminderRepeatKind.none,
     this.interval = 1,
     this.weekdays = const {},
     this.monthDay,
-    this.decanDay,
-    this.kemeticMonthDay,
+    this.monthDays = const {},
+    this.decanDays = const {},
+    this.kemeticMonthDays = const {},
   });
 
   Map<String, dynamic> toJson() {
@@ -36,8 +38,9 @@ class ReminderRepeat {
       'interval': interval,
       'weekdays': weekdays.toList(),
       'monthDay': monthDay,
-      'decanDay': decanDay,
-      'kemeticMonthDay': kemeticMonthDay,
+      'monthDays': monthDays.toList(),
+      'decanDays': decanDays.toList(),
+      'kemeticMonthDays': kemeticMonthDays.toList(),
     };
   }
 
@@ -57,8 +60,18 @@ class ReminderRepeat {
           (n as num).toInt(),
       },
       monthDay: (json['monthDay'] as num?)?.toInt(),
-      decanDay: (json['decanDay'] as num?)?.toInt(),
-      kemeticMonthDay: (json['kemeticMonthDay'] as num?)?.toInt(),
+      monthDays: {
+        for (final n in (json['monthDays'] as List? ?? (json['monthDay'] != null ? [json['monthDay']] : const [])))
+          (n as num).toInt(),
+      },
+      decanDays: {
+        for (final n in (json['decanDays'] as List? ?? (json['decanDay'] != null ? [json['decanDay']] : const [])))
+          (n as num).toInt(),
+      },
+      kemeticMonthDays: {
+        for (final n in (json['kemeticMonthDays'] as List? ?? (json['kemeticMonthDay'] != null ? [json['kemeticMonthDay']] : const [])))
+          (n as num).toInt(),
+      },
     );
   }
 
@@ -67,16 +80,18 @@ class ReminderRepeat {
     int? interval,
     Set<int>? weekdays,
     int? monthDay,
-    int? decanDay,
-    int? kemeticMonthDay,
+    Set<int>? monthDays,
+    Set<int>? decanDays,
+    Set<int>? kemeticMonthDays,
   }) {
     return ReminderRepeat(
       kind: kind ?? this.kind,
       interval: interval ?? this.interval,
       weekdays: weekdays ?? this.weekdays,
       monthDay: monthDay ?? this.monthDay,
-      decanDay: decanDay ?? this.decanDay,
-      kemeticMonthDay: kemeticMonthDay ?? this.kemeticMonthDay,
+      monthDays: monthDays ?? this.monthDays,
+      decanDays: decanDays ?? this.decanDays,
+      kemeticMonthDays: kemeticMonthDays ?? this.kemeticMonthDays,
     );
   }
 }

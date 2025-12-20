@@ -1382,6 +1382,7 @@ class _CalendarPageState extends State<CalendarPage>
   late final ReminderRuleStore _reminderRuleStore = ReminderRuleStore();
   final List<ReminderRule> _reminderRules = [];
   bool _reminderRulesLoaded = false;
+  bool _noteSheetShowReminders = false;
   static const _endedReminderPrefsKey = 'reminder:ended_ids';
   final Set<String> _endedReminderIds = {};
 
@@ -2319,6 +2320,9 @@ class _CalendarPageState extends State<CalendarPage>
   List<ReminderRule> _dedupeReminderRules(List<ReminderRule> rules) {
     String sig(ReminderRule r) {
       final weekdays = r.repeat.weekdays.toList()..sort();
+      final monthDays = r.repeat.monthDays.toList()..sort();
+      final decanDays = r.repeat.decanDays.toList()..sort();
+      final kMonthDays = r.repeat.kemeticMonthDays.toList()..sort();
       return [
         r.title.trim().toLowerCase(),
         r.startLocal.toIso8601String(),
@@ -2330,8 +2334,9 @@ class _CalendarPageState extends State<CalendarPage>
         r.repeat.interval,
         weekdays.join(','),
         r.repeat.monthDay ?? '',
-        r.repeat.decanDay ?? '',
-        r.repeat.kemeticMonthDay ?? '',
+        monthDays.join(','),
+        decanDays.join(','),
+        kMonthDays.join(','),
       ].join('|');
     }
 
@@ -2557,18 +2562,21 @@ class _CalendarPageState extends State<CalendarPage>
         break;
 
       case ReminderRepeatKind.monthlyDay:
-        int target = rule.repeat.monthDay ?? startDate.day;
-        target = target.clamp(1, 31);
+        final targets = rule.repeat.monthDays.isEmpty
+            ? {(rule.repeat.monthDay ?? startDate.day).clamp(1, 31)}
+            : rule.repeat.monthDays.map((d) => d.clamp(1, 31)).toSet();
         DateTime cursor = DateTime(from.year, from.month, 1);
         if (cursor.isBefore(startDate)) {
           cursor = DateTime(startDate.year, startDate.month, 1);
         }
         while (!cursor.isAfter(windowEnd)) {
           final daysInMonth = DateUtils.getDaysInMonth(cursor.year, cursor.month);
-          final day = target.clamp(1, daysInMonth);
-          final occ = DateTime(cursor.year, cursor.month, day);
-          if (!occ.isBefore(from) && !occ.isBefore(startDate) && !occ.isAfter(windowEnd)) {
-            dates.add(occ);
+          for (final t in targets) {
+            final day = t.clamp(1, daysInMonth);
+            final occ = DateTime(cursor.year, cursor.month, day);
+            if (!occ.isBefore(from) && !occ.isBefore(startDate) && !occ.isAfter(windowEnd)) {
+              dates.add(occ);
+            }
           }
           cursor = DateTime(cursor.year, cursor.month + 1, 1);
         }
@@ -2587,13 +2595,15 @@ class _CalendarPageState extends State<CalendarPage>
         break;
 
       case ReminderRepeatKind.kemeticDecanDay:
-        final target = (rule.repeat.decanDay ?? 1).clamp(1, 10);
+        final targets = rule.repeat.decanDays.isEmpty
+            ? {(rule.startLocal.day % 10 == 0 ? 10 : rule.startLocal.day % 10)}
+            : rule.repeat.decanDays.map((d) => d.clamp(1, 10)).toSet();
         DateTime cur = from.isBefore(startDate) ? startDate : from;
         while (!cur.isAfter(windowEnd)) {
           final k = KemeticMath.fromGregorian(cur);
           if (k.kMonth != 13) {
             final dInDecan = ((k.kDay - 1) % 10) + 1;
-            if (dInDecan == target) {
+            if (targets.contains(dInDecan)) {
               dates.add(cur);
             }
           }
@@ -2602,13 +2612,13 @@ class _CalendarPageState extends State<CalendarPage>
         break;
 
       case ReminderRepeatKind.kemeticMonthDay:
-        final target = (rule.repeat.kemeticMonthDay ??
-            rule.repeat.monthDay ??
-            startDate.day).clamp(1, 30);
+        final targets = rule.repeat.kemeticMonthDays.isEmpty
+            ? {(rule.repeat.monthDay ?? startDate.day).clamp(1, 30)}
+            : rule.repeat.kemeticMonthDays.map((d) => d.clamp(1, 30)).toSet();
         DateTime cur = from.isBefore(startDate) ? startDate : from;
         while (!cur.isAfter(windowEnd)) {
           final k = KemeticMath.fromGregorian(cur);
-          if (k.kMonth != 13 && k.kDay == target) {
+          if (k.kMonth != 13 && targets.contains(k.kDay)) {
             dates.add(cur);
           }
           cur = cur.add(const Duration(days: 1));
@@ -2647,19 +2657,25 @@ class _CalendarPageState extends State<CalendarPage>
         final joined = parts.map((d) => labels[(d - 1).clamp(0, 6)]).join('/');
         return 'Weekly $joined';
       case ReminderRepeatKind.monthlyDay:
-        final day = rule.repeat.monthDay ?? rule.startLocal.day;
-        return 'Monthly ${ordinal(day)} – G';
+        final days = rule.repeat.monthDays.isEmpty
+            ? [(rule.repeat.monthDay ?? rule.startLocal.day).clamp(1, 31)]
+            : (rule.repeat.monthDays.toList()..sort());
+        final labels = days.map(ordinal).join(', ');
+        return 'Monthly $labels – G';
       case ReminderRepeatKind.kemeticEveryNDecans:
         final iv = rule.repeat.interval <= 0 ? 1 : rule.repeat.interval;
         return iv == 1 ? 'Every Decan' : 'Every ${iv} Decans';
       case ReminderRepeatKind.kemeticDecanDay:
-        final d = (rule.repeat.decanDay ?? 1).clamp(1, 10);
-        return 'Each Decan · Day $d';
+        final ds = rule.repeat.decanDays.isEmpty
+            ? [(rule.startLocal.day % 10 == 0 ? 10 : rule.startLocal.day % 10)]
+            : rule.repeat.decanDays.toList()..sort();
+        return 'Each Decan · Day ${ds.join(', ')}';
       case ReminderRepeatKind.kemeticMonthDay:
-        final d = (rule.repeat.kemeticMonthDay ??
-            rule.repeat.monthDay ??
-            rule.startLocal.day);
-        return 'Monthly ${ordinal(d)} – K';
+        final ds = rule.repeat.kemeticMonthDays.isEmpty
+            ? [(rule.repeat.monthDay ?? rule.startLocal.day).clamp(1, 30)]
+            : rule.repeat.kemeticMonthDays.toList()..sort();
+        final ords = ds.map((d) => ordinal(d)).join(', ');
+        return 'Monthly $ords – K';
     }
   }
 
@@ -2777,7 +2793,7 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<void> _openReminderEditor({ReminderRule? existing}) async {
+  Future<bool> _openReminderEditor({ReminderRule? existing}) async {
     await _loadReminderRules();
     final now = DateTime.now();
     final defaultStart = DateTime(now.year, now.month, now.day, now.hour, 0);
@@ -2792,25 +2808,32 @@ class _CalendarPageState extends State<CalendarPage>
     ReminderRepeat repeat = existing?.repeat ?? const ReminderRepeat();
     bool active = existing?.active ?? true;
 
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.black,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        final scrollController = ScrollController();
-        final media = MediaQuery.of(ctx);
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            bottom: media.viewInsets.bottom + 16,
-            top: 12,
-          ),
-          child: StatefulBuilder(
-            builder: (ctx, setModalState) {
+    if (!mounted) {
+      titleCtrl.dispose();
+      return false;
+    }
+
+    bool saved = false;
+
+    try {
+      final result = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.black,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (ctx) {
+          final media = MediaQuery.of(ctx);
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              bottom: media.viewInsets.bottom + 16,
+              top: 12,
+            ),
+            child: StatefulBuilder(
+              builder: (sheetCtx, setModalState) {
               String dateLabel(DateTime d) =>
                   '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
               String timeLabel(TimeOfDay t) {
@@ -2873,10 +2896,12 @@ class _CalendarPageState extends State<CalendarPage>
 
                   case ReminderRepeatKind.monthlyDay:
                     return TextFormField(
-                      keyboardType: TextInputType.number,
-                      initialValue: (repeat.monthDay ?? startLocal.day).toString(),
+                      keyboardType: TextInputType.text,
+                      initialValue: repeat.monthDays.isEmpty
+                          ? ''
+                          : (repeat.monthDays.toList()..sort()).join(','),
                       decoration: const InputDecoration(
-                        labelText: 'Day of month (1-31)',
+                        labelText: 'Day of month (1-31, comma-separated)',
                         labelStyle: TextStyle(color: Colors.white70),
                         enabledBorder: UnderlineInputBorder(
                           borderSide: BorderSide(color: Colors.white24),
@@ -2887,9 +2912,14 @@ class _CalendarPageState extends State<CalendarPage>
                       ),
                       style: const TextStyle(color: Colors.white),
                       onChanged: (v) {
-                        final n = int.tryParse(v) ?? 1;
+                        final parts = v.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty);
+                        final values = <int>{};
+                        for (final p in parts) {
+                          final n = int.tryParse(p);
+                          if (n != null) values.add(n.clamp(1, 31));
+                        }
                         setModalState(() {
-                          repeat = repeat.copyWith(monthDay: n.clamp(1, 31));
+                          repeat = repeat.copyWith(monthDays: values);
                         });
                       },
                     );
@@ -2919,10 +2949,12 @@ class _CalendarPageState extends State<CalendarPage>
 
                   case ReminderRepeatKind.kemeticDecanDay:
                     return TextFormField(
-                      keyboardType: TextInputType.number,
-                      initialValue: (repeat.decanDay ?? 1).toString(),
+                      keyboardType: TextInputType.text,
+                      initialValue: repeat.decanDays.isEmpty
+                          ? ''
+                          : (repeat.decanDays.toList()..sort()).join(','),
                       decoration: const InputDecoration(
-                        labelText: 'Day of decan (1-10)',
+                        labelText: 'Day of decan (1-10, comma-separated)',
                         labelStyle: TextStyle(color: Colors.white70),
                         enabledBorder: UnderlineInputBorder(
                           borderSide: BorderSide(color: Colors.white24),
@@ -2933,20 +2965,26 @@ class _CalendarPageState extends State<CalendarPage>
                       ),
                       style: const TextStyle(color: Colors.white),
                       onChanged: (v) {
-                        final n = int.tryParse(v) ?? 1;
+                        final parts = v.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty);
+                        final values = <int>{};
+                        for (final p in parts) {
+                          final n = int.tryParse(p);
+                          if (n != null) values.add(n.clamp(1, 10));
+                        }
                         setModalState(() {
-                          repeat = repeat.copyWith(decanDay: n.clamp(1, 10));
+                          repeat = repeat.copyWith(decanDays: values);
                         });
                       },
                     );
 
                   case ReminderRepeatKind.kemeticMonthDay:
                     return TextFormField(
-                      keyboardType: TextInputType.number,
-                      initialValue:
-                          (repeat.kemeticMonthDay ?? startLocal.day.clamp(1, 30)).toString(),
+                      keyboardType: TextInputType.text,
+                      initialValue: repeat.kemeticMonthDays.isEmpty
+                          ? ''
+                          : (repeat.kemeticMonthDays.toList()..sort()).join(','),
                       decoration: const InputDecoration(
-                        labelText: 'Day of Kemetic month (1-30)',
+                        labelText: 'Day of Kemetic month (1-30, comma-separated)',
                         labelStyle: TextStyle(color: Colors.white70),
                         enabledBorder: UnderlineInputBorder(
                           borderSide: BorderSide(color: Colors.white24),
@@ -2957,9 +2995,14 @@ class _CalendarPageState extends State<CalendarPage>
                       ),
                       style: const TextStyle(color: Colors.white),
                       onChanged: (v) {
-                        final n = int.tryParse(v) ?? 1;
+                        final parts = v.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty);
+                        final values = <int>{};
+                        for (final p in parts) {
+                          final n = int.tryParse(p);
+                          if (n != null) values.add(n.clamp(1, 30));
+                        }
                         setModalState(() {
-                          repeat = repeat.copyWith(kemeticMonthDay: n.clamp(1, 30));
+                          repeat = repeat.copyWith(kemeticMonthDays: values);
                         });
                       },
                     );
@@ -2970,7 +3013,6 @@ class _CalendarPageState extends State<CalendarPage>
               }
 
               return SingleChildScrollView(
-                controller: scrollController,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -3146,10 +3188,11 @@ class _CalendarPageState extends State<CalendarPage>
                           setModalState(() {
                             switch (selected) {
                               case ReminderRepeatKind.monthlyDay:
-                                repeat = repeat.copyWith(
-                                  kind: selected,
-                                  monthDay: repeat.monthDay ?? startLocal.day,
-                                );
+                                final fallback = startLocal.day.clamp(1, 31);
+                                final current = repeat.monthDays.isEmpty
+                                    ? {fallback}
+                                    : repeat.monthDays;
+                                repeat = repeat.copyWith(kind: selected, monthDays: current);
                                 break;
                               case ReminderRepeatKind.weekly:
                                 final wd = startLocal.weekday;
@@ -3163,13 +3206,16 @@ class _CalendarPageState extends State<CalendarPage>
                                 repeat = repeat.copyWith(kind: selected, interval: repeat.interval <= 0 ? 1 : repeat.interval);
                                 break;
                               case ReminderRepeatKind.kemeticDecanDay:
-                                repeat = repeat.copyWith(kind: selected, decanDay: repeat.decanDay ?? 1);
+                                final fallback = (startLocal.day % 10 == 0 ? 10 : startLocal.day % 10);
+                                final current = repeat.decanDays.isEmpty ? {fallback} : repeat.decanDays;
+                                repeat = repeat.copyWith(kind: selected, decanDays: current);
                                 break;
                               case ReminderRepeatKind.kemeticMonthDay:
-                                repeat = repeat.copyWith(
-                                  kind: selected,
-                                  kemeticMonthDay: repeat.kemeticMonthDay ?? startLocal.day.clamp(1, 30),
-                                );
+                                final fallback = startLocal.day.clamp(1, 30);
+                                final current = repeat.kemeticMonthDays.isEmpty
+                                    ? {fallback}
+                                    : repeat.kemeticMonthDays;
+                                repeat = repeat.copyWith(kind: selected, kemeticMonthDays: current);
                                 break;
                               case ReminderRepeatKind.none:
                                 repeat = repeat.copyWith(kind: selected);
@@ -3275,8 +3321,11 @@ class _CalendarPageState extends State<CalendarPage>
                             active: active,
                             repeat: repeat,
                           );
-                          await _upsertReminderRule(rule);
-                          if (context.mounted) Navigator.pop(context);
+                          final saveFuture = _upsertReminderRule(rule);
+                          if (sheetCtx.mounted && Navigator.of(sheetCtx).canPop()) {
+                            Navigator.of(sheetCtx).pop(true);
+                          }
+                          unawaited(saveFuture);
                         },
                         child: const Text('Save Reminder'),
                       ),
@@ -3289,8 +3338,12 @@ class _CalendarPageState extends State<CalendarPage>
         );
       },
     );
+      saved = result == true;
+    } finally {
+      titleCtrl.dispose();
+    }
 
-    titleCtrl.dispose();
+    return saved;
   }
 
   ReminderRule? _findReminder(String id) {
@@ -5328,7 +5381,7 @@ class _CalendarPageState extends State<CalendarPage>
         );
 
         final fieldLabel = const TextStyle(fontSize: 12, color: Color(0xFFBFC3C7));
-        bool showReminders = false;
+        bool showReminders = _noteSheetShowReminders;
 
         return StatefulBuilder(
           builder: (sheetCtx, setSheetState) {
@@ -5586,7 +5639,10 @@ class _CalendarPageState extends State<CalendarPage>
                           ChoiceChip(
                             label: const Text('Notes'),
                             selected: !showReminders,
-                            onSelected: (_) => setSheetState(() => showReminders = false),
+                            onSelected: (_) {
+                              setSheetState(() => showReminders = false);
+                              _noteSheetShowReminders = false;
+                            },
                           ),
                           const SizedBox(width: 8),
                           ChoiceChip(
@@ -5594,6 +5650,7 @@ class _CalendarPageState extends State<CalendarPage>
                             selected: showReminders,
                             onSelected: (_) {
                               setSheetState(() => showReminders = true);
+                              _noteSheetShowReminders = true;
                               if (!_reminderRulesLoaded) {
                                 _loadReminderRules().then((_) {
                                   if (mounted) setState(() {});
@@ -5647,8 +5704,13 @@ class _CalendarPageState extends State<CalendarPage>
                               final label = _reminderRepeatLabel(r);
                               return InkWell(
                                 onTap: () async {
-                                  await _openReminderEditor(existing: r);
-                                  setSheetState(() {});
+                                  final saved = await _openReminderEditor(existing: r);
+                                  if (!mounted) return;
+                                  await _loadReminderRules();
+                                  setSheetState(() {
+                                    showReminders = true;
+                                    _noteSheetShowReminders = true;
+                                  });
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
@@ -5702,7 +5764,15 @@ class _CalendarPageState extends State<CalendarPage>
                                         color: const Color(0xFF1A1A1A),
                                         onSelected: (v) async {
                                           if (v == 'edit') {
-                                            await _openReminderEditor(existing: r);
+                                            final saved = await _openReminderEditor(existing: r);
+                                            if (!mounted) return;
+                                            if (saved) {
+                                              await _loadReminderRules();
+                                              setSheetState(() {
+                                                showReminders = true;
+                                                _noteSheetShowReminders = true;
+                                              });
+                                            }
                                           } else if (v == 'end') {
                                             await _endReminderRule(r.id);
                                           } else if (v == 'delete') {
@@ -5740,8 +5810,15 @@ class _CalendarPageState extends State<CalendarPage>
                               foregroundColor: Colors.black,
                             ),
                             onPressed: () async {
-                              await _openReminderEditor();
-                              setSheetState(() {});
+                              final saved = await _openReminderEditor();
+                              if (!mounted) return;
+                              if (saved) {
+                                await _loadReminderRules();
+                                setSheetState(() {
+                                  showReminders = true;
+                                  _noteSheetShowReminders = true;
+                                });
+                              }
                             },
                             icon: const Icon(Icons.add),
                             label: const Text('Add reminder'),
