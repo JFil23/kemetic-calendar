@@ -2388,6 +2388,11 @@ class _CalendarPageState extends State<CalendarPage>
         source.where((r) => !_endedReminderIds.contains(r.id)).toList(),
       );
 
+      // Ensure meta rows exist for all merged rules so other devices can hydrate.
+      for (final r in merged) {
+        await _ensureReminderRuleMeta(r);
+      }
+
       if (mounted) {
         setState(() {
           _reminderRules
@@ -2442,20 +2447,7 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<void> _saveReminderRules() async {
-    final deduped = _dedupeReminderRules(_reminderRules);
-    _reminderRules
-      ..clear()
-      ..addAll(deduped);
-    await _reminderRuleStore.saveAll(_reminderRules);
-  }
-
-  Future<void> _upsertReminderRule(ReminderRule rule, {bool refresh = true}) async {
-    // If a reminder is recreated with the same id, clear any tombstone flag.
-    if (_endedReminderIds.remove(rule.id)) {
-      await _saveEndedReminderIds();
-    }
-    // Persist meta rule as a deterministic user_event for cross-device sync.
+  Future<void> _ensureReminderRuleMeta(ReminderRule rule) async {
     try {
       final repo = UserEventsRepo(Supabase.instance.client);
       await repo.upsertByClientId(
@@ -2469,6 +2461,22 @@ class _CalendarPageState extends State<CalendarPage>
         category: rule.category,
       );
     } catch (_) {}
+  }
+
+  Future<void> _saveReminderRules() async {
+    final deduped = _dedupeReminderRules(_reminderRules);
+    _reminderRules
+      ..clear()
+      ..addAll(deduped);
+    await _reminderRuleStore.saveAll(_reminderRules);
+  }
+
+  Future<void> _upsertReminderRule(ReminderRule rule, {bool refresh = true}) async {
+    // If a reminder is recreated with the same id, clear any tombstone flag.
+    if (_endedReminderIds.remove(rule.id)) {
+      await _saveEndedReminderIds();
+    }
+    await _ensureReminderRuleMeta(rule);
     final idx = _reminderRules.indexWhere((r) => r.id == rule.id);
     if (idx >= 0) {
       _reminderRules[idx] = rule;
@@ -2833,6 +2841,8 @@ class _CalendarPageState extends State<CalendarPage>
     final windowEnd = baseEnd.isAfter(startAlignedEnd) ? baseEnd : startAlignedEnd;
 
     for (final rule in _reminderRules) {
+      // Persist meta before generating occurrences to keep server source-of-truth in sync.
+      await _ensureReminderRuleMeta(rule);
       try {
         await repo.deleteByClientIdPrefix(
           'reminder:${rule.id}:',
@@ -2885,6 +2895,60 @@ class _CalendarPageState extends State<CalendarPage>
     if (refreshUi) {
       await _loadFromDisk();
     }
+  }
+
+  Future<void> _forceResyncReminders() async {
+    await _loadReminderRules();
+    final repo = UserEventsRepo(Supabase.instance.client);
+    final today = DateUtils.dateOnly(DateTime.now());
+
+    DateTime latestStart = today;
+    for (final r in _reminderRules) {
+      final start = DateUtils.dateOnly(r.startLocal);
+      if (start.isAfter(latestStart)) latestStart = start;
+    }
+    final baseEnd = today.add(const Duration(days: 120));
+    final startAlignedEnd = latestStart.add(const Duration(days: 120));
+    final windowEnd = baseEnd.isAfter(startAlignedEnd) ? baseEnd : startAlignedEnd;
+
+    for (final rule in _reminderRules) {
+      if (!rule.active || _endedReminderIds.contains(rule.id)) continue;
+      await _ensureReminderRuleMeta(rule);
+      try {
+        await repo.deleteByClientIdPrefix('reminder:${rule.id}:');
+      } catch (_) {}
+
+      final occurrences = _generateReminderOccurrences(rule, today, windowEnd);
+      _pruneReminderNotes(rule.id, fromDate: today);
+      _materializeReminderLocally(rule: rule, occurrences: occurrences);
+
+      for (final day in occurrences) {
+        final start = rule.allDay
+            ? DateTime(day.year, day.month, day.day, 9, 0)
+            : DateTime(day.year, day.month, day.day, rule.startLocal.hour, rule.startLocal.minute);
+        final end = rule.allDay ? null : start.add(const Duration(minutes: 30));
+        final cidDate =
+            '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+        final cid = 'reminder:${rule.id}:$cidDate';
+        final encodedDetail = _encodeReminderDetail(rule);
+
+        try {
+          await repo.upsertByClientId(
+            clientEventId: cid,
+            title: rule.title,
+            startsAtUtc: start.toUtc(),
+            detail: encodedDetail,
+            location: null,
+            allDay: rule.allDay,
+            endsAtUtc: end?.toUtc(),
+            category: rule.category,
+          );
+        } catch (_) {}
+      }
+    }
+
+    await _saveReminderRules();
+    await _loadFromDisk();
   }
 
   Future<bool> _openReminderEditor({ReminderRule? existing}) async {
@@ -5880,6 +5944,32 @@ class _CalendarPageState extends State<CalendarPage>
                               );
                             },
                           ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              messenger.showSnackBar(const SnackBar(
+                                content: Text('Resyncing reminders...'),
+                                duration: Duration(seconds: 1),
+                              ));
+                              try {
+                                await _forceResyncReminders();
+                                messenger.showSnackBar(const SnackBar(
+                                  content: Text('Reminders resynced'),
+                                  duration: Duration(seconds: 1),
+                                ));
+                              } catch (e) {
+                                messenger.showSnackBar(SnackBar(
+                                  content: Text('Resync failed: $e'),
+                                  duration: const Duration(seconds: 2),
+                                ));
+                              }
+                            },
+                            child: const Text('Force resync reminders'),
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         Align(
                           alignment: Alignment.centerRight,
