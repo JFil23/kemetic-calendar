@@ -2602,32 +2602,25 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     ReminderRepeat pickRepeat() {
-      if (_isEmptyRepeat(localRepeat) && !_isEmptyRepeat(remoteRepeat)) {
+      if (!_isEmptyRepeat(remoteRepeat)) {
         return remoteRepeat;
       }
-      if (localRepeat.kind == remoteRepeat.kind) {
-        return localRepeat.copyWith(
-          interval: localRepeat.interval > 0 ? localRepeat.interval : remoteRepeat.interval,
-          weekdays: localRepeat.weekdays.isNotEmpty ? localRepeat.weekdays : remoteRepeat.weekdays,
-          monthDays: localRepeat.monthDays.isNotEmpty ? localRepeat.monthDays : remoteRepeat.monthDays,
-          decanDays: localRepeat.decanDays.isNotEmpty ? localRepeat.decanDays : remoteRepeat.decanDays,
-          kemeticMonthDays: localRepeat.kemeticMonthDays.isNotEmpty
-              ? localRepeat.kemeticMonthDays
-              : remoteRepeat.kemeticMonthDays,
-          monthDay: localRepeat.monthDay ?? remoteRepeat.monthDay,
-        );
+      if (!_isEmptyRepeat(localRepeat)) {
+        return localRepeat;
       }
-      return localRepeat;
+      // both empty
+      return remoteRepeat;
     }
 
     return local.copyWith(
       repeat: pickRepeat(),
-      color: local.color,
-      category: local.category ?? remote.category,
-      title: local.title.isNotEmpty ? local.title : remote.title,
-      startLocal: local.startLocal,
-      allDay: local.allDay,
-      active: local.active,
+      // Prefer remote fields so cross-device edits propagate.
+      title: remote.title.isNotEmpty ? remote.title : local.title,
+      color: remote.color,
+      category: remote.category ?? local.category,
+      startLocal: remote.startLocal,
+      allDay: remote.allDay,
+      active: remote.active,
     );
   }
 
