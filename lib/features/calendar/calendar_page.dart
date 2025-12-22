@@ -7737,7 +7737,7 @@ class _CalendarPageState extends State<CalendarPage>
             }
 
             final note = _Note(
-              title: evt.title,
+              title: _cleanTitle(evt.title),
               detail: _cleanDetail(evt.detail), // Clean the flowLocalId prefix
               location: evt.location,
               allDay: evt.allDay,
@@ -7833,7 +7833,7 @@ class _CalendarPageState extends State<CalendarPage>
           final String? reminderRuleId = _reminderRuleIdFromCid(cid);
 
           final note = _Note(
-            title: evt.title,
+            title: _cleanTitle(evt.title),
             detail: cleanedDetail,
             location: evt.location,
             allDay: evt.allDay,
@@ -10598,34 +10598,61 @@ class _DayChip extends StatelessWidget {
   }
 
   String _labelFor(_Note note) {
-    final time = note.start;
-    String _short(String text, int max) =>
-        text.isEmpty ? 'Event' : (text.length <= max ? text : '${text.substring(0, max - 1)}…');
+    String _short(String text, int max) {
+      if (text.isEmpty) return '';
+      return text.length <= max ? text : '${text.substring(0, max - 1)}…';
+    }
+
     final flowNameRaw = flowNameGetter?.call(note);
     final flowName = (flowNameRaw != null && flowNameRaw.trim().isNotEmpty) ? flowNameRaw.trim() : null;
     final hasFlow = flowName != null;
 
-    if (expansionLevel == MonthExpansionLevel.details && time != null) {
-      final hour = time.hour;
-      final minute = time.minute;
-      final period = hour >= 12 ? 'PM' : 'AM';
-      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-      final timeStr = '$displayHour:${minute.toString().padLeft(2, '0')} $period';
+    var titleRaw = note.title.trim();
 
+    // Safety: if the title is just a time (even malformed), ignore it.
+    final timePattern = RegExp(
+      r'^\s*\d{1,2}\s*[:]\s*\d{0,2}(?:\s+\d+)?\s*(?:AM|PM|am|pm)?\s*$',
+      caseSensitive: false,
+    );
+    if (timePattern.hasMatch(titleRaw)) {
+      titleRaw = '';
+    }
+
+    final hasMeaningfulTitle = titleRaw.isNotEmpty && titleRaw != 'Event';
+
+    // For details mode, show flow name + title (or just flow name, or just title). No time.
+    if (expansionLevel == MonthExpansionLevel.details) {
       if (hasFlow) {
-        final title = _short(note.title, 40);
-        return '$flowName $timeStr $title';
+        if (hasMeaningfulTitle) {
+          final title = _short(titleRaw, 50);
+          return '$flowName $title';
+        } else {
+          return flowName!;
+        }
       } else {
-        final title = _short(note.title, 50);
-        return '$timeStr $title';
+        if (hasMeaningfulTitle) {
+          return _short(titleRaw, 60);
+        } else {
+          return '';
+        }
       }
     }
 
+    // For non-details mode (stacked/compact), same logic
     if (hasFlow) {
-      final title = _short(note.title, 50);
-      return '$flowName $title';
+      if (hasMeaningfulTitle) {
+        final title = _short(titleRaw, 50);
+        return '$flowName $title';
+      } else {
+        return flowName!;
+      }
     }
-    return _short(note.title, 60);
+
+    if (hasMeaningfulTitle) {
+      return _short(titleRaw, 60);
+    } else {
+      return '';
+    }
   }
 
   EventItem _noteToEventItem(_Note note) {
@@ -11103,7 +11130,7 @@ class _MiniEventBlock extends StatelessWidget {
         BorderRadius.circular(isDetailPill ? 12 : (dense ? 5 : 10));
     final TextStyle labelStyle = TextStyle(
       color: Colors.white,
-      fontSize: isDetailPill ? 11.5 : 10,
+      fontSize: isDetailPill ? 10.5 : 10,
       height: 1.2,
       fontWeight: isDetailPill ? FontWeight.w600 : FontWeight.w500,
     );
@@ -16191,6 +16218,102 @@ String? _encodeRepeatingNoteMetadata({String? detail, String? location, String? 
     // Not JSON or not our format
   }
   return (detail: null, location: null, category: null);
+}
+
+// Helper: clean event title by stripping code-like patterns, metadata, and time patterns
+String _cleanTitle(String? s) {
+  if (s == null || s.isEmpty) return '';
+  var t = s.trim();
+
+  // Strip code fence patterns (```json, ```, etc.)
+  t = t.replaceAll(RegExp(r'```[a-z]*\s*', multiLine: true, caseSensitive: false), '').trim();
+
+  // Strip properly formatted time patterns (e.g., "8:00 PM", "8:00PM", "8:00")
+  t = t.replaceAll(
+    RegExp(
+      r'\b\d{1,2}:\d{1,2}\s*(?:AM|PM|am|pm|A\.M\.|P\.M\.|a\.m\.|p\.m\.)\b',
+      caseSensitive: false,
+    ),
+    '',
+  ).trim();
+
+  // Strip malformed time patterns with spaces in minutes (e.g., "7:0 0", "8: 0 0", "7:00 0")
+  // Match: digit(s):digit(s) space digit(s) - with or without word boundaries
+  t = t.replaceAll(RegExp(r'\d{1,2}:\s*\d\s+\d'), '').trim();
+  t = t.replaceAll(RegExp(r'\d{1,2}:\d\s+\d'), '').trim();
+  t = t.replaceAll(RegExp(r'\d{1,2}:\s*\d{1,2}\s+\d'), '').trim();
+
+  // Strip simple time patterns without AM/PM (e.g., "7:00", "8:0", "7: 00")
+  // But be careful - only if it's the entire string or at word boundaries
+  t = t.replaceAll(RegExp(r'\b\d{1,2}:\s*\d{1,2}\b(?!\w)'), '').trim();
+
+  // Strip time ranges (e.g., "8:00 AM - 9:00 AM", "8:00-9:00")
+  t = t.replaceAll(
+    RegExp(
+      r'\b\d{1,2}:\d{1,2}\s*(?:AM|PM|am|pm)?\s*(?:-|–|to)\s*\d{1,2}:\d{1,2}\s*(?:AM|PM|am|pm)?\b',
+      caseSensitive: false,
+    ),
+    '',
+  ).trim();
+
+  // If title is JSON-like with a title field, extract it
+  if (t.startsWith('{') && t.contains('"title"')) {
+    try {
+      final decoded = jsonDecode(t);
+      if (decoded is Map && decoded['title'] != null) {
+        t = decoded['title'].toString().trim();
+        // Re-strip time patterns after JSON extraction
+        t = t.replaceAll(
+          RegExp(
+            r'\b\d{1,2}:\d{1,2}\s*(?:AM|PM|am|pm)\b',
+            caseSensitive: false,
+          ),
+          '',
+        ).trim();
+      }
+    } catch (_) {
+      // ignore invalid JSON
+    }
+  }
+
+  // Strip metadata prefixes
+  if (t.startsWith('flowLocalId=')) {
+    final i = t.indexOf(';');
+    t = (i >= 0 && i < t.length - 1) ? t.substring(i + 1) : '';
+  }
+
+  // Strip CID-like patterns
+  final cidPattern = RegExp(r'^ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+');
+  if (cidPattern.hasMatch(t.replaceAll(RegExp(r'\s+'), ''))) {
+    return '';
+  }
+
+  // Remove stray code fences
+  t = t.replaceAll(RegExp(r'^```|```$', multiLine: true), '').trim();
+
+  // Collapse extra whitespace
+  t = t.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+  // Final check: if the cleaned title looks like just a time (including malformed), treat as empty
+  final timeOnlyPattern = RegExp(
+    r'^\s*\d{1,2}\s*[:]\s*\d{1,2}(?:\s+\d+)?\s*(?:AM|PM|am|pm)?\s*$',
+    caseSensitive: false,
+  );
+  if (timeOnlyPattern.hasMatch(t)) {
+    return '';
+  }
+
+  // Also check for malformed patterns like "7:0 0" (space between minute digits)
+  final malformedTimePattern = RegExp(
+    r'^\s*\d{1,2}\s*[:]\s*\d\s+\d\s*$',
+    caseSensitive: false,
+  );
+  if (malformedTimePattern.hasMatch(t)) {
+    return '';
+  }
+
+  if (t.isEmpty) return '';
+  return t;
 }
 
 // Helper: clean event detail by stripping legacy flowLocalId= prefix
