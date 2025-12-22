@@ -1394,6 +1394,13 @@ class _CalendarPageState extends State<CalendarPage>
   bool _showActionFadeEnd = false;
   MonthExpansionLevel _monthExpansion = MonthExpansionLevel.compact;
   double? _scaleGestureAnchor;
+  double _pinchExpansionValue = 0.0; // 0=compact,1=stacked,2=details
+  bool _isPinching = false;
+  double? _scrollOffsetBeforePinch;
+  DateTime? _lastPinchUpdate;
+  static const Duration _pinchUpdateThrottle = Duration(milliseconds: 16);
+  Offset? _pinchAnchorPoint;
+  (int, int)? _pinchAnchorMonth;
 
   // Journal controller and state
   final JournalSwipeHandle _journalSwipeHandle = JournalSwipeHandle();
@@ -4562,12 +4569,125 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
+  void _setExpansionLevelSmooth(MonthExpansionLevel level, {String entryPoint = 'pinch'}) {
+    if (_monthExpansion == level && !_isPinching) return;
+    if (_isPinching && _pinchAnchorMonth != null && _pinchAnchorPoint != null) {
+      setState(() => _monthExpansion = level);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _maintainAnchorPoint();
+      });
+    } else {
+      final double? offset = _scrollCtrl.hasClients ? _scrollCtrl.position.pixels : null;
+
+      setState(() => _monthExpansion = level);
+
+      if (!_isPinching) {
+        _persistExpansionLevel(level);
+        Events.trackIfAuthed('calendar_expansion_changed', {
+          'level': _expansionToString(level),
+          'entry_point': entryPoint,
+        });
+      }
+
+      if (offset != null && _scrollCtrl.hasClients) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_scrollCtrl.hasClients) return;
+          final pos = _scrollCtrl.position;
+          final target = offset.clamp(pos.minScrollExtent, pos.maxScrollExtent);
+          pos.animateTo(
+            target,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+          );
+        });
+      }
+    }
+  }
+
+  void _maintainAnchorPoint() {
+    if (!_isPinching || _pinchAnchorMonth == null || _pinchAnchorPoint == null) return;
+    if (!_scrollCtrl.hasClients) return;
+
+    final (anchorKy, anchorKm) = _pinchAnchorMonth!;
+    final anchorScreenY = _pinchAnchorPoint!.dy;
+
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return;
+
+    final monthCtx = keyForMonth(anchorKy, anchorKm).currentContext;
+    if (monthCtx == null) return;
+
+    final monthBox = monthCtx.findRenderObject();
+    if (monthBox == null || monthBox is! RenderBox) return;
+
+    final monthGlobalTop = monthBox.localToGlobal(Offset.zero);
+    final boxGlobalTop = box.localToGlobal(Offset.zero);
+    final currentScroll = _scrollCtrl.position.pixels;
+
+    final monthTopInContent = monthGlobalTop.dy - boxGlobalTop.dy + currentScroll;
+
+    final targetScroll = monthTopInContent + boxGlobalTop.dy - anchorScreenY;
+
+    final pos = _scrollCtrl.position;
+    final clamped = targetScroll.clamp(pos.minScrollExtent, pos.maxScrollExtent);
+    pos.jumpTo(clamped);
+  }
+
+  void _restoreScrollPositionSmooth() {
+    if (_scrollOffsetBeforePinch == null || !_scrollCtrl.hasClients) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollCtrl.hasClients) return;
+      final pos = _scrollCtrl.position;
+      final target = _scrollOffsetBeforePinch!.clamp(pos.minScrollExtent, pos.maxScrollExtent);
+      pos.animateTo(
+        target,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+      _scrollOffsetBeforePinch = null;
+    });
+  }
+
+  (int, int)? _findMonthAtPoint(Offset screenPoint) {
+    if (!_scrollCtrl.hasClients) return null;
+
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return null;
+
+    final localPoint = box.globalToLocal(screenPoint);
+
+    final baseKy = _lastViewKy ?? _today.kYear;
+    final baseKm = _lastViewKm ?? _today.kMonth;
+
+    for (int dy = -2; dy <= 2; dy++) {
+      final ky = baseKy + dy;
+      for (int km = 1; km <= 13; km++) {
+        final ctx = keyForMonth(ky, km).currentContext;
+        if (ctx == null) continue;
+
+        final ro = ctx.findRenderObject();
+        if (ro == null || ro is! RenderBox) continue;
+
+        final monthBox = ro;
+        final monthTop = monthBox.localToGlobal(Offset.zero).dy;
+        final monthBottom = monthTop + monthBox.size.height;
+        final screenY = box.localToGlobal(localPoint).dy;
+
+        if (screenY >= monthTop && screenY <= monthBottom) {
+          return (ky, km);
+        }
+      }
+    }
+
+    return (baseKy, baseKm);
+  }
+
   void _stepExpansion(int delta, {String entryPoint = 'pinch'}) {
     final levels = MonthExpansionLevel.values;
     final idx = levels.indexOf(_monthExpansion);
     final next = (idx + delta).clamp(0, levels.length - 1);
     if (next != idx) {
-      _setExpansionLevel(levels[next], entryPoint: entryPoint);
+      _setExpansionLevelSmooth(levels[next], entryPoint: entryPoint);
     }
   }
 
@@ -4587,22 +4707,65 @@ class _CalendarPageState extends State<CalendarPage>
 
   void _onScaleStart(ScaleStartDetails details) {
     _scaleGestureAnchor = 1.0;
+    _isPinching = true;
+    _pinchExpansionValue = _monthExpansion.index.toDouble();
+    if (_scrollCtrl.hasClients) {
+      _scrollOffsetBeforePinch = _scrollCtrl.position.pixels;
+    }
+    _pinchAnchorPoint = details.localFocalPoint;
+    _pinchAnchorMonth = _findMonthAtPoint(details.localFocalPoint);
   }
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
     if (_scaleGestureAnchor == null) return;
-    const threshold = 0.08;
-    if (details.scale > 1.0 + threshold) {
-      _scaleGestureAnchor = null;
-      _stepExpansion(1, entryPoint: 'pinch');
-    } else if (details.scale < 1.0 - threshold) {
-      _scaleGestureAnchor = null;
-      _stepExpansion(-1, entryPoint: 'pinch');
+
+    final now = DateTime.now();
+    if (_lastPinchUpdate != null &&
+        now.difference(_lastPinchUpdate!) < _pinchUpdateThrottle) {
+      return;
+    }
+    _lastPinchUpdate = now;
+
+    final scaleDelta = details.scale - _scaleGestureAnchor!;
+    const scaleSensitivity = 0.15;
+    final expansionDelta = scaleDelta / scaleSensitivity;
+    final newValue = (_pinchExpansionValue + expansionDelta).clamp(0.0, 2.0);
+
+    if ((newValue - _pinchExpansionValue).abs() > 0.05) {
+      _pinchExpansionValue = newValue;
+      _scaleGestureAnchor = details.scale;
+
+      final nearestLevel = _pinchExpansionValue.round().clamp(0, 2);
+      final targetLevel = MonthExpansionLevel.values[nearestLevel];
+      if (targetLevel != _monthExpansion) {
+        _setExpansionLevelSmooth(targetLevel, entryPoint: 'pinch');
+      }
     }
   }
 
   void _onScaleEnd(ScaleEndDetails details) {
+    _isPinching = false;
     _scaleGestureAnchor = null;
+
+    final nearestLevel = _pinchExpansionValue.round().clamp(0, 2);
+    final targetLevel = MonthExpansionLevel.values[nearestLevel];
+    _setExpansionLevelSmooth(targetLevel, entryPoint: 'pinch');
+    _pinchExpansionValue = targetLevel.index.toDouble();
+
+    if (_pinchAnchorMonth != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _maintainAnchorPoint();
+        _pinchAnchorPoint = null;
+        _pinchAnchorMonth = null;
+        _scrollOffsetBeforePinch = null;
+      });
+    }
+
+    _persistExpansionLevel(targetLevel);
+    Events.trackIfAuthed('calendar_expansion_changed', {
+      'level': _expansionToString(targetLevel),
+      'entry_point': 'pinch',
+    });
   }
 
   double _actionsViewportWidth(BuildContext context) {
@@ -9941,10 +10104,13 @@ class _MonthCard extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               // Header row: Kemetic month name (left), Season+Year (right)
               Row(
                 children: [
@@ -10065,9 +10231,9 @@ class _MonthCard extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ),  // Close Card
+    );  // Close Padding and return
   }
-
 }
 
 /// Helper function to generate Kemetic day keys for the info dropdown
@@ -11156,10 +11322,10 @@ class _EpagomenalCard extends StatelessWidget {
                 ],
               ),
             ],
-          ),
-        ),
-      ),
-    );
+          ),  // Close Column
+        ),  // Close inner Padding
+      ),  // Close Card
+    );  // Close outer Padding and return
   }
 }
 
@@ -16559,10 +16725,10 @@ class _FlowHubPage extends StatelessWidget {
                 onPressed: openMaatFlows, // <-- use the callback you passed in
               ),
             ],
-          ),
-        ),
-      ),
-    );
+          ),  // Close Column
+        ),  // Close Padding
+      ),  // Close Center
+    );  // Close Scaffold and return
   }
 }
 
