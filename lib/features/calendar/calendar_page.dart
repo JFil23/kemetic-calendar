@@ -18,7 +18,7 @@ import 'day_view.dart';
 import '../profile/profile_page.dart';
 import '../journal/journal_controller.dart';
 import '../../core/ui_guards.dart';
-import '../../main.dart' show routeObserver;
+import '../../main.dart' show routeObserver, Events;
 import '../../data/share_repo.dart';
 import '../sharing/share_flow_sheet.dart';
 import '../../data/share_models.dart';
@@ -53,6 +53,8 @@ typedef _QuickAddParse = ({
   TimeOfDay? end,
   String title,
 });
+
+enum MonthExpansionLevel { compact, stacked, details }
 
 
 
@@ -99,6 +101,30 @@ const TextStyle _neutralOnBlack = TextStyle(
   letterSpacing: 0.0,
   color: Colors.white,         // same color as the day numbers
 );
+
+Color _defaultNoteColor(_Note _) => _silver;
+
+double _chipHeightFor(MonthExpansionLevel level) {
+  switch (level) {
+    case MonthExpansionLevel.compact:
+      return 36.0;
+    case MonthExpansionLevel.stacked:
+      return 58.0;
+    case MonthExpansionLevel.details:
+      return 250.0;
+  }
+}
+
+double _miniHeightFor(MonthExpansionLevel level) {
+  switch (level) {
+    case MonthExpansionLevel.compact:
+      return 0.0;
+    case MonthExpansionLevel.stacked:
+      return 20.0;
+    case MonthExpansionLevel.details:
+      return 105.0;
+  }
+}
 
 /* Gregorian month names (1-based) */
 const List<String> _gregMonthNames = [
@@ -1363,8 +1389,14 @@ class _CalendarPageState extends State<CalendarPage>
   int _nextFlowId = 1;
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
   final ScrollController _scrollCtrl = ScrollController();
+  final ScrollController _appBarActionsScrollCtrl = ScrollController();
+  bool _showActionFadeStart = false;
+  bool _showActionFadeEnd = false;
+  MonthExpansionLevel _monthExpansion = MonthExpansionLevel.compact;
+  double? _scaleGestureAnchor;
 
   // Journal controller and state
+  final JournalSwipeHandle _journalSwipeHandle = JournalSwipeHandle();
   late JournalController _journalController;
   bool _journalInitialized = false;
 
@@ -1559,6 +1591,7 @@ class _CalendarPageState extends State<CalendarPage>
   static const String _kPrefLastViewYear = 'calendar_last_view_ky';
   static const String _kPrefLastViewMonth = 'calendar_last_view_km';
   static const String _kPrefLastViewDay = 'calendar_last_view_kd';
+  static const String _kPrefMonthExpansion = 'calendar_month_expansion';
 
   // ✅ ADD: Flag to prevent auto-scroll on orientation change
   bool _skipScrollToToday = false;
@@ -1871,6 +1904,7 @@ class _CalendarPageState extends State<CalendarPage>
     _loadPersistedViewState();
 
     _scrollCtrl.addListener(_onVerticalScroll);
+    _appBarActionsScrollCtrl.addListener(_updateActionFades);
 
     // notifications
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1880,6 +1914,7 @@ class _CalendarPageState extends State<CalendarPage>
       _scrollToToday();
       }
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateActionFades());
 
     // Schedule a one-time migration of clientEventIds to the unified format.
     // Using Future.microtask ensures this runs after the first frame without blocking UI.
@@ -1913,6 +1948,7 @@ class _CalendarPageState extends State<CalendarPage>
       final savedKy = prefs.getInt(_kPrefLastViewYear);
       final savedKm = prefs.getInt(_kPrefLastViewMonth);
       final savedKd = prefs.getInt(_kPrefLastViewDay);
+      final savedExpansion = prefs.getString(_kPrefMonthExpansion);
       
       // ✅ FIX 2: Allow years < 1 in saved state - support historical dates
       if (savedKy != null && savedKm != null && savedKm >= 1 && savedKm <= 13) {
@@ -1941,6 +1977,7 @@ class _CalendarPageState extends State<CalendarPage>
           _lastViewKd = clamped;
           _skipScrollToToday = true;
           _restored = true;
+          _monthExpansion = _parseExpansion(savedExpansion);
         });
       } else {
         if (kDebugMode) {
@@ -2060,6 +2097,7 @@ class _CalendarPageState extends State<CalendarPage>
     debugPrint('');
     _journalController.dispose();
     _scrollCtrl.dispose();
+    _appBarActionsScrollCtrl.dispose();
     _dayViewDataVersion.dispose();
     super.dispose();
   }
@@ -4470,6 +4508,252 @@ class _CalendarPageState extends State<CalendarPage>
 
       position.jumpTo(targetPixels);
     });
+  }
+
+
+  /* ───── AppBar actions (scroll + journal) ───── */
+
+  MonthExpansionLevel _parseExpansion(String? raw) {
+    switch (raw) {
+      case 'stacked':
+        return MonthExpansionLevel.stacked;
+      case 'details':
+        return MonthExpansionLevel.details;
+      case 'compact':
+      default:
+        return MonthExpansionLevel.compact;
+    }
+  }
+
+  String _expansionToString(MonthExpansionLevel level) {
+    switch (level) {
+      case MonthExpansionLevel.compact:
+        return 'compact';
+      case MonthExpansionLevel.stacked:
+        return 'stacked';
+      case MonthExpansionLevel.details:
+        return 'details';
+    }
+  }
+
+  Future<void> _persistExpansionLevel(MonthExpansionLevel level) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kPrefMonthExpansion, _expansionToString(level));
+    } catch (_) {}
+  }
+
+  void _setExpansionLevel(MonthExpansionLevel level, {String entryPoint = 'menu'}) {
+    if (_monthExpansion == level) return;
+    final double? offset = _scrollCtrl.hasClients ? _scrollCtrl.position.pixels : null;
+    setState(() => _monthExpansion = level);
+    _persistExpansionLevel(level);
+    Events.trackIfAuthed('calendar_expansion_changed', {
+      'level': _expansionToString(level),
+      'entry_point': entryPoint,
+    });
+    if (offset != null && _scrollCtrl.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollCtrl.hasClients) return;
+        final pos = _scrollCtrl.position;
+        final target = offset.clamp(pos.minScrollExtent, pos.maxScrollExtent);
+        pos.jumpTo(target);
+      });
+    }
+  }
+
+  void _stepExpansion(int delta, {String entryPoint = 'pinch'}) {
+    final levels = MonthExpansionLevel.values;
+    final idx = levels.indexOf(_monthExpansion);
+    final next = (idx + delta).clamp(0, levels.length - 1);
+    if (next != idx) {
+      _setExpansionLevel(levels[next], entryPoint: entryPoint);
+    }
+  }
+
+  void _updateActionFades() {
+    if (!mounted) return;
+    if (!_appBarActionsScrollCtrl.hasClients) return;
+    final position = _appBarActionsScrollCtrl.position;
+    final showStart = position.pixels > 2;
+    final showEnd = position.pixels < (position.maxScrollExtent - 2);
+    if (showStart != _showActionFadeStart || showEnd != _showActionFadeEnd) {
+      setState(() {
+        _showActionFadeStart = showStart;
+        _showActionFadeEnd = showEnd;
+      });
+    }
+  }
+
+  void _onScaleStart(ScaleStartDetails details) {
+    _scaleGestureAnchor = 1.0;
+  }
+
+  void _onScaleUpdate(ScaleUpdateDetails details) {
+    if (_scaleGestureAnchor == null) return;
+    const threshold = 0.08;
+    if (details.scale > 1.0 + threshold) {
+      _scaleGestureAnchor = null;
+      _stepExpansion(1, entryPoint: 'pinch');
+    } else if (details.scale < 1.0 - threshold) {
+      _scaleGestureAnchor = null;
+      _stepExpansion(-1, entryPoint: 'pinch');
+    }
+  }
+
+  void _onScaleEnd(ScaleEndDetails details) {
+    _scaleGestureAnchor = null;
+  }
+
+  double _actionsViewportWidth(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    const double minWidth = 140;
+    const double maxWidth = 220;
+    const double reserved = 220; // title + profile
+    final double available = width - reserved;
+    return available.clamp(minWidth, maxWidth).toDouble();
+  }
+
+  Color _noteColor(_Note note) {
+    if (note.manualColor != null) return note.manualColor!;
+    if (note.flowId != null && note.flowId != -1) {
+      try {
+        final flow = _flows.firstWhere((f) => f.id == note.flowId);
+        return flow.color;
+      } catch (_) {}
+    }
+    if (note.isReminder) return _blue;
+    return _silver;
+  }
+
+  String? _flowName(_Note note) {
+    if (note.flowId != null && note.flowId != -1) {
+      try {
+        final flow = _flows.firstWhere((f) => f.id == note.flowId);
+        return flow.name;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  Widget _buildActionFade({required bool isStart}) {
+    const double fadeWidth = 12.0;
+    return Align(
+      alignment: isStart ? Alignment.centerLeft : Alignment.centerRight,
+      child: IgnorePointer(
+        child: Container(
+          width: fadeWidth,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: isStart ? Alignment.centerLeft : Alignment.centerRight,
+              end: isStart ? Alignment.centerRight : Alignment.centerLeft,
+              colors: [
+                Colors.black.withOpacity(0.8),
+                Colors.black.withOpacity(0.0),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  PopupMenuItem<MonthExpansionLevel> _expansionMenuItem(
+    MonthExpansionLevel level,
+    String label,
+    IconData icon,
+  ) {
+    final selected = _monthExpansion == level;
+    return PopupMenuItem<MonthExpansionLevel>(
+      value: level,
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: selected ? _gold : Colors.white70),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? Colors.white : Colors.white70,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ),
+          if (selected) const Icon(Icons.check, size: 18, color: _gold),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScrollableActionsStrip(BuildContext context) {
+    final actionButtons = <Widget>[
+      IconButton(
+        tooltip: 'Journal',
+        icon: const _GlossyIcon(Icons.menu_book_outlined, gradient: goldGloss),
+        onPressed: _openJournalFromAppBar,
+      ),
+      IconButton(
+        tooltip: 'Today',
+        icon: const _GlossyIcon(Icons.calendar_today, gradient: silverGloss),
+        onPressed: _scrollToToday,
+      ),
+      IconButton(
+        tooltip: 'Search events',
+        icon: const _GlossyIcon(Icons.search, gradient: silverGloss),
+        onPressed: _openSearch,
+      ),
+      PopupMenuButton<MonthExpansionLevel>(
+        tooltip: 'Calendar density',
+        icon: const _GlossyIcon(Icons.view_agenda_outlined, gradient: silverGloss),
+        onSelected: (level) => _setExpansionLevel(level, entryPoint: 'menu'),
+        itemBuilder: (ctx) => [
+          _expansionMenuItem(MonthExpansionLevel.compact, 'Compact', Icons.horizontal_rule),
+          _expansionMenuItem(MonthExpansionLevel.stacked, 'Stacked', Icons.view_column),
+          _expansionMenuItem(MonthExpansionLevel.details, 'Details', Icons.view_agenda),
+        ],
+      ),
+      IconButton(
+        tooltip: 'Flow Studio',
+        icon: const _GlossyIcon(Icons.view_timeline, gradient: goldGloss),
+        onPressed: () => _getFlowStudioCallback()(null),
+      ),
+      IconButton(
+        tooltip: 'New note',
+        icon: const _GlossyIcon(Icons.add, gradient: goldGloss),
+        onPressed: _openQuickAddSheet,
+      ),
+    ];
+
+    final double viewportWidth = _actionsViewportWidth(context);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateActionFades());
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 4.0),
+      child: SizedBox(
+        width: viewportWidth,
+        height: kToolbarHeight,
+        child: Stack(
+          children: [
+            ClipRect(
+              child: SingleChildScrollView(
+                controller: _appBarActionsScrollCtrl,
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(children: actionButtons),
+              ),
+            ),
+            if (_showActionFadeStart) _buildActionFade(isStart: true),
+            if (_showActionFadeEnd) _buildActionFade(isStart: false),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openJournalFromAppBar() {
+    if (!_journalInitialized) return;
+    _journalSwipeHandle.open(entryPoint: 'app_bar_button');
   }
 
 
@@ -8846,27 +9130,7 @@ class _CalendarPageState extends State<CalendarPage>
           ),
         ),
         actions: [
-          IconButton(
-            tooltip: 'Today',
-            icon: const _GlossyIcon(Icons.calendar_today, gradient: silverGloss),
-            onPressed: _scrollToToday,
-          ),
-          IconButton(
-            tooltip: 'Search events',
-            icon: const _GlossyIcon(Icons.search, gradient: silverGloss),
-            onPressed: _openSearch,
-          ),
-          IconButton(
-            tooltip: 'Flow Studio',
-            icon: const _GlossyIcon(Icons.view_timeline, gradient: goldGloss),
-            onPressed: () => _getFlowStudioCallback()(null),
-          ),
-
-          IconButton(
-            tooltip: 'New note',
-            icon: const _GlossyIcon(Icons.add, gradient: goldGloss),
-            onPressed: _openQuickAddSheet,
-          ),
+          _buildScrollableActionsStrip(context),
           // My Profile button
           IconButton(
             tooltip: 'My Profile',
@@ -8904,7 +9168,14 @@ class _CalendarPageState extends State<CalendarPage>
     return JournalSwipeLayer(
       controller: _journalController,
       isPortrait: isPortrait,
-      child: _buildCalendarScrollView(),
+      handle: _journalSwipeHandle,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onScaleStart: _onScaleStart,
+        onScaleUpdate: _onScaleUpdate,
+        onScaleEnd: _onScaleEnd,
+        child: _buildCalendarScrollView(),
+      ),
     );
   }
 
@@ -8945,6 +9216,20 @@ class _CalendarPageState extends State<CalendarPage>
                 notesGetter: (m, d) => _getNotes(kYear, m, d),
                 flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
                 showGregorian: _showGregorian,
+                expansionLevel: _monthExpansion,
+                noteColorResolver: _noteColor,
+                flowNameGetter: _flowName,
+                onManageFlows: _getMyFlowsCallback(),
+                onEditNote: (ky, km, kd, evt) async => _editNoteByEvent(ky, km, kd, evt),
+                onDeleteNote: (ky, km, kd, evt) async => _deleteNoteByEvent(ky, km, kd, evt),
+                onShareNote: (evt) async => _shareNoteSimple(evt),
+                onEditReminder: (id) async => _editReminderById(id),
+                onEndReminder: (id) async => _endReminderRule(id),
+                onShareReminder: (evt) async => _shareNoteSimple(evt),
+                onEndFlow: (id) => _endFlow(id),
+                onAppendToJournal: _journalInitialized
+                    ? (text) => _journalController.appendToToday(text)
+                    : null,
               );
             },
             childCount: 200, //
@@ -8964,6 +9249,20 @@ class _CalendarPageState extends State<CalendarPage>
             notesGetter: (m, d) => _getNotes(kToday.kYear, m, d),
             flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
             showGregorian: _showGregorian,
+            expansionLevel: _monthExpansion,
+            noteColorResolver: _noteColor,
+            flowNameGetter: _flowName,
+            onManageFlows: _getMyFlowsCallback(),
+            onEditNote: (ky, km, kd, evt) async => _editNoteByEvent(ky, km, kd, evt),
+            onDeleteNote: (ky, km, kd, evt) async => _deleteNoteByEvent(ky, km, kd, evt),
+            onShareNote: (evt) async => _shareNoteSimple(evt),
+            onEditReminder: (id) async => _editReminderById(id),
+            onEndReminder: (id) async => _endReminderRule(id),
+            onShareReminder: (evt) async => _shareNoteSimple(evt),
+            onEndFlow: (id) => _endFlow(id),
+            onAppendToJournal: _journalInitialized
+                ? (text) => _journalController.appendToToday(text)
+                : null,
           ),
         ),
 
@@ -8982,6 +9281,20 @@ class _CalendarPageState extends State<CalendarPage>
                 notesGetter: (m, d) => _getNotes(kYear, m, d),
                 flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
                 showGregorian: _showGregorian,
+                expansionLevel: _monthExpansion,
+                noteColorResolver: _noteColor,
+                flowNameGetter: _flowName,
+                onManageFlows: _getMyFlowsCallback(),
+                onEditNote: (ky, km, kd, evt) async => _editNoteByEvent(ky, km, kd, evt),
+                onDeleteNote: (ky, km, kd, evt) async => _deleteNoteByEvent(ky, km, kd, evt),
+                onShareNote: (evt) async => _shareNoteSimple(evt),
+                onEditReminder: (id) async => _editReminderById(id),
+                onEndReminder: (id) async => _endReminderRule(id),
+                onShareReminder: (evt) async => _shareNoteSimple(evt),
+                onEndFlow: (id) => _endFlow(id),
+                onAppendToJournal: _journalInitialized
+                    ? (text) => _journalController.appendToToday(text)
+                    : null,
               );
             },
             childCount: 200, //
@@ -9028,6 +9341,18 @@ class _YearSection extends StatelessWidget {
     required this.flowColorsGetter,
     required this.onDayTap,
     required this.showGregorian,
+    this.expansionLevel = MonthExpansionLevel.compact,
+    this.noteColorResolver = _defaultNoteColor,
+    this.flowNameGetter,
+    this.onManageFlows,
+    this.onEditNote,
+    this.onDeleteNote,
+    this.onShareNote,
+    this.onEditReminder,
+    this.onEndReminder,
+    this.onShareReminder,
+    this.onEndFlow,
+    this.onAppendToJournal,
     this.monthAnchorKeyProvider,
     this.todayDayKey,
   });
@@ -9036,6 +9361,18 @@ class _YearSection extends StatelessWidget {
   final int? todayMonth;
   final int? todayDay;
   final bool showGregorian;
+  final MonthExpansionLevel expansionLevel;
+  final Color Function(_Note) noteColorResolver;
+  final String? Function(_Note)? flowNameGetter;
+  final void Function(int?)? onManageFlows;
+  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)? onEditNote;
+  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)? onDeleteNote;
+  final Future<void> Function(EventItem event)? onShareNote;
+  final Future<void> Function(String reminderId)? onEditReminder;
+  final Future<void> Function(String reminderId)? onEndReminder;
+  final Future<void> Function(EventItem event)? onShareReminder;
+  final void Function(int flowId)? onEndFlow;
+  final Future<void> Function(String text)? onAppendToJournal;
 
   // existing notes
   final List<_Note> Function(int kMonth, int kDay) notesGetter;
@@ -9064,6 +9401,18 @@ class _YearSection extends StatelessWidget {
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
+          expansionLevel: expansionLevel,
+          noteColorResolver: noteColorResolver,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -9078,6 +9427,18 @@ class _YearSection extends StatelessWidget {
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
+          expansionLevel: expansionLevel,
+          noteColorResolver: noteColorResolver,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -9092,6 +9453,18 @@ class _YearSection extends StatelessWidget {
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
+          expansionLevel: expansionLevel,
+          noteColorResolver: noteColorResolver,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -9106,6 +9479,18 @@ class _YearSection extends StatelessWidget {
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
+          expansionLevel: expansionLevel,
+          noteColorResolver: noteColorResolver,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
         ),
         const _GoldDivider(),
 
@@ -9122,6 +9507,18 @@ class _YearSection extends StatelessWidget {
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
+          expansionLevel: expansionLevel,
+          noteColorResolver: noteColorResolver,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -9136,6 +9533,18 @@ class _YearSection extends StatelessWidget {
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
+          expansionLevel: expansionLevel,
+          noteColorResolver: noteColorResolver,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -9150,6 +9559,18 @@ class _YearSection extends StatelessWidget {
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
+          expansionLevel: expansionLevel,
+          noteColorResolver: noteColorResolver,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -9164,6 +9585,18 @@ class _YearSection extends StatelessWidget {
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
+          expansionLevel: expansionLevel,
+          noteColorResolver: noteColorResolver,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
         ),
         const _GoldDivider(),
 
@@ -9180,6 +9613,18 @@ class _YearSection extends StatelessWidget {
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
+          expansionLevel: expansionLevel,
+          noteColorResolver: noteColorResolver,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -9194,6 +9639,18 @@ class _YearSection extends StatelessWidget {
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
+          expansionLevel: expansionLevel,
+          noteColorResolver: noteColorResolver,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -9208,6 +9665,18 @@ class _YearSection extends StatelessWidget {
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
+          expansionLevel: expansionLevel,
+          noteColorResolver: noteColorResolver,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -9222,6 +9691,18 @@ class _YearSection extends StatelessWidget {
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
+          expansionLevel: expansionLevel,
+          noteColorResolver: noteColorResolver,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
         ),
         const _GoldDivider(),
 
@@ -9234,6 +9715,18 @@ class _YearSection extends StatelessWidget {
           flowColorsGetter: flowColorsGetter,
           onDayTap: (c, m, d) => onDayTap(c, 13, d),
           showGregorian: showGregorian,
+          expansionLevel: expansionLevel,
+          noteColorResolver: noteColorResolver,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
         ),
         const _GoldDivider(),
       ],
@@ -9252,10 +9745,22 @@ class _MonthCard extends StatelessWidget {
   final int? todayDay;
   final Key? todayDayKey; // 🔑 day anchor to center
   final bool showGregorian;
+  final MonthExpansionLevel expansionLevel;
 
   final List<_Note> Function(int kMonth, int kDay) notesGetter;
   final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
+  final Color Function(_Note) noteColorResolver;
+  final String? Function(_Note)? flowNameGetter;
+  final void Function(int?)? onManageFlows;
+  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)? onEditNote;
+  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)? onDeleteNote;
+  final Future<void> Function(EventItem event)? onShareNote;
+  final Future<void> Function(String reminderId)? onEditReminder;
+  final Future<void> Function(String reminderId)? onEndReminder;
+  final Future<void> Function(EventItem event)? onShareReminder;
+  final void Function(int flowId)? onEndFlow;
+  final Future<void> Function(String text)? onAppendToJournal;
 
   // Optional overrides for taps (used by the detail page)
   final void Function(BuildContext context)? onMonthHeaderTap;
@@ -9272,6 +9777,18 @@ class _MonthCard extends StatelessWidget {
     required this.flowColorsGetter,
     required this.onDayTap,
     required this.showGregorian,
+    this.expansionLevel = MonthExpansionLevel.compact,
+    this.noteColorResolver = _defaultNoteColor,
+    this.flowNameGetter,
+    this.onManageFlows,
+    this.onEditNote,
+    this.onDeleteNote,
+    this.onShareNote,
+    this.onEditReminder,
+    this.onEndReminder,
+    this.onShareReminder,
+    this.onEndFlow,
+    this.onAppendToJournal,
     this.todayDayKey,
     this.onMonthHeaderTap,
     this.onDecanTap,
@@ -9319,6 +9836,16 @@ class _MonthCard extends StatelessWidget {
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
           decanIndex: null,
         ),
       ),
@@ -9338,6 +9865,16 @@ class _MonthCard extends StatelessWidget {
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
+          flowNameGetter: flowNameGetter,
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
           decanIndex: decanIndex,
         ),
       ),
@@ -9347,6 +9884,41 @@ class _MonthCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final names = decans[kMonth] ?? const ['Decan A', 'Decan B', 'Decan C'];
+
+    double _decanHeightFor(int decanIndex) {
+      // Only adjust in details mode; otherwise use the global sizing.
+      if (expansionLevel != MonthExpansionLevel.details) {
+        return _chipHeightFor(expansionLevel);
+      }
+      // Estimate visible pills for this decan (capped at 5) and derive a height.
+      // Measurements: label area ~24px; first pill ~50px; subsequent pills ~56px (includes spacing).
+      const double labelAreaHeight = 24.0;
+      const double firstPillHeight = 50.0;
+      const double subsequentPillHeight = 56.0;
+      const double minHeight = 80.0;   // keep some presence for empty/one-pill decans
+      const double maxHeight = 250.0;  // cap at original height
+
+      final startDay = decanIndex * 10 + 1;
+      int maxVisible = 0;
+      for (int d = startDay; d < startDay + 10; d++) {
+        final notes = notesGetter(kMonth, d);
+        final visible = notes.length > 5 ? 5 : notes.length;
+        if (visible > maxVisible) maxVisible = visible;
+      }
+
+      double pillsHeight = 0.0;
+      if (maxVisible > 0) {
+        pillsHeight = firstPillHeight;
+        if (maxVisible > 1) {
+          pillsHeight += subsequentPillHeight * (maxVisible - 1);
+        }
+      }
+
+      final double estimated = labelAreaHeight + pillsHeight;
+      return estimated.clamp(minHeight, maxHeight);
+    }
+
+    final decanHeights = List<double>.generate(3, (i) => _decanHeightFor(i));
 
     final yStart = KemeticMath.toGregorian(kYear, kMonth, 1).year;
     final yEnd = KemeticMath.toGregorian(kYear, kMonth, 30).year;
@@ -9370,6 +9942,7 @@ class _MonthCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header row: Kemetic month name (left), Season+Year (right)
@@ -9454,7 +10027,9 @@ class _MonthCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                SizedBox(
+                  height: expansionLevel == MonthExpansionLevel.details ? 0 : 6,
+                ),
 
                 _DecanRow(
                   kYear: kYear,
@@ -9467,8 +10042,24 @@ class _MonthCard extends StatelessWidget {
                   flowColorsGetter: flowColorsGetter,
                   onDayTap: onDayTap,
                   showGregorian: showGregorian,
+                  expansionLevel: expansionLevel,
+                  noteColorResolver: noteColorResolver,
+                  flowNameGetter: flowNameGetter,
+                  decanHeight: decanHeights[i],
+                  onManageFlows: onManageFlows,
+                  onEditNote: onEditNote,
+                  onDeleteNote: onDeleteNote,
+                  onShareNote: onShareNote,
+                  onEditReminder: onEditReminder,
+                  onEndReminder: onEndReminder,
+                  onShareReminder: onShareReminder,
+                  onEndFlow: onEndFlow,
+                  onAppendToJournal: onAppendToJournal,
                 ),
-                if (i < 2) const SizedBox(height: 10),
+                if (i < 2)
+                  SizedBox(
+                    height: expansionLevel == MonthExpansionLevel.details ? 0 : 6,
+                  ),
               ],
             ],
           ),
@@ -9512,6 +10103,19 @@ class _DecanRow extends StatelessWidget {
   final List<_Note> Function(int kMonth, int kDay) notesGetter;
   final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
+  final MonthExpansionLevel expansionLevel;
+  final Color Function(_Note) noteColorResolver;
+  final double? decanHeight;
+  final String? Function(_Note)? flowNameGetter;
+  final void Function(int?)? onManageFlows;
+  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)? onEditNote;
+  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)? onDeleteNote;
+  final Future<void> Function(EventItem event)? onShareNote;
+  final Future<void> Function(String reminderId)? onEditReminder;
+  final Future<void> Function(String reminderId)? onEndReminder;
+  final Future<void> Function(EventItem event)? onShareReminder;
+  final void Function(int flowId)? onEndFlow;
+  final Future<void> Function(String text)? onAppendToJournal;
 
   const _DecanRow({
     required this.kYear,
@@ -9524,41 +10128,71 @@ class _DecanRow extends StatelessWidget {
     required this.onDayTap,
     required this.showGregorian,
     required this.todayDayKey,
+    this.expansionLevel = MonthExpansionLevel.compact,
+    this.noteColorResolver = _defaultNoteColor,
+    this.decanHeight,
+    this.flowNameGetter,
+    this.onManageFlows,
+    this.onEditNote,
+    this.onDeleteNote,
+    this.onShareNote,
+    this.onEditReminder,
+    this.onEndReminder,
+    this.onShareReminder,
+    this.onEndFlow,
+    this.onAppendToJournal,
   });
 
   @override
   Widget build(BuildContext context) {
     final isMonthToday = (todayMonth != null && todayMonth == kMonth);
     return Row(
-      children: List.generate(10, (j) {
-        final day = decanIndex * 10 + (j + 1); // 1..30
-        final isToday = isMonthToday && (todayDay == day);
+      children: [
+        for (int j = 0; j < 10; j++) ...[
+          Builder(builder: (_) {
+            final day = decanIndex * 10 + (j + 1); // 1..30
+            final isToday = isMonthToday && (todayDay == day);
 
-        final notes = notesGetter(kMonth, day);
-        final noteCount = notes.length;
-        final flowColors = flowColorsGetter(kYear, kMonth, day);
+            final notes = notesGetter(kMonth, day);
+            final flowColors = flowColorsGetter(kYear, kMonth, day);
 
-        final label = showGregorian
-            ? '${safeLocalDisplay(KemeticMath.toGregorian(kYear, kMonth, day)).day}'
-            : '$day';
+            final label = showGregorian
+                ? '${safeLocalDisplay(KemeticMath.toGregorian(kYear, kMonth, day)).day}'
+                : '$day';
 
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(right: j == 9 ? 0 : 6),
-            child: _DayChip(
-              key: ValueKey('k:$kYear-$kMonth-$day|${showGregorian ? "G" : "K"}'), // 🔑 Unique key with mode
-              anchorKey: isToday ? todayDayKey : null, // 🔑 attach
-              label: label,
-              isToday: isToday,
-              noteCount: noteCount,
-              flowColors: flowColors,
-              onTap: () => onDayTap(context, kMonth, day),
-              showGregorian: showGregorian,
-              dayKey: _getKemeticDayKey(kYear, kMonth, day),
-            ),
-          ),
-        );
-      }),
+            return Expanded(
+              child: _DayChip(
+                key: ValueKey('k:$kYear-$kMonth-$day|${showGregorian ? "G" : "K"}'), // 🔑 Unique key with mode
+                anchorKey: isToday ? todayDayKey : null, // 🔑 attach
+                label: label,
+                isToday: isToday,
+                notes: notes,
+                flowColors: flowColors,
+                onTap: () => onDayTap(context, kMonth, day),
+                showGregorian: showGregorian,
+                dayKey: _getKemeticDayKey(kYear, kMonth, day),
+                expansionLevel: expansionLevel,
+                noteColorResolver: noteColorResolver,
+                flowNameGetter: flowNameGetter,
+                decanHeight: decanHeight,
+                kYear: kYear,
+                kMonth: kMonth,
+                kDay: day,
+                onManageFlows: onManageFlows,
+                onEditNote: onEditNote,
+                onDeleteNote: onDeleteNote,
+                onShareNote: onShareNote,
+                onEditReminder: onEditReminder,
+                onEndReminder: onEndReminder,
+                onShareReminder: onShareReminder,
+                onEndFlow: onEndFlow,
+                onAppendToJournal: onAppendToJournal,
+              ),
+            );
+          }),
+          if (j < 9) const SizedBox(width: 3),
+        ],
+      ],
     );
   }
 }
@@ -9566,23 +10200,55 @@ class _DecanRow extends StatelessWidget {
 class _DayChip extends StatelessWidget {
   final String label;
   final bool isToday;
-  final int noteCount;
+  final List<_Note> notes;
   final List<Color> flowColors;
   final VoidCallback onTap;
   final Key? anchorKey;
   final bool showGregorian;
   final String dayKey;
+  final MonthExpansionLevel expansionLevel;
+  final Color Function(_Note) noteColorResolver;
+  final String? Function(_Note)? flowNameGetter;
+  final double? decanHeight;
+  final int kYear;
+  final int kMonth;
+  final int kDay;
+  final void Function(int?)? onManageFlows;
+  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)? onEditNote;
+  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)? onDeleteNote;
+  final Future<void> Function(EventItem event)? onShareNote;
+  final Future<void> Function(String reminderId)? onEditReminder;
+  final Future<void> Function(String reminderId)? onEndReminder;
+  final Future<void> Function(EventItem event)? onShareReminder;
+  final void Function(int flowId)? onEndFlow;
+  final Future<void> Function(String text)? onAppendToJournal;
 
   const _DayChip({
     super.key,  // Add key parameter
     required this.label,
     required this.isToday,
-    required this.noteCount,
+    required this.notes,
     required this.flowColors,
     required this.onTap,
     required this.showGregorian,
     this.anchorKey,
     required this.dayKey,
+    required this.expansionLevel,
+    required this.noteColorResolver,
+    this.flowNameGetter,
+    this.decanHeight,
+    required this.kYear,
+    required this.kMonth,
+    required this.kDay,
+    this.onManageFlows,
+    this.onEditNote,
+    this.onDeleteNote,
+    this.onShareNote,
+    this.onEditReminder,
+    this.onEndReminder,
+    this.onShareReminder,
+    this.onEndFlow,
+    this.onAppendToJournal,
   });
 
   @override
@@ -9597,6 +10263,122 @@ class _DayChip extends StatelessWidget {
     final gradient =
     isToday ? goldGloss : (showGregorian ? blueGloss : silverGloss);
 
+    final isCompact = expansionLevel == MonthExpansionLevel.compact;
+    final chipHeight = decanHeight ?? _chipHeightFor(expansionLevel);
+    final miniHeight = _miniHeightFor(expansionLevel);
+
+    Widget _buildMiniBlocks() {
+      if (isCompact) {
+        final noteCount = notes.length;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (noteCount > 0) const _GlossyDot(gradient: silverGloss),
+            if (flowColors.isNotEmpty) ...[
+              const SizedBox(width: 3),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final c in flowColors.take(3)) ...[
+                    _ColorDot(color: c),
+                    const SizedBox(width: 2.5),
+                  ],
+                ],
+              ),
+            ],
+          ],
+        );
+      }
+
+      final sorted = [...notes]
+        ..sort((a, b) {
+          if (a.allDay != b.allDay) return a.allDay ? -1 : 1;
+          final aStart = a.start;
+          final bStart = b.start;
+          if (aStart != null && bStart != null) {
+            final cmpH = aStart.hour.compareTo(bStart.hour);
+            if (cmpH != 0) return cmpH;
+            final cmpM = aStart.minute.compareTo(bStart.minute);
+            if (cmpM != 0) return cmpM;
+          } else if (aStart != null || bStart != null) {
+            return aStart != null ? -1 : 1;
+          }
+          return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+        });
+      final maxBlocks = expansionLevel == MonthExpansionLevel.stacked
+          ? 2
+          : (expansionLevel == MonthExpansionLevel.details ? 5 : 1);
+
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          int visibleCount = maxBlocks;
+          if (expansionLevel == MonthExpansionLevel.details && constraints.maxHeight.isFinite) {
+            // Estimate pill height for two-line text + padding/border.
+            const double estimatedPillHeight = 50.0;
+            const double spacingHeight = 3.0;
+            const double overflowIndicatorHeight = 15.0;
+
+            double used = 0;
+            int count = 0;
+            while (count < sorted.length && count < maxBlocks) {
+              final next = estimatedPillHeight + (count == 0 ? 0 : spacingHeight);
+              if (used + next > constraints.maxHeight) break;
+              used += next;
+              count++;
+            }
+
+            // Reserve room for "+N" indicator when there are hidden events.
+            final hasHidden = count < sorted.length;
+            if (hasHidden && count > 0 && used + overflowIndicatorHeight > constraints.maxHeight) {
+              count = (count - 1).clamp(0, maxBlocks);
+            }
+
+            visibleCount = count.clamp(0, maxBlocks);
+          }
+
+          final visible = sorted.take(visibleCount).toList();
+          final remaining = sorted.length - visible.length;
+
+          return ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: constraints.maxHeight),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (int i = 0; i < visible.length; i++) ...[
+                  _MiniEventBlock(
+                    note: visible[i],
+                    color: noteColorResolver(visible[i]),
+                    dense: expansionLevel == MonthExpansionLevel.stacked,
+                    label: expansionLevel == MonthExpansionLevel.details ? _labelFor(visible[i]) : null,
+                    expand: expansionLevel == MonthExpansionLevel.details,
+                    onTap: expansionLevel == MonthExpansionLevel.details
+                        ? () => _showEventDetailFromNote(context, visible[i])
+                        : null,
+                  ),
+                  if (i != visible.length - 1)
+                    SizedBox(height: expansionLevel == MonthExpansionLevel.details ? 6 : 3),
+                ],
+                if (remaining > 0 && expansionLevel == MonthExpansionLevel.details)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      '+$remaining',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
     return KemeticDayButton(
       dayKey: dayKey,
       child: InkWell(
@@ -9604,43 +10386,501 @@ class _DayChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         child: SizedBox(
           key: anchorKey,
-          height: 36,
+          width: double.infinity,
+          height: chipHeight,
           child: RepaintBoundary(
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              GlossyText(
-                text: label,
-                style: textStyle,
-                gradient: gradient,
-              ),
-              Positioned(
-                right: 4,
-                bottom: 4,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (noteCount > 0) const _GlossyDot(gradient: silverGloss),
-                    if (flowColors.isNotEmpty) ...[
-                      const SizedBox(width: 3),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          for (final c in flowColors.take(3)) ...[
-                            _ColorDot(color: c),
-                            const SizedBox(width: 2.5),
-                          ],
-                        ],
+            child: isCompact
+                ? Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      GlossyText(
+                        text: label,
+                        style: textStyle,
+                        gradient: gradient,
+                      ),
+                      Positioned(
+                        right: 4,
+                        bottom: 4,
+                        child: _buildMiniBlocks(),
                       ),
                     ],
-                  ],
-                ),
-              ),
-            ],
-          ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: Center(
+                          child: GlossyText(
+                            text: label,
+                            style: textStyle,
+                            gradient: gradient,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Expanded(
+                        child: ClipRect(child: _buildMiniBlocks()),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),
+    );
+  }
+
+  String _labelFor(_Note note) {
+    final time = note.start;
+    String _short(String text, int max) =>
+        text.isEmpty ? 'Event' : (text.length <= max ? text : '${text.substring(0, max - 1)}…');
+    final flowNameRaw = flowNameGetter?.call(note);
+    final flowName = (flowNameRaw != null && flowNameRaw.trim().isNotEmpty) ? flowNameRaw.trim() : null;
+    final hasFlow = flowName != null;
+
+    if (expansionLevel == MonthExpansionLevel.details && time != null) {
+      final hour = time.hour;
+      final minute = time.minute;
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+      final timeStr = '$displayHour:${minute.toString().padLeft(2, '0')} $period';
+
+      if (hasFlow) {
+        final title = _short(note.title, 40);
+        return '$flowName $timeStr $title';
+      } else {
+        final title = _short(note.title, 50);
+        return '$timeStr $title';
+      }
+    }
+
+    if (hasFlow) {
+      final title = _short(note.title, 50);
+      return '$flowName $title';
+    }
+    return _short(note.title, 60);
+  }
+
+  EventItem _noteToEventItem(_Note note) {
+    final startMin = note.allDay
+        ? 9 * 60
+        : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
+    final endMin = note.allDay
+        ? 17 * 60
+        : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
+
+    return EventItem(
+      id: note.id,
+      title: note.title,
+      detail: note.detail,
+      location: note.location,
+      startMin: startMin,
+      endMin: endMin,
+      flowId: note.flowId,
+      color: noteColorResolver(note),
+      manualColor: note.manualColor,
+      allDay: note.allDay,
+      category: note.category,
+      isReminder: note.isReminder,
+      reminderId: note.reminderId,
+    );
+  }
+
+  String _formatTimeRange(TimeOfDay start, TimeOfDay? end, bool allDay) {
+    if (allDay) return 'All day';
+    String fmt(TimeOfDay t) {
+      final h = t.hour;
+      final m = t.minute;
+      final period = h >= 12 ? 'PM' : 'AM';
+      final h12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+      return '$h12:${m.toString().padLeft(2, '0')} $period';
+    }
+    if (end == null) return fmt(start);
+    return '${fmt(start)} – ${fmt(end)}';
+  }
+
+  String _cleanDetail(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    var detail = raw;
+    if (detail.startsWith('flowLocalId=')) {
+      final semi = detail.indexOf(';');
+      if (semi > 0 && semi < detail.length - 1) {
+        detail = detail.substring(semi + 1).trim();
+      } else {
+        return '';
+      }
+    }
+    return _stripCidLines(detail).trim();
+  }
+
+  ButtonStyle _endButtonStyle() {
+    return OutlinedButton.styleFrom(
+      side: const BorderSide(color: Color(0xFFFFC145)),
+      foregroundColor: const Color(0xFFFFC145),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      minimumSize: const Size(0, 35),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+    );
+  }
+
+  Widget _buildEndFlowButton(BuildContext ctx, int? flowId) {
+    final enabled = onEndFlow != null && flowId != null;
+    return OutlinedButton.icon(
+      style: _endButtonStyle(),
+      onPressed: enabled
+          ? () {
+              Navigator.pop(ctx);
+              onEndFlow!(flowId!);
+            }
+          : null,
+      icon: const Icon(Icons.stop_circle),
+      label: const Text('End Flow'),
+    );
+  }
+
+  Widget _buildEndNoteButton(BuildContext ctx, EventItem event) {
+    final enabled = onDeleteNote != null;
+    return OutlinedButton.icon(
+      style: _endButtonStyle(),
+      onPressed: enabled
+          ? () async {
+              Navigator.pop(ctx);
+              await onDeleteNote!(kYear, kMonth, kDay, event);
+            }
+          : null,
+      icon: const Icon(Icons.delete_outline),
+      label: const Text('End Note'),
+    );
+  }
+
+  Widget _buildEndReminderButton(BuildContext ctx, EventItem event) {
+    final enabled = onEndReminder != null && event.reminderId != null;
+    return OutlinedButton.icon(
+      style: _endButtonStyle(),
+      onPressed: enabled
+          ? () async {
+              Navigator.pop(ctx);
+              await onEndReminder!(event.reminderId!);
+            }
+          : null,
+      icon: const Icon(Icons.stop_circle),
+      label: const Text('End Reminder'),
+    );
+  }
+
+  void _showEventDetailFromNote(BuildContext context, _Note note) {
+    final event = _noteToEventItem(note);
+    final flowName = flowNameGetter?.call(note);
+    final flowColor = noteColorResolver(note);
+    final detail = _cleanDetail(note.detail);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.black,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    if (flowName != null && flowName.isNotEmpty)
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: flowColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            flowName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                            style: TextStyle(
+                              color: flowColor,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      )
+                    else if (note.isReminder)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD4AF37).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Reminder',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFD4AF37),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    else if (detail.contains('Source:'))
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD4AF37).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.local_drink, size: 14, color: Color(0xFFD4AF37)),
+                            SizedBox(width: 4),
+                            Text(
+                              'Nutrition',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFFD4AF37),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const Spacer(),
+                    if (flowName != null && flowName.isNotEmpty && note.flowId != null)
+                      _buildEndFlowButton(ctx, note.flowId)
+                    else if (note.isReminder)
+                      _buildEndReminderButton(ctx, event)
+                    else if (onDeleteNote != null)
+                      _buildEndNoteButton(ctx, event),
+                    const SizedBox(width: 8),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, color: Color(0xFFD4AF37)),
+                      tooltip: 'Event options',
+                      color: Colors.black,
+                      onSelected: (value) async {
+                        if (value == 'journal' && onAppendToJournal != null) {
+                          Navigator.pop(ctx);
+                          final text = '${event.title}${detail.isNotEmpty ? '\n\n$detail' : ''}';
+                          await onAppendToJournal!(text);
+                        } else if (value == 'edit_flow' &&
+                            note.flowId != null &&
+                            onManageFlows != null) {
+                          Navigator.pop(ctx);
+                          onManageFlows!(note.flowId);
+                        } else if (value == 'share_flow' &&
+                            note.flowId != null) {
+                          Navigator.pop(ctx);
+                          final result = await showModalBottomSheet<bool>(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (context) => ShareFlowSheet(
+                              flowId: note.flowId!,
+                              flowTitle: flowName ?? '',
+                            ),
+                          );
+                          if (result == true && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Flow shared successfully!'),
+                                backgroundColor: Color(0xFFD4AF37),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        } else if (value == 'edit_reminder' &&
+                            note.isReminder &&
+                            event.reminderId != null &&
+                            onEditReminder != null) {
+                          Navigator.pop(ctx);
+                          await onEditReminder!(event.reminderId!);
+                        } else if (value == 'share_reminder' &&
+                            note.isReminder &&
+                            onShareReminder != null) {
+                          Navigator.pop(ctx);
+                          await onShareReminder!(event);
+                        } else if (value == 'edit_note' &&
+                            !note.isReminder &&
+                            note.flowId == null &&
+                            onEditNote != null) {
+                          Navigator.pop(ctx);
+                          await onEditNote!(kYear, kMonth, kDay, event);
+                        } else if (value == 'share_note' &&
+                            !note.isReminder &&
+                            note.flowId == null &&
+                            onShareNote != null) {
+                          Navigator.pop(ctx);
+                          await onShareNote!(event);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        if (onAppendToJournal != null)
+                          const PopupMenuItem(
+                            value: 'journal',
+                            child: Row(
+                              children: [
+                                Icon(Icons.check_circle, color: Color(0xFFD4AF37)),
+                                SizedBox(width: 12),
+                                Text('Done / Add to journal', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        if (note.flowId != null)
+                          const PopupMenuItem(
+                            value: 'edit_flow',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, color: Color(0xFFD4AF37)),
+                                SizedBox(width: 12),
+                                Text('Edit Flow', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        if (note.flowId != null)
+                          const PopupMenuItem(
+                            value: 'share_flow',
+                            child: Row(
+                              children: [
+                                Icon(Icons.share, color: Color(0xFFD4AF37)),
+                                SizedBox(width: 12),
+                                Text('Share Flow', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        if (note.isReminder && onEditReminder != null && event.reminderId != null)
+                          const PopupMenuItem(
+                            value: 'edit_reminder',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, color: Color(0xFFD4AF37)),
+                                SizedBox(width: 12),
+                                Text('Edit Reminder', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        if (note.isReminder && onShareReminder != null)
+                          const PopupMenuItem(
+                            value: 'share_reminder',
+                            child: Row(
+                              children: [
+                                Icon(Icons.share, color: Color(0xFFD4AF37)),
+                                SizedBox(width: 12),
+                                Text('Share Reminder', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        if (!note.isReminder && note.flowId == null && onEditNote != null)
+                          const PopupMenuItem(
+                            value: 'edit_note',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, color: Color(0xFFD4AF37)),
+                                SizedBox(width: 12),
+                                Text('Edit Note', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        if (!note.isReminder && note.flowId == null && onShareNote != null)
+                          const PopupMenuItem(
+                            value: 'share_note',
+                            child: Row(
+                              children: [
+                                Icon(Icons.share, color: Color(0xFFD4AF37)),
+                                SizedBox(width: 12),
+                                Text('Share Note', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  event.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _formatTimeRange(
+                    note.start ?? const TimeOfDay(hour: 9, minute: 0),
+                    note.end,
+                    note.allDay,
+                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                if (event.location != null && event.location!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 14, color: Colors.white54),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          event.location!.trim(),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (detail.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    detail,
+                    style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.3),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton.icon(
+                      onPressed: onManageFlows == null
+                          ? null
+                          : () {
+                              Navigator.pop(ctx);
+                              onManageFlows!(null);
+                            },
+                      icon: Icon(
+                        Icons.view_timeline,
+                        color: onManageFlows == null ? const Color(0xFF404040) : const Color(0xFFFFC145),
+                      ),
+                      label: Text(
+                        'Manage Flows',
+                        style: TextStyle(
+                          color: onManageFlows == null ? const Color(0xFF404040) : const Color(0xFFFFC145),
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(color: Color(0xFFFFC145)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -9663,6 +10903,75 @@ class _ColorDot extends StatelessWidget {
   }
 }
 
+class _MiniEventBlock extends StatelessWidget {
+  final _Note note;
+  final Color color;
+  final bool dense;
+  final bool expand;
+  final String? label;
+  const _MiniEventBlock({
+    required this.note,
+    required this.color,
+    this.dense = true,
+    this.expand = false,
+    this.label,
+    this.onTap,
+  });
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final showLabel = label != null && !dense;
+    final isDetailPill = expand && showLabel;
+    final bg = color.withOpacity(dense ? 0.28 : 0.22);
+    final border = color.withOpacity(0.9);
+    final double minH = isDetailPill ? 38 : (dense ? 8 : 24);
+    final double minW = dense ? 24 : 0;
+    final EdgeInsetsGeometry padding = showLabel
+        ? (isDetailPill
+            ? const EdgeInsets.symmetric(horizontal: 3, vertical: 6)
+            : const EdgeInsets.symmetric(horizontal: 7, vertical: 3))
+        : EdgeInsets.zero;
+    final BorderRadius radius =
+        BorderRadius.circular(isDetailPill ? 12 : (dense ? 5 : 10));
+    final TextStyle labelStyle = TextStyle(
+      color: Colors.white,
+      fontSize: isDetailPill ? 11.5 : 10,
+      height: 1.2,
+      fontWeight: isDetailPill ? FontWeight.w600 : FontWeight.w500,
+    );
+    final container = Container(
+      width: expand ? double.infinity : null,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: radius,
+        border: Border.all(color: border, width: dense ? 0.8 : 1.0),
+      ),
+      constraints: expand && isDetailPill
+          ? BoxConstraints(minHeight: minH)
+          : BoxConstraints(minHeight: minH, minWidth: minW),
+      alignment: Alignment.centerLeft,
+      child: showLabel
+          ? Text(
+              label!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              softWrap: true,
+              textAlign: TextAlign.left,
+              style: labelStyle,
+            )
+          : null,
+    );
+
+    if (expand && !dense && onTap != null) {
+      return GestureDetector(onTap: onTap, child: container);
+    }
+    return container;
+  }
+}
+
 /* ───────────── Epagomenal (5 or 6 extra days) ───────────── */
 
 class _EpagomenalCard extends StatelessWidget {
@@ -9674,6 +10983,18 @@ class _EpagomenalCard extends StatelessWidget {
     required this.flowColorsGetter,
     required this.onDayTap,
     required this.showGregorian,
+    this.expansionLevel = MonthExpansionLevel.compact,
+    this.noteColorResolver = _defaultNoteColor,
+    this.flowNameGetter,
+    this.onManageFlows,
+    this.onEditNote,
+    this.onDeleteNote,
+    this.onShareNote,
+    this.onEditReminder,
+    this.onEndReminder,
+    this.onShareReminder,
+    this.onEndFlow,
+    this.onAppendToJournal,
     this.todayDayKey,
   });
 
@@ -9685,6 +11006,18 @@ class _EpagomenalCard extends StatelessWidget {
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
   final Key? todayDayKey;
   final bool showGregorian;
+  final MonthExpansionLevel expansionLevel;
+  final Color Function(_Note) noteColorResolver;
+  final String? Function(_Note)? flowNameGetter;
+  final void Function(int?)? onManageFlows;
+  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)? onEditNote;
+  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)? onDeleteNote;
+  final Future<void> Function(EventItem event)? onShareNote;
+  final Future<void> Function(String reminderId)? onEditReminder;
+  final Future<void> Function(String reminderId)? onEndReminder;
+  final Future<void> Function(EventItem event)? onShareReminder;
+  final void Function(int flowId)? onEndFlow;
+  final Future<void> Function(String text)? onAppendToJournal;
 
   String? _gregMonthForEpagomenal(int ky, int epiCount) {
     for (int d = 1; d <= epiCount; d++) {
@@ -9701,8 +11034,45 @@ class _EpagomenalCard extends StatelessWidget {
 
     final gLabel = _gregMonthForEpagomenal(kYear, epiCount);
 
+    // Dynamic height for epagomenal days (parallels regular decan sizing).
+    double _epagomenalHeight() {
+      if (expansionLevel != MonthExpansionLevel.details) {
+        return _chipHeightFor(expansionLevel);
+      }
+      const double labelAreaHeight = 24.0;
+      const double firstPillHeight = 50.0;
+      const double subsequentPillHeight = 56.0;
+      const double minHeight = 80.0;
+      const double maxHeight = 250.0;
+
+      int maxVisible = 0;
+      for (int d = 1; d <= epiCount; d++) {
+        final notes = notesGetter(13, d);
+        final visible = notes.length > 5 ? 5 : notes.length;
+        if (visible > maxVisible) maxVisible = visible;
+      }
+
+      double pillsHeight = 0.0;
+      if (maxVisible > 0) {
+        pillsHeight = firstPillHeight;
+        if (maxVisible > 1) {
+          pillsHeight += subsequentPillHeight * (maxVisible - 1);
+        }
+      }
+
+      final double estimated = labelAreaHeight + pillsHeight;
+      return estimated.clamp(minHeight, maxHeight);
+    }
+
+    final double epagomenalHeight = _epagomenalHeight();
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 24),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        6,
+        16,
+        expansionLevel == MonthExpansionLevel.details ? 6 : 24,
+      ),
       child: Card(
         color: Colors.black,
         elevation: 0,
@@ -9746,37 +11116,44 @@ class _EpagomenalCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: expansionLevel == MonthExpansionLevel.details ? 0 : 10),
 
               Row(
-                children: List.generate(epiCount, (i) {
-                  final n = i + 1; // 1..5 or 1..6
-                  final isToday = isMonthToday && (todayDay == n);
-
-                  final notes = notesGetter(13, n);
-                  final noteCount = notes.length;
-                  final flowColors = flowColorsGetter(kYear, 13, n);
-
-                  final label = showGregorian
-                      ? '${KemeticMath.toGregorian(kYear, 13, n).day}'
-                      : '$n';
-
-                  return Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(right: i == epiCount - 1 ? 0 : 6),
+                children: [
+                  for (int i = 0; i < epiCount; i++) ...[
+                    Expanded(
                       child: _DayChip(
-                        anchorKey: isToday ? todayDayKey : null, // 🔑
-                        label: label,
-                        isToday: isToday,
-                        noteCount: noteCount,
-                        flowColors: flowColors,
-                        onTap: () => onDayTap(context, 13, n),
+                        anchorKey: isMonthToday && (todayDay == i + 1) ? todayDayKey : null, // 🔑
+                        label: showGregorian
+                            ? '${KemeticMath.toGregorian(kYear, 13, i + 1).day}'
+                            : '${i + 1}',
+                        isToday: isMonthToday && (todayDay == i + 1),
+                        notes: notesGetter(13, i + 1),
+                        flowColors: flowColorsGetter(kYear, 13, i + 1),
+                        onTap: () => onDayTap(context, 13, i + 1),
                         showGregorian: showGregorian,
-                        dayKey: 'epagomenal_${n}_$kYear', // Epagomenal days use their own key format
+                        dayKey: 'epagomenal_${i + 1}_$kYear', // Epagomenal days use their own key format
+                        expansionLevel: expansionLevel,
+                        noteColorResolver: noteColorResolver,
+                        flowNameGetter: flowNameGetter,
+                        decanHeight: epagomenalHeight,
+                        kYear: kYear,
+                        kMonth: 13,
+                        kDay: i + 1,
+                        onManageFlows: onManageFlows,
+                        onEditNote: onEditNote,
+                        onDeleteNote: onDeleteNote,
+                        onShareNote: onShareNote,
+                        onEditReminder: onEditReminder,
+                        onEndReminder: onEndReminder,
+                        onShareReminder: onShareReminder,
+                        onEndFlow: onEndFlow,
+                        onAppendToJournal: onAppendToJournal,
                       ),
                     ),
-                  );
-                }),
+                    if (i < epiCount - 1) const SizedBox(width: 3),
+                  ],
+                ],
               ),
             ],
           ),
@@ -9800,6 +11177,16 @@ class _MonthDetailPage extends StatefulWidget {
     required this.flowColorsGetter,
     required this.onDayTap,
     required this.decanIndex, // null => month view; 0..2 => specific decan
+    this.flowNameGetter,
+    this.onManageFlows,
+    this.onEditNote,
+    this.onDeleteNote,
+    this.onShareNote,
+    this.onEditReminder,
+    this.onEndReminder,
+    this.onShareReminder,
+    this.onEndFlow,
+    this.onAppendToJournal,
   });
 
   final int kYear;
@@ -9812,6 +11199,16 @@ class _MonthDetailPage extends StatefulWidget {
   final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
   final int? decanIndex;
+  final String? Function(_Note)? flowNameGetter;
+  final void Function(int?)? onManageFlows;
+  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)? onEditNote;
+  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)? onDeleteNote;
+  final Future<void> Function(EventItem event)? onShareNote;
+  final Future<void> Function(String reminderId)? onEditReminder;
+  final Future<void> Function(String reminderId)? onEndReminder;
+  final Future<void> Function(EventItem event)? onShareReminder;
+  final void Function(int flowId)? onEndFlow;
+  final Future<void> Function(String text)? onAppendToJournal;
 
   @override
   State<_MonthDetailPage> createState() => _MonthDetailPageState();
@@ -9889,6 +11286,16 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                   flowColorsGetter: widget.flowColorsGetter,
                   onDayTap: widget.onDayTap,
                   showGregorian: widget.showGregorian,
+                  flowNameGetter: widget.flowNameGetter,
+                  onManageFlows: widget.onManageFlows,
+                  onEditNote: widget.onEditNote,
+                  onDeleteNote: widget.onDeleteNote,
+                  onShareNote: widget.onShareNote,
+                  onEditReminder: widget.onEditReminder,
+                  onEndReminder: widget.onEndReminder,
+                  onShareReminder: widget.onShareReminder,
+                  onEndFlow: widget.onEndFlow,
+                  onAppendToJournal: widget.onAppendToJournal,
                   onMonthHeaderTap: (_) => setState(() => _currentDecanIndex = null),
                   onDecanTap: (_, idx) => setState(() => _currentDecanIndex = idx),
                 ),

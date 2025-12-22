@@ -6,17 +6,41 @@ import 'journal_constants.dart';
 import '../../core/ui_guards.dart';
 import '../../main.dart';
 
+/// Allows triggering the journal overlay programmatically (e.g., from an AppBar button).
+class JournalSwipeHandle {
+  void Function({String entryPoint})? _open;
+  VoidCallback? _close;
+
+  void open({String entryPoint = 'external'}) => _open?.call(entryPoint: entryPoint);
+  void close() => _close?.call();
+
+  void _bind({
+    required void Function({String entryPoint}) open,
+    required VoidCallback close,
+  }) {
+    _open = open;
+    _close = close;
+  }
+
+  void _clear() {
+    _open = null;
+    _close = null;
+  }
+}
+
 class JournalSwipeLayer extends StatefulWidget {
   const JournalSwipeLayer({
     Key? key,
     required this.child,
     required this.controller,
     required this.isPortrait,
+    this.handle,
   }) : super(key: key);
 
   final Widget child;
   final JournalController controller; // your existing data/controller
   final bool isPortrait;
+  final JournalSwipeHandle? handle;
 
   @override
   State<JournalSwipeLayer> createState() => _JournalSwipeLayerState();
@@ -48,15 +72,34 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
   @override
   void initState() {
     super.initState();
+    _bindHandle();
   }
 
   @override
   void dispose() {
+    widget.handle?._clear();
     _closeJournal();
     super.dispose();
   }
 
-  void _openJournal() {
+  @override
+  void didUpdateWidget(JournalSwipeLayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.handle != widget.handle) {
+      oldWidget.handle?._clear();
+      _bindHandle();
+    }
+  }
+
+  void _bindHandle() {
+    widget.handle?._bind(
+      open: ({String entryPoint = 'external'}) => _openJournal(entryPoint: entryPoint),
+      close: _closeJournal,
+    );
+  }
+
+  void _openJournal({String entryPoint = 'swipe'}) {
+    if (!_active) return;
     if (_isJournalOpen) return;
     if (!UiGuards.canOpenJournalSwipe) return;
 
@@ -72,7 +115,7 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
     Overlay.of(context).insert(_overlayEntry!);
 
     // analytics
-    _trackJournalOpened();
+    _trackJournalOpened(entryPoint);
     
   }
 
@@ -84,9 +127,9 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
     setState(() => _isJournalOpen = false);
   }
 
-  void _trackJournalOpened() {
+  void _trackJournalOpened(String entryPoint) {
     Events.trackIfAuthed('journal_opened', {
-      'entry_point': 'swipe',
+      'entry_point': entryPoint,
       'orientation': widget.isPortrait ? 'portrait' : 'landscape',
     });
   }
