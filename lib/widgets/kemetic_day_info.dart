@@ -347,8 +347,8 @@ class KemeticDayData {
       kemeticDate: 'Thoth I – Day 1',
       season: '🌊 Akhet – Season of Inundation',
       month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
-      starCluster: '✨ Sopdet (Sirius) — herald of the sacred new year',
+      decanName: 'tpy-ꜣ sbꜣw ("Foremost of the Stars")',
+      starCluster: '✨ Foremost of the Stars — orientation after uncertainty.',
       maatPrinciple: 'Truth & Right Speech — the spoken word as cosmic law',
       cosmicContext: '''
 This is the first breath of the Kemetic year.
@@ -379,8 +379,8 @@ To speak truth now is to write the law of your year.''',
       kemeticDate: 'Thoth I – Day 2',
       season: '🌊 Akhet – Season of Inundation',
       month: 'Thoth (Djehuty)',
-      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
-      starCluster: '✨ Sopdet as herald of renewed order',
+      decanName: 'tpy-ꜣ sbꜣw ("Foremost of the Stars")',
+      starCluster: '✨ Foremost of the Stars — orientation after uncertainty.',
       maatPrinciple: 'Vision in Right Measure — seeing what is sustainable',
       cosmicContext: '''
 Day 2 clarifies vision.
@@ -410,8 +410,8 @@ Describe what balance looks and feels like when lived.''',
       kemeticDate: 'Thoth I – Day 3',
       season: '🌊 Akhet – Season of Inundation',
       month: 'Thoth (Djehuty)',
-      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
-      starCluster: '✨ Sopdet — order after chaos',
+      decanName: 'tpy-ꜣ sbꜣw ("Foremost of the Stars")',
+      starCluster: '✨ Foremost of the Stars — orientation after uncertainty.',
       maatPrinciple: 'Purification Before Building',
       cosmicContext: '''
 Flood waters leave both fertile silt and debris.
@@ -441,8 +441,8 @@ Remove habits and clutter that choke growth.''',
       kemeticDate: 'Thoth I – Day 4',
       season: '🌊 Akhet – Season of Inundation',
       month: 'Thoth (Djehuty)',
-      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
-      starCluster: '✨ Sopdet with Sahu (Orion) as witness of destiny',
+      decanName: 'tpy-ꜣ sbꜣw ("Foremost of the Stars")',
+      starCluster: '✨ Foremost of the Stars — orientation after uncertainty.',
       maatPrinciple: 'Naming as Creation',
       cosmicContext: '''
 To name is to bind into existence.
@@ -472,8 +472,8 @@ so the universe can respond.''',
       kemeticDate: 'Thoth I – Day 5',
       season: '🌊 Akhet – Season of Inundation',
       month: 'Thoth (Djehuty)',
-      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
-      starCluster: '✨ Sopdet aligned with Ma\'at\'s balance',
+      decanName: 'tpy-ꜣ sbꜣw ("Foremost of the Stars")',
+      starCluster: '✨ Foremost of the Stars — orientation after uncertainty.',
       maatPrinciple: 'Alignment of Speech and Deed',
       cosmicContext: '''
 Day 5 is the heart's weighing.
@@ -503,8 +503,8 @@ Integrity keeps the year on course.''',
       kemeticDate: 'Thoth I – Day 6',
       season: '🌊 Akhet – Season of Inundation',
       month: 'Thoth (Djehuty)',
-      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
-      starCluster: '✨ Sopdet joined by supportive lights',
+      decanName: 'tpy-ꜣ sbꜣw ("Foremost of the Stars")',
+      starCluster: '✨ Foremost of the Stars — orientation after uncertainty.',
       maatPrinciple: 'Right Exchange / Sacred Reciprocity',
       cosmicContext: '''
 Energy must circulate.
@@ -534,8 +534,8 @@ Giving keeps Ma\'at\'s current alive.''',
       kemeticDate: 'Thoth I – Day 7',
       season: '🌊 Akhet – Season of Inundation',
       month: 'Thoth (Djehuty)',
-      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
-      starCluster: '✨ Sopdet behind the veil — listening phase',
+      decanName: 'tpy-ꜣ sbꜣw ("Foremost of the Stars")',
+      starCluster: '✨ Foremost of the Stars — orientation after uncertainty.',
       maatPrinciple: 'Purity / Quieting Interference',
       cosmicContext: '''
 The river settles; clarity returns.
@@ -565,8 +565,8 @@ Stillness separates signal from noise.''',
       kemeticDate: 'Thoth I – Day 8',
       season: '🌊 Akhet – Season of Inundation',
       month: 'Thoth (Djehuty)',
-      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
-      starCluster: '✨ Sopdet\'s light becomes inner guidance',
+      decanName: 'tpy-ꜣ sbꜣw ("Foremost of the Stars")',
+      starCluster: '✨ Foremost of the Stars — orientation after uncertainty.',
       maatPrinciple: 'Receiving Wisdom',
       cosmicContext: '''
 From silence comes message.
@@ -596,8 +596,8 @@ Write it down — your year is speaking.''',
       kemeticDate: 'Thoth I – Day 9',
       season: '🌊 Akhet – Season of Inundation',
       month: 'Thoth (Djehuty)',
-      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
-      starCluster: '✨ Sopdet guides motion into reality',
+      decanName: 'tpy-ꜣ sbꜣw ("Foremost of the Stars")',
+      starCluster: '✨ Foremost of the Stars — orientation after uncertainty.',
       maatPrinciple: 'Action in Harmony',
       cosmicContext: '''
 Take one physical act that matches your intention.
@@ -626,8 +626,8 @@ Small motion anchors spirit into timeline.''',
       kemeticDate: 'Thoth I – Day 10',
       season: '🌊 Akhet – Season of Inundation',
       month: 'Thoth (Djehuty)',
-      decanName: 'Tepy-a Djehuty ("The First of Thoth")',
-      starCluster: '✨ Sopdet stabilizing — first cycle complete',
+      decanName: 'tpy-ꜣ sbꜣw ("Foremost of the Stars")',
+      starCluster: '✨ Foremost of the Stars — orientation after uncertainty.',
       maatPrinciple: 'Completion with Gratitude',
       cosmicContext: '''
 Close the first cycle with thanks.
@@ -657,8 +657,8 @@ Witness what you've built in ten days.''',
     kemeticDate: 'Thoth II – Day 1 (Day 11 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Khery Heped en Djehuty ("The Follower of Djehuty")',
-    starCluster: '✨ Sahu (Orion) rising higher alongside Sopdet — divine work now moves from proclamation to duty',
+      decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
+      starCluster: '✨ Heart of the Stars — integration before action.',
     maatPrinciple: 'Sacred Service — aligning your effort to something beyond yourself',
     cosmicContext: '''
 The first decan (Days 1–10) was about declaration, cleansing, naming, alignment.
@@ -694,8 +694,8 @@ This is the moment you stop treating your path like a wish, and start treating i
     kemeticDate: 'Thoth II – Day 2 (Day 12 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Khery Heped en Djehuty ("The Follower of Djehuty")',
-    starCluster: '✨ Sahu (Orion) — symbol of power, legitimacy, rightful dominion',
+      decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
+      starCluster: '✨ Heart of the Stars — integration before action.',
     maatPrinciple: 'Reciprocity / Right Exchange',
     cosmicContext: '''
 Day 12 is about exchange, not extraction.
@@ -730,8 +730,8 @@ Today, you ask: "Am I moving in circles where energy truly circulates, or am I l
     kemeticDate: 'Thoth II – Day 3 (Day 13 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Khery Heped en Djehuty ("The Follower of Djehuty")',
-    starCluster: '✨ Sahu (Orion) traveling the sky — movement, patrol, reach',
+      decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
+      starCluster: '✨ Heart of the Stars — integration before action.',
     maatPrinciple: 'Circulation of Presence',
     cosmicContext: '''
 Day 13 is a "move your body / move your field" day.
@@ -764,8 +764,8 @@ Today is for showing up physically where your purpose needs to be seen — even 
     kemeticDate: 'Thoth II – Day 4 (Day 14 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Khery Heped en Djehuty ("The Follower of Djehuty")',
-    starCluster: '✨ Sahu (Orion) — sharp, exact, warrior-clean',
+      decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
+      starCluster: '✨ Heart of the Stars — integration before action.',
     maatPrinciple: 'Refinement / Tempering',
     cosmicContext: '''
 Day 14 is your sharpening stone.
@@ -800,8 +800,8 @@ In Kemet, that's sacred. Sloppiness is a form of disrespect to the divine patter
     kemeticDate: 'Thoth II – Day 5 (Day 15 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Khery Heped en Djehuty ("The Follower of Djehuty")',
-    starCluster: '✨ The steadying belt of Sahu (Orion) — pause between exertions',
+      decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
+      starCluster: '✨ Heart of the Stars — integration before action.',
     maatPrinciple: 'Energetic Accounting',
     cosmicContext: '''
 Day 15 is not laziness. It's intelligent conservation.
@@ -836,8 +836,8 @@ You do a balance check now so you don't burn out in the next decan.
     kemeticDate: 'Thoth II – Day 6 (Day 16 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Khery Heped en Djehuty ("The Follower of Djehuty")',
-    starCluster: '✨ Sahu (Orion) in companionship — alignment with allies, lineage support',
+      decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
+      starCluster: '✨ Heart of the Stars — integration before action.',
     maatPrinciple: 'Right Relationship',
     cosmicContext: '''
 Day 16 is reconnection.
@@ -872,8 +872,8 @@ This is maintenance of alignment through relationship.
     kemeticDate: 'Thoth II – Day 7 (Day 17 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Khery Heped en Djehuty ("The Follower of Djehuty")',
-    starCluster: '✨ Sahu (Orion) as oath enforcer — the warrior who guards vows',
+      decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
+      starCluster: '✨ Heart of the Stars — integration before action.',
     maatPrinciple: 'Recommitment with Specificity',
     cosmicContext: '''
 Day 17 is "say it again, but sharper."
@@ -906,8 +906,8 @@ In Kemet, repetition was not weakness — repetition was spellcraft. Repetition 
     kemeticDate: 'Thoth II – Day 8 (Day 18 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Khery Heped en Djehuty ("The Follower of Djehuty")',
-    starCluster: '✨ Sahu with Sopdet — sanctioned abundance, earned recognition',
+      decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
+      starCluster: '✨ Heart of the Stars — integration before action.',
     maatPrinciple: 'Receiving Without Corruption',
     cosmicContext: '''
 Day 18 is about letting abundance land without guilt or distortion.
@@ -942,8 +942,8 @@ Today you practice receiving clean.
     kemeticDate: 'Thoth II – Day 9 (Day 19 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Khery Heped en Djehuty ("The Follower of Djehuty")',
-    starCluster: '✨ Sahu (Orion) completing a circuit — give back before transition',
+      decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
+      starCluster: '✨ Heart of the Stars — integration before action.',
     maatPrinciple: 'Closing the Loop',
     cosmicContext: '''
 Day 19 is return offering.
@@ -976,8 +976,8 @@ Without this step, flow becomes hoarding. With this step, flow becomes lineage.
     kemeticDate: 'Thoth II – Day 10 (Day 20 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Khery Heped en Djehuty ("The Follower of Djehuty")',
-    starCluster: '✨ Sahu (Orion) approaching handoff to the next 10-day current',
+      decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
+      starCluster: '✨ Heart of the Stars — integration before action.',
     maatPrinciple: 'Integration and Transition',
     cosmicContext: '''
 Day 20 is the bridge.
@@ -1016,8 +1016,8 @@ This is where wisdom becomes infrastructure.
     kemeticDate: 'Thoth III, Day 1 (Day 21 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Shem-su Djehuty ("The Retinue of Djehuty," the procession that carries established order forward)',
-    starCluster: '✨ Sahu (Orion) standing fully in the southern sky — emblem of strength, declared identity, kingship authority',
+      decanName: 'sbꜣw ("The Stars")',
+      starCluster: '✨ The Stars — understanding held in relation.',
     maatPrinciple: 'Standing in Role',
     cosmicContext: '''
 The first decan (1–10) was "Speak truth."
@@ -1049,8 +1049,8 @@ Day 21 is the moment you assume the throne of your own life. You're not pitching
     kemeticDate: 'Thoth III, Day 2 (Day 22 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Shem-su Djehuty ("The Retinue of Djehuty")',
-    starCluster: '✨ Sahu (Orion) as guardian — the cosmic enforcer of boundaries and legitimacy',
+      decanName: 'sbꜣw ("The Stars")',
+      starCluster: '✨ The Stars — understanding held in relation.',
     maatPrinciple: 'Protection of the Field',
     cosmicContext: '''
 Day 22 is boundary-setting.
@@ -1082,8 +1082,8 @@ If you do not guard the field, the field is not sacred — it's public. Day 22 f
     kemeticDate: 'Thoth III, Day 3 (Day 23 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Shem-su Djehuty ("The Retinue of Djehuty")',
-    starCluster: '✨ Sahu (Orion) as ruler of pattern — repetition, scheduling, discipline',
+      decanName: 'sbꜣw ("The Stars")',
+      starCluster: '✨ The Stars — understanding held in relation.',
     maatPrinciple: 'Rhythmic Order',
     cosmicContext: '''
 Day 23 is about workflow as ritual.
@@ -1114,8 +1114,8 @@ You're doing the same: defining what repeats in your life because it supports ba
     kemeticDate: 'Thoth III, Day 4 (Day 24 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Shem-su Djehuty ("The Retinue of Djehuty")',
-    starCluster: '✨ Sahu (Orion) with a defensive posture — clarity of aim, clarity of perimeter',
+      decanName: 'sbꜣw ("The Stars")',
+      starCluster: '✨ The Stars — understanding held in relation.',
     maatPrinciple: 'Focus Is Sacred',
     cosmicContext: '''
 Day 24 is surgical.
@@ -1147,8 +1147,8 @@ In Kemetic terms: you are removing access to the inner sanctuary from anything t
     kemeticDate: 'Thoth III, Day 5 (Day 25 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Shem-su Djehuty ("The Retinue of Djehuty")',
-    starCluster: '✨ Sahu (Orion) standing over the land — material base, physical infrastructure',
+      decanName: 'sbꜣw ("The Stars")',
+      starCluster: '✨ The Stars — understanding held in relation.',
     maatPrinciple: 'Stability / Resourcing',
     cosmicContext: '''
 Day 25 is inventory.
@@ -1179,8 +1179,8 @@ In Kemet, power was logistics. You cannot embody divine order if your practical 
     kemeticDate: 'Thoth III, Day 6 (Day 26 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Shem-su Djehuty ("The Retinue of Djehuty")',
-    starCluster: '✨ Sahu (Orion) in procession with ancestral light — continuity of line',
+      decanName: 'sbꜣw ("The Stars")',
+      starCluster: '✨ The Stars — understanding held in relation.',
     maatPrinciple: 'Lineage / Continuity',
     cosmicContext: '''
 Day 26 plugs you into why this matters beyond you.
@@ -1212,8 +1212,8 @@ When you see your work like that, it stops being ego performance and becomes cus
     kemeticDate: 'Thoth III, Day 7 (Day 27 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Shem-su Djehuty ("The Retinue of Djehuty")',
-    starCluster: '✨ Sahu (Orion) presented to the world — regal, visible, composed',
+      decanName: 'sbꜣw ("The Stars")',
+      starCluster: '✨ The Stars — understanding held in relation.',
     maatPrinciple: 'Presentation / Signaling',
     cosmicContext: '''
 Day 27 is about how you show up publicly.
@@ -1244,8 +1244,8 @@ Today's question is: does your exterior presentation match the current you are a
     kemeticDate: 'Thoth III, Day 8 (Day 28 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Shem-su Djehuty ("The Retinue of Djehuty")',
-    starCluster: '✨ Sahu (Orion) as law-holder — order written, not just implied',
+      decanName: 'sbꜣw ("The Stars")',
+      starCluster: '✨ The Stars — understanding held in relation.',
     maatPrinciple: 'Codifying the Standard',
     cosmicContext: '''
 Day 28 is where you write your code.
@@ -1277,8 +1277,8 @@ This is how future-you (and anyone in your orbit) knows what's sacred and what's
     kemeticDate: 'Thoth III, Day 9 (Day 29 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Shem-su Djehuty ("The Retinue of Djehuty")',
-    starCluster: '✨ Sahu (Orion) with protective field — guard, ward, shield',
+      decanName: 'sbꜣw ("The Stars")',
+      starCluster: '✨ The Stars — understanding held in relation.',
     maatPrinciple: 'Fortification / Defense',
     cosmicContext: '''
 Day 29 is defense build-out.
@@ -1309,8 +1309,8 @@ You're not hardening your heart. You're hardening your perimeter.
     kemeticDate: 'Thoth III, Day 10 (Day 30 of Thoth)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
-    decanName: 'Shem-su Djehuty ("The Retinue of Djehuty")',
-    starCluster: '✨ Sahu (Orion) concluding his circuit — authority stabilized, identity crowned',
+      decanName: 'sbꜣw ("The Stars")',
+      starCluster: '✨ The Stars — understanding held in relation.',
     maatPrinciple: 'Sealing Identity',
     cosmicContext: '''
 Day 30 is the close of the Month of Thoth.
@@ -1346,8 +1346,8 @@ You are declaring: "This is who I am going into the next month." That declaratio
     kemeticDate: 'Paopi I, Day 1 (Day 1 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
-    decanName: 'ỉpḏs ("The Spear / The Point") — the first sharp light that breaks the dark and signals "move"',
-    starCluster: '✨ ỉpḏs rising before dawn in the southern sky; a piercing, focused star-group used by temple watchers to mark the return of labor crews to the waterlines and channels',
+      decanName: 'ꜥḥꜣy ("The Riser")',
+      starCluster: '✨ The Riser — initiation of motion.',
     maatPrinciple: 'Intention Becomes Motion',
     cosmicContext: '''
 This is the moment you stop planning and start carrying.
@@ -1379,8 +1379,8 @@ Day 1 is you picking up the first load of the new cycle and saying: I am active 
     kemeticDate: 'Paopi I, Day 2 (Day 2 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ỉpḏs ("The Spear / The Point")',
-    starCluster: '✨ ỉpḏs, that "spear-tip" decan, used to call crews to move together at first light — no one was idle once ỉpḏs rose',
+      decanName: 'ꜥḥꜣy ("The Riser")',
+      starCluster: '✨ The Riser — initiation of motion.',
     maatPrinciple: 'Movement As One Body',
     cosmicContext: '''
 Today is about rejoining the current.
@@ -1411,8 +1411,8 @@ Day 2 asks: Who are you moving with? You're allowed to carry as part of a body. 
     kemeticDate: 'Paopi I, Day 3 (Day 3 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ỉpḏs ("The Spear / The Point")',
-    starCluster: '✨ ỉpḏs cutting darkness — temple observers read it as the signal: resume the channels, resume the haul',
+      decanName: 'ꜥḥꜣy ("The Riser")',
+      starCluster: '✨ The Riser — initiation of motion.',
     maatPrinciple: 'Rhythmic Endurance',
     cosmicContext: '''
 Day 3 is about pace.
@@ -1444,8 +1444,8 @@ Today you ask: Can I carry this pace for 10 days without injuring myself, burnin
     kemeticDate: 'Paopi I, Day 4 (Day 4 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ỉpḏs ("The Spear / The Point")',
-    starCluster: '✨ ỉpḏs, seen as a banner of decision: "We resume life now."',
+      decanName: 'ꜥḥꜣy ("The Riser")',
+      starCluster: '✨ The Riser — initiation of motion.',
     maatPrinciple: 'Sacred Labor, Not Humiliation',
     cosmicContext: '''
 Day 4 is about how you regard your own effort.
@@ -1477,8 +1477,8 @@ Today: rename your labor.
     kemeticDate: 'Paopi I, Day 5 (Day 5 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ỉpḏs ("The Spear / The Point")',
-    starCluster: '✨ ỉpḏs over the floodplain teams — the visual "start signal" for coordinated labor',
+      decanName: 'ꜥḥꜣy ("The Riser")',
+      starCluster: '✨ The Riser — initiation of motion.',
     maatPrinciple: 'Shared Load / Shared Survival',
     cosmicContext: '''
 Day 5 is redistribution of weight.
@@ -1509,8 +1509,8 @@ Today's honesty: Where am I quietly breaking while pretending I'm fine? And also
     kemeticDate: 'Paopi I, Day 6 (Day 6 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ỉpḏs ("The Spear / The Point")',
-    starCluster: '✨ The same spear-light of ỉpḏs becomes a test: are you on mission or just hauling trash?',
+      decanName: 'ꜥḥꜣy ("The Riser")',
+      starCluster: '✨ The Riser — initiation of motion.',
     maatPrinciple: 'Only Carry What\'s Aligned',
     cosmicContext: '''
 Day 6 is ruthless.
@@ -1543,8 +1543,8 @@ Today: Drop what is not yours.
     kemeticDate: 'Paopi I, Day 7 (Day 7 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ỉpḏs ("The Spear / The Point")',
-    starCluster: '✨ Standards and emblems raised in the procession under ỉpḏs — "We announce who we carry for."',
+      decanName: 'ꜥḥꜣy ("The Riser")',
+      starCluster: '✨ The Riser — initiation of motion.',
     maatPrinciple: 'Speak From Your Station',
     cosmicContext: '''
 Day 7 is voice alignment.
@@ -1577,8 +1577,8 @@ Your language teaches the world how to regard your work.
     kemeticDate: 'Paopi I, Day 8 (Day 8 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ỉpḏs ("The Spear / The Point")',
-    starCluster: '✨ ỉpḏs over rest stations on the flood road — water, shade, bread for carriers',
+      decanName: 'ꜥḥꜣy ("The Riser")',
+      starCluster: '✨ The Riser — initiation of motion.',
     maatPrinciple: 'Maintain the Carrier',
     cosmicContext: '''
 Day 8 is repair/restore.
@@ -1610,8 +1610,8 @@ Today is not "pamper yourself because you earned it." Today is "maintain the mac
     kemeticDate: 'Paopi I, Day 9 (Day 9 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ỉpḏs ("The Spear / The Point")',
-    starCluster: '✨ ỉpḏs over the route — flood channels reopened, offerings actually moving between places',
+      decanName: 'ꜥḥꜣy ("The Riser")',
+      starCluster: '✨ The Riser — initiation of motion.',
     maatPrinciple: 'Honor the Route / Know the Destination',
     cosmicContext: '''
 Day 9 is clarity of destination.
@@ -1643,8 +1643,8 @@ So ask: Where is this load supposed to arrive? Who will eat because you carried 
     kemeticDate: 'Paopi I, Day 10 (Day 10 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ỉpḏs ("The Spear / The Point")',
-    starCluster: '✨ Under ỉpḏs, the load reaches the altar / the storehouse / the household table',
+      decanName: 'ꜥḥꜣy ("The Riser")',
+      starCluster: '✨ The Riser — initiation of motion.',
     maatPrinciple: 'Labor As Offering',
     cosmicContext: '''
 Day 10 seals the decan of ỉpḏs.
@@ -1680,8 +1680,8 @@ You're allowed to call that sacred.
     kemeticDate: 'Paopi II, Day 11 (Day 11 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet – "The Carrying / The Bringing")',
-    decanName: 'sbšsn ("The Scattered Sparks") — a spray of dim stars like embers, symbol of labor fanning across the land',
-    starCluster: '✨ sbšsn rising before dawn — interpreted as "lit points" scattered along the floodplain, each point a worker, a family, a boat route, a duty post',
+      decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
+      starCluster: '✨ Heart of the Riser — sustained, aware motion.',
     maatPrinciple: 'Many Small Fires Keep the Land Alive',
     cosmicContext: '''
 The first decan of Paopi (ỉpḏs) was one spear of motion: everyone shoulders together, one procession, one surge.
@@ -1713,8 +1713,8 @@ You are responsible to more than just the one place you're standing.
     kemeticDate: 'Paopi II, Day 12 (Day 12 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'sbšsn ("The Scattered Sparks")',
-    starCluster: '✨ sbšsn described as glowing embers flung wide — each ember = a unit of care delivered outward',
+      decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
+      starCluster: '✨ Heart of the Riser — sustained, aware motion.',
     maatPrinciple: 'Send the Provision Outward',
     cosmicContext: '''
 Day 12 is not about hoarding. It's about circulation.
@@ -1746,8 +1746,8 @@ You prove someone is not abandoned.
     kemeticDate: 'Paopi II, Day 13 (Day 13 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'sbšsn ("The Scattered Sparks")',
-    starCluster: '✨ sbšsn mapped as many weak lights connected by imagined lines — like a web',
+      decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
+      starCluster: '✨ Heart of the Riser — sustained, aware motion.',
     maatPrinciple: 'Build the Lane, Don\'t Wing It',
     cosmicContext: '''
 Day 13 is where you formalize the route.
@@ -1779,8 +1779,8 @@ Today's move: lock in cadence. Don't just "hit me if you need anything." Build a
     kemeticDate: 'Paopi II, Day 14 (Day 14 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'sbšsn ("The Scattered Sparks")',
-    starCluster: '✨ sbšsn called "embers," not "tribute lights." That matters: it implies everyone gives and everyone warms.',
+      decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
+      starCluster: '✨ Heart of the Riser — sustained, aware motion.',
     maatPrinciple: 'Exchange, Not Extraction',
     cosmicContext: '''
 Day 14 is about reciprocity.
@@ -1812,8 +1812,8 @@ Today you check: Is this relationship mutual, or is somebody being used?
     kemeticDate: 'Paopi II, Day 15 (Day 15 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'sbšsn ("The Scattered Sparks")',
-    starCluster: '✨ sbšsn described as "glowing embers," plural — proof that light is not centralized',
+      decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
+      starCluster: '✨ Heart of the Riser — sustained, aware motion.',
     maatPrinciple: 'See the Work You Can\'t See',
     cosmicContext: '''
 Day 15 is about witnessing remote labor.
@@ -1845,8 +1845,8 @@ You do not ignore invisible carriers and still claim Ma'at.
     kemeticDate: 'Paopi II, Day 16 (Day 16 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'sbšsn ("The Scattered Sparks")',
-    starCluster: '✨ sbšsn read as "sparks across the whole field," not clustered — some sparks dimmer, struggling',
+      decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
+      starCluster: '✨ Heart of the Riser — sustained, aware motion.',
     maatPrinciple: 'Reinforce the Weak Points',
     cosmicContext: '''
 Day 16 is repair duty.
@@ -1877,8 +1877,8 @@ You go where Ma'at is wobbling and you stabilize it. That is holy work.
     kemeticDate: 'Paopi II, Day 17 (Day 17 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'sbšsn ("The Scattered Sparks")',
-    starCluster: '✨ sbšsn also interpreted in ritual texts as "lights that carry words" — messages sent along water routes',
+      decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
+      starCluster: '✨ Heart of the Riser — sustained, aware motion.',
     maatPrinciple: 'Carry Ma\'at In Your Mouth',
     cosmicContext: '''
 Day 17 is messaging.
@@ -1910,8 +1910,8 @@ So ask: What are you actually exporting emotionally?
     kemeticDate: 'Paopi II, Day 18 (Day 18 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'sbšsn ("The Scattered Sparks")',
-    starCluster: '✨ sbšsn scattered = many points, many tensions. Network work means network stress.',
+      decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
+      starCluster: '✨ Heart of the Riser — sustained, aware motion.',
     maatPrinciple: 'Tend the Web Before It Tears',
     cosmicContext: '''
 Day 18 is early conflict resolution.
@@ -1942,8 +1942,8 @@ Today you scan for fracture lines — envy, fatigue, miscommunication, hunger �
     kemeticDate: 'Paopi II, Day 19 (Day 19 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'sbšsn ("The Scattered Sparks")',
-    starCluster: '✨ sbšsn plotted like a loose web — temple astronomers literally tracked them as coordinates',
+      decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
+      starCluster: '✨ Heart of the Riser — sustained, aware motion.',
     maatPrinciple: 'See the Whole Network',
     cosmicContext: '''
 Day 19 is wide-angle vision.
@@ -1975,8 +1975,8 @@ Today's truth moment: Do you actually understand the system you're inside, or ar
     kemeticDate: 'Paopi II, Day 20 (Day 20 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'sbšsn ("The Scattered Sparks")',
-    starCluster: '✨ sbšsn closing: the scattered embers across the sky are understood as one body of light, not random points',
+      decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
+      starCluster: '✨ Heart of the Riser — sustained, aware motion.',
     maatPrinciple: 'Bless the Distributed Body',
     cosmicContext: '''
 Day 20 ends the decan of sbšsn.
@@ -2012,8 +2012,8 @@ You include yourself in that blessing. You are part of why balance still exists.
     kemeticDate: 'Paopi III, Day 21 (Day 21 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet – "The Carrying / The Bringing")',
-    decanName: 'ḫntt ḥrt ("Foremost of the Upper Sky") — high, bright decan seen as Ra\'s standard-bearer',
-    starCluster: '✨ ḫntt ḥrt sits elevated overhead, "newly visible" after being drowned in sunlight; priests read it as oversight from above',
+      decanName: 'sbꜣ nfr ("The Beautiful Star")',
+      starCluster: '✨ The Beautiful Star — continuity proven in motion.',
     maatPrinciple: 'You Are Now Responsible',
     cosmicContext: '''The first Paopi decan (ỉpḏs) was muscle.
 The second (sbšsn) was distribution and connection.
@@ -2047,8 +2047,8 @@ carry yourself like you answer to light, not to ego.''',
     kemeticDate: 'Paopi III, Day 22 (Day 22 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ḫntt ḥrt ("Foremost of the Upper Sky")',
-    starCluster: '✨ ḫntt ḥrt as "Ra\'s standard-bearer" = inspection energy — the banner goes first, then the Eye sees',
+      decanName: 'sbꜣ nfr ("The Beautiful Star")',
+      starCluster: '✨ The Beautiful Star — continuity proven in motion.',
     maatPrinciple: 'Inspect the Channels',
     cosmicContext: '''
 Day 22 is literal inspection.
@@ -2083,8 +2083,8 @@ Stop assuming it's fine because you're tired of checking.''',
     kemeticDate: 'Paopi III, Day 23 (Day 23 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ḫntt ḥrt ("Foremost of the Upper Sky")',
-    starCluster: '✨ ḫntt ḥrt high overhead = "the higher eye" — oversight from above, inventory from above',
+      decanName: 'sbꜣ nfr ("The Beautiful Star")',
+      starCluster: '✨ The Beautiful Star — continuity proven in motion.',
     maatPrinciple: 'Verify the Storehouse',
     cosmicContext: '''
 Day 23 is audit day.
@@ -2119,8 +2119,8 @@ There is no Ma'at in cooked books.''',
     kemeticDate: 'Paopi III, Day 24 (Day 24 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ḫntt ḥrt ("Foremost of the Upper Sky")',
-    starCluster: '✨ Priests called it "Ra\'s standard-bearer," which implies judgment in daylight — exposure',
+      decanName: 'sbꜣ nfr ("The Beautiful Star")',
+      starCluster: '✨ The Beautiful Star — continuity proven in motion.',
     maatPrinciple: 'Call Out Rot',
     cosmicContext: '''
 Day 24 is uncomfortable but necessary.
@@ -2154,8 +2154,8 @@ You are allowed to say "This is corruption," and still be in Ma'at.''',
     kemeticDate: 'Paopi III, Day 25 (Day 25 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ḫntt ḥrt ("Foremost of the Upper Sky")',
-    starCluster: '✨ ḫntt ḥrt = high standard, not low bar; priests used this period for setting rules, not asking nicely',
+      decanName: 'sbꜣ nfr ("The Beautiful Star")',
+      starCluster: '✨ The Beautiful Star — continuity proven in motion.',
     maatPrinciple: 'Restore Standards',
     cosmicContext: '''
 Day 25 is boundary work.
@@ -2193,8 +2193,8 @@ That is not cruelty. That is protection of Ma'at.''',
     kemeticDate: 'Paopi III, Day 26 (Day 26 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ḫntt ḥrt ("Foremost of the Upper Sky")',
-    starCluster: '✨ ḫntt ḥrt as "oversight from above" means deciding who should actually be doing what',
+      decanName: 'sbꜣ nfr ("The Beautiful Star")',
+      starCluster: '✨ The Beautiful Star — continuity proven in motion.',
     maatPrinciple: 'Put the Right People in the Right Role',
     cosmicContext: '''
 Day 26 is reassignment.
@@ -2229,8 +2229,8 @@ It's not punishment. It's correcting misalignment so Ma'at can survive the next 
     kemeticDate: 'Paopi III, Day 27 (Day 27 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ḫntt ḥrt ("Foremost of the Upper Sky")',
-    starCluster: '✨ High, visible, authoritative — "the banner is up; the terms are clear"',
+      decanName: 'sbꜣ nfr ("The Beautiful Star")',
+      starCluster: '✨ The Beautiful Star — continuity proven in motion.',
     maatPrinciple: 'Seal the Agreements',
     cosmicContext: '''
 Day 27 is contract energy.
@@ -2265,8 +2265,8 @@ It runs on clarity.''',
     kemeticDate: 'Paopi III, Day 28 (Day 28 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ḫntt ḥrt ("Foremost of the Upper Sky")',
-    starCluster: '✨ ḫntt ḥrt is read as "answerable to Ra" — you answer upward with truth',
+      decanName: 'sbꜣ nfr ("The Beautiful Star")',
+      starCluster: '✨ The Beautiful Star — continuity proven in motion.',
     maatPrinciple: 'Report Up to the Light',
     cosmicContext: '''
 Day 28 is accountability upward.
@@ -2298,8 +2298,8 @@ Spiritually: this is confession without shame. "Here is the truth of my domain."
     kemeticDate: 'Paopi III, Day 29 (Day 29 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet)',
-    decanName: 'ḫntt ḥrt ("Foremost of the Upper Sky")',
-    starCluster: '✨ High, bright, watching — not hype, but guardianship',
+      decanName: 'sbꜣ nfr ("The Beautiful Star")',
+      starCluster: '✨ The Beautiful Star — continuity proven in motion.',
     maatPrinciple: 'Stabilize the System',
     cosmicContext: '''
 Day 29 is reinforcement and lock-down.
@@ -2331,8 +2331,8 @@ In you: repair, redistribute, finalize, set guards, put systems in place so thin
     kemeticDate: 'Paopi III, Day 30 (Day 30 of Paopi / Menkhet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Paopi (Menkhet – "The Carrying / The Bringing")',
-    decanName: 'ḫntt ḥrt ("Foremost of the Upper Sky")',
-    starCluster: '✨ ḫntt ḥrt, the "standard of Ra," closing the month: the banner raised to say "The work was witnessed"',
+      decanName: 'sbꜣ nfr ("The Beautiful Star")',
+      starCluster: '✨ The Beautiful Star — continuity proven in motion.',
     maatPrinciple: 'Stewardship Before the Sun',
     cosmicContext: '''
 Day 30 ends Paopi.
@@ -2364,7 +2364,7 @@ You hand the month back clean.''',
   ),
 
   // ==========================================================
-  // 🌞 HATHOR I — DAYS 1–10  (First Decan - ḫntt ẖrt)
+  // 🌞 HATHOR I — DAYS 1–10  (First Decan - sꜣḥ)
   // ==========================================================
 
   'hathor_1_1': KemeticDayInfo(
@@ -2372,8 +2372,8 @@ You hand the month back clean.''',
     kemeticDate: 'Hathor I, Day 1 (Day 1 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet) — Hathor, "House of Horus," golden cow whose body is the sky, patron of joy that heals',
-    decanName: 'ḫntt ẖrt ("Foremost of the Lower Sky") — the guide-star rising low in the east before dawn',
-    starCluster: '✨ ḫntt ẖrt was called "the one who leads the ways of the night," a low light that said: you can move forward now',
+      decanName: 'sꜣḥ ("Sah")',
+      starCluster: '✨ Sah — stability regained.',
     maatPrinciple: 'You Lived. Honor That.',
     cosmicContext: '''The flood tested you. Paopi demanded carrying, distributing, protecting, auditing.
 Hathor opens with mercy.
@@ -2409,8 +2409,8 @@ This day is sacred because you're still here.''',
     kemeticDate: 'Hathor I, Day 2 (Day 2 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḫntt ẖrt ("Foremost of the Lower Sky")',
-    starCluster: '✨ Low eastern guide-light used with water clocks to measure night hours — proof the dark is being timed, not feared',
+      decanName: 'sꜣḥ ("Sah")',
+      starCluster: '✨ Sah — stability regained.',
     maatPrinciple: 'Put Your Body Back in Safety',
     cosmicContext: '''Hathor is not only cosmic cow; she's tenderness made structural.
 
@@ -2442,8 +2442,8 @@ You can't pour beauty into the world if you're clenched and starving.''',
     kemeticDate: 'Hathor I, Day 3 (Day 3 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḫntt ẖrt ("Foremost of the Lower Sky")',
-    starCluster: '✨ A "leader star" used to mark the first usable hour before sunrise — the moment you can start moving',
+      decanName: 'sꜣḥ ("Sah")',
+      starCluster: '✨ Sah — stability regained.',
     maatPrinciple: 'Clear the Path So Joy Can Walk',
     cosmicContext: '''After flood season, the land is muddy, cluttered, chaotic.
 Before you can plant, you harrow — break crust, clear debris, smooth channels.
@@ -2478,8 +2478,8 @@ This is "make the lane walkable."''',
     kemeticDate: 'Hathor I, Day 4 (Day 4 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḫntt ẖrt ("Foremost of the Lower Sky")',
-    starCluster: '✨ Under Hathor, mirrors were flashed in procession to reflect sunrise — literally throwing light back to the gods',
+      decanName: 'sꜣḥ ("Sah")',
+      starCluster: '✨ Sah — stability regained.',
     maatPrinciple: 'Invite Joy, On Purpose',
     cosmicContext: '''Pleasure in Hathor's month is not "treat yourself and forget the world."
 Pleasure is medicine, morale, spiritual glue.
@@ -2513,8 +2513,8 @@ That was maintenance of spirit.''',
     kemeticDate: 'Hathor I, Day 5 (Day 5 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḫntt ẖrt ("Foremost of the Lower Sky")',
-    starCluster: '✨ The "guide-star" phase was also when farmers reentered their physical homes after flood-risk — home becomes temple again',
+      decanName: 'sꜣḥ ("Sah")',
+      starCluster: '✨ Sah — stability regained.',
     maatPrinciple: 'Restore the Sanctuary',
     cosmicContext: '''Day 5 is house-repair / nest-repair.
 You put your physical world back in Ma'at: sheets washed, floors cleared, altar refreshed, workspace aligned, cooking space reset.
@@ -2547,8 +2547,8 @@ You are literally rebuilding your temple.''',
     kemeticDate: 'Hathor I, Day 6 (Day 6 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḫntt ẖrt ("Foremost of the Lower Sky")',
-    starCluster: '✨ Hathor is also divine companion — lover, mother, friend, comforter. Her decans weren\'t solitary. They were relational.',
+      decanName: 'sꜣḥ ("Sah")',
+      starCluster: '✨ Sah — stability regained.',
     maatPrinciple: 'Warm the Bonds',
     cosmicContext: '''Day 6 is relational repair.
 In flood/strain mode, you go cold just to survive. You go distant. You get sharp.
@@ -2582,8 +2582,8 @@ Connection itself was seen as medicine to the land.''',
     kemeticDate: 'Hathor I, Day 7 (Day 7 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḫntt ẖrt ("Foremost of the Lower Sky")',
-    starCluster: '✨ Priests at Dendera called themselves ḥmwt-nṯr ḥwt-ḥr — "Servants of the Goddess of the House of Horus." They didn\'t just praise beauty. They produced it.',
+      decanName: 'sꜣḥ ("Sah")',
+      starCluster: '✨ Sah — stability regained.',
     maatPrinciple: 'Beauty as Offering',
     cosmicContext: '''Day 7 is active offering.
 Cook something nourishing. Dress the body with care. Write the words that heal. Light the room. Make music. Speak blessing.
@@ -2616,8 +2616,8 @@ Your softness can be someone else's survival point.''',
     kemeticDate: 'Hathor I, Day 8 (Day 8 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḫntt ẖrt ("Foremost of the Lower Sky")',
-    starCluster: '✨ This decan was used to mark the hour-before-dawn when work crews would gather — calm, not frantic',
+      decanName: 'sꜣḥ ("Sah")',
+      starCluster: '✨ Sah — stability regained.',
     maatPrinciple: 'Bring Work Back With Grace',
     cosmicContext: '''Day 8 is where routine starts again — but you refuse to re-enter grind mode like nothing happened.
 
@@ -2650,8 +2650,8 @@ This is "structure my rhythm so I don't collapse."''',
     kemeticDate: 'Hathor I, Day 9 (Day 9 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḫntt ẖrt ("Foremost of the Lower Sky")',
-    starCluster: '✨ The low dawn-star was sometimes described as "the face that returns" — the self revealed again after hardship',
+      decanName: 'sꜣḥ ("Sah")',
+      starCluster: '✨ Sah — stability regained.',
     maatPrinciple: 'Walk Like You Are Worthy',
     cosmicContext: '''In survival mode, you shrink. You get practical, grim, efficient. You feel "dirty," "tired," "less than."
 
@@ -2684,8 +2684,8 @@ Radiance is proof that life is still flowing.''',
     kemeticDate: 'Hathor I, Day 10 (Day 10 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḫntt ẖrt ("Foremost of the Lower Sky")',
-    starCluster: '✨ The end of this decan closes the first 10-day pulse of Hathor: guidance back to earth, safety, beauty, bond, dignity',
+      decanName: 'sꜣḥ ("Sah")',
+      starCluster: '✨ Sah — stability regained.',
     maatPrinciple: 'Thank the Ones Who Held You',
     cosmicContext: '''Day 10 is offering and gratitude.
 In Kemet, people poured beer into the Nile, hung lotus garlands, lifted music to the goddess.
@@ -2715,7 +2715,7 @@ Joy is earned survival, honored.''',
   ),
 
   // ==========================================================
-  // 🌞 HATHOR II — DAYS 11–20  (Second Decan - ṯms n ḫntt)
+  // 🌞 HATHOR II — DAYS 11–20  (Second Decan - ḥry-ib sꜣḥ)
   // ==========================================================
 
   'hathor_11_2': KemeticDayInfo(
@@ -2723,8 +2723,8 @@ Joy is earned survival, honored.''',
     kemeticDate: 'Hathor II, Day 11 (Day 11 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet — "House of Horus")',
-    decanName: 'ṯms n ḫntt ("The Companion of the Foremost")',
-    starCluster: '✨ ṯms n ḫntt rises just behind the lead star, like a loyal twin. The priests literally tracked night timing by watching the pair move together.',
+      decanName: 'ḥry-ib sꜣḥ ("Heart of Sah")',
+      starCluster: '✨ Heart of Sah — harmonized stability.',
     maatPrinciple: 'Declare We',
     cosmicContext: '''The first Hathor decan (ḫntt ẖrt) was you returning to your body, your home, your worth.
 The second decan (ṯms n ḫntt) says: now return to your people.
@@ -2758,8 +2758,8 @@ In Kemet, this is the moment crews actually formed to rebuild channels and repai
     kemeticDate: 'Hathor II, Day 12 (Day 12 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ṯms n ḫntt ("The Companion of the Foremost")',
-    starCluster: '✨ ṯms n ḫntt was used to check alignment — priests literally used this pair to keep the temple\'s axis true during the night. "Are we still on line?"',
+      decanName: 'ḥry-ib sꜣḥ ("Heart of Sah")',
+      starCluster: '✨ Heart of Sah — harmonized stability.',
     maatPrinciple: 'Sync the Rhythm',
     cosmicContext: '''Day 12 is pace-setting.
 You and your person/crew decide: When are we working? When are we resting? When do we check in?
@@ -2792,8 +2792,8 @@ Harmony wasn't cute. It was logistics.''',
     kemeticDate: 'Hathor II, Day 13 (Day 13 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ṯms n ḫntt ("The Companion of the Foremost")',
-    starCluster: '✨ The "companion" aspect was not just romance. Crews in the fields, boat teams, grinding teams, canal maintenance teams — all moved in pairs or clusters.',
+      decanName: 'ḥry-ib sꜣḥ ("Heart of Sah")',
+      starCluster: '✨ Heart of Sah — harmonized stability.',
     maatPrinciple: 'Share the Load Fairly',
     cosmicContext: '''Day 13 is redistribution.
 Who is quietly doing 80% of the house work / money work / emotional work / parenting work / clean-up work / damage control work — and pretending they're fine?
@@ -2826,8 +2826,8 @@ In Kemet, this kept households from collapsing.''',
     kemeticDate: 'Hathor II, Day 14 (Day 14 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ṯms n ḫntt ("The Companion of the Foremost")',
-    starCluster: '✨ The "companion" is close enough to feel heat. This decan was used to monitor alignment under tension, not just alignment under ease.',
+      decanName: 'ḥry-ib sꜣḥ ("Heart of Sah")',
+      starCluster: '✨ Heart of Sah — harmonized stability.',
     maatPrinciple: 'Be Honest in Friction',
     cosmicContext: '''Day 14 is the conversation nobody wants to have until it's already toxic.
 
@@ -2861,8 +2861,8 @@ Harmony is not silence. Harmony is clean truth early.''',
     kemeticDate: 'Hathor II, Day 15 (Day 15 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ṯms n ḫntt ("The Companion of the Foremost")',
-    starCluster: '✨ This pair-star guided night labor on canals and grain storage. This day is infrastructure day.',
+      decanName: 'ḥry-ib sꜣḥ ("Heart of Sah")',
+      starCluster: '✨ Heart of Sah — harmonized stability.',
     maatPrinciple: 'Repair the Commons',
     cosmicContext: '''Day 15 is where y'all fix the actual shared system.
 Not theory. Actual fix.
@@ -2896,8 +2896,8 @@ So you fix the canal wall together.''',
     kemeticDate: 'Hathor II, Day 16 (Day 16 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ṯms n ḫntt ("The Companion of the Foremost")',
-    starCluster: '✨ The paired decan is literally described as traveling "with" — not in front of, not behind, but beside. This is protection energy.',
+      decanName: 'ḥry-ib sꜣḥ ("Heart of Sah")',
+      starCluster: '✨ Heart of Sah — harmonized stability.',
     maatPrinciple: 'I Guard You / You Guard Me',
     cosmicContext: '''Day 16 is mutual protection.
 
@@ -2934,8 +2934,8 @@ If somebody slanders you, that can cost food.''',
     kemeticDate: 'Hathor II, Day 17 (Day 17 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ṯms n ḫntt ("The Companion of the Foremost")',
-    starCluster: '✨ ṯms n ḫntt was celebrated as loyal, faithful. Companionship itself had sacred status.',
+      decanName: 'ḥry-ib sꜣḥ ("Heart of Sah")',
+      starCluster: '✨ Heart of Sah — harmonized stability.',
     maatPrinciple: 'Honor What We Built Together',
     cosmicContext: '''Day 17 is recognition.
 Not "Look what I did."
@@ -2971,8 +2971,8 @@ It bonded crews so they'd keep showing up.''',
     kemeticDate: 'Hathor II, Day 18 (Day 18 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ṯms n ḫntt ("The Companion of the Foremost")',
-    starCluster: '✨ Priests said this companion star "keeps the way straight." This is tuning, optimizing, correcting drift.',
+      decanName: 'ḥry-ib sꜣḥ ("Heart of Sah")',
+      starCluster: '✨ Heart of Sah — harmonized stability.',
     maatPrinciple: 'Refine the System Together',
     cosmicContext: '''Day 18 is shared optimization.
 
@@ -3011,8 +3011,8 @@ In Kemet, this is how you prevent next month's crisis.''',
     kemeticDate: 'Hathor II, Day 19 (Day 19 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ṯms n ḫntt ("The Companion of the Foremost")',
-    starCluster: '✨ ṯms n ḫntt is not just co-working; it\'s co-rest. A companion travels with you in motion and in stillness.',
+      decanName: 'ḥry-ib sꜣḥ ("Heart of Sah")',
+      starCluster: '✨ Heart of Sah — harmonized stability.',
     maatPrinciple: 'Rest in Harmony',
     cosmicContext: '''Day 19 is shared rest.
 
@@ -3047,8 +3047,8 @@ You're negotiating with them.''',
     kemeticDate: 'Hathor II, Day 20 (Day 20 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ṯms n ḫntt ("The Companion of the Foremost")',
-    starCluster: '✨ ṯms n ḫntt closes its run as proof: harmony itself is infrastructure. The bond is structural. It keeps the canals clean and the home standing.',
+      decanName: 'ḥry-ib sꜣḥ ("Heart of Sah")',
+      starCluster: '✨ Heart of Sah — harmonized stability.',
     maatPrinciple: 'This Bond Is Part of Balance',
     cosmicContext: '''Day 20 seals this decan.
 
@@ -3080,7 +3080,7 @@ You tell them:
   ),
 
   // ==========================================================
-  // 🌞 HATHOR III — DAYS 21–30  (Third Decan - ḳdty)
+  // 🌞 HATHOR III — DAYS 21–30  (Third Decan - sbꜣ sꜣḥ)
   // ==========================================================
 
   'hathor_21_3': KemeticDayInfo(
@@ -3088,8 +3088,8 @@ You tell them:
     kemeticDate: 'Hathor III, Day 21 (Day 21 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet — "House of Horus," sky-cow, joy as order)',
-    decanName: 'ḳdty ("The Builders")',
-    starCluster: '✨ ḳdty is imagined like a lifted point — a peak or roofline in the southern sky. Priests watched its climb to track late-night hours for workers still laying brick and shaping shrines.',
+      decanName: 'sbꜣ sꜣḥ ("Star of Sah")',
+      starCluster: '✨ Star of Sah — order expressed in beauty.',
     maatPrinciple: 'Choose What You Will Build',
     cosmicContext: '''Day 21 is declaration. This is "I'm making this real."
 
@@ -3121,8 +3121,8 @@ Your house? Your money system? Your creative work? Your body discipline? Your ap
     kemeticDate: 'Hathor III, Day 22 (Day 22 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḳdty ("The Builders")',
-    starCluster: '✨ ḳdty\'s rising marked late, disciplined hours. Foundation work in Kemet often began before sunrise, when the soil was cool and quiet.',
+      decanName: 'sbꜣ sꜣḥ ("Star of Sah")',
+      starCluster: '✨ Star of Sah — order expressed in beauty.',
     maatPrinciple: 'Prepare the Ground',
     cosmicContext: '''Day 22 is foundation.
 
@@ -3155,8 +3155,8 @@ Hathor might be pleasure, but she's not casual. She's honest craft.''',
     kemeticDate: 'Hathor III, Day 23 (Day 23 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḳdty ("The Builders")',
-    starCluster: '✨ The Builders are associated with hands-on shaping. This is literally molding clay, carving stone, cutting cedar.',
+      decanName: 'sbꜣ sꜣḥ ("Star of Sah")',
+      starCluster: '✨ Star of Sah — order expressed in beauty.',
     maatPrinciple: 'Shape the Raw Material',
     cosmicContext: '''Day 23 is first form, not final form.
 
@@ -3189,8 +3189,8 @@ Perfectionism is anti-Ma'at because it delays balance in the real world.''',
     kemeticDate: 'Hathor III, Day 24 (Day 24 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḳdty ("The Builders")',
-    starCluster: '✨ ḳdty\'s height in the southern sky signaled late-hour persistence: work continuing quietly, torchlight against stone.',
+      decanName: 'sbꜣ sꜣḥ ("Star of Sah")',
+      starCluster: '✨ Star of Sah — order expressed in beauty.',
     maatPrinciple: 'Raise the First Form',
     cosmicContext: '''Day 24 is when something stands.
 
@@ -3222,8 +3222,8 @@ Rough is fine. We are out of theory now.''',
     kemeticDate: 'Hathor III, Day 25 (Day 25 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḳdty ("The Builders")',
-    starCluster: '✨ Builders were not just engineers; they were engravers. They inscribed purpose.',
+      decanName: 'sbꜣ sꜣḥ ("Star of Sah")',
+      starCluster: '✨ Star of Sah — order expressed in beauty.',
     maatPrinciple: 'Give It Meaning',
     cosmicContext: '''Day 25 is soulwork.
 You carve intention into the structure.
@@ -3263,8 +3263,8 @@ Hathor rejects empty.''',
     kemeticDate: 'Hathor III, Day 26 (Day 26 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḳdty ("The Builders")',
-    starCluster: '✨ As ḳdty rose higher, it signaled deep-night inspection: making sure joints held, seams were sealed, stores protected.',
+      decanName: 'sbꜣ sꜣḥ ("Star of Sah")',
+      starCluster: '✨ Star of Sah — order expressed in beauty.',
     maatPrinciple: 'Stabilize the Build',
     cosmicContext: '''Day 26 is reinforcement.
 
@@ -3297,8 +3297,8 @@ So you do not skip reinforcement.''',
     kemeticDate: 'Hathor III, Day 27 (Day 27 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḳdty ("The Builders")',
-    starCluster: '✨ Hathor isn\'t just architecture; she\'s finish. Perfume. Paint. Music. Grace. This is where structure becomes inviting.',
+      decanName: 'sbꜣ sꜣḥ ("Star of Sah")',
+      starCluster: '✨ Star of Sah — order expressed in beauty.',
     maatPrinciple: 'Beautify With Purpose',
     cosmicContext: '''Day 27 is finish work.
 You soften edges, clean surfaces, set scent, hang fabric, add warmth, polish the interface, refine the copy, make it welcoming.
@@ -3330,8 +3330,8 @@ Beauty makes people want to enter and keep using the thing, which keeps it alive
     kemeticDate: 'Hathor III, Day 28 (Day 28 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḳdty ("The Builders")',
-    starCluster: '✨ ḳdty\'s nightly ascent was read as "layer upon layer." Each hour added another rise. Humans mirrored this with offerings when finishing a work.',
+      decanName: 'sbꜣ sꜣḥ ("Star of Sah")',
+      starCluster: '✨ Star of Sah — order expressed in beauty.',
     maatPrinciple: 'Dedicate the Work',
     cosmicContext: '''Day 28 is consecration.
 You say: "This is not random. This serves balance."
@@ -3366,8 +3366,8 @@ You acknowledge Source. You mark the build as sacred, not disposable.''',
     kemeticDate: 'Hathor III, Day 29 (Day 29 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḳdty ("The Builders")',
-    starCluster: '✨ ḳdty is not just "build." It\'s "install into life." This is where structure becomes pattern.',
+      decanName: 'sbꜣ sꜣḥ ("Star of Sah")',
+      starCluster: '✨ Star of Sah — order expressed in beauty.',
     maatPrinciple: 'Live With It',
     cosmicContext: '''Day 29 is integration.
 
@@ -3405,8 +3405,8 @@ The practice is lived.''',
     kemeticDate: 'Hathor III, Day 30 (Day 30 of Hathor / Tepy-a Kenmet)',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Hathor (Tepy-a Kenmet)',
-    decanName: 'ḳdty ("The Builders")',
-    starCluster: '✨ This is the last rise before the month turns. Priests marked not just the work, but the proof of it.',
+      decanName: 'sbꜣ sꜣḥ ("Star of Sah")',
+      starCluster: '✨ Star of Sah — order expressed in beauty.',
     maatPrinciple: 'Record the Legacy',
     cosmicContext: '''Day 30 is witness.
 You document. You acknowledge. You archive.
@@ -3446,8 +3446,8 @@ This is evidence that order was restored in your lifetime.''',
     kemeticDate: 'Ka-ḥer-ka I, Day 1 (Day 1 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka ("Ka upon Ka," doubling of life-force; resurrection through planting)',
-    decanName: 'ḫnwy ("The Embraced Ones")',
-    starCluster: '✨ A faint twin cluster low in the western sky, understood as Aset (Isis) and Nebet-Het (Nephthys) holding Asar (Osiris) in protective embrace.',
+      decanName: 'msḥtjw ("The Foreleg")',
+      starCluster: '✨ The Foreleg — renewed strength.',
     maatPrinciple: 'Enter Stillness',
     cosmicContext: '''Day 1 is the pause after loss. The Nile has pulled back and the black earth (kemet) lies soft and exposed. The people lower their voices. The temples dim their music.
 
@@ -3479,8 +3479,8 @@ Maʿat in this phase is not movement — it's honoring what has passed without p
     kemeticDate: 'Ka-ḥer-ka I, Day 2 (Day 2 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka ("Ka upon Ka")',
-    decanName: 'ḫnwy ("The Embraced Ones")',
-    starCluster: '✨ The "twin lights" of ḫnwy were read as the two sisters keeping watch beside the resting body of Asar (Osiris).',
+      decanName: 'msḥtjw ("The Foreleg")',
+      starCluster: '✨ The Foreleg — renewed strength.',
     maatPrinciple: 'Cleanse the Altar',
     cosmicContext: '''Day 2 is purification.
 
@@ -3514,8 +3514,8 @@ You shouldn't either.''',
     kemeticDate: 'Ka-ḥer-ka I, Day 3 (Day 3 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḫnwy ("The Embraced Ones")',
-    starCluster: '✨ ḫnwy was whispered as "The Sisters who guard their Brother." This is grief with loyalty, not grief with despair.',
+      decanName: 'msḥtjw ("The Foreleg")',
+      starCluster: '✨ The Foreleg — renewed strength.',
     maatPrinciple: 'Name the Loss',
     cosmicContext: '''Day 3 is honesty.
 
@@ -3549,8 +3549,8 @@ Today is not about dramatizing pain — it's about refusing to lie about impact.
     kemeticDate: 'Ka-ḥer-ka I, Day 4 (Day 4 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḫnwy ("The Embraced Ones")',
-    starCluster: '✨ The paired lights of ḫnwy are not just mourning — they are guardianship. They hold memory in place.',
+      decanName: 'msḥtjw ("The Foreleg")',
+      starCluster: '✨ The Foreleg — renewed strength.',
     maatPrinciple: 'Hold Memory',
     cosmicContext: '''Day 4 is honoring without clinging.
 
@@ -3584,8 +3584,8 @@ not what will drag you backward.''',
     kemeticDate: 'Ka-ḥer-ka I, Day 5 (Day 5 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḫnwy ("The Embraced Ones")',
-    starCluster: '✨ Under ḫnwy, grief comes down into the body. You\'re not floating. You\'re back in your flesh.',
+      decanName: 'msḥtjw ("The Foreleg")',
+      starCluster: '✨ The Foreleg — renewed strength.',
     maatPrinciple: 'Ground the Body',
     cosmicContext: '''Day 5 is embodiment.
 
@@ -3619,8 +3619,8 @@ Touching earth is touching him.''',
     kemeticDate: 'Ka-ḥer-ka I, Day 6 (Day 6 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḫnwy ("The Embraced Ones")',
-    starCluster: '✨ Before sunrise, priests watched the low western glow and timed prayers. This was called "keeping the hours."',
+      decanName: 'msḥtjw ("The Foreleg")',
+      starCluster: '✨ The Foreleg — renewed strength.',
     maatPrinciple: 'Watch the Sky',
     cosmicContext: '''Day 6 is cosmic alignment.
 
@@ -3654,8 +3654,8 @@ You're not drifting alone. You're inside timing.''',
     kemeticDate: 'Ka-ḥer-ka I, Day 7 (Day 7 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḫnwy ("The Embraced Ones")',
-    starCluster: '✨ Under ḫnwy, even words are treated like offerings laid beside Asar (Osiris). Speech becomes ritual.',
+      decanName: 'msḥtjw ("The Foreleg")',
+      starCluster: '✨ The Foreleg — renewed strength.',
     maatPrinciple: 'Soft Speech Only',
     cosmicContext: '''Day 7 is control of the mouth.
 
@@ -3691,8 +3691,8 @@ You speak as if the room is sacred, because it is.''',
     kemeticDate: 'Ka-ḥer-ka I, Day 8 (Day 8 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḫnwy ("The Embraced Ones")',
-    starCluster: '✨ The "embrace" of ḫnwy is also pressure — like hands cupping a seed before burial.',
+      decanName: 'msḥtjw ("The Foreleg")',
+      starCluster: '✨ The Foreleg — renewed strength.',
     maatPrinciple: 'Tend the Seed',
     cosmicContext: '''Day 8 is preparation to plant.
 
@@ -3727,8 +3727,8 @@ Today you choose what goes into the ground.''',
     kemeticDate: 'Ka-ḥer-ka I, Day 9 (Day 9 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḫnwy ("The Embraced Ones")',
-    starCluster: '✨ In this part of the cycle, Asar (Osiris) is traveling the Duat. He is not visible, but he is working.',
+      decanName: 'msḥtjw ("The Foreleg")',
+      starCluster: '✨ The Foreleg — renewed strength.',
     maatPrinciple: 'Trust the Hidden Work',
     cosmicContext: '''Day 9 is faith in the unseen.
 
@@ -3763,8 +3763,8 @@ You trust that resurrection can happen in the dark.''',
     kemeticDate: 'Ka-ḥer-ka I, Day 10 (Day 10 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḫnwy ("The Embraced Ones")',
-    starCluster: '✨ The last night of ḫnwy closes the mourning chamber. The vigil ends. The cycle prepares to turn toward rising.',
+      decanName: 'msḥtjw ("The Foreleg")',
+      starCluster: '✨ The Foreleg — renewed strength.',
     maatPrinciple: 'Seal the Chamber',
     cosmicContext: '''Day 10 is closure of the first movement.
 
@@ -3804,8 +3804,8 @@ By sealing, you create the condition for resurrection.''',
     kemeticDate: 'Ka-ḥer-ka II, Day 11 (Day 11 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka ("Ka upon Ka," doubled life-force, resurrection through burial and growth)',
-    decanName: 'ḥry-ib wꜣ ("The One within the Sacred Bark")',
-    starCluster: '✨ Read as the god traveling in the night boat — Asar (Osiris) moving through the Duat, carried in the sacred bark. Priests mirrored this with fire-lit papyrus boats on temple water at night.',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
+      starCluster: '✨ Heart of the Foreleg — strength governed.',
     maatPrinciple: 'Stand Back Up',
     cosmicContext: '''Day 11 is first movement.
 
@@ -3840,8 +3840,8 @@ You're allowed to stand before you're "over it."''',
     kemeticDate: 'Ka-ḥer-ka II, Day 12 (Day 12 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḥry-ib wꜣ ("The One within the Sacred Bark")',
-    starCluster: '✨ This decan was read as the god in the divine canoe, carried and protected. The sacred bark itself is a body of support.',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
+      starCluster: '✨ Heart of the Foreleg — strength governed.',
     maatPrinciple: 'Reclaim Your Name',
     cosmicContext: '''Day 12 is identity.
 
@@ -3875,8 +3875,8 @@ You are the one steering the bark now.''',
     kemeticDate: 'Ka-ḥer-ka II, Day 13 (Day 13 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḥry-ib wꜣ ("The One within the Sacred Bark")',
-    starCluster: '✨ Priests sent candles on small papyrus boats across temple lakes at night — feeding light to the god as he traveled.',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
+      starCluster: '✨ Heart of the Foreleg — strength governed.',
     maatPrinciple: 'Feed What\'s Returning',
     cosmicContext: '''Day 13 is resourcing the revival.
 
@@ -3910,8 +3910,8 @@ You are helping Asar (Osiris) travel.''',
     kemeticDate: 'Ka-ḥer-ka II, Day 14 (Day 14 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḥry-ib wꜣ ("The One within the Sacred Bark")',
-    starCluster: '✨ The sacred bark is not drifting. It\'s escorted. Duty exists in the dark.',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
+      starCluster: '✨ Heart of the Foreleg — strength governed.',
     maatPrinciple: 'Accept Sacred Obligation',
     cosmicContext: '''Day 14 is responsibility.
 
@@ -3945,8 +3945,8 @@ No. You pick up what is yours to guard.''',
     kemeticDate: 'Ka-ḥer-ka II, Day 15 (Day 15 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḥry-ib wꜣ ("The One within the Sacred Bark")',
-    starCluster: '✨ The bark of Asar (Osiris) is surrounded by spells of protection — mainly spoken by Aset (Isis).',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
+      starCluster: '✨ Heart of the Foreleg — strength governed.',
     maatPrinciple: 'Speak Protection Over It',
     cosmicContext: '''Day 15 is verbal defense.
 
@@ -3982,8 +3982,8 @@ You lock the perimeter with language.''',
     kemeticDate: 'Ka-ḥer-ka II, Day 16 (Day 16 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḥry-ib wꜣ ("The One within the Sacred Bark")',
-    starCluster: '✨ This decan marks not chaos-travel, but guided travel. Everything on the bark has its place.',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
+      starCluster: '✨ Heart of the Foreleg — strength governed.',
     maatPrinciple: 'Organize the Living',
     cosmicContext: '''Day 16 is systems.
 
@@ -4017,8 +4017,8 @@ You fix the boat.''',
     kemeticDate: 'Ka-ḥer-ka II, Day 17 (Day 17 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḥry-ib wꜣ ("The One within the Sacred Bark")',
-    starCluster: '✨ The bark is never single-crewed. The journey is communal.',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
+      starCluster: '✨ Heart of the Foreleg — strength governed.',
     maatPrinciple: 'Ask for Help Without Shame',
     cosmicContext: '''Day 17 is shared carrying.
 
@@ -4051,8 +4051,8 @@ Isolation is isfet. Mutual aid is Maʿat.''',
     kemeticDate: 'Ka-ḥer-ka II, Day 18 (Day 18 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḥry-ib wꜣ ("The One within the Sacred Bark")',
-    starCluster: '✨ Priests did this in public, not alone. The bark ritual was witnessed. People saw hope moving across water.',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
+      starCluster: '✨ Heart of the Foreleg — strength governed.',
     maatPrinciple: 'Re-Enter Community',
     cosmicContext: '''Day 18 is reconnection.
 
@@ -4086,8 +4086,8 @@ Today you braid it back.''',
     kemeticDate: 'Ka-ḥer-ka II, Day 19 (Day 19 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḥry-ib wꜣ ("The One within the Sacred Bark")',
-    starCluster: '✨ Farmers saw the temple lamp-boats and understood: the light is still moving. Life is in progress.',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
+      starCluster: '✨ Heart of the Foreleg — strength governed.',
     maatPrinciple: 'Let Growth Be Visible',
     cosmicContext: '''Day 19 is witness.
 
@@ -4122,8 +4122,8 @@ Visibility affirms that the work is real — and makes it harder to abandon.''',
     kemeticDate: 'Ka-ḥer-ka II, Day 20 (Day 20 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'ḥry-ib wꜣ ("The One within the Sacred Bark")',
-    starCluster: '✨ This decan completes with safe passage: the bark survives the night waters. The god remains intact.',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
+      starCluster: '✨ Heart of the Foreleg — strength governed.',
     maatPrinciple: 'Give Thanks for Endurance',
     cosmicContext: '''Day 20 is gratitude to endurance itself.
 
@@ -4163,8 +4163,8 @@ You say thank you to the part of you that refused to disappear.''',
     kemeticDate: 'Ka-ḥer-ka III, Day 21 (Day 21 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka ("Ka upon Ka," resurrection through renewal)',
-    decanName: 'remetch en pet ("The Crew of Heaven")',
-    starCluster: '✨ A diffuse band of stars along the eastern horizon, called "The Crew." Priests said they were the divine oarsmen rowing Ra\'s solar barque through darkness toward dawn. The people imitated them in ritual: lifting the Djed pillar of Asar (Osiris), dredging canals, reopening life.',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
+      starCluster: '✨ Star of the Foreleg — applied, balanced force.',
     maatPrinciple: 'Work as Worship',
     cosmicContext: '''Day 21 is when grief becomes duty.
 
@@ -4200,8 +4200,8 @@ Your labor today is not "chores." It's priest-work. Treat it like that.''',
     kemeticDate: 'Ka-ḥer-ka III, Day 22 (Day 22 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'remetch en pet ("The Crew of Heaven")',
-    starCluster: '✨ The same star-band was read as a moving line — like rowers in sync. Its rising signaled coordinated restoration across the land: canals were cleared so that water could move cleanly again.',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
+      starCluster: '✨ Star of the Foreleg — applied, balanced force.',
     maatPrinciple: 'Reopen the Flow',
     cosmicContext: '''Day 22 is the canal day.
 
@@ -4236,8 +4236,8 @@ You clear it.''',
     kemeticDate: 'Ka-ḥer-ka III, Day 23 (Day 23 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'remetch en pet ("The Crew of Heaven")',
-    starCluster: '✨ Priests tied this phase to the Raising of the Djed — the spine of Asar (Osiris), symbol of stability. When the Djed was raised, the message was simple: "We stand again."',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
+      starCluster: '✨ Star of the Foreleg — applied, balanced force.',
     maatPrinciple: 'Raise the Pillar',
     cosmicContext: '''Day 23 is spine.
 
@@ -4270,8 +4270,8 @@ Today is the day you stand it back up with both hands and say, "This is stable a
     kemeticDate: 'Ka-ḥer-ka III, Day 24 (Day 24 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'remetch en pet ("The Crew of Heaven")',
-    starCluster: '✨ The oarsmen of the sky were mirrored in the households on earth. The belief was direct: a clean, repaired house participates in cosmic order.',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
+      starCluster: '✨ Star of the Foreleg — applied, balanced force.',
     maatPrinciple: 'Restore the Home',
     cosmicContext: '''Day 24 is domestic priesthood.
 
@@ -4305,8 +4305,8 @@ A restored home body is a shrine.''',
     kemeticDate: 'Ka-ḥer-ka III, Day 25 (Day 25 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'remetch en pet ("The Crew of Heaven")',
-    starCluster: '✨ Priests said each oarsman bore a lamp to light the god\'s way. In villages, this echoed as relighting hearths, ovens, lamps — bringing controlled fire back into daily life.',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
+      starCluster: '✨ Star of the Foreleg — applied, balanced force.',
     maatPrinciple: 'Feed the Fire',
     cosmicContext: '''Day 25 is ignition.
 
@@ -4340,8 +4340,8 @@ Your job today is to tend a specific flame and say, "This will not go out on my 
     kemeticDate: 'Ka-ḥer-ka III, Day 26 (Day 26 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'remetch en pet ("The Crew of Heaven")',
-    starCluster: '✨ The "Crew of Heaven" was never a single star. It was a band — many lights, one motion. This mapped directly onto coordinated labor in the villages: nobody saved the floodplain alone.',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
+      starCluster: '✨ Star of the Foreleg — applied, balanced force.',
     maatPrinciple: 'Anchor Community',
     cosmicContext: '''Day 26 is alignment with your crew.
 
@@ -4375,8 +4375,8 @@ Ma'at is interdependence held in honesty.''',
     kemeticDate: 'Ka-ḥer-ka III, Day 27 (Day 27 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'remetch en pet ("The Crew of Heaven")',
-    starCluster: '✨ Ritual songs were sung for the barque of Ra as it crossed the night. Human voices kept time with divine travel. Joy wasn\'t a luxury; it was propulsion.',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
+      starCluster: '✨ Star of the Foreleg — applied, balanced force.',
     maatPrinciple: 'Celebrate Endurance',
     cosmicContext: '''Day 27 is praise for the fact that you're still here.
 
@@ -4410,8 +4410,8 @@ This joy is structural. It keeps you from collapsing later.''',
     kemeticDate: 'Ka-ḥer-ka III, Day 28 (Day 28 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'remetch en pet ("The Crew of Heaven")',
-    starCluster: '✨ Priests launched tiny papyrus boats with flame to guide Asar (Osiris) through the Duat. Work and prayer were never separated — the act itself was the offering.',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
+      starCluster: '✨ Star of the Foreleg — applied, balanced force.',
     maatPrinciple: 'Offer Gratitude in Motion',
     cosmicContext: '''Day 28 is moving gratitude.
 
@@ -4445,8 +4445,8 @@ Your motion itself is an altar.''',
     kemeticDate: 'Ka-ḥer-ka III, Day 29 (Day 29 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'remetch en pet ("The Crew of Heaven")',
-    starCluster: '✨ The "Crew" tracks Ra\'s journey. They move with the sun. The teaching is discipline: you don\'t fight the current of light and expect peace.',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
+      starCluster: '✨ Star of the Foreleg — applied, balanced force.',
     maatPrinciple: 'Synchronize with the Sun',
     cosmicContext: '''Day 29 is rhythm check.
 
@@ -4480,8 +4480,8 @@ Reclaim circadian Ma'at.''',
     kemeticDate: 'Ka-ḥer-ka III, Day 30 (Day 30 of Ka-ḥer-ka / Ka-ḥer-ka)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Ka-ḥer-ka',
-    decanName: 'remetch en pet ("The Crew of Heaven")',
-    starCluster: '✨ As dawn comes, the "Crew" fades from sight. The barque has reached morning. On earth, this was the point where the cycle of death → mourning → carrying → rebuilding is declared complete — and logged.',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
+      starCluster: '✨ Star of the Foreleg — applied, balanced force.',
     maatPrinciple: 'Seal the Cycle',
     cosmicContext: '''Day 30 is witness.
 
@@ -4520,8 +4520,8 @@ That's the point of today.''',
     kemeticDate: 'Šef-Bedet I, Day 1 (Day 1 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet (šf-bdt) — "The Nourisher," "She Who Feeds with Grain." šf = to feed, to provide. bdt = offering, bread, sustenance. This month is not conquest — it is compassionate maintenance.',
-    decanName: 'knmw ("Khnum\'s Cluster") — named for Khnum, ram-headed potter of life, who shapes beings on his wheel.',
-    starCluster: '✨ Priests described a compact knot of stars low in the southern pre-dawn. They said, "Khnum is turning the wheel." When those stars rose, families began shaping soil walls, patching irrigation mouths, repairing clay jars. The sky announced: it is time to form and feed.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Form the Vessel',
     cosmicContext: '''Day 1 is not "start hustling." Day 1 is "prepare the vessel."
 
@@ -4558,8 +4558,8 @@ In you, an unprepared life wastes blessing.''',
     kemeticDate: 'Šef-Bedet I, Day 2 (Day 2 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — "The Nourisher," the ethical demand to feed life, not just witness it.',
-    decanName: 'knmw ("Khnum\'s Cluster")',
-    starCluster: '✨ The rising of Khnum\'s Cluster told irrigators when to walk the still-soft banks with clay jars and pour water by hand around new roots. Too much water rots. Too little cracks. The stars instructed balance.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Moisten the Clay',
     cosmicContext: '''Day 2 is hydration.
 
@@ -4594,8 +4594,8 @@ Your task is to soften, not collapse — to become workable again.''',
     kemeticDate: 'Šef-Bedet I, Day 3 (Day 3 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — Feeding as law, provision as devotion.',
-    decanName: 'knmw ("Khnum\'s Cluster")',
-    starCluster: '✨ "Khnum turns the wheel; the earth takes form." This was recited as seedlings were placed, because planting was not random. It was an oath: "I will care for what I place."',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Plant Intention',
     cosmicContext: '''Day 3 is root.
 
@@ -4632,8 +4632,8 @@ Your job is to commit to something that deserves to live in you, and press it ge
     kemeticDate: 'Šef-Bedet I, Day 4 (Day 4 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — The month where feeding is civilization\'s first duty.',
-    decanName: 'knmw ("Khnum\'s Cluster")',
-    starCluster: '✨ Clay offerings of rams and jars were baked and placed by canal mouths. The message: "May what forms be sustained." Formation without nourishment was considered a lie.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Feed What You Planted',
     cosmicContext: '''Day 4 is proof.
 
@@ -4668,8 +4668,8 @@ Ask yourself: "Did I give life calories, or did I just declare a dream?"''',
     kemeticDate: 'Šef-Bedet I, Day 5 (Day 5 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — The ethics of care, made visible.',
-    decanName: 'knmw ("Khnum\'s Cluster")',
-    starCluster: '✨ Early shoots were guarded with woven reed screens to keep goats and trampling feet away. The act of shielding young growth was sacred — not weakness, wisdom.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Protect the Fragile',
     cosmicContext: '''Day 5 is boundary.
 
@@ -4706,8 +4706,8 @@ You have permission to protect new life in you without apology.''',
     kemeticDate: 'Šef-Bedet I, Day 6 (Day 6 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — Compassion as infrastructure.',
-    decanName: 'knmw ("Khnum\'s Cluster")',
-    starCluster: '✨ Khnum\'s Cluster was invoked with breath. Farmers were told: keep your breath even, keep your pace even. Panic causes waste. Calm preserves strength for the long season.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Breathe Into the Work',
     cosmicContext: '''Day 6 is nervous system alignment.
 
@@ -4742,8 +4742,8 @@ This is not laziness. This is you re-teaching your body Ma'at.''',
     kemeticDate: 'Šef-Bedet I, Day 7 (Day 7 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — "She Who Feeds with Grain," which includes honoring whoever grows, cooks, carries, and serves.',
-    decanName: 'knmw ("Khnum\'s Cluster")',
-    starCluster: '✨ Along with Khnum, this decan honored unseen hands. Potters, grain grinders, water haulers — the quiet labor that literally kept everyone alive.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Honor the Providers',
     cosmicContext: '''Day 7 is gratitude with names.
 
@@ -4779,8 +4779,8 @@ Recognition is alignment with reality.''',
     kemeticDate: 'Šef-Bedet I, Day 8 (Day 8 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — Provision equals justice.',
-    decanName: 'knmw ("Khnum\'s Cluster")',
-    starCluster: '✨ After first planting, portions of grain were set aside for elders, widows, and travelers. Distribution was tracked by scribes. Fairness itself was sacred work.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Distribute Fairly',
     cosmicContext: '''Day 8 is balance of giving.
 
@@ -4815,8 +4815,8 @@ Your sharing must sustain the circle, including you.''',
     kemeticDate: 'Šef-Bedet I, Day 9 (Day 9 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — Month of provision, of counting what exists so no one starves in illusion.',
-    decanName: 'knmw ("Khnum\'s Cluster")',
-    starCluster: '✨ Temple scribes recorded flood height, stored grain, household needs. Numbers were sacred truth. Inventory prevented famine.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Record the Yield',
     cosmicContext: '''Day 9 is ledger.
 
@@ -4853,8 +4853,8 @@ You refuse delusion either way.''',
     kemeticDate: 'Šef-Bedet I, Day 10 (Day 10 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — Month of nourishment as civilization\'s first vow after chaos.',
-    decanName: 'knmw ("Khnum\'s Cluster")',
-    starCluster: '✨ When Khnum\'s Cluster faded from pre-dawn prominence, the first 10-day nourishment phase was considered sealed. The people acknowledged: "Life has been shaped. Life is being fed. We continue."',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Seal the Promise to Continue',
     cosmicContext: '''Day 10 is vow.
 
@@ -4894,8 +4894,8 @@ That is Ma'at: continuity.''',
     kemeticDate: 'Šef-Bedet II, Day 11 (Day 11 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet (šf-bdt) — "The Nourisher," declaring that to feed and to sustain is sacred duty, not charity.',
-    decanName: 'smd srt ("The Girded Serpent") — the serpent drawn tight around the living field.',
-    starCluster: '✨ A dim curve of stars arcing north, read as a coiled serpent. Farmers said Renenutet herself glided that curve at night, inspecting crops, driving off pests, and blessing the grain that would feed the village. Offerings of milk were poured at field corners: "Her drink is cool, so her judgment is calm."',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Walk the Boundary',
     cosmicContext: '''Day 11 is patrol.
 
@@ -4928,8 +4928,8 @@ Renenutet's gaze was considered mercy because it caught the threat early. You do
     kemeticDate: 'Šef-Bedet II, Day 12 (Day 12 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — The month where nourishment becomes a social contract.',
-    decanName: 'smd srt ("The Girded Serpent")',
-    starCluster: '✨ The serpent arc was not fear imagery. It was precision. Renenutet, "She Who Reaps in Her Season," was honored for identifying anything that would cost the people their stored future. Priests said: "Her eyes drive harm into the sand."',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Name the Pest',
     cosmicContext: '''Day 12 is honesty.
 
@@ -4964,8 +4964,8 @@ Ma'at cannot operate where denial is being worshiped.''',
     kemeticDate: 'Šef-Bedet II, Day 13 (Day 13 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — The ethic of keeping what lives, alive.',
-    decanName: 'smd srt ("The Girded Serpent")',
-    starCluster: '✨ Milk offerings placed at the four corners of the field were called "cooling cups" for Renenutet. The meaning: we maintain protection by tending the protector. You do not demand guardianship and offer nothing back.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Lay Protective Offerings',
     cosmicContext: '''Day 13 is reinforcement.
 
@@ -5000,8 +5000,8 @@ You are allowed to build that system.''',
     kemeticDate: 'Šef-Bedet II, Day 14 (Day 14 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — Nourishment requires defense.',
-    decanName: 'smd srt ("The Girded Serpent")',
-    starCluster: '✨ Renenutet was invoked both as feeder and as striker. Her cobra hood was the promise that anything threatening the stored grain would be met without hesitation.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Strike the Threat',
     cosmicContext: '''Day 14 is decisive removal.
 
@@ -5036,8 +5036,8 @@ You are allowed to eliminate what is killing the field.''',
     kemeticDate: 'Šef-Bedet II, Day 15 (Day 15 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — The month where compassion is maintenance, not softness.',
-    decanName: 'smd srt ("The Girded Serpent")',
-    starCluster: '✨ Renenutet\'s presence was also cooling. "Her breath makes the green live," said the hymn. Overheating — conflict, drought, fever — could kill a crop faster than insects.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Cool the Field',
     cosmicContext: '''Day 15 is heat management.
 
@@ -5074,8 +5074,8 @@ Your calm is not surrender. Your calm is preservation.''',
     kemeticDate: 'Šef-Bedet II, Day 16 (Day 16 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — Survival is stored, not improvised.',
-    decanName: 'smd srt ("The Girded Serpent")',
-    starCluster: '✨ Renenutet was also the goddess of the granary. Once something was harvested or saved, guarding it was holy. Theft from the storehouse wasn\'t just crime -- it was assault on next season\'s children.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Guard the Storehouse',
     cosmicContext: '''Day 16 is defense of what you already secured.
 
@@ -5111,8 +5111,8 @@ You are not required to let others raid what you bled to save.''',
     kemeticDate: 'Šef-Bedet II, Day 17 (Day 17 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — Feeding is communal, but not everyone is allowed in the granary.',
-    decanName: 'smd srt ("The Girded Serpent")',
-    starCluster: '✨ The serpent image was also used at thresholds. "Coiled at the gate," inscriptions said. Meaning: access is not automatic.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Tighten the Circle',
     cosmicContext: '''Day 17 is access control.
 
@@ -5147,8 +5147,8 @@ Renenutet does not apologize for who she keeps out of the grain house. Neither d
     kemeticDate: 'Šef-Bedet II, Day 18 (Day 18 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — Your responsibility now includes record of loss.',
-    decanName: 'smd srt ("The Girded Serpent")',
-    starCluster: '✨ Grain keepers documented spoilage, rot, theft, spillage. They did not bury that truth. They logged it. Only then could they adjust and survive drought.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Track the Losses',
     cosmicContext: '''Day 18 is accounting without shame.
 
@@ -5183,8 +5183,8 @@ If you won't face where you're bleeding, you will keep bleeding.''',
     kemeticDate: 'Šef-Bedet II, Day 19 (Day 19 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — The duty to feed includes the duty to define terms.',
-    decanName: 'smd srt ("The Girded Serpent")',
-    starCluster: '✨ The serpent at the field\'s edge wasn\'t just a threat to intruders. It was also an announcement: "This field is spoken for." That declaration itself deterred violation.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Reinforce the Oath',
     cosmicContext: '''Day 19 is declaration.
 
@@ -5219,8 +5219,8 @@ If you don't say your law, people will pretend you don't have one.''',
     kemeticDate: 'Šef-Bedet II, Day 20 (Day 20 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — "The Nourisher," now fortified.',
-    decanName: 'smd srt ("The Girded Serpent")',
-    starCluster: '✨ As this serpent arc declined from the night sky, the teaching was: vigilance must become habit, not adrenaline. The field is not safe because you panicked once. It\'s safe because you stay awake.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Stand Watch at Dusk',
     cosmicContext: '''Day 20 is quiet vigilance.
 
@@ -5261,8 +5261,8 @@ You tell the world, and yourself: "I am awake at my own border."''',
     kemeticDate: 'Šef-Bedet III, Day 21 (Day 21 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet (šf-bdt) — "The Nourisher," the promise that life will be fed.',
-    decanName: 'srt ("The Serpent") — the great encircling serpent, Renenutet expanded to cosmic scale, protective not just of a field, but of an entire way of life.',
-    starCluster: '✨ The faint, elongated serpent that arcs like a slow band around the night. Farmers said: "The coil is around us now." Meaning: the danger has not vanished, but it is contained.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Exhale the Tension',
     cosmicContext: '''Day 21 is unclench.
 
@@ -5299,8 +5299,8 @@ Trust is part of Ma'at. Panic forever is not.''',
     kemeticDate: 'Šef-Bedet III, Day 22 (Day 22 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — Feeding made real.',
-    decanName: 'srt ("The Serpent")',
-    starCluster: '✨ Under this serpent-band, families walked the fields not to fix but to see. To look at what had survived — intact irrigation, steady shoots, sealed storehouses — and speak that survival out loud.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Acknowledge the Living Field',
     cosmicContext: '''Day 22 is witness.
 
@@ -5337,8 +5337,8 @@ That naming is not ego. That naming is instruction.''',
     kemeticDate: 'Šef-Bedet III, Day 23 (Day 23 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — The Nourisher.',
-    decanName: 'srt ("The Serpent")',
-    starCluster: '✨ Under this serpent phase, offerings were not just for personal survival, but for the survival of others. Grain was promised forward. Renenutet wasn\'t only protector of "my field," but of "our hunger."',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Bless What Will Feed Others',
     cosmicContext: '''Day 23 is generosity with structure.
 
@@ -5373,8 +5373,8 @@ This is sacred. You are not small. Your survival is not private.''',
     kemeticDate: 'Šef-Bedet III, Day 24 (Day 24 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — Compassion as infrastructure.',
-    decanName: 'srt ("The Serpent")',
-    starCluster: '✨ This decan taught a softer vigilance: the serpent is still present, but no longer striking. She\'s coiled loosely, watching, confident. The teaching: control becomes wisdom once trust in the order exists.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Loosen Control (Without Abandoning Order)',
     cosmicContext: '''Day 24 is the release of the death grip.
 
@@ -5411,8 +5411,8 @@ If you never rest, you become the predator you swore to keep out.''',
     kemeticDate: 'Šef-Bedet III, Day 25 (Day 25 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — The month that keeps the world fed.',
-    decanName: 'srt ("The Serpent")',
-    starCluster: '✨ Under this serpent, offerings shifted back to the self — not indulgence, but upkeep. Because a cracked jar spills grain. A wounded hand cannot harvest.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Tend the Vessel',
     cosmicContext: '''Day 25 is maintenance of the carrier.
 
@@ -5449,8 +5449,8 @@ You cannot pour if you keep tearing the container.''',
     kemeticDate: 'Šef-Bedet III, Day 26 (Day 26 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — Nourishment is a lineage act.',
-    decanName: 'srt ("The Serpent")',
-    starCluster: '✨ The long serpent in art sometimes encircled not just fields, but whole scenes of life — children, tools, baskets. This was understood as inheritance protection.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Name the Inheritance',
     cosmicContext: '''Day 26 is clarity about what continues after you.
 
@@ -5485,8 +5485,8 @@ If you don't name it, chaos will name it for you.''',
     kemeticDate: 'Šef-Bedet III, Day 27 (Day 27 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — The month where feeding becomes proof of devotion.',
-    decanName: 'srt ("The Serpent")',
-    starCluster: '✨ In temple rites, gratitude offerings rose here. Not begging. Gratitude. Direct thanks to the forces that kept the cycle intact.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Give Thanks Without Apology',
     cosmicContext: '''Day 27 is unapologetic thanksgiving.
 
@@ -5523,8 +5523,8 @@ Receiving that truth stabilizes your spirit for the next cycle.''',
     kemeticDate: 'Šef-Bedet III, Day 28 (Day 28 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — The Nourisher, preparing to conclude her term.',
-    decanName: 'srt ("The Serpent")',
-    starCluster: '✨ This phase was when vows were spoken. The serpent around the world represented a promise: "This order will remain."',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Bind the Promise',
     cosmicContext: '''Day 28 is vow.
 
@@ -5561,8 +5561,8 @@ Civilization falls when no one binds promise at the small level.''',
     kemeticDate: 'Šef-Bedet III, Day 29 (Day 29 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — Still feeding, but beginning to turn toward harvest logic.',
-    decanName: 'srt ("The Serpent")',
-    starCluster: '✨ The serpent drawn huge across heaven was also slow. Not frantic. Not thrashing. Its lesson: survival requires a pace you can actually hold.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Align with Graceful Pace',
     cosmicContext: '''Day 29 is rhythm correction.
 
@@ -5597,8 +5597,8 @@ Kemet understood this: no field survives if the farmer burns out before harvest.
     kemeticDate: 'Šef-Bedet III, Day 30 (Day 30 of Šef-Bedet / Tybi)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Šef-Bedet — "The Nourisher," at completion.',
-    decanName: 'srt ("The Serpent")',
-    starCluster: '✨ As this long serpent thins from the night, the world is considered encircled and blessed. The teaching: you are not just keeping yourself alive anymore. You are now part of civilization\'s continuity.',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — trusted growth.',
     maatPrinciple: 'Prepare the Hand-Off',
     cosmicContext: '''Day 30 is transfer.
 
@@ -5637,8 +5637,8 @@ This is how Kemet stayed standing for millennia: each cycle did not just end —
     kemeticDate: 'Rekh-Wer I, Day 1 (Day 1 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Emergence moving toward stewardship',
     month: 'Rekh-Wer (rḫ-wr) — "Great Knowing," the month where knowledge becomes duty, not ego',
-    decanName: 'rs-ḥr ("Watcher of the Day") — the awakener, the one who opens the eyes of the village before sunrise',
-    starCluster: '✨ This bright watcher-star signaled first light duties: walk the field, check the canal, look for rot, look for theft, look for weakness. The teaching was simple: if you don\'t look, decay will.',
+      decanName: 'knmw ("Khnum")',
+      starCluster: '✨ Khnum — formation through knowledge.',
     maatPrinciple: 'Wake to Responsibility',
     cosmicContext: '''Day 1 is acceptance.
 
@@ -5675,8 +5675,8 @@ You are not waiting for someone else to be the adult. You are the adult.''',
     kemeticDate: 'Rekh-Wer I, Day 2 (Day 2 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — The Month of Great Knowing',
-    decanName: 'rs-ḥr ("Watcher of the Day")',
-    starCluster: '✨ This "watcher" star was invoked in sayings like: "He who sleeps through rs-ḥr loses both crop and mind." Meaning: if you refuse to look at your borders, you lose not just food, but clarity.',
+      decanName: 'knmw ("Khnum")',
+      starCluster: '✨ Khnum — formation through knowledge.',
     maatPrinciple: 'Walk the Perimeter',
     cosmicContext: '''Day 2 is inspection.
 
@@ -5713,8 +5713,8 @@ This is not paranoia. This is care.''',
     kemeticDate: 'Rekh-Wer I, Day 3 (Day 3 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — rḫ-wr, "Great Knowing," meaning not trivia but correct perception',
-    decanName: 'rs-ḥr ("Watcher of the Day")',
-    starCluster: '✨ Priests said this watcher "sees as Ra sees at first light." The point was honesty: light does not flatter. Light reveals.',
+      decanName: 'knmw ("Khnum")',
+      starCluster: '✨ Khnum — formation through knowledge.',
     maatPrinciple: 'Name What\'s Off',
     cosmicContext: '''Day 3 is sober naming.
 
@@ -5751,8 +5751,8 @@ Truth is not cruelty here. Truth is first medicine.''',
     kemeticDate: 'Rekh-Wer I, Day 4 (Day 4 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — The Month of Great Knowing',
-    decanName: 'rs-ḥr ("Watcher of the Day")',
-    starCluster: '✨ The watcher was also tied to canal maintenance. A clogged channel could ruin a field. The wise did not wait until failure — they corrected early.',
+      decanName: 'knmw ("Khnum")',
+      starCluster: '✨ Khnum — formation through knowledge.',
     maatPrinciple: 'Correct the Channel',
     cosmicContext: '''Day 4 is surgical correction.
 
@@ -5789,8 +5789,8 @@ You're not "being dramatic." You're preventing flood damage of the soul.''',
     kemeticDate: 'Rekh-Wer I, Day 5 (Day 5 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — rḫ-wr, "Great Knowing," guided by Thoth and tempered by Sekhmet',
-    decanName: 'rs-ḥr ("Watcher of the Day")',
-    starCluster: '✨ Under the watcher\'s rise, scribes audited granaries. Grain wasn\'t "guessed." It was counted, recorded, sealed under statement. This was law.',
+      decanName: 'knmw ("Khnum")',
+      starCluster: '✨ Khnum — formation through knowledge.',
     maatPrinciple: 'Account for the Store',
     cosmicContext: '''Day 5 is inventory.
 
@@ -5825,8 +5825,8 @@ This is not to shame you. This is to give you power. You cannot command what you
     kemeticDate: 'Rekh-Wer I, Day 6 (Day 6 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — The Month of Applied Understanding',
-    decanName: 'rs-ḥr ("Watcher of the Day")',
-    starCluster: '✨ This decan\'s light was used to time early-morning labor blocks. The saying went: "Those who work with rs-ḥr finish before the heat." Time discipline was survival.',
+      decanName: 'knmw ("Khnum")',
+      starCluster: '✨ Khnum — formation through knowledge.',
     maatPrinciple: 'Stabilize the Schedule',
     cosmicContext: '''Day 6 is time governance.
 
@@ -5861,8 +5861,8 @@ If interruption is writing your life, you are not in Maʿat. You are being carri
     kemeticDate: 'Rekh-Wer I, Day 7 (Day 7 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — Knowledge applied as protection',
-    decanName: 'rs-ḥr ("Watcher of the Day")',
-    starCluster: '✨ This watcher-star was also invoked in warnings against waste: "The field that leaks at dawn is empty by harvest." Loss wasn\'t dramatic. It was slow.',
+      decanName: 'knmw ("Khnum")',
+      starCluster: '✨ Khnum — formation through knowledge.',
     maatPrinciple: 'Cut Hidden Waste',
     cosmicContext: '''Day 7 is leak control.
 
@@ -5897,8 +5897,8 @@ You are allowed to seal that tear without guilt. That is not selfishness. That i
     kemeticDate: 'Rekh-Wer I, Day 8 (Day 8 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — Great Knowing under Thoth\'s measure and Sekhmet\'s fire',
-    decanName: 'rs-ḥr ("Watcher of the Day")',
-    starCluster: '✨ This star was invoked in oaths. The idea: If you are truly in authority, you shouldn\'t need rage to establish it. Your steadiness should be enough.',
+      decanName: 'knmw ("Khnum")',
+      starCluster: '✨ Khnum — formation through knowledge.',
     maatPrinciple: 'Reinforce Authority with Calm',
     cosmicContext: '''Day 8 is calm enforcement.
 
@@ -5935,8 +5935,8 @@ Calm is not softness. Calm is ownership.''',
     kemeticDate: 'Rekh-Wer I, Day 9 (Day 9 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — The month where knowledge is passed, not hoarded',
-    decanName: 'rs-ḥr ("Watcher of the Day")',
-    starCluster: '✨ Scribes said the watcher "teaches the day how to begin." Elders copied this pattern: they taught the young how to continue order without needing constant rescue.',
+      decanName: 'knmw ("Khnum")',
+      starCluster: '✨ Khnum — formation through knowledge.',
     maatPrinciple: 'Teach the Rule',
     cosmicContext: '''Day 9 is instruction.
 
@@ -5971,8 +5971,8 @@ When you teach the rule, you are multiplying your guardianship instead of chaini
     kemeticDate: 'Rekh-Wer I, Day 10 (Day 10 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — rḫ-wr, "Great Knowing"',
-    decanName: 'rs-ḥr ("Watcher of the Day")',
-    starCluster: '✨ The watcher-star closed its first 10-day duty with record. Scribes logged: water depth, grain count, labor performed, threats observed. Written memory was considered a weapon against chaos.',
+      decanName: 'knmw ("Khnum")',
+      starCluster: '✨ Khnum — formation through knowledge.',
     maatPrinciple: 'Document the State of the House',
     cosmicContext: '''Day 10 is record-keeping.
 
@@ -6013,8 +6013,8 @@ Your memory should not be the only place your world exists.''',
     kemeticDate: 'Rekh-Wer II, Day 11 (Day 11 of Rekh-Wer / Mechir)',
     season: '🌿 Peret — Emergence under guided strength',
     month: 'Rekh-Wer (rḫ-wr) — "Great Knowing," the sober application of intelligence',
-    decanName: 'ḥry-ib rꜣ ("Heart of Ra") — the mind of the sun, will harnessed',
-    starCluster: '✨ This mid-sky ember was taught as Ra\'s focused heart: not blind blaze, but intentional fire. Priests said, "Ra sees before he strikes."',
+      decanName: 'ḥry-ib knmw ("Heart of Khnum")',
+      starCluster: '✨ Heart of Khnum — discerning, guided craft.',
     maatPrinciple: 'Center the Fire',
     cosmicContext: '''Day 11 is stabilization of force.
 
@@ -6049,8 +6049,8 @@ Your job today is simple: do not let your core fire scatter. Keep it centered so
     kemeticDate: 'Rekh-Wer II, Day 12 (Day 12 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — The Month of Great Knowing',
-    decanName: 'ḥry-ib rꜣ ("Heart of Ra")',
-    starCluster: '✨ During this rising, farmers loosened the topsoil between rows. They called it "giving the crop breath." The act: patient, repetitive, essential.',
+      decanName: 'ḥry-ib knmw ("Heart of Khnum")',
+      starCluster: '✨ Heart of Khnum — discerning, guided craft.',
     maatPrinciple: 'Breathe the Field',
     cosmicContext: '''Day 12 is oxygen.
 
@@ -6087,8 +6087,8 @@ Your job is not to "work harder." Your job is to let it breathe.''',
     kemeticDate: 'Rekh-Wer II, Day 13 (Day 13 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — Knowledge in motion, not theory',
-    decanName: 'ḥry-ib rꜣ ("Heart of Ra")',
-    starCluster: '✨ Priests taught: "Ra\'s heart acts without trembling." This was modeled as decisive movement that does not dissolve into rage.',
+      decanName: 'ḥry-ib knmw ("Heart of Khnum")',
+      starCluster: '✨ Heart of Khnum — discerning, guided craft.',
     maatPrinciple: 'Act Without Fury',
     cosmicContext: '''Day 13 is clean execution.
 
@@ -6125,8 +6125,8 @@ If the only way you know how to act is by exploding, you are still leaking power
     kemeticDate: 'Rekh-Wer II, Day 14 (Day 14 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — rḫ-wr, the month of great perception',
-    decanName: 'ḥry-ib rꜣ ("Heart of Ra")',
-    starCluster: '✨ This ember of Ra was described as "the eye that chooses." Meaning: true fire knows what to target.',
+      decanName: 'ḥry-ib knmw ("Heart of Khnum")',
+      starCluster: '✨ Heart of Khnum — discerning, guided craft.',
     maatPrinciple: 'Align Power With Purpose',
     cosmicContext: '''Day 14 is aim.
 
@@ -6161,8 +6161,8 @@ This is where a lot of people betray themselves: they spend sacred fire chasing 
     kemeticDate: 'Rekh-Wer II, Day 15 (Day 15 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — The Month of Applied Understanding',
-    decanName: 'ḥry-ib rꜣ ("Heart of Ra")',
-    starCluster: '✨ Farmers watched this decan and said, "Keep it warm, don\'t scorch it." It referred to tending heat so life thrives instead of wilts.',
+      decanName: 'ḥry-ib knmw ("Heart of Khnum")',
+      starCluster: '✨ Heart of Khnum — discerning, guided craft.',
     maatPrinciple: 'Maintain Heat, Don\'t Burn',
     cosmicContext: '''Day 15 is pacing.
 
@@ -6197,8 +6197,8 @@ You're allowed to be powerful and kind to your own vessel at the same time. In f
     kemeticDate: 'Rekh-Wer II, Day 16 (Day 16 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — rḫ-wr, Great Knowing under Thoth\'s measure',
-    decanName: 'ḥry-ib rꜣ ("Heart of Ra")',
-    starCluster: '✨ The "Heart of Ra" was invoked in formal commands: short, exact statements that organized labor without chaos.',
+      decanName: 'ḥry-ib knmw ("Heart of Khnum")',
+      starCluster: '✨ Heart of Khnum — discerning, guided craft.',
     maatPrinciple: 'Speak Clean Command',
     cosmicContext: '''Day 16 is clarity of directive.
 
@@ -6233,8 +6233,8 @@ Your words must become efficient tools, not weapons that spray resentment.''',
     kemeticDate: 'Rekh-Wer II, Day 17 (Day 17 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — "Great Knowing," which includes knowing you are part of the labor, not above it',
-    decanName: 'ḥry-ib rꜣ ("Heart of Ra")',
-    starCluster: '✨ This decan was associated with Ra "walking the field in the body of a man," meaning leadership that shows up in person.',
+      decanName: 'ḥry-ib knmw ("Heart of Khnum")',
+      starCluster: '✨ Heart of Khnum — discerning, guided craft.',
     maatPrinciple: 'Carry Sun Into the Work',
     cosmicContext: '''Day 17 is embodied leadership.
 
@@ -6269,8 +6269,8 @@ This is how trust is built. This is how your power stops feeling like domination
     kemeticDate: 'Rekh-Wer II, Day 18 (Day 18 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — month of wise guardianship',
-    decanName: 'ḥry-ib rꜣ ("Heart of Ra")',
-    starCluster: '✨ The Heart of Ra was also invoked as a shield. Sekhmet\'s fire, in this period, was not for random destruction — it was for defense of the vulnerable.',
+      decanName: 'ḥry-ib knmw ("Heart of Khnum")',
+      starCluster: '✨ Heart of Khnum — discerning, guided craft.',
     maatPrinciple: 'Shield With Strength',
     cosmicContext: '''Day 18 is protection.
 
@@ -6307,8 +6307,8 @@ Protection is not optional. It is oath.''',
     kemeticDate: 'Rekh-Wer II, Day 19 (Day 19 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — Great Knowing, tempered compassion',
-    decanName: 'ḥry-ib rꜣ ("Heart of Ra")',
-    starCluster: '✨ In temple readings, Ra at midday had to be cooled so he did not scorch creation. Priests offered water and recited calming hymns to soothe divine heat.',
+      decanName: 'ḥry-ib knmw ("Heart of Khnum")',
+      starCluster: '✨ Heart of Khnum — discerning, guided craft.',
     maatPrinciple: 'Cool With Honor',
     cosmicContext: '''Day 19 is sanctioned rest.
 
@@ -6343,8 +6343,8 @@ If you treat recovery like weakness, you are insulting the very vessel Maʿat ne
     kemeticDate: 'Rekh-Wer II, Day 20 (Day 20 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — rḫ-wr, wisdom embodied',
-    decanName: 'ḥry-ib rꜣ ("Heart of Ra")',
-    starCluster: '✨ The Heart of Ra closed its watch with vow. The teaching: "Unruled fire becomes the destroyer of the house it swore to guard."',
+      decanName: 'ḥry-ib knmw ("Heart of Khnum")',
+      starCluster: '✨ Heart of Khnum — discerning, guided craft.',
     maatPrinciple: 'Oath of Restraint',
     cosmicContext: '''Day 20 is oath.
 
@@ -6385,8 +6385,8 @@ This is the seal of the decan. This is how you prove you are not just strong —
     kemeticDate: 'Rekh-Wer III, Day 21 (Day 21 of Rekh-Wer / Mechir)',
     season: '🌿 Peret — Emergence at full alertness',
     month: 'Rekh-Wer (rḫ-wr) — "Great Knowing," the discipline of applied understanding',
-    decanName: 'msḥtjw ("The Foreleg / Orion\'s Shoulder") — raw strength made useful',
-    starCluster: '✨ This foreleg in the sky — sometimes read as the leg of a bull, sometimes the shoulder of Orion — signaled force returning to the world, but under harness. It was not just "power." It was "ready power."',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Take Inventory',
     cosmicContext: '''Day 21 is the spread-out cloth.
 
@@ -6421,8 +6421,8 @@ Maʿat is never impressed by denial. Maʿat is impressed by accuracy.''',
     kemeticDate: 'Rekh-Wer III, Day 22 (Day 22 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — The Month of Great Knowing',
-    decanName: 'msḥtjw ("The Foreleg / Orion\'s Shoulder")',
-    starCluster: '✨ When this decan rose, villagers spoke plainly about breakage. A cracked jar was named cracked. A split handle was named split. No shame — just truth.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Name the Damage',
     cosmicContext: '''Day 22 is confession without drama.
 
@@ -6459,8 +6459,8 @@ There is no Maʿat in pretending you are unbreakable. There is Maʿat in saying,
     kemeticDate: 'Rekh-Wer III, Day 23 (Day 23 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — rḫ-wr, applied wisdom',
-    decanName: 'msḥtjw ("The Foreleg / Orion\'s Shoulder")',
-    starCluster: '✨ The Foreleg constellation was linked to strength and hunting, but by this point in the year it was invoked not to boast about strength — but to sharpen it.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Sharpen the Edge',
     cosmicContext: '''Day 23 is refinement.
 
@@ -6497,8 +6497,8 @@ Your future self depends on what you hone, not what you brag you could sharpen "
     kemeticDate: 'Rekh-Wer III, Day 24 (Day 24 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — Month of structured intelligence',
-    decanName: 'msḥtjw ("The Foreleg / Orion\'s Shoulder")',
-    starCluster: '✨ The Foreleg\'s return was also a sign to correct imbalances — handles tightened, lashings replaced, joints realigned so they would not split under load.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Repair Alignment',
     cosmicContext: '''Day 24 is bring-it-back-into-true.
 
@@ -6533,8 +6533,8 @@ This is quiet work. No applause. But this is the difference between "almost made
     kemeticDate: 'Rekh-Wer III, Day 25 (Day 25 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — rḫ-wr, knowing how to govern force',
-    decanName: 'msḥtjw ("The Foreleg / Orion\'s Shoulder")',
-    starCluster: '✨ The "Foreleg of the Bull" carried a teaching: strength is honored when yoked to service. Unyoked strength was considered dangerous.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Yoke the Bull',
     cosmicContext: '''Day 25 is disciplined power.
 
@@ -6571,8 +6571,8 @@ Your job today is to set the yoke. On yourself.''',
     kemeticDate: 'Rekh-Wer III, Day 26 (Day 26 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — "Great Knowing," now moving toward oath',
-    decanName: 'msḥtjw ("The Foreleg / Orion\'s Shoulder")',
-    starCluster: '✨ Under this decan, households spoke vows of maintenance: who would watch the stores, who would track grain, who would guard the youngest. Responsibility was spoken aloud.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Set Obligation Clearly',
     cosmicContext: '''Day 26 is assignment.
 
@@ -6609,8 +6609,8 @@ You speak it aloud. Once named, you are in covenant with it. This is how Maʿat 
     kemeticDate: 'Rekh-Wer III, Day 27 (Day 27 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — Knowledge enforced by pruning',
-    decanName: 'msḥtjw ("The Foreleg / Orion\'s Shoulder")',
-    starCluster: '✨ Under the Foreleg, cutting was sacred. You removed what would rot the storehouse later. Mercy now prevents famine later.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Cut Loose the Rot',
     cosmicContext: '''Day 27 is severance.
 
@@ -6647,8 +6647,8 @@ In Kemet, rot in the grain bins was not "oh well." It was death. You learned to 
     kemeticDate: 'Rekh-Wer III, Day 28 (Day 28 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — The knowing that becomes vow',
-    decanName: 'msḥtjw ("The Foreleg / Orion\'s Shoulder")',
-    starCluster: '✨ This decan marked continuity: people swore aloud what they would maintain, so Maʿat would not be left unattended at night.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Swear Continuity',
     cosmicContext: '''Day 28 is promise of steady hand.
 
@@ -6685,8 +6685,8 @@ This is long-term loyalty. This is how Maʿat survives boredom.''',
     kemeticDate: 'Rekh-Wer III, Day 29 (Day 29 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — Great Knowing, now tested',
-    decanName: 'msḥtjw ("The Foreleg / Orion\'s Shoulder")',
-    starCluster: '✨ Under this star-sign, scribes recorded grain levels, debts owed, tools repaired, distance measured. Numbers were not greed — they were proof of Maʿat.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Submit to Measure',
     cosmicContext: '''Day 29 is accountability without flinch.
 
@@ -6723,8 +6723,8 @@ Maʿat is the balance. You cannot claim Maʿat and fear measurement.''',
     kemeticDate: 'Rekh-Wer III, Day 30 (Day 30 of Rekh-Wer / Mechir)',
     season: '🌿 Peret – Season of Emergence',
     month: 'Rekh-Wer — rḫ-wr, the month of Great Knowing',
-    decanName: 'msḥtjw ("The Foreleg / Orion\'s Shoulder")',
-    starCluster: '✨ The Foreleg closes the month with a final gesture: stand ready. Not just alive — prepared. Not just powerful — governed.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Present Yourself to Maʿat',
     cosmicContext: '''Day 30 is presentation.
 
@@ -6766,8 +6766,8 @@ This is the handover from survival to stewardship.''',
     kemeticDate: 'Renwet I, Day 1 (Day 1 of Renwet / Pa-Renutet)',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet (rnnt) — "The Month of Gratitude and Fate," overseen by Renenutet, She Who Nurtures into Being',
-    decanName: 'ḫntt wꜣ ("Foremost of the Barque") — the pilot light at the prow of Ra\'s boat, steering abundance toward the living',
-    starCluster: '✨ This guiding cluster was called "the eye that steers abundance." Its rising marked the moment when harvest was not theory, but in your hands.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Receive the Gift',
     cosmicContext: '''Day 1 is arrival.
 In Kemet this was the first open acknowledgment: "The work bore fruit. We did not starve. Renenutet remembered us." Grain, fish, beer, oil — the visible proof of survival.
@@ -6788,8 +6788,8 @@ You are allowed to say, "This is provision," without shame.''',
     kemeticDate: 'Renwet I, Day 2',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — The Month of Gratitude and Fate',
-    decanName: 'ḫntt wꜣ ("Foremost of the Barque")',
-    starCluster: '✨ This "pilot star" did not just announce abundance; it demanded intelligent stewardship. After the moment of joy came the sorting.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Sort the Blessing',
     cosmicContext: '''Day 2 is division with conscience.
 In Kemet, harvest was piled, then separated: share for the laborers, share for the house, share for offering, share for storage, share for trade. No one pretended the whole pile was "mine."
@@ -6810,8 +6810,8 @@ Sorting is not loss. Sorting is protection of relationship.''',
     kemeticDate: 'Renwet I, Day 3',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — rnnt, governed by Renenutet',
-    decanName: 'ḫntt wꜣ ("Foremost of the Barque")',
-    starCluster: '✨ Priests said this guiding light at the prow "faces Ra" first. The proper response is to bow. Before keeping anything, you offer.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Offer First Share',
     cosmicContext: '''Day 3 is first-fruits.
 In Kemet the first portion of grain, oil, beer, and fish went to shrine, ancestor altar, or community need — not because the gods "demanded payment," but because you refused to pretend you did this alone.
@@ -6831,8 +6831,8 @@ This act is protection. Renenutet is generous, but she is not casual. Hoarders l
     kemeticDate: 'Renwet I, Day 4',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — "Gratitude and Fate"',
-    decanName: 'ḫntt wꜣ ("Foremost of the Barque")',
-    starCluster: '✨ The pilot star is also guardian of the boat\'s crew. Abundance is proven not by what you display, but by who you sustain.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Feed the House',
     cosmicContext: '''Day 4 is provision to your circle.
 In Kemet the household — not just blood family, but anyone under your protection — ate first in honor. You did not feast while your people were in quiet starvation. That was seen as a curse you called onto yourself.
@@ -6852,8 +6852,8 @@ You cannot claim Maʿat if the people depending on you are collapsing while you 
     kemeticDate: 'Renwet I, Day 5',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — rnnt',
-    decanName: 'ḫntt wꜣ ("Foremost of the Barque")',
-    starCluster: '✨ The pilot\'s light was recorded carefully by temple astronomers. Precision was a form of devotion.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Record the Gain Honestly',
     cosmicContext: '''Day 5 is the ledger.
 In Kemet, scribes tallied grain, oil, labor hours, and distribution. Lying on harvest records was an offense against Maʿat because it damaged trust, and trust was the spine of survival.
@@ -6873,8 +6873,8 @@ This is how you stay aligned with truth instead of building a myth of yourself.'
     kemeticDate: 'Renwet I, Day 6',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — The Month of Gratitude and Fate',
-    decanName: 'ḫntt wꜣ ("Foremost of the Barque")',
-    starCluster: '✨ The pilot light does not steer alone. The boat moves because hands row. Payment of labor was ritual, not courtesy.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Pay the Hands',
     cosmicContext: '''Day 6 is honoring labor.
 In Kemet, workers were paid from temple granaries. Beer. Bread. Fish. Oil. Cloth. Payment was seen as both justice and purification — it kept resentment from poisoning the house.
@@ -6894,8 +6894,8 @@ If you prosper and pretend you carried it by yourself, fate (šai) marks you as 
     kemeticDate: 'Renwet I, Day 7',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — rnnt',
-    decanName: 'ḫntt wꜣ ("Foremost of the Barque")',
-    starCluster: '✨ The prow leads, but the river must still breathe. Over-harvesting was seen as choking the Nile\'s gift.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Rest the Field',
     cosmicContext: '''Day 7 is restraint.
 In Kemet, you did not strip every reed, every fish, every stalk. You left edges uncut. You let the land recover. This was not softness — this was survival math.
@@ -6915,8 +6915,8 @@ To keep tearing at a source without pause is to declare yourself more important 
     kemeticDate: 'Renwet I, Day 8',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — The Month of Gratitude and Fate',
-    decanName: 'ḫntt wꜣ ("Foremost of the Barque")',
-    starCluster: '✨ The pilot star was praised aloud at dawn. Gratitude was voiced, not just felt. Spoken thanks anchored destiny.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Speak Gratitude Aloud',
     cosmicContext: '''Day 8 is spoken thanks.
 In Kemet, they didn't hide their gratitude like it was weakness. They named names. "I thank you. I saw what you did." They thanked the Nile, their elders, their workers, their gods, their own bodies for carrying them.
@@ -6936,8 +6936,8 @@ Ungrateful mouths were believed to poison their own fate.''',
     kemeticDate: 'Renwet I, Day 9',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — rnnt',
-    decanName: 'ḫntt wꜣ ("Foremost of the Barque")',
-    starCluster: '✨ The prow star was also a guard star. Once the harvest was in, it was sealed: clay-stoppered jars, tied baskets, recorded tallies. Security was a ritual, not paranoia.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Secure the Store',
     cosmicContext: '''Day 9 is protection without fear.
 In Kemet, grain was sealed, labeled, tracked. Theft, mold, pests — all were considered insults to Renenutet, because they turned her gift into rot.
@@ -6957,8 +6957,8 @@ Guarding is not greed. Guarding is respect.''',
     kemeticDate: 'Renwet I, Day 10',
     season: '☀️ Shemu — Harvest, distribution, responsibility',
     month: 'Renwet — The Month of Gratitude and Fate',
-    decanName: 'ḫntt wꜣ ("Foremost of the Barque")',
-    starCluster: '✨ This decan was also linked to destiny (šai). Renenutet was said to whisper a person\'s true name — their purpose — at birth. At harvest, you were expected to live like that name.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Seal the Name',
     cosmicContext: '''Day 10 is declaration.
 In Kemet, after the first wave of harvest distribution, festival, offering, wage, and store-guarding, there was a moment of identity: Who are you now?
@@ -6983,8 +6983,8 @@ You state aloud who you are committing to be with what you've been given. This i
     kemeticDate: 'Renwet II, Day 11 (Day 11 of Renwet / Pa-Renutet)',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet (rnnt) — month of gratitude, fate, and accountability before Renenutet',
-    decanName: 'ḥry-ib sbꜣ ("Heart of the Star") — the illuminated heart, the clean witness',
-    starCluster: '✨ A single steady star high in the east, treated as the moral lamp of the season. When it rose, families sat together and spoke truth.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Stand in the Light',
     cosmicContext: '''Day 11 is exposure — not humiliation, exposure.
 In Kemet, after the first joy of harvest, people gathered and said plainly what was done: who worked, who helped, who shared, who tried to cheat, who tried to hide. This wasn't gossip. It was cleansing.
@@ -7004,8 +7004,8 @@ You let yourself be seen today. You let the light fall where you would normally 
     kemeticDate: 'Renwet II, Day 12',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — The Month of Gratitude and Fate',
-    decanName: 'ḥry-ib sbꜣ ("Heart of the Star")',
-    starCluster: '✨ This "heart-star" was believed to judge quietly. It didn\'t rage. It revealed. The standard was simple: are you who you said you were?',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Weigh the Heart',
     cosmicContext: '''Day 12 is comparison between word and act.
 In Kemet, truth wasn't a speech. Truth was conduct. You could praise Maʿat at dawn and still be false if, by noon, you were robbing workers or lying on grain counts.
@@ -7025,8 +7025,8 @@ Did you actually move like that? If not, the gap itself is what must be addresse
     kemeticDate: 'Renwet II, Day 13',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — rnnt',
-    decanName: 'ḥry-ib sbꜣ ("Heart of the Star")',
-    starCluster: '✨ Under this star, storytellers recited accounts of greedy merchants brought to ruin. The warning was always the same: excess stains destiny.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Confess the Excess',
     cosmicContext: '''Day 13 is confession, not performance.
 In Kemet, people openly admitted, "I took more than I should," "I kept quiet when I should have spoken," "I watched someone carry the load and pretended not to see." This was not shame theater. It was maintenance of social trust.
@@ -7046,8 +7046,8 @@ Renenutet nourishes — but she also remembers.''',
     kemeticDate: 'Renwet II, Day 14',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — The Month of Gratitude and Fate',
-    decanName: 'ḥry-ib sbꜣ ("Heart of the Star")',
-    starCluster: '✨ Under this star, people didn\'t just admit wrong — they fixed it. Grain was re-weighed. Wages were corrected. Dignity was restored.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Correct the Imbalance',
     cosmicContext: '''Day 14 is repair.
 In Kemet, you could not claim purity by saying "my bad" and walking away. You restored what you distorted. If you shorted someone, you paid them. If you disrespected someone publicly, you lifted their name publicly.
@@ -7067,8 +7067,8 @@ This is one of the holiest acts in the whole year.''',
     kemeticDate: 'Renwet II, Day 15',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — rnnt',
-    decanName: 'ḥry-ib sbꜣ ("Heart of the Star")',
-    starCluster: '✨ This light was also invoked to protect children, elders, and those exhausted by labor. "The star keeps watch," they said.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Protect the Innocent',
     cosmicContext: '''Day 15 is guardianship.
 In Kemet, harvest didn't mean safety for everyone. Children could still be vulnerable. Elders could still be overlooked. Workers could still be used up and then discarded.
@@ -7088,8 +7088,8 @@ If you are resourced and someone close to you is still in danger, Maʿat demands
     kemeticDate: 'Renwet II, Day 16',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — The Month of Gratitude and Fate',
-    decanName: 'ḥry-ib sbꜣ ("Heart of the Star")',
-    starCluster: '✨ Under this star, people spoke their accounting aloud — not to boast, but so the village could witness truth and hold them to it.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Speak the Record Publicly',
     cosmicContext: '''Day 16 is testimony.
 In Kemet, heads of households would state: "This is what came in. This is what I did. This is what I owe. This is where I failed. This is how I will correct it."
@@ -7109,8 +7109,8 @@ You don't have to publish online. You do have to be known by your circle in a wa
     kemeticDate: 'Renwet II, Day 17',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — rnnt',
-    decanName: 'ḥry-ib sbꜣ ("Heart of the Star")',
-    starCluster: '✨ Under this light, elders recited praise-sayings for those who were fair in trade, generous in feeding, honest in record. Memory itself was reward.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Honor the Honest Worker',
     cosmicContext: '''Day 17 is lifting the deserving.
 In Kemet, names were currency. To have your name spoken with respect in public was a form of immortality. So people would say, "This woman kept us fed," "This man never cheated us," "This crew stayed loyal when it was hard."
@@ -7130,8 +7130,8 @@ This is how Maʿat remembers them.''',
     kemeticDate: 'Renwet II, Day 18',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — The Month of Gratitude and Fate',
-    decanName: 'ḥry-ib sbꜣ ("Heart of the Star")',
-    starCluster: '✨ The "heart-star" was also invoked for vows. Not loose goals — oaths. Your word was bound to your fate.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Consecrate the Oath',
     cosmicContext: '''Day 18 is vow.
 In Kemet, after confession and correction, you didn't just say "I'll do better." You fixed the words into shape: "From this day, I will not cheat the measure," "From this day, I will feed the elder first," "From this day, I will not lie on my ledger."
@@ -7151,8 +7151,8 @@ You are telling Renenutet and your own lineage: "Judge me by this."''',
     kemeticDate: 'Renwet II, Day 19',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — rnnt',
-    decanName: 'ḥry-ib sbꜣ ("Heart of the Star")',
-    starCluster: '✨ This star was also tied to name and legacy. It was said the star "holds the spoken name in the sky." Your conduct in harvest season attaches to you going forward.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Seal Reputation',
     cosmicContext: '''Day 19 is ownership.
 In Kemet, after oath came sealing. "This is who I am now," was not metaphor. It was reputation. It followed you into trade, into marriage negotiations, into temple standing, into how your children were treated.
@@ -7172,8 +7172,8 @@ This is the cost — and the honor — of living in Maʿat.''',
     kemeticDate: 'Renwet II, Day 20',
     season: '☀️ Shemu — Harvest under judgment',
     month: 'Renwet — The Month of Gratitude and Fate',
-    decanName: 'ḥry-ib sbꜣ ("Heart of the Star")',
-    starCluster: '✨ This star closed its phase not with frenzy but with quiet. After truth, repair, oath, and sealing, the village rested in witness. Nothing more needed to be proven.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Rest in Witness',
     cosmicContext: '''Day 20 is stillness without hiding.
 In Kemet, after the communal accounting, there was rest. Not indulgence, not collapse — rest in which you let yourself be seen and did not flinch.
@@ -7198,8 +7198,8 @@ This rest is not laziness. It is earned peace — the peace of a heart that face
     kemeticDate: 'Renwet III, Day 21 (Day 21 of Renwet / Pa-Renutet)',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet (rnnt) — Gratitude, Fate, Just Distribution',
-    decanName: 'rsw ("The Riser") — the pale light before dawn, promise of return',
-    starCluster: '✨ This decan was less a point of light than a horizon event: the earth itself glowing. Villagers called it "the first warmth before Ra."',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Store the Harvest',
     cosmicContext: '''Day 21 is containment.
 In Kemet, harvest did not end with cutting the grain. It ended with grain sealed in safety. Clay jars were cleaned, dried, marked. The good grain went high and dry; mold or rot was thrown out. This was love, not paranoia. It said, "Life will continue."
@@ -7219,8 +7219,8 @@ Stored nourishment is stored future.''',
     kemeticDate: 'Renwet III, Day 22',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — The Month of Gratitude and Fate',
-    decanName: 'rsw ("The Riser")',
-    starCluster: '✨ The dim glow of rsw was thanked as evidence that dawn would, in fact, return. People made offerings to the Source of nourishment — not just to be polite, but to keep that relationship alive.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Thank the Source',
     cosmicContext: '''Day 22 is return offering.
 In Kemet, no one pretended they "did it alone." The Nile, the black silt, the hands of workers, the patience of women storing grain, the blessings of Renenutet — all were named, praised, fed first.
@@ -7240,8 +7240,8 @@ Gratitude is not mood. Gratitude is redistribution.''',
     kemeticDate: 'Renwet III, Day 23',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — rnnt',
-    decanName: 'rsw ("The Riser")',
-    starCluster: '✨ Under this light, tools were washed, sharpened, and put away. This was ritual. No tool was treated like trash. Every sickle, every basket, every hand was honored.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Bless the Tools',
     cosmicContext: '''Day 23 is reverence for what carried you.
 In Kemet, they wiped blades with oil, repaired baskets, washed workcloths, stretched sore hands with scented fat. The message was clear: "You served me. I now care for you."
@@ -7261,8 +7261,8 @@ To bless the tool is to admit you are not entitled to endless output from it.'''
     kemeticDate: 'Renwet III, Day 24',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — The Month of Gratitude and Fate',
-    decanName: 'rsw ("The Riser")',
-    starCluster: '✨ This pre-dawn glow also marked accounting. Before sleep rhythms shifted and fields went quiet, the head of house closed the books. Nothing left vague.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Close the Ledger',
     cosmicContext: '''Day 24 is the final count.
 In Kemet, this was when the tally was written: how much grain exists, how much fish is dried, how much beer is stored, how much debt is forgiven, how much promise remains outstanding.
@@ -7282,8 +7282,8 @@ False records become future famine.''',
     kemeticDate: 'Renwet III, Day 25',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — rnnt',
-    decanName: 'rsw ("The Riser")',
-    starCluster: '✨ As rsw hovered in the pre-dawn, elders spoke quietly about "what this season taught." Memory becomes protection.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Name the Lessons',
     cosmicContext: '''Day 25 is articulation.
 In Kemet, they didn't just say "we made it." They said, "Here is how we made it, and here is what almost broke us." Those sentences became curriculum for the next cycle.
@@ -7303,8 +7303,8 @@ Unspoken lessons are lost lessons.''',
     kemeticDate: 'Renwet III, Day 26',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — The Month of Gratitude and Fate',
-    decanName: 'rsw ("The Riser")',
-    starCluster: '✨ Priests described this pre-dawn light as a promise — not control. "The sun will return, but not because you forced it. Because order returns in rhythm."',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Give Quiet Blessing Forward',
     cosmicContext: '''Day 26 is release of control disguised as blessing.
 In Kemet, people spoke life into the next cycle, but they did not grab at it with fear. They would say, "May the river rise kindly," "May the children sleep in safety," "May our names remain clean," and then let it go.
@@ -7323,8 +7323,8 @@ You are allowed to want goodness. You are not allowed to strangle it before it's
     kemeticDate: 'Renwet III, Day 27',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — rnnt',
-    decanName: 'rsw ("The Riser")',
-    starCluster: '✨ rsw also meant loosening. After labor, the body is still clenched as if danger hasn\'t passed. This light said: unclench.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Release the Burden',
     cosmicContext: '''Day 27 is de-tension.
 In Kemet, this was when bodies were rubbed with oil, backs were stretched, songs were sung softly, and work chants became lullabies instead of battle rhythm. The body had been acting like every day was emergency.
@@ -7344,8 +7344,8 @@ You are allowed to admit: the crisis window closed.''',
     kemeticDate: 'Renwet III, Day 28',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — The Month of Gratitude and Fate',
-    decanName: 'rsw ("The Riser")',
-    starCluster: '✨ The pre-dawn quiet of rsw was also the hour when the village was most silent. No tools. No carts. Just breath and low voices.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Return to Silence',
     cosmicContext: '''Day 28 is sacred quiet.
 In Kemet, silence wasn't empty. Silence was contact. You sat in the dark-before-dawn and you let yourself exist without needing to speak, defend, convince, sell, apologize, or narrate.
@@ -7365,8 +7365,8 @@ If you cannot sit in quiet, you are not healed yet — you are just distracted.'
     kemeticDate: 'Renwet III, Day 29',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — rnnt',
-    decanName: 'rsw ("The Riser")',
-    starCluster: '✨ This dim star-horizon was also associated with lying down early, before Ra fully set, to sync the body back to sane rhythm.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Lay Down the Body',
     cosmicContext: '''Day 29 is embodied surrender.
 In Kemet, there is no holiness in constant exhaustion. That's not Maʿat. That's self-violence.
@@ -7386,8 +7386,8 @@ Your nervous system is part of creation. You are required to keep it alive.''',
     kemeticDate: 'Renwet III, Day 30',
     season: '☀️ Shemu — Harvest, sealing, surrender',
     month: 'Renwet — The Month of Gratitude and Fate',
-    decanName: 'rsw ("The Riser")',
-    starCluster: '✨ Here, rsw completes its work. The pre-dawn glow promises that Ra will return, but you do not drag this season forward anymore. You hand it back to Time.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Offer the Cycle Back to Time',
     cosmicContext: '''Day 30 is surrender and seal.
 In Kemet, the last act of Shemu was not more work. It was consecration. The harvest was now considered "under protection," and the people stepped back. "It is in Maʿat's hands," they said.
@@ -7412,8 +7412,8 @@ Completion is an offering.''',
     kemeticDate: 'Hnsw I, Day 1 (Day 1 of Hnsw / Pa-Khonsu)',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw ("The Traveler") — sacred motion, dignified endurance under Ra',
-    decanName: 'ḥry-ib wꜣ ("Heart of the Barque") — the pulse inside Ra\'s sun-boat',
-    starCluster: '✨ This decan was understood as the living heart that drives Ra\'s bark from eastern horizon to western gate. Its first appearance signaled: begin with clarity.',
+      decanName: 'ḫntt ("The Foremost")',
+      starCluster: '✨ The Foremost — movement beginning.',
     maatPrinciple: 'Step Onto the Path',
     cosmicContext: '''Day 1 is declaration.
 In Kemet, travel was not random. Caravans formed at dawn with intention stated: where they were going, why, and under whose protection. The road itself was treated like a shrine — you didn't walk onto it confused.
@@ -7433,8 +7433,8 @@ Drift is not allowed on Day 1. Drift insults the barque.''',
     kemeticDate: 'Hnsw I, Day 2',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw — The Traveler\'s Month',
-    decanName: 'ḥry-ib wꜣ ("Heart of the Barque")',
-    starCluster: '✨ Priests taught that Ra\'s barque does not burn creation — it illuminates it. The heart in the boat is warm force, not wild fire.',
+      decanName: 'ḫntt ("The Foremost")',
+      starCluster: '✨ The Foremost — movement beginning.',
     maatPrinciple: 'Carry the Light',
     cosmicContext: '''Day 2 is presentation.
 To travel in Kemet was to carry light into other houses, nomes, markets, temples. You were not only transporting goods — you were transporting presence.
@@ -7454,8 +7454,8 @@ Radiance without cruelty — that is divine travel.''',
     kemeticDate: 'Hnsw I, Day 3',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw',
-    decanName: 'ḥry-ib wꜣ ("Heart of the Barque")',
-    starCluster: '✨ When this decan stood pre-dawn, heat and glare followed by midday. The lesson was not "suffer," but "respect fire." Ra burns the arrogant.',
+      decanName: 'ḫntt ("The Foremost")',
+      starCluster: '✨ The Foremost — movement beginning.',
     maatPrinciple: 'Honor the Heat',
     cosmicContext: '''Day 3 is discipline in harshness.
 The Kemite didn't curse the sun. The Kemite prepared for it — head cloths, water skins, shaded rest points, measured pace. Complaining at Ra would have sounded immature.
@@ -7475,8 +7475,8 @@ Spiritual maturity means: I do not waste holy energy fighting reality.''',
     kemeticDate: 'Hnsw I, Day 4',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw',
-    decanName: 'ḥry-ib wꜣ',
-    starCluster: '✨ Merchants swore oaths under this decan. Travel wasn\'t just distance, it was conduct. "If I cheat on the road," they said, "the river will turn away from me."',
+      decanName: 'ḫntt ("The Foremost")',
+      starCluster: '✨ The Foremost — movement beginning.',
     maatPrinciple: 'Travel Clean',
     cosmicContext: '''Day 4 is honor in motion.
 In Kemet, your name traveled faster than your feet. If you lied, broke deals, insulted hosts, or spread poison, word outran you — and doors closed ahead of you.
@@ -7496,8 +7496,8 @@ Movement without integrity is not sacred travel. It's looting.''',
     kemeticDate: 'Hnsw I, Day 5',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw — The Traveler\'s Month',
-    decanName: 'ḥry-ib wꜣ',
-    starCluster: '✨ The "heart of the barque" was also interpreted as the generosity that keeps a voyage blessed. A traveler who hoarded became spiritually stranded.',
+      decanName: 'ḫntt ("The Foremost")',
+      starCluster: '✨ The Foremost — movement beginning.',
     maatPrinciple: 'Move With Offering',
     cosmicContext: '''Day 5 is reciprocity.
 In Kemet, you did not arrive empty if you had anything to give. You brought fish, oil, labor, information, healing skill, a tool, a story. Arrival was contribution, not extraction.
@@ -7517,8 +7517,8 @@ To travel under Ra and refuse to nourish others is to lie about who carried you 
     kemeticDate: 'Hnsw I, Day 6',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw',
-    decanName: 'ḥry-ib wꜣ',
-    starCluster: '✨ The "heart" of Ra\'s barque was also the protective chamber. The sun travels through danger every night in the Duat; its vessel must be guarded.',
+      decanName: 'ḫntt ("The Foremost")',
+      starCluster: '✨ The Foremost — movement beginning.',
     maatPrinciple: 'Protect the Vessel',
     cosmicContext: '''Day 6 is self-guardianship.
 In Kemet, travelers tended feet, backs, joints, throat, and spirit. Water skins were checked constantly. Shade was planned. Arguments were avoided in heat. "Do not tear your vessel while you are still far from home," the elders said.
@@ -7538,8 +7538,8 @@ Self-neglect is not holiness. It's sabotage.''',
     kemeticDate: 'Hnsw I, Day 7',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw — Pa-Khonsu',
-    decanName: 'ḥry-ib wꜣ',
-    starCluster: '✨ Ra\'s path crosses every nome, every shore, every class. The sun sees everyone. To travel under Ra is to witness, not just pass through.',
+      decanName: 'ḫntt ("The Foremost")',
+      starCluster: '✨ The Foremost — movement beginning.',
     maatPrinciple: 'Witness the Route',
     cosmicContext: '''Day 7 is awareness.
 In Kemet, the road itself was teacher. Who is hungry along this route? Who is overworked? Where is corruption obvious? Where is kindness quietly keeping people alive?
@@ -7559,8 +7559,8 @@ Service begins with seeing.''',
     kemeticDate: 'Hnsw I, Day 8',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw',
-    decanName: 'ḥry-ib wꜣ',
-    starCluster: '✨ Travelers blessed one another under this decan with words of safe passage. To withhold blessing was considered dishonorable.',
+      decanName: 'ḫntt ("The Foremost")',
+      starCluster: '✨ The Foremost — movement beginning.',
     maatPrinciple: 'Speak the Blessing',
     cosmicContext: '''Day 8 is spoken protection.
 In Kemet, before separating at crossroads, people said, "May you arrive in peace. May your load return multiplied." That was not small talk. That was spell-work in the mouth, in service of Maʿat.
@@ -7580,8 +7580,8 @@ Your words are allowed to build shelter.''',
     kemeticDate: 'Hnsw I, Day 9',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw — The Traveler\'s Month',
-    decanName: 'ḥry-ib wꜣ',
-    starCluster: '✨ Scribes of caravan routes were respected; they tracked distance, trade, and promises. Memory is how Maʿat survives between cities.',
+      decanName: 'ḫntt ("The Foremost")',
+      starCluster: '✨ The Foremost — movement beginning.',
     maatPrinciple: 'Record the Day\'s Distance',
     cosmicContext: '''Day 9 is accounting-in-motion.
 In Kemet, the day ended with tally: How far did we go? What did we carry? What did we earn? What did we owe? Who is expecting us now? This prevented lies — especially self-lies.
@@ -7601,8 +7601,8 @@ Truth keeps you aligned for Day 10.''',
     kemeticDate: 'Hnsw I, Day 10',
     season: '☀️ Shemu — Heat, Movement, Distribution',
     month: 'Hnsw — Pa-Khonsu, Traveler',
-    decanName: 'ḥry-ib wꜣ ("Heart of the Barque")',
-    starCluster: '✨ The "heart" completes a full day\'s arc and sinks into the west. The teaching: even Ra rests — not in defeat, but in sacred transition to the night journey.',
+      decanName: 'ḫntt ("The Foremost")',
+      starCluster: '✨ The Foremost — movement beginning.',
     maatPrinciple: 'Lay Down Without Arrogance',
     cosmicContext: '''Day 10 is humility at sunset.
 In Kemet, no one bragged to Ra about how hard they worked. You simply thanked the day for letting you cross it alive, washed the dust from your body, anointed with oil, and went quiet.
@@ -7626,8 +7626,8 @@ To rest without boasting is to prove you are traveling with Maʿat, not ego.''',
     kemeticDate: 'Hnsw II, Day 11 (Day 11 of Hnsw / Pa-Khonsu)',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw ("The Traveler") — pilgrimage, commerce, endurance',
-    decanName: 'sbꜣ ḏḥwty ("Star of Thoth") — the measured mind in motion',
-    starCluster: '✨ Traders invoked this star for clarity before setting out. "Let my tongue not betray me," they said. Thoth governs not just writing, but clean articulation.',
+      decanName: 'ḥry-ib ḫntt ("Heart of the Foremost")',
+      starCluster: '✨ Heart of the Foremost — measured travel.',
     maatPrinciple: 'Name the Terms',
     cosmicContext: '''Day 11 is declaration of terms.
 In Kemet, nothing serious was done in a haze. Before boats left, before donkeys were loaded, before copper was traded for grain, people spoke the agreement aloud in front of witnesses. This was protection for both sides.
@@ -7647,8 +7647,8 @@ If it cannot survive daylight language, it is not Maʿat.''',
     kemeticDate: 'Hnsw II, Day 12',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
-    decanName: 'sbꜣ ḏḥwty ("Star of Thoth")',
-    starCluster: '✨ The "Star of Thoth" was invoked not only for safe travel but for honest travel. The idea was simple: Thoth writes. You are being written.',
+      decanName: 'ḥry-ib ḫntt ("Heart of the Foremost")',
+      starCluster: '✨ Heart of the Foremost — measured travel.',
     maatPrinciple: 'Travel With Witness',
     cosmicContext: '''Day 12 is accountability.
 In Kemet, people swore "under Maʿat" — meaning: I am acting as if I'm being watched by truth itself. That vow made exploitation spiritually dangerous.
@@ -7668,8 +7668,8 @@ Reputation was currency then. It still is now.''',
     kemeticDate: 'Hnsw II, Day 13',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — The Traveler\'s Month',
-    decanName: 'sbꜣ ḏḥwty ("Star of Thoth")',
-    starCluster: '✨ This star was called steady, not brilliant. The teaching: brilliance is not required — steadiness is.',
+      decanName: 'ḥry-ib ḫntt ("Heart of the Foremost")',
+      starCluster: '✨ Heart of the Foremost — measured travel.',
     maatPrinciple: 'Keep Measure',
     cosmicContext: '''Day 13 is resource honesty.
 In Kemet, caravans that overextended — too far, too fast, too heavy — were the ones that collapsed in the open heat. Thoth teaches: count what you have, not what you pretend to have.
@@ -7689,8 +7689,8 @@ Pride is the most expensive fuel on earth.''',
     kemeticDate: 'Hnsw II, Day 14',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
-    decanName: 'sbꜣ ḏḥwty',
-    starCluster: '✨ Thoth, lord of the true tongue, judged lies harshly. Not just big lies — little softeners, performative politeness that hides real intent.',
+      decanName: 'ḥry-ib ḫntt ("Heart of the Foremost")',
+      starCluster: '✨ Heart of the Foremost — measured travel.',
     maatPrinciple: 'Speak Cleanly',
     cosmicContext: '''Day 14 is truth of mouth.
 Kemet understood that the tongue shapes destiny. Crooked speech bends fate away from Maʿat. When you lie "to keep peace," you are actually protecting decay.
@@ -7710,8 +7710,8 @@ Thoth records every word. Assume the record will be read.''',
     kemeticDate: 'Hnsw II, Day 15',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — Pa-Khonsu',
-    decanName: 'sbꜣ ḏḥwty',
-    starCluster: '✨ Merchants poured beer and oil to Thoth asking for "just trade." Theft in negotiation was viewed as a wound to Maʿat, not a clever success.',
+      decanName: 'ḥry-ib ḫntt ("Heart of the Foremost")',
+      starCluster: '✨ Heart of the Foremost — measured travel.',
     maatPrinciple: 'Honor the Exchange',
     cosmicContext: '''Day 15 is fairness.
 In Kemet, exploiters were not admired — they were feared and remembered. "He takes more than he gives," people would whisper, and his name would rot. Equally condemned: the one who sells himself beneath his worth.
@@ -7731,8 +7731,8 @@ You cannot poison the altar and expect blessing to follow.''',
     kemeticDate: 'Hnsw II, Day 16',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
-    decanName: 'sbꜣ ḏḥwty ("Star of Thoth")',
-    starCluster: '✨ Thoth is keeper of oaths. Words were not casual — they were architecture. Once spoken, they stand in the invisible world.',
+      decanName: 'ḥry-ib ḫntt ("Heart of the Foremost")',
+      starCluster: '✨ Heart of the Foremost — measured travel.',
     maatPrinciple: 'Travel Under Oath',
     cosmicContext: '''Day 16 is vow-consciousness.
 In Kemet, "I will do this" was not decoration. It was a seal. A spoken contract. Thoth, scribe of the gods, was believed to write it down, and later your heart would be weighed against it.
@@ -7752,8 +7752,8 @@ Your word is a living thing. Do not throw it around like broken grain.''',
     kemeticDate: 'Hnsw II, Day 17',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
-    decanName: 'sbꜣ ḏḥwty',
-    starCluster: '✨ The "Star of Thoth" was also tied to calculation and study. Even caravans paused. Motion without pause turns foolish.',
+      decanName: 'ḥry-ib ḫntt ("Heart of the Foremost")',
+      starCluster: '✨ Heart of the Foremost — measured travel.',
     maatPrinciple: 'Protect the Quiet',
     cosmicContext: '''Day 17 is withdrawal for clarity.
 The Kemite traveler knew: when the sun is highest and tempers spark, pause under shade, water the body, settle the mind. Silence was not laziness. It was survival. It kept blades in their sheaths and tongues from tearing alliances.
@@ -7773,8 +7773,8 @@ Silence is maintenance.''',
     kemeticDate: 'Hnsw II, Day 18',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — The Traveler\'s Month',
-    decanName: 'sbꜣ ḏḥwty',
-    starCluster: '✨ Under this decan, caravans watched each other closely. Jealousy, quiet theft, false guidance — these were dangers as real as heatstroke.',
+      decanName: 'ḥry-ib ḫntt ("Heart of the Foremost")',
+      starCluster: '✨ Heart of the Foremost — measured travel.',
     maatPrinciple: 'Check for Poison',
     cosmicContext: '''Day 18 is vigilance.
 The Kemite saying was: "Not all who walk beside you walk for you." On the road, betrayal often wore a smile. Thoth's star demanded that you look past charm and notice alignment.
@@ -7794,8 +7794,8 @@ Maʿat can't grow in a field salted by envy.''',
     kemeticDate: 'Hnsw II, Day 19',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
-    decanName: 'sbꜣ ḏḥwty ("Star of Thoth")',
-    starCluster: '✨ Thoth\'s clarity includes refusal. The scribe does not write what should not exist.',
+      decanName: 'ḥry-ib ḫntt ("Heart of the Foremost")',
+      starCluster: '✨ Heart of the Foremost — measured travel.',
     maatPrinciple: 'Assert the Boundary',
     cosmicContext: '''Day 19 is refusal without guilt.
 In Kemet, saying "no" was not disrespectful. It was often considered an act of order: "That load is not mine to carry." "That request breaks Maʿat." "That pace will injure me." The wise traveler did not accept every burden just to look generous.
@@ -7815,8 +7815,8 @@ A boundary is not violence. It is architecture.''',
     kemeticDate: 'Hnsw II, Day 20',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — The Traveler\'s Month',
-    decanName: 'sbꜣ ḏḥwty',
-    starCluster: '✨ Before rest, scribes of caravans marked not just distance, but trust chains: who paid, who owes, who proved loyal, who cannot be trusted again. This was survival intelligence.',
+      decanName: 'ḥry-ib ḫntt ("Heart of the Foremost")',
+      starCluster: '✨ Heart of the Foremost — measured travel.',
     maatPrinciple: 'Seal the Ledger',
     cosmicContext: '''Day 20 is accounting of relationship and debt.
 In Kemet, nothing was left floating. Loose obligations become rot. Silent resentment becomes poison. So before a camp slept, they clarified: what was delivered, what remains open, who stood in Maʿat, who failed it.
@@ -7840,8 +7840,8 @@ Clarity is protection for everyone who walks with you.''',
     kemeticDate: 'Hnsw III, Day 21 (Day 21 of Hnsw / Pa-Khonsu)',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw ("The Traveler") — the sun\'s path made human',
-    decanName: 'msḥtjw wr ("Great Foreleg") — restrained strength, the bull at rest',
-    starCluster: '✨ The Foreleg of the Bull was a royal emblem of force. But when it rose at this point in the cycle, the teaching was not "push harder," it was "slow with dignity."',
+      decanName: 'sbꜣ ḫntt ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — endurance established.',
     maatPrinciple: 'Ease the Pace',
     cosmicContext: '''Day 21 is deceleration by law.
 In Kemet, people ended work early under this decan. Not because they were weak — because they were wise. The sun was still burning. The body had already given. To keep sprinting after the task was secure was considered arrogance against Ra.
@@ -7861,8 +7861,8 @@ This is not laziness. This is honoring the boundary between effort and vanity.''
     kemeticDate: 'Hnsw III, Day 22',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
-    decanName: 'msḥtjw wr ("Great Foreleg")',
-    starCluster: '✨ Under this star, households drew cool water, massaged oil into tired limbs, washed dust and salt from the skin. Care of the body was liturgy.',
+      decanName: 'sbꜣ ḫntt ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — endurance established.',
     maatPrinciple: 'Cool the Body',
     cosmicContext: '''Day 22 is repair of the vessel.
 In Kemet, the body was not "just flesh." It was the carrier of the Ka itself. Overheating it without mercy was seen as disrespect to your own divine charge.
@@ -7882,8 +7882,8 @@ You cannot carry light if you let the lamp crack.''',
     kemeticDate: 'Hnsw III, Day 23',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — The Traveler\'s Month',
-    decanName: 'msḥtjw wr',
-    starCluster: '✨ When the Foreleg rose, labor was no longer solitary. Loads were shifted across shoulders and animals. "We will all arrive," they said, "or none of us truly arrives."',
+      decanName: 'sbꜣ ḫntt ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — endurance established.',
     maatPrinciple: 'Redistribute the Load',
     cosmicContext: '''Day 23 is shared carrying.
 In Kemet, one person trying to haul everything was not heroic — it was reckless. If you fell, the caravan stalled. So weight was transferred. Balance was adjusted. Pride was denied.
@@ -7903,8 +7903,8 @@ You dishonor the journey if you let yourself break to protect ego.''',
     kemeticDate: 'Hnsw III, Day 24',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
-    decanName: 'msḥtjw wr ("Great Foreleg")',
-    starCluster: '✨ The Foreleg was also used ritually to "bind" offerings — to claim strength and keep it from leaking. This became a teaching about guarding your core.',
+      decanName: 'sbꜣ ḫntt ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — endurance established.',
     maatPrinciple: 'Guard the Core',
     cosmicContext: '''Day 24 is containment.
 As caravans neared their destination, distractions multiplied — side deals, ego talk, performance for attention. The wise withdrew their energy from anything that did not serve delivery.
@@ -7924,8 +7924,8 @@ The bull is strongest when it is not being baited.''',
     kemeticDate: 'Hnsw III, Day 25',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — Pa-Khonsu',
-    decanName: 'msḥtjw wr',
-    starCluster: '✨ The bull rests. This was taught openly to children. Rest was modeled, not hidden. Fatigue was honored as evidence of service.',
+      decanName: 'sbꜣ ḫntt ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — endurance established.',
     maatPrinciple: 'Honor Fatigue',
     cosmicContext: '''Day 25 is sacred tiredness.
 In Kemet, to collapse after long travel was not shameful. It was proof: "I gave what I had to give." The body was praised, massaged, fed. No one mocked a laborer for needing to lie down.
@@ -7945,8 +7945,8 @@ Rest in daylight. You are allowed.''',
     kemeticDate: 'Hnsw III, Day 26',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
-    decanName: 'msḥtjw wr ("Great Foreleg")',
-    starCluster: '✨ As journeys closed, anything unnecessary was cast off — broken rope, spoiled goods, grudges, false promises. You don\'t carry rot into the next season.',
+      decanName: 'sbꜣ ḫntt ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — endurance established.',
     maatPrinciple: 'Release the Excess',
     cosmicContext: '''Day 26 is shedding.
 In Kemet, to hoard what was spoiled was madness. You dropped it in the desert and didn't look back. Emotionally, spiritually, socially — same law.
@@ -7966,8 +7966,8 @@ Maʿat is not sentimental about decay.''',
     kemeticDate: 'Hnsw III, Day 27',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
-    decanName: 'msḥtjw wr',
-    starCluster: '✨ As the Foreleg set toward dawn, activity softened. The camp got quieter. Voices dropped. Weapons were sheathed. The nervous system was allowed to descend.',
+      decanName: 'sbꜣ ḫntt ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — endurance established.',
     maatPrinciple: 'Enter Stillness',
     cosmicContext: '''Day 27 is nervous-system surrender.
 In Kemet, stillness wasn't "doing nothing." Stillness was lowering back into yourself after long, bright strain. Evening sitting — oil lamp, quiet body, eyes half-closed — was medicine.
@@ -7987,8 +7987,8 @@ You are landing. Let yourself land.''',
     kemeticDate: 'Hnsw III, Day 28',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — The Traveler\'s Month',
-    decanName: 'msḥtjw wr ("Great Foreleg")',
-    starCluster: '✨ Under this star, scribes and elders recounted the journey: where we started, who helped, what nearly broke us, what we learned. This was spoken aloud so it would not be lost.',
+      decanName: 'sbꜣ ḫntt ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — endurance established.',
     maatPrinciple: 'Give Thanks for Distance Traveled',
     cosmicContext: '''Day 28 is witness of distance.
 In Kemet, gratitude wasn't vague. It was documented. "On this day we left. On this day we almost failed. On this day we were carried." That record made the labor sacred and kept arrogance from rewriting memory.
@@ -8008,8 +8008,8 @@ You did not arrive alone.''',
     kemeticDate: 'Hnsw III, Day 29',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw',
-    decanName: 'msḥtjw wr ("Great Foreleg")',
-    starCluster: '✨ As this decan waned, caravans and boats physically returned to home courts, shrines, ancestral houses. The journey was not considered complete until you touched your source.',
+      decanName: 'sbꜣ ḫntt ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — endurance established.',
     maatPrinciple: 'Return to Center / Come Home',
     cosmicContext: '''Day 29 is re-entry.
 In Kemet, coming home was ritual, not casual. People bathed, anointed, touched doorway lintels with forehead and hands, whispered prayers of thanks to the household spirits, and re-gifted a portion of what they brought back.
@@ -8029,8 +8029,8 @@ You are not just a traveler. You are a vessel of a lineage.''',
     kemeticDate: 'Hnsw III, Day 30',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Hnsw — The Traveler\'s Month',
-    decanName: 'msḥtjw wr ("Great Foreleg")',
-    starCluster: '✨ At the close of Hnsw, offerings were made to Ra at dusk: oil, beer, bread, sometimes incense. The leader of the journey stated aloud what was carried, what was protected, and how the group behaved. The sun was formally thanked for safe passage.',
+      decanName: 'sbꜣ ḫntt ("Star of the Foremost")',
+      starCluster: '✨ Star of the Foremost — endurance established.',
     maatPrinciple: 'Offer the Report to Ra',
     cosmicContext: '''Day 30 is testimony.
 In Kemet, you did not just arrive and fall asleep. You stood, even tired, and made formal report. "Here is what we did in your light. Here is what we upheld. Here is what we refused." That act sealed the journey clean.
@@ -8054,8 +8054,8 @@ You close Hnsw not by vanishing into rest, but by placing the journey in Maʿat 
     kemeticDate: 'Ḥenti-ḥet I, Day 1 (Day 1 of Ḥenti-ḥet / Pa-en-Ḥenti-ḥet)',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet ("Foremost of Offerings") — peace through giving back what you were given',
-    decanName: 'sbꜣ ḥrw ("Star of Horus") — vigilance at dawn',
-    starCluster: '✨ Horus watches the path of Ra. His star rises like an opened eye before full blaze. The message is simple: be awake before the fire arrives.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Rise Before the Heat',
     cosmicContext: '''Day 1 is first light discipline.
 In Kemet, people woke before sunrise in this period, not to "get ahead," but to greet Ra with a clean face, oiled skin, and intention. The first hours belonged to Maʿat. The late hours belonged to danger.
@@ -8075,8 +8075,8 @@ This is ritual obedience to balance.''',
     kemeticDate: 'Ḥenti-ḥet I, Day 2',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet — "Foremost of Offerings"',
-    decanName: 'sbꜣ ḥrw ("Star of Horus")',
-    starCluster: '✨ The Star of Horus was not only sight; it was discipline. Under this dawn sign, work was supposed to be deliberate, narrow, and finished before the brutal hours.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Work Clean, Work Brief',
     cosmicContext: '''Day 2 is essential labor only.
 In Kemet, wandering, bragging, over-doing in midday heat was seen as foolishness, not strength. The wise finished what actually mattered early, then withdrew.
@@ -8096,8 +8096,8 @@ Efficiency is not greed here. It's reverence. You refuse to waste your life-forc
     kemeticDate: 'Ḥenti-ḥet I, Day 3',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet',
-    decanName: 'sbꜣ ḥrw ("Star of Horus")',
-    starCluster: '✨ Horus is the clear eye. The falcon who sees far without panic. Under his star, the people were taught to control their breathing and their speech in the heat so they did not set off unnecessary conflict.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Guard the Breath',
     cosmicContext: '''Day 3 is thermal control of the mouth and lungs.
 In Kemet, to let anger spill during the blazing hours was seen as a type of fire-worship — feeding Sekhmet's rage instead of cooling it.
@@ -8117,8 +8117,8 @@ Breath is how you choose whether you protect Maʿat or rupture it.''',
     kemeticDate: 'Ḥenti-ḥet I, Day 4',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet ("Foremost of Offerings")',
-    decanName: 'sbꜣ ḥrw ("Star of Horus")',
-    starCluster: '✨ Under Ra\'s burning Eye, the old myth says Sekhmet almost consumed the earth. She only calmed when offered red beer — an offering that cooled divine wrath. Humans learned: what you cannot hold, you hand back.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Offer Back the Excess Heat',
     cosmicContext: '''Day 4 is surrender of the overheat.
 The Kemite did not pretend to be above rage, panic, hunger for control. They knew heat rises in the chest. Instead of letting it scorch the village, they offered it up — to Ra, to the altar, to running water.
@@ -8138,8 +8138,8 @@ That act is not weakness. It is priesthood.''',
     kemeticDate: 'Ḥenti-ḥet I, Day 5',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet',
-    decanName: 'sbꜣ ḥrw',
-    starCluster: '✨ "Foremost of Offerings" means peace through right measure. This is the day of portion and restraint — taking only what balances the body, the storehouse, and the village.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Honor Proportion',
     cosmicContext: '''Day 5 is righteous ration.
 To the Kemite, greed was a form of heat — a swelling, grasping impulse that violates Maʿat. In this period, families practiced measured consumption, not out of fear, but out of deep trust: "What we have is enough."
@@ -8159,8 +8159,8 @@ Proportion is worship. You prove trust in Ra by not clawing for more.''',
     kemeticDate: 'Ḥenti-ḥet I, Day 6',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet — "Foremost of Offerings"',
-    decanName: 'sbꜣ ḥrw ("Star of Horus")',
-    starCluster: '✨ Horus is protector. Under his gaze, the strong are commanded to shield the exposed. Shade became an offering equal to bread.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Shade the Vulnerable',
     cosmicContext: '''Day 6 is protection-as-offering.
 In Kemet, during the fiercest sun, elders and children were physically shaded with cloth and palm leaves. Water was pressed into their hands first. Not charity — law.
@@ -8180,8 +8180,8 @@ To walk through this day and offer no shade is to fail Ḥenti-ḥet.''',
     kemeticDate: 'Ḥenti-ḥet I, Day 7',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet',
-    decanName: 'sbꜣ ḥrw',
-    starCluster: '✨ The Star of Horus was linked to watching and accounting. Under this decan, families counted grain, water, oil. They wrote it down. Peace was not just spiritual — it was logistical.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Keep the Record',
     cosmicContext: '''Day 7 is clean accounting.
 In Kemet, ledgers were a form of prayer. "What has been given. What has been spent. What remains." You cannot offer rightly if you do not know what you hold.
@@ -8201,8 +8201,8 @@ Maʿat hates vague debt. Maʿat loves honest balance.''',
     kemeticDate: 'Ḥenti-ḥet I, Day 8',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet — "Foremost of Offerings"',
-    decanName: 'sbꜣ ḥrw ("Star of Horus")',
-    starCluster: '✨ The Eye of Ra can burn; it can also be soothed. Under this decan, people were taught: do not provoke the Eye. De-escalate. Lower the temperature.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Cool the Eye',
     cosmicContext: '''Day 8 is deliberate gentleness in the face of heat.
 In the myths, Sekhmet's fury is only calmed when her hunger for blood is redirected into sweetness and rest. Humans mirrored this by softening their own confrontations.
@@ -8222,8 +8222,8 @@ Cooling rage is not surrender. It is world-preservation.''',
     kemeticDate: 'Ḥenti-ḥet I, Day 9',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet',
-    decanName: 'sbꜣ ḥrw',
-    starCluster: '✨ The Star of Horus demanded respect for the vessel. The body was not seen as disposable labor. It was shrine. It housed the Ka.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Speak Soft to the Body',
     cosmicContext: '''Day 9 is tenderness toward flesh.
 In Kemet, oiling the skin, washing the dust, sitting in shade, drinking cool water, slowing the pulse — these were not luxuries. They were maintenance of the divine charge you carry.
@@ -8243,8 +8243,8 @@ You cannot offer yourself back to Maʿat shattered and call that devotion.''',
     kemeticDate: 'Ḥenti-ḥet I, Day 10',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet — "Foremost of Offerings," peace by returning what is not yours to keep',
-    decanName: 'sbꜣ ḥrw ("Star of Horus")',
-    starCluster: '✨ Under Horus\' watching star, oaths were spoken at dawn. "I will not become heat against my people." "I will not hoard." "I will not turn the Eye against my own house." These were living covenants.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Seal the Morning Oath',
     cosmicContext: '''Day 10 is vow-setting.
 In the villages, this marked the formal close of the first decan: you declare who you intend to be under pressure for the rest of Ḥenti-ḥet. You speak it aloud so you can be held to it.
@@ -8268,8 +8268,8 @@ Maʿat is not an idea. Maʿat is an oath you walk in public heat.''',
     kemeticDate: 'Ḥenti-ḥet II, Day 11',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet ("Foremost of Offerings") — peace through giving back and cooling excess',
-    decanName: 'ḥry-ib ḫꜣ ("Heart of Flame") — Sekhmet\'s fire under vow',
-    starCluster: '✨ A red-tinged point high overhead, understood as the living heart of Ra\'s Eye. Priests said: "Do not lie to this star. It knows what burns in you."',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Name the Fire',
     cosmicContext: '''Day 11 is confession of heat.
 In this phase, the Kemite did not pretend to be calm. Rage, jealousy, craving, panic — all of it was spoken aloud in offering halls the way oil or incense was offered. Because unnamed heat turns to violence.
@@ -8289,8 +8289,8 @@ This is how you keep Sekhmet from walking through your body and tearing your hou
     kemeticDate: 'Ḥenti-ḥet II, Day 12',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet',
-    decanName: 'ḥry-ib ḫꜣ ("Heart of Flame")',
-    starCluster: '✨ When Heart of Flame rose, incense was offered to Sekhmet — not to extinguish her, but to align her fury with justice. This is called "steering the Eye."',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Purify the Intention',
     cosmicContext: '''Day 12 is alignment of motive.
 The Kemite knew: raw force becomes holy only when its aim is pure. Sekhmet becomes healer when her rage defends the innocent, not her pride.
@@ -8310,8 +8310,8 @@ Unaimed heat burns everyone. Aimed heat becomes protection.''',
     kemeticDate: 'Ḥenti-ḥet II, Day 13',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet ("Foremost of Offerings")',
-    decanName: 'ḥry-ib ḫꜣ ("Heart of Flame")',
-    starCluster: '✨ Priests burned myrrh and lotus at midday, saying, "Sweeten the Eye." To sweeten was not weakness — it was controlled alchemy. Heat was taught mercy.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Sweeten the Flame',
     cosmicContext: '''Day 13 is cooling ritual.
 When you are about to scorch someone, you choose instead to bless them. Not because they "deserve it," but because you refuse to turn yourself into a weapon. This is Sekhmet drinking the red beer and softening.
@@ -8331,8 +8331,8 @@ That is devotion.''',
     kemeticDate: 'Ḥenti-ḥet II, Day 14',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet',
-    decanName: 'ḥry-ib ḫꜣ',
-    starCluster: '✨ Heart of Flame demanded accountability. Heat that escaped and harmed someone had to be brought back into balance — now, not "later."',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Repair Harm Done in Heat',
     cosmicContext: '''Day 14 is restoration work.
 In Kemet, when someone lashed out in anger during Shemu, it wasn't shrugged off as "that's just how I am." They were expected to repair it: apology, physical help, food, shade, resource. Balance restored in the same sun that witnessed the harm.
@@ -8352,8 +8352,8 @@ This is not guilt. This is sacred maintenance.''',
     kemeticDate: 'Ḥenti-ḥet II, Day 15',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet ("Foremost of Offerings")',
-    decanName: 'ḥry-ib ḫꜣ ("Heart of Flame")',
-    starCluster: '✨ Under this decan, speech itself was ritual. You didn\'t speak to vent. You spoke like someone who would one day stand before the scales.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Speak Under Oath',
     cosmicContext: '''Day 15 is oath-speech.
 The Kemite viewed the tongue as an instrument of Maʿat. Words were not casual, because once spoken, they entered the record of your heart. This is why confessions in the Hall of Maʿat begin with "I have not…" — every word counts.
@@ -8373,8 +8373,8 @@ You speak only what you'll defend when you're weighed.''',
     kemeticDate: 'Ḥenti-ḥet II, Day 16',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet',
-    decanName: 'ḥry-ib ḫꜣ ("Heart of Flame")',
-    starCluster: '✨ The Heart of Flame was also a purifier. Fire, when guided, was used to burn rot, pests, and spoiled offerings so they would not infect stores.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Burn Away the Rot',
     cosmicContext: '''Day 16 is severance.
 You identify what cannot continue with you — a habit that keeps you weak, a loyalty that drains you, an object carrying sick memory, a substance that dirties clarity. And you release it. Fully.
@@ -8394,8 +8394,8 @@ If you keep the rot, you defy Maʿat. If you burn it, you honor her.''',
     kemeticDate: 'Ḥenti-ḥet II, Day 17',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet ("Foremost of Offerings")',
-    decanName: 'ḥry-ib ḫꜣ',
-    starCluster: '✨ Sekhmet is usually remembered as wrath — but in temple liturgy she is also called "Great of Healing," when her flame is consecrated to restore the body.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Consecrate the Body',
     cosmicContext: '''Day 17 is presentation of self as sacred instrument.
 The workers of Kemet would oil their skin, wash dust from their limbs, braid or wrap their hair, apply perfumed fat to the neck — not vanity, but consecration. The body was temple hardware.
@@ -8415,8 +8415,8 @@ You are not debris. You are carried light.''',
     kemeticDate: 'Ḥenti-ḥet II, Day 18',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet',
-    decanName: 'ḥry-ib ḫꜣ ("Heart of Flame")',
-    starCluster: '✨ When Heart of Flame stood overhead, strength itself was considered an offering. Labor was sacred when it protected someone else.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Offer Heat as Service',
     cosmicContext: '''Day 18 is holy exertion.
 In Kemet, the strongest took the heaviest loads during this phase, not to boast but to spare the worn. Hauling jars of water, lifting grain sacks, reinforcing shade structures — this was worship.
@@ -8436,8 +8436,8 @@ Heat is justified when it shelters the vulnerable.''',
     kemeticDate: 'Ḥenti-ḥet II, Day 19',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet ("Foremost of Offerings")',
-    decanName: 'ḥry-ib ḫꜣ',
-    starCluster: '✨ Heart of Flame also taught stillness. True mastery wasn\'t frenzy. It was composure while the blaze roared.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Hold Still in the Blaze',
     cosmicContext: '''Day 19 is unshakenness.
 In Kemet, trials came hottest in Shemu — shortages, tempers, exhaustion. To erupt was normal. To remain steady was divine. The disciplined heart was considered proof of alignment with Maʿat.
@@ -8457,8 +8457,8 @@ Calm is not passivity. Calm is rulership.''',
     kemeticDate: 'Ḥenti-ḥet II, Day 20',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet',
-    decanName: 'ḥry-ib ḫꜣ ("Heart of Flame")',
-    starCluster: '✨ At the close of this decan, a vow was spoken directly to the sun: "My fire serves you in Maʿat." This sealed the transformation — rage into guardianship.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Seal the Flame in Devotion',
     cosmicContext: '''Day 20 is consecration of power.
 This is when you declare, out loud, what your strength is for. You state who your fire answers to. After this point, you no longer get to say "I couldn't help it." You chose. You aligned. You bound your will.
@@ -8482,8 +8482,8 @@ In Kemet, that moment separated destroyers from protectors.''',
     kemeticDate: 'Ḥenti-ḥet III, Day 21',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet ("Foremost of Offerings") — to give back is to create peace',
-    decanName: 'msḥtjw nfr ("Beautiful Foreleg") — strength under control, the bull bridled to Maʿat',
-    starCluster: '✨ A northern glow associated with the bull\'s foreleg — a symbol of force made useful, not wild. Priests taught: "Power is only beautiful when it obeys."',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Stand Down the Body',
     cosmicContext: '''Day 21 is surrender of strain.
 By this point in Shemu, backs are tight, hands are split, sleep is thin. In Kemet, this was not denied — it was honored. People stopped pretending to be invincible. You do not insult the body that carried you through the heat by demanding silence from it at the end.
@@ -8503,8 +8503,8 @@ This is not quitting. This is intelligent survival under Ra.''',
     kemeticDate: 'Ḥenti-ḥet III, Day 22',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet',
-    decanName: 'msḥtjw nfr ("Beautiful Foreleg")',
-    starCluster: '✨ The "foreleg" was also a symbol of provision — what the hunt, the field, and the herd gave the household. Its light said: protect what feeds you.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Secure the Storehouse',
     cosmicContext: '''Day 22 is stewardship.
 In Kemet, grain was counted, sealed, and blessed. Oil jars were checked. Tools were gathered from the field so none would be lost to thieves or weather. This was not greed; this was honoring what the Nile and your own sweat made possible.
@@ -8524,8 +8524,8 @@ Care is devotion.''',
     kemeticDate: 'Ḥenti-ḥet III, Day 23',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet ("Foremost of Offerings")',
-    decanName: 'msḥtjw nfr ("Beautiful Foreleg")',
-    starCluster: '✨ The bull\'s foreleg symbolized usable strength — not rage, but leverage. In human life, that meant tools. You respect them because they extend your reach.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Sharpen and Mend',
     cosmicContext: '''Day 23 is maintenance.
 Blades were sharpened. Handles were repaired. Nets were untangled and hung to dry. Work areas were swept and cleared. Why? Because tools left neglected decay, and decay invites disorder.
@@ -8545,8 +8545,8 @@ This is love across time.''',
     kemeticDate: 'Ḥenti-ḥet III, Day 24',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet',
-    decanName: 'msḥtjw nfr ("Beautiful Foreleg")',
-    starCluster: '✨ The bull was mighty, yes — but yoked. Directed. The mythic foreleg is not wild charge, it is guided power.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Release the Burden',
     cosmicContext: '''Day 24 is surrender of false weight.
 In Kemet, pride made people hold too much for too long. The wise knew when to hand tasks off, pause a route, or say "this is no longer mine." That was not weakness. That was obedience to Maʿat.
@@ -8566,8 +8566,8 @@ Carrying past purpose is disobedience, not loyalty.''',
     kemeticDate: 'Ḥenti-ḥet III, Day 25',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet ("Foremost of Offerings")',
-    decanName: 'msḥtjw nfr ("Beautiful Foreleg")',
-    starCluster: '✨ The resting bull is still powerful. The still foreleg is still dangerous. Rest does not cancel strength — it protects it.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Honor the Body as Survivor',
     cosmicContext: '''Day 25 is reverence for the vessel.
 This is where you tend bruises without judging yourself for having them. You oil joints. You eat slow, mineral-rich food. You drink deeply. You cool swollen places. In Kemet, this tending was ceremonial — survival was praised, not ignored.
@@ -8586,8 +8586,8 @@ If not, correct it. Your flesh is not disposable equipment. It is sanctified ins
     kemeticDate: 'Ḥenti-ḥet III, Day 26',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet',
-    decanName: 'msḥtjw nfr ("Beautiful Foreleg")',
-    starCluster: '✨ The northern light was invoked with spoken gratitude: blessings to Ra, to the river, to the household, to the ancestors. The Kemite never closed a season without thanks.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Speak Gratitude to the Source',
     cosmicContext: '''Day 26 is public gratitude.
 Not silent "I appreciate it." Spoken. Witnessed. Named. In Kemet, people thanked those who carried water, those who cooked, those who watched children during the hottest days, those who held shade over the elders.
@@ -8607,8 +8607,8 @@ This is wealth.''',
     kemeticDate: 'Ḥenti-ḥet III, Day 27',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet ("Foremost of Offerings")',
-    decanName: 'msḥtjw nfr ("Beautiful Foreleg")',
-    starCluster: '✨ At this phase, scribes recorded grain measures, tool condition, canal strength, labor given, and disputes settled. Memory itself was an offering to Maʿat.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Record the Season',
     cosmicContext: '''Day 27 is witness.
 If there is no record, chaos can rewrite the story. Kemet knew that. So they documented: who helped, what failed, what survived, what must change next cycle. This wasn't vanity — it was protection from false memory.
@@ -8627,8 +8627,8 @@ Write it. Archive it. Put your restoration on record so Maʿat can point to it.'
     kemeticDate: 'Ḥenti-ḥet III, Day 28',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet',
-    decanName: 'msḥtjw nfr ("Beautiful Foreleg")',
-    starCluster: '✨ The resting bull allowed no disturbance. Its calm was law. In the same way, rest in this phase became a boundary, not a suggestion.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Establish Boundary for Rest',
     cosmicContext: '''Day 28 is lawful rest.
 In Kemet, there were days when work simply stopped. Not laziness — protection of the body and protection of the order they had just rebuilt. You were not allowed to be endlessly extracted.
@@ -8648,8 +8648,8 @@ Whoever disrespects that boundary is asking you to betray Maʿat. You do not.'''
     kemeticDate: 'Ḥenti-ḥet III, Day 29',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet ("Foremost of Offerings")',
-    decanName: 'msḥtjw nfr ("Beautiful Foreleg")',
-    starCluster: '✨ The final glow of this decan was offered back to the gods: grain to temple, water to shrine, time to elders, skill to the young. Nothing hoarded. Nothing wasted.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Return Excess',
     cosmicContext: '''Day 29 is circulation.
 The Kemite knew that stored abundance rots if it does not move. So the last days of Ḥenti-ḥet were for giving back what you could spare — food to the hungry, tools on loan, knowledge handed down. This kept the whole community in Maʿat.
@@ -8669,8 +8669,8 @@ You are not draining yourself. You are preventing sacred resource from dying in 
     kemeticDate: 'Ḥenti-ḥet III, Day 30',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ḥenti-ḥet',
-    decanName: 'msḥtjw nfr ("Beautiful Foreleg")',
-    starCluster: '✨ The calm foreleg at rest marked completion. Work is closed. The vow is sealed. The people stand in gratitude before stepping into the next cycle.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Seal the Offering',
     cosmicContext: '''Day 30 is closure in reverence.
 This is where you say: "It was enough." Not "it should've been more." Not "next time I'll be perfect." Enough.
@@ -8695,8 +8695,8 @@ You close the month the way a priest closes the shrine: with dignity.''',
     kemeticDate: 'Ipt-ḥmt I, Day 1',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Bringing Together / Union") — reunion of living and ancestral lines, renewal through remembrance',
-    decanName: 'ꜥḥꜣy ("The Reviver")',
-    starCluster: '✨ A small cluster near the Milky Way, called "the lamp of those returning." Its first rise signaled the opening of remembrance rites.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Call the Lineage',
     cosmicContext: '''Day 1 is invocation.
 In Kemet, when ꜥḥꜣy began to rise, families went to the tomb chapels and spoke the names of their dead aloud, starting with the most recent and walking backward as far as memory could reach. It was understood that silence kills: a forgotten name is a starving Ka.
@@ -8716,8 +8716,8 @@ You are not alone. You never were.''',
     kemeticDate: 'Ipt-ḥmt I, Day 2',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'ꜥḥꜣy ("The Reviver")',
-    starCluster: '✨ Priests called this cluster "the lamp of those returning." The living were expected to tend that lamp — literally to keep it clean.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Clean the Shrine / Clean the Room',
     cosmicContext: '''Day 2 is purification of memory.
 Kemites scrubbed ancestor stelae, brushed sand from carved names, refreshed flowers, re-wrapped jars. Even in poor homes with no carved tomb, they would wipe and straighten a simple corner of the house where keepsakes lived. Neglect was considered an insult to the line itself.
@@ -8737,8 +8737,8 @@ You are not decorating. You are restoring dignity to your blood.''',
     kemeticDate: 'Ipt-ḥmt I, Day 3',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Reunion")',
-    decanName: 'ꜥḥꜣy ("The Reviver")',
-    starCluster: '✨ The cluster was said to "drink" offerings of food, incense, and breath — not consuming them physically but converting them into strength for the Ka.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Offer Sustenance',
     cosmicContext: '''Day 3 is feeding the unseen.
 In Kemet, water was poured, bread was placed, beer was set out, incense was burned — all given to sustain the Ka of the dead and to link them lovingly to the living. The belief: if you feed them, they feed you. If you starve them, your own path weakens.
@@ -8758,8 +8758,8 @@ This is worship through loyalty.''',
     kemeticDate: 'Ipt-ḥmt I, Day 4',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'ꜥḥꜣy ("The Reviver")',
-    starCluster: '✨ Priests said: "The Reviver speaks in quiet." This was the night of listening, not asking.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Listen for Instruction',
     cosmicContext: '''Day 4 is counsel.
 After feeding the Ka, the Kemite did not rush away. They sat in stillness. Eyes lowered. Breath even. Waiting. It was understood that the ancestors still advise — especially on matters of protection, resource, and dignity.
@@ -8779,8 +8779,8 @@ Guidance from those who survived before you is not theory. It is field-tested la
     kemeticDate: 'Ipt-ḥmt I, Day 5',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Bringing Together of the Women / Union of Forces")',
-    decanName: 'ꜥḥꜣy ("The Reviver")',
-    starCluster: '✨ The Reviver\'s light was said to expose lies inside the household story — not to shame the family, but to heal it.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Repair the Story',
     cosmicContext: '''Day 5 is truth-telling.
 Kemet did not worship a fake past. Honesty itself was Maʿat. On this day, families spoke aloud what really happened — struggle, betrayal, abuse, sacrifice, escape, cleverness, survival. Because if the story stays broken, the line stays poisoned.
@@ -8800,8 +8800,8 @@ This is how you stop inheritance of rot.''',
     kemeticDate: 'Ipt-ḥmt I, Day 6',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'ꜥḥꜣy ("The Reviver")',
-    starCluster: '✨ The Reviver\'s light was not only about summoning the dead — it was about identifying the specific virtue each ancestor carried so that it would not vanish.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Carry Forward a Virtue',
     cosmicContext: '''Day 6 is skill and character inheritance.
 The Kemite did not worship ancestors just to worship them. The point was: take what was excellent in them and keep it alive. Fierce honesty. Craftsmanship. Relentless tenderness. Refusal to bow to injustice. Ability to make food stretch. Laughter under pressure.
@@ -8820,8 +8820,8 @@ Choose one trait from a specific ancestor and live it consciously for the next 2
     kemeticDate: 'Ipt-ḥmt I, Day 7',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Reunion of lines")',
-    decanName: 'ꜥḥꜣy ("The Reviver")',
-    starCluster: '✨ This cluster was a vow-light: proof the living still claimed their lineage and had not abandoned it.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Reaffirm Your Place',
     cosmicContext: '''Day 7 is declaration.
 In Kemet, identity was not "I am myself." Identity was "I am of this house, of this river, of this Name." You announced out loud that you were not rootless. That you came from a current of survival, skill, and favor.
@@ -8841,8 +8841,8 @@ This is protection against despair. Isolation is how chaos hunts.''',
     kemeticDate: 'Ipt-ḥmt I, Day 8',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'ꜥḥꜣy ("The Reviver")',
-    starCluster: '✨ The Reviver was also called "the joining light," because it did not just honor the dead — it reconciled the living.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Bind the Household',
     cosmicContext: '''Day 8 is household protection.
 Kemetic devotion was not only incense and hymns. It was also: "Are the children safe?" "Is the elder comforted?" "Is the anger in this house cooling?" You extend the same protection you pray for.
@@ -8862,8 +8862,8 @@ Maʿat begins inside the doorway.''',
     kemeticDate: 'Ipt-ḥmt I, Day 9',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Renewal")',
-    decanName: 'ꜥḥꜣy ("The Reviver")',
-    starCluster: '✨ Kemites said, "The Reviver writes your promise into the West." Meaning: what you vow to carry forward will be recorded with you when you die.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Promise Continuity',
     cosmicContext: '''Day 9 is inheritance on purpose.
 In Kemet, people swore aloud what they would preserve: a piece of land, a ritual, a craft, a moral law. You did not wait for accident to decide what survived. You named it.
@@ -8883,8 +8883,8 @@ You are ensuring that your line does not break when you do.''',
     kemeticDate: 'Ipt-ḥmt I, Day 10',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'ꜥḥꜣy ("The Reviver")',
-    starCluster: '✨ The Reviver was said to "bind the Ka to the living vow." This is where memory, intention, and oath become one line.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Seal the Lineage Vow',
     cosmicContext: '''Day 10 is oath.
 This is where you stop treating all this like mood and name it as duty. In Kemet, people declared before witnesses — living or dead — that they would uphold the line in Maʿat. Care for graves. Defend children. Guard names. Maintain dignity. Feed the chain.
@@ -8908,8 +8908,8 @@ The gods record. Your ancestors hear. You become answerable.''',
     kemeticDate: 'Ipt-ḥmt II, Day 11',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Bringing Together of the Line")',
-    decanName: 'špsswt ("The Honored Ones")',
-    starCluster: '✨ A wide scatter of dim ancestral lights, the justified dead called "true of voice," standing as witnesses.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Stand Before Your Name',
     cosmicContext: '''Day 11 is judgment without funeral.
 In Kemet, to be "true of voice" meant you could stand before Maʿat and speak truth about your own life without choking. That status wasn't automatic. You had to live into it.
@@ -8929,8 +8929,8 @@ This is not guilt. This is calibration. You're checking your own weight while yo
     kemeticDate: 'Ipt-ḥmt II, Day 12',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'špsswt ("The Honored Ones")',
-    starCluster: '✨ The dim northern scatter was addressed as a gathered council. Water was poured for them bowl by bowl in silence.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Pour the Water',
     cosmicContext: '''Day 12 is reverence for those who earned honor.
 The Kemite didn't act like everyone in the lineage was glorious. They knew exactly who upheld Maʿat and who didn't. On this day, offerings were given specifically to the ones who lived right — the ones whose names were safe to invoke.
@@ -8950,8 +8950,8 @@ You are not worshiping them. You are apprenticing under them.''',
     kemeticDate: 'Ipt-ḥmt II, Day 13',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Reunion")',
-    decanName: 'špsswt ("The Honored Ones")',
-    starCluster: '✨ This decan was invoked in self-audit: "Do I match what I claim?" That question was considered sacred.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Measure Your Conduct',
     cosmicContext: '''Day 13 is alignment check.
 The Kemite understood that false presentation is a kind of rot. To speak Maʿat while living isfet (imbalance, disorder) was shameful. This day existed to stop that drift.
@@ -8971,8 +8971,8 @@ The blessed dead you just honored are not fooled by costume. Neither should you 
     kemeticDate: 'Ipt-ḥmt II, Day 14',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'špsswt ("The Honored Ones")',
-    starCluster: '✨ The honored dead were said to "intercede for the one who repairs," meaning: if you fix what you broke, they stand with you.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Correct Harm You Caused',
     cosmicContext: '''Day 14 is repair.
 Maʿat is not "I never messed up." Maʿat is "when I break something, I fix it." This day existed so you could return balance while you're still alive, so the debt does not follow you into judgment.
@@ -8992,8 +8992,8 @@ You are not groveling. You are cleaning the ledger your own spirit will face.'''
     kemeticDate: 'Ipt-ḥmt II, Day 15',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Bringing Together")',
-    decanName: 'špsswt ("The Honored Ones")',
-    starCluster: '✨ The scattered lights of špsswt were called "the clean names." A stained name could not sit there.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Clean Your Name',
     cosmicContext: '''Day 15 is name purification.
 In Kemet, your name (rn) was a living body. To pollute it with lies, chaos, trash talk, reckless drama — that was self-harm. To cleanse it was spiritual maintenance.
@@ -9013,8 +9013,8 @@ This is not rebranding. This is spiritual hygiene.''',
     kemeticDate: 'Ipt-ḥmt II, Day 16',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'špsswt ("The Honored Ones")',
-    starCluster: '✨ The honored dead were invoked as witnesses when a living person declared a new personal law.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Speak Your Standard Aloud',
     cosmicContext: '''Day 16 is boundary spoken as oath.
 The Kemite understood that unspoken standards dissolve. Said aloud, they harden. On this day, a person would state what was now forbidden and what was now required in their life, calling the ancestors to witness.
@@ -9034,8 +9034,8 @@ The honored dead hear you and hold you accountable.''',
     kemeticDate: 'Ipt-ḥmt II, Day 17',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Reunion of lines")',
-    decanName: 'špsswt ("The Honored Ones")',
-    starCluster: '✨ The honored ones\' speech was binding. If they said it, it was so. The living were expected to treat speech with that same weight.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Protect Your Word',
     cosmicContext: '''Day 17 is oath protection.
 In Kemet, careless speech was considered spiritual fraud. You did not promise what you would not do. You did not pledge loyalty you didn't mean. You did not swear love you would not keep. Your word and your Ka were tied.
@@ -9055,8 +9055,8 @@ Your voice is an altar. Stop spilling on it.''',
     kemeticDate: 'Ipt-ḥmt II, Day 18',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'špsswt ("The Honored Ones")',
-    starCluster: '✨ This decan was also linked to endurance under heat — to remain aligned when Ra\'s eye burns hottest.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Hold Your Center in Heat',
     cosmicContext: '''Day 18 is trial.
 The Kemite knew: Maʿat that only works when life is easy is not Maʿat. The honored dead are honored because they stayed aligned under pressure — insult, hunger, temptation, humiliation, rage.
@@ -9076,8 +9076,8 @@ This is posture under flame.''',
     kemeticDate: 'Ipt-ḥmt II, Day 19',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Reunion")',
-    decanName: 'špsswt ("The Honored Ones")',
-    starCluster: '✨ The scatter of špsswt was plural on purpose. Not only the famous become honored — also the steadfast, unnoticed keepers of balance.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Honor the Quiet Ones',
     cosmicContext: '''Day 19 is gratitude for the unpraised.
 Kemet understood that whole households, whole fields, whole temples survived because of people who never got named in stone. The woman who rationed grain with perfect fairness. The uncle who defended children. The neighbor who showed up every time.
@@ -9097,8 +9097,8 @@ This corrects an old injustice: work without honor.''',
     kemeticDate: 'Ipt-ḥmt II, Day 20',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'špsswt ("The Honored Ones")',
-    starCluster: '✨ The wide scatter of špsswt was also called "the audience." One day, you join them.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Prepare to Be Remembered',
     cosmicContext: '''Day 20 is legacy alignment.
 The Kemite did not fear death because he understood continuation. The only true fear was dying untrue — leaving behind a name that cannot be spoken with honor.
@@ -9122,8 +9122,8 @@ This is not fantasy. This is reputation as ritual — you forming the memory you
     kemeticDate: 'Ipt-ḥmt III, Day 21',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Bringing Together / Reunion of the Line")',
-    decanName: 'ḥr sꜣḥ ("Horus upon Sah")',
-    starCluster: '✨ Orion (Sah) rising at dawn beneath the idea of Horus standing above him: succession, rightful continuation.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Claim the Line',
     cosmicContext: '''Day 21 is acceptance: you are not an accident.
 In Kemet, kingship was not about ego. It was about continuity — Horus standing upon Sah meant: "I stand on what my ancestor built, not apart from it."
@@ -9143,8 +9143,8 @@ Claiming the line is not cosplay. It is custodianship.''',
     kemeticDate: 'Ipt-ḥmt III, Day 22',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'ḥr sꜣḥ ("Horus upon Sah")',
-    starCluster: '✨ Orion-as-Sah was not just "the father." He was "the established throne." To stand on Sah was to accept duty.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Receive the Charge',
     cosmicContext: '''Day 22 is assignment.
 Inheritance in Kemet was not "you get stuff." It was "you get responsibility." When Horus stands on Sah, it means: the work is yours now. Feed who must be fed. Guard what must be guarded. Keep Maʿat with your body.
@@ -9164,8 +9164,8 @@ This is when you say, "Yes. I'll carry it."''',
     kemeticDate: 'Ipt-ḥmt III, Day 23',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Bringing Together / Reunion")',
-    decanName: 'ḥr sꜣḥ ("Horus upon Sah")',
-    starCluster: '✨ Horus\'s throne is always shown over a body that suffered. The throne is built on scar, not fantasy.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Name the Scar',
     cosmicContext: '''Day 23 is courage in honesty.
 When Horus stands on Sah, he stands on a body that was torn, scattered, reassembled — Asar (Osiris). Kemet never hides that. It teaches: every inheritance carries wound.
@@ -9185,8 +9185,8 @@ You do not pretend it wasn't there. You say, "I see it. It stops here."''',
     kemeticDate: 'Ipt-ḥmt III, Day 24',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'ḥr sꜣḥ ("Horus upon Sah")',
-    starCluster: '✨ Horus inherits not just the throne — he inherits the obligation to keep Maʿat breathing in the world.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Swear Continuity',
     cosmicContext: '''Day 24 is vow.
 The Kemite believed that certain things are not allowed to die: sanctuary, dignity, a child's safety, a house where people can rest without terror, an honest account of what happened. Someone must swear to keep those alive.
@@ -9206,8 +9206,8 @@ This is you taking oath as living temple.''',
     kemeticDate: 'Ipt-ḥmt III, Day 25',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Union / Reunion with the Ka")',
-    decanName: 'ḥr sꜣḥ ("Horus upon Sah")',
-    starCluster: '✨ In rites of succession, rejection mattered as much as acceptance. Horus refuses Set\'s chaos.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Refuse the Rot',
     cosmicContext: '''Day 25 is prohibition.
 If Day 24 is "this will live through me," Day 25 is "this will not live through me." Horus inherits Asar (Osiris), but he does not inherit Set's poison.
@@ -9227,8 +9227,8 @@ You are cutting a cord. You are killing a pattern so the next ones don't have to
     kemeticDate: 'Ipt-ḥmt III, Day 26',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'ḥr sꜣḥ ("Horus upon Sah")',
-    starCluster: '✨ The throne of Horus is always drawn built. Thrones are engineered. Continuity is engineered.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Build the Bridge',
     cosmicContext: '''Day 26 is infrastructure.
 Kemet did not believe in "they'll figure it out." They documented, stored grain, carved names, built tombs with maps, taught measurement. A righteous heir leaves bridges, not mysteries.
@@ -9248,8 +9248,8 @@ This is love as architecture.''',
     kemeticDate: 'Ipt-ḥmt III, Day 27',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'ḥr sꜣḥ ("Horus upon Sah")',
-    starCluster: '✨ Horus is also teacher. The heir instructs. He does not hoard.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Transfer the Teachings',
     cosmicContext: '''Day 27 is transmission.
 Keeping wisdom to yourself so you stay "needed" is isfet. In Kemet, knowledge hoarded was corruption. Knowledge shared was continuity.
@@ -9269,8 +9269,8 @@ You are not immortal. Share the map.''',
     kemeticDate: 'Ipt-ḥmt III, Day 28',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Bringing Together / Reunion")',
-    decanName: 'ḥr sꜣḥ ("Horus upon Sah")',
-    starCluster: '✨ Coronation scenes are public. Succession is declared, not hidden. Horus is presented.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Pledge Publicly',
     cosmicContext: '''Day 28 is declaration.
 In Kemet, the heir does not sneak into power. The heir is revealed before the Two Lands and named as guardian of Maʿat. That revelation is both accountability and protection.
@@ -9290,8 +9290,8 @@ When you declare it, the world can measure you by it. That pressure is holy.''',
     kemeticDate: 'Ipt-ḥmt III, Day 29',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt',
-    decanName: 'ḥr sꜣḥ ("Horus upon Sah")',
-    starCluster: '✨ Before new year, ledgers were closed. Grain was counted. Doors were locked. Wills were spoken aloud.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Seal the House',
     cosmicContext: '''Day 29 is order.
 This is the day you put everything in place so chaos doesn't burst in the second you step out of view. In Kemet, nothing rolled into the new year sloppy. The home was sealed in Maʿat.
@@ -9311,8 +9311,8 @@ That is love. That is protection. That is Maʿat.''',
     kemeticDate: 'Ipt-ḥmt III, Day 30',
     season: '☀️ Shemu — Heat and Distribution',
     month: 'Ipt-ḥmt ("Bringing Together / Reunion with the Ka")',
-    decanName: 'ḥr sꜣḥ ("Horus upon Sah")',
-    starCluster: '✨ Dawn approaches. The old year is closing. Horus stands fully revealed, upright on Sah, prepared to govern by Maʿat.',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Stand Before the Dawn',
     cosmicContext: '''Day 30 is presentation.
 You arrive at the threshold of the new cycle as the heir: not hiding, not pretending to be smaller than you are, not making yourself unworthy so no one will expect anything. Horus at dawn is unhidden.
@@ -9336,8 +9336,8 @@ Now you stand upright and say: "I am here, in order, under Maʿat. I will carry.
     kemeticDate: 'Mswt-Rꜥ I, Day 1',
     season: '🌞 Threshold of Heriu Renpet — the womb before birth',
     month: 'Mswt-Rꜥ ("The Birth of Ra," the gestation of renewal)',
-    decanName: 'sꜣḥ (Sah / Orion, the risen body of Asar (Osiris))',
-    starCluster: '✨ Sah over the western desert, the stars arranged like a reassembled body.',
+      decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
+      starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
     maatPrinciple: 'Surrender to Stillness',
     cosmicContext: '''Day 1 is stillness by obedience, not collapse.
 In Kemet, stillness was not laziness — it was ritual. The lamps in the temples of the old year were extinguished on purpose, not because the fire died, but because the priests said "Rest now. The god is being prepared."
@@ -9359,8 +9359,8 @@ Stillness is not retreat. Stillness is preparation for reassembly.''',
     kemeticDate: 'Mswt-Rꜥ I, Day 2',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ ("The Birth of Ra")',
-    decanName: 'sꜣḥ (Sah / Orion)',
-    starCluster: '✨ The body of Sah is armed, but in Mswt-Rꜥ it is sheathed. Power is present, not flailing.',
+      decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
+      starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
     maatPrinciple: 'Lay Down Weapons',
     cosmicContext: '''Day 2 is disarmament.
 In the restoration myth, Asar (Osiris) is not raised with his rage — he is raised with his dignity. The rage belongs to Set. The Dignity belongs to Asar.
@@ -9382,8 +9382,8 @@ Lay it down for one day. See what remains of you when you are not busy defending
     kemeticDate: 'Mswt-Rꜥ I, Day 3',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ',
-    decanName: 'sꜣḥ (Sah / Orion / Asar (Osiris) resurrected)',
-    starCluster: '✨ Night hymns of ḥeset en renpet (praises of the year) slowed their tempo this month to match breath.',
+      decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
+      starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
     maatPrinciple: 'Loosen the Jaw / Breathe',
     cosmicContext: '''Day 3 is breath returned to the body like water poured back into a dry canal.
 Kemetic physicians and temple healers knew: locked jaw, high shoulders, shallow breath means "battle-state." You cannot crown a king in battle-state. You calm the nervous system before enthronement.
@@ -9404,8 +9404,8 @@ Sah rises in silence so the nervous system of the land can follow.''',
     kemeticDate: 'Mswt-Rꜥ I, Day 4',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ ("The Birth of Ra")',
-    decanName: 'sꜣḥ',
-    starCluster: '✨ Under Sah, the human body was mapped like sacred land: each point worthy of note, each scar recorded.',
+      decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
+      starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
     maatPrinciple: 'Return to Body',
     cosmicContext: '''Day 4 is re-entering yourself.
 When the body is in chronic defense, parts of you go offline — throat tight, belly numb, chest armored, hands cold. The Kemite healer would place hands and name where life had retreated. Naming was medicine.
@@ -9426,8 +9426,8 @@ To be reborn under Ra, you must first be fully present under Nut.''',
     kemeticDate: 'Mswt-Rꜥ I, Day 5',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ',
-    decanName: 'sꜣḥ',
-    starCluster: '✨ The scattered parts of Asar (Osiris) were gathered by Aset (Isis) and Nebet-Het. Nothing true was thrown away.',
+      decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
+      starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
     maatPrinciple: 'Offer the Remains',
     cosmicContext: '''Day 5 is honest offering.
 In the myth, Aset (Isis) does not demand that Asar (Osiris) "be whole" before she loves him. She gathers even the broken parts and says: "This is still my lord." That act itself calls resurrection.
@@ -9448,8 +9448,8 @@ This is how the next birth begins: not with perfection, but with truth placed in
     kemeticDate: 'Mswt-Rꜥ I, Day 6',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ ("The Birth of Ra")',
-    decanName: 'sꜣḥ',
-    starCluster: '✨ The rite of raising Asar (Osiris) is not self-resurrection. It is communal resurrection. You are lifted by hands.',
+      decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
+      starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
     maatPrinciple: 'Receive Reassembly',
     cosmicContext: '''Day 6 is letting yourself be helped without shame.
 Aset (Isis) and Nebet-Het do not ask Asar (Osiris), "Can you get up on your own?" They build him back. Limb, breath, name. That rebuilding is holy, not humiliating.
@@ -9470,8 +9470,8 @@ You are not weak for needing that. You are in ceremony.''',
     kemeticDate: 'Mswt-Rꜥ I, Day 7',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ',
-    decanName: 'sꜣḥ',
-    starCluster: '✨ The Djed pillar is the backbone of Asar (Osiris), stood upright as proof that order can return.',
+      decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
+      starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
     maatPrinciple: 'Raise the Djed',
     cosmicContext: '''Day 7 is spine.
 The rite of "Raising the Djed" in temple scenes is not body-building bravado. It is the quiet, disciplined act of re-stabilizing the world. The pillar stands, and with it, the kingdom stands.
@@ -9492,8 +9492,8 @@ When you sit like Djed, the room knows balance has returned.''',
     kemeticDate: 'Mswt-Rꜥ I, Day 8',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ ("The Birth of Ra")',
-    decanName: 'sꜣḥ',
-    starCluster: '✨ In temple birth scenes, the newborn god is named in public. Name is destiny. Name is vow.',
+      decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
+      starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
     maatPrinciple: 'Accept the Naming',
     cosmicContext: '''Day 8 is reclamation of name.
 You have been called lazy, angry, too much, too soft, unreliable, dangerous, ungrateful, crazy, disposable. None of those are your true name. Those are chains.
@@ -9514,8 +9514,8 @@ Say it out loud. The body hears you. The soul hears you. Maʿat hears you.''',
     kemeticDate: 'Mswt-Rꜥ I, Day 9',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ',
-    decanName: 'sꜣḥ',
-    starCluster: '✨ Night watch in Kemet was sacred duty. The guard at the temple gate was not \'security.\' He was boundary.',
+      decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
+      starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
     maatPrinciple: 'Keep Silent Watch',
     cosmicContext: '''Day 9 is quiet guard.
 You do not argue. You do not plead. You observe. You decide what may enter and what may not.
@@ -9536,8 +9536,8 @@ You are not required to drag any of that into rebirth. You are allowed to say, "
     kemeticDate: 'Mswt-Rꜥ I, Day 10',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ ("The Birth of Ra")',
-    decanName: 'sꜣḥ (Sah / Orion / Asar (Osiris) enthroned in the night sky)',
-    starCluster: '✨ Sah in full stance is not frantic. He is stationed. He is gate. He is proof that resurrection is already in motion.',
+      decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
+      starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
     maatPrinciple: 'Hold the Gate',
     cosmicContext: '''Day 10 is readiness without desperation.
 Rebirth is close. But you do not claw at it. You do not beg the dawn to hurry. You stand like Sah: assembled, named, guarded, breathing, upright.
@@ -9562,8 +9562,8 @@ You are standing at the door of the next cycle as living structure, holding Maʿ
     kemeticDate: 'Mswt-Rꜥ II, Day 11',
     season: '☀️ Shemu — The Closing Heat',
     month: 'Mswt-Rꜥ ("Births of Ra") — msi = to give birth, emergence',
-    decanName: 'sbꜣ nfr — "The Beautiful Star"',
-    starCluster: '✨ Sopdet (Sirius) entering her invisible phase, swallowed by Nut, symbol of divine gestation.',
+      decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
+      starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
     maatPrinciple: 'Enter the Hidden',
     cosmicContext: '''Today begins the inward turn of the final month.
 In Kemet, the disappearance of Sirius was not fear but reverence — the belief that even stars require dark chambers to be remade.
@@ -9587,8 +9587,8 @@ What goes quiet today will bloom in a way that loudness could never achieve.''',
     kemeticDate: 'Mswt-Rꜥ II, Day 12',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ ("The Births of Ra")',
-    decanName: 'sbꜣ nfr — "The Beautiful Star"',
-    starCluster: '✨ Sopdet retreating deeper into Nut\'s invisible belly — luminous absence.',
+      decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
+      starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
     maatPrinciple: 'Release the Light',
     cosmicContext: '''Day 12 teaches that not all light is helpful.
 The Kemite understood that even radiance can exhaust, distract, or blind when held past its purpose.
@@ -9610,8 +9610,8 @@ Let go so you can rise without the weight of old brightness.''',
     kemeticDate: 'Mswt-Rꜥ II, Day 13',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ nfr',
-    starCluster: '✨ Sirius now fully invisible — the star beneath the horizon of the seen.',
+      decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
+      starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
     maatPrinciple: 'Sink into Trust',
     cosmicContext: '''Day 13 is surrender to the unseen.
 The Kemite watched Sirius disappear into the brightness of Ra and understood a secret:
@@ -9634,8 +9634,8 @@ Trust does not weaken you; it frees your energy for what is coming.''',
     kemeticDate: 'Mswt-Rꜥ II, Day 14',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ nfr',
-    starCluster: '✨ The womb of Nut brightens faintly — the invisible stirring before emergence.',
+      decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
+      starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
     maatPrinciple: 'Prepare the Vessel',
     cosmicContext: '''Day 14 is the cleansing before the birth.
 In Kemet, no shrine received rebirth-water unless it had been washed with natron and swept with palm fibers.
@@ -9658,8 +9658,8 @@ The gods are preparing for birth — your life must not be cluttered when the ne
     kemeticDate: 'Mswt-Rꜥ II, Day 15',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ nfr',
-    starCluster: '✨ The Star of Sopdet fully withdrawn — pure silence.',
+      decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
+      starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
     maatPrinciple: 'Seal the Silence',
     cosmicContext: '''Day 15 is the locking of the chamber.
 In temple ritual, before the great births of the epagomenal days, the sanctuary was sealed — no sound, no incense, no movement except the breath of the gods.
@@ -9684,8 +9684,8 @@ You are guarding the unborn within you.''',
     kemeticDate: 'Mswt-Rꜥ II, Day 16',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ ("Births of Ra")',
-    decanName: 'sbꜣ nfr — "The Beautiful Star"',
-    starCluster: '✨ Sopdet fully dissolved into Nut\'s womb — the unseen pulse of coming light.',
+      decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
+      starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
     maatPrinciple: 'Hold the Unborn',
     cosmicContext: '''Day 16 is patient expectation.
 In Kemet, this was the softest day of the year — the day when even priests spoke less, sensing the weightless fullness of something forming beyond sight.
@@ -9708,8 +9708,8 @@ Everything unborn needs warmth, not pressure.''',
     kemeticDate: 'Mswt-Rꜥ II, Day 17',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ nfr',
-    starCluster: '✨ The hidden star warms — an unseen glow strengthening beneath darkness.',
+      decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
+      starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
     maatPrinciple: 'Warm the Inner Flame',
     cosmicContext: '''Day 17 is the kindling of the internal fire.
 Though the outer world remains still, the inner world begins to heat — the same way the womb of Nut warms before the births of the gods.
@@ -9732,8 +9732,8 @@ This heat is what will empower you to cross the year's threshold with strength.'
     kemeticDate: 'Mswt-Rꜥ II, Day 18',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ nfr',
-    starCluster: '✨ The hidden star draws strength from ancestral light — the lineage behind every rebirth.',
+      decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
+      starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
     maatPrinciple: 'Call the Ancestors',
     cosmicContext: '''Day 18 is remembrance with purpose.
 In Mswt-Rꜥ, the people of Kemet knew: no one crosses into a new year alone.
@@ -9757,8 +9757,8 @@ Today your lineage becomes your fuel.''',
     kemeticDate: 'Mswt-Rꜥ II, Day 19',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ nfr',
-    starCluster: '✨ The hidden Sirius stirs omens in the night — pre-illumination.',
+      decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
+      starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
     maatPrinciple: 'Discern the Signs',
     cosmicContext: '''Day 19 is subtle revelation.
 When Sirius was invisible, priests studied tiny changes: the color of the horizon, the shapes of clouds at dusk, the behavior of birds, or the stillness of wind.
@@ -9782,8 +9782,8 @@ The future is announcing itself gently.''',
     kemeticDate: 'Mswt-Rꜥ II, Day 20',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ nfr',
-    starCluster: '✨ Sirius at the deepest point of invisibility — the last moment before the rebirth of the gods.',
+      decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
+      starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
     maatPrinciple: 'Stand at the Threshold',
     cosmicContext: '''Day 20 is the final doorway.
 The Kemite understood that the night is darkest just before Sopdet begins her heliacal return — and just before the five Heriu Renpet, the birthdays of the gods.
@@ -9811,8 +9811,8 @@ You are one breath away from the birth of the gods — and from your own renewal
     kemeticDate: 'Mswt-Rꜥ III, Day 21',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'msḥtjw ḫt',
-    starCluster: '✨ The "Sacred Foreleg" rising — the first fracturing before renewal.',
+      decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
+      starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
     maatPrinciple: 'The First Fracture',
     cosmicContext: '''This day honors the moment of breaking — not as tragedy, but as divine engineering.
 In myth, the Sacred Foreleg is the dismembered limb of the Bull of Heaven, carried into the sky as a constellation.
@@ -9837,8 +9837,8 @@ Some things must break so they can be rebuilt on Maʿat.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 22',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'msḥtjw ḫt',
-    starCluster: '✨ Early-dawn shimmer of the dismembered limb — the breaking that reveals hidden strength.',
+      decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
+      starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
     maatPrinciple: 'What Breaks, Begins',
     cosmicContext: '''Isis did not gather Osiris blindly.
 She knew the location of every limb, every bone, every fragment.
@@ -9876,8 +9876,8 @@ This is inventory before resurrection.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 23',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'msḥtjw ḫt',
-    starCluster: '✨ The constellation dims briefly — Isis searching, gathering what was scattered.',
+      decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
+      starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
     maatPrinciple: 'Restoration Requires Seeking',
     cosmicContext: '''Isis did not merely locate Osiris's pieces —
 she summoned them.
@@ -9910,8 +9910,8 @@ Something will stir.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 24',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'msḥtjw ḫt',
-    starCluster: '✨ The foreleg brightens — symbol of strength returning to order.',
+      decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
+      starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
     maatPrinciple: 'Strength Returns in Pieces',
     cosmicContext: '''Reassembly begins.
 
@@ -9948,8 +9948,8 @@ Day 24 restores coherence.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 25',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'msḥtjw ḫt',
-    starCluster: '✨ Northern glow widens — the body of Osiris nearing reconnection.',
+      decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
+      starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
     maatPrinciple: 'The Body Remembers',
     cosmicContext: '''Once Osiris was reassembled, priests removed anything foreign — weeds from linen, dust from resin, insects from oils.
 
@@ -9985,8 +9985,8 @@ Day 25 is a blade — precise, clean, sacred.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 26',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'msḥtjw ḫt',
-    starCluster: '✨ Dawn haze thickens — the moment between gathering and becoming.',
+      decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
+      starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
     maatPrinciple: 'Stillness Before Wholeness',
     cosmicContext: '''This is the day of tenderness.
 
@@ -10023,8 +10023,8 @@ It prepares you for strength without brittleness.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 27',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'msḥtjw ḫt',
-    starCluster: '✨ The Sacred Foreleg stands firm in the north — the return of divine structure.',
+      decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
+      starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
     maatPrinciple: 'Order Assembles Itself',
     cosmicContext: '''Osiris is almost whole.
 
@@ -10062,8 +10062,8 @@ This day ensures your return will be durable.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 28',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'msḥtjw ḫt',
-    starCluster: '✨ Light pools at the horizon — the final gathering of Osiris\'s limbs.',
+      decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
+      starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
     maatPrinciple: 'Wholeness Approaches',
     cosmicContext: '''Rebirth is not just restoration — it is decision.
 
@@ -10095,8 +10095,8 @@ A sealed shape is a declaration.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 29',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'msḥtjw ḫt',
-    starCluster: '✨ The constellation flickers — resurrection stirring beneath the veil.',
+      decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
+      starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
     maatPrinciple: 'Life Stirs Within Silence',
     cosmicContext: '''This is the day Osiris rises.
 
@@ -10127,8 +10127,8 @@ You sit on your own restored throne.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 30',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'msḥtjw ḫt',
-    starCluster: '✨ Final dawn of the year — the Sacred Foreleg shines before vanishing into the Heriu Renpet.',
+      decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
+      starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
     maatPrinciple: 'Completion Before Creation',
     cosmicContext: '''The last day of the year.
 
@@ -10172,8 +10172,8 @@ Tomorrow, the world begins again.''',
     kemeticDate: 'Heriu Renpet — Day 1',
     season: '✨ Time Outside Time',
     month: 'The Births of the Gods — five days beyond the year',
-    decanName: 'Wsir (Asar / Osiris) — "The Awakening of the Green Lord"',
-    starCluster: '✨ sꜣḥ (Sah / Orion) — Osiris\'s own constellation at culmination',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Life is eternal; renewal emerges from darkness.',
     cosmicContext: '''On this day, Nut labors for the first time, breaking Ra's decree that no child be born during the year.
 In this hidden interval, she brings forth Asar (Osiris) — grain within black soil, death turning into life.
@@ -10195,8 +10195,8 @@ This day whispers the core truth of Ma'at: nothing alive truly dies; it only tra
     kemeticDate: 'Heriu Renpet — Day 2',
     season: '✨ Time Outside Time',
     month: 'The Births of the Gods — five days beyond the year',
-    decanName: 'Ḥrw wr — "The Falcon Who Guards the Sky"',
-    starCluster: '✨ ḥry-ib wꜣ — "Heart of the Barque," the guiding solar light',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Clarity is sacred; sight governs justice.',
     cosmicContext: '''Today Nut gives birth to Horus the Elder, the original sky-falcon whose eyes are sun and moon.
 His birth restores vision — not eyesight, but cosmic orientation.
@@ -10219,8 +10219,8 @@ Let your internal sun rise.''',
     kemeticDate: 'Heriu Renpet — Day 3',
     season: '✨ Time Outside Time',
     month: 'The Births of the Gods — five days beyond the year',
-    decanName: 'Stḥ — Set, "The Red Lord of the Desert"',
-    starCluster: '✨ sbꜣ ḥrw — "Star of Horus," glowing red at zenith',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Rightly placed force protects balance.',
     cosmicContext: '''The third birth is Set, often misunderstood but essential: he is not evil; he is raw force without guidance.
 Ra himself relies on Set in the Duat, where Set strikes the serpent Apophis with thunderous precision.
@@ -10243,8 +10243,8 @@ You don't destroy life; you destroy what destroys life.''',
     kemeticDate: 'Heriu Renpet — Day 4',
     season: '✨ Time Outside Time',
     month: 'The Births of the Gods — five days beyond the year',
-    decanName: 'ꜣst — Aset (Isis), "She Who Knows Her Name"',
-    starCluster: '✨ sbꜣ nfr — "The Beautiful Star" (Sopdet hidden before rising)',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Wisdom and love speak creation into order.',
     cosmicContext: '''Tonight Nut gives birth to Aset (Isis) — the mind and heart unified.
 She is the one who finds the scattered pieces of Asar (Osiris) and restores him; the one whose voice carries heka, the magic of creative speech.
@@ -10266,8 +10266,8 @@ Aset teaches that order is restored not only by strength but by truth spoken fro
     kemeticDate: 'Heriu Renpet — Day 5',
     season: '✨ Time Outside Time',
     month: 'The Births of the Gods — five days beyond the year',
-    decanName: 'Nbt-ḥwt (Nebet-Het) — "Lady of the House and the Horizon"',
-    starCluster: '✨ msḥtjw ḫt — "Sacred Foreleg," symbol of restoration',
+      decanName: 'sbꜣ knmw ("Star of Khnum")',
+      starCluster: '✨ Star of Khnum — reliable, guiding skill.',
     maatPrinciple: 'Compassion for the unseen completes the cycle.',
     cosmicContext: '''On this final epagomenal day, Nut brings forth Nebet-Het (Nephthys) — guardian of thresholds, dusk, memory, and the quiet fields of the dead.
 Her presence completes the divine family and seals the cycle of births.
@@ -10294,8 +10294,8 @@ Tonight is the final breath of the old world.''',
     kemeticDate: 'Rekh-Nedjes I, Day 1',
     season: '🌿 Peret — Season of Emergence',
     month: 'Rekh-Nedjes (Pa-Menoth) — "Lesser Knowing," applied wisdom under trial',
-    decanName: 'sꜣḥ ("Sah / Orion") — Asar (Osiris) enduring in the sky',
-    starCluster: '✨ Orion\'s belt, three bright stars forming a luminous spine above the southern horizon.',
+      decanName: 'špsswt ("The Noble Ones")',
+      starCluster: '✨ The Noble Ones — tested understanding.',
     maatPrinciple: 'Endurance Is Divine',
     cosmicContext: '''Rekh-Nedjes opens with Orion standing like a backbone in the sky, reminding the Kemite that true strength is quiet and sustained.
 This is the month when knowledge leaves the safety of scrolls and enters the frictions of real life.
@@ -10317,8 +10317,8 @@ The heavens watch not for perfection, but for persistence.''',
     kemeticDate: 'Rekh-Nedjes I, Day 2',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes — Lesser Knowing, the month of the apprentice',
-    decanName: 'sꜣḥ ("Sah / Orion")',
-    starCluster: '✨ The belt stars of Orion tilting slightly westward, like a ruler laid across the sky.',
+      decanName: 'špsswt ("The Noble Ones")',
+      starCluster: '✨ The Noble Ones — tested understanding.',
     maatPrinciple: 'Patience Cuts Straighter than Force',
     cosmicContext: '''On Day 2, the lesson of Sah shifts from merely standing to aligning.
 Farmers in Kemet waited for these stars to mark when to inspect dikes and furrows; fields drawn in haste wasted water, but fields aligned to the sky stayed fruitful.
@@ -10340,8 +10340,8 @@ Ma'at is preserved not by sudden force, but by quiet precision.''',
     kemeticDate: 'Rekh-Nedjes I, Day 3',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sꜣḥ ("Sah / Orion")',
-    starCluster: '✨ Orion steady at dawn, neither at its highest nor lowest — the posture of sustained effort.',
+      decanName: 'špsswt ("The Noble Ones")',
+      starCluster: '✨ The Noble Ones — tested understanding.',
     maatPrinciple: 'Honor the Practice',
     cosmicContext: '''By Day 3, the excitement of "starting" fades, and the soul meets the real work of repetition.
 In Kemet, scribes copied the same lines again and again; farmers walked the same furrows; stonecutters chiseled the same angles until their hands knew the motion better than their minds.
@@ -10363,8 +10363,8 @@ You choose one small act and perform it as if the gods themselves are watching �
     kemeticDate: 'Rekh-Nedjes I, Day 4',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sꜣḥ ("Sah / Orion")',
-    starCluster: '✨ Orion leaning toward the west, echoing the line of ploughed fields.',
+      decanName: 'špsswt ("The Noble Ones")',
+      starCluster: '✨ The Noble Ones — tested understanding.',
     maatPrinciple: 'Straighten What Has Bent',
     cosmicContext: '''Day 4 brings the corrective edge of Lesser Knowing.
 By now, the apprentice has made small mistakes — uneven cuts, wasted effort, poorly timed decisions.
@@ -10386,8 +10386,8 @@ Straightening a schedule, a boundary, or a habit is a sacred act; it is how you 
     kemeticDate: 'Rekh-Nedjes I, Day 5',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sꜣḥ ("Sah / Orion")',
-    starCluster: '✨ Orion glinting above the dark desert — a small constellation carrying great symbolic weight.',
+      decanName: 'špsswt ("The Noble Ones")',
+      starCluster: '✨ The Noble Ones — tested understanding.',
     maatPrinciple: 'Carry the Weight Well',
     cosmicContext: '''By Day 5, the load of the month is fully on your shoulders.
 The Kemite worker felt this in aching muscles; the scribe felt it in tired eyes.
@@ -10410,8 +10410,8 @@ In this way, endurance becomes elegance — the grace of one who can hold much w
     kemeticDate: 'Rekh-Nedjes I, Day 6',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sꜣḥ ("Sah / Orion")',
-    starCluster: '✨ Orion partially veiled by haze — light still present, but softened.',
+      decanName: 'špsswt ("The Noble Ones")',
+      starCluster: '✨ The Noble Ones — tested understanding.',
     maatPrinciple: 'Listen While Working',
     cosmicContext: '''Day 6 turns endurance inward.
 In the Coffin Texts, Thoth tells Horus that victory comes not from loudness but from a "patient heart" that hears Ma'at even in confusion.
@@ -10433,8 +10433,8 @@ Rekh-Nedjes trains you to recognize that voice and distinguish it from fear or p
     kemeticDate: 'Rekh-Nedjes I, Day 7',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sꜣḥ ("Sah / Orion")',
-    starCluster: '✨ Orion shimmering in warmer air — stars flickering as heat rises from the earth.',
+      decanName: 'špsswt ("The Noble Ones")',
+      starCluster: '✨ The Noble Ones — tested understanding.',
     maatPrinciple: 'Face the Heat of Trial',
     cosmicContext: '''Day 7 is the friction point.
 Heat rises — in the air, in the body, in relationships.
@@ -10458,8 +10458,8 @@ You simply keep your form.''',
     kemeticDate: 'Rekh-Nedjes I, Day 8',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sꜣḥ ("Sah / Orion")',
-    starCluster: '✨ Orion bright but unspectacular — familiar, almost easy to overlook.',
+      decanName: 'špsswt ("The Noble Ones")',
+      starCluster: '✨ The Noble Ones — tested understanding.',
     maatPrinciple: 'Silent Mastery',
     cosmicContext: '''On Day 8, the grandeur of the constellation fades into normalcy.
 The same pattern appears again in the sky, unannounced, steady.
@@ -10482,8 +10482,8 @@ This is Lesser Knowing at its highest: not theory, but embodied competence.''',
     kemeticDate: 'Rekh-Nedjes I, Day 9',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sꜣḥ ("Sah / Orion")',
-    starCluster: '✨ Orion high and unwavering — the standard against which other stars were compared.',
+      decanName: 'špsswt ("The Noble Ones")',
+      starCluster: '✨ The Noble Ones — tested understanding.',
     maatPrinciple: 'Hold the Standard',
     cosmicContext: '''Day 9 is evaluation.
 Priests and surveyors in Kemet checked their work against known stars; Sah was one of the primary measures.
@@ -10505,8 +10505,8 @@ This is how apprentices become trustworthy artisans.''',
     kemeticDate: 'Rekh-Nedjes I, Day 10',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sꜣḥ ("Sah / Orion")',
-    starCluster: '✨ Orion beginning its descent toward the western horizon — closing one loop of its nightly journey.',
+      decanName: 'špsswt ("The Noble Ones")',
+      starCluster: '✨ The Noble Ones — tested understanding.',
     maatPrinciple: 'Seal the Lesson of Endurance',
     cosmicContext: '''Day 10 completes the first trial of Rekh-Nedjes.
 Sah's movement across the sky mirrors your own passage through these ten days: from intention to practice, from friction to quiet strength.
@@ -10534,8 +10534,8 @@ Sealed lessons become part of your Ka.''',
     kemeticDate: 'Rekh-Nedjes II, Day 11',
     season: '🌿 Peret — Season of Emergence',
     month: 'Rekh-Nedjes (Pa-Menoth) — "Lesser Knowing," applied wisdom under trial',
-    decanName: 'sbꜣw — "The Stars / Teachers," the council of light',
-    starCluster: '✨ A loose scatter of bright points around Orion, read as elders gathered in quiet conversation.',
+      decanName: 'ḥry-ib špsswt ("Heart of the Noble Ones")',
+      starCluster: '✨ Heart of the Noble Ones — adaptive refinement.',
     maatPrinciple: 'Seek the Elders',
     cosmicContext: '''Rekh-Nedjes now moves from solitary endurance to guidance.
 As the scattered stars of sbꜣw rise, the priests spoke of a "council of light" — wise ones whose only throne is experience.
@@ -10558,8 +10558,8 @@ Stars are individual, but they shine in constellations; so do you.''',
     kemeticDate: 'Rekh-Nedjes II, Day 12',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sbꜣw — "The Stars / Teachers"',
-    starCluster: '✨ The council-stars high above, spaced like seats in a curved tribunal.',
+      decanName: 'ḥry-ib špsswt ("Heart of the Noble Ones")',
+      starCluster: '✨ Heart of the Noble Ones — adaptive refinement.',
     maatPrinciple: 'Ask for Counsel',
     cosmicContext: '''Day 12 is when humility becomes action.
 In Kemet, apprentices did not simply watch the master; they brought real questions at the end of the workday: "Where did I cut wrong? How do I correct this?"
@@ -10581,8 +10581,8 @@ To ask is to open the gate; the stars cannot teach a closed heart.''',
     kemeticDate: 'Rekh-Nedjes II, Day 13',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sbꜣw — "The Stars / Teachers"',
-    starCluster: '✨ The teaching-stars bright while the moon is dim, giving clear contrast.',
+      decanName: 'ḥry-ib špsswt ("Heart of the Noble Ones")',
+      starCluster: '✨ Heart of the Noble Ones — adaptive refinement.',
     maatPrinciple: 'Receive the Mirror',
     cosmicContext: '''Day 13 is the mirror you may not enjoy but deeply need.
 Elders in Kemet did not flatter apprentices; they told the truth in simple sentences: "Your line is crooked. Your pace is wrong. Your attitude will cost you."
@@ -10605,8 +10605,8 @@ When you can stand still under a truthful mirror, you are ready for real transfo
     kemeticDate: 'Rekh-Nedjes II, Day 14',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sbꜣw — "The Stars / Teachers"',
-    starCluster: '✨ The council-stars seeming to "lean forward" toward the horizon, like elders bending toward the young.',
+      decanName: 'ḥry-ib špsswt ("Heart of the Noble Ones")',
+      starCluster: '✨ Heart of the Noble Ones — adaptive refinement.',
     maatPrinciple: 'Apprentice in Action',
     cosmicContext: '''Day 14 is where talk becomes form.
 In Kemet, an apprentice who nodded at instruction but changed nothing dishonored the craft.
@@ -10628,8 +10628,8 @@ You do not have to invent the road; you only have to walk it with care.''',
     kemeticDate: 'Rekh-Nedjes II, Day 15',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sbꜣw — "The Stars / Teachers"',
-    starCluster: '✨ The teaching-stars forming a faint arc, like the curve of a craftsman\'s tool.',
+      decanName: 'ḥry-ib špsswt ("Heart of the Noble Ones")',
+      starCluster: '✨ Heart of the Noble Ones — adaptive refinement.',
     maatPrinciple: 'Refine the Craft',
     cosmicContext: '''By Day 15, the relationship with your teachers matures; they are no longer only correcting gross errors, but refining details.
 In the workshops of Kemet, this was the stage where a master adjusted the way an apprentice held a chisel, breathed during a stroke, or planned a sequence of tasks.
@@ -10650,8 +10650,8 @@ In Lesser Knowing, such refinements are not vanity; they are devotion.''',
     kemeticDate: 'Rekh-Nedjes II, Day 16',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sbꜣw — "The Stars / Teachers"',
-    starCluster: '✨ The scattered stars reflected faintly in the Nile, doubling their pattern.',
+      decanName: 'ḥry-ib špsswt ("Heart of the Noble Ones")',
+      starCluster: '✨ Heart of the Noble Ones — adaptive refinement.',
     maatPrinciple: 'Teach What You Know',
     cosmicContext: '''Day 16 turns the current around: you move from only receiving wisdom to becoming one of the lights in sbꜣw.
 In Kemet, adolescents were given younger helpers to train; even a modest skill, once embodied, became a trust to pass on.
@@ -10672,8 +10672,8 @@ Ma'at is preserved when each generation refuses to hoard its hard-won clarity.''
     kemeticDate: 'Rekh-Nedjes II, Day 17',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sbꜣw — "The Stars / Teachers"',
-    starCluster: '✨ The teacher-stars arcing along the Milky Way, the "Great River" of souls.',
+      decanName: 'ḥry-ib špsswt ("Heart of the Noble Ones")',
+      starCluster: '✨ Heart of the Noble Ones — adaptive refinement.',
     maatPrinciple: 'Tend the Lineage',
     cosmicContext: '''Day 17 widens the frame beyond personal mentors to the whole lineage that brought you here.
 The Kemite looked up at the Milky Way and saw a celestial Nile carrying the blessed dead; each bright point was an ancestor or righteous soul.
@@ -10694,8 +10694,8 @@ Recognizing lineage keeps humility alive; it reminds you that you are not the so
     kemeticDate: 'Rekh-Nedjes II, Day 18',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sbꜣw — "The Stars / Teachers"',
-    starCluster: '✨ Bright stars mixed with faint ones, some twinkling steadily, others distorted by haze.',
+      decanName: 'ḥry-ib špsswt ("Heart of the Noble Ones")',
+      starCluster: '✨ Heart of the Noble Ones — adaptive refinement.',
     maatPrinciple: 'Discern the Voices',
     cosmicContext: '''Not every bright thing in the sky is a trustworthy star; some are passing fires, some are illusions of the air.
 Day 18 teaches discernment.
@@ -10718,8 +10718,8 @@ You are allowed to step back from any star that does not actually light your pat
     kemeticDate: 'Rekh-Nedjes II, Day 19',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sbꜣw — "The Stars / Teachers"',
-    starCluster: '✨ A tight triangle of stars brighter than the rest — a visible inner council.',
+      decanName: 'ḥry-ib špsswt ("Heart of the Noble Ones")',
+      starCluster: '✨ Heart of the Noble Ones — adaptive refinement.',
     maatPrinciple: 'Choose Your Council',
     cosmicContext: '''Day 19 is selection.
 The Kemite did not let just anyone speak into his destiny.
@@ -10742,8 +10742,8 @@ Lesser Knowing ends when you stop letting random noise pilot you and invite a sm
     kemeticDate: 'Rekh-Nedjes II, Day 20',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'sbꜣw — "The Stars / Teachers"',
-    starCluster: '✨ The teacher-stars beginning to sink toward the west, as if handing the sky back to you.',
+      decanName: 'ḥry-ib špsswt ("Heart of the Noble Ones")',
+      starCluster: '✨ Heart of the Noble Ones — adaptive refinement.',
     maatPrinciple: 'Seal the Teaching',
     cosmicContext: '''Day 20 closes the decan of counsel.
 As sbꜣw leans toward the horizon, the Kemite understood that teachings must be sealed before they fade into vague memory.
@@ -10769,8 +10769,8 @@ Ma'at respects what you are willing to formalize.''',
     kemeticDate: 'Rekh-Nedjes III, Day 21',
     season: '🌿 Peret — Season of Emergence',
     month: 'Rekh-Nedjes (Pa-Menoth) — "Lesser Knowing," applied learning under trial',
-    decanName: 'ḫnt-sḥtp — "Foremost of Peace"',
-    starCluster: '✨ A soft, steady decan in the eastern sky, its lights evenly spaced like breath after exertion. Priests said it was "the face of the sky when quarrels sleep."',
+      decanName: 'sbꜣ špsswt ("Star of the Noble Ones")',
+      starCluster: '✨ Star of the Noble Ones — quiet, proven competence.',
     maatPrinciple: 'Release the Strain',
     cosmicContext: '''With ḫnt-sḥtp, the month begins to exhale.
 The contests of Horus and Set stand behind you; now comes the quiet work of easing what their struggle left tense.
@@ -10792,8 +10792,8 @@ Today, you consciously soften one grip — a plan, a resentment, a pace — and 
     kemeticDate: 'Rekh-Nedjes III, Day 22',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'ḫnt-sḥtp — "Foremost of Peace"',
-    starCluster: '✨ A calm band of stars above the horizon, resembling a repaired line — like a levee holding firm.',
+      decanName: 'sbꜣ špsswt ("Star of the Noble Ones")',
+      starCluster: '✨ Star of the Noble Ones — quiet, proven competence.',
     maatPrinciple: 'Repair the Breaks',
     cosmicContext: '''Peace is not only a feeling; it is structure repaired.
 In Kemet, as Rekh-Nedjes closed, families walked the canal edges checking for small fissures, weak gates, or places where water might either leak away or flood unexpectedly.
@@ -10814,8 +10814,8 @@ This is how rest becomes safe instead of fragile.''',
     kemeticDate: 'Rekh-Nedjes III, Day 23',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'ḫnt-sḥtp — "Foremost of Peace"',
-    starCluster: '✨ The decan\'s stars seen like small tools placed neatly side by side across the sky\'s workbench.',
+      decanName: 'sbꜣ špsswt ("Star of the Noble Ones")',
+      starCluster: '✨ Star of the Noble Ones — quiet, proven competence.',
     maatPrinciple: 'Clean the Tools',
     cosmicContext: '''By the end of Rekh-Nedjes, fields were less demanding, but the work did not stop; it shifted inward.
 Farmers and craftsmen cleaned and sharpened their tools, oiled wooden handles, and stored blades in order.
@@ -10838,8 +10838,8 @@ Kemet knew: a clean tool is a quiet blessing.''',
     kemeticDate: 'Rekh-Nedjes III, Day 24',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'ḫnt-sḥtp — "Foremost of Peace"',
-    starCluster: '✨ The stars of the decan forming a subtle inward curve, like two sides drawing toward a center.',
+      decanName: 'sbꜣ špsswt ("Star of the Noble Ones")',
+      starCluster: '✨ Star of the Noble Ones — quiet, proven competence.',
     maatPrinciple: 'Reconcile Within',
     cosmicContext: '''The disputes of Horus and Set were not only between gods; they were mirrors of the inner struggle between impulse and restraint, pride and humility, hurt and duty.
 ḫnt-sḥtp closes that story by showing the sky relaxed and even — no side brighter than the other.
@@ -10862,8 +10862,8 @@ Inner peace is not fog; it is alignment.''',
     kemeticDate: 'Rekh-Nedjes III, Day 25',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'ḫnt-sḥtp — "Foremost of Peace"',
-    starCluster: '✨ The decan\'s steady stars seen above the silhouettes of villages, like blessings over households.',
+      decanName: 'sbꜣ špsswt ("Star of the Noble Ones")',
+      starCluster: '✨ Star of the Noble Ones — quiet, proven competence.',
     maatPrinciple: 'Reconcile With Others',
     cosmicContext: '''The trials of Horus and Set did not end in endless war; they ended in a negotiated order.
 Maʿat demanded not the fantasy of no conflict, but the reality of restored proportion.
@@ -10884,8 +10884,8 @@ Maʿat does not require you to embrace danger; she does invite you to relieve wh
     kemeticDate: 'Rekh-Nedjes III, Day 26',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'ḫnt-sḥtp — "Foremost of Peace"',
-    starCluster: '✨ The decan paced evenly across the sky, rising and setting with a reliable tempo like a cosmic heartbeat.',
+      decanName: 'sbꜣ špsswt ("Star of the Noble Ones")',
+      starCluster: '✨ Star of the Noble Ones — quiet, proven competence.',
     maatPrinciple: 'Stabilize the Rhythm',
     cosmicContext: '''By now, the month has shown its lesson: knowing is nothing without endurance, and endurance is nothing without a rhythm the body and spirit can survive.
 In Kemet, this phase meant adjusting the daily cycle to something sustainable after the surges of planting and repair.
@@ -10908,8 +10908,8 @@ Peace is not found in dramatic sprints; it is found in a stride that does not be
     kemeticDate: 'Rekh-Nedjes III, Day 27',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'ḫnt-sḥtp — "Foremost of Peace"',
-    starCluster: '✨ The decan\'s lights appear modest, but when counted, they are many — like unnoticed victories.',
+      decanName: 'sbꜣ špsswt ("Star of the Noble Ones")',
+      starCluster: '✨ Star of the Noble Ones — quiet, proven competence.',
     maatPrinciple: 'Honor Quiet Victories',
     cosmicContext: '''Not all miracles are loud.
 Lesser Knowing has asked you to keep walking under imperfect conditions; Foremost of Peace now asks you to recognize what that walk has built in you.
@@ -10931,8 +10931,8 @@ Maʿat is honored when reality — including your quiet strength — is fully se
     kemeticDate: 'Rekh-Nedjes III, Day 28',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'ḫnt-sḥtp — "Foremost of Peace"',
-    starCluster: '✨ The decan\'s stars appear fewer as the sky brightens, like clutter dissolving into clarity.',
+      decanName: 'sbꜣ špsswt ("Star of the Noble Ones")',
+      starCluster: '✨ Star of the Noble Ones — quiet, proven competence.',
     maatPrinciple: 'Simplify the Load',
     cosmicContext: '''As Rekh-Nedjes closes, the people of Kemet did not add more; they pared back.
 Excess tools were stored, unnecessary tasks dropped, and households quietly decided which ambitions would not cross into the next phase.
@@ -10954,8 +10954,8 @@ Simplifying is how you make room for the right light.''',
     kemeticDate: 'Rekh-Nedjes III, Day 29',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'ḫnt-sḥtp — "Foremost of Peace"',
-    starCluster: '✨ The decan approaching the horizon, as if walking toward a threshold.',
+      decanName: 'sbꜣ špsswt ("Star of the Noble Ones")',
+      starCluster: '✨ Star of the Noble Ones — quiet, proven competence.',
     maatPrinciple: 'Prepare for the Crossing',
     cosmicContext: '''On the penultimate day of Rekh-Nedjes, the Kemite looked ahead.
 The sky signaled transition; the gentle, steady stars of ḫnt-sḥtp drew closer to the earth's edge, hinting at the coming shift into Renwet.
@@ -10977,8 +10977,8 @@ Peace does not arrive to a scattered table; it comes where there is room set asi
     kemeticDate: 'Rekh-Nedjes III, Day 30',
     season: '🌿 Peret',
     month: 'Rekh-Nedjes',
-    decanName: 'ḫnt-sḥtp — "Foremost of Peace"',
-    starCluster: '✨ The decan slips beneath the horizon; the sky looks briefly empty and calm — the pure face of rest.',
+      decanName: 'sbꜣ špsswt ("Star of the Noble Ones")',
+      starCluster: '✨ Star of the Noble Ones — quiet, proven competence.',
     maatPrinciple: 'Rest in Maʿat',
     cosmicContext: '''The month of Lesser Knowing ends not with a test, but with a Sabbath.
 Orion (Sah) taught you endurance; sbꜣw taught you to seek and honor teachers; ḫnt-sḥtp now teaches you to stop.
@@ -11632,7 +11632,6 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
     );
   }
 }
-
 
 
 
