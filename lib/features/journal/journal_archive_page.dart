@@ -37,6 +37,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   JournalEntry? _selectedEntry;
   bool _isEditing = false;
   late TextEditingController _editController;
+  late ScrollController _badgeScrollController;
   JournalDocument? _editingDocument;
   bool _useKemetic = true; // default to Kemetic
 
@@ -44,12 +45,14 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   void initState() {
     super.initState();
     _editController = TextEditingController();
+    _badgeScrollController = ScrollController();
     _loadEntries();
   }
 
   @override
   void dispose() {
     _editController.dispose();
+    _badgeScrollController.dispose();
     super.dispose();
   }
 
@@ -544,7 +547,9 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
           constraints: BoxConstraints(maxHeight: maxHeight),
           child: Scrollbar(
             thumbVisibility: true,
+            controller: _badgeScrollController,
             child: SingleChildScrollView(
+              controller: _badgeScrollController,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: badgeList,

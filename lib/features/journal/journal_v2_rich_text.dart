@@ -666,9 +666,13 @@ class RichTextEditorState extends State<RichTextEditor> {
       controller: _readScrollController,
       physics: const ClampingScrollPhysics(),
       child: ConstrainedBox(
-        constraints: BoxConstraints(minHeight: constraints.maxHeight),
-        child: RichText(
-          text: TextSpan(style: baseStyle, children: spans),
+        constraints: BoxConstraints(
+          minHeight: constraints.maxHeight.isFinite ? constraints.maxHeight : 0,
+        ),
+        child: IntrinsicHeight(
+          child: RichText(
+            text: TextSpan(style: baseStyle, children: spans),
+          ),
         ),
       ),
     );

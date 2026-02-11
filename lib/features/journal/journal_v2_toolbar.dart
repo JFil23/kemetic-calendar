@@ -94,17 +94,16 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Expanded(
-                    child: Text(
-                      dateLabel,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0xFFC8CCD2), // silver like decan labels
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  Text(
+                    dateLabel,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFFC8CCD2), // silver like decan labels
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],

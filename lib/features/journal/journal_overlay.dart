@@ -2,6 +2,7 @@
 // FIXES: 1) Toolbar overflow, 2) Layered coexistence, 3) Drawing undo
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'journal_controller.dart';
 import 'journal_constants.dart';
 import '../../core/feature_flags.dart';
@@ -44,6 +45,7 @@ class _JournalOverlayState extends State<JournalOverlay>
   late Animation<double> _slideAnimation;
   late TextEditingController _textController;
   late ScrollController _scrollController;
+  late ScrollController _badgeScrollController;
   late FocusNode _focusNode;
   late final AIReflectionService _reflectionService;
 
@@ -84,6 +86,7 @@ class _JournalOverlayState extends State<JournalOverlay>
 
     _textController = TextEditingController(text: widget.controller.currentDraft);
     _scrollController = ScrollController();
+    _badgeScrollController = ScrollController();
     _focusNode = FocusNode();
     widget.controller.onDraftChanged = _onDraftChanged;
     _reflectionService = AIReflectionService(Supabase.instance.client);
@@ -115,6 +118,7 @@ class _JournalOverlayState extends State<JournalOverlay>
     _animationController.dispose();
     _textController.dispose();
     _scrollController.dispose();
+    _badgeScrollController.dispose();
     _focusNode.dispose();
     widget.controller.onDraftChanged = null;
     super.dispose();
@@ -362,7 +366,6 @@ class _JournalOverlayState extends State<JournalOverlay>
   @override
   Widget build(BuildContext context) {
     _keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
-    final size = MediaQuery.of(context).size;
     
     // Show archive if requested
     if (_showingArchive) {
@@ -374,64 +377,82 @@ class _JournalOverlayState extends State<JournalOverlay>
       );
     }
     
-    return GestureDetector(
-      onTap: _close,
-      child: Material(
-        type: MaterialType.transparency,
-        child: Container(
-          color: Colors.black.withOpacity(0.5),
-          child: GestureDetector(
-            onTap: () {},
-            onPanUpdate: _onPanUpdate,
-            onPanEnd: _onPanEnd,
-            child: AnimatedBuilder(
-              animation: _slideAnimation,
-              builder: (context, child) {
-                final slideValue = _slideAnimation.value;
-                final currentOffset = _dragOffset * (1 - slideValue);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = Size(constraints.maxWidth, constraints.maxHeight);
+        if (kDebugMode) {
+          print('[JournalOverlay] layout size=${size.width}x${size.height} portrait=${widget.isPortrait}');
+        }
+        if (size.width == 0 || size.height == 0) {
+          return const SizedBox.shrink();
+        }
 
-                return Transform.translate(
-                  offset: widget.isPortrait
-                      ? Offset(-(1 - slideValue) * size.width + currentOffset, 0)
-                      : Offset(0, -(1 - slideValue) * size.height * 0.3 + currentOffset),
-                  child: child,
-                );
-              },
-              child: Align(
-                alignment: widget.isPortrait
-                    ? Alignment.centerLeft
-                    : Alignment.topCenter,
-                child: Container(
-                  width: widget.isPortrait
-                      ? size.width * kJournalPortraitWidthFraction
-                      : size.width,
-                  height: widget.isPortrait
-                      ? size.height
-                      : size.height * kJournalLandscapeHeightFraction,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF000000),
-                    border: Border.all(
-                      color: const Color(0xFFD4AF37),
-                      width: 1.0,
+        return SizedBox.expand(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _close,
+            child: Material(
+              type: MaterialType.transparency,
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+                child: GestureDetector(
+                  onTap: () {},
+                  onPanUpdate: _onPanUpdate,
+                  onPanEnd: _onPanEnd,
+                  child: AnimatedBuilder(
+                    animation: _slideAnimation,
+                    builder: (context, child) {
+                      final slideValue = _slideAnimation.value;
+                      final currentOffset = _dragOffset * (1 - slideValue);
+                      if (kDebugMode) {
+                        print('[JournalOverlay] slide=$slideValue drag=$_dragOffset');
+                      }
+
+                      return Transform.translate(
+                        offset: widget.isPortrait
+                            ? Offset(-(1 - slideValue) * size.width + currentOffset, 0)
+                            : Offset(0, -(1 - slideValue) * size.height * 0.3 + currentOffset),
+                        child: child,
+                      );
+                    },
+                    child: Align(
+                      alignment: widget.isPortrait
+                          ? Alignment.centerLeft
+                          : Alignment.topCenter,
+                      child: Container(
+                        width: widget.isPortrait
+                            ? size.width * kJournalPortraitWidthFraction
+                            : size.width,
+                        height: widget.isPortrait
+                            ? size.height
+                            : size.height * kJournalLandscapeHeightFraction,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF000000),
+                          border: Border.all(
+                            color: const Color(0xFFD4AF37),
+                            width: 1.0,
+                          ),
+                          borderRadius: widget.isPortrait
+                              ? const BorderRadius.horizontal(right: Radius.circular(16))
+                              : const BorderRadius.vertical(bottom: Radius.circular(16)),
+                        ),
+                        child: Column(
+                          children: [
+                            _buildHeader(),
+                            // Show the journal toolbar only in Journal mode
+                            if (_showToolbar && _activePane == _JournalPane.journal) _buildToolbar(),
+                            Expanded(child: _buildContent()),
+                          ],
+                        ),
+                      ),
                     ),
-                    borderRadius: widget.isPortrait
-                        ? const BorderRadius.horizontal(right: Radius.circular(16))
-                        : const BorderRadius.vertical(bottom: Radius.circular(16)),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildHeader(),
-                      // Show the journal toolbar only in Journal mode
-                      if (_showToolbar && _activePane == _JournalPane.journal) _buildToolbar(),
-                      Expanded(child: _buildContent()),
-                    ],
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -445,40 +466,51 @@ class _JournalOverlayState extends State<JournalOverlay>
       ),
       child: Row(
         children: [
-          _buildTabButton(label: 'Journal', pane: _JournalPane.journal),
-          const SizedBox(width: 12),
-          _buildTabButton(label: 'Reflection', pane: _JournalPane.reflection),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.history, color: Color(0xFFD4AF37)),
-            onPressed: _openArchive,
-            tooltip: 'View archive',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+          Expanded(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(child: _buildTabButton(label: 'Journal', pane: _JournalPane.journal)),
+                const SizedBox(width: 8),
+                Flexible(child: _buildTabButton(label: 'Reflection', pane: _JournalPane.reflection)),
+              ],
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Color(0xFFD4AF37)),
-            onPressed: () async {
-              await widget.controller.clearToday();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Cleared today\'s journal'),
-                    backgroundColor: Color(0xFFD4AF37),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              }
-            },
-            tooltip: 'Clear today',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, color: Color(0xFFD4AF37)),
-            onPressed: _close,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.history, color: Color(0xFFD4AF37)),
+                onPressed: _openArchive,
+                tooltip: 'View archive',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Color(0xFFD4AF37)),
+                onPressed: () async {
+                  await widget.controller.clearToday();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Cleared today\'s journal'),
+                        backgroundColor: Color(0xFFD4AF37),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
+                tooltip: 'Clear today',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Color(0xFFD4AF37)),
+                onPressed: _close,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
           ),
         ],
       ),
@@ -782,10 +814,7 @@ class _JournalOverlayState extends State<JournalOverlay>
           children: [
             // Text area (take remaining space)
             Expanded(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 160),
-                child: _buildTextLayer(),
-              ),
+              child: _buildTextLayer(),
             ),
             const SizedBox(height: 12),
             // Badge area (replaces drawing canvas)
@@ -879,7 +908,9 @@ class _JournalOverlayState extends State<JournalOverlay>
                       )
                     : Scrollbar(
                         thumbVisibility: true,
+                        controller: _badgeScrollController,
                         child: SingleChildScrollView(
+                          controller: _badgeScrollController,
                           padding: const EdgeInsets.all(12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

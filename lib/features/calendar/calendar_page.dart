@@ -4913,8 +4913,20 @@ class _CalendarPageState extends State<CalendarPage>
     );
   }
 
-  void _openJournalFromAppBar() {
-    if (!_journalInitialized) return;
+  Future<void> _openJournalFromAppBar() async {
+    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    if (!isPortrait) return;
+
+    if (!_journalInitialized) {
+      try {
+        await _journalController.init();
+        if (mounted) setState(() => _journalInitialized = true);
+      } catch (_) {
+        // If init fails, skip opening rather than throwing.
+        return;
+      }
+    }
+
     _journalSwipeHandle.open(entryPoint: 'app_bar_button');
   }
 

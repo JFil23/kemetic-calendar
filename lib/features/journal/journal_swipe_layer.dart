@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'journal_controller.dart';
 import 'journal_overlay.dart';
 import 'journal_constants.dart';
@@ -102,14 +103,19 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
     if (!_active) return;
     if (_isJournalOpen) return;
     if (!UiGuards.canOpenJournalSwipe) return;
+    if (kDebugMode) {
+      print('[JournalSwipeLayer] open entryPoint=$entryPoint portrait=${widget.isPortrait}');
+    }
 
     setState(() => _isJournalOpen = true);
 
     _overlayEntry = OverlayEntry(
-      builder: (context) => JournalOverlay(
-        controller: widget.controller,
-        onClose: _closeJournal,
-        isPortrait: widget.isPortrait,
+      builder: (context) => Positioned.fill(
+        child: JournalOverlay(
+          controller: widget.controller,
+          onClose: _closeJournal,
+          isPortrait: widget.isPortrait,
+        ),
       ),
     );
     Overlay.of(context).insert(_overlayEntry!);
