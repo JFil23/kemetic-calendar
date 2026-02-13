@@ -29,6 +29,7 @@ import '../../models/ai_flow_generation_response.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
+import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/widgets/month_name_text.dart';
 import 'package:mobile/core/day_key.dart';
@@ -9970,21 +9971,6 @@ class _MonthCard extends StatelessWidget {
 
   // monthNames removed - use getMonthById(kMonth).displayFull instead
 
-  static const Map<int, List<String>> decans = {
-    1: ['tpy-ꜣ sbꜣw', 'ḥry-ib sbꜣw', 'sbꜣw'],
-    2: ['ꜥḥꜣy', 'ḥry-ib ꜥḥꜣy', 'sbꜣ nfr'],
-    3: ['sꜣḥ', 'ḥry-ib sꜣḥ', 'sbꜣ sꜣḥ'],
-    4: ['msḥtjw', 'ḥry-ib msḥtjw', 'sbꜣ msḥtjw'],
-    5: ['ḫnty-ḥr', 'ḥry-ib ḫnty-ḥr', 'sbꜣ ḫnty-ḥr'],
-    6: ['knmw', 'ḥry-ib knmw', 'sbꜣ knmw'],
-    7: ['špsswt', 'ḥry-ib špsswt', 'sbꜣ špsswt'],
-    8: ['ꜥpdw', 'ḥry-ib ꜥpdw', 'sbꜣ ꜥpdw'],
-    9: ['ẖry ꜥrt', 'rmn ḥry sꜣḥ', 'rmn ẖry sꜣḥ'],
-    10: ['ḥr-sꜣḥ', 'ḥry-ib ḥr-sꜣḥ', 'sbꜣ ḥr-sꜣḥ'],
-    11: ['sbꜣ nfr', 'ḥry-ib sbꜣ nfr', 'tpy-ꜣ spdt'],
-    12: ['msḥtjw ḫt', 'ḥry-ib msḥtjw ḫt', 'sbꜣ msḥtjw ḫt'],
-  };
-
   String? _gregLabelForDecanRow(int ky, int km, int decanIndex) {
     final start = decanIndex * 10 + 1;
     final end = start + 9;
@@ -10057,7 +10043,7 @@ class _MonthCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final names = decans[kMonth] ?? const ['Decan A', 'Decan B', 'Decan C'];
+    final names = DecanMetadata.decanNames[kMonth] ?? const ['Decan A', 'Decan B', 'Decan C'];
 
     double _decanHeightFor(int decanIndex) {
       // Only adjust in details mode; otherwise use the global sizing.
@@ -11432,7 +11418,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
   Widget build(BuildContext context) {
     final infoTitle = _currentDecanIndex == null
         ? getMonthById(widget.kMonth).displayFull
-        : _MonthCard.decans[widget.kMonth]![_currentDecanIndex!];
+        : (DecanMetadata.decanNames[widget.kMonth] ?? const ['Decan A', 'Decan B', 'Decan C'])[_currentDecanIndex!];
 
     final infoBody = _currentDecanIndex == null
         ? (_monthInfo[widget.kMonth] ?? '')
@@ -12353,7 +12339,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       kem.putIfAbsent(key, () {
         final monthName = getMonthById(k.kMonth).displayFull;
         final diName =
-        (_MonthCard.decans[k.kMonth] ?? const ['A', 'B', 'C'])[di];
+        (DecanMetadata.decanNames[k.kMonth] ?? const ['A', 'B', 'C'])[di];
         return _KemeticDecanSpan(
           key: key,
           ky: k.kYear,
@@ -13495,7 +13481,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         builder: (_) => _FlowPreviewPage(
           flow: f,
           getDecanLabel: (km, di) =>
-          (_MonthCard.decans[km] ?? const ['I','II','III'])[di],
+          (DecanMetadata.decanNames[km] ?? const ['I','II','III'])[di],
           fmt: (d) => _fmtGregorian(d),
           onEdit: (flow) {
             _loadFlowForEdit(flow);
@@ -16725,7 +16711,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
                   flowSequence: items,
                   initialIndex: i,
                   getDecanLabel: (km, di) =>
-                  (_MonthCard.decans[km] ?? const ['I','II','III'])[di],
+                  (DecanMetadata.decanNames[km] ?? const ['I','II','III'])[di],
                   fmt: widget.fmtGregorian,
                   onEdit: (flow) => widget.onEditFlow(flow.id),
                   onAppendToJournal: widget.onAppendToJournal,

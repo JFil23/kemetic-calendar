@@ -11,6 +11,7 @@ class AIFlowGenerationRequest {
   final String? flowName;
   final String? flowColor;
   final String? timezone;
+  final bool forceRefresh;
 
   AIFlowGenerationRequest({
     required this.description,
@@ -19,6 +20,7 @@ class AIFlowGenerationRequest {
     this.flowName,
     this.flowColor,
     this.timezone,
+    this.forceRefresh = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -28,6 +30,7 @@ class AIFlowGenerationRequest {
         if (flowName != null) 'flowName': flowName,
         if (flowColor != null) 'flowColor': flowColor,
         if (timezone != null) 'timezone': timezone,
+        if (forceRefresh) 'force_refresh': true,
       };
 }
 
@@ -283,7 +286,6 @@ extension AIFlowGenerationServiceCheck on AIFlowGenerationService {
     }
   }
 }
-
 
 
 

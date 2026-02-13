@@ -582,9 +582,13 @@ class _JournalOverlayState extends State<JournalOverlay>
   ({String dayLabel, String decanLabel, String monthLabel, int kDay}) _currentKemeticContext() {
     final date = widget.controller.currentDate ?? DateTime.now();
     final kem = KemeticMath.fromGregorian(date);
-    final info = KemeticDayData.getInfoForDay(kemeticDayKey(kem.kMonth, kem.kDay));
+    final dayKey = kemeticDayKey(kem.kMonth, kem.kDay);
+    final info = KemeticDayData.getInfoForDay(dayKey);
     final monthLabel = info?.month ?? 'Month ${kem.kMonth}';
-    final decanLabel = info?.decanName ?? 'Decan ${decanForDay(kem.kDay)}';
+    final decanLabel =
+        KemeticDayData.resolveDecanNameFromKey(dayKey, expanded: true) ??
+            info?.decanName ??
+            'Decan ${decanForDay(kem.kDay)}';
     final dayLabel = '$monthLabel ${kem.kDay}';
     return (
       dayLabel: dayLabel,

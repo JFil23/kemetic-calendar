@@ -21,6 +21,8 @@ import 'package:flutter/material.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
+import 'package:mobile/features/calendar/decan_metadata.dart';
+import 'package:mobile/core/day_key.dart';
 
 /// Model for Kemetic day information
 class KemeticDayInfo {
@@ -77,6 +79,26 @@ class MeduNeterKey {
 
 /// Sample data for Day 11 (Renwet II, Day 1)
 class KemeticDayData {
+  static ({int kMonth, int kDay, int decan})? _parseDayKeyForDecan(String dayKey) {
+    final parts = dayKey.split('_');
+    if (parts.length < 3) return null;
+    final month = getMonthByKey(parts[0])?.id;
+    final kDay = int.tryParse(parts[1]);
+    final decan = int.tryParse(parts[2]);
+    if (month == null || kDay == null || decan == null) return null;
+    return (kMonth: month, kDay: kDay, decan: decan);
+  }
+
+  static String? resolveDecanNameFromKey(String dayKey, {bool expanded = false}) {
+    final parsed = _parseDayKeyForDecan(dayKey);
+    if (parsed == null) return null;
+    return DecanMetadata.decanNameFor(
+      kMonth: parsed.kMonth,
+      kDay: parsed.kDay,
+      expanded: expanded,
+    );
+  }
+
   // Shared flow list for Renwet I (Days 1–10)
   static final List<DecanDayInfo> renwetIFlowRows = [
     DecanDayInfo(day: 1, theme: 'Receive the Gift', action: 'Acknowledge what has arrived — harvest, payment, relief, breakthrough — without denial or boasting.', reflection: '"What did I just receive that I refused to call sacred because I was too used to struggle?"'),
@@ -11245,7 +11267,13 @@ class KemeticDayDropdown extends StatelessWidget {
                       _buildInfoSection('Kemetic Date:', dayInfo.kemeticDate),
                       _buildInfoSection('Season:', dayInfo.season),
                       _buildInfoSection('Month:', dayInfo.month),
-                      _buildInfoSection('Decan Name:', dayInfo.decanName),
+                      _buildInfoSection(
+                        'Decan Name:',
+                        dayKey != null
+                            ? (KemeticDayData.resolveDecanNameFromKey(dayKey!, expanded: true) ??
+                                dayInfo.decanName)
+                            : dayInfo.decanName,
+                      ),
                       _buildInfoSection('Star Cluster:', dayInfo.starCluster),
                       _buildInfoSection('Ma\'at Principle:', dayInfo.maatPrinciple),
                       const SizedBox(height: 20),
@@ -11632,12 +11660,6 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
     );
   }
 }
-
-
-
-
-
-
 
 
 

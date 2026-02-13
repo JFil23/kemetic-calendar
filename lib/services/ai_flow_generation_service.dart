@@ -32,6 +32,7 @@ class AIFlowGenerationService {
     required DateTime endDate,
     String? flowColor, // hex like "#4dd0e1"
     String? timezone,  // IANA string (e.g., "America/Los_Angeles")
+    bool forceRefresh = false,
   }) async {
     // 1) Session precheck
     final sess = _sb.auth.currentSession;
@@ -57,6 +58,7 @@ class AIFlowGenerationService {
       'endDate': _fmt(endDate),
       if (flowColor != null) 'flowColor': flowColor,
       if (timezone != null) 'timezone': timezone,
+      if (forceRefresh) 'force_refresh': true,
       // ⚠️ Do NOT send useKemetic; function doesn't accept it
     };
 
