@@ -10544,6 +10544,7 @@ class _DayChip extends StatelessWidget {
 
     return KemeticDayButton(
       dayKey: dayKey,
+      kYear: kYear,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),

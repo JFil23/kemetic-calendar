@@ -11167,15 +11167,15 @@ Let your body believe that peace is not a brief accident but a rightful state.''
 class KemeticDayDropdown extends StatelessWidget {
   final KemeticDayInfo dayInfo;
   final VoidCallback onClose;
-  final String? dayKey;
-  final int? kYear;
+  final String dayKey;
+  final int kYear;
 
   const KemeticDayDropdown({
     Key? key,
     required this.dayInfo,
     required this.onClose,
-    this.dayKey,
-    this.kYear,
+    required this.dayKey,
+    required this.kYear,
   }) : super(key: key);
 
   @override
@@ -11184,13 +11184,10 @@ class KemeticDayDropdown extends StatelessWidget {
     final cardWidth = screenWidth > 600 ? 500.0 : screenWidth * 0.85;
     
     // Calculate the date string
-    final String gregorianDateString =
-        (dayKey != null)
-            ? KemeticDayData.calculateGregorianDate(
-                dayKey!,
-                kYearParam: kYear,
-              )
-            : dayInfo.gregorianDate; // fallback
+    final String gregorianDateString = KemeticDayData.calculateGregorianDate(
+      dayKey,
+      kYearParam: kYear,
+    );
     
     return Material(
       color: Colors.transparent,
@@ -11552,9 +11549,9 @@ class KemeticDayDropdownController {
   void show({
     required BuildContext context,
     required String dayKey,
+    required int kYear,
     required Offset buttonPosition,
     required Size buttonSize,
-    int? kYear,
   }) {
     hide(); // Hide any existing overlay
 
@@ -11610,13 +11607,13 @@ class KemeticDayDropdownController {
 class KemeticDayButton extends StatefulWidget {
   final Widget child;
   final String dayKey;
-  final int? kYear;
+  final int kYear;
 
   const KemeticDayButton({
     Key? key,
     required this.child,
     required this.dayKey,
-    this.kYear,
+    required this.kYear,
   }) : super(key: key);
 
   @override
@@ -11660,11 +11657,6 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
     );
   }
 }
-
-
-
-
-
 
 
 
