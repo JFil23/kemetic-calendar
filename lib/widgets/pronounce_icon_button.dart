@@ -32,6 +32,7 @@ class PronounceIconButton extends StatelessWidget {
             size: size,
           ),
           onPressed: () async {
+            debugPrint('TTS BUTTON: isPhonetic=$isPhonetic speakText="$speakText"');
             try {
               if (speaking) {
                 await SpeechService.instance.stop();

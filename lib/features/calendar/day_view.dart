@@ -385,12 +385,16 @@ class _DayViewPageState extends State<DayViewPage> {
     // kYear parameter kept for API consistency but not used in day key generation.
     // Day keys use DECAN (1-3), not year. Decan is computed from kDay in kemeticDayKey().
     // 
-    // NOTE: This validates range 1-12 (not 1-13) because day_view.dart
-    // doesn't handle epagomenal days currently.
-    if (kMonth < 1 || kMonth > 12) {
+    // Guard obvious invalid months; allow epagomenal month 13 but only when
+    // we actually have a day card for the generated key (prevents empty dropdowns).
+    if (kMonth < 1 || kMonth > 13) {
       return 'unknown_${kDay}_$kYear';
     }
-    return kemeticDayKey(kMonth, kDay);
+    
+    final key = kemeticDayKey(kMonth, kDay);
+    return KemeticDayData.dayInfoMap.containsKey(key)
+        ? key
+        : 'unknown_${kDay}_$kYear';
   }
 
   ({int kYear, int kMonth, int kDay}) _dateForPage(int pageIndex) {

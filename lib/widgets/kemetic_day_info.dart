@@ -25,6 +25,9 @@ import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/core/day_key.dart';
 import 'package:mobile/widgets/pronounce_icon_button.dart';
 import 'package:mobile/services/speech/speech_service.dart';
+import 'package:mobile/features/calendar/speech_resolver.dart';
+import 'package:mobile/features/calendar/decan_id.dart';
+import 'package:mobile/features/calendar/speech_overrides.dart';
 
 /// Model for Kemetic day information
 class KemeticDayInfo {
@@ -11182,6 +11185,13 @@ class KemeticDayDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final parsedKey = KemeticDayData._parseDayKey(dayKey);
+    final bool isEpagomenal = parsedKey?.month == 13 || dayKey.startsWith('epagomenal_');
+    final int? epagomenalDay = isEpagomenal ? parsedKey?.day : null;
+    
+    final String monthLine = isEpagomenal
+        ? 'Heriu Renpet — The Births of the Gods — five days beyond the year'
+        : dayInfo.month;
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = screenWidth > 600 ? 500.0 : screenWidth * 0.85;
     final resolvedDecanName = dayKey != null
@@ -11189,11 +11199,77 @@ class KemeticDayDropdown extends StatelessWidget {
             dayInfo.decanName)
         : dayInfo.decanName;
     
+    final String decanLine = isEpagomenal
+        ? _epagomenalDayTitle(epagomenalDay)
+        : resolvedDecanName;
+    
     // Calculate the date string
     final String gregorianDateString = KemeticDayData.calculateGregorianDate(
       dayKey,
       kYearParam: kYear,
     );
+
+    // Build phonetic speech lines (prefer curated phonetics when available)
+    final parsedDecan = dayKey != null
+        ? KemeticDayData._parseDayKeyForDecan(dayKey!)
+        : null;
+    final monthId = parsedDecan?.kMonth;
+
+    // Month: map first, then translit-only (from metadata), never the display string
+    String monthSpeakLine;
+    if (monthId != null && monthId >= 1 && monthId <= 13) {
+      final phon = monthSpeech[monthId];
+      if (phon != null && phon.trim().isNotEmpty) {
+        monthSpeakLine = phon.trim();
+      } else {
+        monthSpeakLine = getMonthById(monthId).displayTransliteration.trim();
+      }
+    } else {
+      monthSpeakLine = _stripEnglishCue(dayInfo.month);
+    }
+
+    // Decan: map first, then translit-only (strip any English cue)
+    String decanSpeakLine;
+    if (!isEpagomenal &&
+        parsedDecan != null &&
+        parsedDecan.kMonth >= 1 &&
+        parsedDecan.kMonth <= 12 &&
+        parsedDecan.decan >= 1 &&
+        parsedDecan.decan <= 3) {
+      final decanId = decanIdFromMonthAndIndex(
+        monthIndex: parsedDecan.kMonth,
+        decanInMonth: parsedDecan.decan,
+      );
+      final phon = decanSpeech[decanId];
+      if (phon != null && phon.trim().isNotEmpty) {
+        decanSpeakLine = phon.trim();
+      } else {
+        decanSpeakLine = _stripEnglishCue(resolvedDecanName);
+      }
+    } else {
+      decanSpeakLine = _stripEnglishCue(decanLine);
+    }
+
+    // Debug: trace TTS wiring for day card
+    debugPrint('--- DAY CARD TTS DEBUG ---');
+    debugPrint('dayKey=$dayKey');
+    debugPrint('parsedDecan=$parsedDecan');
+    debugPrint('isEpagomenal=$isEpagomenal');
+    debugPrint('monthLine(display)=$monthLine');
+    debugPrint('monthSpeakLine(resolved)=$monthSpeakLine');
+    debugPrint('monthSpeechHit=${monthId != null ? monthSpeech.containsKey(monthId) : 'no-monthId'}');
+    debugPrint('decanLine(display)=$decanLine');
+    debugPrint('resolvedDecanName=$resolvedDecanName');
+    if (parsedDecan != null && parsedDecan.kMonth >= 1 && parsedDecan.kMonth <= 12) {
+      final testDecanId = decanIdFromMonthAndIndex(
+        monthIndex: parsedDecan.kMonth,
+        decanInMonth: parsedDecan.decan,
+      );
+      debugPrint('decanSpeechHit=${decanSpeech.containsKey(testDecanId)}');
+      debugPrint('decanSpeakLine(resolved)=$decanSpeakLine');
+    } else {
+      debugPrint('decanSpeakLine(resolved)=$decanSpeakLine');
+    }
     
     return Material(
       color: Colors.transparent,
@@ -11274,15 +11350,20 @@ class KemeticDayDropdown extends StatelessWidget {
                       _buildInfoSection('Season:', dayInfo.season),
                       _buildInfoSectionWithSpeech(
                         label: 'Month:',
-                        value: dayInfo.month,
+                        value: monthLine,
                         englishCue: null,
+                        speakOverride: monthSpeakLine,
+                        isPhonetic: true,
                       ),
                       _buildInfoSectionWithSpeech(
-                        label: 'Decan Name:',
-                        value: resolvedDecanName,
+                        label: isEpagomenal ? 'Epagomenal Day:' : 'Decan Name:',
+                        value: decanLine,
                         englishCue: null,
+                        speakOverride: decanSpeakLine,
+                        isPhonetic: true,
                       ),
-                      _buildInfoSection('Star Cluster:', dayInfo.starCluster),
+                      if (!isEpagomenal)
+                        _buildInfoSection('Star Cluster:', dayInfo.starCluster),
                       _buildInfoSection('Ma\'at Principle:', dayInfo.maatPrinciple),
                       const SizedBox(height: 20),
                       _buildSectionHeader('△ Cosmic Context'),
@@ -11296,7 +11377,7 @@ class KemeticDayDropdown extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      _buildSectionHeader('▽ Decan Flow'),
+                      _buildSectionHeader(isEpagomenal ? '▽ Epagomenal Flow' : '▽ Decan Flow'),
                       const SizedBox(height: 12),
                       _buildDecanFlowTable(context),
                       const SizedBox(height: 24),
@@ -11313,6 +11394,23 @@ class KemeticDayDropdown extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _epagomenalDayTitle(int? day) {
+    switch (day) {
+      case 1:
+        return 'Birth of Asar (Osiris)';
+      case 2:
+        return 'Birth of Heru-wer (Horus the Elder)';
+      case 3:
+        return 'Birth of Set';
+      case 4:
+        return 'Birth of Aset (Isis)';
+      case 5:
+        return 'Birth of Nebet-Het (Nephthys)';
+      default:
+        return 'Heriu Renpet — Sacred Day';
+    }
   }
 
   Widget _buildInfoSection(String label, String value) {
@@ -11336,14 +11434,24 @@ class KemeticDayDropdown extends StatelessWidget {
     );
   }
 
+  String _stripEnglishCue(String s) {
+    // Remove anything in parentheses and trim.
+    return s.split('(').first.trim();
+  }
+
   Widget _buildInfoSectionWithSpeech({
     required String label,
     required String value,
     String? englishCue,
+    String? speakOverride,
+    bool isPhonetic = false,
   }) {
-    final speakLine = englishCue == null || englishCue.trim().isEmpty
-        ? value
-        : '$value. ${englishCue.trim()}.';
+    final hasOverride = speakOverride != null && speakOverride.trim().isNotEmpty;
+    final speakLine = hasOverride
+        ? speakOverride!.trim()
+        : (englishCue == null || englishCue.trim().isEmpty
+            ? value.trim()
+            : '${value.trim()}. ${englishCue.trim()}.');
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -11374,6 +11482,7 @@ class KemeticDayDropdown extends StatelessWidget {
             speakText: speakLine,
             color: const Color(0xFFC9A961),
             size: 22,
+            isPhonetic: isPhonetic,
           ),
         ],
       ),
@@ -11712,22 +11821,6 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
