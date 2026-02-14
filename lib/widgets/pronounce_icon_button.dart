@@ -6,12 +6,14 @@ class PronounceIconButton extends StatelessWidget {
   final String speakText;
   final Color color;
   final double size;
+  final bool isPhonetic;
 
   const PronounceIconButton({
     super.key,
     required this.speakText,
     required this.color,
     this.size = 22,
+    this.isPhonetic = false,
   });
 
   @override
@@ -34,7 +36,11 @@ class PronounceIconButton extends StatelessWidget {
               if (speaking) {
                 await SpeechService.instance.stop();
               } else {
-                await SpeechService.instance.speak(speakText);
+                if (isPhonetic) {
+                  await SpeechService.instance.speakPhonetic(speakText);
+                } else {
+                  await SpeechService.instance.speak(speakText);
+                }
               }
             } catch (_) {
               if (context.mounted) {

@@ -52,6 +52,13 @@ class SpeechService {
     isSpeaking.value = false;
   }
 
+  /// Speak a pre-cleaned phonetic string without additional transformations.
+  Future<void> speakPhonetic(String text) async {
+    await _ensureReady();
+    await stop();
+    await _tts.speak(text.trim());
+  }
+
   /// Approximate transliteration symbols to simpler phonetics to avoid TTS choke.
   String _speechSafeText(String input) {
     var s = input;

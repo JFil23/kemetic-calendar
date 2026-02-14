@@ -29,6 +29,8 @@ import '../../models/ai_flow_generation_response.dart';
 import '../../widgets/kemetic_day_info.dart';
 import '../../widgets/pronounce_icon_button.dart';
 import '../../services/speech/speech_service.dart';
+import 'speech_resolver.dart';
+import 'decan_id.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
@@ -11510,9 +11512,11 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final monthMeta = getMonthById(widget.kMonth);
     final infoTitle = _currentDecanIndex == null
-        ? getMonthById(widget.kMonth).displayFull
-        : (DecanMetadata.decanNames[widget.kMonth] ?? const ['Decan A', 'Decan B', 'Decan C'])[_currentDecanIndex!];
+        ? monthMeta.displayFull
+        : (DecanMetadata.decanNames[widget.kMonth] ??
+            const ['Decan A', 'Decan B', 'Decan C'])[_currentDecanIndex!];
 
     final infoBody = _currentDecanIndex == null
         ? (_monthInfo[widget.kMonth] ?? '')
@@ -11523,6 +11527,33 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     final rightLabel = (yStart == yEnd)
         ? '${widget.seasonShort} $yStart'
         : '${widget.seasonShort} $yStart/$yEnd';
+
+    String _buildSpeakLine() {
+      if (_currentDecanIndex == null) {
+        return SpeechResolver.month(
+          monthId: widget.kMonth,
+          fallbackTranslit: monthMeta.displayTransliteration,
+          englishCue: monthMeta.displayShort,
+        );
+      }
+      // Decans only exist for months 1..12
+      if (widget.kMonth < 1 || widget.kMonth > 12) {
+        return infoTitle;
+      }
+      final decanInMonth = _currentDecanIndex! + 1;
+      final decanId = decanIdFromMonthAndIndex(
+        monthIndex: widget.kMonth,
+        decanInMonth: decanInMonth,
+      );
+      final shortName =
+          (DecanMetadata.decanNames[widget.kMonth] ?? const [''])[decanInMonth - 1];
+      final englishCue = DecanMetadata.decanTitles[shortName];
+      return SpeechResolver.decan(
+        decanId: decanId,
+        fallbackTranslit: shortName,
+        englishCue: englishCue,
+      );
+    }
 
     return Scaffold(
       backgroundColor: _bg,
@@ -11590,32 +11621,36 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
           Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: GlossyText(
-                        text: infoTitle,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                        gradient: silverGloss,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: GlossyText(
+                          text: infoTitle,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          gradient: silverGloss,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    PronounceIconButton(
-                      speakText: infoTitle,
-                      color: _gold,
-                      size: 22,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  infoBody.trim(),
-                  style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.35),
-                ),
+                      const SizedBox(width: 8),
+                      PronounceIconButton(
+                        speakText: _buildSpeakLine(),
+                        color: _gold,
+                        size: 22,
+                        isPhonetic: true,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    infoBody.trim(),
+                    style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.35),
+                  ),
               ],
               ),
             ),
