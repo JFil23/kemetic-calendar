@@ -23,6 +23,8 @@ import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/core/day_key.dart';
+import 'package:mobile/widgets/pronounce_icon_button.dart';
+import 'package:mobile/services/speech/speech_service.dart';
 
 /// Model for Kemetic day information
 class KemeticDayInfo {
@@ -11182,6 +11184,10 @@ class KemeticDayDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = screenWidth > 600 ? 500.0 : screenWidth * 0.85;
+    final resolvedDecanName = dayKey != null
+        ? (KemeticDayData.resolveDecanNameFromKey(dayKey!, expanded: true) ??
+            dayInfo.decanName)
+        : dayInfo.decanName;
     
     // Calculate the date string
     final String gregorianDateString = KemeticDayData.calculateGregorianDate(
@@ -11244,7 +11250,10 @@ class KemeticDayDropdown extends StatelessWidget {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Color(0xFFC9A961)),
-                    onPressed: onClose,
+                    onPressed: () {
+                      SpeechService.instance.stop();
+                      onClose();
+                    },
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -11263,13 +11272,15 @@ class KemeticDayDropdown extends StatelessWidget {
                       _buildInfoSection('Gregorian Date:', gregorianDateString),
                       _buildInfoSection('Kemetic Date:', dayInfo.kemeticDate),
                       _buildInfoSection('Season:', dayInfo.season),
-                      _buildInfoSection('Month:', dayInfo.month),
-                      _buildInfoSection(
-                        'Decan Name:',
-                        dayKey != null
-                            ? (KemeticDayData.resolveDecanNameFromKey(dayKey!, expanded: true) ??
-                                dayInfo.decanName)
-                            : dayInfo.decanName,
+                      _buildInfoSectionWithSpeech(
+                        label: 'Month:',
+                        value: dayInfo.month,
+                        englishCue: null,
+                      ),
+                      _buildInfoSectionWithSpeech(
+                        label: 'Decan Name:',
+                        value: resolvedDecanName,
+                        englishCue: null,
                       ),
                       _buildInfoSection('Star Cluster:', dayInfo.starCluster),
                       _buildInfoSection('Ma\'at Principle:', dayInfo.maatPrinciple),
@@ -11321,6 +11332,50 @@ class KemeticDayDropdown extends StatelessWidget {
             TextSpan(text: value),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildInfoSectionWithSpeech({
+    required String label,
+    required String value,
+    String? englishCue,
+  }) {
+    final speakLine = englishCue == null || englishCue.trim().isEmpty
+        ? value
+        : '$value. ${englishCue.trim()}.';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
+                children: [
+                  TextSpan(
+                    text: '$label ',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFC9A961),
+                    ),
+                  ),
+                  TextSpan(text: value),
+                ],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          PronounceIconButton(
+            speakText: speakLine,
+            color: const Color(0xFFC9A961),
+            size: 22,
+          ),
+        ],
       ),
     );
   }
@@ -11657,10 +11712,6 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
     );
   }
 }
-
-
-
-
 
 
 
