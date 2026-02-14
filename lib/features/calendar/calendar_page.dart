@@ -1381,8 +1381,8 @@ class _CalendarPageState extends State<CalendarPage>
 
   /* ───── today + notes + flows state ───── */
 
-  late final ({int kYear, int kMonth, int kDay}) _today =
-  KemeticMath.fromGregorian(DateTime.now());
+  ({int kYear, int kMonth, int kDay}) get _today =>
+      KemeticMath.fromGregorian(DateTime.now());
 
   final Map<String, List<_Note>> _notes = {};
   List<_Flow> _flows = [];
@@ -1586,6 +1586,9 @@ class _CalendarPageState extends State<CalendarPage>
 
 
 
+  // Toggle view persistence; set to true to restore prior behavior.
+  static const bool _rememberLastView = false;
+
   int? _lastViewKy;       // last centered Kemetic year
   int? _lastViewKm;       // last centered Kemetic month (1..13)
   int? _lastViewKd;       // last viewed Kemetic day (1..30, or 1..5/6 for month 13)
@@ -1602,6 +1605,9 @@ class _CalendarPageState extends State<CalendarPage>
 
   // ✅ ADD: Flag to prevent auto-scroll on orientation change
   bool _skipScrollToToday = false;
+  bool _initialJumpScheduled = false;
+  bool _orientationJumpScheduled = false;
+  bool _portraitRecenterPending = false;
 
   // ✅ ADD: Feedback loop prevention flag
   bool _isUpdatingFromLandscape = false;
@@ -1950,6 +1956,13 @@ class _CalendarPageState extends State<CalendarPage>
 
   /// ✅ Load persisted view state from SharedPreferences
   Future<void> _loadPersistedViewState() async {
+    if (!_rememberLastView) {
+      _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
+      _skipScrollToToday = true; // we'll jump once after first layout
+      _scheduleInitialJumpToToday();
+      _restored = true;
+      return;
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedKy = prefs.getInt(_kPrefLastViewYear);
@@ -2018,12 +2031,15 @@ class _CalendarPageState extends State<CalendarPage>
     _lastViewKm = km;
     if (kd != null) _lastViewKd = kd;
     
-    _saveViewState(ky, km, kd); // existing signature
+    if (_rememberLastView) {
+      _saveViewState(ky, km, kd); // existing signature
+    }
     setState(() {}); // keep headers/UI in sync
   }
 
   /// ✅ Save view state to SharedPreferences
   Future<void> _saveViewState(int ky, int km, [int? kd]) async {
+    if (!_rememberLastView) return; // persistence disabled
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_kPrefLastViewYear, ky);
@@ -2043,6 +2059,98 @@ class _CalendarPageState extends State<CalendarPage>
         print('⚠️  [CALENDAR] Error saving view state: $e');
       }
     }
+  }
+
+  void _scheduleInitialJumpToToday() {
+    if (_initialJumpScheduled) return;
+    _initialJumpScheduled = true;
+    WidgetsBinding.instance.deferFirstFrame();
+
+    void attemptJump(int tries) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          WidgetsBinding.instance.allowFirstFrame();
+          return;
+        }
+        final ok = _jumpToTodayNow(animate: false);
+        if (ok || tries >= 2) {
+          WidgetsBinding.instance.allowFirstFrame();
+          _initialJumpScheduled = false;
+        } else {
+          attemptJump(tries + 1);
+        }
+      });
+    }
+
+    attemptJump(0);
+  }
+
+  void _scheduleOrientationJumpToToday() {
+    if (_orientationJumpScheduled) return;
+    _orientationJumpScheduled = true;
+    void attempt(int tries) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          _orientationJumpScheduled = false;
+          return;
+        }
+        final ok = _jumpToTodayNow(animate: false);
+        if (ok || tries >= 2) {
+          _orientationJumpScheduled = false;
+        } else {
+          attempt(tries + 1);
+        }
+      });
+    }
+
+    attempt(0);
+  }
+
+  void _ensurePortraitCentered() {
+    _scheduleOrientationJumpToToday();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _portraitRecenterPending = false;
+      if (mounted) setState(() {});
+    });
+  }
+
+  bool _jumpToTodayNow({bool animate = true}) {
+    // Prefer the exact day; fall back to the month card if needed
+    final targetCtx = _todayDayKey.currentContext ?? _todayMonthKey.currentContext;
+    if (targetCtx == null) return false;
+
+    final scrollableState = Scrollable.of(targetCtx);
+    if (scrollableState == null) return false;
+    final position = scrollableState.position;
+
+    final targetBox = targetCtx.findRenderObject();
+    final viewportBox = scrollableState.context.findRenderObject();
+    if (targetBox is! RenderBox || viewportBox is! RenderBox) return false;
+
+    // Compute centers in global coordinates
+    final targetCenterGlobal =
+        targetBox.localToGlobal(targetBox.size.center(Offset.zero)).dy;
+    final viewportTopGlobal = viewportBox.localToGlobal(Offset.zero).dy;
+    final viewportCenterGlobal = viewportTopGlobal + viewportBox.size.height / 2;
+
+    // Delta required to bring target center to viewport center
+    final delta = targetCenterGlobal - viewportCenterGlobal;
+
+    // Desired scroll offset (clamped to extents)
+    double targetPixels = position.pixels + delta;
+    targetPixels = targetPixels.clamp(position.minScrollExtent, position.maxScrollExtent);
+
+    if (animate) {
+      position.animateTo(
+        targetPixels,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+    } else {
+      position.jumpTo(targetPixels);
+    }
+    return true;
   }
 
   /// ✅ Handle month change from landscape view (WITH CORRECT FEEDBACK LOOP GUARD TIMING)
@@ -4451,43 +4559,10 @@ class _CalendarPageState extends State<CalendarPage>
   /* ───── TODAY snap/center ───── */
 
 
-  void _scrollToToday() {
+  void _scrollToToday({bool animate = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-
-      // Prefer the exact day; fall back to the month card if needed
-      final targetCtx = _todayDayKey.currentContext ?? _todayMonthKey.currentContext;
-      if (targetCtx == null) return;
-
-      // Find the scrollable that owns the calendar
-      final scrollableState = Scrollable.of(targetCtx);
-      if (scrollableState == null) return;
-      final position = scrollableState.position;
-
-      // Render boxes for target and viewport
-      final targetBox = targetCtx.findRenderObject();
-      final viewportBox = scrollableState.context.findRenderObject();
-      if (targetBox is! RenderBox || viewportBox is! RenderBox) return;
-
-      // Compute centers in global coordinates
-      final targetCenterGlobal =
-          targetBox.localToGlobal(targetBox.size.center(Offset.zero)).dy;
-      final viewportTopGlobal = viewportBox.localToGlobal(Offset.zero).dy;
-      final viewportCenterGlobal = viewportTopGlobal + viewportBox.size.height / 2;
-
-      // Delta required to bring target center to viewport center
-      final delta = targetCenterGlobal - viewportCenterGlobal;
-
-      // Desired scroll offset (clamped to extents)
-      double targetPixels = position.pixels + delta;
-      targetPixels = targetPixels.clamp(position.minScrollExtent, position.maxScrollExtent);
-
-      // Animate to the computed offset
-      position.animateTo(
-        targetPixels,
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeOutCubic,
-      );
+      _jumpToTodayNow(animate: animate);
     });
   }
   void _centerMonth(int ky, int km) {
@@ -9207,6 +9282,10 @@ class _CalendarPageState extends State<CalendarPage>
         }
         _centerMonth(_lastViewKy!, _lastViewKm!);
       }
+      if (!_rememberLastView && orientation == Orientation.portrait) {
+        // When switching into portrait without persistence, hide until we recentre on today.
+        _portraitRecenterPending = true;
+      }
     }
     _lastOrientation = orientation;
 
@@ -9339,6 +9418,9 @@ class _CalendarPageState extends State<CalendarPage>
 
   Widget _buildBodyWithJournal() {
     final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+    if (_portraitRecenterPending && isPortrait) {
+      _ensurePortraitCentered();
+    }
     
     return JournalSwipeLayer(
       controller: _journalController,
@@ -9349,7 +9431,10 @@ class _CalendarPageState extends State<CalendarPage>
         onScaleStart: _onScaleStart,
         onScaleUpdate: _onScaleUpdate,
         onScaleEnd: _onScaleEnd,
-        child: _buildCalendarScrollView(),
+        child: Offstage(
+          offstage: _portraitRecenterPending && isPortrait,
+          child: _buildCalendarScrollView(),
+        ),
       ),
     );
   }
@@ -9372,6 +9457,7 @@ class _CalendarPageState extends State<CalendarPage>
         return false;
       },
       child: CustomScrollView(
+      key: const PageStorageKey('calendar_portrait_scroll'),
       controller: _scrollCtrl,
       anchor: 0.5, // center the "center" sliver in the viewport
       center: _centerKey, // current Kemetic year is the center

@@ -38,12 +38,19 @@ class _PushTokenRepo {
   }) async {
     final user = _client.auth.currentUser;
     final uid = user?.id;
+    if (uid == null) {
+      debugPrint('[push] upsert skipped: no user');
+      return;
+    }
+    final nowIso = DateTime.now().toUtc().toIso8601String();
     final payload = {
       'user_id': uid,
       'platform': platform,
       'token': token,
       'device_id': deviceId,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
+      'is_active': true,
+      'last_seen_at': nowIso,
+      'updated_at': nowIso,
     };
     debugPrint('[push] upsert payload: $payload');
     try {
