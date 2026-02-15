@@ -10,6 +10,13 @@ void _log(String msg) {
   if (kDebugMode) debugPrint('[user_events] $msg');
 }
 
+bool _isUuid(String? v) {
+  if (v == null) return false;
+  return RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  ).hasMatch(v);
+}
+
 @immutable
 class UserEvent {
   final String id;
@@ -660,6 +667,10 @@ class UserEventsRepo {
     String? notes,
     required String rules,
     bool isHidden = false,
+    bool? isSaved,
+    String? shareId,
+    bool? isReminder,
+    String? reminderUuid,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -671,29 +682,43 @@ class UserEventsRepo {
       'name': name,
       'color': (color & 0x00FFFFFF), // 24-bit guard
       'active': active,
-      'start_date': startDate?.toIso8601String(),
-      'end_date': endDate?.toIso8601String(),
-      'notes': notes,
       'rules': jsonDecode(rules),
       'is_hidden': isHidden,
     };
+    if (startDate != null) payload['start_date'] = startDate.toIso8601String();
+    if (endDate != null) payload['end_date'] = endDate.toIso8601String();
+    if (notes != null) payload['notes'] = notes;
+    if (isSaved != null) payload['is_saved'] = isSaved;
+    if (_isUuid(shareId)) payload['share_id'] = shareId;
+    if (isReminder != null) payload['is_reminder'] = isReminder;
+    if (_isUuid(reminderUuid)) payload['reminder_uuid'] = reminderUuid;
 
-    if (id == null || id <= 0) {
-      final inserted = await _client
-          .from('flows')
-          .insert(payload)
-          .select('id')
-          .single();
-      return (inserted['id'] as num).toInt();
-    } else {
-      final patch = Map<String, dynamic>.from(payload)..remove('user_id');
-      final updated = await _client
-          .from('flows')
-          .update(patch)
-          .eq('id', id)
-          .select('id')
-          .single();
-      return (updated['id'] as num).toInt();
+    try {
+      if (id == null || id <= 0) {
+        final inserted = await _client
+            .from('flows')
+            .insert(payload)
+            .select('id')
+            .single();
+        return (inserted['id'] as num).toInt();
+      } else {
+        final patch = Map<String, dynamic>.from(payload)..remove('user_id');
+        final updated = await _client
+            .from('flows')
+            .update(patch)
+            .eq('id', id)
+            .select('id')
+            .single();
+        return (updated['id'] as num).toInt();
+      }
+    } on PostgrestException catch (e, st) {
+      _log('upsertFlow ✗ ${e.code} ${e.message}');
+      _log('$st');
+      rethrow;
+    } catch (e, st) {
+      _log('upsertFlow ✗ $e');
+      _log('$st');
+      rethrow;
     }
   }
 
@@ -745,8 +770,24 @@ class UserEventsRepo {
   Future<void> deleteFlow(int flowId) async {
     _log('deleteFlow($flowId)');
     try {
-      await _client.from('flows').delete().eq('id', flowId);
-      _log('deleteFlow ✓');
+      // Block deleting saved flows; prefer soft-delete semantics
+      final row = await _client
+          .from('flows')
+          .select('id, is_saved')
+          .eq('id', flowId)
+          .maybeSingle();
+      final isSaved = (row?['is_saved'] as bool?) ?? false;
+      if (isSaved) {
+        _log('deleteFlow BLOCKED (saved flow): $flowId');
+        return;
+      }
+
+      // Soft delete: hide and deactivate
+      await _client
+          .from('flows')
+          .update({'is_hidden': true, 'active': false})
+          .eq('id', flowId);
+      _log('deleteFlow ✓ (soft)');
     } on PostgrestException catch (e) {
       _log('deleteFlow ✗ ${e.code} ${e.message}');
       rethrow;
@@ -781,16 +822,26 @@ class UserEventsRepo {
     required bool isSaved,
   }) async {
     try {
-      await _client
+      final updated = await _client
           .from('flows')
           .update({'is_saved': isSaved})
-          .eq('id', flowId);
+          .eq('id', flowId)
+          .select('id, is_saved, active, updated_at')
+          .single();
       if (kDebugMode) {
-        debugPrint('[UserEventsRepo] setFlowSaved: $flowId -> $isSaved');
+        debugPrint('[UserEventsRepo] setFlowSaved DB row: $updated');
       }
-    } catch (e) {
+    } on PostgrestException catch (e, st) {
+      if (kDebugMode) {
+        debugPrint(
+            '[UserEventsRepo] setFlowSaved FAILED: ${e.code} ${e.message} ${e.details}');
+        debugPrint('$st');
+      }
+      rethrow;
+    } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[UserEventsRepo] setFlowSaved FAILED: $e');
+        debugPrint('$st');
       }
       rethrow;
     }

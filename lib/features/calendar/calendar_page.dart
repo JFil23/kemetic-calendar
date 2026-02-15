@@ -4345,13 +4345,7 @@ class _CalendarPageState extends State<CalendarPage>
 
   // Flows — add/remove/toggle
   // >>> FIND-ME: PATCH-2 _saveNewFlow AFTER
-  Future<int> _saveNewFlow(_Flow flow) async {
-    final localId = _nextFlowId++;
-    flow.id = localId;
-    _flows.add(flow);
-    if (mounted) setState(() {});
-    _notifyDayViewDataChanged();
-
+  Future<int?> _saveNewFlow(_Flow flow) async {
     try {
       final repo = UserEventsRepo(Supabase.instance.client);
       final rulesJson = jsonEncode(flow.rules.map(ruleToJson).toList());
@@ -4366,33 +4360,67 @@ class _CalendarPageState extends State<CalendarPage>
         notes: flow.notes,
         rules: rulesJson,
         isHidden: flow.isHidden,
+        isSaved: flow.isSaved,
+        shareId: flow.shareId,
+        isReminder: flow.isReminder,
+        reminderUuid: flow.reminderUuid,
       );
 
-      if (savedId != localId) {
-        // 1) update the in-memory flow id
-        final idx = _flows.indexWhere((f) => f.id == localId);
-        if (idx >= 0) {
-          _flows[idx].id = savedId;
-          // Add debug logging
-          if (kDebugMode) {
-            debugPrint('[saveNewFlow] Remapped flow ID: $localId → $savedId');
-            debugPrint('[saveNewFlow] Flow "${_flows[idx].name}" color: ${_flows[idx].color.value.toRadixString(16)}');
-          }
-        }
-        // 2) re-stamp any notes that used the local id to now use the server id
-        _rekeyNotesFlowId(localId, savedId);
+      // Keep nextFlowId monotonic with server ids
+      if (savedId >= _nextFlowId) _nextFlowId = savedId + 1;
 
-        // 3) keep nextFlowId monotonic
-        if (savedId >= _nextFlowId) _nextFlowId = savedId + 1;
+      final persisted = _Flow(
+        id: savedId,
+        name: flow.name,
+        color: flow.color,
+        active: flow.active,
+        isSaved: flow.isSaved,
+        rules: flow.rules,
+        start: flow.start,
+        end: flow.end,
+        notes: flow.notes,
+        shareId: flow.shareId,
+        isHidden: flow.isHidden,
+        isReminder: flow.isReminder,
+        reminderUuid: flow.reminderUuid,
+      );
 
-        if (mounted) setState(() {});
-        _notifyDayViewDataChanged();
-      }
+      _flows.add(persisted);
+      if (mounted) setState(() {});
+      _notifyDayViewDataChanged();
+
       return savedId;
-    } catch (e) {
-      debugPrint('Flow save failed: $e');
-      // Keep local id on failure; caller will still attach notes to local
-      return localId;
+    } on PostgrestException catch (e, st) {
+      debugPrint('[saveNewFlow] ✗ ${e.code} ${e.message}');
+      final details = e.details?.toString() ?? '';
+      if (details.isNotEmpty) debugPrint('[saveNewFlow] details: $details');
+      final hint = e.hint?.toString() ?? '';
+      if (hint.isNotEmpty) debugPrint('[saveNewFlow] hint: $hint');
+      debugPrint(
+        '[saveNewFlow] nulls start:${flow.start == null} end:${flow.end == null} notes:${flow.notes == null} shareId:${flow.shareId == null} isReminder:${flow.isReminder} isSaved:${flow.isSaved}',
+      );
+      debugPrint('$st');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to save flow to cloud. Please retry.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return null;
+    } catch (e, st) {
+      debugPrint('[saveNewFlow] ✗ $e');
+      debugPrint('$st');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to save flow to cloud. Please retry.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return null;
     }
   }
 
@@ -5096,6 +5124,12 @@ class _CalendarPageState extends State<CalendarPage>
         notesAlreadyPersisted = true; // plannedNotes handled inside _persistFlowStudioResult
       } else {
         finalFlowId = await _saveNewFlow(f); // await save and get server ID
+        if (finalFlowId == null) {
+          if (kDebugMode) {
+            debugPrint('[FlowStudio] Aborting apply - flow insert failed');
+          }
+          return;
+        }
       }
     }
 
@@ -5771,6 +5805,12 @@ class _CalendarPageState extends State<CalendarPage>
     );
 
     final serverFlowId = await _saveNewFlow(flow); // await save and get server ID
+    if (serverFlowId == null) {
+      if (kDebugMode) {
+        debugPrint('[applyFlowTemplate] Aborting - flow insert failed');
+      }
+      return -1;
+    }
 
     // 3) Add 10 linked notes (title + detail from template).
     // Use 9am default; users can edit/delete individual notes later if they want.
@@ -5934,16 +5974,9 @@ class _CalendarPageState extends State<CalendarPage>
         debugPrint('[endFlow] ⚠️ Failed to cancel notifications: $e');
       }
     }
-    // Delete the flow itself
-    try {
-      await repo.deleteFlow(flowId);
-      if (kDebugMode) {
-        debugPrint('[endFlow] ✓ Deleted flow $flowId from database');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[endFlow] ⚠️ Failed to delete flow: $e');
-      }
+    // Do NOT delete the flow row; keep it for Saved Flows / reactivation.
+    if (kDebugMode) {
+      debugPrint('[endFlow] Skipping deleteFlow($flowId) — end does not delete rows');
     }
     // Reload from disk to ensure UI is in sync
     await _loadFromDisk();
