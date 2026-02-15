@@ -616,6 +616,7 @@ class _Flow {
   String name;
   Color color;
   bool active;
+  bool isSaved;
   DateTime? start; // inclusive (Gregorian local)
   DateTime? end;   // inclusive (Gregorian local)
   final List<FlowRule> rules;
@@ -629,6 +630,7 @@ class _Flow {
     required this.name,
     required this.color,
     required this.active,
+    this.isSaved = false,
     required this.rules,
     this.start,
     this.end,
@@ -1377,6 +1379,47 @@ class _CalendarPageState extends State<CalendarPage>
     final now = DateTime.now().toUtc();
     final today = DateTime.utc(now.year, now.month, now.day);
     return !endDateOnly.isBefore(today);
+  }
+
+  Future<void> _saveFlowById(int flowId) async {
+    final idx = _flows.indexWhere((f) => f.id == flowId);
+    if (idx < 0) {
+      if (kDebugMode) {
+        debugPrint('[saveFlowById] Flow $flowId not found in cache');
+      }
+      return;
+    }
+    final flow = _flows[idx];
+    if (flow.isSaved) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Already in Saved Flows'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    try {
+      await UserEventsRepo(Supabase.instance.client)
+          .setFlowSaved(flowId: flowId, isSaved: true);
+      if (!mounted) return;
+      setState(() {
+        _flows[idx].isSaved = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Saved to Saved Flows'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to save flow: $e')),
+      );
+    }
   }
 
   // ✅ RouteObserver subscription tracking
@@ -6020,6 +6063,7 @@ class _CalendarPageState extends State<CalendarPage>
               await _journalController.appendToToday(text);
             }
           },
+          onSaveFlow: _saveFlowById,
         ),
       ),
     ).then((_) {
@@ -7769,6 +7813,7 @@ class _CalendarPageState extends State<CalendarPage>
           name: f.name,
           color: Color(rgbToArgb(f.color)),
           active: f.active,
+          isSaved: f.isSaved,
           rules: _parseRules(f.rules),
           start: f.startDate,
           end: f.endDate,
@@ -10851,6 +10896,23 @@ class _DayChip extends StatelessWidget {
     );
   }
 
+  Future<void> _saveFlow(BuildContext ctx, int flowId) async {
+    try {
+      await UserEventsRepo(Supabase.instance.client)
+          .setFlowSaved(flowId: flowId, isSaved: true);
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        const SnackBar(
+          content: Text('Saved to Saved Flows'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(content: Text('Unable to save flow: $e')),
+      );
+    }
+  }
+
   void _showEventDetailFromNote(BuildContext context, _Note note) {
     final event = _noteToEventItem(note);
     final flowName = flowNameGetter?.call(note);
@@ -10974,6 +11036,10 @@ class _DayChip extends StatelessWidget {
                               ),
                             );
                           }
+                        } else if (value == 'save_flow' &&
+                            note.flowId != null) {
+                          Navigator.pop(ctx);
+                          await _saveFlow(context, note.flowId!);
                         } else if (value == 'edit_reminder' &&
                             note.isReminder &&
                             event.reminderId != null &&
@@ -11030,6 +11096,17 @@ class _DayChip extends StatelessWidget {
                                 Icon(Icons.share, color: Color(0xFFD4AF37)),
                                 SizedBox(width: 12),
                                 Text('Share Flow', style: TextStyle(color: Colors.white)),
+                              ],
+                            ),
+                          ),
+                        if (note.flowId != null)
+                          const PopupMenuItem(
+                            value: 'save_flow',
+                            child: Row(
+                              children: [
+                                Icon(Icons.bookmark_add, color: Color(0xFFD4AF37)),
+                                SizedBox(width: 12),
+                                Text('Save Flow', style: TextStyle(color: Colors.white)),
                               ],
                             ),
                           ),
@@ -14610,47 +14687,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       return;
     }
 
-    // Load flow if provided
+    // Load flow if provided (always from DB to ensure full hydration)
     if (widget.editFlowId != null) {
       final id = widget.editFlowId!;
-      final match = widget.existingFlows.where((f) => f.id == id).toList();
-
-      if (match.isNotEmpty) {
-        final flow = match.first;
-        
-        if (kDebugMode) {
-          print('🔧 [FlowStudio] Found flow in existingFlows: id=$id, name="${flow.name}", shareId=${flow.shareId}');
-        }
-        
-        // ✅ CRITICAL: If flow has shareId, it's imported and needs event-based loading
-        // Imported flows have events in DB that _loadFlowForEdit doesn't load
-        if (flow.shareId != null) {
-          if (kDebugMode) {
-            print('🔍 [FlowStudio] Import detected (shareId=${flow.shareId}) → using _loadFlowByIdFromDb');
-          }
-          _loadFromDbWithSpinner(id);
-        } else if (flow.rules.isEmpty) {
-          if (kDebugMode) {
-            print('🔍 [FlowStudio] Snapshot-only flow detected (rules empty) → using _loadFlowByIdFromDb');
-          }
-          _loadFromDbWithSpinner(id);
-        } else {
-          if (kDebugMode) {
-            print('📝 [FlowStudio] Local/custom flow → using _loadFlowForEdit');
-          }
-          // ✅ Flow is already in existingFlows and NOT imported → treat like normal/custom flow
-          _editing = flow;
-          _nameCtrl = TextEditingController(text: _editing!.name);
-          _active = _editing!.active;
-          _loadFlowForEdit(_editing!);
-        }
-      } else {
-        if (kDebugMode) {
-          print('🔎 [FlowStudio] Flow id=$id not in existingFlows → loading from DB');
-        }
-        // ✅ Flow not in existing list (AI or imported) → load from DB
-        _loadFromDbWithSpinner(id);
+      if (kDebugMode) {
+        print('🔎 [FlowStudio] editFlowId=$id → loading directly from DB');
       }
+      _loadFromDbWithSpinner(id);
     } else {
       if (kDebugMode) {
         print('✨ [FlowStudio] New flow creation mode');
@@ -15932,6 +15975,8 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
                 widget.onEdit(currentFlow);
               } else if (value == 'share') {
                 _openShareSheet(context, currentFlow);
+              } else if (value == 'save') {
+                await _toggleSaved(currentFlow);
               }
             },
             itemBuilder: (context) => [
@@ -15962,6 +16007,22 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
                     Icon(Icons.share, color: Color(0xFFD4AF37)),
                     SizedBox(width: 12),
                     Text('Share Flow', style: TextStyle(color: Colors.white)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'save',
+                child: Row(
+                  children: [
+                    Icon(
+                      currentFlow.isSaved ? Icons.bookmark_remove : Icons.bookmark_add,
+                      color: const Color(0xFFD4AF37),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      currentFlow.isSaved ? 'Remove from Saved' : 'Save Flow',
+                      style: const TextStyle(color: Colors.white),
+                    ),
                   ],
                 ),
               ),
@@ -15996,6 +16057,30 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         },
       ),
     );
+  }
+
+  Future<void> _toggleSaved(_Flow flow) async {
+    try {
+      await UserEventsRepo(Supabase.instance.client)
+          .setFlowSaved(flowId: flow.id, isSaved: !flow.isSaved);
+      if (!mounted) return;
+      setState(() {
+        flow.isSaved = !flow.isSaved;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(flow.isSaved
+              ? 'Saved to Saved Flows'
+              : 'Removed from Saved Flows'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to update saved state: $e')),
+      );
+    }
   }
 
   Widget _buildEventTile((
@@ -16797,6 +16882,21 @@ class _FlowsViewerPage extends StatefulWidget {
 }
 
 class _FlowsViewerPageState extends State<_FlowsViewerPage> {
+  FlowListTab _tab = FlowListTab.active;
+
+  List<_Flow> get _activeItems => widget.flows.where((f) =>
+      f.active &&
+      !f.isHidden &&
+      _isActiveByEndDate(f.end)
+  ).toList()
+    ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+  List<_Flow> get _savedItems => widget.flows.where((f) =>
+      f.isSaved &&
+      !f.isHidden
+  ).toList()
+    ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
   // UI still filters by end date even though repos do, because _flows is an
   // in-memory cache that can contain stale rows until the next sync. This keeps
   // ended flows out of the view.
@@ -16811,12 +16911,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
 
   @override
   Widget build(BuildContext context) {
-    final items = widget.flows.where((f) =>
-      f.active &&
-      !f.isHidden &&
-      _isActiveByEndDate(f.end)
-    ).toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final items = _tab == FlowListTab.active ? _activeItems : _savedItems;
 
 
     Widget emptyState = const Padding(
@@ -16911,6 +17006,34 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SegmentedButton<FlowListTab>(
+                    segments: const [
+                      ButtonSegment(value: FlowListTab.active, label: Text('Active Flows')),
+                      ButtonSegment(value: FlowListTab.saved, label: Text('Saved Flows')),
+                    ],
+                    selected: <FlowListTab>{_tab},
+                    onSelectionChanged: (v) {
+                      if (v.isNotEmpty) {
+                        setState(() => _tab = v.first);
+                      }
+                    },
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.all(const Color(0xFF111111)),
+                      foregroundColor: WidgetStateProperty.all(Colors.white),
+                      side: WidgetStateProperty.all(const BorderSide(color: Colors.white24)),
+                      padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 8)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           Expanded(child: items.isEmpty ? emptyState : list),
         ],
       ),
@@ -16918,6 +17041,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   }
 }
 
+enum FlowListTab { active, saved }
 
 
 /* ───────────────────────── Flow Hub (entry page) ───────────────────────── */

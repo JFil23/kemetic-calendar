@@ -703,6 +703,7 @@ class UserEventsRepo {
     String name,
     int color,
     bool active,
+    bool isSaved,
     DateTime? startDate,
     DateTime? endDate,
     String? notes,
@@ -719,16 +720,15 @@ class UserEventsRepo {
         .from('flows')
         .select()
         .eq('user_id', user.id)
-        .eq('active', true)  // 👈 Only load active flows
         .order('created_at', ascending: false);
 
     return (res as List)
-        .where((row) => _isActiveByEndDateStr(row['end_date'] as String?))
         .map((row) => (
     id: (row['id'] as num).toInt(),
     name: row['name'] as String,
     color: (row['color'] as num).toInt(),
     active: row['active'] as bool,
+    isSaved: (row['is_saved'] as bool?) ?? false,
     startDate: row['start_date'] == null ? null : DateTime.parse(row['start_date'] as String),
     endDate: row['end_date'] == null ? null : DateTime.parse(row['end_date'] as String),
     notes: row['notes'] as String?,
@@ -770,6 +770,27 @@ class UserEventsRepo {
     } catch (e) {
       if (kDebugMode) {
         print('[UserEventsRepo] Error updating flow share_id: $e');
+      }
+      rethrow;
+    }
+  }
+
+  /// Toggle saved flag for a flow.
+  Future<void> setFlowSaved({
+    required int flowId,
+    required bool isSaved,
+  }) async {
+    try {
+      await _client
+          .from('flows')
+          .update({'is_saved': isSaved})
+          .eq('id', flowId);
+      if (kDebugMode) {
+        debugPrint('[UserEventsRepo] setFlowSaved: $flowId -> $isSaved');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[UserEventsRepo] setFlowSaved FAILED: $e');
       }
       rethrow;
     }

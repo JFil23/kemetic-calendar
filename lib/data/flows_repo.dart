@@ -27,6 +27,7 @@ class FlowRow {
   final String name;
   final int color;
   final bool active;
+  final bool isSaved;
   final DateTime? startDate;
   final DateTime? endDate;
   final String? notes;
@@ -42,6 +43,7 @@ class FlowRow {
     required this.name,
     required this.color,
     required this.active,
+    required this.isSaved,
     required this.startDate,
     required this.endDate,
     required this.notes,
@@ -72,6 +74,7 @@ class FlowRow {
       // Force 24-bit RGB and safe default matching the backend
       color: (((r['color'] as num?)?.toInt() ?? 0x4DD0E1) & 0x00FFFFFF),
       active: (r['active'] as bool?) ?? true,
+      isSaved: (r['is_saved'] as bool?) ?? false,
       startDate: _d(r['start_date']),
       endDate: _d(r['end_date']),
       notes: r['notes'] as String?,
@@ -90,6 +93,7 @@ class FlowRow {
     'name': name,
     'color': color,
     'active': active,
+    'is_saved': isSaved,
     'start_date': startDate?.toIso8601String(),
     'end_date': endDate?.toIso8601String(),
     'notes': notes,
@@ -103,6 +107,7 @@ class FlowRow {
     'name': name,
     'color': color,
     'active': active,
+    'is_saved': isSaved,
     'start_date': startDate?.toIso8601String(),
     'end_date': endDate?.toIso8601String(),
     'notes': notes,
@@ -260,7 +265,6 @@ class FlowsRepo {
         .from(_kFlows)
         .select()
         .eq('user_id', user.id)
-        .eq('active', true)
         .order('created_at', ascending: false);
 
     _log('fetchAll ✓ ${rows.length} rows');

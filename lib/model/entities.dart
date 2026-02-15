@@ -136,6 +136,7 @@ class Flow {
   final String name;
   final Color color;
   final bool active;
+  final bool isSaved;
   final List<FlowRule> rules;
   final DateTime? start; // date-only
   final DateTime? end;   // date-only
@@ -147,6 +148,7 @@ class Flow {
     required this.name,
     required this.color,
     required this.active,
+    this.isSaved = false,
     required this.rules,
     required this.start,
     required this.end,
@@ -159,6 +161,7 @@ class Flow {
     String? name,
     Color? color,
     bool? active,
+    bool? isSaved,
     List<FlowRule>? rules,
     DateTime? start,
     DateTime? end,
@@ -170,6 +173,7 @@ class Flow {
       name: name ?? this.name,
       color: color ?? this.color,
       active: active ?? this.active,
+      isSaved: isSaved ?? this.isSaved,
       rules: rules ?? this.rules,
       start: start ?? this.start,
       end: end ?? this.end,
@@ -183,6 +187,7 @@ class Flow {
     'name': name,
     'color': color.value,
     'active': active,
+    'isSaved': isSaved,
     'rules': rules.map((r) => r.toJson()).toList(),
     'start': start?.toIso8601String(),
     'end': end?.toIso8601String(),
@@ -195,6 +200,7 @@ class Flow {
     name: j['name'] as String? ?? '',
     color: Color(j['color'] as int? ?? 0xFF9E9E9E),
     active: j['active'] as bool? ?? true,
+    isSaved: j['isSaved'] as bool? ?? false,
     rules: (j['rules'] as List? ?? const [])
         .map((e) => FlowRule.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList(),

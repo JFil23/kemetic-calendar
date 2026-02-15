@@ -10,11 +10,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'calendar_page.dart';
 import 'landscape_month_view.dart';
 import '../sharing/share_flow_sheet.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
+import '../../data/user_events_repo.dart';
 import '../journal/journal_event_badge.dart';
 
 const double _kMinEventBlockHeight = 64.0;  // was 32.0
@@ -283,6 +285,7 @@ class DayViewPage extends StatefulWidget {
   /// If null, the End Flow button is hidden.
   final void Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
+  final Future<void> Function(int flowId)? onSaveFlow;
 
   const DayViewPage({
     super.key,
@@ -308,6 +311,7 @@ class DayViewPage extends StatefulWidget {
     this.onCreateTimedEvent, // NEW
     this.onEndFlow,
     this.onAppendToJournal,
+    this.onSaveFlow,
   });
 
   @override
@@ -552,6 +556,7 @@ class _DayViewPageState extends State<DayViewPage> {
                           onCreateTimedEvent: widget.onCreateTimedEvent,
                           onEndFlow: widget.onEndFlow, // Pass End Flow callback down
                           onAppendToJournal: widget.onAppendToJournal,
+                          onSaveFlow: widget.onSaveFlow,
                         );
                       },
                   ),
@@ -977,6 +982,7 @@ class DayViewGrid extends StatefulWidget {
   })? onCreateTimedEvent;
   final void Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
+  final Future<void> Function(int flowId)? onSaveFlow;
 
   const DayViewGrid({
     super.key,
@@ -1000,6 +1006,7 @@ class DayViewGrid extends StatefulWidget {
     this.onCreateTimedEvent, // NEW
     this.onEndFlow,
     this.onAppendToJournal,
+    this.onSaveFlow,
   });
 
   @override
@@ -1942,6 +1949,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   void _showEventDetail(EventItem event) {
     final flow = widget.flowIndex[event.flowId];
     final bool isReminder = event.isReminder;
+    final rootContext = context;
     
     // 🔍 DEBUG: Comprehensive logging
     if (kDebugMode) {
@@ -1965,10 +1973,10 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
     
     showModalBottomSheet(
-      context: context,
+      context: rootContext,
       backgroundColor: Color(0xFF000000),
       isScrollControlled: true,
-      builder: (context) {
+      builder: (sheetContext) {
         return Container(
           padding: const EdgeInsets.all(20),
           child: SingleChildScrollView(
@@ -2053,53 +2061,83 @@ class _DayViewGridState extends State<DayViewGrid> {
                     tooltip: 'Event options',
                     onSelected: (value) async {
                       if (value == 'journal') {
-                        await _handleAddToJournal(event, sheetContext: context);
-                    } else if (value == 'edit' && flow != null) {
-                      Navigator.pop(context);
-                      if (widget.onManageFlows != null) {
-                        widget.onManageFlows!(flow.id);
-                      }
-                    } else if (value == 'share' && flow != null) {
-                      Navigator.pop(context);
-                      final result = await showModalBottomSheet<bool>(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
+                        await _handleAddToJournal(event, sheetContext: sheetContext);
+                      } else if (value == 'edit' && flow != null) {
+                        Navigator.pop(sheetContext);
+                        if (widget.onManageFlows != null) {
+                          widget.onManageFlows!(flow.id);
+                        }
+                      } else if (value == 'share' && flow != null) {
+                        Navigator.pop(sheetContext);
+                        final result = await showModalBottomSheet<bool>(
+                          context: rootContext,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
                           builder: (context) => ShareFlowSheet(
                             flowId: flow.id,
                             flowTitle: flow.name,
                           ),
                         );
-                        
-                        if (result == true && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+
+                        if (result == true && mounted) {
+                          ScaffoldMessenger.of(rootContext).showSnackBar(
                             const SnackBar(
                               content: Text('Flow shared successfully!'),
                               backgroundColor: Color(0xFFD4AF37),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      } else if (value == 'save' && flow != null) {
+                        Navigator.pop(sheetContext);
+                        if (widget.onSaveFlow != null) {
+                          await widget.onSaveFlow!(flow.id);
+                        } else {
+                          try {
+                            await UserEventsRepo(Supabase.instance.client)
+                                .setFlowSaved(flowId: flow.id, isSaved: true);
+                            if (mounted) {
+                              ScaffoldMessenger.of(rootContext).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Saved to Saved Flows'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(rootContext).showSnackBar(
+                                SnackBar(content: Text('Unable to save flow: $e')),
+                              );
+                            }
+                          }
+                        }
+                      } else if (value == 'edit_reminder' &&
+                          isReminder &&
+                          widget.onEditReminder != null &&
+                          event.reminderId != null) {
+                        Navigator.pop(sheetContext);
+                        await widget.onEditReminder!(event.reminderId!);
+                      } else if (value == 'share_reminder' &&
+                          isReminder &&
+                          widget.onShareReminder != null) {
+                        Navigator.pop(sheetContext);
+                        await widget.onShareReminder!(event);
+                      } else if (value == 'edit_note' &&
+                          flow == null &&
+                          !isReminder &&
+                          widget.onEditNote != null) {
+                        Navigator.pop(sheetContext);
+                        await widget.onEditNote!(widget.ky, widget.km, widget.kd, event);
+                      } else if (value == 'share_note' &&
+                          flow == null &&
+                          !isReminder &&
+                          widget.onShareNote != null) {
+                        Navigator.pop(sheetContext);
+                        await widget.onShareNote!(event);
                       }
-                    } else if (value == 'edit_reminder' &&
-                        isReminder &&
-                        widget.onEditReminder != null &&
-                        event.reminderId != null) {
-                      Navigator.pop(context);
-                      await widget.onEditReminder!(event.reminderId!);
-                    } else if (value == 'share_reminder' &&
-                        isReminder &&
-                        widget.onShareReminder != null) {
-                      Navigator.pop(context);
-                      await widget.onShareReminder!(event);
-                    } else if (value == 'edit_note' && flow == null && !isReminder && widget.onEditNote != null) {
-                      Navigator.pop(context);
-                      await widget.onEditNote!(widget.ky, widget.km, widget.kd, event);
-                    } else if (value == 'share_note' && flow == null && !isReminder && widget.onShareNote != null) {
-                      Navigator.pop(context);
-                      await widget.onShareNote!(event);
-                    }
-                  },
-                  itemBuilder: (context) => [
+                    },
+                    itemBuilder: (context) => [
                       PopupMenuItem(
                         value: 'journal',
                           child: Row(
@@ -2129,6 +2167,17 @@ class _DayViewGridState extends State<DayViewGrid> {
                               Icon(Icons.share, color: Color(0xFFD4AF37)),
                               SizedBox(width: 12),
                               Text('Share Flow', style: TextStyle(color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                      if (flow != null)
+                        const PopupMenuItem(
+                          value: 'save',
+                          child: Row(
+                            children: [
+                              Icon(Icons.bookmark_add, color: Color(0xFFD4AF37)),
+                              SizedBox(width: 12),
+                              Text('Save Flow', style: TextStyle(color: Colors.white)),
                             ],
                           ),
                         ),
