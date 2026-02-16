@@ -9,6 +9,7 @@ import '../../data/share_repo.dart';
 import '../../repositories/inbox_repo.dart';
 import 'shared_flow_details_entry.dart';
 import 'conversation_user.dart';
+import '../profile/profile_page.dart';
 
 class InboxConversationPage extends StatefulWidget {
   final String otherUserId;
@@ -75,6 +76,19 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'View profile',
+            icon: const Icon(Icons.person, color: Color(0xFFD4AF37)),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ProfilePage(userId: widget.otherUserId),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: StreamBuilder<List<InboxShareItem>>(
         stream: inboxRepo.watchConversationWith(widget.otherUserId),
@@ -396,4 +410,3 @@ class _ConversationUser {
     this.avatarUrl,
   });
 }
-

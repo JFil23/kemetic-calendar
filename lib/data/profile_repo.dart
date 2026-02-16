@@ -62,6 +62,64 @@ class ProfileRepo {
     }
   }
 
+  /// Check if the current user follows another user
+  Future<bool> isFollowing(String targetUserId) async {
+    try {
+      final currentUserId = _client.auth.currentUser?.id;
+      if (currentUserId == null) return false;
+      if (currentUserId == targetUserId) return false;
+
+      final response = await _client
+          .from('follows')
+          .select('follower_id')
+          .eq('follower_id', currentUserId)
+          .eq('followee_id', targetUserId)
+          .maybeSingle();
+
+      return response != null;
+    } catch (e) {
+      print('[ProfileRepo] Error checking follow status: $e');
+      return false;
+    }
+  }
+
+  /// Follow another user
+  Future<bool> followUser(String targetUserId) async {
+    try {
+      final currentUserId = _client.auth.currentUser?.id;
+      if (currentUserId == null) return false;
+      if (currentUserId == targetUserId) return false;
+
+      await _client.from('follows').upsert({
+        'follower_id': currentUserId,
+        'followee_id': targetUserId,
+      });
+      return true;
+    } catch (e) {
+      print('[ProfileRepo] Error following user: $e');
+      return false;
+    }
+  }
+
+  /// Unfollow another user
+  Future<bool> unfollowUser(String targetUserId) async {
+    try {
+      final currentUserId = _client.auth.currentUser?.id;
+      if (currentUserId == null) return false;
+      if (currentUserId == targetUserId) return false;
+
+      await _client
+          .from('follows')
+          .delete()
+          .eq('follower_id', currentUserId)
+          .eq('followee_id', targetUserId);
+      return true;
+    } catch (e) {
+      print('[ProfileRepo] Error unfollowing user: $e');
+      return false;
+    }
+  }
+
   /// Fetch profile by handle
   Future<UserProfile?> getProfileByHandle(String handle) async {
     try {

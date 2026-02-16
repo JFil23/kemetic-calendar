@@ -6,6 +6,7 @@ import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../../widgets/inbox_icon_with_badge.dart';
 import 'edit_profile_page.dart';
+import 'profile_search_page.dart';
 import '../settings/settings_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -26,6 +27,13 @@ class _ProfilePageState extends State<ProfilePage> {
   final _repo = ProfileRepo(Supabase.instance.client);
   UserProfile? _profile;
   bool _loading = true;
+  bool _isFollowing = false;
+  bool _followUpdating = false;
+
+  bool get _isViewingOwnProfile {
+    final currentId = Supabase.instance.client.auth.currentUser?.id;
+    return widget.isMyProfile || (currentId != null && currentId == widget.userId);
+  }
 
   @override
   void initState() {
@@ -33,9 +41,19 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadProfile();
   }
 
-  Future<void> _loadProfile() async {
-    setState(() => _loading = true);
-    final profile = await _repo.getProfile(widget.userId);
+  Future<void> _loadProfile({bool showSpinner = true}) async {
+    if (showSpinner) {
+      setState(() => _loading = true);
+    }
+
+    final profileFuture = _repo.getProfile(widget.userId);
+    final followFuture = _isViewingOwnProfile
+        ? Future<bool>.value(false)
+        : _repo.isFollowing(widget.userId);
+
+    final profile = await profileFuture;
+    final isFollowing = await followFuture;
+
     UserProfile? adjusted = profile;
     if (profile != null) {
       final counts = await _repo.computeFlowCountsForUser(widget.userId);
@@ -47,8 +65,38 @@ class _ProfilePageState extends State<ProfilePage> {
     if (mounted) {
       setState(() {
         _profile = adjusted;
+        _isFollowing = isFollowing;
         _loading = false;
       });
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  Future<void> _toggleFollow() async {
+    if (_followUpdating || _isViewingOwnProfile) return;
+    setState(() => _followUpdating = true);
+
+    final success = _isFollowing
+        ? await _repo.unfollowUser(widget.userId)
+        : await _repo.followUser(widget.userId);
+
+    if (!success) {
+      _showError('Could not update follow status. Please try again.');
+    } else {
+      await _loadProfile(showSpinner: false);
+    }
+
+    if (mounted) {
+      setState(() => _followUpdating = false);
     }
   }
 
@@ -167,10 +215,17 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 32),
           _buildStats(profile),
 
-          // Edit button (only for own profile)
-          if (widget.isMyProfile) ...[
-            const SizedBox(height: 32),
+          if (!_isViewingOwnProfile) ...[
+            const SizedBox(height: 24),
+            _buildFollowButton(),
+          ],
+
+          // Edit/find buttons (only for own profile)
+          if (_isViewingOwnProfile) ...[
+            const SizedBox(height: 24),
             _buildEditButton(),
+            const SizedBox(height: 12),
+            _buildFindPeopleButton(),
           ],
         ],
       ),
@@ -215,23 +270,32 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildStats(UserProfile profile) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildStatItem(
-          label: 'Active Flows',
-          value: profile.activeFlowsCount?.toString() ?? '0',
-        ),
-        Container(
-          width: 1,
-          height: 40,
-          color: Colors.white.withOpacity(0.1),
-        ),
-        _buildStatItem(
-          label: 'Flow Events',
-          value: profile.totalFlowEventsCount?.toString() ?? '0',
-        ),
-      ],
+    final stats = [
+      (
+        'Followers',
+        (profile.followersCount ?? 0).toString(),
+      ),
+      (
+        'Following',
+        (profile.followingCount ?? 0).toString(),
+      ),
+      (
+        'Active Flows',
+        (profile.activeFlowsCount ?? 0).toString(),
+      ),
+      (
+        'Flow Events',
+        (profile.totalFlowEventsCount ?? 0).toString(),
+      ),
+    ];
+
+    return Wrap(
+      spacing: 24,
+      runSpacing: 16,
+      alignment: WrapAlignment.center,
+      children: stats
+          .map((stat) => _buildStatItem(label: stat.$1, value: stat.$2))
+          .toList(),
     );
   }
 
@@ -255,6 +319,46 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFollowButton() {
+    final isFollowing = _isFollowing;
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _followUpdating ? null : _toggleFollow,
+        style: ElevatedButton.styleFrom(
+          backgroundColor:
+              isFollowing ? Colors.black : const Color(0xFFD4AF37),
+          foregroundColor:
+              isFollowing ? Colors.white : const Color(0xFF000000),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: const Color(0xFFD4AF37),
+              width: isFollowing ? 1.5 : 0,
+            ),
+          ),
+        ),
+        child: _followUpdating
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                ),
+              )
+            : Text(
+                isFollowing ? 'Unfollow' : 'Follow',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+      ),
     );
   }
 
@@ -290,6 +394,49 @@ class _ProfilePageState extends State<ProfilePage> {
           'Edit Profile',
           style: TextStyle(
             fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFindPeopleButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: () async {
+          final selectedUserId = await Navigator.of(context).push<String>(
+            MaterialPageRoute(
+              builder: (_) => const ProfileSearchPage(),
+            ),
+          );
+
+          if (!mounted || selectedUserId == null) return;
+
+          if (selectedUserId == widget.userId) {
+            await _loadProfile(showSpinner: false);
+            return;
+          }
+
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ProfilePage(userId: selectedUserId),
+            ),
+          );
+        },
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Color(0xFFD4AF37)),
+          foregroundColor: const Color(0xFFD4AF37),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: const Text(
+          'Find People',
+          style: TextStyle(
+            fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
         ),

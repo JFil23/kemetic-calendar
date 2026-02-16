@@ -11,6 +11,8 @@ class UserProfile {
   final bool allowIncomingShares;
   final int? activeFlowsCount;
   final int? totalFlowEventsCount;
+  final int? followersCount;
+  final int? followingCount;
   final DateTime? createdAt;
 
   UserProfile({
@@ -24,6 +26,8 @@ class UserProfile {
     this.allowIncomingShares = true,
     this.activeFlowsCount,
     this.totalFlowEventsCount,
+    this.followersCount,
+    this.followingCount,
     this.createdAt,
   });
 
@@ -37,8 +41,10 @@ class UserProfile {
       location: json['location'] as String?,
       isDiscoverable: json['is_discoverable'] as bool? ?? true,
       allowIncomingShares: json['allow_incoming_shares'] as bool? ?? true,
-      activeFlowsCount: json['active_flows_count'] as int?,
-      totalFlowEventsCount: json['total_flow_events_count'] as int?,
+      activeFlowsCount: (json['active_flows_count'] as num?)?.toInt(),
+      totalFlowEventsCount: (json['total_flow_events_count'] as num?)?.toInt(),
+      followersCount: (json['followers_count'] as num?)?.toInt(),
+      followingCount: (json['following_count'] as num?)?.toInt(),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : null,
@@ -55,6 +61,10 @@ class UserProfile {
       'location': location,
       'is_discoverable': isDiscoverable,
       'allow_incoming_shares': allowIncomingShares,
+      'active_flows_count': activeFlowsCount,
+      'total_flow_events_count': totalFlowEventsCount,
+      'followers_count': followersCount,
+      'following_count': followingCount,
       'created_at': createdAt?.toIso8601String(),
     };
   }
@@ -73,6 +83,8 @@ class UserProfile {
     bool? allowIncomingShares,
     int? activeFlowsCount,
     int? totalFlowEventsCount,
+    int? followersCount,
+    int? followingCount,
     DateTime? createdAt,
   }) {
     return UserProfile(
@@ -86,6 +98,8 @@ class UserProfile {
       allowIncomingShares: allowIncomingShares ?? this.allowIncomingShares,
       activeFlowsCount: activeFlowsCount ?? this.activeFlowsCount,
       totalFlowEventsCount: totalFlowEventsCount ?? this.totalFlowEventsCount,
+      followersCount: followersCount ?? this.followersCount,
+      followingCount: followingCount ?? this.followingCount,
       createdAt: createdAt ?? this.createdAt,
     );
   }

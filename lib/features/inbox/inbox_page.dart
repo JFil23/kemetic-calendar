@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
@@ -15,6 +14,7 @@ import 'conversation_user.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
+import '../profile/profile_page.dart';
 
 class InboxPage extends StatefulWidget {
   const InboxPage({Key? key}) : super(key: key);
@@ -336,16 +336,26 @@ class _InboxPageState extends State<InboxPage> {
             fontSize: 14,
           ),
         ),
-        trailing: hasUnread
-            ? Container(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: 'View profile',
+              icon: const Icon(Icons.person, color: _gold),
+              onPressed: () => _openProfile(otherUserId),
+            ),
+            if (hasUnread)
+              Container(
                 width: 8,
                 height: 8,
+                margin: const EdgeInsets.only(left: 4),
                 decoration: const BoxDecoration(
                   color: _gold,
                   shape: BoxShape.circle,
                 ),
-              )
-            : null,
+              ),
+          ],
+        ),
         onTap: () {
           // Mark unread incoming items as viewed when opening the thread
           _markConversationRead(items);
@@ -380,6 +390,14 @@ class _InboxPageState extends State<InboxPage> {
         }
       }
     }
+  }
+
+  void _openProfile(String userId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProfilePage(userId: userId),
+      ),
+    );
   }
 
   Widget _buildEmptyState() {
@@ -1204,5 +1222,3 @@ class InboxFlowDetailsPage extends StatelessWidget {
     );
   }
 }
-
-
