@@ -4551,6 +4551,18 @@ class _CalendarPageState extends State<CalendarPage>
 
 
   void _deleteFlow(int flowId) {
+    final flow = _flows.firstWhere(
+      (f) => f.id == flowId,
+      orElse: () => _Flow(
+        id: flowId,
+        name: '',
+        color: Colors.white,
+        active: false,
+        rules: const [],
+      ),
+    );
+    final isSaved = flow.isSaved;
+
     // prune notes tied to this flow from the in-memory map
     final keysToPrune = <String>[];
     _notes.forEach((k, list) {
@@ -4561,15 +4573,62 @@ class _CalendarPageState extends State<CalendarPage>
       _notes.remove(k);
     }
 
-    _flows.removeWhere((f) => f.id == flowId);
-    setState(() {});
+    if (isSaved) {
+      // For saved flows, keep the flow row and events as a template,
+      // just mark it inactive so it disappears from the calendar.
+      final idx = _flows.indexWhere((f) => f.id == flowId);
+      if (idx >= 0) {
+        final f = _flows[idx];
+        _flows[idx] = _Flow(
+          id: f.id,
+          name: f.name,
+          color: f.color,
+          active: false,
+          rules: f.rules,
+          start: f.start,
+          end: f.end,
+          notes: f.notes,
+          shareId: f.shareId,
+          isHidden: f.isHidden,
+          isSaved: f.isSaved,
+          isReminder: f.isReminder,
+          reminderUuid: f.reminderUuid,
+        );
+      }
+      setState(() {});
+    } else {
+      _flows.removeWhere((f) => f.id == flowId);
+      setState(() {});
+    }
 
     Future.microtask(() async {
       try {
         final repo = UserEventsRepo(Supabase.instance.client);
-        await repo.deleteByFlowId(flowId);
-        await repo.deleteFlow(flowId);
-        await _loadFromDisk();
+        if (isSaved) {
+          // Keep events and flow row; just persist inactive state.
+          await repo.upsertFlow(
+            id: flow.id,
+            name: flow.name,
+            color: flow.color.value,
+            active: false,
+            startDate: flow.start,
+            endDate: flow.end,
+            notes: flow.notes,
+            rules: jsonEncode(flow.rules.map(ruleToJson).toList()),
+            isHidden: flow.isHidden,
+            isSaved: flow.isSaved,
+            shareId: flow.shareId,
+            isReminder: flow.isReminder,
+            reminderUuid: flow.reminderUuid,
+          );
+          if (kDebugMode) {
+            debugPrint('[deleteFlow] Saved flow $flowId marked inactive, events retained');
+          }
+        } else {
+          await repo.deleteByFlowId(flowId);
+          await repo.deleteFlow(flowId);
+          await _loadFromDisk();
+        }
 
       } catch (e, stackTrace) {
         if (kDebugMode) {
@@ -5908,7 +5967,11 @@ class _CalendarPageState extends State<CalendarPage>
         start: f.start,
         end: f.end,
         notes: f.notes,
+        shareId: f.shareId,
         isHidden: f.isHidden, // Preserve hidden status
+        isSaved: f.isSaved,
+        isReminder: f.isReminder,
+        reminderUuid: f.reminderUuid,
       );
     }
     if (mounted) setState(() {});
@@ -5929,6 +5992,10 @@ class _CalendarPageState extends State<CalendarPage>
           notes: f.notes,
           rules: rulesJson,
           isHidden: f.isHidden,
+          isSaved: f.isSaved,
+          shareId: f.shareId,
+          isReminder: f.isReminder,
+          reminderUuid: f.reminderUuid,
         );
         if (kDebugMode) {
           debugPrint('[endFlow] ✓ Marked flow $flowId as inactive');
@@ -5940,15 +6007,21 @@ class _CalendarPageState extends State<CalendarPage>
       }
     }
     // 🔧 KEY FIX: Delete ALL notes for this flow, not just future ones
-    try {
-      await repo.deleteByFlowId(flowId);
-      if (kDebugMode) {
-        debugPrint('[endFlow] ✓ Deleted ALL notes for flowId=$flowId');
+    // Saved flows keep their events as templates for Flow Studio/sharing.
+    final keepEvents = (idx >= 0 && _flows[idx].isSaved);
+    if (!keepEvents) {
+      try {
+        await repo.deleteByFlowId(flowId);
+        if (kDebugMode) {
+          debugPrint('[endFlow] ✓ Deleted ALL notes for flowId=$flowId');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[endFlow] ⚠️ Failed to delete notes: $e');
+        }
       }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[endFlow] ⚠️ Failed to delete notes: $e');
-      }
+    } else if (kDebugMode) {
+      debugPrint('[endFlow] Skipped deleting events for saved flowId=$flowId');
     }
 
     // Cancel all notifications for this flow's events
