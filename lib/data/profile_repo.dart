@@ -1,8 +1,12 @@
 // lib/data/profile_repo.dart
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/material.dart' show DateUtils;
 import 'profile_model.dart';
 import 'share_models.dart';
+import 'flow_post_model.dart';
+import 'flows_repo.dart';
+import 'user_events_repo.dart';
 
 class ProfileRepo {
   final SupabaseClient _client;
@@ -275,6 +279,138 @@ class ProfileRepo {
     } catch (e) {
       print('[ProfileRepo] Error checking profile completion: $e');
       return false;
+    }
+  }
+
+  /// List flow posts for a given user (newest first)
+  Future<List<FlowPost>> getFlowPosts(String userId) async {
+    try {
+      final rows = await _client
+          .from('flow_posts')
+          .select()
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      return (rows as List)
+          .cast<Map<String, dynamic>>()
+          .map(FlowPost.fromJson)
+          .toList();
+    } catch (e) {
+      print('[ProfileRepo] Error fetching flow posts: $e');
+      return [];
+    }
+  }
+
+  /// Create a flow post for the current user from an existing flow.
+  Future<FlowPost?> postFlow(int flowId) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return null;
+
+      final flow = await FlowsRepo(_client).getFlowById(flowId);
+      if (flow == null || flow.userId != userId) return null;
+
+      final events = await UserEventsRepo(_client).getEventsForFlow(flow.id);
+      final startDate = flow.startDate;
+      Map<String, dynamic> _eventToPayload(e) {
+        int offset = 0;
+        if (startDate != null) {
+          offset = DateUtils.dateOnly(e.startsAtUtc.toLocal())
+              .difference(DateUtils.dateOnly(startDate))
+              .inDays;
+        }
+
+        String _fmtTime(DateTime dt) {
+          final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+          final m = dt.minute.toString().padLeft(2, '0');
+          final mer = dt.hour >= 12 ? 'PM' : 'AM';
+          return '$h:$m $mer';
+        }
+
+        final startLocal = e.startsAtUtc.toLocal();
+        final endLocal = e.endsAtUtc?.toLocal();
+
+        return {
+          'offset_days': offset,
+          'title': e.title,
+          'detail': e.detail,
+          'location': e.location,
+          'all_day': e.allDay,
+          'start_time': e.allDay ? null : _fmtTime(startLocal),
+          'end_time': e.allDay || endLocal == null ? null : _fmtTime(endLocal),
+        };
+      }
+
+       final payload = {
+         'name': flow.name,
+         'color': flow.color,
+         'notes': flow.notes,
+         'rules': flow.rules,
+         'events': events.map(_eventToPayload).toList(),
+         'start_date': startDate?.toIso8601String(),
+         'end_date': flow.endDate?.toIso8601String(),
+       };
+
+      final inserted = await _client
+          .from('flow_posts')
+          .insert({
+            'user_id': userId,
+            'flow_id': flow.id,
+            'name': flow.name,
+            'color': flow.color,
+            'notes': flow.notes,
+            'rules': flow.rules,
+            'start_date': flow.startDate?.toIso8601String(),
+            'end_date': flow.endDate?.toIso8601String(),
+            'is_hidden': flow.isHidden,
+            'ai_metadata': {
+              'payload': payload,
+              if (flow.aiMetadata != null) 'source_ai': flow.aiMetadata,
+            },
+          })
+          .select()
+          .single();
+
+      return FlowPost.fromJson(inserted as Map<String, dynamic>);
+    } catch (e) {
+      print('[ProfileRepo] Error creating flow post: $e');
+      return null;
+    }
+  }
+
+  Future<bool> deleteFlowPost(String postId) async {
+    try {
+      await _client.from('flow_posts').delete().eq('id', postId);
+      return true;
+    } catch (e) {
+      print('[ProfileRepo] Error deleting flow post: $e');
+      return false;
+    }
+  }
+
+  /// Save someone else's flow post into my saved flows.
+  Future<int?> saveFlowPostToMyFlows(FlowPost post) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return null;
+
+      final flowsRepo = FlowsRepo(_client);
+      final newId = await flowsRepo.insert(
+        name: post.name,
+        color: post.color,
+        active: true,
+        isSaved: true,
+        isHidden: false,
+        startDate: post.startDate,
+        endDate: post.endDate,
+        notes: post.notes,
+        rulesJson: post.rules,
+      );
+
+      return newId;
+    } catch (e) {
+      print('[ProfileRepo] Error saving flow post: $e');
+      return null;
     }
   }
 }

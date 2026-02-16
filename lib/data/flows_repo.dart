@@ -147,6 +147,8 @@ class FlowsRepo {
     required String name,
     required int color,
     required bool active,
+    bool isSaved = false,
+    bool isHidden = false,
     DateTime? startDate,
     DateTime? endDate,
     String? notes,
@@ -164,10 +166,12 @@ class FlowsRepo {
       'name': name,
       'color': color,
       'active': active,
+      'is_saved': isSaved,
       'start_date': startDate?.toUtc().toIso8601String(),
       'end_date': endDate?.toUtc().toIso8601String(),
       'notes': notes,
       'rules': rulesJson ?? <dynamic>[],
+      'is_hidden': isHidden,
       'is_reminder': isReminder,
       'reminder_uuid': reminderUuid,
     };
@@ -192,6 +196,8 @@ class FlowsRepo {
     required String name,
     required int color,
     required bool active,
+    bool isSaved = false,
+    bool isHidden = false,
     DateTime? startDate,
     DateTime? endDate,
     String? notes,
@@ -206,10 +212,12 @@ class FlowsRepo {
       'name': name,
       'color': color,
       'active': active,
+      'is_saved': isSaved,
       'start_date': startDate?.toIso8601String(),
       'end_date': endDate?.toIso8601String(),
       'notes': notes,
       'rules': rulesJson,
+      'is_hidden': isHidden,
       'is_reminder': isReminder,
       'reminder_uuid': reminderUuid,
     };
@@ -290,6 +298,20 @@ class FlowsRepo {
         .where((f) => _isActiveByEndDate(f.endDate))
         .toList();
     return flows;
+  }
+
+  /// List flows for the current user without filtering by active/end dates.
+  /// Useful for chooser UIs where inactive or saved flows should still appear.
+  Future<List<FlowRow>> listMyFlowsUnfiltered({int limit = 500}) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return const [];
+    final rows = await _client
+        .from(_kFlows)
+        .select()
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false)
+        .limit(limit) as List<dynamic>;
+    return rows.cast<Map<String, dynamic>>().map(FlowRow.fromRow).toList();
   }
 
   /// Fetch a single flow by ID

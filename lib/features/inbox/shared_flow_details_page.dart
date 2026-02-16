@@ -34,13 +34,21 @@ class _FlowSpanSummary {
 class SharedFlowDetailsPage extends StatefulWidget {
   final InboxShareItem? share; // non-imported
   final int? flowId;           // imported
+  final Map<String, dynamic>? payloadJson; // direct payload (e.g., flow post)
+  final bool showImportFooter;
+  final bool showRemoveButton;
+  final Future<void> Function()? onRemove;
 
   const SharedFlowDetailsPage({
     Key? key,
     this.share,
     this.flowId,
-  })  : assert(share != null || flowId != null,
-            'Either share or flowId must be provided'),
+    this.payloadJson,
+    this.showImportFooter = true,
+    this.showRemoveButton = false,
+    this.onRemove,
+  })  : assert(share != null || flowId != null || payloadJson != null,
+            'Either share, flowId, or payloadJson must be provided'),
         super(key: key);
 
   @override
@@ -93,6 +101,9 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
     if (widget.flowId != null) {
       _flowFuture = _loadFromDb(widget.flowId!);
       _spanFuture = _loadSpanSummary(); // ✅ Only for imported flows
+    } else if (widget.payloadJson != null) {
+      _flowFuture = Future.value(_fromPayload(widget.payloadJson!));
+      _spanFuture = Future.value(null);
     } else {
       _flowFuture = Future.value(_fromShare(widget.share!));
       _spanFuture = Future.value(null); // ✅ Not imported yet - no events
@@ -210,9 +221,9 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
         debugPrint('  shareId=${share.shareId}');
         debugPrint('  name=${payload.name}, events=${payload.events.length}');
         debugPrint('  rules count=${payload.rules.length}');
-      }
+    }
 
-      return _SharedFlowData(
+    return _SharedFlowData(
         name: payload.name,
         color: payload.color ?? 0xFF4DD0E1,
         notes: payload.notes ?? '',
@@ -252,6 +263,24 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       isImported: false,
       flowId: null,
       share: share,
+    );
+  }
+
+  _SharedFlowData _fromPayload(Map<String, dynamic> payload) {
+    final eventsJson = (payload['events'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>();
+
+    return _SharedFlowData(
+      name: payload['name'] as String? ?? 'Flow',
+      color: (payload['color'] as num?)?.toInt() ?? 0xFFD4AF37,
+      notes: payload['notes'] as String? ?? '',
+      rulesJson: (payload['rules'] as List<dynamic>? ?? const [])
+          .cast<Map<String, dynamic>>(),
+      eventsJson: _dedupeEvents(eventsJson),
+      suggestedScheduleJson: payload['suggested_schedule'] as Map<String, dynamic>?,
+      isImported: false,
+      flowId: null,
+      share: null,
     );
   }
 
@@ -450,12 +479,29 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
               ),
 
               // Footer
-              SafeArea(
-                minimum: const EdgeInsets.all(16),
-                child: data.isImported
-                    ? _ImportedFlowFooter(flowId: data.flowId!)
-                    : _SharedFlowImportFooter(flowData: data),
-              ),
+              if (widget.showRemoveButton && widget.onRemove != null)
+                SafeArea(
+                  minimum: const EdgeInsets.all(16),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent.withOpacity(0.15),
+                      foregroundColor: Colors.redAccent,
+                      side: const BorderSide(color: Colors.redAccent),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: () async {
+                      await widget.onRemove!();
+                    },
+                    child: const Text('Remove from profile'),
+                  ),
+                )
+              else if (widget.showImportFooter)
+                SafeArea(
+                  minimum: const EdgeInsets.all(16),
+                  child: data.isImported
+                      ? _ImportedFlowFooter(flowId: data.flowId!)
+                      : _SharedFlowImportFooter(flowData: data),
+                ),
             ],
           ),
         );
