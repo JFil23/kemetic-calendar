@@ -1,0 +1,5 @@
+{
+  "SUPABASE_URL": "https://your-prod-project.supabase.co",
+  "SUPABASE_ANON_KEY": "your-prod-anon-key",
+  "NOTE": "iOS redirect scheme must remain kemet.app://login-callback and be allowlisted in Supabase"
+}

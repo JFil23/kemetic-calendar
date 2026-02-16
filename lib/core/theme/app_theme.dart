@@ -17,6 +17,7 @@ class AppTheme {
   static ThemeData get dark => ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
+    fontFamily: 'GentiumPlus',
     
     // Core colors
     scaffoldBackgroundColor: _black,
@@ -39,6 +40,7 @@ class AppTheme {
         color: Colors.white,
         fontSize: 20,
         fontWeight: FontWeight.w600,
+        fontFamily: 'GentiumPlus',
       ),
     ),
     

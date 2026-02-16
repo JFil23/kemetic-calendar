@@ -58,3 +58,6 @@ google-services.json
 GoogleService-Info.plist
 .env
 web/env.json
+# Env files (keep examples only)
+env/*.json
+!env/*.example.json

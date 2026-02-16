@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
@@ -30,9 +31,13 @@ class SpeechService {
     _tts.setErrorHandler((_) => isSpeaking.value = false);
 
     // Sensible defaults; tweak to taste.
-    await _tts.setSpeechRate(0.9);
-    await _tts.setPitch(1.0);
+    await _tts.setSpeechRate(0.5); // slower for clarity
+    await _tts.setPitch(1.0);      // neutral pitch
     await _tts.setLanguage('en-US');
+    if (!kIsWeb && Platform.isIOS) {
+      // Prefer a clearer iOS voice
+      await _tts.setVoice({'name': 'Samantha', 'locale': 'en-US'});
+    }
 
     _ready = true;
   }

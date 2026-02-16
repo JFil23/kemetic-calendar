@@ -85,6 +85,13 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  fonts:
+    - family: GentiumPlus
+      fonts:
+        - asset: ios/Runner/Fonts/GentiumPlus-Regular.ttf
+        - asset: ios/Runner/Fonts/GentiumPlus-Bold.ttf
+          weight: 700
+
   # Using GoogleFonts package for all typography
   # Includes support for Egyptological transliteration characters
   # Fonts loaded from Google Fonts CDN at runtime (no local files needed)
