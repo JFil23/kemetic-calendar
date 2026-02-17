@@ -236,6 +236,18 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       routerConfig: _router,
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        final isTablet = mq.size.shortestSide >= 600;
+        // Boost text size by ~20% on iPad/tablet only.
+        final textScaler = isTablet
+            ? TextScaler.linear(mq.textScaleFactor * 1.5) // total ~50% boost on tablets
+            : mq.textScaler;
+        return MediaQuery(
+          data: mq.copyWith(textScaler: textScaler),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }
