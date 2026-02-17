@@ -1247,7 +1247,7 @@ class _DayViewGridState extends State<DayViewGrid> {
       _hasScrolledToInitial = true;
     } else if (widget.initialScrollOffset == null) {
       // Auto-scroll to current time
-      final now = DateTime.now();
+      final now = DateTime.now().toLocal();
       final minutesSinceMidnight = now.hour * 60 + now.minute;
       const hourHeight = 60.0;
       final targetOffset = (minutesSinceMidnight / 60) * hourHeight - 200; // 200px above current time
@@ -1496,11 +1496,17 @@ class _DayViewGridState extends State<DayViewGrid> {
             ),
           ),
 
+          // Current time indicator within this hour (only if today)
+          if (_isToday() && _isCurrentHour(hour))
+            Positioned(
+              left: 0,
+              right: 0,
+              top: DateTime.now().toLocal().minute.toDouble(),
+              child: _buildNowLine(),
+            ),
+
           // Event blocks
           ..._buildHourBlocks(hourBlocks),
-
-          // Current time indicator (only on today)
-          if (_isToday() && _isCurrentHour(hour)) _buildNowLine(),
 
           // Temp drag block rendered above everything
           ..._buildTempDragBlockForHour(hour),
@@ -1837,49 +1843,19 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   Widget _buildNowLine() {
-    final now = DateTime.now();
-    final minutesIntoHour = now.minute.toDouble();
-    
-    // Calculate the hour row position (60px per hour)
-    final currentHour = now.hour;
-    final topPosition = (currentHour * 60.0) + minutesIntoHour;
-    
-    return Positioned(
-      left: 0,
-      right: 0,
-      top: topPosition,
-      child: Container(
-        height: 2, // Made slightly thicker for visibility
-        color: Colors.red,
-        child: Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-              ),
-            ),
-            Expanded(
-              child: Container(
-                height: 2,
-                color: Colors.red,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return Container(
+      height: 1,
+      color: Colors.red.withOpacity(0.45),
     );
   }
 
   bool _isCurrentHour(int hour) {
-    final now = DateTime.now();
+    final now = DateTime.now().toLocal();
     return now.hour == hour;
   }
 
   bool _isToday() {
-    final now = DateTime.now();
+    final now = DateTime.now().toLocal();
     final todayK = KemeticMath.fromGregorian(now);
     return widget.ky == todayK.kYear &&
            widget.km == todayK.kMonth &&
