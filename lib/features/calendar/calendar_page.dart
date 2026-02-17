@@ -1662,6 +1662,8 @@ class _CalendarPageState extends State<CalendarPage>
   
   // ✅ ADD: First-build gating flag to prevent race condition
   bool _restored = false;
+  bool _isTablet(BuildContext context) =>
+      MediaQuery.of(context).size.shortestSide >= 600;
 
 
 // Find the month card whose vertical center is closest to the viewport center.
@@ -5349,12 +5351,53 @@ class _CalendarPageState extends State<CalendarPage>
     required Widget Function(BuildContext innerCtx) rootBuilder,
   }) async {
     UiGuards.disableJournalSwipe();
+    final isTablet = _isTablet(context);
     final result = await showModalBottomSheet<_FlowStudioResult?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black54,
+      useSafeArea: true,
+      useRootNavigator: true,
+      isDismissible: isTablet ? false : true,
+      enableDrag: isTablet ? false : true,
       builder: (outerCtx) {
+        if (isTablet) {
+          return SafeArea(
+            child: FractionallySizedBox(
+              heightFactor: 0.9,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: Material(
+                  color: Colors.black,
+                  child: Column(
+                    children: [
+                      Align(
+                        alignment: Alignment.topRight,
+                        child: IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.of(outerCtx).pop(),
+                        ),
+                      ),
+                      Expanded(
+                        child: Navigator(
+                          onGenerateInitialRoutes: (nav, initial) {
+                            return [
+                              MaterialPageRoute(
+                                builder: (ctx) => rootBuilder(ctx),
+                              ),
+                            ];
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
         return DraggableScrollableSheet(
           initialChildSize: 0.8,
           minChildSize: 0.4,
@@ -5409,10 +5452,16 @@ class _CalendarPageState extends State<CalendarPage>
 
   // Directly open My Flows list (no Flow Hub chooser).
   void _openMyFlowsList({int? initialFlowId}) {
+    final isTab = _isTablet(context);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      useSafeArea: true,
+      useRootNavigator: true,
+      isDismissible: !isTab,
+      enableDrag: !isTab,
       builder: (modalCtx) {
         return FractionallySizedBox(
           heightFactor: 0.9,
@@ -6289,26 +6338,28 @@ class _CalendarPageState extends State<CalendarPage>
     try {
       debugPrint('🚀 Attempting to show modal bottom sheet...');
       UiGuards.disableJournalSwipe();
+      final tablet = _isTablet(context);
       showModalBottomSheet(
         context: context,
-      isScrollControlled: true,
+        isScrollControlled: true,
         backgroundColor: Colors.transparent, // ✅ More stable like Flow Studio
-        isDismissible: true,
-        enableDrag: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (sheetCtx) {
-        final media = MediaQuery.of(sheetCtx);
+        useSafeArea: true,
+        isDismissible: tablet ? false : true,
+        enableDrag: tablet ? false : true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (sheetCtx) {
+          final media = MediaQuery.of(sheetCtx);
 
-        final labelStyleWhite = const TextStyle(
-          color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-        );
+          final labelStyleWhite = const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          );
 
-        final fieldLabel = const TextStyle(fontSize: 12, color: Color(0xFFBFC3C7));
-        bool showReminders = _noteSheetShowReminders;
+          final fieldLabel = const TextStyle(fontSize: 12, color: Color(0xFFBFC3C7));
+          bool showReminders = _noteSheetShowReminders;
 
         return StatefulBuilder(
           builder: (sheetCtx, setSheetState) {
@@ -9412,7 +9463,8 @@ class _CalendarPageState extends State<CalendarPage>
     final size = MediaQuery.sizeOf(context);
     final orientation = MediaQuery.orientationOf(context);
     final isLandscape = orientation == Orientation.landscape;
-    final useGrid = isLandscape || size.width >= 900;
+    // Landscape grid only on phone-sized screens; tablets/desktop stay on portrait layout.
+    final useGrid = isLandscape && size.shortestSide < 600;
 
     // ========================================
     // DEBUG: Log orientation changes

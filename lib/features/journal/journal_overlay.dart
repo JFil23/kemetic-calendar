@@ -366,6 +366,7 @@ class _JournalOverlayState extends State<JournalOverlay>
   @override
   Widget build(BuildContext context) {
     _keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    final isTablet = MediaQuery.of(context).size.shortestSide >= 600;
     
     // Show archive if requested
     if (_showingArchive) {
@@ -397,8 +398,8 @@ class _JournalOverlayState extends State<JournalOverlay>
                 color: Colors.black.withOpacity(0.5),
                 child: GestureDetector(
                   onTap: () {},
-                  onPanUpdate: _onPanUpdate,
-                  onPanEnd: _onPanEnd,
+                  onPanUpdate: isTablet ? null : _onPanUpdate,
+                  onPanEnd: isTablet ? null : _onPanEnd,
                   child: AnimatedBuilder(
                     animation: _slideAnimation,
                     builder: (context, child) {
@@ -408,6 +409,7 @@ class _JournalOverlayState extends State<JournalOverlay>
                         print('[JournalOverlay] slide=$slideValue drag=$_dragOffset');
                       }
 
+                      if (isTablet) return child!;
                       return Transform.translate(
                         offset: widget.isPortrait
                             ? Offset(-(1 - slideValue) * size.width + currentOffset, 0)
