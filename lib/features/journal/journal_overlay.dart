@@ -1,6 +1,8 @@
 // lib/features/journal/journal_overlay.dart
 // FIXES: 1) Toolbar overflow, 2) Layered coexistence, 3) Drawing undo
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'journal_controller.dart';
@@ -19,7 +21,6 @@ import '../../services/ai_reflection_service.dart';
 import '../../widgets/kemetic_day_info.dart';
 import '../../core/day_key.dart';
 import '../../widgets/kemetic_date_picker.dart' show KemeticMath;
-import '../../services/ai_reflection_service.dart';
 
 class JournalOverlay extends StatefulWidget {
   final JournalController controller;
@@ -41,6 +42,7 @@ enum _JournalPane { journal, reflection }
 
 class _JournalOverlayState extends State<JournalOverlay>
     with SingleTickerProviderStateMixin {
+  static const bool _REFLECTION_LOCAL_FALLBACK = false;
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
   late TextEditingController _textController;
@@ -48,6 +50,7 @@ class _JournalOverlayState extends State<JournalOverlay>
   late ScrollController _badgeScrollController;
   late FocusNode _focusNode;
   late final AIReflectionService _reflectionService;
+  late final JournalRepo _journalRepo;
 
   double _dragOffset = 0;
 
@@ -67,6 +70,10 @@ class _JournalOverlayState extends State<JournalOverlay>
   // Reflection tab state
   _JournalPane _activePane = _JournalPane.journal;
   String? _reflectionText;
+  int? _reflectionBadgeCount;
+  int? _reflectionEvidenceCount;
+  String? _reflectionBranch;
+  List<String>? _reflectionTopTags;
   bool _isGeneratingReflection = false;
   bool _isSavingReflection = false;
 
@@ -90,6 +97,7 @@ class _JournalOverlayState extends State<JournalOverlay>
     _focusNode = FocusNode();
     widget.controller.onDraftChanged = _onDraftChanged;
     _reflectionService = AIReflectionService(Supabase.instance.client);
+    _journalRepo = JournalRepo(Supabase.instance.client);
 
     // Journal remains default view; Nutrition toggle is user-driven
 
@@ -600,6 +608,93 @@ class _JournalOverlayState extends State<JournalOverlay>
     );
   }
 
+  ({DateTime start, DateTime end}) _currentDecanWindow() {
+    final date = widget.controller.currentDate ?? DateTime.now();
+    final kem = KemeticMath.fromGregorian(date);
+    final decanStartDay = ((kem.kDay - 1) ~/ 10) * 10 + 1;
+    final maxDay = (kem.kMonth == 13)
+        ? (KemeticMath.isLeapKemeticYear(kem.kYear) ? 6 : 5)
+        : 30;
+    final decanEndDay = (decanStartDay + 9) > maxDay ? maxDay : decanStartDay + 9;
+    final start = KemeticMath.toGregorian(kem.kYear, kem.kMonth, decanStartDay);
+    final end = KemeticMath.toGregorian(kem.kYear, kem.kMonth, decanEndDay);
+    return (start: start, end: end);
+  }
+
+  String _formatDateOnly(DateTime date) {
+    final d = date.toLocal();
+    final yyyy = d.year.toString().padLeft(4, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
+    return '$yyyy-$mm-$dd';
+  }
+
+  DateTime _dateOnly(DateTime date) {
+    final d = date.toLocal();
+    return DateTime(d.year, d.month, d.day);
+  }
+
+  JournalDocument? _documentFromEntry(JournalEntry entry) {
+    final body = entry.body.trim();
+    if (body.isEmpty) return JournalDocument.fromPlainText('');
+
+    if (body.startsWith('{') && body.contains('"version"')) {
+      try {
+        final map = jsonDecode(body) as Map<String, dynamic>;
+        return JournalDocument.fromJson(map);
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('Failed to parse journal document for ${entry.gregDate}: $e');
+        }
+      }
+    }
+
+    return JournalDocument.fromPlainText(body);
+  }
+
+  Future<List<({EventBadgeToken token, DateTime occurredOn, DateTime? occurredAt})>> _collectDecanBadges(
+    DateTime decanStart,
+    DateTime decanEnd,
+  ) async {
+    final entries = await _journalRepo.listRange(start: decanStart, end: decanEnd);
+    final badges = <({EventBadgeToken token, DateTime occurredOn, DateTime? occurredAt})>[];
+    final seen = <String>{};
+
+    void addBadges(List<EventBadgeToken> tokens, DateTime fallbackDay) {
+      final day = _dateOnly(fallbackDay);
+      for (final token in tokens) {
+        if (!seen.add(token.id)) continue;
+        final occurred = token.start != null ? _dateOnly(token.start!) : day;
+        badges.add((token: token, occurredOn: occurred, occurredAt: token.start));
+      }
+    }
+
+    for (final entry in entries) {
+      final doc = _documentFromEntry(entry);
+      if (doc == null) continue;
+      addBadges(JournalBadgeUtils.tokensFromDocument(doc), entry.gregDate);
+    }
+
+    final currentDoc = widget.controller.currentDocument;
+    if (currentDoc != null) {
+      addBadges(
+        JournalBadgeUtils.tokensFromDocument(currentDoc),
+        widget.controller.currentDate ?? DateTime.now(),
+      );
+    }
+
+    badges.sort((a, b) {
+      final cmp = a.occurredOn.compareTo(b.occurredOn);
+      if (cmp != 0) return cmp;
+      if (a.occurredAt == null && b.occurredAt == null) return 0;
+      if (a.occurredAt == null) return 1;
+      if (b.occurredAt == null) return -1;
+      return a.occurredAt!.compareTo(b.occurredAt!);
+    });
+
+    return badges;
+  }
+
   String _buildReflectionText(List<EventBadgeToken> badges) {
     // Fallback reflection grounded in badge patterns (no journal text, no badge/task recap).
     return _buildReflectionFromBadges(badges);
@@ -610,29 +705,64 @@ class _JournalOverlayState extends State<JournalOverlay>
     setState(() {
       _isGeneratingReflection = true;
     });
-    final badges = _extractBadges();
     final ctx = _currentKemeticContext();
-    final badgeTitles = badges
-        .map((b) => b.title.trim())
-        .where((t) => t.isNotEmpty)
+    final window = _currentDecanWindow();
+    final decanBadges = await _collectDecanBadges(window.start, window.end);
+    final fallbackTokens = decanBadges.map((b) => b.token).toList();
+
+    // Map badges to lightweight payload for the edge function (client-provided badge evidence)
+    final payloadBadges = decanBadges
+        .map(
+          (b) => {
+            'title': b.token.title,
+            'details': b.token.description ?? b.token.title,
+            'tags': <String>[],
+            'occurred_on': _formatDateOnly(b.occurredOn),
+            if (b.occurredAt != null) 'occurred_at': b.occurredAt!.toUtc().toIso8601String(),
+          },
+        )
         .toList();
 
     String generated = '';
     try {
       final response = await _reflectionService.generateReflection(
         decanName: '${ctx.monthLabel} — ${ctx.decanLabel}',
-        badgeTitles: badgeTitles,
-        badgeCount: badges.length,
-        kemeticDayLabel: 'Day ${ctx.kDay}',
+        decanTheme: ctx.decanLabel,
+        decanStart: window.start,
+        decanEnd: window.end,
+        badges: payloadBadges,
       );
+      if (kDebugMode) {
+        debugPrint(
+            'REFL success=${response.success} model=${response.modelUsed} err=${response.error}');
+        debugPrint('REFL text length=${response.reflection?.length ?? 0}');
+        debugPrint(
+            'REFL badgeCount=${response.badgeCount} evidenceCount=${response.evidenceCount} branch=${response.branch} topTags=${response.topTags}');
+      }
       if (response.success && (response.reflection?.trim().isNotEmpty ?? false)) {
         generated = response.reflection!.trim();
+        _reflectionBadgeCount = response.badgeCount;
+        _reflectionEvidenceCount = response.evidenceCount;
+        _reflectionBranch = response.branch;
+        _reflectionTopTags = response.topTags;
+      } else if (_REFLECTION_LOCAL_FALLBACK) {
+        generated = _buildReflectionText(fallbackTokens);
+      } else {
+        generated = 'Reflection unavailable.';
       }
-    } catch (_) {
-      // fall through to fallback
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('Generate reflection failed: $e');
+        debugPrint('$st');
+      }
+      if (_REFLECTION_LOCAL_FALLBACK) {
+        generated = _buildReflectionText(fallbackTokens);
+      } else {
+        generated = 'Reflection unavailable.';
+      }
     }
 
-    final text = generated.isNotEmpty ? generated : _buildReflectionText(badges);
+    final text = generated.isNotEmpty ? generated : 'Reflection unavailable.';
     setState(() {
       _reflectionText = text;
       _isGeneratingReflection = false;

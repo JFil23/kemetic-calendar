@@ -161,6 +161,42 @@ class JournalRepo {
     }
   }
 
+  /// Get entries within a local-date window (inclusive).
+  Future<List<JournalEntry>> listRange({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) {
+        _log('listRange: no user logged in');
+        return [];
+      }
+
+      final startStr = JournalEntry._formatDate(start);
+      final endStr = JournalEntry._formatDate(end);
+      _log('listRange: fetching $startStr -> $endStr for $userId');
+
+      final response = await _client
+          .from('journal_entries')
+          .select()
+          .eq('user_id', userId)
+          .gte('greg_date', startStr)
+          .lte('greg_date', endStr)
+          .order('greg_date', ascending: true);
+
+      final entries = (response as List)
+          .map((json) => JournalEntry.fromJson(json as Map<String, dynamic>))
+          .toList();
+
+      _log('listRange: found ${entries.length} entries');
+      return entries;
+    } catch (e) {
+      _log('listRange error: $e');
+      return [];
+    }
+  }
+
   /// Upsert (create or update) an entry for a specific date
   /// This is idempotent - safe to call multiple times with the same date
   Future<void> upsert({
