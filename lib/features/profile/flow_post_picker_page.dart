@@ -133,7 +133,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
                       ),
                       ButtonSegment(
                         value: FlowPostTab.maat,
-                        label: Text("Ma'at Flows"),
+                        label: Text("ḥꜣw"),
                       ),
                     ],
                     selected: <FlowPostTab>{_tab},
@@ -207,7 +207,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
     final label = switch (_tab) {
       FlowPostTab.active => 'No active flows',
       FlowPostTab.saved => 'No saved flows',
-      FlowPostTab.maat => "No Ma'at flows found",
+      FlowPostTab.maat => "No ḥꜣw flows found",
     };
     final hint = switch (_tab) {
       FlowPostTab.active =>
@@ -215,7 +215,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
       FlowPostTab.saved =>
           'Save a flow first, then you can post it here.',
       FlowPostTab.maat =>
-          "Start a Ma'at flow from Flow Studio, then post it here.",
+          "Start an ḥꜣw from Flow Studio, then post it here.",
     };
     return Center(
       child: Padding(

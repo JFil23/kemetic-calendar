@@ -17255,7 +17255,7 @@ class _FlowHubPage extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               GlossyButton(
-                text: "Ma'at Flows",
+                text: "ḥꜣw",
                 gradient: const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -17403,7 +17403,7 @@ class _MaatCategoriesPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0.5,
-        title: const Text("Ma'at Flows", style: TextStyle(color: Colors.white)),
+        title: const Text("ḥꜣw", style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(
             tooltip: 'New flow',
