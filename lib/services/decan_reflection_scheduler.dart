@@ -26,13 +26,9 @@ class DecanReflectionScheduler {
   }
 
   Future<void> _scheduleWindow(DecanWindow window) async {
-    final sendAt = DateTime(
-      window.start.year,
-      window.start.month,
-      window.start.day + 9,
-      20,
-      30,
-    );
+    // Day 10 of the decan at 20:30 UTC to satisfy backend validation (day 10 check is UTC-based).
+    final day10 = window.start.add(const Duration(days: 9));
+    final sendAt = DateTime.utc(day10.year, day10.month, day10.day, 20, 30);
     try {
       await _client.functions.invoke(
         'schedule_decan_reflection',
