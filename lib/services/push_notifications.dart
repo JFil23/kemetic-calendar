@@ -85,6 +85,9 @@ class PushNotifications {
   final _PushTokenRepo _repo;
   bool _initialized = false;
   bool _askedPermission = false;
+  final StreamController<Map<String, dynamic>> _openedMessages = StreamController.broadcast();
+
+  Stream<Map<String, dynamic>> get openedMessages => _openedMessages.stream;
 
   static const _webApiKey = String.fromEnvironment('FIREBASE_WEB_API_KEY');
   static const _webAppId = String.fromEnvironment('FIREBASE_WEB_APP_ID');
@@ -147,6 +150,10 @@ class PushNotifications {
 
     FirebaseMessaging.instance.onTokenRefresh.listen((token) {
       _registerToken(token);
+    });
+
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      _openedMessages.add(message.data);
     });
   }
 
@@ -241,6 +248,17 @@ class PushNotifications {
     final platform = _platformLabel();
     debugPrint('[push] registering token for platform=$platform deviceId=$deviceId');
     await _repo.upsertToken(token: token, platform: platform, deviceId: deviceId);
+  }
+
+  Future<void> emitInitialMessage() async {
+    try {
+      final initial = await FirebaseMessaging.instance.getInitialMessage();
+      if (initial != null) {
+        _openedMessages.add(initial.data);
+      }
+    } catch (e) {
+      debugPrint('[push] emitInitialMessage error: $e');
+    }
   }
 
   Future<String> _deviceId() async {

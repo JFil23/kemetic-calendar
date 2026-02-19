@@ -6,6 +6,7 @@ import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../../data/flow_post_model.dart';
 import '../../widgets/inbox_icon_with_badge.dart';
+import '../reflections/decan_reflection_archive_page.dart';
 import 'edit_profile_page.dart';
 import 'profile_search_page.dart';
 import '../settings/settings_page.dart';
@@ -138,6 +139,16 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         actions: [
           InboxIconWithBadge(),
+          if (_isViewingOwnProfile)
+            IconButton(
+              tooltip: 'Reflections',
+              icon: const Icon(Icons.menu_book, color: Color(0xFFD4AF37)),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const DecanReflectionArchivePage()),
+                );
+              },
+            ),
           IconButton(
             tooltip: 'Settings',
             icon: const Icon(Icons.settings, color: Color(0xFFD4AF37)),

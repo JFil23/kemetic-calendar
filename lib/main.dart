@@ -24,6 +24,11 @@ import 'utils/hive_local_storage_web.dart';
 import 'core/theme/app_theme.dart';
 import 'services/calendar_sync_service.dart';
 import 'services/push_notifications.dart';
+import 'services/decan_reflection_scheduler.dart';
+import 'data/decan_reflection_repo.dart';
+import 'data/decan_reflection_model.dart';
+import 'features/profile/profile_page.dart';
+import 'features/reflections/decan_reflection_detail_page.dart';
 
 // Conditional import: on web we use URL cleanup + visibility hook; elsewhere no-ops.
 import 'utils/web_history.dart'
@@ -39,6 +44,8 @@ final ZoneSpecification _releasePrintSilencer = ZoneSpecification(
     if (kDebugMode) parent.print(zone, line);
   },
 );
+
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 void _configureLogging() {
   if (kReleaseMode || kProfileMode) {
@@ -194,6 +201,7 @@ class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
 /* ───────────────────────── Router Configuration ───────────────────────── */
 
 final _router = GoRouter(
+  navigatorKey: _rootNavigatorKey,
   initialLocation: '/',
   routes: [
     GoRoute(
@@ -266,6 +274,9 @@ class _AuthGateState extends State<AuthGate> {
   // Add these fields for ICS handling:
   StreamSubscription? _intentDataStreamSubscription;
   CalendarSyncService? _calendarSync;
+  StreamSubscription<Map<String, dynamic>>? _pushNavSub;
+  final DecanReflectionScheduler _decanScheduler = DecanReflectionScheduler(supabase);
+  bool _scheduledDecans = false;
 
   // One-shot guards
   bool _appOpenLogged = false;
@@ -288,6 +299,11 @@ class _AuthGateState extends State<AuthGate> {
         await _logAppOpenOnce();         // one-shot per cold start
         unawaited(_initNotificationsSafely());
         unawaited(PushNotifications.instance(supabase).registerForUser());
+        _installPushNavigation();
+        if (!_scheduledDecans) {
+          _scheduledDecans = true;
+          unawaited(_decanScheduler.ensureCurrentAndNextScheduled());
+        }
         unawaited(_calendarSync?.start());
       }
 
@@ -307,6 +323,7 @@ class _AuthGateState extends State<AuthGate> {
     _linkSub?.cancel();
     _intentDataStreamSubscription?.cancel();
     unawaited(disposeSharedCalendarSyncService());
+    _pushNavSub?.cancel();
     super.dispose();
   }
 
@@ -728,5 +745,28 @@ class _AuthGateState extends State<AuthGate> {
     return const Scaffold(
       body: CalendarPage(),
     );
+  }
+
+  void _installPushNavigation() {
+    final push = PushNotifications.instance(supabase);
+    _pushNavSub ??= push.openedMessages.listen(_handlePushNavigation);
+    unawaited(push.emitInitialMessage());
+  }
+
+  void _handlePushNavigation(Map<String, dynamic> data) {
+    final kind = data['kind'] ?? data['type'];
+    final reflectionId = data['reflectionId'] ?? data['reflection_id'];
+    if (kind == 'decan_reflection' && reflectionId is String && reflectionId.isNotEmpty) {
+      final uid = supabase.auth.currentUser?.id;
+      if (uid == null) return;
+      final nav = _rootNavigatorKey.currentState;
+      if (nav == null) return;
+      nav.push(MaterialPageRoute(
+        builder: (_) => ProfilePage(userId: uid, isMyProfile: true),
+      ));
+      nav.push(MaterialPageRoute(
+        builder: (_) => DecanReflectionDetailPage(reflectionId: reflectionId),
+      ));
+    }
   }
 }
