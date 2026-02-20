@@ -9,7 +9,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart'; // For DragStartBehavior
 import 'package:url_launcher/url_launcher.dart';
 import 'day_view.dart'; // For NoteData, FlowData
-import 'calendar_page.dart' show KemeticMath, CreateFlowFromNutrition;
+import 'calendar_page.dart'
+    show KemeticMath, CreateNutritionReminder, DeleteNutritionReminder;
 import '../sharing/share_flow_sheet.dart';
 import '../journal/journal_event_badge.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
@@ -23,10 +24,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 // SHARED CONSTANTS FOR LANDSCAPE VIEW
 // ========================================
 const Color _landscapeGold = Color(0xFFFFC145);
-const Color _landscapeBg = Color(0xFF000000);      // True black
+const Color _landscapeBg = Color(0xFF000000); // True black
 const Color _landscapeSurface = Color(0xFF0D0D0F); // Dark surface
 const Color _landscapeDivider = Color(0xFF1A1A1A); // Divider lines
-const double kLandscapeHeaderHeight = 58.0;        // Day number header height
+const double kLandscapeHeaderHeight = 58.0; // Day number header height
 
 // ========================================
 // MAIN LANDSCAPE MONTH VIEW WIDGET
@@ -46,10 +47,13 @@ class LandscapeMonthView extends StatelessWidget {
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
   final void Function(int flowId)? onEndFlow;
   final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
-  final Future<void> Function(int ky, int km, int kd, EventItem evt)? onEditNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem evt)?
+  onEditNote;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
-  final CreateFlowFromNutrition? onCreateFlow;
+  final CreateNutritionReminder? onCreateReminder;
+  final DeleteNutritionReminder? onDeleteReminder;
+  final Set<String> nutritionReminderItemIds;
 
   const LandscapeMonthView({
     super.key,
@@ -68,7 +72,9 @@ class LandscapeMonthView extends StatelessWidget {
     this.onEditNote,
     this.onShareNote,
     this.onAppendToJournal,
-    this.onCreateFlow,
+    this.onCreateReminder,
+    this.onDeleteReminder,
+    this.nutritionReminderItemIds = const {},
   });
 
   @override
@@ -89,7 +95,9 @@ class LandscapeMonthView extends StatelessWidget {
       onEditNote: onEditNote,
       onShareNote: onShareNote,
       onAppendToJournal: onAppendToJournal,
-      onCreateFlow: onCreateFlow,
+      onCreateReminder: onCreateReminder,
+      onDeleteReminder: onDeleteReminder,
+      nutritionReminderItemIds: nutritionReminderItemIds,
     );
   }
 }
@@ -112,10 +120,13 @@ class LandscapeMonthPager extends StatefulWidget {
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
   final void Function(int flowId)? onEndFlow;
   final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
-  final Future<void> Function(int ky, int km, int kd, EventItem evt)? onEditNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem evt)?
+  onEditNote;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
-  final CreateFlowFromNutrition? onCreateFlow;
+  final CreateNutritionReminder? onCreateReminder;
+  final DeleteNutritionReminder? onDeleteReminder;
+  final Set<String> nutritionReminderItemIds;
 
   const LandscapeMonthPager({
     super.key,
@@ -134,7 +145,9 @@ class LandscapeMonthPager extends StatefulWidget {
     this.onEditNote,
     this.onShareNote,
     this.onAppendToJournal,
-    this.onCreateFlow,
+    this.onCreateReminder,
+    this.onDeleteReminder,
+    this.nutritionReminderItemIds = const {},
   });
 
   @override
@@ -144,35 +157,37 @@ class LandscapeMonthPager extends StatefulWidget {
 class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
   late PageController _pageController;
   static const int _centerPage = 100000; // Match your _LandscapePager's _origin
-  
+
   // 🔧 NEW: Track current page for AppBar display
   int _currentPage = 100000;
-  
+
   // ✅ HARDENING 3: Debounce onPageChanged to prevent redundant callbacks
   int? _lastNotifiedPage;
-  
+
   // ✅ FIX 3: Animation guard to prevent remapping during animation
   bool _isAnimating = false;
-  
+
   // ✅ FIX 1: Track actual displayed month (avoids stale widget.initialKy/Km)
   ({int kYear, int kMonth})? _actualMonth;
-  
+
   // ✅ Today Button Fix: Stable internal base (doesn't depend on widget props)
-  late int _baseTotalMonths;  // ✅ Use late (safer than = 0)
-  
+  late int _baseTotalMonths; // ✅ Use late (safer than = 0)
+
   // ✅ Today Button Fix: Dual flags to prevent shuffle
-  bool _isJumpingToToday = false;      // Blocks onPageChanged during Today jump
-  bool _suppressRemap = false;         // Blocks didUpdateWidget remap
+  bool _isJumpingToToday = false; // Blocks onPageChanged during Today jump
+  bool _suppressRemap = false; // Blocks didUpdateWidget remap
 
   // ✅ FIX A: Canonical month math - Year 1, Month 1 = index 0
   /// Absolute month index where (Year 1, Month 1) == 0
   int _toTotalMonths(int ky, int km) {
     // km expected 1..13, ky can be any integer (…,-1,0,1,2,…)
-    return (ky - 1) * 13 + (km - 1);  // ✅ Year 1, Month 1 = 0
+    return (ky - 1) * 13 + (km - 1); // ✅ Year 1, Month 1 = 0
   }
 
   int _pageFor(int ky, int km) =>
-    _centerPage + (_toTotalMonths(ky, km) - _toTotalMonths(widget.initialKy, widget.initialKm));
+      _centerPage +
+      (_toTotalMonths(ky, km) -
+          _toTotalMonths(widget.initialKy, widget.initialKm));
 
   /// Calculate absolute page for a month using stable internal base
   /// This avoids dependency on potentially stale widget.initialKy/Km
@@ -187,12 +202,12 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     final m0 = ((total % 13) + 13) % 13;
     // Floor-like division because we removed the remainder first
     final y0 = (total - m0) ~/ 13;
-    return (kYear: y0 + 1, kMonth: m0 + 1);  // ✅ Convert back to 1-indexed
+    return (kYear: y0 + 1, kMonth: m0 + 1); // ✅ Convert back to 1-indexed
   }
 
   ({int kYear, int kMonth}) _monthForPage(int page) {
     final delta = page - _centerPage;
-    final total = _baseTotalMonths + delta;  // ✅ Use canonical base
+    final total = _baseTotalMonths + delta; // ✅ Use canonical base
     return _fromTotalMonths(total);
   }
 
@@ -211,8 +226,10 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 220),
       transitionBuilder: (ctx, anim, _, child) {
-        final offset = Tween(begin: const Offset(0, -1), end: Offset.zero)
-            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic));
+        final offset = Tween(
+          begin: const Offset(0, -1),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic));
         return SlideTransition(position: offset, child: child);
       },
       pageBuilder: (ctx, _, __) {
@@ -242,13 +259,18 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
                         borderRadius: const BorderRadius.vertical(
                           bottom: Radius.circular(12),
                         ),
-                        border: Border.all(color: _landscapeGold.withOpacity(0.5), width: 1),
+                        border: Border.all(
+                          color: _landscapeGold.withOpacity(0.5),
+                          width: 1,
+                        ),
                       ),
                       padding: const EdgeInsets.all(16),
                       child: NutritionGridWidget(
                         repo: nutritionRepo,
                         eventsRepo: eventsRepo,
-                        onCreateFlow: widget.onCreateFlow,
+                        onCreateReminder: widget.onCreateReminder,
+                        onDeleteReminder: widget.onDeleteReminder,
+                        reminderItemIds: widget.nutritionReminderItemIds,
                       ),
                     ),
                   ),
@@ -317,12 +339,12 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
       _currentPage = newPage;
       _lastNotifiedPage = newPage;
       _actualMonth = _monthForPage(newPage);
-      
+
       if (kDebugMode) {
         print('✓ [PAGER] Remap complete');
       }
     }
-    
+
     // When callback becomes available, force PageView to rebuild current page
     if (oldWidget.onAddNote == null && widget.onAddNote != null) {
       if (kDebugMode) {
@@ -382,7 +404,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     final firstDayG = KemeticMath.toGregorian(kYear, kMonth, 1);
     final lastDay = _getDaysInMonth(kYear, kMonth);
     final lastDayG = KemeticMath.toGregorian(kYear, kMonth, lastDay);
-    
+
     if (firstDayG.year == lastDayG.year) {
       return '${firstDayG.year}';
     } else {
@@ -436,7 +458,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     final currentMonth = _actualMonth ?? _monthForPage(_currentPage);
     final monthName = widget.getMonthName(currentMonth.kMonth);
     final yearLabel = _getYearLabel(currentMonth.kYear, currentMonth.kMonth);
-    
+
     return Container(
       color: _landscapeSurface,
       child: SafeArea(
@@ -482,7 +504,10 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
               // Flow Studio button - OUTSIDE GestureDetector (no gesture interference)
               IconButton(
                 tooltip: 'Nutrition',
-                icon: const Icon(Icons.table_chart_outlined, color: _landscapeGold),
+                icon: const Icon(
+                  Icons.table_chart_outlined,
+                  color: _landscapeGold,
+                ),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 onPressed: _openNutritionSheet,
               ),
@@ -513,17 +538,24 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
                         final now = DateTime.now();
                         final today = KemeticMath.fromGregorian(now);
                         final currentMonth = _monthForPage(_currentPage);
-                        final kd = (currentMonth.kYear == today.kYear && 
-                                    currentMonth.kMonth == today.kMonth) 
-                            ? today.kDay 
+                        final kd =
+                            (currentMonth.kYear == today.kYear &&
+                                currentMonth.kMonth == today.kMonth)
+                            ? today.kDay
                             : 1;
-                        
+
                         if (currentMonth.kMonth == 13 && kDebugMode) {
-                          print('⚠️ [LANDSCAPE] Creating note in sacred Month 13 (Heriu Renpet)');
+                          print(
+                            '⚠️ [LANDSCAPE] Creating note in sacred Month 13 (Heriu Renpet)',
+                          );
                           print('   Day: $kd');
                         }
-                        
-                        widget.onAddNote!(currentMonth.kYear, currentMonth.kMonth, kd);
+
+                        widget.onAddNote!(
+                          currentMonth.kYear,
+                          currentMonth.kMonth,
+                          kd,
+                        );
                       }
                     : null,
               ),
@@ -552,7 +584,8 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     return PageView.builder(
       controller: _pageController,
       scrollDirection: Axis.horizontal,
-      physics: const PageScrollPhysics(), // ✅ Allows gesture AND animateToPage()
+      physics:
+          const PageScrollPhysics(), // ✅ Allows gesture AND animateToPage()
       pageSnapping: true,
       onPageChanged: (page) {
         // ✅ HARDENING 3: Debounce to prevent redundant callbacks
@@ -570,7 +603,9 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
         // ✅ If in middle of Today jump, don't ping parent again
         if (_isJumpingToToday) {
           if (kDebugMode) {
-            print('📄 [PAGER] Page changed to $page during Today jump - state updated, parent notification blocked');
+            print(
+              '📄 [PAGER] Page changed to $page during Today jump - state updated, parent notification blocked',
+            );
           }
           return;
         }
@@ -584,22 +619,23 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
       },
       itemBuilder: (context, index) {
         final m = _monthForPage(index);
-        final pageInitialDay = (widget.initialDay != null &&
-                                m.kYear == widget.initialKy &&
-                                m.kMonth == widget.initialKm)
-                               ? widget.initialDay
-                               : null;
-        
+        final pageInitialDay =
+            (widget.initialDay != null &&
+                m.kYear == widget.initialKy &&
+                m.kMonth == widget.initialKm)
+            ? widget.initialDay
+            : null;
+
         if (kDebugMode) {
           print('🔧 [PAGER] Creating LandscapeMonthGridBody for page $index');
           print('   Month: ${m.kYear}-${m.kMonth}');
         }
-        
+
         return LandscapeMonthGridBody(
           key: ValueKey('grid-body-${m.kYear}-${m.kMonth}'),
           kYear: m.kYear,
           kMonth: m.kMonth,
-          initialDay: pageInitialDay,          // ✅ use 'initialDay'
+          initialDay: pageInitialDay, // ✅ use 'initialDay'
           showGregorian: widget.showGregorian,
           notesForDay: widget.notesForDay,
           flowIndex: widget.flowIndex,
@@ -611,7 +647,9 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           onEditNote: widget.onEditNote,
           onShareNote: widget.onShareNote,
           onAppendToJournal: widget.onAppendToJournal,
-          onCreateFlow: widget.onCreateFlow,
+          onCreateReminder: widget.onCreateReminder,
+          onDeleteReminder: widget.onDeleteReminder,
+          nutritionReminderItemIds: widget.nutritionReminderItemIds,
         );
       },
     );
@@ -635,10 +673,13 @@ class LandscapeMonthGridBody extends StatefulWidget {
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int flowId)? onEndFlow;
   final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
-  final Future<void> Function(int ky, int km, int kd, EventItem evt)? onEditNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem evt)?
+  onEditNote;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
-  final CreateFlowFromNutrition? onCreateFlow;
+  final CreateNutritionReminder? onCreateReminder;
+  final DeleteNutritionReminder? onDeleteReminder;
+  final Set<String> nutritionReminderItemIds;
 
   const LandscapeMonthGridBody({
     super.key,
@@ -656,7 +697,9 @@ class LandscapeMonthGridBody extends StatefulWidget {
     this.onEditNote,
     this.onShareNote,
     this.onAppendToJournal,
-    this.onCreateFlow,
+    this.onCreateReminder,
+    this.onDeleteReminder,
+    this.nutritionReminderItemIds = const {},
   });
 
   @override
@@ -665,12 +708,13 @@ class LandscapeMonthGridBody extends StatefulWidget {
 
 class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   // Layout constants (matching existing landscape)
-  static const double _rowH = 64.0;      // hour row height
-  static const double _gutterW = 56.0;   // time gutter width
-  static const double _headerH = kLandscapeHeaderHeight;   // day number header (shared constant)
-  static const double _daySepW = 1.0;    // day separator
-  static const double _hourSepH = 1.0;   // hour separator
-  static const double _kLandscapeEventMinHeight = 56.0;  // was 32.0
+  static const double _rowH = 64.0; // hour row height
+  static const double _gutterW = 56.0; // time gutter width
+  static const double _headerH =
+      kLandscapeHeaderHeight; // day number header (shared constant)
+  static const double _daySepW = 1.0; // day separator
+  static const double _hourSepH = 1.0; // hour separator
+  static const double _kLandscapeEventMinHeight = 56.0; // was 32.0
 
   // 🔧 UPDATED: Use shared color constants
   static const Color _gold = _landscapeGold;
@@ -694,13 +738,15 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   @override
   void initState() {
     super.initState();
-    
+
     if (kDebugMode) {
       print('🟢 [LANDSCAPE] LandscapeMonthGridBody initState()');
       print('   kYear: ${widget.kYear}, kMonth: ${widget.kMonth}');
-      print('   onAddNote callback: ${widget.onAddNote != null ? "PROVIDED" : "NULL"}');
+      print(
+        '   onAddNote callback: ${widget.onAddNote != null ? "PROVIDED" : "NULL"}',
+      );
     }
-    
+
     _hHeader = ScrollController();
     _hGrid = ScrollController();
     _vGutter = ScrollController();
@@ -708,12 +754,14 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
 
     // Sync horizontal scrolling (grid → header only, since header is non-scrollable)
     // REMOVED: _hHeader.addListener - header can't scroll, so no need to sync header→grid
-    
+
     _hGrid.addListener(() {
       if (_syncingH) return;
       _syncingH = true;
       if (_hHeader.hasClients) {
-        _hHeader.jumpTo(_hGrid.offset.clamp(0.0, _hHeader.position.maxScrollExtent));
+        _hHeader.jumpTo(
+          _hGrid.offset.clamp(0.0, _hHeader.position.maxScrollExtent),
+        );
       }
       _syncingH = false;
     });
@@ -723,7 +771,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       if (_syncingV) return;
       _syncingV = true;
       if (_vGrid.hasClients) {
-        _vGrid.jumpTo(_vGutter.offset.clamp(0.0, _vGrid.position.maxScrollExtent));
+        _vGrid.jumpTo(
+          _vGutter.offset.clamp(0.0, _vGrid.position.maxScrollExtent),
+        );
       }
       _syncingV = false;
     });
@@ -732,7 +782,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       if (_syncingV) return;
       _syncingV = true;
       if (_vGutter.hasClients) {
-        _vGutter.jumpTo(_vGrid.offset.clamp(0.0, _vGutter.position.maxScrollExtent));
+        _vGutter.jumpTo(
+          _vGrid.offset.clamp(0.0, _vGutter.position.maxScrollExtent),
+        );
       }
       _syncingV = false;
     });
@@ -749,7 +801,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   void didUpdateWidget(covariant LandscapeMonthGridBody old) {
     super.didUpdateWidget(old);
     if (old.initialDay != widget.initialDay && widget.initialDay != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToDay(widget.initialDay!));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _scrollToDay(widget.initialDay!),
+      );
     }
   }
 
@@ -769,11 +823,11 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
 
   void _scrollToDay(int day) {
     if (!_hGrid.hasClients) return;
-    
+
     final width = MediaQuery.of(context).size.width;
     final colW = (width - _gutterW) / 5.0; // ~5 visible days
     final targetOffset = (day - 3) * (colW + _daySepW); // Center on day
-    
+
     _hGrid.animateTo(
       targetOffset.clamp(0.0, _hGrid.position.maxScrollExtent),
       duration: const Duration(milliseconds: 300),
@@ -796,8 +850,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 220),
       transitionBuilder: (ctx, anim, _, child) {
-        final offset = Tween(begin: const Offset(0, -1), end: Offset.zero)
-            .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic));
+        final offset = Tween(
+          begin: const Offset(0, -1),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic));
         return SlideTransition(position: offset, child: child);
       },
       pageBuilder: (ctx, _, __) {
@@ -821,19 +877,24 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                   ),
                   child: Material(
                     color: Colors.transparent,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: _bg,
-                          borderRadius: const BorderRadius.vertical(
-                            bottom: Radius.circular(12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _bg,
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(12),
                         ),
-                        border: Border.all(color: _gold.withOpacity(0.5), width: 1),
+                        border: Border.all(
+                          color: _gold.withOpacity(0.5),
+                          width: 1,
+                        ),
                       ),
                       padding: const EdgeInsets.all(16),
                       child: NutritionGridWidget(
                         repo: nutritionRepo,
                         eventsRepo: eventsRepo,
-                        onCreateFlow: widget.onCreateFlow,
+                        onCreateReminder: widget.onCreateReminder,
+                        onDeleteReminder: widget.onDeleteReminder,
+                        reminderItemIds: widget.nutritionReminderItemIds,
                       ),
                     ),
                   ),
@@ -854,9 +915,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       print('   Mounted: ${mounted}');
       print('   Disposed: $_isDisposed}');
     }
-    
+
     final width = MediaQuery.of(context).size.width;
-    
+
     final dayCount = _getDaysInMonth();
     final colW = (width - _gutterW) / 5.0; // ~5 visible days
     final gridW = colW * dayCount + (_daySepW * (dayCount - 1));
@@ -873,9 +934,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             top: 0,
             width: _gutterW,
             height: _headerH,
-            child: Container(
-              color: _surface,
-            ),
+            child: Container(color: _surface),
           ),
 
           // Day headers (scrollable horizontally)
@@ -885,11 +944,13 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             right: 0,
             height: _headerH,
             child: IgnorePointer(
-              ignoring: true, // Prevent any gesture recognizers from header subtree
+              ignoring:
+                  true, // Prevent any gesture recognizers from header subtree
               child: SingleChildScrollView(
                 controller: _hHeader,
                 scrollDirection: Axis.horizontal,
-                physics: const NeverScrollableScrollPhysics(), // 🔧 REMOVES FROM GESTURE ARENA
+                physics:
+                    const NeverScrollableScrollPhysics(), // 🔧 REMOVES FROM GESTURE ARENA
                 child: Row(
                   children: [
                     for (int day = 1; day <= dayCount; day++)
@@ -910,7 +971,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               color: _surface,
               child: SingleChildScrollView(
                 controller: _vGutter,
-                physics: const ClampingScrollPhysics(), // 🔧 Prevent gesture conflicts
+                physics:
+                    const ClampingScrollPhysics(), // 🔧 Prevent gesture conflicts
                 child: Column(
                   children: [
                     for (int hour = 0; hour < 24; hour++)
@@ -940,11 +1002,13 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             bottom: 0,
             child: SingleChildScrollView(
               controller: _vGrid,
-              physics: const ClampingScrollPhysics(), // 🔧 Prevent gesture conflicts
+              physics:
+                  const ClampingScrollPhysics(), // 🔧 Prevent gesture conflicts
               child: SingleChildScrollView(
                 controller: _hGrid,
                 scrollDirection: Axis.horizontal,
-                physics: const ClampingScrollPhysics(), // ✅ Re-enabled for horizontal scrolling
+                physics:
+                    const ClampingScrollPhysics(), // ✅ Re-enabled for horizontal scrolling
                 child: SizedBox(
                   width: gridW,
                   height: gridH,
@@ -954,7 +1018,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                     children: [
                       // Grid lines
                       _buildGridLines(dayCount, colW),
-                      
+
                       // Event blocks
                       for (int day = 1; day <= dayCount; day++)
                         ..._buildEventsForDay(day, colW),
@@ -973,13 +1037,16 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     // Check if this is today
     final now = DateTime.now();
     final today = KemeticMath.fromGregorian(now);
-    final isToday = today.kYear == widget.kYear &&
-                    today.kMonth == widget.kMonth &&
-                    today.kDay == day;
+    final isToday =
+        today.kYear == widget.kYear &&
+        today.kMonth == widget.kMonth &&
+        today.kDay == day;
 
     // Get Gregorian date
     // FIXED: Convert UTC result to local at noon to avoid DST issues
-    final gregorianDate = safeLocalDisplay(KemeticMath.toGregorian(widget.kYear, widget.kMonth, day));
+    final gregorianDate = safeLocalDisplay(
+      KemeticMath.toGregorian(widget.kYear, widget.kMonth, day),
+    );
 
     return Container(
       width: colW,
@@ -1011,9 +1078,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               '${gregorianDate.month}/${gregorianDate.day}',
               style: TextStyle(
                 fontSize: 9,
-                color: isToday 
-                  ? _gold.withOpacity(0.7) 
-                  : const Color(0xFF808080),
+                color: isToday
+                    ? _gold.withOpacity(0.7)
+                    : const Color(0xFF808080),
               ),
             ),
         ],
@@ -1030,22 +1097,16 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             left: 0,
             right: 0,
             top: hour * _rowH,
-            child: Container(
-              height: _hourSepH,
-              color: _divider,
-            ),
+            child: Container(height: _hourSepH, color: _divider),
           ),
-        
+
         // Vertical day lines
         for (int day = 0; day < dayCount; day++)
           Positioned(
             left: day * (colW + _daySepW) + colW,
             top: 0,
             bottom: 0,
-            child: Container(
-              width: _daySepW,
-              color: _divider,
-            ),
+            child: Container(width: _daySepW, color: _divider),
           ),
       ],
     );
@@ -1059,17 +1120,17 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   /// - Same title (normalized)
   List<NoteData> _dedupeNotesForUI(List<NoteData> notes) {
     if (notes.isEmpty) return notes;
-    
+
     final seen = <String, NoteData>{};
-    
+
     for (final note in notes) {
       // Build unique key from note properties
       final flowKey = note.flowId?.toString() ?? 'NO_FLOW';
-      
+
       // Normalize timestamps (handle both all-day and timed events)
       String startKey;
       String endKey;
-      
+
       if (note.allDay) {
         startKey = 'ALLDAY';
         endKey = 'ALLDAY';
@@ -1085,25 +1146,25 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           endKey = 'NO_END';
         }
       }
-      
+
       // Title normalized (trim + lowercase for consistency)
       final titleKey = note.title.trim().toLowerCase();
-      
+
       // Build composite key
       final key = '$flowKey|$startKey|$endKey|$titleKey';
-      
+
       // Only keep first occurrence
       if (!seen.containsKey(key)) {
         seen[key] = note;
       }
     }
-    
+
     return seen.values.toList();
   }
 
   List<Widget> _buildEventsForDay(int day, double colW) {
     final rawNotes = widget.notesForDay(widget.kYear, widget.kMonth, day);
-    
+
     // ✅ ADD DEBUG LOGGING
     if (kDebugMode && rawNotes.isNotEmpty) {
       print('📅 [LANDSCAPE] Building events for day $day');
@@ -1118,10 +1179,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         }
       }
     }
-    
+
     // ✅ NEW: Dedupe notes before rendering to handle legacy duplicates
     final notes = _dedupeNotesForUI(rawNotes);
-    
+
     if (kDebugMode && rawNotes.isNotEmpty && notes.isEmpty) {
       print('⚠️ [LANDSCAPE] All notes deduped for day $day!');
     }
@@ -1131,18 +1192,24 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       final originalCount = rawNotes.length;
       final dedupedCount = notes.length;
       if (originalCount != dedupedCount) {
-        print('[LandscapeMonthView] Deduplicated events for day $day: $originalCount → $dedupedCount (removed ${originalCount - dedupedCount} duplicates)');
+        print(
+          '[LandscapeMonthView] Deduplicated events for day $day: $originalCount → $dedupedCount (removed ${originalCount - dedupedCount} duplicates)',
+        );
       }
     }
 
     // Convert notes to events
     final events = <EventItem>[];
     for (final note in notes) {
-      final startMin = note.allDay ? 9 * 60 : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
-      final endMin = note.allDay ? 17 * 60 : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
+      final startMin = note.allDay
+          ? 9 * 60
+          : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
+      final endMin = note.allDay
+          ? 17 * 60
+          : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
 
       Color eventColor = Colors.blue; // sensible default
-      
+
       // 1) per-note manual color wins
       if (note.manualColor != null) {
         eventColor = note.manualColor!;
@@ -1156,19 +1223,21 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       }
       // 3) fallback color for plain notes (already set above)
 
-      events.add(EventItem(
-        id: null,
-        title: note.title,
-        detail: note.detail,
-        location: note.location,
-        startMin: startMin,
-        endMin: endMin,
-        flowId: note.flowId,
-        color: eventColor,
-        manualColor: note.manualColor,
-        allDay: note.allDay,
-        category: note.category,
-      ));
+      events.add(
+        EventItem(
+          id: null,
+          title: note.title,
+          detail: note.detail,
+          location: note.location,
+          startMin: startMin,
+          endMin: endMin,
+          flowId: note.flowId,
+          color: eventColor,
+          manualColor: note.manualColor,
+          allDay: note.allDay,
+          category: note.category,
+        ),
+      );
     }
 
     if (events.isEmpty) return [];
@@ -1205,9 +1274,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
 
       for (final event in cluster) {
         final col = columnAssignments[event] ?? 0;
-        final left = (day - 1) * (colW + _daySepW) + (col * (columnWidth + columnGap));
+        final left =
+            (day - 1) * (colW + _daySepW) + (col * (columnWidth + columnGap));
         final top = (event.startMin / 60.0) * _rowH;
-        
+
         int durationMinutes = event.endMin - event.startMin;
         if (durationMinutes <= 0) {
           durationMinutes = 15;
@@ -1216,8 +1286,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           durationMinutes = 180;
         }
         final double rawHeight = (durationMinutes / 60.0) * _rowH;
-        final double height = rawHeight < _kLandscapeEventMinHeight 
-            ? _kLandscapeEventMinHeight 
+        final double height = rawHeight < _kLandscapeEventMinHeight
+            ? _kLandscapeEventMinHeight
             : rawHeight;
 
         widgets.add(
@@ -1258,8 +1328,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     final hasFlow = flow != null;
 
     final showTitle = event.title.trim().isNotEmpty;
-    final showLocation = event.location != null &&
-        event.location!.trim().isNotEmpty;
+    final showLocation =
+        event.location != null && event.location!.trim().isNotEmpty;
 
     return Column(
       mainAxisSize: MainAxisSize.min, // ✅ Don't expand unnecessarily
@@ -1280,7 +1350,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           ),
           const SizedBox(height: 2),
         ],
-        
+
         // Note title - only render if meaningful
         if (showTitle)
           Text(
@@ -1290,11 +1360,14 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               fontWeight: FontWeight.w500, // ✅ w500 not w600
               color: Colors.white,
             ),
-            maxLines: (hasFlow || durationMinutes < 90) ? 1 : 2, // ✅ Conditional line limit
+            maxLines: (hasFlow || durationMinutes < 90)
+                ? 1
+                : 2, // ✅ Conditional line limit
             overflow: TextOverflow.ellipsis,
           )
         else
-          Text( // ✅ No const - text is conditional
+          Text(
+            // ✅ No const - text is conditional
             hasFlow ? '(flow block)' : '(scheduled)', // ✅ Match day view logic
             style: const TextStyle(
               fontSize: 12,
@@ -1305,7 +1378,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-        
+
         // Location (clickable)
         if (showLocation)
           Padding(
@@ -1350,7 +1423,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                   children: [
                     if (flow != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: flow.color.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(4),
@@ -1365,9 +1441,13 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                           ),
                         ),
                       )
-                    else if (event.detail != null && event.detail!.contains('Source:'))
+                    else if (event.detail != null &&
+                        event.detail!.contains('Source:'))
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFD4AF37).withOpacity(0.2),
                           borderRadius: BorderRadius.circular(4),
@@ -1375,7 +1455,11 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.local_drink, size: 14, color: Color(0xFFD4AF37)),
+                            Icon(
+                              Icons.local_drink,
+                              size: 14,
+                              color: Color(0xFFD4AF37),
+                            ),
                             SizedBox(width: 4),
                             Text(
                               'Nutrition',
@@ -1410,18 +1494,30 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                         ),
                         onPressed: () {
                           Navigator.pop(context);
-                          widget.onDeleteNote!(widget.kYear, widget.kMonth, day, event);
+                          widget.onDeleteNote!(
+                            widget.kYear,
+                            widget.kMonth,
+                            day,
+                            event,
+                          );
                         },
                         icon: const Icon(Icons.delete_outline),
                         label: const Text('End Note'),
                       ),
                     const SizedBox(width: 8),
                     PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert, color: Color(0xFFD4AF37)),
+                      icon: const Icon(
+                        Icons.more_vert,
+                        color: Color(0xFFD4AF37),
+                      ),
                       tooltip: 'Event options',
                       onSelected: (value) async {
                         if (value == 'journal') {
-                          await _handleAddToJournal(event, day, sheetContext: context);
+                          await _handleAddToJournal(
+                            event,
+                            day,
+                            sheetContext: context,
+                          );
                         } else if (value == 'edit' && flow != null) {
                           Navigator.pop(context);
                           widget.onManageFlows?.call(flow.id);
@@ -1446,10 +1542,19 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                               ),
                             );
                           }
-                        } else if (value == 'edit_note' && flow == null && widget.onEditNote != null) {
+                        } else if (value == 'edit_note' &&
+                            flow == null &&
+                            widget.onEditNote != null) {
                           Navigator.pop(context);
-                          await widget.onEditNote!(widget.kYear, widget.kMonth, day, event);
-                        } else if (value == 'share_note' && flow == null && widget.onShareNote != null) {
+                          await widget.onEditNote!(
+                            widget.kYear,
+                            widget.kMonth,
+                            day,
+                            event,
+                          );
+                        } else if (value == 'share_note' &&
+                            flow == null &&
+                            widget.onShareNote != null) {
                           Navigator.pop(context);
                           await widget.onShareNote!(event);
                         }
@@ -1459,9 +1564,15 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                           value: 'journal',
                           child: Row(
                             children: [
-                              Icon(Icons.check_circle, color: Color(0xFFD4AF37)),
+                              Icon(
+                                Icons.check_circle,
+                                color: Color(0xFFD4AF37),
+                              ),
                               SizedBox(width: 12),
-                              Text('Done / Add to journal', style: TextStyle(color: Colors.white)),
+                              Text(
+                                'Done / Add to journal',
+                                style: TextStyle(color: Colors.white),
+                              ),
                             ],
                           ),
                         ),
@@ -1472,7 +1583,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                               children: [
                                 Icon(Icons.edit, color: Color(0xFFD4AF37)),
                                 SizedBox(width: 12),
-                                Text('Edit Flow', style: TextStyle(color: Colors.white)),
+                                Text(
+                                  'Edit Flow',
+                                  style: TextStyle(color: Colors.white),
+                                ),
                               ],
                             ),
                           ),
@@ -1483,7 +1597,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                               children: [
                                 Icon(Icons.share, color: Color(0xFFD4AF37)),
                                 SizedBox(width: 12),
-                                Text('Share Flow', style: TextStyle(color: Colors.white)),
+                                Text(
+                                  'Share Flow',
+                                  style: TextStyle(color: Colors.white),
+                                ),
                               ],
                             ),
                           ),
@@ -1494,7 +1611,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                               children: [
                                 Icon(Icons.edit, color: Color(0xFFD4AF37)),
                                 SizedBox(width: 12),
-                                Text('Edit Note', style: TextStyle(color: Colors.white)),
+                                Text(
+                                  'Edit Note',
+                                  style: TextStyle(color: Colors.white),
+                                ),
                               ],
                             ),
                           ),
@@ -1505,7 +1625,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                               children: [
                                 Icon(Icons.share, color: Color(0xFFD4AF37)),
                                 SizedBox(width: 12),
-                                Text('Share Note', style: TextStyle(color: Colors.white)),
+                                Text(
+                                  'Share Note',
+                                  style: TextStyle(color: Colors.white),
+                                ),
                               ],
                             ),
                           ),
@@ -1530,7 +1653,11 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                 // Time
                 Row(
                   children: [
-                    const Icon(Icons.access_time, size: 16, color: Color(0xFF808080)),
+                    const Icon(
+                      Icons.access_time,
+                      size: 16,
+                      color: Color(0xFF808080),
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       _formatTimeRange(event.startMin, event.endMin),
@@ -1546,7 +1673,11 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                     onTap: () => _launchLocation(event.location!.trim()),
                     child: Row(
                       children: [
-                        const Icon(Icons.location_on, size: 16, color: Color(0xFF808080)),
+                        const Icon(
+                          Icons.location_on,
+                          size: 16,
+                          color: Color(0xFF808080),
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -1571,7 +1702,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                       if (displayDetail.startsWith('flowLocalId=')) {
                         final semi = displayDetail.indexOf(';');
                         if (semi > 0 && semi < displayDetail.length - 1) {
-                          displayDetail = displayDetail.substring(semi + 1).trim();
+                          displayDetail = displayDetail
+                              .substring(semi + 1)
+                              .trim();
                         } else {
                           return const SizedBox.shrink();
                         }
@@ -1643,8 +1776,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
 
     for (final event in events) {
       int column = 0;
-      while (columnEndTimes.containsKey(column) && 
-             columnEndTimes[column]! > event.startMin) {
+      while (columnEndTimes.containsKey(column) &&
+          columnEndTimes[column]! > event.startMin) {
         column++;
       }
 
@@ -1671,7 +1804,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
 
   String _stripCidLines(String detail) {
     final lines = detail.split(RegExp(r'\r?\n'));
-    final cidRegex = RegExp(r'^(kemet_cid:)?ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$');
+    final cidRegex = RegExp(
+      r'^(kemet_cid:)?ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
+    );
     final kept = lines.where((line) {
       final trimmed = line.trim();
       if (trimmed.isEmpty) return false;
@@ -1691,8 +1826,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     final id = 'badge-${DateTime.now().microsecondsSinceEpoch}';
     final rawDesc = event.detail?.trim() ?? '';
     final cleanedDesc = rawDesc.isEmpty ? null : _stripCidLines(rawDesc);
-    final descForToken =
-        (cleanedDesc == null || cleanedDesc.isEmpty) ? null : cleanedDesc;
+    final descForToken = (cleanedDesc == null || cleanedDesc.isEmpty)
+        ? null
+        : cleanedDesc;
     return EventBadgeToken.buildToken(
       id: id,
       title: event.title.isEmpty ? 'Scheduled block' : event.title,
@@ -1714,7 +1850,11 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     }
   }
 
-  Future<void> _handleAddToJournal(EventItem event, int day, {BuildContext? sheetContext}) async {
+  Future<void> _handleAddToJournal(
+    EventItem event,
+    int day, {
+    BuildContext? sheetContext,
+  }) async {
     if (sheetContext != null) {
       Navigator.pop(sheetContext);
     }
@@ -1733,24 +1873,29 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   /// Detect whether a string looks like a URL, email, or phone number.
   bool _isLikelyUrl(String text) {
     final lower = text.toLowerCase().trim();
-    
+
     // Already has protocol
     if (lower.startsWith('http://') || lower.startsWith('https://')) {
       return true;
     }
-    
+
     // Email pattern (check early - most specific)
     if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
       return true;
     }
-    
+
     // Phone number pattern (check for phone-like formatting)
-    final phonePattern = RegExp(r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$');
+    final phonePattern = RegExp(
+      r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$',
+    );
     final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
-    if (phonePattern.hasMatch(lower) || (digitsOnly.length >= 10 && digitsOnly.length <= 15 && RegExp(r'^\+?[0-9]+$').hasMatch(digitsOnly))) {
+    if (phonePattern.hasMatch(lower) ||
+        (digitsOnly.length >= 10 &&
+            digitsOnly.length <= 15 &&
+            RegExp(r'^\+?[0-9]+$').hasMatch(digitsOnly))) {
       return true;
     }
-    
+
     // Known service domains (most reliable)
     final knownServices = [
       r'zoom\.us',
@@ -1766,25 +1911,28 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       r'slack\.com',
       r'teams\.microsoft\.com',
     ];
-    
+
     for (final service in knownServices) {
       if (RegExp(service).hasMatch(lower)) {
         return true;
       }
     }
-    
+
     // Generic domain pattern (but require at least one dot and TLD, no spaces)
-    if (RegExp(r'^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}(/.*)?$').hasMatch(lower) && 
-        lower.contains('.') && 
-        !lower.contains(' ')) { // No spaces = likely URL, not address
+    if (RegExp(
+          r'^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}(/.*)?$',
+        ).hasMatch(lower) &&
+        lower.contains('.') &&
+        !lower.contains(' ')) {
+      // No spaces = likely URL, not address
       return true;
     }
-    
+
     // www. prefix
     if (lower.startsWith('www\.')) {
       return true;
     }
-    
+
     return false;
   }
 

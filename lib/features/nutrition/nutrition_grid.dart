@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';   // LogicalKeyboardKey
+import 'package:flutter/services.dart'; // LogicalKeyboardKey
 import 'package:flutter/foundation.dart'; // setEquals
 import 'package:uuid/uuid.dart';
 
@@ -9,7 +9,11 @@ import '../../core/kemetic_converter.dart';
 import '../../data/nutrition_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../features/calendar/notify.dart';
-import '../../features/calendar/calendar_page.dart' show FlowFromNutritionIntent, CreateFlowFromNutrition;
+import '../../features/calendar/calendar_page.dart'
+    show
+        CreateNutritionReminder,
+        DeleteNutritionReminder,
+        NutritionReminderIntent;
 
 final _uuid = const Uuid();
 
@@ -21,13 +25,17 @@ final _uuid = const Uuid();
 class NutritionGridWidget extends StatefulWidget {
   final NutritionRepo repo;
   final UserEventsRepo eventsRepo;
-  final CreateFlowFromNutrition? onCreateFlow;
+  final CreateNutritionReminder? onCreateReminder;
+  final Future<void> Function(String itemId)? onDeleteReminder;
+  final Set<String> reminderItemIds;
 
   const NutritionGridWidget({
     Key? key,
     required this.repo,
     required this.eventsRepo,
-    this.onCreateFlow,
+    this.onCreateReminder,
+    this.onDeleteReminder,
+    this.reminderItemIds = const {},
   }) : super(key: key);
 
   @override
@@ -57,6 +65,23 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   final Map<String, TextEditingController> _nutrientCtrls = {};
   final Map<String, TextEditingController> _sourceCtrls = {};
   final Map<String, TextEditingController> _purposeCtrls = {};
+  final Set<String> _ensureVisibleAttached = {};
+  final Map<String, IntakeSchedule> _pendingReminderByItemId = {};
+  late Set<String> _reminderItemIds;
+  bool _cellHasFocus(String rowId, String field) =>
+      _focusByCell['$rowId:$field']?.hasFocus == true;
+
+  void _syncControllerText(
+    Map<String, TextEditingController> bag,
+    String id,
+    String field,
+    String next,
+  ) {
+    final ctrl = bag[id];
+    if (ctrl == null) return;
+    if (_cellHasFocus(id, field)) return;
+    if (ctrl.text != next) ctrl.text = next;
+  }
 
   TextEditingController _ctrlFor(
     Map<String, TextEditingController> bag,
@@ -71,9 +96,47 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       final c = bag.remove(oldId);
       if (c != null) bag[newId] = c;
     }
+
     move(_nutrientCtrls);
     move(_sourceCtrls);
     move(_purposeCtrls);
+    if (_scheduleChanged.containsKey(oldId)) {
+      _scheduleChanged[newId] = _scheduleChanged.remove(oldId) ?? false;
+    }
+    _debouncers.remove(oldId)?.cancel();
+
+    final focusToMove = _focusByCell.entries
+        .where((e) => e.key.startsWith('$oldId:'))
+        .toList();
+    for (final entry in focusToMove) {
+      final suffix = entry.key.substring(oldId.length);
+      _focusByCell.remove(entry.key);
+      _focusByCell['$newId$suffix'] = entry.value;
+    }
+    final pending = _pendingReminderByItemId.remove(oldId);
+    if (pending != null) {
+      _pendingReminderByItemId[newId] = pending;
+    }
+    if (_reminderItemIds.remove(oldId)) {
+      _reminderItemIds.add(newId);
+    }
+  }
+
+  void _attachEnsureVisible(String cellId, FocusNode node, BuildContext ctx) {
+    if (_ensureVisibleAttached.contains(cellId)) return;
+    _ensureVisibleAttached.add(cellId);
+    node.addListener(() {
+      if (!node.hasFocus) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!node.hasFocus || !mounted) return;
+        Scrollable.ensureVisible(
+          ctx,
+          alignment: 0.3,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      });
+    });
   }
 
   // Utility to compare schedules for equality (mode + days + time)
@@ -82,67 +145,51 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     final sameDays = a.mode == IntakeMode.weekday
         ? setEquals(a.daysOfWeek, b.daysOfWeek)
         : setEquals(a.decanDays, b.decanDays);
-    final sameTime = a.time.hour == b.time.hour && a.time.minute == b.time.minute;
+    final sameTime =
+        a.time.hour == b.time.hour && a.time.minute == b.time.minute;
     return sameDays && sameTime;
   }
 
-  /// Build a combined FlowFromNutritionIntent for all items that share the given schedule.
-  FlowFromNutritionIntent _buildCombinedFlowIntent({
-    required IntakeSchedule schedule,
-    required String currentItemId,
-  }) {
-    const int gold = 0xFFD4AF37;
-    final now = DateTime.now();
-    final startDate = DateTime(now.year, now.month, now.day);
-    final endDate = startDate.add(const Duration(days: 30));
-    final isWeekday = (schedule.mode == IntakeMode.weekday);
-
-    // Gather items that share the same schedule
-    final batch = <NutritionItem>[];
-    for (final it in _items) {
-      if (_schedulesMatch(it.schedule, schedule)) {
-        batch.add(it);
-      }
+  NutritionReminderIntent _buildReminderIntent(
+    NutritionItem item,
+    IntakeSchedule schedule,
+  ) {
+    final isWeekday = schedule.mode == IntakeMode.weekday;
+    final nutrient = item.nutrient.trim();
+    final source = item.source.trim();
+    final hasNutrient = nutrient.isNotEmpty;
+    final hasSource = source.isNotEmpty;
+    String title = 'Nutrition';
+    if (hasSource && hasNutrient) {
+      title = '$source, $nutrient';
+    } else if (hasSource) {
+      title = source;
+    } else if (hasNutrient) {
+      title = nutrient;
     }
-    // Ensure the current item is present (by id) to include edits in-flight
-    if (!batch.any((it) => it.id == currentItemId)) {
-      final current = _items.firstWhere((it) => it.id == currentItemId, orElse: () => batch.isNotEmpty ? batch.first : _items.first);
-      batch.add(current);
+    final detailParts = <String>[];
+    if (item.purpose.trim().isNotEmpty) {
+      detailParts.add(item.purpose.trim());
     }
 
-    final sources = <String>{
-      for (final it in batch)
-        if (it.source.trim().isNotEmpty) it.source.trim(),
-    };
-    final nutrients = <String>{
-      for (final it in batch)
-        if (it.nutrient.trim().isNotEmpty) it.nutrient.trim(),
-    };
-
-    final noteTitle = sources.isEmpty
-        ? 'Intake'
-        : (sources.length == 1 ? sources.first : sources.join(', '));
-    final detailText = nutrients.isEmpty
-        ? null
-        : (nutrients.length == 1 ? nutrients.first : nutrients.join(', '));
-
-    return FlowFromNutritionIntent(
-      flowName: 'Intake',
-      colorArgb: gold,
-      startDate: startDate,
-      endDate: endDate,
-      noteTitle: noteTitle,
-      noteDetails: detailText,
+    return NutritionReminderIntent(
+      itemId: item.id,
+      title: title,
+      detail: detailParts.isEmpty ? null : detailParts.join(' • '),
       isWeekdayMode: isWeekday,
       weekdays: isWeekday ? Set<int>.from(schedule.daysOfWeek) : <int>{},
       decanDays: isWeekday ? <int>{} : Set<int>.from(schedule.decanDays),
       timeOfDay: schedule.time,
+      repeat: schedule.repeat,
     );
   }
 
   // Column widths for header and body alignment (fixed widths for perfect alignment)
   static const double _rowHeight = 48;
-  static const TextStyle _hdrStyle = TextStyle(color: Colors.white, fontWeight: FontWeight.w600);
+  static const TextStyle _hdrStyle = TextStyle(
+    color: Colors.white,
+    fontWeight: FontWeight.w600,
+  );
   static const TextStyle _cellStyle = TextStyle(color: Colors.white);
 
   // Typography (use with existing _hdrStyle/_cellStyle)
@@ -157,6 +204,37 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   String? _focusedRowId;
   final Map<String, FocusNode> _focusByCell = {};
 
+  void _disposeRowResources(String id) {
+    _debouncers.remove(id)?.cancel();
+    _scheduleChanged.remove(id);
+    _nutrientCtrls.remove(id)?.dispose();
+    _sourceCtrls.remove(id)?.dispose();
+    _purposeCtrls.remove(id)?.dispose();
+    final toDrop = _focusByCell.keys
+        .where((k) => k.startsWith('$id:'))
+        .toList();
+    for (final k in toDrop) {
+      _focusByCell.remove(k)?.dispose();
+    }
+    _ensureVisibleAttached.removeWhere((k) => k.startsWith('$id:'));
+    _reminderItemIds.remove(id);
+    _pendingReminderByItemId.remove(id);
+  }
+
+  void _pruneMissingControllers() {
+    final ids = _items.map((e) => e.id).toSet();
+    final allIds = <String>{
+      ..._nutrientCtrls.keys,
+      ..._sourceCtrls.keys,
+      ..._purposeCtrls.keys,
+    };
+    for (final id in allIds) {
+      if (!ids.contains(id)) {
+        _disposeRowResources(id);
+      }
+    }
+  }
+
   FocusNode _focusFor(String cellId) {
     return _focusByCell.putIfAbsent(cellId, () {
       final n = FocusNode();
@@ -166,10 +244,13 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
 
         // Defer setState to after the current frame
         void _defer(VoidCallback f) =>
-            WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) f(); });
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) f();
+            });
 
         if (n.hasFocus) {
-          if (_focusedRowId != row) _defer(() => setState(() => _focusedRowId = row));
+          if (_focusedRowId != row)
+            _defer(() => setState(() => _focusedRowId = row));
         } else if (_focusedRowId == row) {
           final stillFocused = _focusByCell.entries.any(
             (e) => e.key.startsWith('$row:') && e.value.hasFocus,
@@ -202,39 +283,44 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
 
   // Base & minimum widths for: Nutrient, Source, Purpose, When, Repeat, Delete
   static const List<double> _COL_BASE = [160, 140, 200, 190, 64, 48];
-  static const List<double> _COL_MIN  = [110, 110, 150, 150, 56, 48];
+  static const List<double> _COL_MIN = [110, 110, 150, 150, 56, 48];
 
   // New responsive width constants (for fractional approach)
   // Base widths (px) tuned for phone modal. Order: Nutrient, Source, Purpose, When, Repeat, Delete
   static const List<double> _BASE_WIDTHS = [160, 140, 200, 190, 64, 48];
   // Minimum clamped widths (px) before we give up and enable horizontal scroll
-  static const List<double> _MIN_WIDTHS  = [110, 110, 150, 150, 56, 48];
+  static const List<double> _MIN_WIDTHS = [110, 110, 150, 150, 56, 48];
   // Indices to shrink first when space is tight (Purpose, When)
-  static const List<int> _FLEX_PRIORITY  = [2, 3, 0, 1]; // then Nutrient/Source if needed
+  static const List<int> _FLEX_PRIORITY = [
+    2,
+    3,
+    0,
+    1,
+  ]; // then Nutrient/Source if needed
 
   final Map<int, TableColumnWidth> _colWidths = const {
     0: FixedColumnWidth(180), // Nutrient
     1: FixedColumnWidth(160), // Source
     2: FixedColumnWidth(220), // Purpose
     3: FixedColumnWidth(220), // When to take
-    4: FixedColumnWidth(68),  // Repeat
-    5: FixedColumnWidth(48),  // Delete
+    4: FixedColumnWidth(68), // Repeat
+    5: FixedColumnWidth(48), // Delete
   };
 
   TableBorder _gridBorder() => const TableBorder(
-        top: BorderSide(color: Colors.white12, width: 1),
-        bottom: BorderSide(color: Colors.white12, width: 1),
-        left: BorderSide(color: Colors.white12, width: 1),
-        right: BorderSide(color: Colors.white12, width: 1),
-        horizontalInside: BorderSide(color: Colors.white12, width: 1),
-        verticalInside: BorderSide(color: Colors.white12, width: 1),
-      );
+    top: BorderSide(color: Colors.white12, width: 1),
+    bottom: BorderSide(color: Colors.white12, width: 1),
+    left: BorderSide(color: Colors.white12, width: 1),
+    right: BorderSide(color: Colors.white12, width: 1),
+    horizontalInside: BorderSide(color: Colors.white12, width: 1),
+    verticalInside: BorderSide(color: Colors.white12, width: 1),
+  );
 
   // Column width calculator for responsive layout
   List<double> _computeNutritionColumnWidths(double available) {
     // total base and min
     final baseTotal = _COL_BASE.fold<double>(0, (a, b) => a + b);
-    final minTotal  = _COL_MIN.fold<double>(0, (a, b) => a + b);
+    final minTotal = _COL_MIN.fold<double>(0, (a, b) => a + b);
 
     // If the base fits, use base
     if (baseTotal <= available) return List<double>.from(_COL_BASE);
@@ -269,7 +355,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   // New responsive width calculator with expansion logic
   List<double> _computeNutritionColWidths(double available) {
     final base = List<double>.from(_BASE_WIDTHS);
-    final min  = _MIN_WIDTHS;
+    final min = _MIN_WIDTHS;
     double total = base.reduce((a, b) => a + b);
 
     if (total <= available) {
@@ -302,8 +388,19 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   @override
   void initState() {
     super.initState();
+    _reminderItemIds = {...widget.reminderItemIds};
     _loading = true;
     _loadItems();
+  }
+
+  @override
+  void didUpdateWidget(covariant NutritionGridWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!setEquals(oldWidget.reminderItemIds, widget.reminderItemIds)) {
+      setState(() {
+        _reminderItemIds = {..._reminderItemIds, ...widget.reminderItemIds};
+      });
+    }
   }
 
   Future<void> _loadItems() async {
@@ -314,20 +411,21 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     });
     try {
       debugPrint('[NutritionGrid] Loading items…');
-      final items = await widget.repo.getAll().timeout(const Duration(seconds: 15));
+      final items = await widget.repo.getAll().timeout(
+        const Duration(seconds: 15),
+      );
       if (!mounted) return;
       setState(() {
         _items = items;
         _loading = false;
         _lastError = null;
-        
-        // ✅ Sync controller text with loaded items
-        for (final item in items) {
-          _nutrientCtrls[item.id]?.text = item.nutrient;
-          _sourceCtrls[item.id]?.text = item.source;
-          _purposeCtrls[item.id]?.text = item.purpose;
-        }
       });
+      for (final item in items) {
+        _syncControllerText(_nutrientCtrls, item.id, 'nutrient', item.nutrient);
+        _syncControllerText(_sourceCtrls, item.id, 'source', item.source);
+        _syncControllerText(_purposeCtrls, item.id, 'purpose', item.purpose);
+      }
+      _pruneMissingControllers();
       debugPrint('[NutritionGrid] Loaded ${items.length} items');
     } on TimeoutException catch (e) {
       debugPrint('[NutritionGrid] Timeout: $e');
@@ -374,7 +472,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     _confirmBarrierEntry?.remove();
     _timePickerEntry?.remove();
     _pickerOverlayEntry?.remove();
-    
+
     for (final t in _debouncers.values) {
       t.cancel();
     }
@@ -394,10 +492,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_lastError != null) {
-      return _ErrorState(
-        message: _lastError!,
-        onRetry: _loadItems,
-      );
+      return _ErrorState(message: _lastError!, onRetry: _loadItems);
     }
 
     return Column(
@@ -464,12 +559,12 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       children: [
         TableRow(
           children: [
-            _headerCell('Nutrient',     width: widths[0]),
-            _headerCell('Source',       width: widths[1]),
-            _headerCell('Purpose',      width: widths[2]),
+            _headerCell('Nutrient', width: widths[0]),
+            _headerCell('Source', width: widths[1]),
+            _headerCell('Purpose', width: widths[2]),
             _headerCell('When to take', width: widths[3]),
-            _headerCell('Repeat',       width: widths[4]),
-            _headerCell('',             width: widths[5]), // delete header blank
+            _headerCell('Repeat', width: widths[4]),
+            _headerCell('', width: widths[5]), // delete header blank
           ],
         ),
       ],
@@ -486,7 +581,10 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     );
   }
 
-  Widget _buildBodyTableWithWidths(List<NutritionItem> items, List<double> widths) {
+  Widget _buildBodyTableWithWidths(
+    List<NutritionItem> items,
+    List<double> widths,
+  ) {
     final colWidths = <int, TableColumnWidth>{
       for (var i = 0; i < widths.length; i++) i: FixedColumnWidth(widths[i]),
     };
@@ -503,7 +601,12 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       children: [
         _cellTextField(item, field: 'nutrient', hint: 'e.g., Magnesium'),
         _cellTextField(item, field: 'source', hint: 'e.g., 200mg caps'),
-        _cellTextField(item, field: 'purpose', hint: 'e.g., sleep, recovery', maxLines: 2),
+        _cellTextField(
+          item,
+          field: 'purpose',
+          hint: 'e.g., sleep, recovery',
+          maxLines: 2,
+        ),
         _cellSchedule(item),
         _cellRepeat(item),
         _cellDelete(item),
@@ -514,12 +617,28 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   TableRow _buildRowWithWidths(NutritionItem item, List<double> w) {
     return TableRow(
       children: [
-        _cellTextField(item, field: 'nutrient', hint: 'e.g., Magnesium',           width: w[0]),
-        _cellTextField(item, field: 'source',   hint: 'e.g., 200mg caps',          width: w[1]),
-        _cellTextField(item, field: 'purpose',  hint: 'e.g., sleep, recovery',     width: w[2], maxLines: 2),
+        _cellTextField(
+          item,
+          field: 'nutrient',
+          hint: 'e.g., Magnesium',
+          width: w[0],
+        ),
+        _cellTextField(
+          item,
+          field: 'source',
+          hint: 'e.g., 200mg caps',
+          width: w[1],
+        ),
+        _cellTextField(
+          item,
+          field: 'purpose',
+          hint: 'e.g., sleep, recovery',
+          width: w[2],
+          maxLines: 2,
+        ),
         _cellSchedule(item, width: w[3]),
-        _cellRepeat(item,   width: w[4]),
-        _cellDelete(item,   width: w[5]),
+        _cellRepeat(item, width: w[4]),
+        _cellDelete(item, width: w[5]),
       ],
     );
   }
@@ -529,7 +648,8 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   static const List<double> _FRACTIONS = [0.30, 0.24, 0.35, 0.11];
 
   // Row background color for zebra striping
-  Color _rowBg(int i) => i.isOdd ? Colors.white.withOpacity(0.03) : Colors.transparent;
+  Color _rowBg(int i) =>
+      i.isOdd ? Colors.white.withOpacity(0.03) : Colors.transparent;
 
   // Public entry point for responsive table (uses _items field)
   Widget buildNutritionTableResponsive() {
@@ -550,6 +670,9 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
         ),
         Expanded(
           child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
             child: Table(
               border: _gridBorder(),
               defaultVerticalAlignment: TableCellVerticalAlignment.top,
@@ -567,21 +690,33 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
 
   // Header row (4 columns: Nutrient, Source, Purpose, When)
   TableRow _headerRow() {
-    return TableRow(children: [
-      _cellShell(Text('Nutrient', style: _hdrStyle.copyWith(fontSize: _hdrFontSize))),
-      _cellShell(Text('Source', style: _hdrStyle.copyWith(fontSize: _hdrFontSize))),
-      _cellShell(Text('Purpose', style: _hdrStyle.copyWith(fontSize: _hdrFontSize))),
-      _cellShell(
-        Center(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: const Icon(Icons.event_note_rounded, size: _whenIconSize, color: Colors.white),
-          ),
+    return TableRow(
+      children: [
+        _cellShell(
+          Text('Nutrient', style: _hdrStyle.copyWith(fontSize: _hdrFontSize)),
         ),
-        align: Alignment.center,
-        padding: EdgeInsets.zero,  // no padding for icon column
-      ),
-    ]);
+        _cellShell(
+          Text('Source', style: _hdrStyle.copyWith(fontSize: _hdrFontSize)),
+        ),
+        _cellShell(
+          Text('Purpose', style: _hdrStyle.copyWith(fontSize: _hdrFontSize)),
+        ),
+        _cellShell(
+          Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: const Icon(
+                Icons.event_note_rounded,
+                size: _whenIconSize,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          align: Alignment.center,
+          padding: EdgeInsets.zero, // no padding for icon column
+        ),
+      ],
+    );
   }
 
   // Header table with fractional widths (legacy - kept for compatibility)
@@ -595,8 +730,12 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   }
 
   // Body table with fractional widths (legacy method - not used by new responsive table)
-  Widget _buildBodyTableFractional(List<double> widths, List<NutritionItem> items) {
-    Color rowBg(int i) => i.isEven ? const Color(0xFF0D0D0D) : const Color(0xFF111111);
+  Widget _buildBodyTableFractional(
+    List<double> widths,
+    List<NutritionItem> items,
+  ) {
+    Color rowBg(int i) =>
+        i.isEven ? const Color(0xFF0D0D0D) : const Color(0xFF111111);
     return Table(
       columnWidths: {
         for (int i = 0; i < widths.length; i++) i: FixedColumnWidth(widths[i]),
@@ -621,38 +760,52 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     final sourceCtrl = _ctrlFor(_sourceCtrls, item.id, item.source);
     final purposeCtrl = _ctrlFor(_purposeCtrls, item.id, item.purpose);
 
-    return TableRow(children: [
-      _cellTextField(
-        item,
-        field: 'nutrient',
-        hint: 'e.g., Magnesium',
-        rowId: item.id,
-        bgColor: bgCol,
-        maxLines: 1,
-        controller: nutrientCtrl,
-      ),
-      _cellTextField(
-        item,
-        field: 'source',
-        hint: 'e.g., Glycinate',
-        rowId: item.id,
-        bgColor: bgCol,
-        maxLines: 1,
-        controller: sourceCtrl,
-      ),
-      // Purpose: wraps when focused; otherwise compact
-      _cellTextField(
-        item,
-        field: 'purpose',
-        hint: 'Why you take it',
-        rowId: item.id,
-        bgColor: bgCol,
-        maxLines: focused ? null : 2,
-        minHeight: minH,
-        controller: purposeCtrl,
-      ),
-      _cellSchedule(item, bgColor: bgCol, minHeight: minH),
-    ]);
+    return TableRow(
+      children: [
+        KeyedSubtree(
+          key: ValueKey('${item.id}:nutrient-cell'),
+          child: _cellTextField(
+            item,
+            field: 'nutrient',
+            hint: 'e.g., Magnesium',
+            rowId: item.id,
+            bgColor: bgCol,
+            maxLines: 1,
+            controller: nutrientCtrl,
+          ),
+        ),
+        KeyedSubtree(
+          key: ValueKey('${item.id}:source-cell'),
+          child: _cellTextField(
+            item,
+            field: 'source',
+            hint: 'e.g., Glycinate',
+            rowId: item.id,
+            bgColor: bgCol,
+            maxLines: 1,
+            controller: sourceCtrl,
+          ),
+        ),
+        // Purpose: wraps when focused; otherwise compact
+        KeyedSubtree(
+          key: ValueKey('${item.id}:purpose-cell'),
+          child: _cellTextField(
+            item,
+            field: 'purpose',
+            hint: 'Why you take it',
+            rowId: item.id,
+            bgColor: bgCol,
+            maxLines: focused ? null : 2,
+            minHeight: minH,
+            controller: purposeCtrl,
+          ),
+        ),
+        KeyedSubtree(
+          key: ValueKey('${item.id}:schedule-cell'),
+          child: _cellSchedule(item, bgColor: bgCol, minHeight: minH),
+        ),
+      ],
+    );
   }
 
   // === CELLS ===
@@ -661,14 +814,14 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     Alignment align = Alignment.centerLeft,
     double? width,
     double? minHeight,
-    Color? bgColor,  // null => transparent (no charcoal)
-    EdgeInsets? padding,  // optional padding override
+    Color? bgColor, // null => transparent (no charcoal)
+    EdgeInsets? padding, // optional padding override
   }) {
     final core = Container(
       width: width,
       alignment: align,
       padding: padding ?? const EdgeInsets.symmetric(horizontal: 10),
-      color: bgColor,  // null => transparent (no charcoal)
+      color: bgColor, // null => transparent (no charcoal)
       constraints: (minHeight == null)
           ? const BoxConstraints()
           : BoxConstraints(minHeight: minHeight),
@@ -701,43 +854,65 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
 
     final initial = switch (field) {
       'nutrient' => item.nutrient,
-      'source'   => item.source,
-      'purpose'  => item.purpose,
+      'source' => item.source,
+      'purpose' => item.purpose,
       _ => '',
     };
 
-    final editor = TextFormField(
-      controller: controller, // ✅ Use controller if present
-      initialValue: controller == null ? initial : null, // ✅ Only use initialValue when no controller
-      focusNode: _focusFor('$id:$field'),
-      style: _cellStyle.copyWith(fontSize: _hdrFontSize),
-      maxLines: lines,
-      expands: focused,  // scrolls inside when focused
-      keyboardType: TextInputType.multiline,
-      textInputAction: TextInputAction.newline,
-      textAlignVertical: focused ? TextAlignVertical.top : TextAlignVertical.center,
-      decoration: InputDecoration(
-        hintText: hint,
-        isDense: true,
-        contentPadding: EdgeInsets.zero,
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-        filled: false,
-      ),
-      onChanged: (txt) {
-        switch (field) {
-          case 'nutrient': item.nutrient = txt; break;
-          case 'source':   item.source   = txt; break;
-          case 'purpose':  item.purpose  = txt; break;
-        }
-        _saveDebounced(item, resync: false); // text-only changes
+    final editor = Builder(
+      builder: (cellCtx) {
+        final node = _focusFor('$id:$field');
+        _attachEnsureVisible('$id:$field', node, cellCtx);
+        return TextFormField(
+          key: ValueKey('$id:$field'),
+          controller: controller, // ✅ Use controller if present
+          initialValue: controller == null ? initial : null,
+          focusNode: node,
+          style: _cellStyle.copyWith(fontSize: _hdrFontSize),
+          maxLines: lines,
+          expands: focused, // scrolls inside when focused
+          keyboardType: TextInputType.multiline,
+          textInputAction: TextInputAction.newline,
+          textAlignVertical: focused
+              ? TextAlignVertical.top
+              : TextAlignVertical.center,
+          decoration: InputDecoration(
+            hintText: hint,
+            isDense: true,
+            contentPadding: EdgeInsets.zero,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            filled: false,
+          ),
+          onChanged: (txt) {
+            switch (field) {
+              case 'nutrient':
+                item.nutrient = txt;
+                break;
+              case 'source':
+                item.source = txt;
+                break;
+              case 'purpose':
+                item.purpose = txt;
+                break;
+            }
+            _saveDebounced(item, resync: false); // text-only changes
+          },
+        );
       },
     );
 
-    final h = focused ? (minHeight ?? _expandedRowHeight(context)) : (minHeight ?? _rowHeight);
+    final h = focused
+        ? (minHeight ?? _expandedRowHeight(context))
+        : (minHeight ?? _rowHeight);
     final wrapped = focused ? SizedBox(height: h, child: editor) : editor;
-    return _cellShell(wrapped, width: width, minHeight: focused ? null : h, bgColor: bgColor);
+    return _cellShell(
+      wrapped,
+      width: width,
+      minHeight: focused ? null : h,
+      bgColor: bgColor,
+    );
   }
 
   String _scheduleLabel(BuildContext context, IntakeSchedule s) {
@@ -755,7 +930,8 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   }
 
   // Helpers for compact schedule preview chips
-  String _dowShort(int d) => const ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][d - 1];
+  String _dowShort(int d) =>
+      const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d - 1];
 
   Widget _chip(String t, {IconData? icon}) {
     return Container(
@@ -769,10 +945,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 12),
-            const SizedBox(width: 4),
-          ],
+          if (icon != null) ...[Icon(icon, size: 12), const SizedBox(width: 4)],
           Text(t, style: const TextStyle(fontSize: 12)),
         ],
       ),
@@ -783,11 +956,11 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
   String _schedulePreviewText(BuildContext context, IntakeSchedule s) {
     final daysText = (s.mode == IntakeMode.weekday)
         ? (s.daysOfWeek.isEmpty
-            ? 'Tap to set'
-            : s.daysOfWeek.map(_dowShort).join(' '))
+              ? 'Tap to set'
+              : s.daysOfWeek.map(_dowShort).join(' '))
         : (s.decanDays.isEmpty
-            ? 'Tap to set'
-            : 'Days ${s.decanDays.join(', ')}');
+              ? 'Tap to set'
+              : 'Days ${s.decanDays.join(', ')}');
     return '$daysText • ${s.time.format(context)}';
   }
 
@@ -795,11 +968,13 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     NutritionItem item, {
     double? width,
     double? minHeight,
-    bool? collapsed,  // kept for back-compat; unused
+    bool? collapsed, // kept for back-compat; unused
     Color? bgColor,
   }) {
     final focused = _isFocusedRow(item.id);
-    final h = focused ? (minHeight ?? _expandedRowHeight(context)) : (minHeight ?? _rowHeight);
+    final h = focused
+        ? (minHeight ?? _expandedRowHeight(context))
+        : (minHeight ?? _rowHeight);
     final tip = _schedulePreviewText(context, item.schedule);
 
     return _cellShell(
@@ -811,18 +986,27 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
             height: 28,
             child: IconButton(
               tooltip: tip,
-              icon: const Icon(Icons.event_note_rounded, size: _whenIconSize, color: Colors.white),
-              padding: EdgeInsets.zero,  // Remove default padding
-              constraints: const BoxConstraints(),  // Remove default 48x48 constraint
-              splashRadius: 18,  // slightly larger than icon for better touch feedback
+              icon: const Icon(
+                Icons.event_note_rounded,
+                size: _whenIconSize,
+                color: Colors.white,
+              ),
+              padding: EdgeInsets.zero, // Remove default padding
+              constraints:
+                  const BoxConstraints(), // Remove default 48x48 constraint
+              splashRadius:
+                  18, // slightly larger than icon for better touch feedback
               onPressed: () async {
                 FocusScope.of(context).unfocus();
                 final updated = await _openSchedulePicker(context, item);
                 if (updated != null) {
                   setState(() {
                     item.schedule = updated;
-                    item.enabled = (updated.mode == IntakeMode.weekday && updated.daysOfWeek.isNotEmpty) ||
-                                   (updated.mode == IntakeMode.decan && updated.decanDays.isNotEmpty);
+                    item.enabled =
+                        (updated.mode == IntakeMode.weekday &&
+                            updated.daysOfWeek.isNotEmpty) ||
+                        (updated.mode == IntakeMode.decan &&
+                            updated.decanDays.isNotEmpty);
                     _scheduleChanged[item.id] = true;
                   });
                   _saveDebounced(item, resync: true);
@@ -836,7 +1020,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       minHeight: h,
       bgColor: bgColor,
       align: Alignment.center,
-      padding: EdgeInsets.zero,  // no padding for icon column
+      padding: EdgeInsets.zero, // no padding for icon column
     );
   }
 
@@ -878,10 +1062,8 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
 
     _confirmBarrierEntry = OverlayEntry(
       maintainState: true,
-      builder: (_) => const ModalBarrier(
-        dismissible: false,
-        color: Colors.black54,
-      ),
+      builder: (_) =>
+          const ModalBarrier(dismissible: false, color: Colors.black54),
     );
 
     _confirmDialogEntry = OverlayEntry(
@@ -893,7 +1075,10 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
             constraints: const BoxConstraints(maxWidth: 360),
             child: AlertDialog(
               backgroundColor: Colors.black,
-              title: const Text('Delete?', style: TextStyle(color: Colors.white)),
+              title: const Text(
+                'Delete?',
+                style: TextStyle(color: Colors.white),
+              ),
               content: Text(
                 'Remove "$label"?',
                 style: const TextStyle(color: Colors.white70),
@@ -1019,13 +1204,16 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     );
   }
 
-  Future<IntakeSchedule?> _openSchedulePicker(BuildContext ctx, NutritionItem item) {
+  Future<IntakeSchedule?> _openSchedulePicker(
+    BuildContext ctx,
+    NutritionItem item,
+  ) {
     // ✅ Hardening: Prevent double-open from rapid taps
     if (_schedulePickerOpen) return Future.value(null);
     _schedulePickerOpen = true;
 
     final completer = Completer<IntakeSchedule?>();
-    
+
     void finish(IntakeSchedule? r) {
       if (!_schedulePickerOpen) return;
       _schedulePickerOpen = false;
@@ -1035,28 +1223,30 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     }
 
     // ✅ Null-safe initial schedule fallback
-    final initial = item.schedule ?? IntakeSchedule(
-      mode: IntakeMode.weekday,
-      daysOfWeek: const {1,2,3,4,5}, // Mon–Fri sensible default
-      decanDays: const <int>{},
-      time: TimeOfDay(hour: 9, minute: 0),
-      repeat: true,
-    );
+    final initial =
+        item.schedule ??
+        IntakeSchedule(
+          mode: IntakeMode.weekday,
+          daysOfWeek: const {1, 2, 3, 4, 5}, // Mon–Fri sensible default
+          decanDays: const <int>{},
+          time: TimeOfDay(hour: 9, minute: 0),
+          repeat: true,
+        );
 
     // Local working state
     var mode = initial.mode;
     var dows = Set<int>.from(initial.daysOfWeek);
     var decans = Set<int>.from(initial.decanDays);
     var time = initial.time;
-    var addAsFlow = false;
+    var addAsReminder = _reminderItemIds.contains(item.id);
 
     IntakeSchedule _build() => initial.copyWith(
-          mode: mode,
-          daysOfWeek: dows,
-          decanDays: decans,
-          time: time,
-          repeat: true, // ✅ always repeat
-        );
+      mode: mode,
+      daysOfWeek: dows,
+      decanDays: decans,
+      time: time,
+      repeat: true, // ✅ always repeat
+    );
 
     void _close(IntakeSchedule? result) {
       // If confirm is open, remove it first so nothing is orphaned
@@ -1157,22 +1347,36 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
               child: Center(
                 child: Theme(
                   data: darkOverlayTheme,
-                  child: BackButtonListener( // ✅ Patch B: Android back button
-                    onBackButtonPressed: () async { _close(null); return true; },
-                    child: Shortcuts( // ✅ Patch B: ESC to close on web/desktop
+                  child: BackButtonListener(
+                    // ✅ Patch B: Android back button
+                    onBackButtonPressed: () async {
+                      _close(null);
+                      return true;
+                    },
+                    child: Shortcuts(
+                      // ✅ Patch B: ESC to close on web/desktop
                       shortcuts: {
-                        LogicalKeySet(LogicalKeyboardKey.escape): const ActivateIntent(),
+                        LogicalKeySet(LogicalKeyboardKey.escape):
+                            const ActivateIntent(),
                       },
                       child: Actions(
                         actions: {
-                          ActivateIntent: CallbackAction<ActivateIntent>(onInvoke: (_) { _close(null); return null; }),
+                          ActivateIntent: CallbackAction<ActivateIntent>(
+                            onInvoke: (_) {
+                              _close(null);
+                              return null;
+                            },
+                          ),
                         },
-                        child: TweenAnimationBuilder<double>( // ✅ Patch B: Entry animation
+                        child: TweenAnimationBuilder<double>(
+                          // ✅ Patch B: Entry animation
                           duration: const Duration(milliseconds: 160),
                           curve: Curves.easeOut,
                           tween: Tween(begin: 0.95, end: 1.0),
                           builder: (context, scale, child) => FadeTransition(
-                            opacity: AlwaysStoppedAnimation(scale.clamp(0.95, 1.0)),
+                            opacity: AlwaysStoppedAnimation(
+                              scale.clamp(0.95, 1.0),
+                            ),
                             child: Transform.scale(scale: scale, child: child),
                           ),
                           child: Material(
@@ -1180,27 +1384,37 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                             color: Colors.black,
                             borderRadius: BorderRadius.circular(16),
                             clipBehavior: Clip.antiAlias,
-                            child: FocusScope( // ✅ Focus trap for desktop/web
+                            child: FocusScope(
+                              // ✅ Focus trap for desktop/web
                               autofocus: true,
                               canRequestFocus: true,
                               child: ConstrainedBox(
-                                constraints: BoxConstraints(maxWidth: 380, maxHeight: maxH),
+                                constraints: BoxConstraints(
+                                  maxWidth: 380,
+                                  maxHeight: maxH,
+                                ),
                                 child: StatefulBuilder(
                                   builder: (context, setM) {
-                                    return ScrollConfiguration( // ✅ Remove overscroll glow
-                                      behavior: const ScrollBehavior().copyWith(overscroll: false),
+                                    return ScrollConfiguration(
+                                      // ✅ Remove overscroll glow
+                                      behavior: const ScrollBehavior().copyWith(
+                                        overscroll: false,
+                                      ),
                                       child: SingleChildScrollView(
                                         padding: const EdgeInsets.all(16),
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
                                           children: [
                                             // Header row: mode toggles + actions
                                             Row(
                                               children: [
                                                 ChoiceChip(
                                                   label: const Text('Weekdays'),
-                                                  selected: mode == IntakeMode.weekday,
+                                                  selected:
+                                                      mode ==
+                                                      IntakeMode.weekday,
                                                   onSelected: (sel) => setM(() {
                                                     mode = IntakeMode.weekday;
                                                     decans.clear();
@@ -1208,8 +1422,11 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                                                 ),
                                                 const SizedBox(width: 8),
                                                 ChoiceChip(
-                                                  label: const Text('Decan Days'),
-                                                  selected: mode == IntakeMode.decan,
+                                                  label: const Text(
+                                                    'Decan Days',
+                                                  ),
+                                                  selected:
+                                                      mode == IntakeMode.decan,
                                                   onSelected: (sel) => setM(() {
                                                     mode = IntakeMode.decan;
                                                     dows.clear();
@@ -1218,13 +1435,24 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                                                 const Spacer(),
                                                 // Delete
                                                 IconButton(
-                                                  tooltip: 'Delete this nutrient',
-                                                  icon: const Icon(Icons.delete_outline_rounded),
+                                                  tooltip:
+                                                      'Delete this nutrient',
+                                                  icon: const Icon(
+                                                    Icons
+                                                        .delete_outline_rounded,
+                                                  ),
                                                   onPressed: () async {
-                                                    final ok = await _showConfirmAbovePicker(
-                                                      ctxInPickerTree: context,
-                                                      label: item.nutrient.isEmpty ? 'this entry' : item.nutrient,
-                                                    );
+                                                    final ok =
+                                                        await _showConfirmAbovePicker(
+                                                          ctxInPickerTree:
+                                                              context,
+                                                          label:
+                                                              item
+                                                                  .nutrient
+                                                                  .isEmpty
+                                                              ? 'this entry'
+                                                              : item.nutrient,
+                                                        );
                                                     if (ok == true) {
                                                       await _deleteItem(item);
                                                       _close(null);
@@ -1250,7 +1478,15 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                                                   final day = i + 1; // 1..7
                                                   return chip(
                                                     dows.contains(day),
-                                                    const ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i],
+                                                    const [
+                                                      'Mon',
+                                                      'Tue',
+                                                      'Wed',
+                                                      'Thu',
+                                                      'Fri',
+                                                      'Sat',
+                                                      'Sun',
+                                                    ][i],
                                                     () => setM(() {
                                                       if (dows.contains(day)) {
                                                         dows.remove(day);
@@ -1266,43 +1502,71 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                                               Wrap(
                                                 spacing: 8,
                                                 runSpacing: 8,
-                                                children: List.generate(10, (i) {
+                                                children: List.generate(10, (
+                                                  i,
+                                                ) {
                                                   final dd = i + 1; // 1..10
-                                                  return chip(decans.contains(dd), 'Day $dd', () {
-                                                    setM(() {
-                                                      if (decans.contains(dd)) {
-                                                        decans.remove(dd);
-                                                      } else {
-                                                        decans.add(dd);
-                                                      }
-                                                    });
-                                                  });
+                                                  return chip(
+                                                    decans.contains(dd),
+                                                    'Day $dd',
+                                                    () {
+                                                      setM(() {
+                                                        if (decans.contains(
+                                                          dd,
+                                                        )) {
+                                                          decans.remove(dd);
+                                                        } else {
+                                                          decans.add(dd);
+                                                        }
+                                                      });
+                                                    },
+                                                  );
                                                 }),
                                               ),
 
                                             const SizedBox(height: 12),
 
-                                            // Time & Add as flow
-                                            Row(
-                                              children: [
-                                                OutlinedButton.icon(
-                                                  icon: const Icon(Icons.schedule_rounded, size: 18),
-                                                  label: Text(time.format(context)),
-                                                  onPressed: () async {
-                                                    final picked = await _showTimePickerAbovePicker(
-                                                      ctxInPickerTree: context,
-                                                      initialTime: time,
-                                                    );
-                                                    if (picked != null) setM(() => time = picked);
-                                                  },
-                                                ),
-                                                const SizedBox(width: 16),
-                                                Checkbox(
-                                                  value: addAsFlow,
-                                                  onChanged: (v) => setM(() => addAsFlow = v ?? false),
-                                                ),
-                                                const Text('Add as flow'),
-                                              ],
+                                            // Time & Add as reminder
+                                            InkWell(
+                                              onTap: () => setM(
+                                                () => addAsReminder =
+                                                    !addAsReminder,
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  OutlinedButton.icon(
+                                                    icon: const Icon(
+                                                      Icons.schedule_rounded,
+                                                      size: 18,
+                                                    ),
+                                                    label: Text(
+                                                      time.format(context),
+                                                    ),
+                                                    onPressed: () async {
+                                                      final picked =
+                                                          await _showTimePickerAbovePicker(
+                                                            ctxInPickerTree:
+                                                                context,
+                                                            initialTime: time,
+                                                          );
+                                                      if (picked != null) {
+                                                        setM(
+                                                          () => time = picked,
+                                                        );
+                                                      }
+                                                    },
+                                                  ),
+                                                  const SizedBox(width: 16),
+                                                  Checkbox(
+                                                    value: addAsReminder,
+                                                    onChanged: (v) => setM(
+                                                      () => addAsReminder =
+                                                          v ?? false,
+                                                    ),
+                                                  ),
+                                                  const Text('Add as reminder'),
+                                                ],
+                                              ),
                                             ),
 
                                             const SizedBox(height: 16),
@@ -1310,33 +1574,96 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                                             // Save (with empty-selection guard)
                                             FilledButton(
                                               onPressed: () async {
-                                                if (mode == IntakeMode.weekday && dows.isEmpty) {
-                                                  _toast(context, 'Select at least one weekday');
+                                                if (mode ==
+                                                        IntakeMode.weekday &&
+                                                    dows.isEmpty) {
+                                                  _toast(
+                                                    context,
+                                                    'Select at least one weekday',
+                                                  );
                                                   return;
                                                 }
-                                                if (mode == IntakeMode.decan && decans.isEmpty) {
-                                                  _toast(context, 'Select at least one decan day');
+                                                if (mode == IntakeMode.decan &&
+                                                    decans.isEmpty) {
+                                                  _toast(
+                                                    context,
+                                                    'Select at least one decan day',
+                                                  );
                                                   return;
                                                 }
-                                                
+
                                                 final schedule = _build();
-                                                
+
                                                 // ✅ Close picker immediately
                                                 _close(schedule);
 
-                                                // Create flow asynchronously (fire-and-forget) if checkbox is checked
-                                                if (addAsFlow && widget.onCreateFlow != null) {
-                                                  final intent = _buildCombinedFlowIntent(
-                                                    schedule: schedule,
-                                                    currentItemId: item.id,
-                                                  );
-                                                  Future.microtask(() async {
-                                                    try {
-                                                      await widget.onCreateFlow!(intent);
-                                                    } catch (e) {
-                                                      debugPrint('[NutritionGrid] onCreateFlow error: $e');
-                                                    }
-                                                  });
+                                                // Create/delete reminder asynchronously based on checkbox
+                                                if (addAsReminder) {
+                                                  if (mounted) {
+                                                    setState(() {
+                                                      _reminderItemIds.add(
+                                                        item.id,
+                                                      );
+                                                    });
+                                                  }
+                                                  _pendingReminderByItemId[item
+                                                          .id] =
+                                                      schedule;
+                                                  if (!item.id.startsWith(
+                                                        'temp-',
+                                                      ) &&
+                                                      widget.onCreateReminder !=
+                                                          null) {
+                                                    debugPrint(
+                                                      '[NutritionGrid] onCreateReminder call addAsReminder=$addAsReminder id=${item.id}',
+                                                    );
+                                                    final intent =
+                                                        _buildReminderIntent(
+                                                          item,
+                                                          schedule,
+                                                        );
+                                                    Future.microtask(() async {
+                                                      try {
+                                                        await widget
+                                                            .onCreateReminder!(
+                                                          intent,
+                                                        );
+                                                        _pendingReminderByItemId
+                                                            .remove(item.id);
+                                                      } catch (e) {
+                                                        debugPrint(
+                                                          '[NutritionGrid] onCreateReminder error: $e',
+                                                        );
+                                                        _pendingReminderByItemId
+                                                            .remove(item.id);
+                                                        _reminderItemIds.remove(
+                                                          item.id,
+                                                        );
+                                                        if (mounted) {
+                                                          setState(() {});
+                                                        }
+                                                      }
+                                                    });
+                                                  }
+                                                } else {
+                                                  if (mounted &&
+                                                      _reminderItemIds.remove(
+                                                        item.id,
+                                                      )) {
+                                                    setState(() {});
+                                                  }
+                                                  _pendingReminderByItemId
+                                                      .remove(item.id);
+                                                  if (widget.onDeleteReminder !=
+                                                      null) {
+                                                    Future.microtask(
+                                                      () =>
+                                                          widget
+                                                              .onDeleteReminder!(
+                                                            item.id,
+                                                          ),
+                                                    );
+                                                  }
                                                 }
                                               },
                                               child: const Text('Save'),
@@ -1408,9 +1735,14 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
         setState(() => _items[i] = saved);
 
         // keep controllers in sync after server normalization
-        _nutrientCtrls[saved.id]?.text = saved.nutrient;
-        _sourceCtrls[saved.id]?.text = saved.source;
-        _purposeCtrls[saved.id]?.text = saved.purpose;
+        _syncControllerText(
+          _nutrientCtrls,
+          saved.id,
+          'nutrient',
+          saved.nutrient,
+        );
+        _syncControllerText(_sourceCtrls, saved.id, 'source', saved.source);
+        _syncControllerText(_purposeCtrls, saved.id, 'purpose', saved.purpose);
       } else {
         await _loadItems();
       }
@@ -1423,6 +1755,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
           ),
         );
         setState(() => _items.removeWhere((e) => e.id == tempId));
+        _disposeRowResources(tempId);
       }
     } finally {
       if (mounted) setState(() => _adding = false);
@@ -1448,20 +1781,48 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
           setState(() => _items[idx] = saved);
 
           // keep controller text aligned with saved values
-          _nutrientCtrls[saved.id]?.text = saved.nutrient;
-          _sourceCtrls[saved.id]?.text = saved.source;
-          _purposeCtrls[saved.id]?.text = saved.purpose;
+          _syncControllerText(
+            _nutrientCtrls,
+            saved.id,
+            'nutrient',
+            saved.nutrient,
+          );
+          _syncControllerText(_sourceCtrls, saved.id, 'source', saved.source);
+          _syncControllerText(
+            _purposeCtrls,
+            saved.id,
+            'purpose',
+            saved.purpose,
+          );
         } else {
-          debugPrint('[NutritionGrid] Not found after save: item.id=${item.id}, saved.id=${saved.id}');
+          debugPrint(
+            '[NutritionGrid] Not found after save: item.id=${item.id}, saved.id=${saved.id}',
+          );
           await _loadItems();
         }
 
-        if (resync && saved.id.isNotEmpty && (_scheduleChanged[saved.id] == true)) {
+        if (resync &&
+            saved.id.isNotEmpty &&
+            (_scheduleChanged[saved.id] == true)) {
           await _syncToCalendar(saved);
           _scheduleChanged[saved.id] = false;
         }
+
+        final pending = _pendingReminderByItemId.remove(saved.id);
+        if (pending != null && widget.onCreateReminder != null) {
+          final intent = _buildReminderIntent(saved, pending);
+          try {
+            await widget.onCreateReminder!(intent);
+          } catch (e) {
+            debugPrint(
+              '[NutritionGrid] onCreateReminder (post-save) error: $e',
+            );
+          }
+        }
       } catch (e) {
         debugPrint('[NutritionGrid] save error: $e');
+      } finally {
+        _debouncers.remove(key);
       }
     });
   }
@@ -1474,9 +1835,11 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     final converter = KemeticConverter();
     final now = DateTime.now();
     final horizon = now.add(const Duration(days: 120));
-    for (var d = DateTime(now.year, now.month, now.day);
-        d.isBefore(horizon);
-        d = d.add(const Duration(days: 1))) {
+    for (
+      var d = DateTime(now.year, now.month, now.day);
+      d.isBefore(horizon);
+      d = d.add(const Duration(days: 1))
+    ) {
       bool shouldSchedule;
       if (item.schedule.mode == IntakeMode.weekday) {
         shouldSchedule = item.schedule.daysOfWeek.contains(d.weekday);
@@ -1494,7 +1857,8 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
         item.schedule.time.hour,
         item.schedule.time.minute,
       );
-      final dateKey = '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      final dateKey =
+          '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
       await widget.eventsRepo.upsertByClientId(
         clientEventId: 'nutrition:${item.id}:$dateKey',
         title: item.nutrient.isNotEmpty ? item.nutrient : 'Nutrient',
@@ -1519,11 +1883,15 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       // Log but don't block deletion
       debugPrint('[nutrition] Failed to cancel notifications: $e');
     }
-    
+
     // Delete events via prefix
     await widget.eventsRepo.deleteByClientIdPrefix('nutrition:${item.id}:');
     // Delete item
     await widget.repo.delete(item.id);
+    if (widget.onDeleteReminder != null) {
+      await widget.onDeleteReminder!(item.id);
+    }
+    _disposeRowResources(item.id);
     setState(() => _items.removeWhere((i) => i.id == item.id));
   }
 }
@@ -1531,19 +1899,17 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
 class _ErrorState extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
-  
-  const _ErrorState({
-    required this.message,
-    required this.onRetry,
-  });
-  
+
+  const _ErrorState({required this.message, required this.onRetry});
+
   @override
   Widget build(BuildContext context) {
-    final isMissingTable = message.toLowerCase().contains('nutrition_items') && 
-                           (message.toLowerCase().contains('does not exist') || 
-                            message.toLowerCase().contains('42p01') ||
-                            message.toLowerCase().contains('relation'));
-    
+    final isMissingTable =
+        message.toLowerCase().contains('nutrition_items') &&
+        (message.toLowerCase().contains('does not exist') ||
+            message.toLowerCase().contains('42p01') ||
+            message.toLowerCase().contains('relation'));
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -1557,7 +1923,11 @@ class _ErrorState extends StatelessWidget {
                   ? 'The nutrition table has not been created yet.'
                   : 'Could not load nutrition items.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 12),
             if (isMissingTable)

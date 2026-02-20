@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 
-
 const _kFlows = 'flows';
 
 void _log(String msg) {
@@ -131,16 +130,19 @@ class FlowsRepo {
         .stream(primaryKey: ['id'])
         .order('updated_at', ascending: false)
         .order('start_date', ascending: true)
-        .map((rows) => rows
-        .cast<Map<String, dynamic>>()
-        .map(FlowRow.fromRow)
-        .where((f) =>
-    f.userId == user.id && // guard if RLS is loose
-        f.active == true &&
-        _isActiveByEndDate(f.endDate))
-        .toList());
+        .map(
+          (rows) => rows
+              .cast<Map<String, dynamic>>()
+              .map(FlowRow.fromRow)
+              .where(
+                (f) =>
+                    f.userId == user.id && // guard if RLS is loose
+                    f.active == true &&
+                    _isActiveByEndDate(f.endDate),
+              )
+              .toList(),
+        );
   }
-
 
   Future<FlowRow> upsert({
     int? id, // null → insert; non-null → update
@@ -167,14 +169,22 @@ class FlowsRepo {
       'color': color,
       'active': active,
       'is_saved': isSaved,
-      'start_date': startDate?.toUtc().toIso8601String(),
-      'end_date': endDate?.toUtc().toIso8601String(),
-      'notes': notes,
       'rules': rulesJson ?? <dynamic>[],
       'is_hidden': isHidden,
       'is_reminder': isReminder,
-      'reminder_uuid': reminderUuid,
     };
+    if (startDate != null) {
+      payload['start_date'] = startDate.toUtc().toIso8601String();
+    }
+    if (endDate != null) {
+      payload['end_date'] = endDate.toUtc().toIso8601String();
+    }
+    if (notes != null) {
+      payload['notes'] = notes;
+    }
+    if (reminderUuid != null) {
+      payload['reminder_uuid'] = reminderUuid;
+    }
 
     if (id == null) {
       final row = await _client.from(_kFlows).insert(payload).select().single();
@@ -190,7 +200,6 @@ class FlowsRepo {
       return FlowRow.fromRow(row as Map<String, dynamic>);
     }
   }
-
 
   Future<int> insert({
     required String name,
@@ -223,7 +232,8 @@ class FlowsRepo {
     };
     _log('insert → $payload');
     final row =
-    await _client.from(_kFlows).insert(payload).select().single() as Map<String, dynamic>;
+        await _client.from(_kFlows).insert(payload).select().single()
+            as Map<String, dynamic>;
     final id = (row['id'] as num).toInt();
     _log('insert ✓ id=$id');
     return id;
@@ -262,6 +272,7 @@ class FlowsRepo {
     await _client.from(_kFlows).delete().eq('id', id);
     _log('delete ✓');
   }
+
   Future<List<FlowRow>> fetchAll() async {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -282,16 +293,19 @@ class FlowsRepo {
         .toList();
     return flows;
   }
+
   Future<List<FlowRow>> listMyFlows({int limit = 200}) async {
     final user = _client.auth.currentUser;
     if (user == null) return const [];
-    final rows = await _client
-        .from(_kFlows)
-        .select()
-        .eq('user_id', user.id)
-        .eq('active', true)
-        .order('updated_at', ascending: false)
-        .limit(limit) as List<dynamic>;
+    final rows =
+        await _client
+                .from(_kFlows)
+                .select()
+                .eq('user_id', user.id)
+                .eq('active', true)
+                .order('updated_at', ascending: false)
+                .limit(limit)
+            as List<dynamic>;
     final flows = rows
         .cast<Map<String, dynamic>>()
         .map(FlowRow.fromRow)
@@ -305,12 +319,14 @@ class FlowsRepo {
   Future<List<FlowRow>> listMyFlowsUnfiltered({int limit = 500}) async {
     final user = _client.auth.currentUser;
     if (user == null) return const [];
-    final rows = await _client
-        .from(_kFlows)
-        .select()
-        .eq('user_id', user.id)
-        .order('created_at', ascending: false)
-        .limit(limit) as List<dynamic>;
+    final rows =
+        await _client
+                .from(_kFlows)
+                .select()
+                .eq('user_id', user.id)
+                .order('created_at', ascending: false)
+                .limit(limit)
+            as List<dynamic>;
     return rows.cast<Map<String, dynamic>>().map(FlowRow.fromRow).toList();
   }
 
@@ -321,7 +337,7 @@ class FlowsRepo {
         .select()
         .eq('id', id)
         .maybeSingle();
-    
+
     if (response == null) return null;
     return FlowRow.fromRow(response as Map<String, dynamic>);
   }

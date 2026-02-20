@@ -147,7 +147,8 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mounted) {
         final ts = _formatTimestamp(DateTime.now());
         setState(() {
-          _calendarSyncStatus = 'Last sync requested: $ts'
+          _calendarSyncStatus =
+              'Last sync requested: $ts'
               '${kIsWeb ? ' (PWA native calendar access may be limited)' : ''}';
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -191,16 +192,16 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _sectionTitle(String text) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 12.0),
+    child: Text(
+      text,
+      style: const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -217,10 +218,7 @@ class _SettingsPageState extends State<SettingsPage> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: const Text(
-          'Settings',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('Settings', style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Color(0xFFD4AF37)),
       ),
       body: SingleChildScrollView(
@@ -261,18 +259,28 @@ class _SettingsPageState extends State<SettingsPage> {
                       if (!mounted) return;
                       setState(() {
                         _requestingPush = false;
-                        _pushStatus = token == null ? 'Permission denied or no token' : 'Token saved';
+                        _pushStatus = token == null
+                            ? 'Permission denied or no token'
+                            : 'Token saved';
                       });
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(token == null
-                              ? 'Notifications not enabled (grant permission to receive push).'
-                              : 'Notifications enabled on this device.'),
-                          backgroundColor: token == null ? Colors.red.shade700 : Colors.green.shade700,
+                          content: Text(
+                            token == null
+                                ? 'Notifications not enabled (grant permission to receive push).'
+                                : 'Notifications enabled on this device.',
+                          ),
+                          backgroundColor: token == null
+                              ? Colors.red.shade700
+                              : Colors.green.shade700,
                         ),
                       );
                     },
-              child: Text(_requestingPush ? 'Requesting…' : 'Enable notifications on this device'),
+              child: Text(
+                _requestingPush
+                    ? 'Requesting…'
+                    : 'Enable notifications on this device',
+              ),
             ),
             if (_pushStatus != null) ...[
               const SizedBox(height: 6),
