@@ -776,6 +776,11 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
     );
   }
 
+  Future<void> _handleRefresh() async {
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    widget.onImportComplete();
+  }
+
   Widget _buildActionButtons() {
     return Column(
       children: [
@@ -783,12 +788,19 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).push(
+            onPressed: () async {
+              final flowId = await Navigator.of(context).push<int>(
                 MaterialPageRoute(
                   builder: (_) => InboxFlowDetailsPage(item: widget.item),
                 ),
               );
+              if (!context.mounted) return;
+              if (flowId != null) {
+                await _handleRefresh();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Flow imported')),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFD4AF37),
@@ -967,6 +979,10 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
         print('[InboxPage] Flow data: name=$name, color=$color');
         print('[InboxPage] Rules type: ${rulesData.runtimeType}');
       }
+
+      final originFlowId =
+          (payloadJson['flow_id'] as num?)?.toInt() ??
+              int.tryParse(item.payloadId);
       
       // Step 2: Convert rules from List to JSON String
       final rulesString = jsonEncode(rulesData);
@@ -984,6 +1000,10 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
         startDate: startDate,
         notes: notes,
         rules: rulesString,
+        originType: 'share_import',
+        originShareId: item.shareId,
+        originFlowId: originFlowId,
+        rootFlowId: originFlowId,
       );
       
       if (kDebugMode) {
@@ -998,6 +1018,25 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
       
       if (kDebugMode) {
         print('[InboxPage] ✓ Flow linked to share: ${item.shareId}');
+      }
+
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId != null) {
+        try {
+          await Supabase.instance.client.from('flow_saves').upsert({
+            'user_id': userId,
+            'flow_id': flowId,
+            'saved_from': 'share',
+            'metadata': {
+              'share_id': item.shareId,
+              if (originFlowId != null) 'origin_flow_id': originFlowId,
+            },
+          }, onConflict: 'user_id,flow_id');
+        } catch (e) {
+          if (kDebugMode) {
+            print('[InboxPage] flow_saves upsert failed: $e');
+          }
+        }
       }
       
       // Step 5: Mark the share as imported

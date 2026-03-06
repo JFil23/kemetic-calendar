@@ -1,6 +1,7 @@
 // lib/features/inbox/shared_flow_details_page.dart
 // Dual-mode details page: supports both imported flows (flowId) and non-imported shares (share)
 
+import 'dart:async';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart' show DateUtils;
 import 'package:flutter/material.dart';
@@ -56,8 +57,21 @@ class SharedFlowDetailsPage extends StatefulWidget {
 }
 
 class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
+  static const _feedbackTagLabels = <String, String>{
+    'wrong_time': 'Wrong time',
+    'too_much': 'Too much',
+    'too_easy': 'Too easy',
+    'irrelevant': 'Irrelevant',
+    'great_fit': 'Great fit',
+  };
+
+  late final UserEventsRepo _userEventsRepo;
   late final Future<_SharedFlowData> _flowFuture;
   Future<_FlowSpanSummary?>? _spanFuture;
+  bool _trackedShareViewed = false;
+  final Set<String> _selectedFeedbackTags = <String>{};
+  int? _selectedRating;
+  bool _isSubmittingFeedback = false;
 
   /// Merge duplicate events (same day/title/time/detail/location) to avoid double rendering
   List<Map<String, dynamic>> _dedupeEvents(List<Map<String, dynamic>> events) {
@@ -92,10 +106,18 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   @override
   void initState() {
     super.initState();
+    _userEventsRepo = UserEventsRepo(Supabase.instance.client);
     
     // Mark as viewed if current user is the recipient (only for non-imported shares)
     if (widget.share != null) {
       _markAsViewedIfRecipient();
+      if (!_trackedShareViewed) {
+        _trackedShareViewed = true;
+        unawaited(_userEventsRepo.trackShareViewed(
+          shareId: widget.share!.shareId,
+          source: 'inbox',
+        ));
+      }
     }
     
     if (widget.flowId != null) {
@@ -146,8 +168,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
     if (widget.flowId == null) return null;
 
     try {
-      final repo = UserEventsRepo(Supabase.instance.client);
-      final records = await repo.getEventsForFlow(widget.flowId!);
+      final records = await _userEventsRepo.getEventsForFlow(widget.flowId!);
 
       if (records.isEmpty) return null;
 
@@ -282,6 +303,40 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       flowId: null,
       share: null,
     );
+  }
+
+  Future<void> _submitFlowFeedback() async {
+    if (widget.flowId == null) return;
+    if (_selectedFeedbackTags.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select at least one tag.')),
+      );
+      return;
+    }
+
+    setState(() => _isSubmittingFeedback = true);
+
+    try {
+      await _userEventsRepo.trackFlowFeedback(
+        flowId: widget.flowId!,
+        tags: _selectedFeedbackTags.toList(),
+        rating: _selectedRating,
+        shareId: widget.share?.shareId,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Feedback sent')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send feedback: $e')),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => _isSubmittingFeedback = false);
+    }
   }
 
   @override
@@ -473,6 +528,97 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                       ...eventsJson.map((event) {
                         return _SharedEventTile(event: event);
                       }).toList(),
+                    ],
+                    if (widget.flowId != null) ...[
+                      const SizedBox(height: 24),
+                      const GlossyText(
+                        text: 'How did this flow fit?',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        gradient: goldGloss,
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _feedbackTagLabels.entries.map((entry) {
+                          final selected =
+                              _selectedFeedbackTags.contains(entry.key);
+                          return FilterChip(
+                            label: Text(entry.value),
+                            labelStyle: TextStyle(
+                              color: selected ? Colors.black : Colors.white,
+                            ),
+                            selected: selected,
+                            selectedColor: const Color(0xFFD4AF37),
+                            checkmarkColor: Colors.black,
+                            backgroundColor: const Color(0xFF111111),
+                            side: BorderSide(
+                              color: selected
+                                  ? const Color(0xFFD4AF37)
+                                  : Colors.white24,
+                            ),
+                            onSelected: (value) {
+                              setState(() {
+                                if (value) {
+                                  _selectedFeedbackTags.add(entry.key);
+                                } else {
+                                  _selectedFeedbackTags.remove(entry.key);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Rating (optional)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: List.generate(5, (index) {
+                          final rating = index + 1;
+                          final selected = _selectedRating == rating;
+                          return ChoiceChip(
+                            label: Text('$rating'),
+                            labelStyle: TextStyle(
+                              color: selected ? Colors.black : Colors.white,
+                            ),
+                            selected: selected,
+                            selectedColor: const Color(0xFFD4AF37),
+                            backgroundColor: const Color(0xFF111111),
+                            side: BorderSide(
+                              color: selected
+                                  ? const Color(0xFFD4AF37)
+                                  : Colors.white24,
+                            ),
+                            onSelected: (value) {
+                              setState(() {
+                                _selectedRating = value ? rating : null;
+                              });
+                            },
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isSubmittingFeedback
+                              ? null
+                              : _submitFlowFeedback,
+                          child: Text(
+                            _isSubmittingFeedback ? 'Sending…' : 'Submit',
+                          ),
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -843,6 +989,13 @@ class _SharedFlowImportFooter extends StatefulWidget {
 class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
   DateTime? _selectedStart;
   bool _isWorking = false;
+  late final UserEventsRepo _userEventsRepo;
+
+  @override
+  void initState() {
+    super.initState();
+    _userEventsRepo = UserEventsRepo(Supabase.instance.client);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -903,6 +1056,13 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
                       if (payload == null) {
                         throw Exception('No flow data available');
                       }
+                      final originFlowId =
+                          (payload['flow_id'] as num?)?.toInt() ??
+                              int.tryParse(share.payloadId);
+                      final scheduledStart = _selectedStart ?? suggestedDate;
+                      final scheduledStartIso = scheduledStart == null
+                          ? null
+                          : '${scheduledStart.year}-${scheduledStart.month.toString().padLeft(2, '0')}-${scheduledStart.day.toString().padLeft(2, '0')}';
 
                       final flowId = await CalendarPage.importFlowFromShare(
                         context,
@@ -913,6 +1073,9 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
                           notes: payload['notes'] as String?,
                           rules: payload['rules'] as List<dynamic>? ?? const [],
                           suggestedStartDate: _selectedStart ?? suggestedDate,
+                          originFlowId: originFlowId,
+                          rootFlowId: originFlowId,
+                          originType: 'share_import',
                         ),
                       );
 
@@ -921,6 +1084,13 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
                       if (flowId != null) {
                         final inboxRepo = InboxRepo(Supabase.instance.client);
                         await inboxRepo.markImported(share.shareId, isFlow: true);
+                        unawaited(_userEventsRepo.trackFlowImported(
+                          flowId: flowId,
+                          shareId: share.shareId,
+                          originType: 'share_import',
+                          originFlowId: originFlowId,
+                          scheduledStartIso: scheduledStartIso,
+                        ));
                         Navigator.pop<int>(context, flowId);
                       } else {
                         setState(() => _isWorking = false);
@@ -930,6 +1100,10 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Import failed: $e')),
                       );
+                      unawaited(_userEventsRepo.trackFlowImportFailed(
+                        shareId: widget.flowData.share?.shareId,
+                        error: e.toString(),
+                      ));
                       setState(() => _isWorking = false);
                     }
                   },

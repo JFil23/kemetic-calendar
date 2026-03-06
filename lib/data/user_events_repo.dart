@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../telemetry/telemetry.dart';
 
 const _kTable = 'user_events';
 
@@ -98,6 +99,42 @@ class UserEvent {
 class UserEventsRepo {
   UserEventsRepo(this._client);
   final SupabaseClient _client;
+  static bool? _telemetryEnabled;
+
+  bool get telemetryEnabled => _telemetryEnabled ?? true;
+
+  /// Refresh telemetry/personalization flags from the profile helper RPC.
+  static Future<void> refreshTelemetrySettings(SupabaseClient client) async {
+    try {
+      final resp = await client.rpc('get_my_telemetry_and_personalization');
+      Map<String, dynamic>? row;
+      if (resp is List && resp.isNotEmpty && resp.first is Map) {
+        row = Map<String, dynamic>.from(resp.first as Map);
+      } else if (resp is Map) {
+        row = Map<String, dynamic>.from(resp);
+      }
+      final tEnabled = row?['telemetry_enabled'];
+      if (tEnabled is bool) {
+        _telemetryEnabled = tEnabled;
+      }
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[UserEventsRepo] refreshTelemetrySettings error: $e');
+        debugPrint('$st');
+      }
+    }
+  }
+
+  static void setTelemetryEnabledForTesting(bool? enabled) {
+    _telemetryEnabled = enabled;
+  }
+  static const _allowedFeedbackTags = <String>{
+    'wrong_time',
+    'too_much',
+    'too_easy',
+    'irrelevant',
+    'great_fit',
+  };
 
   /// Returns true if end_date is null or today-or-later (UTC date-only).
   bool _isActiveByEndDateStr(String? endDateStr) {
@@ -222,7 +259,18 @@ class UserEventsRepo {
     try {
       final row = await _client.from(_kTable).update(patch).eq('id', id).select().single();
       _log('update ✓ id=$id');
-      return UserEvent.fromRow(row as Map<String, dynamic>);
+      final updated = UserEvent.fromRow(row as Map<String, dynamic>);
+      if (updated.flowLocalId != null && updated.flowLocalId! > 0) {
+        unawaited(track(
+          event: 'event_updated',
+          properties: {
+            'flow_id': updated.flowLocalId,
+            'event_id': id,
+            'v': kAppEventsSchemaVersion,
+          },
+        ));
+      }
+      return updated;
     } on PostgrestException catch (e) {
       _log('update ✗ ${e.code} ${e.message}');
       rethrow;
@@ -235,8 +283,26 @@ class UserEventsRepo {
   Future<void> delete(String id) async {
     _log('delete($id)');
     try {
-      await _client.from(_kTable).delete().eq('id', id);
+      final deleted = await _client
+          .from(_kTable)
+          .delete()
+          .eq('id', id)
+          .select('flow_local_id')
+          .maybeSingle();
+
       _log('delete ✓');
+
+      final flowId = (deleted?['flow_local_id'] as num?)?.toInt();
+      if (flowId != null && flowId > 0) {
+        unawaited(track(
+          event: 'event_deleted',
+          properties: {
+            'flow_id': flowId,
+            'event_id': id,
+            'v': kAppEventsSchemaVersion,
+          },
+        ));
+      }
     } on PostgrestException catch (e) {
       _log('delete ✗ ${e.code} ${e.message}');
       rethrow;
@@ -246,8 +312,27 @@ class UserEventsRepo {
   Future<void> deleteByClientId(String clientEventId) async {
     _log('deleteByClientId($clientEventId)');
     try {
-      await _client.from(_kTable).delete().eq('client_event_id', clientEventId);
+      final deleted = await _client
+          .from(_kTable)
+          .delete()
+          .eq('client_event_id', clientEventId)
+          .select('id, flow_local_id')
+          .maybeSingle();
+
       _log('deleteByClientId ✓');
+
+      final flowId = (deleted?['flow_local_id'] as num?)?.toInt();
+      final id = deleted?['id'] as String?;
+      if (flowId != null && flowId > 0 && id != null) {
+        unawaited(track(
+          event: 'event_deleted',
+          properties: {
+            'flow_id': flowId,
+            'event_id': id,
+            'v': kAppEventsSchemaVersion,
+          },
+        ));
+      }
     } on PostgrestException catch (e) {
       _log('deleteByClientId ✗ ${e.code} ${e.message}');
       rethrow;
@@ -374,6 +459,7 @@ class UserEventsRepo {
   /// Typed list for a quick sanity read.
   /// ✅ FIXED: Added clientEventId to return type
   Future<List<({
+  String? id,
   String? clientEventId,  // ✅ ADDED THIS LINE
   String title,
   String? detail,
@@ -426,6 +512,7 @@ class UserEventsRepo {
 
       return !expired; // Only return true if flow is active AND not expired
     }).map((row) => (
+    id: row['id'] as String?,
     clientEventId: row['client_event_id'] as String?,  // ✅ ADDED THIS LINE
     title: row['title'] as String,
     detail: row['detail'] as String?,
@@ -640,6 +727,7 @@ class UserEventsRepo {
     Map<String, dynamic>? properties,
     String source = 'client',
   }) async {
+    if (!telemetryEnabled) return;
     final user = _client.auth.currentUser;
     _log('track("$event")');
     try {
@@ -654,6 +742,119 @@ class UserEventsRepo {
       _log('track ✗ $e');
       // swallow—telemetry should not block UX
     }
+  }
+
+  Future<void> trackShareViewed({
+    required String shareId,
+    String? source,
+  }) async {
+    if (shareId.isEmpty) return;
+    await track(
+      event: 'share_viewed',
+      source: 'client',
+      properties: {
+        'v': kAppEventsSchemaVersion,
+        'share_id': shareId,
+        if (source != null && source.trim().isNotEmpty) 'source': source.trim(),
+      },
+    );
+  }
+
+  Future<void> trackFlowFeedback({
+    required int flowId,
+    required List<String> tags,
+    int? rating,
+    String? shareId,
+  }) async {
+    if (flowId <= 0) return;
+    final filteredTags = tags.where(_allowedFeedbackTags.contains).toSet().toList();
+    if (filteredTags.isEmpty) return;
+    final int? safeRating =
+        rating != null && rating >= 1 && rating <= 5 ? rating : null;
+
+    await track(
+      event: 'flow_feedback',
+      source: 'client',
+      properties: {
+        'v': kAppEventsSchemaVersion,
+        'flow_id': flowId,
+        'tags': filteredTags,
+        if (safeRating != null) 'rating': safeRating,
+        if (shareId != null && shareId.isNotEmpty) 'share_id': shareId,
+      },
+    );
+  }
+
+  Future<void> trackFlowImported({
+    required int flowId,
+    required String shareId,
+    String? originType,
+    int? originFlowId,
+    String? scheduledStartIso,
+  }) async {
+    if (flowId <= 0 || shareId.isEmpty) return;
+    await track(
+      event: 'flow_imported',
+      source: 'client',
+      properties: {
+        'v': kAppEventsSchemaVersion,
+        'flow_id': flowId,
+        'share_id': shareId,
+        if (originType != null && originType.trim().isNotEmpty)
+          'origin_type': originType.trim(),
+        if (originFlowId != null && originFlowId > 0)
+          'origin_flow_id': originFlowId,
+        if (scheduledStartIso != null && scheduledStartIso.isNotEmpty)
+          'scheduled_start': scheduledStartIso,
+      },
+    );
+  }
+
+  Future<void> trackFlowImportFailed({
+    String? shareId,
+    required String error,
+  }) async {
+    final safeError = error.length > 500 ? error.substring(0, 500) : error;
+    await track(
+      event: 'flow_import_failed',
+      source: 'client',
+      properties: {
+        'v': kAppEventsSchemaVersion,
+        if (shareId != null && shareId.isNotEmpty) 'share_id': shareId,
+        'error': safeError,
+      },
+    );
+  }
+
+  /// Record a completion for a flow-backed event via RPC.
+  /// completedOnDate should be the local date the event belongs to.
+  Future<void> recordEventCompletion({
+    required String clientEventId,
+    required int flowId,
+    required DateTime completedOnDate,
+    String source = 'day_view',
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+    final dateStr =
+        '${completedOnDate.year}-${completedOnDate.month.toString().padLeft(2, '0')}-${completedOnDate.day.toString().padLeft(2, '0')}';
+    await _client.rpc('record_event_completion', params: {
+      'p_client_event_id': clientEventId,
+      'p_flow_id': flowId,
+      'p_completed_on': dateStr,
+      'p_source': source,
+    });
+  }
+
+  /// Undo completion by deleting the row for this client_event_id.
+  Future<void> unrecordEventCompletion(String clientEventId) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+    await _client
+        .from('user_event_completions')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('client_event_id', clientEventId);
   }
 
   /// Upsert a flow (jsonb rules). Returns server id.
@@ -671,6 +872,11 @@ class UserEventsRepo {
     String? shareId,
     bool? isReminder,
     String? reminderUuid,
+    String? originType,
+    int? originFlowId,
+    String? originShareId,
+    String? originGenerationId,
+    int? rootFlowId,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -692,6 +898,30 @@ class UserEventsRepo {
     if (_isUuid(shareId)) payload['share_id'] = shareId;
     if (isReminder != null) payload['is_reminder'] = isReminder;
     if (_isUuid(reminderUuid)) payload['reminder_uuid'] = reminderUuid;
+    const allowedOriginTypes = {
+      'manual',
+      'ai',
+      'share_import',
+      'profile_import',
+      'fork',
+      'template',
+    };
+    if (originType != null &&
+        allowedOriginTypes.contains(originType.trim())) {
+      payload['origin_type'] = originType.trim();
+    }
+    if (originFlowId != null && originFlowId > 0) {
+      payload['origin_flow_id'] = originFlowId;
+    }
+    if (_isUuid(originShareId)) {
+      payload['origin_share_id'] = originShareId;
+    }
+    if (_isUuid(originGenerationId)) {
+      payload['origin_generation_id'] = originGenerationId;
+    }
+    if (rootFlowId != null && rootFlowId > 0) {
+      payload['root_flow_id'] = rootFlowId;
+    }
 
     try {
       if (id == null || id <= 0) {
@@ -717,6 +947,30 @@ class UserEventsRepo {
       rethrow;
     } catch (e, st) {
       _log('upsertFlow ✗ $e');
+      _log('$st');
+      rethrow;
+    }
+  }
+
+  Future<void> flowCommit({
+    required String generationId,
+    required int flowId,
+  }) async {
+    if (!_isUuid(generationId)) {
+      return;
+    }
+    try {
+      await _client.rpc('flow_commit', params: {
+        'p_generation_id': generationId,
+        'p_flow_id': flowId,
+      });
+      _log('flow_commit ✓ gen=$generationId flow=$flowId');
+    } on PostgrestException catch (e, st) {
+      _log('flow_commit ✗ ${e.code} ${e.message}');
+      _log('$st');
+      rethrow;
+    } catch (e, st) {
+      _log('flow_commit ✗ $e');
       _log('$st');
       rethrow;
     }

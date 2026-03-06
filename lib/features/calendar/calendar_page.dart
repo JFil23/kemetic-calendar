@@ -51,6 +51,7 @@ import '../../utils/event_cid_util.dart';
 import 'package:share_plus/share_plus.dart';
 import '../journal/journal_event_badge.dart';
 import '../journal/journal_swipe_layer.dart';
+import 'package:mobile/telemetry/telemetry.dart';
 
 typedef _QuickAddParse = ({
   DateTime date,
@@ -903,10 +904,36 @@ InputDecoration _darkInput(String label, {String? hint}) {
 }
 /* ───────────────────────── Ma’at Flows (templates registry) ───────────────────────── */
 
-class _MaatFlowDay {
+class _MaatFlowNoteSlot {
   final String title;
   final String? detail;
-  const _MaatFlowDay({required this.title, this.detail});
+  final TimeOfDay start;
+  final TimeOfDay end;
+  const _MaatFlowNoteSlot({
+    required this.title,
+    this.detail,
+    required this.start,
+    required this.end,
+  });
+}
+
+class _MaatFlowDay {
+  final List<_MaatFlowNoteSlot> notes;
+  _MaatFlowDay({required this.notes});
+
+  _MaatFlowDay.single({
+    required String title,
+    String? detail,
+    TimeOfDay start = const TimeOfDay(hour: 9, minute: 0),
+    TimeOfDay end = const TimeOfDay(hour: 10, minute: 0),
+  }) : notes = [
+          _MaatFlowNoteSlot(
+            title: title,
+            detail: detail,
+            start: start,
+            end: end,
+          ),
+        ];
 }
 
 class _MaatFlowTemplate {
@@ -915,7 +942,7 @@ class _MaatFlowTemplate {
   final String overview; // overview / description
   final List<_MaatFlowDay> days; // strictly length 10
   final Color color; // a nice default color
-  const _MaatFlowTemplate({
+  _MaatFlowTemplate({
     required this.key,
     required this.title,
     required this.overview,
@@ -925,7 +952,7 @@ class _MaatFlowTemplate {
 }
 
 /// First five flows you provided (10 days each). You can add more later.
-const List<_MaatFlowTemplate> kMaatFlowTemplates = [
+final List<_MaatFlowTemplate> kMaatFlowTemplates = [
   _MaatFlowTemplate(
     key: 'wealth-economy',
     title: 'Wealth & Economy',
@@ -933,52 +960,52 @@ const List<_MaatFlowTemplate> kMaatFlowTemplates = [
         'During the first decan we explore how Old Kingdom Egyptians thought about wealth, labour, trade and the cosmic order of Ma’at. Each entry begins with a question and then unfolds as if told by a Kemetic worker, artisan or family. These narratives paint vivid daily scenes based on primary and secondary sources—excavated texts, art and modern scholarship. Instead of modern astronomical notes, they focus on lived experiences: stretching ropes in a muddy field, scooping barley into baskets, tasting the sweet tang of fermenting beer, or lifting a copper adze. By stepping into their world we see how the values of Maʿat shaped choices and created balance—and we can almost smell the baking bread and hear the ring of chisels.',
     color: Color(0xFFFFC145),
     days: [
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 1 — How did the job market work in the Old Kingdom?',
         detail:
             '''The Old Kingdom did not lock people into fixed castes. A Kemetic family lived by the rhythm of the river. In summer the husband waded into his flooded fields, muddy water swirling around his ankles as he planted wheat; come drier months he sat in the shade carving a cedar handle or mending his wife’s loom; during the inundation he climbed scaffolding to set limestone blocks in the king’s tomb. Labour was seasonal and rotational, and those who built pyramids and temples during the floods were compensated in bread and beer. Skill was an offering to the cosmic whole rather than an identity: a fine cobbler gained respect and extra rations, not a private fortune. At night, by oil-lamp, he scratched his changing tasks and rations into a papyrus ledger, knowing that his versatility kept his household fed and maintained Maʿat.''',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 2 — What role did gold play in the Kemetic economy?',
         detail:
             '''Gold was considered the flesh of the gods. In the dim light of a shrine a carpenter could glimpse a statue’s gilded face glowing like sunrise; he bowed his head and inhaled incense before returning to his workshop and the smell of sawdust. Copper, on the other hand, was everyday: chisels, adzes, axes, saws, drills and fish-hooks were all made from copper. A Kemetic artisan seldom held raw gold; his callused hands gripped copper chisels as he carved limestone and wood, the metal warm from his touch. For ordinary people gold was not money but sacred brilliance; it adorned amulets and burial goods and signified the gods’ skin. In the marketplace, value was measured in grain and labour; the glow of gold inspired reverence, not commerce.''',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 3 — How was grain used as currency?',
         detail:
             '''Cereal crops were the bedrock of the Old Kingdom economy. Wheat and barley fed households and fermented into beer; they were also the primary medium of exchange and the basis of wages. Workers received rations of bread and beer in return for their labour. Taxes were assessed in grain, and surplus stored in state granaries functioned like a bank account. A Kemetic farmer poured scoops of grain into a woven basket, listening to the rustle as his wife counted handfuls; he filled jars for levies and set aside sacks for sandals, oil or pottery. He tested the kernels between his teeth and tapped his clay silo walls to check for damp. Grain was both sustenance and savings; a cracked bin could mean hunger in the dry season.''',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 4 — Was wealth about hoarding or balance?',
         detail:
             '''Kemetic wealth was measured not by accumulation but by harmony. Too much hoarded grain was an imbalance against Ma’at; temples and the state held surplus to redistribute during famine or festivals. Households kept enough to feed their members and offer to the gods, trusting that reciprocity would provide security. In the stillness of evening a farmer might open his granary door and listen to the soft whisper of grain; he would glance at a neighbour’s nearly empty bin and carry over a basketful, knowing they would help when his canal wall burst. Shared labour on royal projects built not just monuments but social credit; a man who spent days hauling stone could expect assistance when floods failed. Wealth, to him, was a web of obligations and mutual care—not the number of baskets in his storehouse.''',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 5 — How did barter trade function?',
         detail:
             '''Without coinage, Egyptians relied on barter. Wheat, barley and oil were common trade goods. On market day the air smelled of onions, fish and wet earth; donkey carts jostled as people haggled. A farmer might spread grain on a reed mat to swap for a potter’s jar, a potter might trade his jars for sandals, and a sandal-maker might swap footwear for beer. Scribes in linen kilts recorded these exchanges in temple ledgers, watching for fairness. The ability to bargain honestly was a practical expression of Ma’at: exaggeration disrupted cosmic order. A Kemetic woman balancing a basket of leeks on her head gauged the weight of a clay jug in her hands before measuring out barley. Fair dealing built trust that extended beyond the transaction into festival feasts and flood season repairs.''',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 6 — What were copper tools used for?',
         detail:
             '''Copper was the workhorse metal of the Old Kingdom. Archaeometallurgical studies reveal a toolkit of chisels, adzes, axes, saws, drills, cosmetic spatulas, weaving needles, leather-working awls, fish-hooks and harpoons. Copper was smelted from malachite and chalcopyrite and sometimes alloyed with arsenic to make it harder. These tools built homes, carved hieroglyphs and prepared food. In the workshop a carpenter felt the weight of his copper adze bite into a beam as wood shavings curled at his feet; his wife warmed a copper needle in her lap while weaving linen; their son’s bare feet gripped the riverbank as he cast a gleaming hook into the water. While craftspeople shaped copper, gold sat behind locked doors in temples and tombs. Tools were the backbone of the earthly realm, just as the goddess Nut’s body supported the heavens.''',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 7 — How were wages paid in bread and beer?',
         detail:
             '''State labourers were not paid in coins but in rations. Workers on pyramid projects received daily allocations of bread, beer, onions and sometimes meat. Beer, brewed from barley and lightly fermented, was safer than raw water and calorically dense. Brew houses were often run by women, giving them a role in the economy. In the afternoon heat men lined up outside a granary while scribes scooped loaves and filled clay jars with frothy beer; the workers wiped sweat from their faces as they took their rations. A Kemetic man hefted sacks of bread and jars of beer over his shoulder and trudged home along the canal. His wife might have spent the day stirring bubbling mash in clay vats, the yeasty smell filling their yard, turning grain into a drink that nourished the whole household. Wages were eaten and drunk; rations fed bodies and fuelled gratitude toward the state and the gods.''',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 8 — How did Ma’at shape economic behaviour?',
         detail:
             '''Maʿat governed honesty in trade and fairness in distribution. In the marketplace a farmer set down his basket and swore an oath over the balance and cubit rod before measuring barley; a scribe watched his hands and recorded the weight with care. Greed and hoarding were considered forms of isfet (chaos), inviting divine retribution. When a canal wall cracked, neighbours came with baskets of mud and willow poles without being asked; helping repair it was both obligation and insurance for the future. A Kemetic merchant might refuse a customer who tried to tip his scale, knowing that false measures offended the gods and the community alike. A woman pressing an extra loaf into a widow’s hands believed she was protecting her own family’s future, because Maʿat was reciprocal: what you gave returned in time of need.''',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 9 — How did temple redistribution support society?',
         detail:
             '''Temples were economic hubs. They collected taxes in grain and produce, stored them in massive granaries, and redistributed food and resources to priests, workers and those in need. Festivals such as the Opet celebration consumed large portions of these stores, feeding entire communities. In return, people donated goods and labour to the temples. On feast days a Kemetic family donned clean linen and walked to the temple carrying a basket of barley and a jug of beer; the children’s eyes widened at the towering granary bins. Inside, priests and scribes scooped out rations with large wooden ladles, and the smell of roasting goose and freshly baked bread hung in the air. When the barque of Amun sailed during Opet, temple granaries opened and everyone—rich or poor—ate together on mats spread under date palms. Redistribution was not charity; it was the embodied law of Maʿat, and the family knew their offerings would come back to them in rations, festival feasts or relief during a famine.''',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 10 — How were artisans rewarded?',
         detail:
             '''Artisans produced stone vessels, jewellery, statuary and textiles. Payment came in rations and in honour: names of outstanding builders and carvers were sometimes inscribed in tombs or recorded by scribes. Reputation could lead to better living quarters or increased grain allocations. No one amassed private fortunes; instead, skill earned social credit that endured into the afterlife when descendants recited their names at offering tables. In his workshop a Kemetic sculptor sat cross-legged on the floor, chisel tapping stone as sunlight slanted through the doorway. He paused to wipe dust from his face and considered the divine face he carved. At supper he returned home with bread, beer and onions; neighbours stopped by to admire a small figurine he brought for his wife. His children listened wide-eyed as others praised his hands. That praise was its own reward, ensuring his name would live when his body did not.''',
@@ -993,52 +1020,52 @@ const List<_MaatFlowTemplate> kMaatFlowTemplates = [
         'This decan immerses us in the intimate world of Old Kingdom households. We step into mud‑brick courtyards where couples share bread, watch toddlers learn to walk and negotiate the practical and spiritual bonds of marriage. Marriage was not a grand public rite but a personal contract; divorce was possible; property could be held by either spouse. Families honoured elders and tended ancestors; respect for parents was fundamental. Through these ten entries we witness a wife balancing grain accounts, a husband building a new room for his growing family and a grandmother teaching grandchildren the correct way to pour a libation. Maʿat binds the home just as it binds the cosmos.',
     color: Color(0xFF55DDE0), // teal
     days: [
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 1 — What did a Kemetic marriage look like?',
         detail:
             'For a Kemetic couple, marriage began when they chose to live together. There was no state ceremony; rather, they moved into a house and pooled resources. Young men and women were free to seek partners, and premarital intimacy was accepted. A farmer brings his betrothed a gift of linen and bread, and together they smear fresh mud onto the walls of their shared home. Friends joke and help them carry mats, while elders bless them with advice about patience and reciprocity. This everyday act of cohabitation was both practical and sacred, aligning their household with Maʿat.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 2 — How did couples decide to marry?',
         detail:
             'Choosing a spouse was pragmatic and affectionate. Parents might introduce potential partners, but adolescents had a say. A young woman in the weaving room whispers to her friend about the carpenter’s steady hands and shares a honey cake he brought to her mother. Later she watches him harvest barley; she imagines his ability to farm during flood season and craft tools in the dry months. Affection was expressed through gifts and shared labour rather than formal courtship. Marriage happened when two people decided that their lives fit together and that their combined efforts would sustain their family.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 3 — What were the roles of parents and children?',
         detail:
             'Kemetic families were nuclear units nested within extended kin. Parents nurtured and provided; children respected elders and learned by watching. The eldest son or daughter was expected to care for ageing parents and ensure proper burials. A daughter helps her father prepare a funerary stela for his own mother, carefully painting hieroglyphs as he tells her stories of their ancestors. The son sits nearby grinding grain, knowing he will inherit his father’s tools and obligations. Respect flowed both ways: parents instructed with patience, and children offered obedience because Maʿat required harmony between generations.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 4 — How did spouses manage property?',
         detail:
             'Property rights in marriage were clearly defined. Each spouse retained ownership of what they brought to the union, and joint property could be used by the husband but still belonged to both. A wife might own a field inherited from her mother; her husband might own tools. Together they planted wheat in her field, and he built her a storage bin. When they measured the harvest, she recorded her share on a clay tablet, confident that if he died or they separated she would retain her land. The clarity of these arrangements ensured that love coexisted with legal autonomy.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 5 — How did divorce work in Kemet?',
         detail:
             'Either partner could initiate divorce. If a marriage faltered—perhaps due to infidelity or incompatibility—property was divided: each spouse left with what they had brought plus a share of jointly acquired goods. A woman sits with a scribe at the town gate, dictating a list of items to take from her former home: a mirror, two baskets of barley, a goat. Her ex‑husband watches silently, understanding that she has the right to leave. There is no social stigma; neighbours still greet her warmly. Divorce was a practical solution, not a moral failing.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 6 — What did love and affection look like?',
         detail:
             'Love poetry and erotic imagery show that Kemetic couples were affectionate. Husbands expressed desire in letters; wives reciprocated with teasing songs. A potter returns from market with a string of blue faience beads for his wife. They sit together on the roof at twilight, feet dangling, sharing beer and roasted onions. He quotes a line from a love poem comparing her to a lotus; she laughs and hands him a fig. Affection was woven into daily chores and quiet moments; romance did not require lavish gestures.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 7 — How were households organized?',
         detail:
             'Ideally, married couples lived in their own house, though extended family might share walls. Homes were built of mud‑brick, with a central room for cooking and sleeping and a flat roof for work and relaxation. In Deir el‑Medina the front room often served as a birthing space; midwives and female relatives gathered there to support labouring women. Our couple adds a second level when their family grows, stacking bricks in the cool morning hours while children chase goats. Household organization was practical and flexible, adapting to seasons and life stages.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 8 — How were births and child-rearing celebrated?',
         detail:
             'Children were blessings and responsibilities. Births took place at home with female relatives, midwives and the goddess Taweret invoked for protection. After a baby’s arrival, neighbours brought bread and beads; the mother rested on woven mats and drank barley beer to regain strength. Fathers registered the child’s name with a scribe and thanked their ancestors at the household shrine. Older children learned to recite ancestor names and help with chores. Raising children was a communal act that reinforced family cohesion and continuity.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 9 — How were marriages celebrated?',
         detail:
             'There were no elaborate weddings. Friends and family acknowledged the union with small gifts and shared meals. The groom gave presents to his bride and her family—perhaps linen, jewellery or labour. Neighbours bring baskets of vegetables, beer and small amulets; musicians beat drums as the couple sprinkles natron and incense on their doorway. The simple exchange of gifts and the couple’s declaration were enough to sanctify the partnership. Community recognition mattered more than formal ritual.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 10 — How did Maʿat shape family life?',
         detail:
             'Maʿat required balance and reciprocity in the home. Husbands and wives shared labour and decision‑making; respect for parents ensured continuity; generosity toward neighbours built social safety nets. A father teaching his son to plough tells him that a straight furrow is like an honest word: both align with Maʿat. A mother dividing loaves reminds her daughters that fairness keeps chaos away. Families who upheld these values believed their names would be remembered and their spirits sustained in the afterlife. Harmony within the household mirrored cosmic order.',
@@ -1053,43 +1080,43 @@ const List<_MaatFlowTemplate> kMaatFlowTemplates = [
         'Women in Old Kingdom Kemet enjoyed legal autonomy and social influence... Maʿat empowered them to act justly.',
     color: Color(0xFFE85DFF), // magenta
     days: [
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 1 — What legal rights did women have?',
         detail: 'From the earliest Old Kingdom records...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 2 — Could women own land and run businesses?',
         detail: 'Yes. Women owned about ten percent of farmland...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 3 — What roles did women play in agriculture and craft?',
         detail: 'Women worked alongside men...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 4 — Were women part of the priesthood?',
         detail: 'Noblewomen served as priestesses...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 5 — How did marriage affect women’s property?',
         detail: 'Marriage did not erase a woman’s ownership...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 6 — Could women take legal action in court?',
         detail: 'Women could and did initiate lawsuits...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 7 — How did daughters inherit and transmit property?',
         detail: 'Property could pass through the female line...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 8 — How did women contribute beyond the home?',
         detail: 'Women brewed beer, sold goods and practiced midwifery...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 9 — Were there female scribes or doctors?',
         detail: 'While rare, women could become scribes or physicians...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 10 — How did Maʿat shape female identity?',
         detail:
             'Women embodied Maʿat through fairness and ritual cleanliness...',
@@ -1104,43 +1131,43 @@ const List<_MaatFlowTemplate> kMaatFlowTemplates = [
         'Craftsmanship in Kemet was both physical labour and spiritual service... These entries explore the rhythm of work and pride.',
     color: Color(0xFF7C5CFF), // violet
     days: [
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 1 — What was a day like for a tomb builder?',
         detail: 'At dawn a Kemetic mason... the work was sacred.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 2 — How were artisans organized and paid?',
         detail: 'Artisans were organized into crews...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 3 — What did craft specialisation mean?',
         detail: 'Many developed specialised skills...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 4 — How did families participate in craft production?',
         detail: 'Craft was often a family affair...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 5 — What roles did scribes and overseers play?',
         detail: 'Scribes recorded wages and materials...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 6 — How did craftsmen maintain Maʿat in their work?',
         detail: 'Maʿat required precision and honesty...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 7 — What was life like in Deir el-Medina?',
         detail: 'A planned village, tight-knit community...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 8 — How were goods exchanged among craftsmen?',
         detail: 'Workers bartered goods and services...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 9 — Were there labour disputes?',
         detail: 'Yes, seeds of collective action were present...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 10 — How did Maʿat guide craftsmanship?',
         detail: 'Craftsmanship was a form of devotion...',
       ),
@@ -1154,43 +1181,43 @@ const List<_MaatFlowTemplate> kMaatFlowTemplates = [
         'Food connected Kemetic households to the earth, the gods and each other... smell the bread baking and taste the beer.',
     color: Color(0xFF41A5EE), // sky
     days: [
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 1 — What was the Kemetic staple diet?',
         detail: 'Bread, beer and vegetables formed the core...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 2 — How was bread made and consumed?',
         detail: 'Bread came in many shapes...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 3 — What role did beer play?',
         detail: 'Beer was brewed by fermenting bread and barley...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 4 — What vegetables and fruits were cultivated?',
         detail: 'Onions, leeks, garlic, figs, dates...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 5 — Was meat common?',
         detail: 'Meat was rare; fish and legumes were common...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 6 — What were communal feasts like?',
         detail: 'Festivals redistributed meat, beer and bread...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 7 — How was food stored and preserved?',
         detail: 'Grain silos, drying, sealed jars...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 8 — What sweet treats were enjoyed?',
         detail: 'Honey, dates and figs...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 9 — How did Maʿat influence food sharing?',
         detail: 'Generosity and hospitality embodied Maʿat...',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 10 — What other drinks existed besides beer?',
         detail: 'Wine for the wealthy, palm wine, herbal infusions...',
       ),
@@ -1199,7 +1226,7 @@ const List<_MaatFlowTemplate> kMaatFlowTemplates = [
 ];
 
 /// Medu Neter category.
-const List<_MaatFlowTemplate> kMaatFlowTemplatesMeduNeter = [
+final List<_MaatFlowTemplate> kMaatFlowTemplatesMeduNeter = [
   _MaatFlowTemplate(
     key: 'haw-ten-layers',
     title: 'ḥꜣw Series: Ten Layers of Time\'s Presence',
@@ -1207,55 +1234,248 @@ const List<_MaatFlowTemplate> kMaatFlowTemplatesMeduNeter = [
         'A 10-day exploration of ḥꜣw—a Kemetic word that holds meanings of moment, lifetime, environment, and belongings. Each day pairs scholarship with a reflection practice.',
     color: Color(0xFF6AD19B), // greenish accent
     days: [
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 1 — The Kemetic Quantum: One Word, Many Worlds',
         detail:
             'Kemetic scribes worked in a worldview where language didn’t aim for a single, fixed definition. Instead, words carried layers. One root could express time, place, state, and relationship—because the world itself was understood as woven, not separate.\n\nThis is the quantum of ancient thought: that one symbol could radiate several truths at once. A falcon could mean sight, protection, kingship, horizon. A single hieroglyph could lean toward the Netjeru—the diverse expressions of divine order—or toward the rhythms of daily life.\n\nThe word ḥꜣw, written with the twisted-wick ḥ-sign, the vulture ꜣ, and the quail chick w, appears in inscriptions to mark a moment, a reign, a neighborhood, a circumstance. One word, many domains.\n\nPractice:\nChoose an everyday object—a cup, a door, a shadow—and write three meanings it could hold at once. Let your mind expand when you stop forcing one truth.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 2 — Djehuty: He Who Reckons Time',
         detail:
             'Among the Netjeru, Djehuty embodies measurement, writing, calculation, and renewal. Scribes invoked him as He Who Reckons Time, the one who keeps cycles aligned with the moon’s rhythm and the solar year.\n\nIn tombs such as Senenmut’s at Deir el-Bahri, astronomical ceilings show decans, lunar phases, and star tables—all realms where Djehuty’s influence was felt. He was not a distant figure but a principle of intelligent order, the inner mathematics of the cosmos.\n\nTo the scribes, timing was never merely mechanical—when you acted shaped what you became. Djehuty’s presence reminded them that a single skill could serve many roles: writing as creation, healing, connection, and harmonizing with Ma’at.\n\nPractice:\nName one talent you have. List three ways it functions in your life. Reflect on how one ability can carry many identities.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 3 — Time Worn as Masks: Deities of the Calendar',
         detail:
             'In Kemet, time moved through divine rhythms. Each month carried the name of a festival, many dedicated to the Netjeru: the Month of Tekh (associated with Djehuty), the Month of Pa-en-Ipet (linked to Opet rites), and others.\n\nTemple calendars at Dendera and Edfu inscribed these cycles, making the year a procession of sacred qualities. A month wasn’t an empty box of days—it was an invitation. Time itself wore masks, each guiding mood, labor, and ritual.\n\nRoyal records in Urkunden IV often date events by these months, embedding history within sacred rhythm.\n\nPractice:\nName your next seven days after qualities or Netjeru aspects. Journal how each name influences the way you meet your day.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 4 — ḥꜣw as Moment: The Instant That Anchors Events',
         detail:
             'One of the oldest meanings of ḥꜣw is the simple, potent “at the time of.” In inscriptions such as Urk. IV 969 and Cairo 20061, phrases like m-ḥꜣw mark the moment an event unfolds, or describe a reigning king as imi-ḥꜣw.f—“the one who is in his (appointed) time.”\n\nA moment in Kemet was not a neutral tick of a clock—it was a placement, a charged intersection of action and cosmic rhythm.\n\nPractice:\nPause once today and journal: What is the quality of this moment? What small action honors it?\n\nAttested Text (Urkunden IV 969 — Royal Annals):\nTransliteration:\nm-ḥꜣw nsw-bity ḫpr-kꜣ-Rꜥ …\nEnglish:\n“At the time of the King of Upper and Lower Egypt, Kheper-ka-Ra…”\nContext: Used to date events by the reigning king’s moment in time.\n\nAttested Text (Cairo CG 20061 — Royal Stela):\nTransliteration:\n… imi-ḥꜣw.f …\nEnglish:\n“… he who is in his (appointed) time.”\nContext: A title describing the king’s rightful presence within his destined moment.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 5 — ḥꜣw as Lifetime: The Arc of a Life',
         detail:
             'In texts like British Museum Papyrus BM 614, ḥꜣw refers to a lifetime—the full span of a person’s earthly journey. In royal inscriptions, it can mark the reign of a ruler, weaving personal epochs into cosmic cycles.\n\nLife was a bend in the Nile: carrying what came before, nourishing the present, flowing into what comes after.\n\nPractice:\nJournal your life as a river. Mark three major bends—turns that shaped who you are now.\n\nAttested Text (BM Papyrus 614, line 14 — Funerary Papyrus):\nTransliteration:\n… ḥꜣw n ḥm.t nṯr …\nEnglish:\n“… the lifetime of the divine woman …”\nContext: Refers to the full span of a woman’s earthly life.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 6 — ḥꜣw as Presence: Being in One’s Time',
         detail:
             'When ḥꜣw appears in duty rosters and autobiographies, it often means being in the right moment—present, aligned, in one’s ḥꜣw. Priests in Siut inscriptions are described this way: awake to their role, standing in the moment meant for them.\n\nPresence, in this view, is a sacred alignment—a way of tuning oneself to Ma’at.\n\nPractice:\nSit for one minute and journal what you notice when you give full attention to a single sense.\n\nAttested Text (Siut Tomb Inscriptions — Priest Duty Roster):\nTransliteration:\nḥm-kꜣ ḥr imi-ḥꜣw.f m pr-ḫrw …\nEnglish:\n“The ka-servant who is in his time in the offering-house…”\nContext: A priest performing his ritual duties in the correct, appointed moment.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 7 — ḥꜣw as Neighborhood: The Near Circle',
         detail:
             'ḥꜣw also describes the neighborhood—the lived surroundings shaping one’s relationships. Egyptians saw community as an extension of self; proximity formed obligation and meaning.\n\nIn the Peasant’s Tale, ḥꜣw appears in disputes over possessions and local ties. In geographic inscriptions, it marks vicinity or nearness.\n\nPractice:\nJournal the names of three people whose presence shapes your daily world. Reflect on what each brings into your “near circle.”\n\nAttested Text (Hammamat 114,8 — Expedition Inscription):\nTransliteration:\nwḏ mdw m-ḥꜣw-ḥr st …\nEnglish:\n“… issuing the order in front of the place …”\nContext: Uses the ḥꜣw-root to mark spatial relation (in front of / before).\n\nAttested Text (Lesko 98,21 — Ritual / Divine Movement):\nTransliteration:\njr nṯr pn m ḥꜣw.f …\nEnglish:\n“When this god is in his vicinity …”\nContext: Uses ḥꜣw to describe nearness or presence within one’s spatial circle.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 8 — ḥꜣw as Environment: The World That Holds You',
         detail:
             'From “neighborhood,” ḥꜣw naturally expands into environment—the broader setting in which a life unfolds. Egyptians mapped closeness, distance, and relation with subtlety, expressing nearness through this same root.\n\nEarthly environments mirrored cosmic ones; landscapes were reflections of order.\n\nPractice:\nLook around your current environment. Journal one detail that feels symbolic of your inner state.\n\nAttested Text (Urkunden IV 584 — Geographic Description):\nTransliteration:\nr-ḥꜣw …\nEnglish:\n“near.”\nContext: Used to describe the area near a landmark or spatial feature.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 9 — ḥꜣw as Belongings: The Objects That Travel With You',
         detail:
             'In the Eloquent Peasant, ḥꜣw describes belongings—the items that accompany a person’s identity, responsibilities, and fate. What one carries is part of one’s story.\n\nEgyptian texts often treat personal goods as extensions of the ka, the vital essence that travels with and through a person.\n\nPractice:\nChoose one object you keep close. Journal what story it holds for you.\n\nAttested Text (Eloquent Peasant B1,105 — Narrative Tale):\nTransliteration:\nẖr ḥꜣw.i r ḫrp.k …\nEnglish:\n“As for my belongings, they are under your authority…”\nContext: The peasant appeals for the protection of his property.\n\nAttested Text (Eloquent Peasant B1,135 — Narrative Tale):\nTransliteration:\njr wnn ḥꜣw pn …\nEnglish:\n“If this circumstance exists…”\nContext: Part of a logical argument describing conditions in a legal plea.',
       ),
-      _MaatFlowDay(
+      _MaatFlowDay.single(
         title: 'Day 10 — ḥꜣw as Affairs: The Interwoven Dance of Life Events',
         detail:
             'Finally, ḥꜣw appears as affairs, circumstances, matters—the web of unfolding situations in which one acts. Egyptians saw events as connected threads rather than isolated points.\n\nYour affairs, like your moments and belongings, are part of the weave of your life.\n\nPractice:\nReview your journal from this series. Identify one situation in your life where time, place, people, and objects all intersect. Write what wisdom appears when you see the whole pattern.\n\nAttested Text (Eloquent Peasant B1,262 — Narrative Tale):\nTransliteration:\njw ḥꜣw pn nfr n jryt …\nEnglish:\n“This affair is good to be done…”\nContext: Used to judge the goodness or propriety of an action within a larger situation.',
+      ),
+    ],
+  ),
+];
+
+/// Economy category.
+final List<_MaatFlowTemplate> kMaatFlowTemplatesEconomy = [
+  _MaatFlowTemplate(
+    key: 'dollarism-maat',
+    title: 'Dollarism vs Ma\'at — Order, Sovereignty, and the Architecture of Balance',
+    overview:
+        'A 10-day look at dollarism through Kemetic balance: circulation versus extraction, fragmentation versus cohesion, and how invisible power shapes sovereignty. Each day pairs a primary note with an evening reflection.',
+    color: Color(0xFFAF7E52), // bronze tone
+    days: [
+      _MaatFlowDay(
+        notes: const [
+          _MaatFlowNoteSlot(
+            title: 'Day 1 — When Power Became Invisible',
+            detail:
+                '''When Malcolm X traveled across Africa in 1964, he observed that colonial domination had not ended — it had changed form.\n\n"The modern 20th century weapon of neo-imperialism is dollarism."\n\nColonialism once required visible force. Dollarism requires structural positioning.\n\nThe method:\n- Enter through aid.\n- Stabilize through loans.\n- Influence through advisory systems.\n- Bind through economic indispensability.\n\nThis is not conquest of land. It is conquest of dependency.\n\nIn Kemetic terms, this is not frontal isfet (chaos through violence). It is subtle isfet (imbalance through asymmetry).\n\nMa’at is not merely moral truth. It is structural equilibrium.\n\nWhen a society’s survival is anchored externally, its internal equilibrium shifts.\n\nThe throne may remain. The balance tilts.''',
+            start: const TimeOfDay(hour: 10, minute: 0),
+            end: const TimeOfDay(hour: 10, minute: 30),
+          ),
+          _MaatFlowNoteSlot(
+            title: 'Reflection — Day 1',
+            detail:
+                'Is power more dangerous when visible — or when embedded?\n\nHow does imbalance manifest when it does not announce itself?\n\nWhere in a system can dependency hide beneath cooperation?',
+            start: const TimeOfDay(hour: 19, minute: 0),
+            end: const TimeOfDay(hour: 19, minute: 30),
+          ),
+        ],
+      ),
+      _MaatFlowDay(
+        notes: const [
+          _MaatFlowNoteSlot(
+            title: 'Day 2 — Sovereignty as Energy Circulation',
+            detail:
+                '''Ma’at is circulation.\n\nThe Nile floods. The land yields grain. Grain fills storehouses. Storehouses redistribute.\n\nThe system breathes.\n\nPolitical sovereignty without economic circulation is symbolic.\n\nDollarism interrupts circulation by redirecting surplus outward before internal stabilization completes.\n\nInterest payments precede redistribution. Extraction precedes equilibrium.\n\nCosmologically, Ma’at represents alignment between heaven, earth, and society.\n\nWhen economic architecture becomes externally anchored, circulation distorts.\n\nImbalance at the economic level becomes imbalance at the cultural level.\n\nDependency is not only financial.\n\nIt is energetic.''',
+            start: const TimeOfDay(hour: 10, minute: 0),
+            end: const TimeOfDay(hour: 10, minute: 30),
+          ),
+          _MaatFlowNoteSlot(
+            title: 'Reflection — Day 2',
+            detail:
+                'What happens when circulation is interrupted?\n\nCan a civilization remain spiritually aligned if its economic energy exits before replenishment?',
+            start: const TimeOfDay(hour: 19, minute: 0),
+            end: const TimeOfDay(hour: 19, minute: 30),
+          ),
+        ],
+      ),
+      _MaatFlowDay(
+        notes: const [
+          _MaatFlowNoteSlot(
+            title: 'Day 3 — Fragmentation and the Geography of Weakness',
+            detail:
+                '''Ma’at unifies opposites.\n\nUpper and Lower Egypt were bound under a single crown.\n\nDivision was not diversity. It was vulnerability.\n\nDollarism thrives on competitive fragmentation.\n\nWhen regions compete for:\n- Financing\n- Trade access\n- Strategic favor\n\nthey weaken their collective negotiating structure.\n\nThis mirrors the Second Intermediate Period.\n\nAs central cohesion weakened, peripheral autonomy increased.\n\nBut before fragmentation fully surfaced, something else occurred.\n\nWho were the Hyksos? Hyksos were Western Asiatic peoples, likely from Canaan and surrounding Levantine regions. Archaeological evidence from Tell el-Dab’a shows gradual Levantine settlement in the Nile Delta during the late Middle Kingdom.\n\nThey did not arrive as a single invading army. They arrived over time:\n- Traders\n- Pastoral groups\n- Artisans\n- Possibly refugees from instability in Canaan\n- Nomadic or semi-nomadic peoples integrating into Delta settlements\n\nMa’at did not forbid foreigners.\n\nKemet historically absorbed:\n- Nubians\n- Levantine traders\n- Mercenaries\n- Skilled migrants\n\nMa’at encouraged order through integration — not isolation. Foreign settlement itself was not isfet. Imbalance arose later.\n\nOver time, Levantine communities consolidated power in the Delta. They fortified cities. They maintained external trade connections. They developed military systems suited to mobility.\n\nThe geography of the Delta made this possible. Flat, fertile, porous — open to Mediterranean routes and Levantine caravans.\n\nWhen central authority weakened, the Delta became a semi-autonomous gateway. The geometry shifted from unified axis to scattered nodes. Scattered nodes invite leverage.\n\nIn cosmological terms, Ma’at is symmetry. Isfet is distortion. Fragmentation distorts symmetry.''',
+            start: const TimeOfDay(hour: 10, minute: 0),
+            end: const TimeOfDay(hour: 10, minute: 30),
+          ),
+          _MaatFlowNoteSlot(
+            title: 'Reflection — Day 3',
+            detail:
+                'When does hospitality become strategic vulnerability?\n\nHow does geography influence sovereignty?\n\nCan openness remain aligned with Ma’at without surrendering structural control?',
+            start: const TimeOfDay(hour: 19, minute: 0),
+            end: const TimeOfDay(hour: 19, minute: 30),
+          ),
+        ],
+      ),
+      _MaatFlowDay(
+        notes: const [
+          _MaatFlowNoteSlot(
+            title: 'Day 4 — The Artery Before the Throne',
+            detail:
+                '''Hyksos did not first seize the throne. They embedded within the Nile Delta.\n\nArchaeological images of Tell el-Dab’a and Delta fortifications show this embedding.\n\nThe Delta was not merely fertile land. It was the hinge between Africa and the Levant.\n\nThrough it moved:\n- Maritime trade across the Mediterranean\n- Caravan routes into Canaan\n- Cedar timber from Lebanon\n- Tin and bronze from Anatolia\n- Horses and military innovations\n\nThe Nile Valley narrows in Upper Egypt — defensible, linear, unified. The Delta spreads outward — open, branching, porous.\n\nThe Kemites expanded differently. Their expansion was connective:\n- Mastery of the Nile’s flood cycle\n- Canal systems\n- Agricultural synchronization\n- Temple redistribution networks\n- Diplomatic trade missions\n\nThey connected the land through Ma’at. They mastered the flow of water, grain, and labor.\n\nThe Hyksos developed differently. They concentrated control:\n- Fortified Avaris\n- Secured metal supply chains\n- Industrialized weapon production\n- Integrated chariot warfare\n\nThe Kemetic model: integration through balance. The Hyksos model: control through concentration.\n\nControl of the artery precedes control of sovereignty.\n\nDollarism mirrors this logic:\n\nControl the financial artery. Control credit flows. Control denominated trade. Control infrastructure capital.\n\nThe throne may remain symbolically independent. But the artery defines survival.\n\nIn Kemetic cosmology, the heart regulates the body. If the heart is externally regulated, life is externally regulated.''',
+            start: const TimeOfDay(hour: 10, minute: 0),
+            end: const TimeOfDay(hour: 10, minute: 30),
+          ),
+          _MaatFlowNoteSlot(
+            title: 'Reflection — Day 4',
+            detail:
+                'What distinguishes connection from control?\n\nHow does infrastructure shift from integration to leverage?',
+            start: const TimeOfDay(hour: 19, minute: 0),
+            end: const TimeOfDay(hour: 19, minute: 30),
+          ),
+        ],
+      ),
+      _MaatFlowDay(
+        notes: const [
+          _MaatFlowNoteSlot(
+            title: 'Day 5 — Invention vs Weaponized Coordination',
+            detail:
+                '''Kemet did not lack knowledge.\n\nIts Middle Kingdom economy was deeply sophisticated:\n- State-managed grain taxation\n- Central storehouses\n- Irrigation engineering\n- Labor mobilization for public works\n- Diplomatic trade treaties\n- Temple treasuries\n\nEconomic collapse was described as cosmic disorder. Economic order was sacred order.\n\nThe Kemetic system created predictable surplus, stable storage, organized labor, and trade routes. These very systems created the logistical foundation later used by Hyksos rulers.\n\nBronze entered through trade networks Kemet cultivated. Agricultural surplus sustained northern settlements. Administrative structures stabilized Delta life long before Hyksos consolidation.\n\nThey did not invent wealth. They inherited and redirected it.\n\nHyksos military systems emphasized:\n- Standardized bronze production\n- Composite bows\n- Horse-drawn chariots\n\nThey coordinated.\n\nDollarism operates identically. It leverages existing infrastructure.\n\nMa’at generates systems. Isfet weaponizes systems. The difference is intention and structure.''',
+            start: const TimeOfDay(hour: 10, minute: 0),
+            end: const TimeOfDay(hour: 10, minute: 30),
+          ),
+          _MaatFlowNoteSlot(
+            title: 'Reflection — Day 5',
+            detail:
+                'How can a civilization’s strengths become the infrastructure of its vulnerability?\n\nWhat safeguards prevent stability from being redirected?',
+            start: const TimeOfDay(hour: 19, minute: 0),
+            end: const TimeOfDay(hour: 19, minute: 30),
+          ),
+        ],
+      ),
+      _MaatFlowDay(
+        notes: const [
+          _MaatFlowNoteSlot(
+            title: 'Day 6 — Central Weakness and Peripheral Ascendancy',
+            detail:
+                '''By the Second Intermediate Period:\n- Central authority fractured.\n- Provincial leaders rose.\n- Administrative coherence weakened.\n\nTwo thrones emerged. The Hyksos consolidated the north. The Thebans held the south.\n\nImagine the atmosphere:\n- Taxation still functioning — but allegiance divided.\n- Temples still performing ritual — but political command split.\n- Trade flowing — but loyalties uncertain.\n- Fortifications rising — but unity thinning.\n\nFracture does not always appear as collapse. It appears as parallel systems operating without integration.\n\nThe vulnerability was internal before it was external.\n\nDollarism enters where fiscal gaps exist. External capital fills structural deficiencies. Dependency becomes normalized when internal production cannot sustain growth.\n\nCosmologically, Ma’at requires the center to remain aligned. When the center weakens, the circumference expands unpredictably. Isfet begins at the axis.''',
+            start: const TimeOfDay(hour: 10, minute: 0),
+            end: const TimeOfDay(hour: 10, minute: 30),
+          ),
+          _MaatFlowNoteSlot(
+            title: 'Reflection — Day 6',
+            detail:
+                'What does slow fracture feel like within a civilization?\n\nHow does quiet division invite external leverage?',
+            start: const TimeOfDay(hour: 19, minute: 0),
+            end: const TimeOfDay(hour: 19, minute: 30),
+          ),
+        ],
+      ),
+      _MaatFlowDay(
+        notes: const [
+          _MaatFlowNoteSlot(
+            title: 'Day 7 — Circulation vs Extraction',
+            detail:
+                '''Ma’at circulates.\n\nGrain stored internally. Labor coordinated internally. Surplus redistributed internally.\n\nExtraction was external only after stability.\n\nIn the “Negative Confessions” of the Book of the Dead, the speaker declares:\n- "I have not diminished the grain measure."\n- "I have not stolen."\n\nEconomic ethics were sacred ethics. Isfet is distortion. Extraction without reciprocity is isfet.\n\nDollarism reverses sequence. Extraction often precedes stabilization:\n- Profit repatriation\n- Debt servicing\n- Trade imbalances\n\nThis alters energetic flow. A civilization that exports surplus before securing equilibrium destabilizes its foundation.\n\nCirculation preserves Ma’at. Premature extraction accelerates isfet.''',
+            start: const TimeOfDay(hour: 10, minute: 0),
+            end: const TimeOfDay(hour: 10, minute: 30),
+          ),
+          _MaatFlowNoteSlot(
+            title: 'Reflection — Day 7',
+            detail:
+                'When does exchange cross into imbalance?\n\nHow is proportionality maintained under pressure?',
+            start: const TimeOfDay(hour: 19, minute: 0),
+            end: const TimeOfDay(hour: 19, minute: 30),
+          ),
+        ],
+      ),
+      _MaatFlowDay(
+        notes: const [
+          _MaatFlowNoteSlot(
+            title: 'Day 8 — Adaptation Without Identity Loss',
+            detail:
+                '''Under Ahmose I, Upper Egypt unified and expelled Hyksos authority.\n\nThe Delta was reclaimed. Avaris fell. The Nile unified again.\n\nThis was not quiet transition. It was decisive.\n\nChariot warfare integrated. Military command centralized. Northern fortifications dismantled.\n\nThe Kemites absorbed the very technologies that destabilized them.\n\nMa’at was restored through disciplined strength. Balance returned to the axis. The river breathed again as one.''',
+            start: const TimeOfDay(hour: 10, minute: 0),
+            end: const TimeOfDay(hour: 10, minute: 30),
+          ),
+          _MaatFlowNoteSlot(
+            title: 'Reflection — Day 8',
+            detail:
+                'How does restoration remain aligned with Ma’at?\n\nWhat prevents triumph from becoming excess?',
+            start: const TimeOfDay(hour: 19, minute: 0),
+            end: const TimeOfDay(hour: 19, minute: 30),
+          ),
+        ],
+      ),
+      _MaatFlowDay(
+        notes: const [
+          _MaatFlowNoteSlot(
+            title: 'Day 9 — Dollarism in Service to Ma’at',
+            detail:
+                '''After expulsion, Kemet projected into Canaan. Trade routes secured. Military capacity expanded. Diplomacy strengthened.\n\nWhat if economic leverage had been consciously structured in service of Ma’at?\n\nDollarism aligned with Ma’at would mean:\n- Economic strength used to stabilize circulation\n- Trade leverage without creating dependency\n- Infrastructure development that reinforces sovereignty\n\nMa’at could fortify itself against dollarism by:\n- Mastering currency systems\n- Protecting gateways\n- Ensuring internal economic literacy\n- Scaling innovation intentionally\n\nLeverage itself is neutral. Alignment determines outcome.\n\nMoney in service of Ma’at stabilizes. Money in service of asymmetry destabilizes.''',
+            start: const TimeOfDay(hour: 10, minute: 0),
+            end: const TimeOfDay(hour: 10, minute: 30),
+          ),
+          _MaatFlowNoteSlot(
+            title: 'Reflection — Day 9',
+            detail:
+                'Can leverage exist without exploitation?\n\nWhat would economic mastery aligned with Ma’at look like?',
+            start: const TimeOfDay(hour: 19, minute: 0),
+            end: const TimeOfDay(hour: 19, minute: 30),
+          ),
+        ],
+      ),
+      _MaatFlowDay(
+        notes: const [
+          _MaatFlowNoteSlot(
+            title: 'Day 10 — Ma’at in an Age of Invisible Power',
+            detail:
+                '''Dollarism thrives when:\n- Economic literacy is shallow.\n- Unity dissolves.\n- Trade arteries are externally regulated.\n- Systems are not internally integrated.\n\nMa’at survives when:\n- Economic systems are understood.\n- Circulation precedes extraction.\n- Unity outweighs competition.\n- Adaptation preserves identity.\n\nMalcolm identified the structural weapon. The Hyksos episode revealed the structural vulnerability. The New Kingdom revealed the structural correction.\n\nCosmologically:\n\nMa’at is not passive goodness. It is active equilibrium. It is engineered balance. It is sovereignty aligned with order.\n\nMoney is not corruption. Ignorance of money invites imbalance. Mastery aligned with Ma’at restores equilibrium.''',
+            start: const TimeOfDay(hour: 10, minute: 0),
+            end: const TimeOfDay(hour: 10, minute: 30),
+          ),
+          _MaatFlowNoteSlot(
+            title: 'Reflection — Day 10',
+            detail:
+                'If Ma’at is active equilibrium, what structures must exist to preserve it?\n\nHow does one cultivate mastery without losing alignment?\n\nWhere must strength and balance meet?',
+            start: const TimeOfDay(hour: 19, minute: 0),
+            end: const TimeOfDay(hour: 19, minute: 30),
+          ),
+        ],
       ),
     ],
   ),
@@ -1336,10 +1556,11 @@ class CalendarPage extends StatefulWidget {
     final flowsRepo = FlowsRepo(Supabase.instance.client);
 
     // Deletes
-    if (r.deleteFlowId != null) {
-      await userEventsRepo.deleteByFlowId(r.deleteFlowId!);
-      await userEventsRepo.deleteFlow(r.deleteFlowId!);
-      return r.deleteFlowId;
+    final deleteId = r.deleteFlowId;
+    if (deleteId != null) {
+      await userEventsRepo.deleteByFlowId(deleteId);
+      await userEventsRepo.deleteFlow(deleteId);
+      return deleteId;
     }
 
     // Saves
@@ -1359,7 +1580,27 @@ class CalendarPage extends StatefulWidget {
       notes: f.notes,
       rules: rulesJson,
       isHidden: f.isHidden,
+      originType: r.originType,
+      originFlowId: r.originFlowId,
+      originShareId: r.originShareId ?? f.shareId,
+      originGenerationId: r.originGenerationId,
+      rootFlowId: r.rootFlowId,
     );
+
+    if (r.originGenerationId != null) {
+      try {
+        await userEventsRepo.flowCommit(
+          generationId: r.originGenerationId!,
+          flowId: savedId,
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint(
+            '[persistFlowStudioHeadless] flow_commit failed for generation ${r.originGenerationId}: $e',
+          );
+        }
+      }
+    }
 
     // Persist planned notes (with individual titles)
     if (r.plannedNotes.isNotEmpty) {
@@ -2821,8 +3062,11 @@ class _CalendarPageState extends State<CalendarPage>
       final List<ReminderRule> rebuilt = [];
       for (final f in reminderFlows) {
         if (f.reminderUuid == null || f.notes == null) continue;
+        final rawNotes = f.notes!.trim();
+        if (rawNotes.isEmpty) continue;
         try {
-          final map = Map<String, dynamic>.from(jsonDecode(f.notes!) as Map);
+          final decoded = jsonDecode(rawNotes);
+          final map = Map<String, dynamic>.from(decoded as Map);
           final rule = ReminderRule.fromJson(map);
           if (_endedReminderIds.contains(rule.id)) continue;
           rebuilt.add(rule);
@@ -4290,9 +4534,10 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   ReminderRule? _reminderRuleFromFlow(_Flow f) {
-    if (f.notes == null || f.notes!.isEmpty) return null;
+    if (f.notes == null || f.notes!.trim().isEmpty) return null;
     try {
-      final map = Map<String, dynamic>.from(jsonDecode(f.notes!) as Map);
+      final decoded = jsonDecode(f.notes!.trim());
+      final map = Map<String, dynamic>.from(decoded as Map);
       return ReminderRule.fromJson(map);
     } catch (_) {
       return null;
@@ -5699,8 +5944,9 @@ class _CalendarPageState extends State<CalendarPage>
     bool notesAlreadyPersisted =
         false; // When true, skip duplicate planned-note persistence
 
-    if (edited.deleteFlowId != null) {
-      _deleteFlow(edited.deleteFlowId!);
+    final deleteId = edited.deleteFlowId;
+    if (deleteId != null) {
+      _deleteFlow(deleteId);
     } else if (edited.savedFlow != null) {
       final f = edited.savedFlow!;
       final editFlowId = f.id >= 0 ? f.id : null;
@@ -6487,49 +6733,64 @@ class _CalendarPageState extends State<CalendarPage>
     for (final g in ordered) {
       final kyKmKd = KemeticMath.fromGregorian(g);
       final day = template.days[dayIndex];
-      _addNote(
-        kyKmKd.kYear,
-        kyKmKd.kMonth,
-        kyKmKd.kDay,
-        day.title,
-        day.detail,
-        allDay: false,
-        start: const TimeOfDay(hour: 9, minute: 0),
-        end: const TimeOfDay(hour: 10, minute: 0),
-        flowId: serverFlowId,
-      );
-      // sync each auto-created flow day to Supabase (fire-and-forget)
-      Future.microtask(() async {
-        try {
-          final repo = UserEventsRepo(Supabase.instance.client);
-          final scheduledAt = DateTime(g.year, g.month, g.day, 9, 0);
-          // Use unified clientEventId for Ma'at flows as well. The note uses
-          // the same 9:00 start and 10:00 end times; flowId identifies the
-          // owning flow. This allows deletion to operate uniformly.
-          final String cid = _buildCid(
-            ky: kyKmKd.kYear,
-            km: kyKmKd.kMonth,
-            kd: kyKmKd.kDay,
-            title: day.title,
-            startHour: 9,
-            startMinute: 0,
-            allDay: false,
-            flowId: serverFlowId,
-          );
-          await repo.upsertByClientId(
-            clientEventId: cid,
-            title: day.title,
-            startsAtUtc: scheduledAt.toUtc(),
-            detail: (day.detail ?? '').trim().isEmpty
-                ? null
-                : day.detail!.trim(),
-            location: null,
-            allDay: false,
-            endsAtUtc: DateTime(g.year, g.month, g.day, 10, 0).toUtc(),
-            flowLocalId: serverFlowId, // ✅ attach to the flow you just created
-          );
-        } catch (_) {}
-      });
+      for (final slot in day.notes) {
+        _addNote(
+          kyKmKd.kYear,
+          kyKmKd.kMonth,
+          kyKmKd.kDay,
+          slot.title,
+          slot.detail,
+          allDay: false,
+          start: slot.start,
+          end: slot.end,
+          flowId: serverFlowId,
+        );
+        // sync each auto-created flow day to Supabase (fire-and-forget)
+        Future.microtask(() async {
+          try {
+            final repo = UserEventsRepo(Supabase.instance.client);
+            final scheduledAt = DateTime(
+              g.year,
+              g.month,
+              g.day,
+              slot.start.hour,
+              slot.start.minute,
+            );
+            // Use unified clientEventId for Ma'at flows as well. The note uses
+            // the provided slot start/end times; flowId identifies the
+            // owning flow. This allows deletion to operate uniformly.
+            final String cid = _buildCid(
+              ky: kyKmKd.kYear,
+              km: kyKmKd.kMonth,
+              kd: kyKmKd.kDay,
+              title: slot.title,
+              startHour: slot.start.hour,
+              startMinute: slot.start.minute,
+              allDay: false,
+              flowId: serverFlowId,
+            );
+            await repo.upsertByClientId(
+              clientEventId: cid,
+              title: slot.title,
+              startsAtUtc: scheduledAt.toUtc(),
+              detail: (slot.detail ?? '').trim().isEmpty
+                  ? null
+                  : slot.detail!.trim(),
+              location: null,
+              allDay: false,
+              endsAtUtc: DateTime(
+                g.year,
+                g.month,
+                g.day,
+                slot.end.hour,
+                slot.end.minute,
+              ).toUtc(),
+              flowLocalId:
+                  serverFlowId, // ✅ attach to the flow you just created
+            );
+          } catch (_) {}
+        });
+      }
 
       dayIndex++;
     }
@@ -6787,6 +7048,18 @@ class _CalendarPageState extends State<CalendarPage>
             }
           },
           onSaveFlow: _saveFlowById,
+          loadCompletedClientEventIds: _loadCompletedClientEventIds,
+          onRecordCompletion: ({
+            required String clientEventId,
+            required int flowId,
+            required DateTime completedOnDate,
+          }) =>
+              _recordEventCompletion(
+                clientEventId: clientEventId,
+                flowId: flowId,
+                completedOnDate: completedOnDate,
+              ),
+          onUnrecordCompletion: _unrecordEventCompletion,
         ),
       ),
     ).then((_) {
@@ -6830,6 +7103,73 @@ class _CalendarPageState extends State<CalendarPage>
       endTime: allDay ? null : end,
       color: null,
     );
+  }
+
+  Future<void> _recordEventCompletion({
+    required String clientEventId,
+    required int flowId,
+    required DateTime completedOnDate,
+  }) async {
+    final repo = UserEventsRepo(Supabase.instance.client);
+    try {
+      await repo.recordEventCompletion(
+        clientEventId: clientEventId,
+        flowId: flowId,
+        completedOnDate: completedOnDate,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[DayView] recordEventCompletion failed: $e');
+      }
+    }
+  }
+
+  Future<void> _unrecordEventCompletion(String clientEventId) async {
+    final repo = UserEventsRepo(Supabase.instance.client);
+    try {
+      await repo.unrecordEventCompletion(clientEventId);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[DayView] unrecordEventCompletion failed: $e');
+      }
+    }
+  }
+
+  Future<Set<String>> _loadCompletedClientEventIds({
+    int? flowId,
+    DateTime? completedOnDate,
+  }) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return {};
+    try {
+      final client = Supabase.instance.client;
+      var query = client
+          .from('user_event_completions')
+          .select('client_event_id')
+          .eq('user_id', user.id);
+      if (flowId != null) {
+        query = query.eq('flow_id', flowId);
+      }
+      if (completedOnDate != null) {
+        final dateStr =
+            '${completedOnDate.year}-${completedOnDate.month.toString().padLeft(2, '0')}-${completedOnDate.day.toString().padLeft(2, '0')}';
+        query = query.eq('completed_on', dateStr);
+      }
+      final rows = await query;
+      final ids = <String>{};
+      for (final row in (rows as List)) {
+        final cid = (row as Map<String, dynamic>)['client_event_id'] as String?;
+        if (cid != null && cid.isNotEmpty) {
+          ids.add(cid);
+        }
+      }
+      return ids;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[DayView] loadCompletedClientEventIds failed: $e');
+      }
+      return {};
+    }
   }
 
   void _openDaySheet(
@@ -8793,14 +9133,18 @@ class _CalendarPageState extends State<CalendarPage>
         } catch (_) {}
         await _loadFromDisk();
         // 2) After flows are loaded, if we have an initial flow to edit, open it
-        if (mounted && widget.initialFlowIdToEdit != null) {
-          _openFlowEditorDirectly(widget.initialFlowIdToEdit!);
+        final targetFlowId = widget.initialFlowIdToEdit;
+        if (mounted && targetFlowId != null) {
+          _openFlowEditorDirectly(targetFlowId);
         }
       });
     } else if (widget.initialFlowIdToEdit != null) {
       // Already initialized (flows loaded), but widget has an initial flow id
       // e.g., if CalendarPage got rebuilt with a different target flow
-      _openFlowEditorDirectly(widget.initialFlowIdToEdit!);
+      final targetFlowId = widget.initialFlowIdToEdit;
+      if (targetFlowId != null) {
+        _openFlowEditorDirectly(targetFlowId);
+      }
     }
   }
 
@@ -9179,13 +9523,14 @@ class _CalendarPageState extends State<CalendarPage>
     final repo = UserEventsRepo(Supabase.instance.client);
 
     // 1) Deletes take precedence
-    if (r.deleteFlowId != null) {
+    final deleteId = r.deleteFlowId;
+    if (deleteId != null) {
       if (kDebugMode) {
-        debugPrint('[persistFlowStudio] Deleting flowId=${r.deleteFlowId}');
+        debugPrint('[persistFlowStudio] Deleting flowId=$deleteId');
       }
       // 🔧 KEY FIX: Delete ALL notes for this flow (not just future ones)
       try {
-        await repo.deleteByFlowId(r.deleteFlowId!);
+        await repo.deleteByFlowId(deleteId);
         if (kDebugMode) {
           debugPrint('[persistFlowStudio] ✓ Deleted ALL notes for flow');
         }
@@ -9196,7 +9541,7 @@ class _CalendarPageState extends State<CalendarPage>
         rethrow; // bubble up so we don't silently keep the flow
       }
       try {
-        await repo.deleteFlow(r.deleteFlowId!);
+        await repo.deleteFlow(deleteId);
         if (kDebugMode) {
           debugPrint('[persistFlowStudio] ✓ Deleted flow from database');
         }
@@ -9207,13 +9552,13 @@ class _CalendarPageState extends State<CalendarPage>
         rethrow; // bubble up and avoid thinking it was removed
       }
       // Remove the flow from memory
-      _flows.removeWhere((f) => f.id == r.deleteFlowId);
+      _flows.removeWhere((f) => f.id == deleteId);
       setState(() {});
       _notifyDayViewDataChanged();
       if (kDebugMode) {
         debugPrint('[persistFlowStudio] ✓ Flow deletion complete');
       }
-      return r.deleteFlowId;
+      return deleteId;
     }
 
     // 2) Save/create flow if provided
@@ -9248,6 +9593,11 @@ class _CalendarPageState extends State<CalendarPage>
         notes: r.savedFlow!.notes,
         rules: rulesJson,
         isHidden: r.savedFlow!.isHidden,
+        originType: r.originType,
+        originFlowId: r.originFlowId,
+        originShareId: r.originShareId ?? r.savedFlow!.shareId,
+        originGenerationId: r.originGenerationId,
+        rootFlowId: r.rootFlowId,
       );
 
       saved = _Flow(
@@ -9262,6 +9612,21 @@ class _CalendarPageState extends State<CalendarPage>
         shareId: r.savedFlow!.shareId,
         isHidden: r.savedFlow!.isHidden, // Preserve hidden status
       );
+
+      if (r.originGenerationId != null) {
+        try {
+          await repo.flowCommit(
+            generationId: r.originGenerationId!,
+            flowId: savedId,
+          );
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint(
+              '[persistFlowStudio] flow_commit failed for generation ${r.originGenerationId}: $e',
+            );
+          }
+        }
+      }
 
       final idx = _flows.indexWhere((f) => f.id == savedId);
       if (idx >= 0) {
@@ -10398,6 +10763,13 @@ class _CalendarPageState extends State<CalendarPage>
     try {
       // Clear existing scheduled notes for this flow after successful generation
       await repo.deleteByFlowId(flowId, fromDate: scheduleStart.toUtc());
+      await repo.track(
+        event: 'flow_rescheduled',
+        properties: {
+          'flow_id': flowId,
+          'v': kAppEventsSchemaVersion,
+        },
+      );
 
       for (final ev in candidateEvents) {
         await repo.upsertByClientId(
@@ -12064,7 +12436,9 @@ class _DayChip extends StatelessWidget {
       onPressed: enabled
           ? () {
               Navigator.pop(ctx);
-              onEndFlow!(flowId!);
+              if (flowId != null) {
+                onEndFlow?.call(flowId);
+              }
             }
           : null,
       icon: const Icon(Icons.stop_circle),
@@ -12094,7 +12468,10 @@ class _DayChip extends StatelessWidget {
       onPressed: enabled
           ? () async {
               Navigator.pop(ctx);
-              await onEndReminder!(event.reminderId!);
+              final reminderId = event.reminderId;
+              if (reminderId != null) {
+                await onEndReminder?.call(reminderId);
+              }
             }
           : null,
       icon: const Icon(Icons.stop_circle),
@@ -13303,6 +13680,10 @@ class ImportFlowData {
   final List<dynamic> rules;
   final DateTime? suggestedStartDate;
   final String? overview;
+  final String? generationId;
+  final int? originFlowId;
+  final int? rootFlowId;
+  final String? originType;
   const ImportFlowData({
     required this.share,
     required this.name,
@@ -13311,6 +13692,10 @@ class ImportFlowData {
     required this.rules,
     this.suggestedStartDate,
     this.overview,
+    this.generationId,
+    this.originFlowId,
+    this.rootFlowId,
+    this.originType,
   });
 }
 
@@ -13329,10 +13714,20 @@ class _FlowStudioResult {
   final _Flow? savedFlow;
   final int? deleteFlowId;
   final List<_PlannedNote> plannedNotes;
+  final String? originType;
+  final int? originFlowId;
+  final String? originShareId;
+  final String? originGenerationId;
+  final int? rootFlowId;
   const _FlowStudioResult({
     this.savedFlow,
     this.deleteFlowId,
     this.plannedNotes = const [],
+    this.originType,
+    this.originFlowId,
+    this.originShareId,
+    this.originGenerationId,
+    this.rootFlowId,
   });
 }
 
@@ -14920,6 +15315,17 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           _editing?.isHidden ?? false, // Preserve hidden status if editing
     );
 
+    final originFlowId =
+        widget.importData?.originFlowId ??
+        int.tryParse(widget.importData?.share.payloadId ?? '');
+    final originShareId = widget.importData?.share.shareId;
+    final originGenerationId = widget.importData?.generationId;
+    final originType = widget.importData?.originType ??
+        (isAiImport
+            ? 'ai'
+            : (widget.importData != null ? 'share_import' : null));
+    final rootFlowId = widget.importData?.rootFlowId ?? originFlowId;
+
     // Reset AI mode flag after save - flow is now a normal editable flow
     if (_isAIGeneratedFlow) {
       _isAIGeneratedFlow = false;
@@ -14930,7 +15336,17 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     Navigator.of(
       context,
       rootNavigator: true,
-    ).pop(_FlowStudioResult(savedFlow: flow, plannedNotes: planned));
+    ).pop(
+      _FlowStudioResult(
+        savedFlow: flow,
+        plannedNotes: planned,
+        originType: originType,
+        originFlowId: originFlowId,
+        originShareId: originShareId,
+        originGenerationId: originGenerationId,
+        rootFlowId: rootFlowId,
+      ),
+    );
   }
 
   void _delete() {
@@ -15797,6 +16213,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         rules: const [],
         suggestedStartDate: baseStart,
         overview: resp.overviewSummary ?? resp.overviewTitle ?? '',
+        generationId: resp.generationId,
+        originType: 'ai',
+        originFlowId: resp.flowId,
+        rootFlowId: resp.flowId,
       );
     } catch (_) {
       return null;
@@ -18976,6 +19396,31 @@ class _MaatCategoriesPage extends StatelessWidget {
             ),
             child: const Text('Medu Neter'),
           ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => _MaatFlowsListPage(
+                    title: 'Economy',
+                    templates: kMaatFlowTemplatesEconomy,
+                    hasActiveForKey: hasActiveForKey,
+                    onPickTemplate: onPickTemplate,
+                    onCreateNew: onCreateNew,
+                  ),
+                ),
+              );
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              textStyle: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+              alignment: Alignment.centerLeft,
+            ),
+            child: const Text('Economy'),
+          ),
           const Divider(height: 12, color: Colors.white10),
         ],
       ),
@@ -19523,6 +19968,7 @@ class _MaatFlowTemplateDetailPageState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = MaterialLocalizations.of(context);
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -19560,19 +20006,46 @@ class _MaatFlowTemplateDetailPageState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(d.title, style: const TextStyle(color: Colors.white)),
-                  if ((d.detail ?? '').trim().isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text(
-                        d.detail!.trim(),
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                          height: 1.35,
-                        ),
+                  ...d.notes.asMap().entries.map((entry) {
+                    final idx = entry.key;
+                    final slot = entry.value;
+                    final start = l10n.formatTimeOfDay(slot.start);
+                    final end = l10n.formatTimeOfDay(slot.end);
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: idx == d.notes.length - 1 ? 0 : 6,
                       ),
-                    ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$start – $end',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            slot.title,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          if ((slot.detail ?? '').trim().isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                slot.detail!.trim(),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  }),
                 ],
               ),
             );

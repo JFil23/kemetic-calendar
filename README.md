@@ -51,14 +51,16 @@ scripts/verify_env.sh                 # checks env/dev.json
 scripts/verify_env.sh env/prod.json   # checks another env file
 ```
 
-For release builds (e.g., App Store/TestFlight):
+For release builds (App Store/TestFlight), use the single canonical command so Supabase defines are always present:
 
 ```bash
 cd mobile
-flutter build ios --release --dart-define-from-file=env/prod.json
-# or use the guard script:
+flutter build ipa --dart-define-from-file=env/prod.json
+# or use the guard script (wraps the same defines):
 scripts/build_ios_release.sh
 ```
+
+If you archive in Xcode, add a Run Script to export the same dart-defines from `env/prod.json` so behavior matches the Flutter CLI build.
 
 Keep real secrets out of git: commit `env/dev.example.json` / `env/prod.example.json`, and maintain the real files locally.
 

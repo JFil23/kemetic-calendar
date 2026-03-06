@@ -7,6 +7,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart'; // For DragStartBehavior
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart'
@@ -29,6 +31,16 @@ const Color _landscapeSurface = Color(0xFF0D0D0F); // Dark surface
 const Color _landscapeDivider = Color(0xFF1A1A1A); // Divider lines
 const double kLandscapeHeaderHeight = 58.0; // Day number header height
 
+class _LandscapeDragPayload {
+  final EventItem event;
+  final int day;
+
+  _LandscapeDragPayload(this.event, this.day);
+
+  int get durationMin =>
+      (event.endMin - event.startMin).clamp(15, 12 * 60) as int;
+}
+
 // ========================================
 // MAIN LANDSCAPE MONTH VIEW WIDGET
 // Entry point from both Main Calendar and Day View
@@ -49,6 +61,8 @@ class LandscapeMonthView extends StatelessWidget {
   final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
   onEditNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem evt, int newStartMin)?
+      onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final CreateNutritionReminder? onCreateReminder;
@@ -70,6 +84,7 @@ class LandscapeMonthView extends StatelessWidget {
     this.onEndFlow,
     this.onDeleteNote,
     this.onEditNote,
+    this.onMoveEventTime,
     this.onShareNote,
     this.onAppendToJournal,
     this.onCreateReminder,
@@ -93,6 +108,7 @@ class LandscapeMonthView extends StatelessWidget {
       onEndFlow: onEndFlow,
       onDeleteNote: onDeleteNote,
       onEditNote: onEditNote,
+      onMoveEventTime: onMoveEventTime,
       onShareNote: onShareNote,
       onAppendToJournal: onAppendToJournal,
       onCreateReminder: onCreateReminder,
@@ -122,6 +138,8 @@ class LandscapeMonthPager extends StatefulWidget {
   final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
   onEditNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem evt, int newStartMin)?
+      onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final CreateNutritionReminder? onCreateReminder;
@@ -143,6 +161,7 @@ class LandscapeMonthPager extends StatefulWidget {
     this.onEndFlow,
     this.onDeleteNote,
     this.onEditNote,
+    this.onMoveEventTime,
     this.onShareNote,
     this.onAppendToJournal,
     this.onCreateReminder,
@@ -645,6 +664,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           onEndFlow: widget.onEndFlow,
           onDeleteNote: widget.onDeleteNote,
           onEditNote: widget.onEditNote,
+          onMoveEventTime: widget.onMoveEventTime,
           onShareNote: widget.onShareNote,
           onAppendToJournal: widget.onAppendToJournal,
           onCreateReminder: widget.onCreateReminder,
@@ -675,6 +695,8 @@ class LandscapeMonthGridBody extends StatefulWidget {
   final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
   onEditNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem evt, int newStartMin)?
+      onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final CreateNutritionReminder? onCreateReminder;
@@ -695,6 +717,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
     this.onEndFlow,
     this.onDeleteNote,
     this.onEditNote,
+    this.onMoveEventTime,
     this.onShareNote,
     this.onAppendToJournal,
     this.onCreateReminder,
@@ -727,6 +750,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   late ScrollController _hGrid;
   late ScrollController _vGutter;
   late ScrollController _vGrid;
+  final GlobalKey _gridKey = GlobalKey();
 
   // 🔍 NEW: Debug tracking
   int _buttonTapCount = 0;
@@ -1009,21 +1033,70 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                 scrollDirection: Axis.horizontal,
                 physics:
                     const ClampingScrollPhysics(), // ✅ Re-enabled for horizontal scrolling
-                child: SizedBox(
-                  width: gridW,
-                  height: gridH,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Grid lines
-                      _buildGridLines(dayCount, colW),
+                child: DragTarget<_LandscapeDragPayload>(
+                  key: _gridKey,
+                  builder: (context, candidateData, rejectedData) {
+                    return SizedBox(
+                      width: gridW,
+                      height: gridH,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        clipBehavior: Clip.none,
+                        children: [
+                          // Grid lines
+                          _buildGridLines(dayCount, colW),
 
-                      // Event blocks
-                      for (int day = 1; day <= dayCount; day++)
-                        ..._buildEventsForDay(day, colW),
-                    ],
-                  ),
+                          // Event blocks
+                          for (int day = 1; day <= dayCount; day++)
+                            ..._buildEventsForDay(day, colW),
+                        ],
+                ),
+              );
+            },
+            onWillAccept: (data) => data != null,
+            onAcceptWithDetails: (details) {
+              if (kDebugMode) {
+                debugPrint(
+                  '[Landscape] DragTarget onAcceptWithDetails day=${details.data.day}',
+                );
+              }
+              final box =
+                  _gridKey.currentContext?.findRenderObject() as RenderBox?;
+              if (box == null) {
+                if (kDebugMode) {
+                  debugPrint('[Landscape] DragTarget: box is null, skipping move');
+                }
+                return;
+              }
+              final local = box.globalToLocal(details.offset);
+              final double x = local.dx +
+                  (_hGrid.hasClients ? _hGrid.offset : 0.0);
+              final double y = local.dy +
+                  (_vGrid.hasClients ? _vGrid.offset : 0.0);
+              int day =
+                  (x / (colW + _daySepW)).floor() + 1;
+              final maxDay = _getDaysInMonth();
+              day = day.clamp(1, maxDay).toInt();
+              if (day != details.data.day) {
+                if (kDebugMode) {
+                  debugPrint(
+                    '[Landscape] drop rejected (cross-day) dropDay=$day eventDay=${details.data.day}',
+                  );
+                }
+                return;
+              }
+              int totalMin = ((y / _rowH) * 60).round();
+              totalMin = totalMin.clamp(0, 24 * 60 - 1).toInt();
+              int snapped =
+                        ((totalMin / 15).round() * 15).clamp(0, 24 * 60 - 1).toInt();
+                    widget.onMoveEventTime?.call(
+                      widget.kYear,
+                      widget.kMonth,
+                      day,
+                      details.data.event,
+                      snapped,
+                    );
+                  },
                 ),
               ),
             ),
@@ -1225,7 +1298,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
 
       events.add(
         EventItem(
-          id: null,
+          id: note.id,
+          clientEventId: note.clientEventId,
           title: note.title,
           detail: note.detail,
           location: note.location,
@@ -1236,6 +1310,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           manualColor: note.manualColor,
           allDay: note.allDay,
           category: note.category,
+          isReminder: note.isReminder,
+          reminderId: note.reminderId,
         ),
       );
     }
@@ -1296,22 +1372,12 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             top: top,
             width: columnWidth,
             height: height,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => _showEventDetail(event, day),
-              child: Container(
-                margin: const EdgeInsets.only(right: 4, bottom: 2),
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: event.color.withOpacity(0.20),
-                  border: Border(
-                    left: BorderSide(color: event.color, width: 3),
-                  ),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                clipBehavior: Clip.hardEdge,
-                child: _buildEventBlockContent(event, durationMinutes),
-              ),
+            child: _buildInteractiveEventBlock(
+              event: event,
+              day: day,
+              width: columnWidth,
+              height: height,
+              durationMinutes: durationMinutes,
             ),
           ),
         );
@@ -1321,6 +1387,81 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     }
 
     return widgets;
+  }
+
+  bool _isEventDraggable(EventItem event) {
+    final flowId = event.flowId ?? -1;
+    return (event.flowId == null || flowId == -1) &&
+        !event.isReminder &&
+        !event.allDay;
+  }
+
+  Widget _buildEventCard(EventItem event, int durationMinutes) {
+    return Container(
+      margin: const EdgeInsets.only(right: 4, bottom: 2),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: event.color.withOpacity(0.20),
+        border: Border(
+          left: BorderSide(color: event.color, width: 3),
+        ),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: _buildEventBlockContent(event, durationMinutes),
+    );
+  }
+
+  Widget _buildInteractiveEventBlock({
+    required EventItem event,
+    required int day,
+    required double width,
+    required double height,
+    required int durationMinutes,
+  }) {
+    final card = _buildEventCard(event, durationMinutes);
+    final tappable = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _showEventDetail(event, day),
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: card,
+      ),
+    );
+
+    if (!_isEventDraggable(event)) {
+      return tappable;
+    }
+
+    return LongPressDraggable<_LandscapeDragPayload>(
+      data: _LandscapeDragPayload(event, day),
+      feedback: Material(
+        color: Colors.transparent,
+        child: Opacity(
+          opacity: 0.8,
+          child: SizedBox(
+            width: width,
+            height: height,
+            child: _buildEventCard(event, durationMinutes),
+          ),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.35,
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: _buildEventCard(event, durationMinutes),
+        ),
+      ),
+      onDragStarted: () {
+        HapticFeedback.selectionClick();
+      },
+      onDraggableCanceled: (_, __) {},
+      onDragEnd: (_) {},
+      child: tappable,
+    );
   }
 
   Widget _buildEventBlockContent(EventItem event, int durationMinutes) {
@@ -1481,7 +1622,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                         ),
                         onPressed: () {
                           Navigator.pop(context);
-                          widget.onEndFlow!(flow.id);
+                          widget.onEndFlow?.call(flow.id);
                         },
                         icon: const Icon(Icons.stop_circle),
                         label: const Text('End Flow'),

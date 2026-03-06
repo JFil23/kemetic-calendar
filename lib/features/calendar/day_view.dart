@@ -8,6 +8,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -61,6 +62,7 @@ class EventLayoutEngine {
 
       events.add(EventItem(
         id: note.id,
+        clientEventId: note.clientEventId,
         title: note.title,
         detail: note.detail,
         location: note.location,
@@ -130,6 +132,7 @@ class EventLayoutEngine {
 
 class NoteData {
   final String? id;
+  final String? clientEventId;
   final String title;
   final String? detail;
   final String? location;
@@ -144,6 +147,7 @@ class NoteData {
 
   const NoteData({
     this.id,
+    this.clientEventId,
     required this.title,
     this.detail,
     this.location,
@@ -174,6 +178,7 @@ class FlowData {
 
 class EventItem {
   final String? id;
+  final String? clientEventId;
   final String title;
   final String? detail;
   final String? location;
@@ -189,6 +194,7 @@ class EventItem {
 
   const EventItem({
     this.id,
+    this.clientEventId,
     required this.title,
     this.detail,
     this.location,
@@ -207,6 +213,15 @@ class EventItem {
   String toString() {
     return 'EventItem(title: "$title", flowId: $flowId, color: $color, startMin: $startMin)';
   }
+}
+
+class _DragPayload {
+  final EventItem event;
+
+  _DragPayload(this.event);
+
+  int get durationMin =>
+      (event.endMin - event.startMin).clamp(15, 12 * 60) as int;
 }
 
 class PositionedEventBlock {
@@ -257,6 +272,8 @@ class DayViewPage extends StatefulWidget {
   final void Function(int ky, int km, int kd)? onAddNote;
   final Future<void> Function(int ky, int km, int kd, EventItem event)? onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem event)? onEditNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem evt, int newStartMin)?
+      onMoveEventTime;
   final Future<void> Function(EventItem event)? onShareNote;
   final Future<void> Function(String reminderId)? onEditReminder;
   final Future<void> Function(String reminderId)? onEndReminder;
@@ -286,6 +303,14 @@ class DayViewPage extends StatefulWidget {
   final void Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
   final Future<void> Function(int flowId)? onSaveFlow;
+  final Future<Set<String>> Function({int? flowId, DateTime? completedOnDate})?
+      loadCompletedClientEventIds;
+  final Future<void> Function({
+    required String clientEventId,
+    required int flowId,
+    required DateTime completedOnDate,
+  })? onRecordCompletion;
+  final Future<void> Function(String clientEventId)? onUnrecordCompletion;
 
   const DayViewPage({
     super.key,
@@ -303,6 +328,7 @@ class DayViewPage extends StatefulWidget {
     this.onAddNote, // 🔧 NEW
     this.onDeleteNote,
     this.onEditNote,
+    this.onMoveEventTime,
     this.onShareNote,
     this.onEditReminder,
     this.onEndReminder,
@@ -312,6 +338,9 @@ class DayViewPage extends StatefulWidget {
     this.onEndFlow,
     this.onAppendToJournal,
     this.onSaveFlow,
+    this.loadCompletedClientEventIds,
+    this.onRecordCompletion,
+    this.onUnrecordCompletion,
   });
 
   @override
@@ -501,6 +530,7 @@ class _DayViewPageState extends State<DayViewPage> {
                   getMonthName: widget.getMonthName,
                   onManageFlows: widget.onManageFlows,
                   onAddNote: widget.onAddNote,
+                  onMoveEventTime: widget.onMoveEventTime,
                   onMonthChanged: (ky, km) {
                     // ✅ HANDLE MONTH CHANGE IN DAY VIEW
                     if (kDebugMode) {
@@ -548,6 +578,7 @@ class _DayViewPageState extends State<DayViewPage> {
                           onAddNote: widget.onAddNote,
                           onDeleteNote: widget.onDeleteNote,
                           onEditNote: widget.onEditNote,
+                          onMoveEventTime: widget.onMoveEventTime,
                           onShareNote: widget.onShareNote,
                           onEditReminder: widget.onEditReminder,
                           onEndReminder: widget.onEndReminder,
@@ -557,6 +588,9 @@ class _DayViewPageState extends State<DayViewPage> {
                           onEndFlow: widget.onEndFlow, // Pass End Flow callback down
                           onAppendToJournal: widget.onAppendToJournal,
                           onSaveFlow: widget.onSaveFlow,
+                          loadCompletedClientEventIds: widget.loadCompletedClientEventIds,
+                          onRecordCompletion: widget.onRecordCompletion,
+                          onUnrecordCompletion: widget.onUnrecordCompletion,
                         );
                       },
                   ),
@@ -725,7 +759,9 @@ class _DayViewPageState extends State<DayViewPage> {
                       final currentGregorian = KemeticMath.toGregorian(_currentKy, _currentKm, _currentKd);
                       final targetGregorian = KemeticMath.toGregorian(_currentKy, _currentKm, day);
                       final offsetDays = targetGregorian.difference(currentGregorian).inDays;
-                      final targetPage = _pageController.page!.round() + offsetDays;
+                      if (!_pageController.hasClients) return;
+                      final basePage = _pageController.page?.round() ?? _centerPage;
+                      final targetPage = basePage + offsetDays;
                       
                       _pageController.animateToPage(
                         targetPage,
@@ -957,6 +993,8 @@ class DayViewGrid extends StatefulWidget {
   final void Function(int ky, int km, int kd)? onAddNote;
   final Future<void> Function(int ky, int km, int kd, EventItem event)? onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem event)? onEditNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem evt, int newStartMin)?
+      onMoveEventTime;
   final Future<void> Function(EventItem event)? onShareNote;
   final Future<void> Function(String reminderId)? onEditReminder;
   final Future<void> Function(String reminderId)? onEndReminder;
@@ -983,6 +1021,14 @@ class DayViewGrid extends StatefulWidget {
   final void Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
   final Future<void> Function(int flowId)? onSaveFlow;
+  final Future<Set<String>> Function({int? flowId, DateTime? completedOnDate})?
+      loadCompletedClientEventIds;
+  final Future<void> Function({
+    required String clientEventId,
+    required int flowId,
+    required DateTime completedOnDate,
+  })? onRecordCompletion;
+  final Future<void> Function(String clientEventId)? onUnrecordCompletion;
 
   const DayViewGrid({
     super.key,
@@ -998,6 +1044,7 @@ class DayViewGrid extends StatefulWidget {
     this.onAddNote, // 🔧 NEW
     this.onDeleteNote,
     this.onEditNote,
+    this.onMoveEventTime,
     this.onShareNote,
     this.onEditReminder,
     this.onEndReminder,
@@ -1007,6 +1054,9 @@ class DayViewGrid extends StatefulWidget {
     this.onEndFlow,
     this.onAppendToJournal,
     this.onSaveFlow,
+    this.loadCompletedClientEventIds,
+    this.onRecordCompletion,
+    this.onUnrecordCompletion,
   });
 
   @override
@@ -1015,6 +1065,8 @@ class DayViewGrid extends StatefulWidget {
 
 class _DayViewGridState extends State<DayViewGrid> {
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey _timelineKey = GlobalKey();
+  BuildContext? _timelineCtx;
   
   // 🔧 OPTIMIZATION: Cache layout results
   List<PositionedEventBlock>? _cachedBlocks;
@@ -1023,6 +1075,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   bool _hasScrolledToInitial = false; // Added for scroll persistence
   int? _tempDragStartMin; // minutes since midnight
   int? _pressStartMin;    // start minute when long press began
+  bool _isDraggingEvent = false;
 
   ButtonStyle _endButtonStyle() {
     // Slightly smaller footprint (~12% shorter) to avoid pushing other controls.
@@ -1043,7 +1096,10 @@ class _DayViewGridState extends State<DayViewGrid> {
       onPressed: enabled
           ? () {
               Navigator.pop(context);
-              widget.onEndFlow!(flowId!);
+              final id = flowId;
+              if (id != null) {
+                widget.onEndFlow?.call(id);
+              }
             }
           : null,
       icon: const Icon(Icons.stop_circle),
@@ -1073,7 +1129,10 @@ class _DayViewGridState extends State<DayViewGrid> {
       onPressed: enabled
           ? () async {
               Navigator.pop(context);
-              await widget.onEndReminder!(event.reminderId!);
+              final reminderId = event.reminderId;
+              if (reminderId != null) {
+                await widget.onEndReminder?.call(reminderId);
+              }
             }
           : null,
       icon: const Icon(Icons.stop_circle),
@@ -1421,13 +1480,62 @@ class _DayViewGridState extends State<DayViewGrid> {
         
         // Timeline grid
         Expanded(
-          child: ListView.builder(
-            clipBehavior: Clip.none,
-            controller: _scrollController,
-            cacheExtent: 600, // 🔧 OPTIMIZATION: Cache more items
-            itemCount: 24,
-            itemBuilder: (context, hour) {
-              return _buildHourRow(hour);
+          child: DragTarget<_DragPayload>(
+            key: _timelineKey,
+            builder: (context, candidateData, rejectedData) {
+              _timelineCtx = context;
+              return ListView.builder(
+                key: const PageStorageKey('day_timeline_list'),
+                clipBehavior: Clip.none,
+                controller: _scrollController,
+                cacheExtent: 600, // 🔧 OPTIMIZATION: Cache more items
+                itemCount: 24,
+                itemBuilder: (context, hour) {
+                  return _buildHourRow(hour);
+                },
+              );
+            },
+            onWillAccept: (data) => data != null,
+            onAcceptWithDetails: (details) {
+              if (kDebugMode) {
+                debugPrint('[DayView] DragTarget onAcceptWithDetails');
+              }
+              final ctx = _timelineKey.currentContext ?? _timelineCtx;
+              final ro = ctx?.findRenderObject();
+              final box = ro is RenderBox ? ro : null;
+              if (box == null) {
+                if (kDebugMode) {
+                  debugPrint(
+                    '[DayView] DragTarget: no RenderBox; ro=${ro?.runtimeType}',
+                  );
+                }
+                return;
+              }
+              final local = box.globalToLocal(details.offset);
+              final double y = local.dy +
+                  (_scrollController.hasClients ? _scrollController.offset : 0.0);
+              if (kDebugMode && !_scrollController.hasClients) {
+                debugPrint(
+                    '[DayView] DragTarget: scrollController has no clients; y=$y');
+              }
+              int totalMin = y.round();
+              totalMin = totalMin.clamp(0, 24 * 60 - 1).toInt();
+              int snapped =
+                  ((totalMin / 15).round() * 15).clamp(0, 24 * 60 - 1).toInt();
+              if (kDebugMode) {
+                final ev = details.data.event;
+                debugPrint(
+                  '[DayView] drop: snapped=$snapped id=${ev.id} cid=${ev.clientEventId} title="${ev.title}" start=${ev.startMin} end=${ev.endMin}',
+                );
+              }
+
+              widget.onMoveEventTime?.call(
+                widget.ky,
+                widget.km,
+                widget.kd,
+                details.data.event,
+                snapped,
+              );
             },
           ),
         ),
@@ -1472,13 +1580,14 @@ class _DayViewGridState extends State<DayViewGrid> {
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
               onLongPressStart: (details) {
+                if (_isDraggingEvent) return;
                 // Ignore if scrolling in progress
                 if (_scrollController.hasClients &&
                     _scrollController.position.isScrollingNotifier.value) {
                   return;
                 }
                 // Small delay to avoid triggering during slight drags
-                Future.delayed(const Duration(milliseconds: 120), () {
+                Future.delayed(const Duration(milliseconds: 450), () {
                   if (!mounted) return;
                   if (_scrollController.hasClients &&
                       _scrollController.position.isScrollingNotifier.value) {
@@ -1488,9 +1597,11 @@ class _DayViewGridState extends State<DayViewGrid> {
                 });
               },
               onLongPressMoveUpdate: (details) {
+                if (_isDraggingEvent) return;
                 _handleLongPressMove(details);
               },
               onLongPressEnd: (_) {
+                if (_isDraggingEvent) return;
                 _handleLongPressEnd();
               },
             ),
@@ -1560,11 +1671,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             Positioned(
               left: 60 + lefts[i],
               top: top,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _showEventDetail(adjusted.event),
-                child: _buildEventBlock(adjusted),
-              ),
+              child: _buildInteractiveEvent(adjusted),
             ),
           );
         }
@@ -1582,15 +1689,11 @@ class _DayViewGridState extends State<DayViewGrid> {
                 child: Row(
                   children: [
                     for (int i = 0; i < blocks.length; i++) ...[
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _showEventDetail(blocks[i].event),
-                        child: _buildEventBlock(
-                          PositionedEventBlock(
-                            event: blocks[i].event,
-                            leftOffset: 0,
-                            width: width,
-                          ),
+                      _buildInteractiveEvent(
+                        PositionedEventBlock(
+                          event: blocks[i].event,
+                          leftOffset: 0,
+                          width: width,
                         ),
                       ),
                       if (i != blocks.length - 1) SizedBox(width: gap),
@@ -1608,6 +1711,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   void _handleLongPressStart(int hour, Offset localPosition) {
+    if (_isDraggingEvent) return;
     HapticFeedback.mediumImpact();
 
     final minutesIntoHour = (localPosition.dy / 60.0 * 60).round().clamp(0, 59);
@@ -1621,6 +1725,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   void _handleLongPressMove(LongPressMoveUpdateDetails details) {
+    if (_isDraggingEvent) return;
     if (_pressStartMin == null) return;
     final deltaMinutes =
         (details.localOffsetFromOrigin.dy / 60.0 * 60).round();
@@ -1632,6 +1737,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   void _handleLongPressEnd() {
+    if (_isDraggingEvent) return;
     final startMin = _tempDragStartMin;
     _pressStartMin = null;
     _tempDragStartMin = null;
@@ -1714,6 +1820,80 @@ class _DayViewGridState extends State<DayViewGrid> {
         ),
       ),
     ];
+  }
+
+  bool _isEventDraggable(EventItem event) {
+    final flowId = event.flowId ?? -1;
+    final draggable = (event.flowId == null || flowId == -1) &&
+        !event.isReminder &&
+        !event.allDay;
+    if (!draggable && kDebugMode) {
+      debugPrint(
+        '[DayView] not draggable title="${event.title}" flowId=${event.flowId} isReminder=${event.isReminder} allDay=${event.allDay}',
+      );
+    }
+    return draggable;
+  }
+
+  Widget _buildInteractiveEvent(PositionedEventBlock block) {
+    final event = block.event;
+
+    if (!_isEventDraggable(event)) {
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _showEventDetail(event),
+        onLongPress: () {
+          HapticFeedback.mediumImpact();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("This event can't be moved"),
+              duration: Duration(milliseconds: 1200),
+            ),
+          );
+        },
+        child: _buildEventBlock(block),
+      );
+    }
+
+    final tappable = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _showEventDetail(event),
+      child: _buildEventBlock(block),
+    );
+
+    return LongPressDraggable<_DragPayload>(
+      data: _DragPayload(event),
+      delay: const Duration(milliseconds: 350),
+      feedback: Material(
+        color: Colors.transparent,
+        child: Opacity(
+          opacity: 0.8,
+          child: _buildEventBlock(block),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.35,
+        child: _buildEventBlock(block),
+      ),
+      onDragStarted: () {
+        _isDraggingEvent = true;
+        HapticFeedback.selectionClick();
+        setState(() {});
+      },
+      onDraggableCanceled: (_, __) {
+        _isDraggingEvent = false;
+        setState(() {});
+      },
+      onDragEnd: (_) {
+        _isDraggingEvent = false;
+        setState(() {});
+      },
+      onDragCompleted: () {
+        _isDraggingEvent = false;
+        setState(() {});
+      },
+      child: tappable,
+    );
   }
 
 
@@ -1948,6 +2128,23 @@ class _DayViewGridState extends State<DayViewGrid> {
       }
     }
     
+    final bool showCompletionToggle =
+        event.flowId != null && event.clientEventId != null && event.clientEventId!.isNotEmpty;
+    final completionState = ValueNotifier<bool>(false);
+
+    // Preload completion state if loader provided
+    Future<void>? loadCompletion;
+    if (showCompletionToggle && widget.loadCompletedClientEventIds != null) {
+      loadCompletion = widget
+          .loadCompletedClientEventIds!(
+            flowId: event.flowId,
+            completedOnDate: _kemeticToDate(widget.ky, widget.km, widget.kd),
+          )
+          .then((ids) {
+        completionState.value = ids.contains(event.clientEventId);
+      }).catchError((_) {});
+    }
+
     showModalBottomSheet(
       context: rootContext,
       backgroundColor: Color(0xFF000000),
@@ -1960,6 +2157,11 @@ class _DayViewGridState extends State<DayViewGrid> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (loadCompletion != null)
+                FutureBuilder<void>(
+                  future: loadCompletion,
+                  builder: (context, snapshot) => const SizedBox.shrink(),
+                ),
               // Header row with flow badge and menu
               // Check if this is a nutrition event (detail contains "Source:" pattern)
               // Header row with badges, End Flow, and menu
@@ -2220,6 +2422,41 @@ class _DayViewGridState extends State<DayViewGrid> {
                 ),
               ),
               const SizedBox(height: 12),
+              if (showCompletionToggle)
+                ValueListenableBuilder<bool>(
+                  valueListenable: completionState,
+                  builder: (context, completed, _) => Column(
+                    children: [
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text(
+                          'Done',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                        ),
+                        value: completed,
+                        activeColor: const Color(0xFFFFC145),
+                        onChanged: (val) async {
+                          final date = _kemeticToDate(widget.ky, widget.km, widget.kd);
+                          if (val) {
+                            if (widget.onRecordCompletion != null) {
+                              await widget.onRecordCompletion!(
+                                clientEventId: event.clientEventId!,
+                                flowId: event.flowId!,
+                                completedOnDate: date,
+                              );
+                            }
+                          } else {
+                            if (widget.onUnrecordCompletion != null) {
+                              await widget.onUnrecordCompletion!(event.clientEventId!);
+                            }
+                          }
+                          completionState.value = val;
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
               
               // Time
               Row(
@@ -2348,6 +2585,11 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
     
     return '${formatTime(startHour, startMinute)} – ${formatTime(endHour, endMinute)}';
+  }
+
+  DateTime _kemeticToDate(int ky, int km, int kd) {
+    final g = KemeticMath.toGregorian(ky, km, kd);
+    return DateTime(g.year, g.month, g.day);
   }
 }
 

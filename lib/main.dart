@@ -19,6 +19,7 @@ import 'core/kemetic_converter.dart';
 import 'features/sharing/share_preview_page.dart';
 import 'features/inbox/inbox_page.dart';
 import 'utils/event_cid_util.dart';
+import 'telemetry/telemetry.dart';
 
 import 'utils/hive_local_storage_web.dart';
 import 'core/theme/app_theme.dart';
@@ -295,6 +296,7 @@ class _AuthGateState extends State<AuthGate> {
       if (ev == AuthChangeEvent.initialSession || ev == AuthChangeEvent.signedIn) {
         Events.debugAuthBanner('onAuthStateChange:$ev');
         await _ensureProfile();          // keep profiles hydrated with email
+        await UserEventsRepo.refreshTelemetrySettings(supabase);
         await _logAppOpenOnce();         // one-shot per cold start
         unawaited(_initNotificationsSafely());
         unawaited(PushNotifications.instance(supabase).registerForUser());
@@ -350,6 +352,10 @@ class _AuthGateState extends State<AuthGate> {
         'platform': kIsWeb ? 'web' : 'mobile',
         'ts': DateTime.now().toUtc().toIso8601String(),
       });
+      unawaited(repo.track(
+        event: 'telemetry_enabled',
+        properties: {'v': kAppEventsSchemaVersion},
+      ));
       _appOpenLogged = true;
     } catch (_) {
       // keep false; try again later

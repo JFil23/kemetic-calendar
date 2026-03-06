@@ -43,6 +43,10 @@ class AIFlowGenerationResponse {
   final bool success;
   final bool? cached;
   final String? modelUsed;
+  final String? generationId;
+  final String? schemaVersion;
+  final String? policyVersion;
+  final String? snapshotVersion;
 
   AIFlowGenerationResponse({
     required this.success,
@@ -52,6 +56,10 @@ class AIFlowGenerationResponse {
     this.notesCount,
     this.cached,
     this.modelUsed,
+    this.generationId,
+    this.schemaVersion,
+    this.policyVersion,
+    this.snapshotVersion,
   });
 
   factory AIFlowGenerationResponse.fromJson(Map<String, dynamic> json) {
@@ -66,6 +74,14 @@ class AIFlowGenerationResponse {
           (notesRaw is List ? notesRaw.length : null),
       cached: json['cached'] as bool?,
       modelUsed: json['modelUsed'] as String? ?? json['model_used'] as String?,
+      generationId:
+          json['generationId'] as String? ?? json['generation_id'] as String?,
+      schemaVersion:
+          json['schemaVersion'] as String? ?? json['schema_version'] as String?,
+      policyVersion:
+          json['policyVersion'] as String? ?? json['policy_version'] as String?,
+      snapshotVersion: json['snapshotVersion'] as String? ??
+          json['snapshot_version'] as String?,
     );
   }
 }
@@ -286,7 +302,6 @@ extension AIFlowGenerationServiceCheck on AIFlowGenerationService {
     }
   }
 }
-
 
 
 

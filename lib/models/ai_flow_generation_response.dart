@@ -14,6 +14,10 @@ class AIFlowGenerationResponse {
   final List<Map<String, dynamic>>? events; // future use when backend returns them
   final String? modelUsed;
   final bool? cached;
+  final String? generationId;
+  final String? schemaVersion;
+  final String? policyVersion;
+  final String? snapshotVersion;
 
   const AIFlowGenerationResponse({
     required this.success,
@@ -27,6 +31,10 @@ class AIFlowGenerationResponse {
     this.events,
     this.modelUsed,
     this.cached,
+    this.generationId,
+    this.schemaVersion,
+    this.policyVersion,
+    this.snapshotVersion,
   });
 
   factory AIFlowGenerationResponse.fromJson(Map<String, dynamic> j) {
@@ -59,9 +67,12 @@ class AIFlowGenerationResponse {
       events: (j['events'] as List?)?.cast<Map<String, dynamic>>(),
       modelUsed: j['modelUsed'] as String? ?? j['model_used'] as String?,
       cached: j['cached'] as bool?,
+      generationId: j['generationId'] as String? ?? j['generation_id'] as String?,
+      schemaVersion: j['schemaVersion'] as String? ?? j['schema_version'] as String?,
+      policyVersion: j['policyVersion'] as String? ?? j['policy_version'] as String?,
+      snapshotVersion: j['snapshotVersion'] as String? ?? j['snapshot_version'] as String?,
     );
   }
 }
-
 
 

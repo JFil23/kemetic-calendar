@@ -1,5 +1,8 @@
 // lib/data/profile_repo.dart
 
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart' show DateUtils;
 import 'profile_model.dart';
@@ -394,8 +397,9 @@ class ProfileRepo {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return null;
 
-      final flowsRepo = FlowsRepo(_client);
-      final newId = await flowsRepo.insert(
+      final userEventsRepo = UserEventsRepo(_client);
+      final rulesString = jsonEncode(post.rules);
+      final newId = await userEventsRepo.upsertFlow(
         name: post.name,
         color: post.color,
         active: true,
@@ -404,8 +408,27 @@ class ProfileRepo {
         startDate: post.startDate,
         endDate: post.endDate,
         notes: post.notes,
-        rulesJson: post.rules,
+        rules: rulesString,
+        originType: 'profile_import',
+        originFlowId: post.sourceFlowId,
+        rootFlowId: post.sourceFlowId,
       );
+
+      try {
+        await _client.from('flow_saves').upsert({
+          'user_id': userId,
+          'flow_id': newId,
+          'saved_from': 'profile',
+          'metadata': {
+            'flow_post_id': post.id,
+            'source_user_id': post.userId,
+          },
+        }, onConflict: 'user_id,flow_id');
+      } catch (e) {
+        if (kDebugMode) {
+          print('[ProfileRepo] flow_saves upsert failed: $e');
+        }
+      }
 
       return newId;
     } catch (e) {

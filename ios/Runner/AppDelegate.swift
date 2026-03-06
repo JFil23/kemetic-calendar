@@ -11,8 +11,18 @@ import EventKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    let controller : FlutterViewController = window?.rootViewController as! FlutterViewController
-    let channel = FlutterMethodChannel(name: calendarChannel, binaryMessenger: controller.binaryMessenger)
+    guard
+      let window = window,
+      let controller = window.rootViewController as? FlutterViewController
+    else {
+      assertionFailure("FlutterViewController not ready for calendar channel")
+      return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    }
+
+    let channel = FlutterMethodChannel(
+      name: calendarChannel,
+      binaryMessenger: controller.binaryMessenger
+    )
 
     channel.setMethodCallHandler { [weak self] (call: FlutterMethodCall, result: @escaping FlutterResult) in
       guard let self = self else { return }

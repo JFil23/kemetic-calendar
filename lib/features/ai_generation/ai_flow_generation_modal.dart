@@ -179,6 +179,14 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
 
       if (!mounted) return;
 
+      if (response.success != true) {
+        setState(() {
+          _error = 'Generation failed. Please try again.';
+          _isGenerating = false;
+        });
+        return;
+      }
+
       // Success! Close modal and return the result
       Navigator.of(context).pop(response);
 
@@ -270,19 +278,19 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                     ],
                   ),
                 ),
-                // 🔧 TEMPORARY: Diagnostic button
-                IconButton(
-                  icon: const Icon(Icons.bug_report, color: Colors.orange),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AIGenerationDiagnosticWidget(),
-                      ),
-                    );
-                  },
-                  tooltip: 'Run Diagnostics',
-                ),
+                if (kDebugMode)
+                  IconButton(
+                    icon: const Icon(Icons.bug_report, color: Colors.orange),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AIGenerationDiagnosticWidget(),
+                        ),
+                      );
+                    },
+                    tooltip: 'Run Diagnostics',
+                  ),
               ],
             ),
           ),

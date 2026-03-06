@@ -232,6 +232,10 @@ class InboxRepo {
         print('[InboxRepo] Flow data: name=$name, color=$color');
         print('[InboxRepo] Rules type: ${rulesData.runtimeType}');
       }
+
+      final originFlowId =
+          (payloadJson['flow_id'] as num?)?.toInt() ??
+              int.tryParse(share.payloadId);
       
       // Convert rules from List to JSON String
       final rulesString = jsonEncode(rulesData);
@@ -245,6 +249,10 @@ class InboxRepo {
         startDate: startDate,
         notes: notes,
         rules: rulesString,
+        originType: 'share_import',
+        originShareId: share.shareId,
+        originFlowId: originFlowId,
+        rootFlowId: originFlowId,
       );
       
       if (kDebugMode) {
@@ -259,6 +267,25 @@ class InboxRepo {
       
       if (kDebugMode) {
         print('[InboxRepo] ✓ Flow linked to share: ${share.shareId}');
+      }
+
+      final userId = _client.auth.currentUser?.id;
+      if (userId != null) {
+        try {
+          await _client.from('flow_saves').upsert({
+            'user_id': userId,
+            'flow_id': flowId,
+            'saved_from': 'share',
+            'metadata': {
+              'share_id': share.shareId,
+              if (originFlowId != null) 'origin_flow_id': originFlowId,
+            },
+          }, onConflict: 'user_id,flow_id');
+        } catch (e) {
+          if (kDebugMode) {
+            print('[InboxRepo] flow_saves upsert failed: $e');
+          }
+        }
       }
       
       // Mark the share as imported
