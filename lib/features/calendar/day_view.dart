@@ -1072,10 +1072,13 @@ class _DayViewGridState extends State<DayViewGrid> {
   List<PositionedEventBlock>? _cachedBlocks;
   int? _cachedNotesHash;
   int? _cachedFlowHash;
+  List<PositionedEventBlock> _displayBlocks = const [];
   bool _hasScrolledToInitial = false; // Added for scroll persistence
   int? _tempDragStartMin; // minutes since midnight
   int? _pressStartMin;    // start minute when long press began
   bool _isDraggingEvent = false;
+  int? _dragPreviewStartMin;
+  EventItem? _dragPreviewEvent;
 
   ButtonStyle _endButtonStyle() {
     // Slightly smaller footprint (~12% shorter) to avoid pushing other controls.
@@ -1159,6 +1162,88 @@ class _DayViewGridState extends State<DayViewGrid> {
   void _onScroll() {
     if (_scrollController.hasClients && widget.onScrollChanged != null) {
       widget.onScrollChanged!(_scrollController.offset);
+    }
+  }
+
+  RenderBox? _findTimelineBox() {
+    final ctx = _timelineKey.currentContext ?? _timelineCtx;
+    final ro = ctx?.findRenderObject();
+    return ro is RenderBox ? ro : null;
+  }
+
+  int? _snappedMinuteFromGlobalOffset(
+    Offset globalOffset, {
+    RenderBox? box,
+  }) {
+    final renderBox = box ?? _findTimelineBox();
+    if (renderBox == null) return null;
+    final local = renderBox.globalToLocal(globalOffset);
+    final scrollOffset =
+        _scrollController.hasClients ? _scrollController.offset : 0.0;
+    final double y = local.dy + scrollOffset;
+    int totalMin = y.round().clamp(0, 24 * 60 - 1).toInt();
+    return ((totalMin / 15).round() * 15).clamp(0, 24 * 60 - 1).toInt();
+  }
+
+  void _clearDragPreview() {
+    if (_dragPreviewEvent == null && _dragPreviewStartMin == null) return;
+    _dragPreviewEvent = null;
+    _dragPreviewStartMin = null;
+    if (mounted) setState(() {});
+  }
+
+  bool _maybeAutoScroll(RenderBox box, double localDy) {
+    if (!_scrollController.hasClients ||
+        !_scrollController.position.hasPixels ||
+        !_scrollController.position.hasContentDimensions ||
+        !_scrollController.position.hasViewportDimension) {
+      return false;
+    }
+    const threshold = 56.0;
+    const step = 40.0;
+    double? target;
+    if (localDy < threshold) {
+      target = (_scrollController.offset - step)
+          .clamp(0.0, _scrollController.position.maxScrollExtent);
+    } else if (localDy > box.size.height - threshold) {
+      target = (_scrollController.offset + step)
+          .clamp(0.0, _scrollController.position.maxScrollExtent);
+    }
+    if (target != null && target != _scrollController.offset) {
+      _scrollController.jumpTo(target);
+      return true;
+    }
+    return false;
+  }
+
+  void _handleDragUpdate(EventItem event, DragUpdateDetails details) {
+    _dragPreviewEvent ??= event;
+    final box = _findTimelineBox();
+    if (box == null) return;
+
+    bool shouldSetState = false;
+    final snapped =
+        _snappedMinuteFromGlobalOffset(details.globalPosition, box: box);
+    if (snapped != null && snapped != _dragPreviewStartMin) {
+      _dragPreviewStartMin = snapped;
+      HapticFeedback.selectionClick();
+      shouldSetState = true;
+    }
+
+    final local = box.globalToLocal(details.globalPosition);
+    final scrolled = _maybeAutoScroll(box, local.dy);
+    if (scrolled) {
+      final rescanned =
+          _snappedMinuteFromGlobalOffset(details.globalPosition, box: box);
+      if (rescanned != null && rescanned != _dragPreviewStartMin) {
+        _dragPreviewStartMin = rescanned;
+        HapticFeedback.selectionClick();
+      }
+      shouldSetState = true;
+    }
+
+    if (shouldSetState && mounted) {
+      setState(() {});
     }
   }
 
@@ -1378,6 +1463,113 @@ class _DayViewGridState extends State<DayViewGrid> {
     return seen.values.toList();
   }
 
+  bool _eventsMatch(EventItem a, EventItem b) {
+    final idMatch = (a.id != null &&
+        a.id!.isNotEmpty &&
+        b.id != null &&
+        b.id!.isNotEmpty &&
+        a.id == b.id);
+    final cidMatch = (a.clientEventId != null &&
+        a.clientEventId!.isNotEmpty &&
+        b.clientEventId != null &&
+        b.clientEventId!.isNotEmpty &&
+        a.clientEventId == b.clientEventId);
+    return idMatch || cidMatch || identical(a, b);
+  }
+
+  List<PositionedEventBlock> _buildDisplayBlocks(
+    List<PositionedEventBlock> base,
+  ) {
+    if (_dragPreviewEvent == null || _dragPreviewStartMin == null) {
+      return base;
+    }
+    final preview = _dragPreviewEvent!;
+    final int startMin =
+        _dragPreviewStartMin!.clamp(0, 24 * 60 - 1).toInt();
+    final int duration =
+        (preview.endMin - preview.startMin).clamp(15, 12 * 60).toInt();
+    final int endMin = (startMin + duration).clamp(0, 24 * 60 - 1).toInt();
+
+    final filtered = base
+        .where(
+          (b) => !_eventsMatch(b.event, preview),
+        )
+        .toList();
+
+    final ghostEvent = EventItem(
+      id: preview.id,
+      clientEventId: preview.clientEventId,
+      title: preview.title,
+      detail: preview.detail,
+      location: preview.location,
+      startMin: startMin,
+      endMin: endMin,
+      flowId: preview.flowId,
+      color: preview.color,
+      manualColor: preview.manualColor,
+      allDay: preview.allDay,
+      category: preview.category,
+      isReminder: preview.isReminder,
+      reminderId: preview.reminderId,
+    );
+
+    filtered.add(
+      PositionedEventBlock(
+        event: ghostEvent,
+        leftOffset: 0,
+        width: 0,
+      ),
+    );
+    return filtered;
+  }
+
+  bool _isPreviewBlock(PositionedEventBlock block) {
+    if (_dragPreviewEvent == null || _dragPreviewStartMin == null) {
+      return false;
+    }
+    if (_dragPreviewStartMin != block.event.startMin) return false;
+    return _eventsMatch(block.event, _dragPreviewEvent!);
+  }
+
+  String _formatPreviewTime(int minutes) {
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    final period = h >= 12 ? 'PM' : 'AM';
+    final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+    return '$hour12:${m.toString().padLeft(2, '0')} $period';
+  }
+
+  List<Widget> _buildPreviewTimeChipForHour(int hour) {
+    if (_dragPreviewStartMin == null || _dragPreviewEvent == null) {
+      return const [];
+    }
+    final start = _dragPreviewStartMin!;
+    if (start < hour * 60 || start >= (hour + 1) * 60) return const [];
+    final top = (start - hour * 60).clamp(0, 59).toDouble();
+    return [
+      Positioned(
+        right: 8,
+        top: (top - 10).clamp(0.0, 44.0),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.white24),
+          ),
+          child: Text(
+            _formatPreviewTime(start),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    ];
+  }
+
   bool _looksLikeCidDetail(String text) {
     final trimmed = text.trim().replaceAll(RegExp(r'\s+'), '');
     final withPrefix = trimmed.startsWith('kemet_cid:')
@@ -1467,6 +1659,8 @@ class _DayViewGridState extends State<DayViewGrid> {
       _cachedFlowHash = flowHash;
     }
 
+    _displayBlocks = _buildDisplayBlocks(_cachedBlocks ?? []);
+
     return Column(
       children: [
         // Gregorian date header (if enabled)
@@ -1518,28 +1712,15 @@ class _DayViewGridState extends State<DayViewGrid> {
                 }
                 return;
               }
-              final ctx = _timelineKey.currentContext ?? _timelineCtx;
-              final ro = ctx?.findRenderObject();
-              final box = ro is RenderBox ? ro : null;
-              if (box == null) {
+              final snapped = _snappedMinuteFromGlobalOffset(details.offset);
+              if (snapped == null) {
                 if (kDebugMode) {
                   debugPrint(
-                    '[DayView] DragTarget: no RenderBox; ro=${ro?.runtimeType}',
+                    '[DayView] drop ignored: unable to compute snapped minute',
                   );
                 }
                 return;
               }
-              final local = box.globalToLocal(details.offset);
-              final double y = local.dy +
-                  (_scrollController.hasClients ? _scrollController.offset : 0.0);
-              if (kDebugMode && !_scrollController.hasClients) {
-                debugPrint(
-                    '[DayView] DragTarget: scrollController has no clients; y=$y');
-              }
-              int totalMin = y.round();
-              totalMin = totalMin.clamp(0, 24 * 60 - 1).toInt();
-              int snapped =
-                  ((totalMin / 15).round() * 15).clamp(0, 24 * 60 - 1).toInt();
               if (kDebugMode) {
                 final ev = details.data.event;
                 debugPrint(
@@ -1554,6 +1735,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 details.data.event,
                 snapped,
               );
+              _clearDragPreview();
             },
           ),
         ),
@@ -1562,9 +1744,9 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   Widget _buildHourRow(int hour) {
-    final hourBlocks = _cachedBlocks?.where((b) => 
+    final hourBlocks = _displayBlocks.where((b) => 
       b.event.startMin >= hour * 60 && b.event.startMin < (hour + 1) * 60
-    ).toList() ?? [];
+    ).toList();
 
     return Container(
       height: 60,
@@ -1637,6 +1819,9 @@ class _DayViewGridState extends State<DayViewGrid> {
           // Event blocks
           ..._buildHourBlocks(hourBlocks),
 
+          // Drag preview time chip (if active)
+          ..._buildPreviewTimeChipForHour(hour),
+
           // Temp drag block rendered above everything
           ..._buildTempDragBlockForHour(hour),
         ],
@@ -1655,14 +1840,14 @@ class _DayViewGridState extends State<DayViewGrid> {
     // Group by start minute within the hour
     final Map<int, List<PositionedEventBlock>> groups = {};
     for (final block in hourBlocks) {
-      final key = block.event.startMin % 60;
+      final key = block.event.startMin;
       groups.putIfAbsent(key, () => []).add(block);
     }
 
     final sortedKeys = groups.keys.toList()..sort();
     for (final key in sortedKeys) {
       final blocks = groups[key]!;
-      final top = key.toDouble();
+      final top = (blocks.first.event.startMin % 60).toDouble();
       final count = blocks.length;
 
       if (count <= 3) {
@@ -1852,6 +2037,13 @@ class _DayViewGridState extends State<DayViewGrid> {
 
   Widget _buildInteractiveEvent(PositionedEventBlock block) {
     final event = block.event;
+    final isPreview = _isPreviewBlock(block);
+
+    if (isPreview) {
+      return IgnorePointer(
+        child: _buildEventBlock(block, isPreview: true),
+      );
+    }
 
     if (!_isEventDraggable(event)) {
       return GestureDetector(
@@ -1866,14 +2058,14 @@ class _DayViewGridState extends State<DayViewGrid> {
             ),
           );
         },
-        child: _buildEventBlock(block),
+        child: _buildEventBlock(block, isPreview: false),
       );
     }
 
     final tappable = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _showEventDetail(event),
-      child: _buildEventBlock(block),
+      child: _buildEventBlock(block, isPreview: false),
     );
 
     return LongPressDraggable<_DragPayload>(
@@ -1883,36 +2075,42 @@ class _DayViewGridState extends State<DayViewGrid> {
         color: Colors.transparent,
         child: Opacity(
           opacity: 0.8,
-          child: _buildEventBlock(block),
+          child: _buildEventBlock(block, isPreview: false),
         ),
       ),
       childWhenDragging: Opacity(
         opacity: 0.35,
-        child: _buildEventBlock(block),
+        child: _buildEventBlock(block, isPreview: false),
       ),
+      onDragUpdate: (details) => _handleDragUpdate(event, details),
       onDragStarted: () {
         _isDraggingEvent = true;
+        _dragPreviewEvent = event;
+        _dragPreviewStartMin = event.startMin;
         HapticFeedback.selectionClick();
         setState(() {});
       },
       onDraggableCanceled: (_, __) {
         _isDraggingEvent = false;
-        setState(() {});
+        _clearDragPreview();
       },
       onDragEnd: (_) {
         _isDraggingEvent = false;
-        setState(() {});
+        _clearDragPreview();
       },
       onDragCompleted: () {
         _isDraggingEvent = false;
-        setState(() {});
+        _clearDragPreview();
       },
       child: tappable,
     );
   }
 
 
-  Widget _buildEventBlock(PositionedEventBlock block) {
+  Widget _buildEventBlock(
+    PositionedEventBlock block, {
+    bool isPreview = false,
+  }) {
     final event = block.event;
     
     // 🔍 DEBUG: Log block being rendered
@@ -1942,32 +2140,50 @@ class _DayViewGridState extends State<DayViewGrid> {
             final double minHeight = _kMinEventBlockHeight;
             return rawHeight < minHeight ? minHeight : rawHeight;
           }();
+
+    final fillColor =
+        isPreview ? event.color.withOpacity(0.12) : event.color.withOpacity(0.2);
+    final BoxBorder border = isPreview
+        ? Border.all(color: event.color.withOpacity(0.65), width: 1.5)
+        : Border(
+            left: BorderSide(color: event.color, width: 3),
+          );
     
     return Container(
       width: block.width,
       height: height,
       margin: const EdgeInsets.only(right: 4, bottom: 2),
       decoration: BoxDecoration(
-        color: event.color.withOpacity(0.2),
-        border: Border(
-          left: BorderSide(color: event.color, width: 3),
-        ),
+        color: fillColor,
+        border: border,
         borderRadius: BorderRadius.circular(4),
       ),
       padding: const EdgeInsets.all(4),
       clipBehavior: Clip.hardEdge, // ✅ Prevent overflow
-      child: _buildEventTextContents(event, durationMinutes),
+      child: _buildEventTextContents(
+        event,
+        durationMinutes,
+        isPreview: isPreview,
+      ),
     );
   }
 
   /// ✅ FIX #2B: Separate method for text content with empty title handling
-  Widget _buildEventTextContents(EventItem event, int durationMinutes) {
+  Widget _buildEventTextContents(
+    EventItem event,
+    int durationMinutes, {
+    bool isPreview = false,
+  }) {
     final flow = widget.flowIndex[event.flowId];
     final bool hasFlow = flow != null;
     
     final showTitle = event.title.trim().isNotEmpty;
     final showLocation = event.location != null &&
         event.location!.trim().isNotEmpty;
+    final titleColor = isPreview ? Colors.white70 : Colors.white;
+    final flowColor =
+        hasFlow ? event.color.withOpacity(isPreview ? 0.75 : 1.0) : null;
+    final locationColor = Colors.white.withOpacity(isPreview ? 0.55 : 0.7);
     
     return Column(
       mainAxisSize: MainAxisSize.min, // ✅ Don't expand unnecessarily
@@ -1981,7 +2197,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              color: event.color,
+              color: flowColor,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -1993,10 +2209,10 @@ class _DayViewGridState extends State<DayViewGrid> {
         if (showTitle)
           Text(
             event.title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: Colors.white,
+              color: titleColor,
             ),
             maxLines:
                 (event.isReminder || hasFlow || durationMinutes < 90) ? 1 : 2,
@@ -2006,10 +2222,10 @@ class _DayViewGridState extends State<DayViewGrid> {
           Text(
             // Fallback so you don't get giant red nothing-brick
             hasFlow ? '(flow block)' : '(scheduled)',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w400,
-              color: Colors.white70,
+              color: isPreview ? Colors.white60 : Colors.white70,
               fontStyle: FontStyle.italic,
             ),
             maxLines: 1,
@@ -2026,7 +2242,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 event.location!.trim(),
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.white.withOpacity(0.7),
+                  color: locationColor,
                   decoration: TextDecoration.underline,
                 ),
                 maxLines: 1,

@@ -5039,13 +5039,19 @@ class _CalendarPageState extends State<CalendarPage>
   }) {
     final list = _notes[dayKey];
     if (list == null || list.isEmpty) return -1;
+    final trimmedEventId = eventId?.trim();
+    final trimmedClientId = clientEventId?.trim();
     return list.indexWhere((n) {
-      if (eventId != null && eventId.isNotEmpty && n.id == eventId) {
+      final noteId = n.id?.trim() ?? '';
+      final noteCid = n.clientEventId?.trim() ?? '';
+      if (trimmedEventId != null &&
+          trimmedEventId.isNotEmpty &&
+          noteId == trimmedEventId) {
         return true;
       }
-      if (clientEventId != null &&
-          clientEventId.isNotEmpty &&
-          n.clientEventId == clientEventId) {
+      if (trimmedClientId != null &&
+          trimmedClientId.isNotEmpty &&
+          noteCid == trimmedClientId) {
         return true;
       }
       return false;
@@ -5348,8 +5354,8 @@ class _CalendarPageState extends State<CalendarPage>
           );
         }
         reminderNote = _Note(
-          id: updated.id,
-          clientEventId: updated.clientEventId,
+          id: updated.id?.trim(),
+          clientEventId: updated.clientEventId?.trim(),
           title: updated.title,
           detail: updated.detail,
           location: updated.location,
@@ -5366,12 +5372,19 @@ class _CalendarPageState extends State<CalendarPage>
         bucket.add(reminderNote);
         bucket.removeWhere((n) {
           if (identical(n, reminderNote)) return false;
-          final idMatch = reminderNote.id != null &&
+          final noteId = n.id?.trim() ?? '';
+          final noteCid = n.clientEventId?.trim() ?? '';
+          final updatedIdMatch = reminderNote.id != null &&
               reminderNote.id!.isNotEmpty &&
-              n.id == reminderNote.id;
-          final cidMatch = reminderNote.clientEventId != null &&
+              noteId == reminderNote.id;
+          final updatedCidMatch = reminderNote.clientEventId != null &&
               reminderNote.clientEventId!.isNotEmpty &&
-              n.clientEventId == reminderNote.clientEventId;
+              noteCid == reminderNote.clientEventId;
+          final incomingIdMatch =
+              rawId != null && rawId.isNotEmpty && noteId == rawId;
+          final incomingCidMatch = rawClientId != null &&
+              rawClientId.isNotEmpty &&
+              noteCid == rawClientId;
           final titleStartMatch =
               n.title.trim().toLowerCase() ==
                   reminderNote.title.trim().toLowerCase() &&
@@ -5379,7 +5392,11 @@ class _CalendarPageState extends State<CalendarPage>
               reminderNote.start != null &&
               n.start!.hour == reminderNote.start!.hour &&
               n.start!.minute == reminderNote.start!.minute;
-          return idMatch || cidMatch || titleStartMatch;
+          return updatedIdMatch ||
+              updatedCidMatch ||
+              incomingIdMatch ||
+              incomingCidMatch ||
+              titleStartMatch;
         });
         _logBucket('move: reconciled _notes (fallback)');
       }
