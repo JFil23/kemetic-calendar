@@ -4,11 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 
-/// Kemetic month numbers 1..12; 0 means epagomenal.
-/// Use deprecated shim for backward compatibility (one release cycle)
-@Deprecated('Use getMonthById(id).hellenized - removes in v3.0')
-final kemeticMonths = kemeticMonthsHellenized;
-
 // Removed - use getMonthById(id).season instead
 @Deprecated('Use getSeasonName(id) - removes in v3.0')
 final kemeticSeasonsByMonth = <int, String>{

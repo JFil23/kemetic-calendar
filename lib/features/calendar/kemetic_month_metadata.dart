@@ -141,7 +141,7 @@ const List<KemeticMonth> kKemeticMonths = [
     season: KemeticSeason.akhet,
     searchAliases: [
       'Thoth', 'Ḏḥwty', 'Djehuty', 'Tekh', 'Tḫy',
-      'Dhwty', 'Thout', 'Thōth',
+      'Dhwty', 'Thout', 'Thōth', 'Thoth (Ḏḥwty)',
     ],
   ),
   
@@ -156,7 +156,7 @@ const List<KemeticMonth> kKemeticMonths = [
     season: KemeticSeason.akhet,
     searchAliases: [
       'Paopi', 'Mnḫt', 'Menkhet', 'Phaophi',
-      'Pa-en-Mekh', 'Paenmekh', 'Mnkht', 'Menkhet',
+      'Paenmekh', 'Paopi (Mnḫt)',
     ],
   ),
   
@@ -170,7 +170,7 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Athyr',
     season: KemeticSeason.akhet,
     searchAliases: [
-      'Hathor', 'Ḥwt-Ḥr', 'Hwt-Hr', 'Athyr', 'Hwthr',
+      'Hathor', 'Ḥwt-Ḥr', 'Athyr', 'Hathor (Ḥwt-Ḥr)',
     ],
   ),
   
@@ -184,7 +184,7 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Choiak',
     season: KemeticSeason.akhet,
     searchAliases: [
-      'Ka-ḥer-Ka', 'Ka-her-Ka', 'Kȝ-ḥr-Kȝ', 'Choiak', 'Kaherka',
+      'Ka-ḥer-Ka', 'Choiak', 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ)',
     ],
   ),
   
@@ -198,7 +198,7 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Tybi',
     season: KemeticSeason.peret,
     searchAliases: [
-      'Šef-Bedet', 'Shef-Bedet', 'Šf-bdt', 'Tybi', 'Shefbedet',
+      'Shefbedet', 'Šef-Bedet', 'Tybi', 'Šef-Bedet (Šf-bdt)',
     ],
   ),
   
@@ -212,7 +212,7 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Mechir',
     season: KemeticSeason.peret,
     searchAliases: [
-      'Rekh-Wer', 'Rekhwer', 'Rḫ-wr', 'Mechir',
+      'Rekh-Wer', 'Mechir', 'Rekh-Wer (Rḫ-wr)',
     ],
   ),
   
@@ -226,8 +226,7 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Phamenoth',
     season: KemeticSeason.peret,
     searchAliases: [
-      'Rekh-Nedjes', 'Rekhnedjes', 'Rekhndjes', 
-      'Rḫ-nḏs', 'Phamenoth',
+      'Rekh-Nedjes', 'Phamenoth', 'Rekh-Nedjes (Rḫ-nḏs)',
     ],
   ),
   
@@ -242,6 +241,7 @@ const List<KemeticMonth> kKemeticMonths = [
     season: KemeticSeason.peret,
     searchAliases: [
       'Renwet', 'Rnnwt', 'Renenutet', 'Pharmuthi',
+      'Renwet (Rnnwt)',
     ],
   ),
   
@@ -255,7 +255,7 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Pachons',
     season: KemeticSeason.shemu,
     searchAliases: [
-      'Hnsw', 'Ḥnsw', 'Khonsu', 'Pachons',
+      'Ḥnsw', 'Khonsu', 'Pachons', 'Hnsw (Ḥnsw)',
     ],
   ),
   
@@ -269,7 +269,8 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Payni',
     season: KemeticSeason.shemu,
     searchAliases: [
-      'Ḥenti-ḥet', 'Henti-het', 'Ḥnt-ḥtj', 'Payni', 'Hentihet',
+      'Ḥenti-ḥet', 'Ḥnt-ḥtj', 'Payni',
+      'Ḥenti-ḥet (Ḥnt-ḥtj)',
     ],
   ),
   
@@ -284,8 +285,8 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Epiphi',
     season: KemeticSeason.shemu,
     searchAliases: [
-      'Pa-Ipi', 'Paipi', 'ỉpt-ḥmt', 'Ipet-hemet', 'Epiphi',
-      'Pȝ ỉp.t', 'Pa ip.t', 'Pa-ipt', 'Paipt', 'ipt',
+      'Pa-Ipi', 'ỉpt-ḥmt', 'Ipet-hemet', 'Epiphi',
+      'Pȝ ỉp.t', 'Pa ip.t', 'ipt', 'Pa-Ipi (ỉpt-ḥmt)',
     ],
   ),
   
@@ -299,7 +300,7 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Mesore',
     season: KemeticSeason.shemu,
     searchAliases: [
-      'Mesut-Ra', 'Mesutra', 'Mswt-Rꜥ', 'Mesore',
+      'Mesut-Ra', 'Mswt-Rꜥ', 'Mesore', 'Mesut-Ra (Mswt-Rꜥ)',
     ],
   ),
   
@@ -314,7 +315,7 @@ const List<KemeticMonth> kKemeticMonths = [
     season: KemeticSeason.transition,
     searchAliases: [
       'Epagomenal', 'ḥr.w rnpt', 'Heriu Renpet', 'Epagomenai',
-      'Days upon the Year', 'Heriu-Renpet',
+      'Days upon the Year', 'Heriu Renpet (ḥr.w rnpt)',
     ],
   ),
 ];
@@ -358,7 +359,7 @@ int aliasIndexSize() => _aliasToId.length;
 
 /// Test helper - rebuild alias map for performance testing
 @visibleForTesting
-Map<String, int> rebuildAliasMapForTest() => _buildAliasMap();
+Map<String, int> rebuildAliasMapForTest() => _aliasToId;
 
 /// PRIMARY API: Get month by ID (1-13)
 /// Throws RangeError if invalid
@@ -452,4 +453,3 @@ List<String> get monthNamesCompat => [
   '',
   ...kKemeticMonths.skip(1).map((m) => m.displayFull),
 ];
-

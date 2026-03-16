@@ -1806,6 +1806,8 @@ class _CalendarPageState extends State<CalendarPage>
       KemeticMath.fromGregorian(DateTime.now());
 
   final Map<String, List<_Note>> _notes = {};
+  /// Prevents duplicate async move operations for the same event row id.
+  final Set<String> _eventMoveInProgress = <String>{};
   List<_Flow> _flows = [];
   int _nextFlowId = 1;
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
@@ -1833,6 +1835,7 @@ class _CalendarPageState extends State<CalendarPage>
   // Reminders (Flutter-only layer)
   late final ReminderService _reminderService = ReminderService();
   StreamSubscription<List<Reminder>>? _reminderSub; // unused now (safety)
+  StreamSubscription<AuthState>? _authSub;
   bool _remindersLoaded = false;
   bool _remindersEnabled = false; // disable floating badges for now
   bool _settingsCatchUp = true;
@@ -2386,6 +2389,17 @@ class _CalendarPageState extends State<CalendarPage>
       }
     });
 
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen(
+      (data) {
+        final event = data.event;
+        if (event == AuthChangeEvent.initialSession ||
+            event == AuthChangeEvent.signedIn) {
+          if (!mounted) return;
+          _loadFromDisk();
+        }
+      },
+    );
+
     // Initialize journal controller
     _journalController = JournalController(Supabase.instance.client);
     _journalController.init().then((_) {
@@ -2661,6 +2675,7 @@ class _CalendarPageState extends State<CalendarPage>
     }
     WidgetsBinding.instance.removeObserver(this);
     _reminderSub?.cancel();
+    _authSub?.cancel();
     _reminderService.dispose();
     debugPrint('');
     debugPrint('🗑️  _CalendarPageState DISPOSING');
@@ -3626,6 +3641,7 @@ class _CalendarPageState extends State<CalendarPage>
   void _materializeReminderLocally({
     required ReminderRule rule,
     required List<DateTime> occurrences,
+    int? flowId,
   }) {
     for (final day in occurrences) {
       final k = KemeticMath.fromGregorian(day);
@@ -3638,6 +3654,30 @@ class _CalendarPageState extends State<CalendarPage>
       final endTime = rule.allDay
           ? null
           : TimeOfDay.fromDateTime(day.add(const Duration(minutes: 30)));
+      // Skip if a canonical DB-backed note already exists for this flow/time/title.
+      if (flowId != null && flowId > 0) {
+        final key = _kKey(k.kYear, k.kMonth, k.kDay);
+        final bucket = _notes[key];
+        if (bucket != null) {
+          final targetTitle = rule.title.trim().toLowerCase();
+          final hasCanonical = bucket.any((n) {
+            if ((n.flowId ?? -1) != flowId) return false;
+            if ((n.id ?? '').trim().isEmpty) return false;
+            if (rule.allDay != n.allDay) return false;
+            if (!rule.allDay) {
+              if (n.start == null ||
+                  n.start!.hour != startTime?.hour ||
+                  n.start!.minute != startTime?.minute) {
+                return false;
+              }
+            }
+            return n.title.trim().toLowerCase() == targetTitle;
+          });
+          if (hasCanonical) {
+            continue;
+          }
+        }
+      }
       _addNote(
         k.kYear,
         k.kMonth,
@@ -3651,6 +3691,7 @@ class _CalendarPageState extends State<CalendarPage>
         category: rule.category,
         isReminder: true,
         reminderId: rule.id,
+        flowId: flowId,
       );
     }
   }
@@ -3681,7 +3722,13 @@ class _CalendarPageState extends State<CalendarPage>
       final occurrences = _generateReminderOccurrences(rule, today, windowEnd);
       // Update local cache first so UI reflects immediately even if network fails.
       _pruneReminderNotes(rule.id, fromDate: today);
-      _materializeReminderLocally(rule: rule, occurrences: occurrences);
+      final flowIdForReminder =
+          await _findFlowIdByReminderUuid(rule.id); // may be null/nonexistent
+      _materializeReminderLocally(
+        rule: rule,
+        occurrences: occurrences,
+        flowId: flowIdForReminder,
+      );
 
       if (!rule.id.startsWith('nutrition:')) {
         for (final day in occurrences) {
@@ -3712,6 +3759,10 @@ class _CalendarPageState extends State<CalendarPage>
               allDay: rule.allDay,
               endsAtUtc: end?.toUtc(),
               category: rule.category,
+              flowLocalId:
+                  (flowIdForReminder != null && flowIdForReminder > 0)
+                      ? flowIdForReminder
+                      : null,
             );
           } catch (_) {
             // non-fatal for individual reminders; local cache already updated
@@ -3745,15 +3796,20 @@ class _CalendarPageState extends State<CalendarPage>
     await _loadFromDisk();
   }
 
-  void _previewReminderLocally(
+  Future<void> _previewReminderLocally(
     ReminderRule rule,
     DateTime today,
     DateTime windowEnd,
-  ) {
+  ) async {
     // Show new/edited reminder immediately in list + calendar while sync completes.
     _pruneReminderNotes(rule.id, fromDate: today);
     final occurrences = _generateReminderOccurrences(rule, today, windowEnd);
-    _materializeReminderLocally(rule: rule, occurrences: occurrences);
+    final flowId = await _findFlowIdByReminderUuid(rule.id);
+    _materializeReminderLocally(
+      rule: rule,
+      occurrences: occurrences,
+      flowId: flowId,
+    );
   }
 
   Future<void> _regenReminderNotes() async {
@@ -3767,7 +3823,12 @@ class _CalendarPageState extends State<CalendarPage>
     }
     for (final r in _reminderRules) {
       final occs = _generateReminderOccurrences(r, today, windowEnd);
-      _materializeReminderLocally(rule: r, occurrences: occs);
+      final flowId = await _findFlowIdByReminderUuid(r.id);
+      _materializeReminderLocally(
+        rule: r,
+        occurrences: occs,
+        flowId: flowId,
+      );
     }
   }
 
@@ -4407,7 +4468,9 @@ class _CalendarPageState extends State<CalendarPage>
                               rule,
                               ..._reminderRules,
                             ]);
-                            _previewReminderLocally(rule, today, windowEnd);
+                            unawaited(
+                              _previewReminderLocally(rule, today, windowEnd),
+                            );
                             _bumpDataVersion();
                             final saveFuture = _upsertReminderRule(rule);
                             if (sheetCtx.mounted &&
@@ -4626,6 +4689,8 @@ class _CalendarPageState extends State<CalendarPage>
     int kDay,
     String title,
     String? detail, {
+    String? id,
+    String? clientEventId,
     String? location,
     bool allDay = false,
     TimeOfDay? start,
@@ -4640,7 +4705,8 @@ class _CalendarPageState extends State<CalendarPage>
     final list = _notes.putIfAbsent(k, () => <_Note>[]);
     list.add(
       _Note(
-        id: null,
+        id: id,
+        clientEventId: clientEventId,
         title: title.trim(),
         detail: detail?.trim(),
         location: (location == null || location.trim().isEmpty)
@@ -4965,6 +5031,27 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
+  /// Returns the index of the note in _notes[dayKey] matching id or clientEventId, or -1.
+  int _findNoteIndexByIdOrClientId(
+    String dayKey, {
+    String? eventId,
+    String? clientEventId,
+  }) {
+    final list = _notes[dayKey];
+    if (list == null || list.isEmpty) return -1;
+    return list.indexWhere((n) {
+      if (eventId != null && eventId.isNotEmpty && n.id == eventId) {
+        return true;
+      }
+      if (clientEventId != null &&
+          clientEventId.isNotEmpty &&
+          n.clientEventId == clientEventId) {
+        return true;
+      }
+      return false;
+    });
+  }
+
   int? _findNoteIndexByEvent(int ky, int km, int kd, EventItem evt) {
     final key = _kKey(ky, km, kd);
     final list = _notes[key];
@@ -5068,6 +5155,282 @@ class _CalendarPageState extends State<CalendarPage>
         eventId: evt.id,
       ),
     );
+  }
+
+  Future<void> _moveEventInDayView(
+    int ky,
+    int km,
+    int kd,
+    EventItem evt,
+    int proposedStartMin,
+  ) async {
+    final rawId = evt.id?.trim();
+    final rawClientId = evt.clientEventId?.trim();
+    final moveKeyForLog = (rawId != null && rawId.isNotEmpty)
+        ? rawId
+        : (rawClientId != null && rawClientId.isNotEmpty)
+            ? rawClientId
+            : '<none>';
+    if (kDebugMode) {
+      debugPrint(
+        '[DayView] move start id=${evt.id} cid=${evt.clientEventId} rawId=$rawId rawCid=$rawClientId moveKey=$moveKeyForLog title="${evt.title}" flowId=${evt.flowId} startMin=${evt.startMin} endMin=${evt.endMin} proposedStart=$proposedStartMin',
+      );
+    }
+    if (evt.allDay) {
+      if (kDebugMode) {
+        debugPrint('[DayView] move bail: all-day event "${evt.title}"');
+      }
+      return;
+    }
+    if (evt.isReminder) {
+      if (kDebugMode) {
+        debugPrint('[DayView] move bail: reminder "${evt.title}"');
+      }
+      return;
+    }
+
+    if ((rawId == null || rawId.isEmpty) &&
+        (rawClientId == null || rawClientId.isEmpty)) {
+      if (kDebugMode) {
+        debugPrint(
+          '[DayView] move bail: no id/clientEventId for "${evt.title}"',
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Save event before moving.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    final moveKey = (rawId != null && rawId.isNotEmpty) ? rawId : rawClientId!;
+    if (_eventMoveInProgress.contains(moveKey)) {
+      if (kDebugMode) {
+        debugPrint('[DayView] move already in progress for $moveKey');
+      }
+      return;
+    }
+    _eventMoveInProgress.add(moveKey);
+
+    final key = _kKey(ky, km, kd);
+    int localIdx = -1;
+    _Note? previousNote;
+    bool updatedLocalNote = false;
+
+    String _fmtTod(TimeOfDay? tod) {
+      if (tod == null) return 'all-day';
+      final hh = tod.hour.toString().padLeft(2, '0');
+      final mm = tod.minute.toString().padLeft(2, '0');
+      return '$hh:$mm';
+    }
+
+    void _logBucket(String label) {
+      if (!kDebugMode) return;
+      final bucket = _notes[key] ?? const [];
+      final summary = bucket
+          .map(
+            (n) =>
+                'id=${n.id ?? '-'} cid=${n.clientEventId ?? '-'} start=${_fmtTod(n.start)}',
+          )
+          .join(' | ');
+      debugPrint(
+        '[DayView] $label key=$key count=${bucket.length} notes=[$summary]',
+      );
+    }
+
+    try {
+      int durationMin = evt.endMin - evt.startMin;
+      if (durationMin < 15) durationMin = 15;
+      final int maxStart = (1440 - durationMin).clamp(0, 1440).toInt();
+      int clampedStart = proposedStartMin.clamp(0, maxStart).toInt();
+      int clampedEnd = clampedStart + durationMin;
+      if (clampedEnd > 1439) {
+        clampedEnd = 1439;
+        clampedStart = (clampedEnd - durationMin).clamp(0, 1439).toInt();
+      }
+
+      if (clampedStart == evt.startMin && clampedEnd == evt.endMin) {
+        if (kDebugMode) {
+          debugPrint('[DayView] move no-op for $moveKey');
+        }
+        return;
+      }
+
+      final gregorian = KemeticMath.toGregorian(ky, km, kd);
+      final startLocal = DateTime(
+        gregorian.year,
+        gregorian.month,
+        gregorian.day,
+        clampedStart ~/ 60,
+        clampedStart % 60,
+      );
+      final endLocal = DateTime(
+        gregorian.year,
+        gregorian.month,
+        gregorian.day,
+        clampedEnd ~/ 60,
+        clampedEnd % 60,
+      );
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      UserEvent updated;
+      if (rawId != null && rawId.isNotEmpty) {
+        if (kDebugMode) {
+          debugPrint(
+            '[DayView] move persist: update by id=$rawId start=${startLocal.toUtc()} end=${endLocal.toUtc()}',
+          );
+        }
+        updated = await repo.update(
+          id: rawId,
+          startsAt: startLocal.toUtc(),
+          endsAt: endLocal.toUtc(),
+        );
+      } else {
+        if (kDebugMode) {
+          debugPrint(
+            '[DayView] move persist: upsert by cid=$rawClientId start=${startLocal.toUtc()} end=${endLocal.toUtc()}',
+          );
+        }
+        updated = await repo.upsertByClientId(
+          clientEventId: rawClientId!,
+          title: evt.title,
+          startsAtUtc: startLocal.toUtc(),
+          detail: evt.detail,
+          location: evt.location,
+          allDay: evt.allDay,
+          endsAtUtc: endLocal.toUtc(),
+          flowLocalId: evt.flowId,
+          category: evt.category,
+        );
+      }
+      if (kDebugMode) {
+        debugPrint(
+          '[DayView] move persist: result id=${updated.id} cid=${updated.clientEventId} start=${updated.startsAt} end=${updated.endsAt}',
+        );
+      }
+
+      final TimeOfDay updatedStart =
+          TimeOfDay(hour: clampedStart ~/ 60, minute: clampedStart % 60);
+      final TimeOfDay updatedEnd =
+          TimeOfDay(hour: clampedEnd ~/ 60, minute: clampedEnd % 60);
+
+      _Note reminderNote;
+      localIdx = _findNoteIndexByIdOrClientId(
+        key,
+        eventId: updated.id,
+        clientEventId: updated.clientEventId,
+      );
+      if (localIdx != -1) {
+        final existing = _notes[key]![localIdx];
+        previousNote = existing;
+        if (kDebugMode) {
+          debugPrint(
+            '[DayView] move: local note found at index $localIdx id=${existing.id} cid=${existing.clientEventId}',
+          );
+        }
+        final replacement = existing.copyWith(
+          id: updated.id,
+          clientEventId: updated.clientEventId,
+          start: updatedStart,
+          end: updatedEnd,
+        );
+        _notes[key]![localIdx] = replacement;
+        updatedLocalNote = true;
+        reminderNote = replacement;
+        _logBucket('move: updated _notes (in-place)');
+      } else {
+        if (kDebugMode) {
+          debugPrint(
+            '[DayView] move: note not found locally for id=${updated.id} cid=${updated.clientEventId}; reconciling fallback into _notes',
+          );
+        }
+        reminderNote = _Note(
+          id: updated.id,
+          clientEventId: updated.clientEventId,
+          title: updated.title,
+          detail: updated.detail,
+          location: updated.location,
+          allDay: updated.allDay,
+          start: updatedStart,
+          end: updatedEnd,
+          flowId: updated.flowLocalId,
+          manualColor: evt.manualColor,
+          category: updated.category,
+          isReminder: evt.isReminder,
+          reminderId: evt.reminderId,
+        );
+        final bucket = _notes.putIfAbsent(key, () => <_Note>[]);
+        bucket.add(reminderNote);
+        bucket.removeWhere((n) {
+          if (identical(n, reminderNote)) return false;
+          final idMatch = reminderNote.id != null &&
+              reminderNote.id!.isNotEmpty &&
+              n.id == reminderNote.id;
+          final cidMatch = reminderNote.clientEventId != null &&
+              reminderNote.clientEventId!.isNotEmpty &&
+              n.clientEventId == reminderNote.clientEventId;
+          final titleStartMatch =
+              n.title.trim().toLowerCase() ==
+                  reminderNote.title.trim().toLowerCase() &&
+              n.start != null &&
+              reminderNote.start != null &&
+              n.start!.hour == reminderNote.start!.hour &&
+              n.start!.minute == reminderNote.start!.minute;
+          return idMatch || cidMatch || titleStartMatch;
+        });
+        _logBucket('move: reconciled _notes (fallback)');
+      }
+
+      final reminderId = _reminderIdForNote(reminderNote, startLocal.toUtc());
+      await _reminderService.addOrUpdate(
+        Reminder(
+          id: reminderId,
+          eventId: reminderNote.id?.toString(),
+          title: reminderNote.title,
+          detail: reminderNote.detail,
+          alertAtUtc: startLocal.toUtc(),
+          flowId: reminderNote.flowId?.toString(),
+          createdAt: DateTime.now().toUtc(),
+          updatedAt: DateTime.now().toUtc(),
+        ),
+      );
+
+      if (updated.clientEventId != null && updated.clientEventId!.isNotEmpty) {
+        await Notify.cancelNotificationForEvent(updated.clientEventId!);
+        await Notify.scheduleAlertWithPersistence(
+          clientEventId: updated.clientEventId!,
+          scheduledAt: startLocal.toUtc(),
+          title: updated.title,
+          body: updated.detail ?? '',
+          payload: '{}',
+        );
+      }
+
+      _notifyDayViewDataChanged();
+    } catch (e, st) {
+      if (updatedLocalNote && previousNote != null) {
+        final list = _notes[key];
+        if (list != null && localIdx >= 0 && localIdx < list.length) {
+          list[localIdx] = previousNote;
+        }
+      }
+      if (kDebugMode) {
+        debugPrint('[DayView] move failed for $moveKey: $e');
+        debugPrint('$st');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Couldn't move event."),
+          ),
+        );
+      }
+    } finally {
+      _eventMoveInProgress.remove(moveKey);
+    }
   }
 
   final Map<int, int> _flowLocalIdAliases =
@@ -6964,10 +7327,11 @@ class _CalendarPageState extends State<CalendarPage>
         );
       }
 
-      return notes
+      final mapped = notes
           .map(
             (n) => NoteData(
               id: n.id?.toString(),
+              clientEventId: n.clientEventId,
               title: n.title,
               detail: n.detail,
               location: n.location,
@@ -6982,6 +7346,24 @@ class _CalendarPageState extends State<CalendarPage>
             ),
           )
           .toList();
+
+      if (kDebugMode) {
+        debugPrint(
+          '[DayView adapter] $y-$m-$d _Note -> NoteData count=${notes.length}',
+        );
+        for (int i = 0; i < notes.length; i++) {
+          final n = notes[i];
+          final nd = mapped[i];
+          debugPrint(
+            '[DayView adapter] _Note[$i] id=${n.id} cid=${n.clientEventId} title="${n.title}"',
+          );
+          debugPrint(
+            '[DayView adapter] NoteData[$i] id=${nd.id} cid=${nd.clientEventId} title="${nd.title}"',
+          );
+        }
+      }
+
+      return mapped;
     };
 
     // Adapter: Convert _Flow to FlowData
@@ -7013,6 +7395,7 @@ class _CalendarPageState extends State<CalendarPage>
           onEditNote: (ky, km, kd, evt) async {
             await _editNoteByEvent(ky, km, kd, evt);
           },
+          onMoveEventTime: _moveEventInDayView,
           onShareNote: (evt) async {
             await _shareNoteSimple(evt);
           },
@@ -9151,18 +9534,30 @@ class _CalendarPageState extends State<CalendarPage>
   Future<void> _loadFromDisk() async {
     print('=== _loadFromDisk START ===');
 
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (currentUser == null) {
+      if (kDebugMode) {
+        debugPrint('[loadFromDisk] Skipping load: no authenticated user');
+      }
+      return;
+    }
+
     try {
       // Ensure reminder rules are loaded before hydrating events so we can filter orphaned reminder instances.
       await _loadReminderRules();
 
       final repo = UserEventsRepo(Supabase.instance.client);
 
-      // Flow-first: clear, load flows, then events; join only to known active flows
-      _notes.clear();
-      _flows.clear();
+      // Flow-first: load flows, then events; join only to known active flows
+      final List<_Flow> newFlows = [];
+      final Map<String, List<_Note>> newNotes = {};
+      int nextFlowId = _nextFlowId;
 
       // Load flows into _flows list
       final serverFlows = await repo.getAllFlows();
+      if (kDebugMode) {
+        debugPrint('[loadFromDisk] getAllFlows count: ${serverFlows.length}');
+      }
       for (final f in serverFlows) {
         final repMeta = _decodeRepeatingNoteMetadata(f.notes);
         final derivedHidden =
@@ -9170,6 +9565,15 @@ class _CalendarPageState extends State<CalendarPage>
             repMeta.detail != null ||
             repMeta.location != null ||
             repMeta.category != null;
+        if (kDebugMode && derivedHidden) {
+          final fromDb = f.isHidden;
+          final fromRepMeta = repMeta.detail != null ||
+              repMeta.location != null ||
+              repMeta.category != null;
+          debugPrint(
+            '[loadFromDisk] hidden flow id=${f.id} name="${f.name}" fromDb=$fromDb fromRepMeta=$fromRepMeta',
+          );
+        }
         final flow = _Flow(
           id: f.id,
           name: f.name,
@@ -9183,9 +9587,9 @@ class _CalendarPageState extends State<CalendarPage>
           shareId: f.shareId, // NEW: Load share_id
           isHidden: derivedHidden,
           isReminder: f.isReminder,
-          reminderUuid: f.reminderUuid,
+            reminderUuid: f.reminderUuid,
         );
-        _flows.add(flow);
+        newFlows.add(flow);
         // 🔍 DEBUG: Log what color came from database for ALL custom flows
         // Log flows with ID greater than 156 to catch all user-created flows
         if (kDebugMode && f.id > 156) {
@@ -9193,20 +9597,48 @@ class _CalendarPageState extends State<CalendarPage>
             '[loadFlows] Flow ${f.id} "${f.name}" loaded with color=${f.color} (0x${f.color.toRadixString(16)})',
           );
         }
-        if (flow.id >= _nextFlowId) _nextFlowId = flow.id + 1;
+        if (flow.id >= nextFlowId) nextFlowId = flow.id + 1;
       }
 
       // Ensure reminder rules are present from loaded reminder flows if they didn't load earlier.
-      _rebuildReminderRulesFromFlowsIfMissing();
+      // (Run after commit to use new flow state.)
+      if (kDebugMode) {
+        final hiddenCount = newFlows.where((f) => f.isHidden).length;
+        final activeCount = newFlows.where((f) => f.active).length;
+        final expiredCount =
+            newFlows.where((f) => !_isActiveByEndDate(f.end)).length;
+        debugPrint(
+          '[loadFromDisk] newFlows: total=${newFlows.length} hidden=$hiddenCount active=$activeCount expired=$expiredCount',
+        );
+      }
 
       // Build index/maps for later use
-      final Map<int, _Flow> flowIndex = {for (final f in _flows) f.id: f};
+      final Map<int, _Flow> flowIndex = {for (final f in newFlows) f.id: f};
 
       // We'll only hydrate events for flows that are still active AND visible.
-      final activeFlowIds = _flows
+      final activeFlowIds = newFlows
           .where((f) => f.active && !f.isHidden && _isActiveByEndDate(f.end))
           .map((f) => f.id)
           .toSet(); // 👈 Set for O(1) contains() lookups
+      if (kDebugMode) {
+        debugPrint(
+          '[loadFromDisk] activeFlowIds count: ${activeFlowIds.length}',
+        );
+        if (activeFlowIds.isNotEmpty) {
+          for (final fid in activeFlowIds) {
+            final flow = flowIndex[fid];
+            if (flow == null) continue;
+            final rn = _decodeRepeatingNoteMetadata(flow.notes);
+            final looksLikeRepeatingNote = rn.detail != null ||
+                rn.location != null ||
+                rn.category != null;
+            debugPrint(
+              '[loadFromDisk] visible flow id=$fid name="${flow.name}" '
+              'isReminder=${flow.isReminder} notesLikeRepeatingNote=$looksLikeRepeatingNote',
+            );
+          }
+        }
+      }
 
       int addedCount = 0;
 
@@ -9215,6 +9647,11 @@ class _CalendarPageState extends State<CalendarPage>
           // 🔥 NEW: pull ALL events for this specific flow from DB,
           // even if they're past the pagination horizon
           final flowEvents = await repo.getEventsForFlow(flowId);
+          if (kDebugMode) {
+            debugPrint(
+              '[loadFromDisk] getEventsForFlow($flowId) count: ${flowEvents.length}',
+            );
+          }
 
           for (final evt in flowEvents) {
             // Convert DB UTC timestamps -> device local -> Kemetic date
@@ -9236,6 +9673,8 @@ class _CalendarPageState extends State<CalendarPage>
             }
 
             final note = _Note(
+              id: evt.id,
+              clientEventId: evt.clientEventId,
               title: _cleanTitle(evt.title),
               detail: _cleanDetail(evt.detail), // Clean the flowLocalId prefix
               location: evt.location,
@@ -9246,10 +9685,13 @@ class _CalendarPageState extends State<CalendarPage>
                   : TimeOfDay.fromDateTime(evt.endsAtUtc!.toLocal()),
               flowId: flowId,
               category: evt.category,
+              isReminder: owningFlow?.isReminder ?? false,
+              reminderId:
+                  (owningFlow?.isReminder ?? false) ? owningFlow?.reminderUuid : null,
             );
 
             final key = _kKey(kDate.kYear, kDate.kMonth, kDate.kDay);
-            final bucket = _notes.putIfAbsent(key, () => <_Note>[]);
+            final bucket = newNotes.putIfAbsent(key, () => <_Note>[]);
 
             // Dedup (title + start time match) so we don't spam UI
             final already = bucket.any(
@@ -9276,7 +9718,7 @@ class _CalendarPageState extends State<CalendarPage>
 
       if (kDebugMode) {
         debugPrint(
-          '[_loadFromDisk] notes joined/added via per-flow hydration: $addedCount',
+          '[loadFromDisk] flow notes added to newNotes: $addedCount',
         );
       }
 
@@ -9352,6 +9794,8 @@ class _CalendarPageState extends State<CalendarPage>
           final cleanedDetail = _cleanDetail(decoded.detail);
 
           final note = _Note(
+            id: evt.id,
+            clientEventId: evt.clientEventId,
             title: _cleanTitle(evt.title),
             detail: cleanedDetail,
             location: evt.location,
@@ -9368,7 +9812,7 @@ class _CalendarPageState extends State<CalendarPage>
           );
 
           final key = _kKey(kDate.kYear, kDate.kMonth, kDate.kDay);
-          final bucket = _notes.putIfAbsent(key, () => <_Note>[]);
+          final bucket = newNotes.putIfAbsent(key, () => <_Note>[]);
 
           // Deduplication: only for other standalone notes
           final already = bucket.any((n) {
@@ -9407,6 +9851,22 @@ class _CalendarPageState extends State<CalendarPage>
       }
 
       // force rebuild
+      _flows
+        ..clear()
+        ..addAll(newFlows);
+      _notes
+        ..clear()
+        ..addAll(newNotes);
+      _nextFlowId = nextFlowId;
+
+      if (kDebugMode) {
+        debugPrint(
+          '[loadFromDisk] committed _flows.length=${_flows.length} _notes keys=${_notes.length}',
+        );
+      }
+
+      _rebuildReminderRulesFromFlowsIfMissing();
+
       setState(() {});
       _bumpDataVersion();
       await _regenReminderNotes();
@@ -9850,21 +10310,6 @@ class _CalendarPageState extends State<CalendarPage>
     Color? color,
     String? category,
   }) async {
-    // Add to in-memory notes with manualColor so UI uses it.
-    _addNote(
-      selYear,
-      selMonth,
-      selDay,
-      title,
-      detail,
-      location: location,
-      allDay: allDay,
-      start: startTime,
-      end: endTime,
-      manualColor: color,
-      category: category,
-    );
-
     // Compute when to alert
     final gDay = KemeticMath.toGregorian(selYear, selMonth, selDay);
     final scheduledAt = allDay
@@ -9916,7 +10361,7 @@ class _CalendarPageState extends State<CalendarPage>
       payload: '{}',
     );
 
-    // Sync to Supabase
+    // Sync to Supabase and persist id/clientEventId
     try {
       final repo = UserEventsRepo(Supabase.instance.client);
       final endsAtUtc = (allDay || endTime == null)
@@ -9929,7 +10374,7 @@ class _CalendarPageState extends State<CalendarPage>
               endTime!.minute,
             ).toUtc();
 
-      await repo.upsertByClientId(
+      final updated = await repo.upsertByClientId(
         clientEventId: unifiedCid,
         title: title,
         startsAtUtc: scheduledAt.toUtc(),
@@ -9937,6 +10382,22 @@ class _CalendarPageState extends State<CalendarPage>
         location: location,
         allDay: allDay,
         endsAtUtc: endsAtUtc,
+        category: category,
+      );
+
+      _addNote(
+        selYear,
+        selMonth,
+        selDay,
+        title,
+        detail,
+        id: updated.id,
+        clientEventId: updated.clientEventId,
+        location: location,
+        allDay: allDay,
+        start: startTime,
+        end: endTime,
+        manualColor: color,
         category: category,
       );
 
@@ -10888,6 +11349,7 @@ class _CalendarPageState extends State<CalendarPage>
               .map(
                 (n) => NoteData(
                   id: n.id?.toString(),
+                  clientEventId: n.clientEventId,
                   title: n.title,
                   detail: n.detail,
                   location: n.location,
@@ -20265,6 +20727,7 @@ class _EventSearchDelegate extends SearchDelegate<void> {
 
 class _Note {
   final String? id; // optional persistent id
+  final String? clientEventId;
   final String title;
   final String? detail;
   final String? location;
@@ -20283,6 +20746,7 @@ class _Note {
 
   const _Note({
     this.id,
+    this.clientEventId,
     required this.title,
     this.detail,
     this.location,
@@ -20295,6 +20759,38 @@ class _Note {
     this.isReminder = false,
     this.reminderId,
   });
+
+  _Note copyWith({
+    String? id,
+    String? clientEventId,
+    String? title,
+    String? detail,
+    String? location,
+    bool? allDay,
+    TimeOfDay? start,
+    TimeOfDay? end,
+    int? flowId,
+    Color? manualColor,
+    String? category,
+    bool? isReminder,
+    String? reminderId,
+  }) {
+    return _Note(
+      id: id ?? this.id,
+      clientEventId: clientEventId ?? this.clientEventId,
+      title: title ?? this.title,
+      detail: detail ?? this.detail,
+      location: location ?? this.location,
+      allDay: allDay ?? this.allDay,
+      start: start ?? this.start,
+      end: end ?? this.end,
+      flowId: flowId ?? this.flowId,
+      manualColor: manualColor ?? this.manualColor,
+      category: category ?? this.category,
+      isReminder: isReminder ?? this.isReminder,
+      reminderId: reminderId ?? this.reminderId,
+    );
+  }
 }
 
 // ========================================

@@ -1361,9 +1361,17 @@ class _DayViewGridState extends State<DayViewGrid> {
       // Build composite key
       final key = '$flowKey|$startKey|$endKey|$titleKey';
       
-      // Only keep first occurrence
       if (!seen.containsKey(key)) {
         seen[key] = note;
+      } else {
+        // If a canonical note (with identity) arrives later, prefer it over id-less duplicates.
+        final existing = seen[key]!;
+        bool hasIdentity(NoteData n) =>
+            (n.id != null && n.id!.trim().isNotEmpty) ||
+            (n.clientEventId != null && n.clientEventId!.trim().isNotEmpty);
+        if (!hasIdentity(existing) && hasIdentity(note)) {
+          seen[key] = note;
+        }
       }
     }
     
@@ -1499,6 +1507,16 @@ class _DayViewGridState extends State<DayViewGrid> {
             onAcceptWithDetails: (details) {
               if (kDebugMode) {
                 debugPrint('[DayView] DragTarget onAcceptWithDetails');
+              }
+              // Reject drop while the timeline is still scrolling.
+              if (_scrollController.hasClients &&
+                  _scrollController.position.isScrollingNotifier.value) {
+                if (kDebugMode) {
+                  debugPrint(
+                    '[DayView] DragTarget: rejecting drop while scrolling',
+                  );
+                }
+                return;
               }
               final ctx = _timelineKey.currentContext ?? _timelineCtx;
               final ro = ctx?.findRenderObject();
@@ -1823,10 +1841,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   bool _isEventDraggable(EventItem event) {
-    final flowId = event.flowId ?? -1;
-    final draggable = (event.flowId == null || flowId == -1) &&
-        !event.isReminder &&
-        !event.allDay;
+    final draggable = !event.isReminder && !event.allDay;
     if (!draggable && kDebugMode) {
       debugPrint(
         '[DayView] not draggable title="${event.title}" flowId=${event.flowId} isReminder=${event.isReminder} allDay=${event.allDay}',
@@ -1959,8 +1974,8 @@ class _DayViewGridState extends State<DayViewGrid> {
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Flow name first (if available)
-        if (hasFlow) ...[
+        // Flow name first (if available). Skip for reminders to avoid overflow in short block.
+        if (hasFlow && !event.isReminder) ...[
           Text(
             flow!.name,
             style: TextStyle(
@@ -1983,7 +1998,8 @@ class _DayViewGridState extends State<DayViewGrid> {
               fontWeight: FontWeight.w500,
               color: Colors.white,
             ),
-            maxLines: (hasFlow || durationMinutes < 90) ? 1 : 2, // ✅ Conditional line limit
+            maxLines:
+                (event.isReminder || hasFlow || durationMinutes < 90) ? 1 : 2,
             overflow: TextOverflow.ellipsis,
           )
         else
