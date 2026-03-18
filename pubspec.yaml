@@ -92,6 +92,9 @@ flutter:
         - asset: ios/Runner/Fonts/GentiumPlus-Bold.ttf
           weight: 700
 
+  assets:
+    - env/dev.json
+
   # Using GoogleFonts package for all typography
   # Includes support for Egyptological transliteration characters
   # Fonts loaded from Google Fonts CDN at runtime (no local files needed)

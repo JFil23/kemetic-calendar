@@ -8642,13 +8642,6 @@ class _CalendarPageState extends State<CalendarPage>
                                             if (Navigator.canPop(sheetCtx)) {
                                               Navigator.pop(sheetCtx);
                                             }
-
-                                            // Deletion of Supabase entries is handled inside _deleteNote via
-                                            // unified clientEventId candidates. Simply reload from server
-                                            // after deletion to refresh UI from truth.
-                                            try {
-                                              await _loadFromDisk();
-                                            } catch (_) {}
                                           },
                                         ),
                                       ],

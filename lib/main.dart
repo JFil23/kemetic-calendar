@@ -1,5 +1,6 @@
 // lib/main.dart
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -45,6 +46,33 @@ final ZoneSpecification _releasePrintSilencer = ZoneSpecification(
   },
 );
 
+Future<({String url, String anonKey})> _loadSupabaseConfig() async {
+  var url = SUPABASE_URL.trim();
+  var anonKey = SUPABASE_ANON_KEY.trim();
+
+  if ((url.isEmpty || anonKey.length <= 20) && !kReleaseMode) {
+    try {
+      final raw = await rootBundle.loadString('env/dev.json');
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      final fileUrl = (json['SUPABASE_URL'] as String?)?.trim() ?? '';
+      final fileKey = (json['SUPABASE_ANON_KEY'] as String?)?.trim() ?? '';
+      if (fileUrl.isNotEmpty && fileKey.length > 20) {
+        url = fileUrl;
+        anonKey = fileKey;
+        if (kDebugMode) {
+          debugPrint('[env] Loaded Supabase config from env/dev.json');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[env] Failed to load env/dev.json: $e');
+      }
+    }
+  }
+
+  return (url: url, anonKey: anonKey);
+}
+
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 void _configureLogging() {
@@ -58,17 +86,19 @@ Future<void> main() async {
     () async {
       _configureLogging();
 
-      if (kDebugMode) {
-        debugPrint('🔍 SUPABASE_URL: $SUPABASE_URL');
-        debugPrint('🔍 Has ANON_KEY: ${SUPABASE_ANON_KEY.isNotEmpty}');
-      }
-
       WidgetsFlutterBinding.ensureInitialized();
 
       // Register background handler for FCM (no-op on web)
       registerPushBackgroundHandler();
 
-      if (SUPABASE_URL.isEmpty || SUPABASE_ANON_KEY.length <= 20) {
+      final supabaseConfig = await _loadSupabaseConfig();
+
+      if (kDebugMode) {
+        debugPrint('🔍 SUPABASE_URL: ${supabaseConfig.url}');
+        debugPrint('🔍 Has ANON_KEY: ${supabaseConfig.anonKey.isNotEmpty}');
+      }
+
+      if (supabaseConfig.url.isEmpty || supabaseConfig.anonKey.length <= 20) {
         runApp(const MaterialApp(
           debugShowCheckedModeBanner: false,
           home: Scaffold(body: Center(child: Text('Missing Supabase configuration.'))),
@@ -77,13 +107,13 @@ Future<void> main() async {
       }
 
       // Normalize URL: strip trailing slash if present
-      final _supabaseUrl = SUPABASE_URL.endsWith('/')
-          ? SUPABASE_URL.substring(0, SUPABASE_URL.length - 1)
-          : SUPABASE_URL;
+      final _supabaseUrl = supabaseConfig.url.endsWith('/')
+          ? supabaseConfig.url.substring(0, supabaseConfig.url.length - 1)
+          : supabaseConfig.url;
 
       await Supabase.initialize(
         url: _supabaseUrl,  // Use normalized URL
-        anonKey: SUPABASE_ANON_KEY,
+        anonKey: supabaseConfig.anonKey,
         authOptions: FlutterAuthClientOptions(
           autoRefreshToken: true,
           localStorage: kIsWeb ? HiveLocalStorageWeb() : null,
