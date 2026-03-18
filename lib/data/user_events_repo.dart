@@ -281,7 +281,20 @@ class UserEventsRepo {
   }
 
   Future<void> delete(String id) async {
-    _log('delete($id)');
+    String? cidForLog;
+    try {
+      final user = _client.auth.currentUser;
+      if (user != null) {
+        final row = await _client
+            .from(_kTable)
+            .select('client_event_id')
+            .eq('user_id', user.id)
+            .eq('id', id)
+            .maybeSingle();
+        cidForLog = (row?['client_event_id'] as String?);
+      }
+    } catch (_) {}
+    _log('delete($id) cid=${cidForLog ?? 'unknown'}');
     try {
       final deleted = await _client
           .from(_kTable)
@@ -304,6 +317,10 @@ class UserEventsRepo {
         ));
       }
     } on PostgrestException catch (e) {
+      if (e.code == 'PGRST116' || e.message.contains('Results contain 0 rows')) {
+        _log('delete ⚠️ no rows for id=$id');
+        return;
+      }
       _log('delete ✗ ${e.code} ${e.message}');
       rethrow;
     }
@@ -312,28 +329,38 @@ class UserEventsRepo {
   Future<void> deleteByClientId(String clientEventId) async {
     _log('deleteByClientId($clientEventId)');
     try {
-      final deleted = await _client
+      final deletedRows = await _client
           .from(_kTable)
           .delete()
           .eq('client_event_id', clientEventId)
-          .select('id, flow_local_id')
-          .maybeSingle();
+          .select('id, flow_local_id');
 
-      _log('deleteByClientId ✓');
+      final rows =
+          deletedRows is List ? deletedRows.cast<Map<String, dynamic>>() : const <Map<String, dynamic>>[];
+      if (rows.isEmpty) {
+        _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
+        return;
+      }
 
-      final flowId = (deleted?['flow_local_id'] as num?)?.toInt();
-      final id = deleted?['id'] as String?;
-      if (flowId != null && flowId > 0 && id != null) {
+      final deletedId = rows.first['id'] as String?;
+      final flowId = (rows.first['flow_local_id'] as num?)?.toInt();
+      _log('deleteByClientId ✓ id=${deletedId ?? 'unknown'} cid=$clientEventId');
+
+      if (flowId != null && flowId > 0 && deletedId != null) {
         unawaited(track(
           event: 'event_deleted',
           properties: {
             'flow_id': flowId,
-            'event_id': id,
+            'event_id': deletedId,
             'v': kAppEventsSchemaVersion,
           },
         ));
       }
     } on PostgrestException catch (e) {
+      if (e.code == 'PGRST116' || e.message.contains('Results contain 0 rows')) {
+        _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
+        return;
+      }
       _log('deleteByClientId ✗ ${e.code} ${e.message}');
       rethrow;
     }
@@ -371,7 +398,18 @@ class UserEventsRepo {
   /// Delete events by a list of row ids (scoped to current user).
   Future<void> deleteByIds(List<String> ids) async {
     if (ids.isEmpty) return;
-    _log('deleteByIds(count=${ids.length})');
+    List<({String id, String? clientEventId})> rowsForLog = const [];
+    try {
+      rowsForLog = await getClientEventIdsByIds(ids);
+    } catch (_) {}
+    if (rowsForLog.isNotEmpty) {
+      final cidLog = rowsForLog
+          .map((r) => '${r.id}:${r.clientEventId ?? 'null'}')
+          .join(',');
+      _log('deleteByIds(count=${ids.length}) idsWithCid=[$cidLog]');
+    } else {
+      _log('deleteByIds(count=${ids.length}) ids=${ids.join(",")}');
+    }
     try {
       final user = _client.auth.currentUser;
       if (user == null) return;
@@ -547,6 +585,247 @@ class UserEventsRepo {
     )).toList();
 
     return filtered;
+  }
+
+  /// Fetch standalone (non-flow) events within a UTC window.
+  /// endUtc is treated as an exclusive upper bound.
+  Future<List<({
+    String? id,
+    String? clientEventId,
+    String title,
+    String? detail,
+    String? location,
+    bool allDay,
+    DateTime startsAtUtc,
+    DateTime? endsAtUtc,
+    int? flowLocalId,
+    String? category,
+  })>> getStandaloneEventsForDateRange({
+    required DateTime startUtc,
+    required DateTime endUtc,
+    int limit = 10000,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return [];
+
+    try {
+      var query = _client
+          .from(_kTable)
+          .select(
+            'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
+          )
+          .eq('user_id', user.id)
+          .isFilter('flow_local_id', null)
+          .gte('starts_at', startUtc.toUtc().toIso8601String())
+          .lt('starts_at', endUtc.toUtc().toIso8601String())
+          .order('starts_at', ascending: true);
+
+      if (limit > 0) {
+        query = query.limit(limit);
+      }
+
+      final rows = await query;
+      _log(
+        'getStandaloneEventsForDateRange ✓ ${rows is List ? rows.length : '?'} rows '
+        '(${startUtc.toUtc().toIso8601String()} → ${endUtc.toUtc().toIso8601String()})',
+      );
+
+      return (rows as List).cast<Map<String, dynamic>>().map((row) {
+        return (
+          id: row['id'] as String?,
+          clientEventId: row['client_event_id'] as String?,
+          title: (row['title'] as String?) ?? '',
+          detail: row['detail'] as String?,
+          location: row['location'] as String?,
+          allDay: (row['all_day'] as bool?) ?? false,
+          startsAtUtc: DateTime.parse(row['starts_at'] as String),
+          endsAtUtc: row['ends_at'] == null
+              ? null
+              : DateTime.parse(row['ends_at'] as String),
+          flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+          category: row['category'] as String?,
+        );
+      }).toList();
+    } on PostgrestException catch (e) {
+      _log(
+        'getStandaloneEventsForDateRange ✗ code=${e.code} message=${e.message} hint=${e.hint} details=${e.details} '
+        '(${startUtc.toUtc().toIso8601String()} → ${endUtc.toUtc().toIso8601String()})',
+      );
+      return const [];
+    } catch (e) {
+      _log('getStandaloneEventsForDateRange ✗ $e');
+      return const [];
+    }
+  }
+
+  /// Fetch standalone events in a window, paging until exhausted to avoid server caps.
+  /// Returns merged unique rows (by id then client_event_id) plus debug counts.
+  Future<({
+    List<({
+      String? id,
+      String? clientEventId,
+      String title,
+      String? detail,
+      String? location,
+      bool allDay,
+      DateTime startsAtUtc,
+      DateTime? endsAtUtc,
+      int? flowLocalId,
+      String? category,
+    })> events,
+    int pageCount,
+    int rawCount,
+  })> getStandaloneEventsForDateRangeAll({
+    required DateTime startUtc,
+    required DateTime endUtc,
+    int pageSize = 1000,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      return (
+        events: <({
+          String? id,
+          String? clientEventId,
+          String title,
+          String? detail,
+          String? location,
+          bool allDay,
+          DateTime startsAtUtc,
+          DateTime? endsAtUtc,
+          int? flowLocalId,
+          String? category,
+        })>[],
+        pageCount: 0,
+        rawCount: 0,
+      );
+    }
+
+    final List<Map<String, dynamic>> pages = [];
+    int pageCount = 0;
+    int offset = 0;
+
+    try {
+      while (true) {
+        var query = _client
+            .from(_kTable)
+            .select(
+              'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
+            )
+            .eq('user_id', user.id)
+            .isFilter('flow_local_id', null)
+            .gte('starts_at', startUtc.toUtc().toIso8601String())
+            .lt('starts_at', endUtc.toUtc().toIso8601String())
+            .order('starts_at', ascending: true)
+            .order('id', ascending: true)
+            .range(offset, offset + pageSize - 1);
+
+        final rows = await query;
+        final pageRows =
+            (rows as List).cast<Map<String, dynamic>>().toList(growable: false);
+        pageCount++;
+        pages.addAll(pageRows);
+
+        if (kDebugMode) {
+          _log(
+            'getStandaloneEventsForDateRangeAll page=$pageCount rows=${pageRows.length} offset=$offset',
+          );
+        }
+
+        if (pageRows.length < pageSize) {
+          break;
+        }
+        offset += pageSize;
+      }
+    } on PostgrestException catch (e) {
+      _log(
+        'getStandaloneEventsForDateRangeAll ✗ code=${e.code} ${e.message} hint=${e.hint} details=${e.details} '
+        '(${startUtc.toUtc().toIso8601String()} → ${endUtc.toUtc().toIso8601String()})',
+      );
+      return (
+        events: <({
+          String? id,
+          String? clientEventId,
+          String title,
+          String? detail,
+          String? location,
+          bool allDay,
+          DateTime startsAtUtc,
+          DateTime? endsAtUtc,
+          int? flowLocalId,
+          String? category,
+        })>[],
+        pageCount: pageCount,
+        rawCount: pages.length,
+      );
+    } catch (e) {
+      _log('getStandaloneEventsForDateRangeAll ✗ $e');
+      return (
+        events: <({
+          String? id,
+          String? clientEventId,
+          String title,
+          String? detail,
+          String? location,
+          bool allDay,
+          DateTime startsAtUtc,
+          DateTime? endsAtUtc,
+          int? flowLocalId,
+          String? category,
+        })>[],
+        pageCount: pageCount,
+        rawCount: pages.length,
+      );
+    }
+
+    final seenIds = <String>{};
+    final seenCids = <String>{};
+    final List<({
+      String? id,
+      String? clientEventId,
+      String title,
+      String? detail,
+      String? location,
+      bool allDay,
+      DateTime startsAtUtc,
+      DateTime? endsAtUtc,
+      int? flowLocalId,
+      String? category,
+    })> events = [];
+
+    for (final row in pages) {
+      final id = row['id'] as String?;
+      final cid = row['client_event_id'] as String?;
+      if (id != null && id.isNotEmpty) {
+        if (seenIds.contains(id)) continue;
+        seenIds.add(id);
+      } else if (cid != null && cid.isNotEmpty) {
+        if (seenCids.contains(cid)) continue;
+        seenCids.add(cid);
+      }
+
+      events.add((
+        id: row['id'] as String?,
+        clientEventId: row['client_event_id'] as String?,
+        title: (row['title'] as String?) ?? '',
+        detail: row['detail'] as String?,
+        location: row['location'] as String?,
+        allDay: (row['all_day'] as bool?) ?? false,
+        startsAtUtc: DateTime.parse(row['starts_at'] as String),
+        endsAtUtc: row['ends_at'] == null
+            ? null
+            : DateTime.parse(row['ends_at'] as String),
+        flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+        category: row['category'] as String?,
+      ));
+    }
+
+    if (kDebugMode) {
+      _log(
+        'getStandaloneEventsForDateRangeAll ✓ pages=$pageCount raw=${pages.length} merged=${events.length}',
+      );
+    }
+
+    return (events: events, pageCount: pageCount, rawCount: pages.length);
   }
 
   /// Fetch reminder events by client_event_id prefix. Reminders-only.
@@ -782,6 +1061,35 @@ class UserEventsRepo {
         debugPrint('$st');
       }
       return [];
+    }
+  }
+
+  /// Fetch client_event_id for given row ids (debug/logging helpers).
+  Future<List<({
+    String id,
+    String? clientEventId,
+  })>> getClientEventIdsByIds(List<String> ids) async {
+    if (ids.isEmpty) return const [];
+    final user = _client.auth.currentUser;
+    if (user == null) return const [];
+    try {
+      final rows = await _client
+          .from(_kTable)
+          .select('id,client_event_id')
+          .eq('user_id', user.id)
+          .inFilter('id', ids);
+      return (rows as List).cast<Map<String, dynamic>>().map((row) {
+        return (
+          id: row['id'] as String,
+          clientEventId: row['client_event_id'] as String?,
+        );
+      }).toList();
+    } catch (e, st) {
+      _log('getClientEventIdsByIds ✗ $e');
+      if (kDebugMode) {
+        debugPrint('$st');
+      }
+      return const [];
     }
   }
 

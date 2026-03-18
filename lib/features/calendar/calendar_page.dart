@@ -52,6 +52,7 @@ import 'package:share_plus/share_plus.dart';
 import '../journal/journal_event_badge.dart';
 import '../journal/journal_swipe_layer.dart';
 import 'package:mobile/telemetry/telemetry.dart';
+import '../../services/calendar_sync_service.dart';
 
 typedef _QuickAddParse = ({
   DateTime date,
@@ -1712,6 +1713,12 @@ class CalendarPage extends StatefulWidget {
 
 class _CalendarPageState extends State<CalendarPage>
     with WidgetsBindingObserver, RouteAware {
+  // Debug switch for verbose standalone hydration traces. Set to false to silence.
+  static const bool kDebugStandaloneHydration = true;
+  static const Set<String> _debugStandaloneKeys = {'1-13-3', '1-13-4'};
+  bool _isLoadingFromDisk = false;
+  Timer? _authReloadTimer;
+  bool _pendingInitialHydration = false;
   // Track whether the clientEventId migration has been executed.
   // This ensures the migration runs at most once per app session to avoid
   // concurrent modification errors and repeated work.
@@ -1721,6 +1728,9 @@ class _CalendarPageState extends State<CalendarPage>
   // Set to true once to clear stale local cache, then set back to false
   // This should be removed after the cleanup runs successfully
   bool _runOneTimeCacheCleanup = false;
+
+  static const int _standaloneHydrationWindowYears = 3;
+  static const Duration _standaloneHydrationPadding = Duration(days: 30);
 
   int _dataVersion = 0;
   final ValueNotifier<int> _dayViewDataVersion = ValueNotifier<int>(0);
@@ -2391,16 +2401,15 @@ class _CalendarPageState extends State<CalendarPage>
       }
     });
 
-    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen(
-      (data) {
-        final event = data.event;
-        if (event == AuthChangeEvent.initialSession ||
-            event == AuthChangeEvent.signedIn) {
-          if (!mounted) return;
-          _loadFromDisk();
-        }
-      },
-    );
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final event = data.event;
+      if (event == AuthChangeEvent.initialSession ||
+          event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.tokenRefreshed) {
+        if (!mounted) return;
+        _queueLoadFromDisk(source: 'auth:${event.name}');
+      }
+    });
 
     // Initialize journal controller
     _journalController = JournalController(Supabase.instance.client);
@@ -2678,6 +2687,7 @@ class _CalendarPageState extends State<CalendarPage>
     WidgetsBinding.instance.removeObserver(this);
     _reminderSub?.cancel();
     _authSub?.cancel();
+    _authReloadTimer?.cancel();
     _reminderService.dispose();
     debugPrint('');
     debugPrint('🗑️  _CalendarPageState DISPOSING');
@@ -3736,7 +3746,45 @@ class _CalendarPageState extends State<CalendarPage>
           }
         }
         if (idsToDelete.isNotEmpty) {
-          await repo.deleteByIds(idsToDelete);
+          List<String> filteredIds = idsToDelete;
+          // Guard: ensure we only delete rows whose CID starts with reminder: to avoid nuking standalones.
+          try {
+            final cids = await repo.getClientEventIdsByIds(idsToDelete);
+            final mismatched = <String>[];
+            if (kDebugMode && cids.isNotEmpty) {
+              debugPrint(
+                '[syncReminderEvents] existing reminder occurrences (id:cid) ${cids.map((r) => '${r.id}:${r.clientEventId ?? ''}').join(', ')}',
+              );
+            }
+            filteredIds = cids
+                .where(
+                  (row) =>
+                      (row.clientEventId ?? '').startsWith('reminder:'),
+                )
+                .map((row) => row.id)
+                .toList();
+            mismatched.addAll(
+              cids
+                  .where(
+                    (row) =>
+                        !(row.clientEventId ?? '').startsWith('reminder:'),
+                  )
+                  .map((row) => '${row.id}:${row.clientEventId ?? ''}'),
+            );
+            if (kDebugMode && mismatched.isNotEmpty) {
+              debugPrint(
+                '[syncReminderEvents] Skipping delete for non-reminder rows: ${mismatched.join(", ")}',
+              );
+            }
+          } catch (_) {}
+          if (filteredIds.isNotEmpty) {
+            if (kDebugMode) {
+              debugPrint(
+                '[syncReminderEvents] Deleting reminder occurrences ids=${filteredIds.join(", ")}',
+              );
+            }
+            await repo.deleteByIds(filteredIds);
+          }
         }
       } catch (_) {}
 
@@ -4756,6 +4804,36 @@ class _CalendarPageState extends State<CalendarPage>
     _notifyDayViewDataChanged();
   }
 
+  _Note? _removeLocalNoteOnly(int kYear, int kMonth, int kDay, int index) {
+    final k = _kKey(kYear, kMonth, kDay);
+    final list = _notes[k];
+    if (list == null || index < 0 || index >= list.length) return null;
+
+    final removed = list.removeAt(index);
+    if (list.isEmpty) _notes.remove(k);
+    setState(() {});
+    _notifyDayViewDataChanged();
+    return removed;
+  }
+
+  String _standaloneDedupeKey(_Note note) {
+    final normalizedTitle = note.title.trim().toLowerCase();
+    final startMin = note.start == null
+        ? -1
+        : (note.start!.hour * 60 + note.start!.minute);
+    final endMin =
+        note.end == null ? -1 : (note.end!.hour * 60 + note.end!.minute);
+    return '$normalizedTitle|${note.allDay}|$startMin|$endMin';
+  }
+
+  int _standalonePriority(String? cid) {
+    if (cid == null || cid.isEmpty) return 2;
+    if (cid.contains('|f=-1') || cid.startsWith('ky=')) return 4; // manual
+    if (cid.startsWith('native:')) return 3;
+    if (cid.startsWith('holiday:')) return 1;
+    return 2;
+  }
+
   void _deleteNote(int kYear, int kMonth, int kDay, int index) {
     final k = _kKey(kYear, kMonth, kDay);
     final list = _notes[k];
@@ -4778,6 +4856,8 @@ class _CalendarPageState extends State<CalendarPage>
     Future.microtask(() async {
       final repo = UserEventsRepo(Supabase.instance.client);
       final Set<int> candidateFlowIds = <int>{};
+      bool removed = false;
+      String? successfulCid;
 
       // Priority 1: Use the note's own flowId
       if (note.flowId != null) {
@@ -4789,6 +4869,68 @@ class _CalendarPageState extends State<CalendarPage>
 
       // Priority 2: Standalone fallback (-1)
       candidateFlowIds.add(-1);
+
+      // Attempt direct delete by persistent id or clientEventId first.
+      try {
+        if (note.id != null && note.id!.trim().isNotEmpty) {
+          await repo.delete(note.id!);
+          if (note.clientEventId != null) {
+            try {
+              await Notify.cancelNotificationForEvent(note.clientEventId!);
+            } catch (_) {}
+          }
+          removed = true;
+          successfulCid = note.clientEventId ?? note.id;
+          if (note.clientEventId != null &&
+              note.clientEventId!.startsWith('native:')) {
+            unawaited(
+              sharedCalendarSyncService(Supabase.instance.client)
+                  .recordDeletedInApp(note.clientEventId!),
+            );
+          }
+          if (kDebugMode) {
+            debugPrint(
+              '[delete-note] ✅ SUCCESS: Deleted by id=${note.id} cid=${note.clientEventId}',
+            );
+          }
+        } else if (note.clientEventId != null &&
+            note.clientEventId!.trim().isNotEmpty) {
+          await repo.deleteByClientId(note.clientEventId!);
+          try {
+            await Notify.cancelNotificationForEvent(note.clientEventId!);
+          } catch (_) {}
+          removed = true;
+          successfulCid = note.clientEventId;
+          if (note.clientEventId!.startsWith('native:')) {
+            unawaited(
+              sharedCalendarSyncService(Supabase.instance.client)
+                  .recordDeletedInApp(note.clientEventId!),
+            );
+          }
+          if (kDebugMode) {
+            debugPrint(
+              '[delete-note] ✅ SUCCESS: Deleted by clientEventId=${note.clientEventId}',
+            );
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[delete-note] ⚠️ delete by id/clientEventId failed: $e');
+        }
+      }
+
+      if (removed) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✓ Deleted: $deletedTitle'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+        return;
+      }
 
       // Priority 3: Pre-fetch events from Supabase to gather other possible flowIds
       try {
@@ -4834,8 +4976,6 @@ class _CalendarPageState extends State<CalendarPage>
         );
       }
 
-      bool removed = false;
-      String? successfulCid;
       final List<String> attemptedCids = [];
 
       // Try each candidate flowId
@@ -7527,6 +7667,35 @@ class _CalendarPageState extends State<CalendarPage>
 
   /* ───── Day Sheet ───── */
 
+  ({DateTime startUtc, DateTime endUtc}) _computeStandaloneHydrationWindow(
+    List<_Flow> flows,
+  ) {
+    // Load a wide but bounded slice of standalone notes so we do not depend on
+    // "first N" ordering. Baseline is ±_standaloneHydrationWindowYears around
+    // today, widened to cover the visible flow horizon.
+    final today = DateUtils.dateOnly(DateTime.now());
+    final span =
+        Duration(days: 365 * _standaloneHydrationWindowYears);
+
+    DateTime start = today.subtract(span);
+    DateTime end = today.add(span);
+
+    for (final flow in flows) {
+      final flowStart =
+          flow.start != null ? DateUtils.dateOnly(flow.start!) : null;
+      final flowEnd = flow.end != null ? DateUtils.dateOnly(flow.end!) : null;
+      if (flowStart != null && flowStart.isBefore(start)) start = flowStart;
+      if (flowEnd != null && flowEnd.isAfter(end)) end = flowEnd;
+    }
+
+    start = start.subtract(_standaloneHydrationPadding);
+    end = end.add(_standaloneHydrationPadding);
+
+    // Treat end as exclusive so the final day is fully included.
+    final endExclusive = end.add(const Duration(days: 1));
+    return (startUtc: start.toUtc(), endUtc: endExclusive.toUtc());
+  }
+
   Future<void> _handleCreateTimedEvent(
     int ky,
     int km,
@@ -7538,18 +7707,33 @@ class _CalendarPageState extends State<CalendarPage>
     required TimeOfDay end,
     bool allDay = false,
   }) async {
-    await _saveSingleNoteOnly(
-      selYear: ky,
-      selMonth: km,
-      selDay: kd,
-      title: title,
-      detail: detail,
-      location: location,
-      allDay: allDay,
-      startTime: allDay ? null : start,
-      endTime: allDay ? null : end,
-      color: null,
-    );
+    try {
+      await _saveSingleNoteOnly(
+        selYear: ky,
+        selMonth: km,
+        selDay: kd,
+        title: title,
+        detail: detail,
+        location: location,
+        allDay: allDay,
+        startTime: allDay ? null : start,
+        endTime: allDay ? null : end,
+        color: null,
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[DayView] Failed to save timed event: $e');
+        debugPrint('$st');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save event: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _recordEventCompletion({
@@ -9051,20 +9235,45 @@ class _CalendarPageState extends State<CalendarPage>
                                   final selectedColor =
                                       _flowPalette[selectedColorIndex];
 
+                                  final bucketKey = _kKey(
+                                    selYear,
+                                    selMonth,
+                                    selDay,
+                                  );
+                                  final existingNote = editingIndex != null
+                                      ? (_notes[bucketKey] != null &&
+                                              editingIndex! <
+                                                  _notes[bucketKey]!.length
+                                          ? _notes[bucketKey]![editingIndex!]
+                                          : null)
+                                      : null;
+                                  final existingClientEventId =
+                                      existingNote?.clientEventId ??
+                                          (existingNote != null &&
+                                                  (existingNote.flowId == null ||
+                                                      existingNote.flowId == -1)
+                                              ? _buildCid(
+                                                  ky: selYear,
+                                                  km: selMonth,
+                                                  kd: selDay,
+                                                  title: existingNote.title,
+                                                  startHour:
+                                                      existingNote.start?.hour,
+                                                  startMinute:
+                                                      existingNote.start
+                                                          ?.minute,
+                                                  allDay: existingNote.allDay,
+                                                  flowId: -1,
+                                                )
+                                              : null);
+
                                   try {
-                                    // If editing an existing note, remove the old one first.
-                                    if (editingIndex != null) {
-                                      _deleteNote(
-                                        selYear,
-                                        selMonth,
-                                        selDay,
-                                        editingIndex!,
-                                      );
-                                    }
+                                    ({String clientEventId, String eventId})?
+                                        saveResult;
 
                                     if (!isRepeating) {
                                       // Single note
-                                      await _saveSingleNoteOnly(
+                                      saveResult = await _saveSingleNoteOnly(
                                         selYear: selYear,
                                         selMonth: selMonth,
                                         selDay: selDay,
@@ -9102,6 +9311,30 @@ class _CalendarPageState extends State<CalendarPage>
                                         color: selectedColor,
                                         category: selectedCategory,
                                       );
+                                    }
+
+                                    if (editingIndex != null &&
+                                        existingNote != null) {
+                                      final cidMatches = !isRepeating &&
+                                          existingClientEventId != null &&
+                                          saveResult != null &&
+                                          existingClientEventId ==
+                                              saveResult.clientEventId;
+                                      if (cidMatches) {
+                                        _removeLocalNoteOnly(
+                                          selYear,
+                                          selMonth,
+                                          selDay,
+                                          editingIndex!,
+                                        );
+                                      } else {
+                                        _deleteNote(
+                                          selYear,
+                                          selMonth,
+                                          selDay,
+                                          editingIndex!,
+                                        );
+                                      }
                                     }
                                   } catch (e, stackTrace) {
                                     if (kDebugMode) {
@@ -9448,28 +9681,50 @@ class _CalendarPageState extends State<CalendarPage>
                                 final k = KemeticMath.fromGregorian(
                                   parsed.date,
                                 );
-                                await _saveSingleNoteOnly(
-                                  selYear: k.kYear,
-                                  selMonth: k.kMonth,
-                                  selDay: k.kDay,
-                                  title: parsed.title,
-                                  detail: null,
-                                  location: null,
-                                  allDay: parsed.allDay,
-                                  startTime: parsed.allDay
-                                      ? null
-                                      : parsed.start,
-                                  endTime: parsed.allDay ? null : parsed.end,
-                                  color: null,
-                                );
-                                if (mounted) {
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Added "${parsed.title}"'),
-                                      backgroundColor: const Color(0xFF1E1E1E),
-                                    ),
+                                try {
+                                  await _saveSingleNoteOnly(
+                                    selYear: k.kYear,
+                                    selMonth: k.kMonth,
+                                    selDay: k.kDay,
+                                    title: parsed.title,
+                                    detail: null,
+                                    location: null,
+                                    allDay: parsed.allDay,
+                                    startTime: parsed.allDay
+                                        ? null
+                                        : parsed.start,
+                                    endTime: parsed.allDay ? null : parsed.end,
+                                    color: null,
                                   );
+                                  if (mounted) {
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(
+                                      SnackBar(
+                                        content:
+                                            Text('Added "${parsed.title}"'),
+                                        backgroundColor:
+                                            const Color(0xFF1E1E1E),
+                                      ),
+                                    );
+                                  }
+                                } catch (e, st) {
+                                  if (kDebugMode) {
+                                    debugPrint(
+                                      '[QuickAdd] Failed to save note: $e',
+                                    );
+                                    debugPrint('$st');
+                                  }
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Failed to save note: $e',
+                                        ),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
                                 }
                               },
                               child: const Text('Quick add'),
@@ -9544,6 +9799,25 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
+  void _queueLoadFromDisk({String source = 'queued'}) {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      _pendingInitialHydration = true;
+      if (kDebugMode && kDebugStandaloneHydration) {
+        debugPrint(
+          '[loadFromDisk] Deferring queued load ($source): no authenticated user',
+        );
+      }
+      return;
+    }
+    _authReloadTimer?.cancel();
+    _authReloadTimer = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      _pendingInitialHydration = false;
+      _loadFromDisk(source: source);
+    });
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -9574,17 +9848,27 @@ class _CalendarPageState extends State<CalendarPage>
       }
 
       // 1) Load reminder rules + schedule their instances, then load flows/events
-      _loadReminderRules().then((_) async {
-        try {
-          await _syncReminderEvents(refreshUi: false);
-        } catch (_) {}
-        await _loadFromDisk();
-        // 2) After flows are loaded, if we have an initial flow to edit, open it
-        final targetFlowId = widget.initialFlowIdToEdit;
-        if (mounted && targetFlowId != null) {
-          _openFlowEditorDirectly(targetFlowId);
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        _loadReminderRules().then((_) async {
+          try {
+            await _syncReminderEvents(refreshUi: false);
+          } catch (_) {}
+          await _loadFromDisk(source: 'init');
+          // 2) After flows are loaded, if we have an initial flow to edit, open it
+          final targetFlowId = widget.initialFlowIdToEdit;
+          if (mounted && targetFlowId != null) {
+            _openFlowEditorDirectly(targetFlowId);
+          }
+        });
+      } else {
+        _pendingInitialHydration = true;
+        if (kDebugMode) {
+          debugPrint(
+            '[Calendar] Deferring initial hydrate until auth session is available',
+          );
         }
-      });
+      }
     } else if (widget.initialFlowIdToEdit != null) {
       // Already initialized (flows loaded), but widget has an initial flow id
       // e.g., if CalendarPage got rebuilt with a different target flow
@@ -9593,17 +9877,40 @@ class _CalendarPageState extends State<CalendarPage>
         _openFlowEditorDirectly(targetFlowId);
       }
     }
+
+    if (_pendingInitialHydration &&
+        Supabase.instance.client.auth.currentUser != null) {
+      _queueLoadFromDisk(source: 'init-pending');
+    }
   }
 
-  Future<void> _loadFromDisk() async {
-    print('=== _loadFromDisk START ===');
+  Future<void> _loadFromDisk({String source = 'manual'}) async {
+    if (_isLoadingFromDisk) {
+      if (kDebugMode && kDebugStandaloneHydration) {
+        debugPrint(
+          '[loadFromDisk] Skipping duplicate load (in flight) source=$source',
+        );
+      }
+      return;
+    }
+    _isLoadingFromDisk = true;
+
+    print('=== _loadFromDisk START ($source) ===');
 
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) {
       if (kDebugMode) {
         debugPrint('[loadFromDisk] Skipping load: no authenticated user');
       }
+      _isLoadingFromDisk = false;
       return;
+    }
+    if (kDebugMode && kDebugStandaloneHydration) {
+      final uid = currentUser.id;
+      final truncated = uid.length > 8 ? '${uid.substring(0, 8)}...' : uid;
+      debugPrint(
+        '[loadFromDisk] Authenticated as $truncated source=$source',
+      );
     }
 
     try {
@@ -9611,6 +9918,7 @@ class _CalendarPageState extends State<CalendarPage>
       await _loadReminderRules();
 
       final repo = UserEventsRepo(Supabase.instance.client);
+      final currentUser = Supabase.instance.client.auth.currentUser;
 
       // Flow-first: load flows, then events; join only to known active flows
       final List<_Flow> newFlows = [];
@@ -9704,7 +10012,7 @@ class _CalendarPageState extends State<CalendarPage>
         }
       }
 
-      int addedCount = 0;
+      int flowAddedCount = 0;
 
       for (final flowId in activeFlowIds) {
         try {
@@ -9767,7 +10075,7 @@ class _CalendarPageState extends State<CalendarPage>
 
             if (!already) {
               bucket.add(note);
-              addedCount++;
+              flowAddedCount++;
             }
           }
         } catch (err, st) {
@@ -9782,129 +10090,223 @@ class _CalendarPageState extends State<CalendarPage>
 
       if (kDebugMode) {
         debugPrint(
-          '[loadFromDisk] flow notes added to newNotes: $addedCount',
+          '[loadFromDisk] flow notes added to newNotes: $flowAddedCount',
         );
       }
 
       // Load standalone events (single notes with flow_local_id = null)
       // 🚫 HARD GUARDS prevent old/zombie flow events from loading
       try {
-        final allEvents = await repo.getAllEvents(limit: 3000);
+        final standaloneWindow =
+            _computeStandaloneHydrationWindow(newFlows);
+        final standaloneResult =
+            await repo.getStandaloneEventsForDateRangeAll(
+          startUtc: standaloneWindow.startUtc,
+          endUtc: standaloneWindow.endUtc,
+          pageSize: 1000,
+        );
+        final standaloneEvents = standaloneResult.events;
 
-        for (final evt in allEvents) {
-          final cid = evt.clientEventId ?? '';
-          final rawDetail = evt.detail ?? '';
-
-          // 🚫 HARD GUARD 1: Any event with a flowLocalId is NOT standalone
-          if (evt.flowLocalId != null) {
-            continue;
+        if (kDebugMode && kDebugStandaloneHydration) {
+          final uid = currentUser?.id ?? 'nouser';
+          final truncated =
+              uid.length > 8 ? '${uid.substring(0, 8)}...' : uid;
+          debugPrint(
+            '[_loadFromDisk] standalone events fetched=${standaloneEvents.length} '
+            'pages=${standaloneResult.pageCount} raw=${standaloneResult.rawCount} '
+            'window=${standaloneWindow.startUtc.toIso8601String()} → ${standaloneWindow.endUtc.toIso8601String()} '
+            'user=$truncated',
+          );
+          if (standaloneEvents.isEmpty) {
+            debugPrint(
+              '[_loadFromDisk] ⚠️ No standalone events returned; check RLS/query and Supabase logs',
+            );
           }
+        }
 
-          // 🚫 HARD GUARD 2: Legacy flow copies where detail starts with "flowLocalId="
-          if (rawDetail.startsWith('flowLocalId=')) {
-            continue;
-          }
+        int standaloneAddedCount = 0;
 
-          // 🚫 HARD GUARD 3: Legacy Ma'at events using "maat:" prefix
-          if (cid.startsWith('maat:')) {
-            continue;
-          }
+        for (final evt in standaloneEvents) {
+          try {
+            final cid = evt.clientEventId ?? '';
+            final rawDetail = evt.detail ?? '';
 
-          // 🚫 HARD GUARD 4a: Unified CID events (ky=...|f=123) referencing flows.
-          // If f != -1 AND evt.flowLocalId == null → orphaned zombie.
-          if (cid.contains('|f=')) {
-            final match = RegExp(r'\|f=([\-0-9]+)').firstMatch(cid);
-            if (match != null) {
-              final fVal = int.tryParse(match.group(1) ?? '-1') ?? -1;
-              if (fVal != -1) {
+            // 🚫 HARD GUARD 1: Any event with a flowLocalId is NOT standalone
+            if (evt.flowLocalId != null) {
+              continue;
+            }
+
+            // 🚫 HARD GUARD 2: Legacy flow copies where detail starts with "flowLocalId="
+            if (rawDetail.startsWith('flowLocalId=')) {
+              continue;
+            }
+
+            // 🚫 HARD GUARD 3: Legacy Ma'at events using "maat:" prefix
+            if (cid.startsWith('maat:')) {
+              continue;
+            }
+
+            // 🚫 HARD GUARD 4a: Unified CID events (ky=...|f=123) referencing flows.
+            // If f != -1 AND evt.flowLocalId == null → orphaned zombie.
+            if (cid.contains('|f=')) {
+              final match = RegExp(r'\|f=([\-0-9]+)').firstMatch(cid);
+              if (match != null) {
+                final fVal = int.tryParse(match.group(1) ?? '-1') ?? -1;
+                if (fVal != -1) {
+                  continue;
+                }
+              }
+            }
+
+            // 🚫 HARD GUARD 4b: Reminder instances whose rule no longer exists (or was ended/deleted).
+            if (cid.startsWith('reminder:')) {
+              final rid = _reminderRuleIdFromCid(cid);
+              final exists =
+                  rid != null && _reminderRules.any((r) => r.id == rid);
+              final ended = rid != null && _endedReminderIds.contains(rid);
+              if (!exists || ended) {
                 continue;
               }
             }
-          }
 
-          // 🚫 HARD GUARD 4b: Reminder instances whose rule no longer exists (or was ended/deleted).
-          if (cid.startsWith('reminder:')) {
-            final rid = _reminderRuleIdFromCid(cid);
-            final exists =
-                rid != null && _reminderRules.any((r) => r.id == rid);
-            final ended = rid != null && _endedReminderIds.contains(rid);
-            if (!exists || ended) {
-              continue;
-            }
-          }
-
-          // ✅ Nutrition: treat as reminder if a matching rule exists
-          bool isReminderEvent = cid.startsWith('reminder:');
-          String? reminderRuleId = _reminderRuleIdFromCid(cid);
-          if (cid.startsWith('nutrition:')) {
-            final parts = cid.split(':');
-            if (parts.length >= 3) {
-              final itemId = parts.sublist(1, parts.length - 1).join(':');
-              final rid = 'nutrition:$itemId';
-              final exists =
-                  _reminderRules.any((r) => r.id == rid) &&
-                  !_endedReminderIds.contains(rid);
-              if (exists) {
-                isReminderEvent = true;
-                reminderRuleId = rid;
+            // ✅ Nutrition: treat as reminder if a matching rule exists
+            bool isReminderEvent = cid.startsWith('reminder:');
+            String? reminderRuleId = _reminderRuleIdFromCid(cid);
+            if (cid.startsWith('nutrition:')) {
+              final parts = cid.split(':');
+              if (parts.length >= 3) {
+                final itemId = parts.sublist(1, parts.length - 1).join(':');
+                final rid = 'nutrition:$itemId';
+                final exists =
+                    _reminderRules.any((r) => r.id == rid) &&
+                    !_endedReminderIds.contains(rid);
+                if (exists) {
+                  isReminderEvent = true;
+                  reminderRuleId = rid;
+                }
               }
             }
-          }
 
-          // ✅ If it passed all guards → this is a true standalone note
-          final localStart = evt.startsAtUtc.toLocal();
-          final kDate = KemeticMath.fromGregorian(localStart);
-          final decoded = _decodeDetailColor(rawDetail);
-          final cleanedDetail = _cleanDetail(decoded.detail);
+            // ✅ If it passed all guards → this is a true standalone note
+            final localStart = evt.startsAtUtc.toLocal();
+            final kDate = KemeticMath.fromGregorian(localStart);
+            final decoded = _decodeDetailColor(rawDetail);
+            final cleanedDetail = _cleanDetail(decoded.detail);
 
-          final note = _Note(
-            id: evt.id,
-            clientEventId: evt.clientEventId,
-            title: _cleanTitle(evt.title),
-            detail: cleanedDetail,
-            location: evt.location,
-            allDay: evt.allDay,
-            start: evt.allDay ? null : TimeOfDay.fromDateTime(localStart),
-            end: evt.endsAtUtc == null
-                ? null
-                : TimeOfDay.fromDateTime(evt.endsAtUtc!.toLocal()),
-            flowId: -1, // Standalone notes have flowId = -1
-            manualColor: decoded.color,
-            category: evt.category,
-            isReminder: isReminderEvent,
-            reminderId: reminderRuleId,
-          );
+            final note = _Note(
+              id: evt.id,
+              clientEventId: evt.clientEventId,
+              title: _cleanTitle(evt.title),
+              detail: cleanedDetail,
+              location: evt.location,
+              allDay: evt.allDay,
+              start: evt.allDay ? null : TimeOfDay.fromDateTime(localStart),
+              end: evt.endsAtUtc == null
+                  ? null
+                  : TimeOfDay.fromDateTime(evt.endsAtUtc!.toLocal()),
+              flowId: -1, // Standalone notes have flowId = -1
+              manualColor: decoded.color,
+              category: evt.category,
+              isReminder: isReminderEvent,
+              reminderId: reminderRuleId,
+            );
 
-          final key = _kKey(kDate.kYear, kDate.kMonth, kDate.kDay);
-          final bucket = newNotes.putIfAbsent(key, () => <_Note>[]);
+            final key = _kKey(kDate.kYear, kDate.kMonth, kDate.kDay);
+            final bucket = newNotes.putIfAbsent(key, () => <_Note>[]);
 
-          // Deduplication: only for other standalone notes
-          final already = bucket.any((n) {
-            if ((n.flowId ?? -1) != -1) return false; // skip flow-driven notes
-            if (n.isReminder && note.isReminder) {
-              if (n.reminderId != note.reminderId) return false;
-              if (n.start?.hour != note.start?.hour ||
-                  n.start?.minute != note.start?.minute)
-                return false;
-              return true;
+            bool skip = false;
+            int? replaceIndex;
+            final incomingKey = _standaloneDedupeKey(note);
+            final incomingPriority = _standalonePriority(note.clientEventId);
+
+            for (int i = 0; i < bucket.length; i++) {
+              final existing = bucket[i];
+              if ((existing.flowId ?? -1) != -1) continue; // skip flow-driven
+
+              if (existing.clientEventId != null &&
+                  note.clientEventId != null &&
+                  existing.clientEventId == note.clientEventId) {
+                skip = true;
+                if (kDebugMode && kDebugStandaloneHydration) {
+                  debugPrint(
+                    '[_loadFromDisk] dedupe by clientEventId ${note.clientEventId} in $key',
+                  );
+                }
+                break;
+              }
+
+              if (existing.isReminder || note.isReminder) {
+                if (existing.isReminder &&
+                    note.isReminder &&
+                    existing.reminderId == note.reminderId &&
+                    existing.start?.hour == note.start?.hour &&
+                    existing.start?.minute == note.start?.minute) {
+                  skip = true;
+                  if (kDebugMode && kDebugStandaloneHydration) {
+                    debugPrint(
+                      '[_loadFromDisk] dedupe reminder in $key ${note.reminderId}',
+                    );
+                  }
+                  break;
+                }
+                continue;
+              }
+
+              final existingKey = _standaloneDedupeKey(existing);
+              if (existingKey == incomingKey) {
+                final existingPriority =
+                    _standalonePriority(existing.clientEventId);
+                if (incomingPriority > existingPriority) {
+                  replaceIndex = i;
+                } else {
+                  skip = true;
+                }
+                if (kDebugMode && kDebugStandaloneHydration) {
+                  debugPrint(
+                    '[_loadFromDisk] dedupe key match in $key keep=${replaceIndex != null ? 'incoming' : 'existing'} '
+                    'incomingCid=${note.clientEventId} existingCid=${existing.clientEventId}',
+                  );
+                }
+                break;
+              }
             }
-            if (n.allDay != note.allDay) return false;
-            if (n.start?.hour != note.start?.hour ||
-                n.start?.minute != note.start?.minute)
-              return false;
-            return n.title.trim().toLowerCase() ==
-                note.title.trim().toLowerCase();
-          });
 
-          if (!already) {
-            bucket.add(note);
-            addedCount++; // ✅ important: track how many actually added
+            if (skip) {
+              continue;
+            }
+
+            if (replaceIndex != null) {
+              bucket[replaceIndex] = note;
+              if (kDebugMode && kDebugStandaloneHydration) {
+                debugPrint(
+                  '[_loadFromDisk] replaced duplicate standalone with cid=${note.clientEventId} key=$key',
+                );
+              }
+            } else {
+              bucket.add(note);
+              standaloneAddedCount++; // ✅ important: track how many actually added
+              if (kDebugMode && kDebugStandaloneHydration) {
+                debugPrint(
+                  '[_loadFromDisk] added standalone id=${evt.id} cid=${note.clientEventId ?? ''} '
+                  'key=$key start=${note.start?.format(context) ?? 'all-day'}',
+                );
+              }
+            }
+          } catch (rowErr, rowSt) {
+            debugPrint(
+              '[_loadFromDisk] ⚠️ standalone row skipped: $rowErr (id=${evt.id} cid=${evt.clientEventId})',
+            );
+            if (kDebugMode && kDebugStandaloneHydration) {
+              debugPrint('$rowSt');
+            }
+            continue;
           }
         }
 
         if (kDebugMode) {
           debugPrint(
-            '[_loadFromDisk] loaded $addedCount standalone events after filtering',
+            '[_loadFromDisk] loaded $standaloneAddedCount standalone events after filtering '
+            '(${standaloneWindow.startUtc.toIso8601String()} → ${standaloneWindow.endUtc.toIso8601String()})',
           );
         }
       } catch (err, st) {
@@ -9921,6 +10323,25 @@ class _CalendarPageState extends State<CalendarPage>
       _notes
         ..clear()
         ..addAll(newNotes);
+      if (kDebugMode && kDebugStandaloneHydration) {
+        final totalNotes = newNotes.values.fold<int>(
+          0,
+          (sum, list) => sum + list.length,
+        );
+        debugPrint(
+          '[_loadFromDisk] committed _notes keys=${newNotes.length} totalNotes=$totalNotes',
+        );
+        for (final key in _debugStandaloneKeys) {
+          final bucket = newNotes[key];
+          if (bucket != null) {
+            debugPrint(
+              '[_loadFromDisk] bucket $key titles=${bucket.map((n) => n.title).join(' | ')}',
+            );
+          } else {
+            debugPrint('[_loadFromDisk] bucket $key empty');
+          }
+        }
+      }
       _nextFlowId = nextFlowId;
 
       if (kDebugMode) {
@@ -9937,9 +10358,11 @@ class _CalendarPageState extends State<CalendarPage>
     } catch (e, stackTrace) {
       print('Supabase sync FAILED: $e');
       print('Stack: $stackTrace');
+    } finally {
+      _isLoadingFromDisk = false;
     }
 
-    print('=== _loadFromDisk END ===');
+    print('=== _loadFromDisk END ($source) ===');
   }
 
   /// Allows other screens (e.g., Settings) to trigger a fresh sync of flows/notes.
@@ -10361,7 +10784,7 @@ class _CalendarPageState extends State<CalendarPage>
   /// Schedules all note occurrences for a flow to the calendar
   /// This is the shared logic used by both Flow Studio and Inbox imports
   // Save a single (non-repeating) note only
-  Future<void> _saveSingleNoteOnly({
+  Future<({String clientEventId, String eventId})> _saveSingleNoteOnly({
     required int selYear,
     required int selMonth,
     required int selDay,
@@ -10426,8 +10849,8 @@ class _CalendarPageState extends State<CalendarPage>
     );
 
     // Sync to Supabase and persist id/clientEventId
+    final repo = UserEventsRepo(Supabase.instance.client);
     try {
-      final repo = UserEventsRepo(Supabase.instance.client);
       final endsAtUtc = (allDay || endTime == null)
           ? null
           : DateTime(
@@ -10449,6 +10872,12 @@ class _CalendarPageState extends State<CalendarPage>
         category: category,
       );
 
+      if (updated.id.isEmpty) {
+        throw StateError('Supabase upsert returned empty id for $unifiedCid');
+      }
+
+      final savedClientEventId = updated.clientEventId ?? unifiedCid;
+
       _addNote(
         selYear,
         selMonth,
@@ -10456,7 +10885,7 @@ class _CalendarPageState extends State<CalendarPage>
         title,
         detail,
         id: updated.id,
-        clientEventId: updated.clientEventId,
+        clientEventId: savedClientEventId,
         location: location,
         allDay: allDay,
         start: startTime,
@@ -10482,11 +10911,22 @@ class _CalendarPageState extends State<CalendarPage>
           debugPrint('[SaveSingleNote] failed to log app_events: $e');
         }
       }
-    } catch (e) {
-      // non-fatal; keep UX flowing
-      if (kDebugMode) {
-        debugPrint('[SaveSingleNote] failed to save: $e');
+      return (clientEventId: savedClientEventId, eventId: updated.id);
+    } catch (e, st) {
+      try {
+        await Notify.cancelNotificationForEvent(unifiedCid);
+      } catch (cancelErr) {
+        debugPrint(
+          '[SaveSingleNote] failed to cancel notification for $unifiedCid after error: $cancelErr',
+        );
       }
+      debugPrint(
+        '[SaveSingleNote] failed to save standalone note (cid=$unifiedCid): $e',
+      );
+      if (kDebugMode) {
+        debugPrint('$st');
+      }
+      rethrow;
     }
   }
 

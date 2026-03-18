@@ -2263,8 +2263,10 @@ class _DayViewGridState extends State<DayViewGrid> {
     final event = block.event;
     
     // 🔍 DEBUG: Log block being rendered
-    if (kDebugMode && event.flowId != null) {
-      print('[_buildEventBlock] Rendering: title="${event.title}", flowId=${event.flowId}');
+    if (kDebugMode) {
+      print(
+        '[_buildEventBlock] Rendering: title="${event.title}", flowId=${event.flowId}, cid=${event.clientEventId}',
+      );
     }
     
     // ✅ FIX #2A: Calculate and clamp duration to prevent giant blocks

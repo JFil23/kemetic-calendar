@@ -246,12 +246,14 @@ class CalendarSyncService {
 
   static const _cacheBoxName = 'calendar_sync.cache.v1';
   static const _stateBoxName = 'calendar_sync.state.v1';
+  static const _deletedCidsKey = 'deleted_cids';
 
   Box<dynamic>? _cacheBox;
   Box<dynamic>? _stateBox;
   bool _initialized = false;
   bool _syncing = false;
   Timer? _timer;
+  Set<String> _deletedCids = <String>{};
 
   Future<void> ensureInitialized() async {
     if (_initialized || kIsWeb) return;
@@ -264,6 +266,10 @@ class CalendarSyncService {
     }
     _cacheBox = await Hive.openBox<dynamic>(_cacheBoxName);
     _stateBox = await Hive.openBox<dynamic>(_stateBoxName);
+    final rawDeleted = _stateBox?.get(_deletedCidsKey);
+    if (rawDeleted is List) {
+      _deletedCids = rawDeleted.whereType<String>().toSet();
+    }
     _initialized = true;
   }
 
@@ -350,6 +356,11 @@ class CalendarSyncService {
       final nativeModified = native.lastModified ?? native.start;
       final supFingerprint = sup == null ? null : _fingerprintFromSupabase(sup);
       final supUpdated = sup?.updatedAt ?? sup?.startsAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+
+      if (sup == null && _deletedCids.contains(cid)) {
+        debugPrint('[calendar-sync] skipping upsert for deleted-in-app cid=$cid');
+        continue;
+      }
 
       if (sup == null) {
         await _eventsRepo.upsertByClientId(
@@ -509,6 +520,14 @@ class CalendarSyncService {
       clientEventId: cid,
       source: _platformLabel(),
     );
+  }
+
+  Future<void> recordDeletedInApp(String cid) async {
+    if (cid.isEmpty || kIsWeb) return;
+    await ensureInitialized();
+    _deletedCids.add(cid);
+    await _stateBox?.put(_deletedCidsKey, _deletedCids.toList());
+    debugPrint('[calendar-sync] recorded deleted-in-app cid=$cid');
   }
 }
 
