@@ -368,6 +368,28 @@ class UserEventsRepo {
     }
   }
 
+  /// Delete events by a list of row ids (scoped to current user).
+  Future<void> deleteByIds(List<String> ids) async {
+    if (ids.isEmpty) return;
+    _log('deleteByIds(count=${ids.length})');
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) return;
+      await _client
+          .from(_kTable)
+          .delete()
+          .eq('user_id', user.id)
+          .inFilter('id', ids);
+      _log('deleteByIds ✓');
+    } on PostgrestException catch (e) {
+      _log('deleteByIds ✗ ${e.code} ${e.message}');
+      rethrow;
+    } catch (e) {
+      _log('deleteByIds ✗ $e');
+      rethrow;
+    }
+  }
+
   /// Delete Ma'at-generated events by flow id. Optionally from a given date forward.
   Future<void> deleteByFlowId(int flowId, {DateTime? fromDate}) async {
     _log('deleteByFlowId(flowId=$flowId, fromDate=$fromDate)');
@@ -636,6 +658,48 @@ class UserEventsRepo {
         category: row['category'] as String?,
       );
     }).toList();
+  }
+
+  /// Fetch reminder occurrences by prefix and from-date (includes id + detail for override detection).
+  Future<List<({
+    String id,
+    String? clientEventId,
+    String? detail,
+    DateTime startsAtUtc,
+  })>> getReminderOccurrenceRows(
+    String prefix, {
+    required DateTime fromUtc,
+    int limit = 2000,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return const [];
+    try {
+      var query = _client
+          .from(_kTable)
+          .select('id,client_event_id,detail,starts_at')
+          .eq('user_id', user.id)
+          .like('client_event_id', '$prefix%')
+          .gte('starts_at', fromUtc.toUtc().toIso8601String())
+          .order('starts_at', ascending: true);
+      if (limit > 0) {
+        query = query.limit(limit);
+      }
+      final rows = await query;
+      return (rows as List).cast<Map<String, dynamic>>().map((row) {
+        return (
+          id: row['id'] as String,
+          clientEventId: row['client_event_id'] as String?,
+          detail: row['detail'] as String?,
+          startsAtUtc: DateTime.parse(row['starts_at'] as String),
+        );
+      }).toList();
+    } on PostgrestException catch (e) {
+      _log('getReminderOccurrenceRows ✗ ${e.code} ${e.message}');
+      return const [];
+    } catch (e) {
+      _log('getReminderOccurrenceRows ✗ $e');
+      return const [];
+    }
   }
 
   /// Fetch events within a start/end window with metadata (updated_at).

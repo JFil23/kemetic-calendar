@@ -1852,6 +1852,8 @@ class _CalendarPageState extends State<CalendarPage>
   bool _reminderRulesLoaded = false;
   bool _noteSheetShowReminders = false;
   static const _endedReminderPrefsKey = 'reminder:ended_ids';
+  static const String _kReminderManualOverrideMarker =
+      'kemet_cid:manual_override';
   final Set<String> _endedReminderIds = {};
 
   Future<void> _loadReminderSettings() async {
@@ -3617,6 +3619,11 @@ class _CalendarPageState extends State<CalendarPage>
     _notes.forEach((k, list) {
       list.removeWhere((n) {
         final isTarget = n.isReminder && n.reminderId == ruleId;
+        final isOverride = n.detail?.contains(
+              _kReminderManualOverrideMarker,
+            ) ==
+            true;
+        if (isOverride) return false;
         if (!isTarget) return false;
         if (fromDate == null) return true;
         final parts = k.split('-');
@@ -3707,11 +3714,30 @@ class _CalendarPageState extends State<CalendarPage>
     for (final rule in _reminderRules) {
       // Persist meta before generating occurrences to keep server source-of-truth in sync.
       await _ensureReminderRuleMeta(rule);
+      final overriddenDates = <String>{};
+      final idsToDelete = <String>[];
       try {
-        await repo.deleteByClientIdPrefix(
+        final existingRows = await repo.getReminderOccurrenceRows(
           'reminder:${rule.id}:',
           fromUtc: today,
         );
+        for (final row in existingRows) {
+          final cid = row.clientEventId ?? '';
+          final parts = cid.split(':');
+          final datePart = parts.isNotEmpty ? parts.last.trim() : '';
+          final hasOverride = row.detail?.contains(
+                _kReminderManualOverrideMarker,
+              ) ==
+              true;
+          if (hasOverride && datePart.isNotEmpty) {
+            overriddenDates.add(datePart);
+          } else {
+            idsToDelete.add(row.id);
+          }
+        }
+        if (idsToDelete.isNotEmpty) {
+          await repo.deleteByIds(idsToDelete);
+        }
       } catch (_) {}
 
       // If inactive, skip regeneration entirely.
@@ -3749,6 +3775,9 @@ class _CalendarPageState extends State<CalendarPage>
           final cid = 'reminder:${rule.id}:$cidDate';
           final encodedDetail = _encodeReminderDetail(rule);
 
+          if (overriddenDates.contains(cidDate)) {
+            continue;
+          }
           try {
             await repo.upsertByClientId(
               clientEventId: cid,
@@ -5225,6 +5254,20 @@ class _CalendarPageState extends State<CalendarPage>
     int localIdx = -1;
     _Note? previousNote;
     bool updatedLocalNote = false;
+    final bool isReminderOccurrence =
+        rawClientId != null && rawClientId.startsWith('reminder:');
+    String? detailWithOverrideMarker;
+    if (isReminderOccurrence) {
+      final currentDetail = evt.detail ?? '';
+      if (currentDetail.contains(_kReminderManualOverrideMarker)) {
+        detailWithOverrideMarker = currentDetail;
+      } else {
+        final needsNewline =
+            currentDetail.isNotEmpty && !currentDetail.endsWith('\n');
+        detailWithOverrideMarker =
+            '$currentDetail${needsNewline ? '\n' : ''}$_kReminderManualOverrideMarker';
+      }
+    }
 
     String _fmtTod(TimeOfDay? tod) {
       if (tod == null) return 'all-day';
@@ -5293,6 +5336,7 @@ class _CalendarPageState extends State<CalendarPage>
           id: rawId,
           startsAt: startLocal.toUtc(),
           endsAt: endLocal.toUtc(),
+          detail: isReminderOccurrence ? detailWithOverrideMarker : null,
         );
       } else {
         if (kDebugMode) {
@@ -5304,7 +5348,9 @@ class _CalendarPageState extends State<CalendarPage>
           clientEventId: rawClientId!,
           title: evt.title,
           startsAtUtc: startLocal.toUtc(),
-          detail: evt.detail,
+          detail: isReminderOccurrence
+              ? detailWithOverrideMarker
+              : evt.detail,
           location: evt.location,
           allDay: evt.allDay,
           endsAtUtc: endLocal.toUtc(),
@@ -5340,6 +5386,7 @@ class _CalendarPageState extends State<CalendarPage>
         final replacement = existing.copyWith(
           id: updated.id,
           clientEventId: updated.clientEventId,
+          detail: updated.detail,
           start: updatedStart,
           end: updatedEnd,
         );
