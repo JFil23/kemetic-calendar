@@ -49,8 +49,9 @@ class UserEvent {
   });
 
   factory UserEvent.fromRow(Map<String, dynamic> row) {
-    DateTime _parseTs(dynamic v) =>
-        v == null ? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true) : DateTime.parse(v as String);
+    DateTime _parseTs(dynamic v) => v == null
+        ? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true)
+        : DateTime.parse(v as String);
 
     return UserEvent(
       id: row['id'] as String,
@@ -60,11 +61,19 @@ class UserEvent {
       location: row['location'] as String?,
       allDay: (row['all_day'] as bool?) ?? false,
       startsAt: _parseTs(row['starts_at']).toUtc(),
-      endsAt: row['ends_at'] == null ? null : DateTime.parse(row['ends_at'] as String).toUtc(),
-      flowLocalId: row['flow_local_id'] != null ? (row['flow_local_id'] as num).toInt() : null,
+      endsAt: row['ends_at'] == null
+          ? null
+          : DateTime.parse(row['ends_at'] as String).toUtc(),
+      flowLocalId: row['flow_local_id'] != null
+          ? (row['flow_local_id'] as num).toInt()
+          : null,
       category: row['category'] as String?,
-      updatedAt: row['updated_at'] == null ? null : DateTime.parse(row['updated_at'] as String).toUtc(),
-      createdAt: row['created_at'] == null ? null : DateTime.parse(row['created_at'] as String).toUtc(),
+      updatedAt: row['updated_at'] == null
+          ? null
+          : DateTime.parse(row['updated_at'] as String).toUtc(),
+      createdAt: row['created_at'] == null
+          ? null
+          : DateTime.parse(row['created_at'] as String).toUtc(),
     );
   }
 
@@ -128,6 +137,7 @@ class UserEventsRepo {
   static void setTelemetryEnabledForTesting(bool? enabled) {
     _telemetryEnabled = enabled;
   }
+
   static const _allowedFeedbackTags = <String>{
     'wrong_time',
     'too_much',
@@ -198,9 +208,34 @@ class UserEventsRepo {
     DateTime? endsAtUtc,
     int? flowLocalId,
     String? category,
+    String? caller,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) throw StateError('No user session. Please sign in.');
+
+    try {
+      final existing = await _client
+          .from(_kTable)
+          .select()
+          .eq('client_event_id', clientEventId)
+          .maybeSingle();
+      if (existing != null &&
+          (existing['category'] as String?) == 'tombstone') {
+        final callerTag = caller == null || caller.isEmpty
+            ? 'unspecified'
+            : caller;
+        _log(
+          'upsert blocked by tombstone client_event_id=$clientEventId caller=$callerTag',
+        );
+        return UserEvent.fromRow(existing as Map<String, dynamic>);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+          '[user_events] tombstone check failed for cid=$clientEventId: $e',
+        );
+      }
+    }
 
     final payload = {
       'user_id': user.id,
@@ -215,15 +250,16 @@ class UserEventsRepo {
       if (category != null) 'category': category,
     };
 
-    _log('upsert(client_event_id=$clientEventId) → $payload');
+    final callerTag = caller == null || caller.isEmpty ? 'unspecified' : caller;
+    _log('upsert(client_event_id=$clientEventId caller=$callerTag) → $payload');
     try {
       final row = await _client
           .from(_kTable)
-      // ⬇️ match the DB: unique(user_id, client_event_id)
+          // ⬇️ match the DB: unique(user_id, client_event_id)
           .upsert(payload, onConflict: 'user_id,client_event_id')
           .select()
           .single();
-      _log('upsert ✓ id=${row['id']}');
+      _log('upsert ✓ id=${row['id']} caller=$callerTag');
       return UserEvent.fromRow(row as Map<String, dynamic>);
     } on PostgrestException catch (e) {
       _log('upsert ✗ ${e.code} ${e.message}');
@@ -250,25 +286,33 @@ class UserEventsRepo {
     if (detail != null) patch['detail'] = detail;
     if (location != null) patch['location'] = location;
     if (allDay != null) patch['all_day'] = allDay;
-    if (startsAt != null) patch['starts_at'] = startsAt.toUtc().toIso8601String();
+    if (startsAt != null)
+      patch['starts_at'] = startsAt.toUtc().toIso8601String();
     if (endsAt != null) patch['ends_at'] = endsAt.toUtc().toIso8601String();
     if (category != null) patch['category'] = category;
     if (patch.isEmpty) throw ArgumentError('Nothing to update.');
 
     _log('update($id) → $patch');
     try {
-      final row = await _client.from(_kTable).update(patch).eq('id', id).select().single();
+      final row = await _client
+          .from(_kTable)
+          .update(patch)
+          .eq('id', id)
+          .select()
+          .single();
       _log('update ✓ id=$id');
       final updated = UserEvent.fromRow(row as Map<String, dynamic>);
       if (updated.flowLocalId != null && updated.flowLocalId! > 0) {
-        unawaited(track(
-          event: 'event_updated',
-          properties: {
-            'flow_id': updated.flowLocalId,
-            'event_id': id,
-            'v': kAppEventsSchemaVersion,
-          },
-        ));
+        unawaited(
+          track(
+            event: 'event_updated',
+            properties: {
+              'flow_id': updated.flowLocalId,
+              'event_id': id,
+              'v': kAppEventsSchemaVersion,
+            },
+          ),
+        );
       }
       return updated;
     } on PostgrestException catch (e) {
@@ -307,17 +351,20 @@ class UserEventsRepo {
 
       final flowId = (deleted?['flow_local_id'] as num?)?.toInt();
       if (flowId != null && flowId > 0) {
-        unawaited(track(
-          event: 'event_deleted',
-          properties: {
-            'flow_id': flowId,
-            'event_id': id,
-            'v': kAppEventsSchemaVersion,
-          },
-        ));
+        unawaited(
+          track(
+            event: 'event_deleted',
+            properties: {
+              'flow_id': flowId,
+              'event_id': id,
+              'v': kAppEventsSchemaVersion,
+            },
+          ),
+        );
       }
     } on PostgrestException catch (e) {
-      if (e.code == 'PGRST116' || e.message.contains('Results contain 0 rows')) {
+      if (e.code == 'PGRST116' ||
+          e.message.contains('Results contain 0 rows')) {
         _log('delete ⚠️ no rows for id=$id');
         return;
       }
@@ -335,8 +382,9 @@ class UserEventsRepo {
           .eq('client_event_id', clientEventId)
           .select('id, flow_local_id');
 
-      final rows =
-          deletedRows is List ? deletedRows.cast<Map<String, dynamic>>() : const <Map<String, dynamic>>[];
+      final rows = deletedRows is List
+          ? deletedRows.cast<Map<String, dynamic>>()
+          : const <Map<String, dynamic>>[];
       if (rows.isEmpty) {
         _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
         return;
@@ -344,20 +392,25 @@ class UserEventsRepo {
 
       final deletedId = rows.first['id'] as String?;
       final flowId = (rows.first['flow_local_id'] as num?)?.toInt();
-      _log('deleteByClientId ✓ id=${deletedId ?? 'unknown'} cid=$clientEventId');
+      _log(
+        'deleteByClientId ✓ id=${deletedId ?? 'unknown'} cid=$clientEventId',
+      );
 
       if (flowId != null && flowId > 0 && deletedId != null) {
-        unawaited(track(
-          event: 'event_deleted',
-          properties: {
-            'flow_id': flowId,
-            'event_id': deletedId,
-            'v': kAppEventsSchemaVersion,
-          },
-        ));
+        unawaited(
+          track(
+            event: 'event_deleted',
+            properties: {
+              'flow_id': flowId,
+              'event_id': deletedId,
+              'v': kAppEventsSchemaVersion,
+            },
+          ),
+        );
       }
     } on PostgrestException catch (e) {
-      if (e.code == 'PGRST116' || e.message.contains('Results contain 0 rows')) {
+      if (e.code == 'PGRST116' ||
+          e.message.contains('Results contain 0 rows')) {
         _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
         return;
       }
@@ -368,12 +421,15 @@ class UserEventsRepo {
 
   /// Delete events by client_event_id prefix (e.g., 'nutrition:item-id:').
   /// Useful for bulk deletion of related events.
-  Future<void> deleteByClientIdPrefix(String prefix, {DateTime? fromUtc}) async {
+  Future<void> deleteByClientIdPrefix(
+    String prefix, {
+    DateTime? fromUtc,
+  }) async {
     _log('deleteByClientIdPrefix($prefix, fromUtc=$fromUtc)');
     try {
       final user = _client.auth.currentUser;
       if (user == null) return;
-      
+
       var query = _client
           .from(_kTable)
           .delete()
@@ -382,9 +438,9 @@ class UserEventsRepo {
       if (fromUtc != null) {
         query = query.gte('starts_at', fromUtc.toUtc().toIso8601String());
       }
-      
+
       await query;
-      
+
       _log('deleteByClientIdPrefix ✓');
     } on PostgrestException catch (e) {
       _log('deleteByClientIdPrefix ✗ ${e.code} ${e.message}');
@@ -449,8 +505,12 @@ class UserEventsRepo {
           .limit(1);
       if (rows is List && rows.isNotEmpty) {
         final row = rows.first as Map<String, dynamic>;
-        startDate = row['start_date'] == null ? null : DateTime.parse(row['start_date'] as String).toUtc();
-        endDateInclusive = row['end_date'] == null ? null : DateTime.parse(row['end_date'] as String).toUtc();
+        startDate = row['start_date'] == null
+            ? null
+            : DateTime.parse(row['start_date'] as String).toUtc();
+        endDateInclusive = row['end_date'] == null
+            ? null
+            : DateTime.parse(row['end_date'] as String).toUtc();
       }
 
       // Build a half-open time window: [windowStart, windowEndExclusive)
@@ -458,7 +518,9 @@ class UserEventsRepo {
       final windowStart = (fromDate ?? startDate)?.toUtc();
       final windowEndExclusive = endDateInclusive == null
           ? null
-          : endDateInclusive.toUtc().add(const Duration(days: 1)); // next day at 00:00Z
+          : endDateInclusive.toUtc().add(
+              const Duration(days: 1),
+            ); // next day at 00:00Z
 
       final user = _client.auth.currentUser;
       if (user != null && (windowStart != null || windowEndExclusive != null)) {
@@ -490,9 +552,13 @@ class UserEventsRepo {
   Future<void> upsertManyDeterministic(List<Map<String, dynamic>> rows) async {
     if (rows.isEmpty) return;
     try {
-      await _client.from(_kTable).upsert(rows, onConflict: 'user_id,client_event_id');
+      await _client
+          .from(_kTable)
+          .upsert(rows, onConflict: 'user_id,client_event_id');
       if (kDebugMode) {
-        debugPrint('[user_events] upsertManyDeterministic ✓ ${rows.length} rows');
+        debugPrint(
+          '[user_events] upsertManyDeterministic ✓ ${rows.length} rows',
+        );
       }
     } on PostgrestException catch (e) {
       _log('upsertManyDeterministic ✗ ${e.code} ${e.message}');
@@ -518,89 +584,111 @@ class UserEventsRepo {
 
   /// Typed list for a quick sanity read.
   /// ✅ FIXED: Added clientEventId to return type
-  Future<List<({
-  String? id,
-  String? clientEventId,  // ✅ ADDED THIS LINE
-  String title,
-  String? detail,
-  String? location,
-  bool allDay,
-  DateTime startsAtUtc,
-  DateTime? endsAtUtc,
-  int? flowLocalId,
-  String? category,
-  })>> getAllEvents({int limit = 500}) async {
+  Future<
+    List<
+      ({
+        String? id,
+        String? clientEventId, // ✅ ADDED THIS LINE
+        String title,
+        String? detail,
+        String? location,
+        bool allDay,
+        DateTime startsAtUtc,
+        DateTime? endsAtUtc,
+        int? flowLocalId,
+        String? category,
+      })
+    >
+  >
+  getAllEvents({int limit = 500}) async {
     final user = _client.auth.currentUser;
     if (user == null) return [];
 
     final rows = await _client
         .from(_kTable)
-        .select('id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,flows!left(id,active,end_date)')
+        .select(
+          'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,flows!left(id,active,end_date)',
+        )
         .eq('user_id', user.id)
         .order('starts_at', ascending: true)
         .limit(limit);
 
-    final filtered = (rows as List).cast<Map<String, dynamic>>().where((row) {
-      final int? fid = (row['flow_local_id'] as num?)?.toInt();
-      
-      // Standalone events (no flow) are fine
-      if (fid == null) return true;
-      
-      // 🚫 Orphaned event: has flow_local_id but no flow row (flow was deleted)
-      final Map<String, dynamic>? flow = row['flows'] as Map<String, dynamic>?;
-      if (flow == null) {
-        // Orphaned event - skip it
-        return false;
-      }
-      
-      // If there's a flow, it must be active
-      final bool active = (flow['active'] as bool?) ?? false;
-      if (!active) {
-        // Flow exists but is inactive - skip it
-        return false;
-      }
+    final filtered = (rows as List)
+        .cast<Map<String, dynamic>>()
+        .where((row) {
+          final int? fid = (row['flow_local_id'] as num?)?.toInt();
 
-      // Treat flows as "ended" ONLY if their end_date is in the past.
-      // If end_date is in the future (or today), we still want to see them on the calendar.
-      final String? endDateStr = flow['end_date'] as String?;
-      bool expired = false;
-      if (endDateStr != null) {
-        final endDate = DateTime.parse(endDateStr).toUtc();
-        final now = DateTime.now().toUtc();
-        expired = endDate.isBefore(now);
-      }
+          // Standalone events (no flow) are fine
+          if (fid == null) return true;
 
-      return !expired; // Only return true if flow is active AND not expired
-    }).map((row) => (
-    id: row['id'] as String?,
-    clientEventId: row['client_event_id'] as String?,  // ✅ ADDED THIS LINE
-    title: row['title'] as String,
-    detail: row['detail'] as String?,
-    location: row['location'] as String?,
-    allDay: (row['all_day'] as bool?) ?? false,
-    startsAtUtc: DateTime.parse(row['starts_at'] as String),
-    endsAtUtc: row['ends_at'] == null ? null : DateTime.parse(row['ends_at'] as String),
-    flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
-    category: row['category'] as String?,
-    )).toList();
+          // 🚫 Orphaned event: has flow_local_id but no flow row (flow was deleted)
+          final Map<String, dynamic>? flow =
+              row['flows'] as Map<String, dynamic>?;
+          if (flow == null) {
+            // Orphaned event - skip it
+            return false;
+          }
+
+          // If there's a flow, it must be active
+          final bool active = (flow['active'] as bool?) ?? false;
+          if (!active) {
+            // Flow exists but is inactive - skip it
+            return false;
+          }
+
+          // Treat flows as "ended" ONLY if their end_date is in the past.
+          // If end_date is in the future (or today), we still want to see them on the calendar.
+          final String? endDateStr = flow['end_date'] as String?;
+          bool expired = false;
+          if (endDateStr != null) {
+            final endDate = DateTime.parse(endDateStr).toUtc();
+            final now = DateTime.now().toUtc();
+            expired = endDate.isBefore(now);
+          }
+
+          return !expired; // Only return true if flow is active AND not expired
+        })
+        .map(
+          (row) => (
+            id: row['id'] as String?,
+            clientEventId:
+                row['client_event_id'] as String?, // ✅ ADDED THIS LINE
+            title: row['title'] as String,
+            detail: row['detail'] as String?,
+            location: row['location'] as String?,
+            allDay: (row['all_day'] as bool?) ?? false,
+            startsAtUtc: DateTime.parse(row['starts_at'] as String),
+            endsAtUtc: row['ends_at'] == null
+                ? null
+                : DateTime.parse(row['ends_at'] as String),
+            flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+            category: row['category'] as String?,
+          ),
+        )
+        .toList();
 
     return filtered;
   }
 
   /// Fetch standalone (non-flow) events within a UTC window.
   /// endUtc is treated as an exclusive upper bound.
-  Future<List<({
-    String? id,
-    String? clientEventId,
-    String title,
-    String? detail,
-    String? location,
-    bool allDay,
-    DateTime startsAtUtc,
-    DateTime? endsAtUtc,
-    int? flowLocalId,
-    String? category,
-  })>> getStandaloneEventsForDateRange({
+  Future<
+    List<
+      ({
+        String? id,
+        String? clientEventId,
+        String title,
+        String? detail,
+        String? location,
+        bool allDay,
+        DateTime startsAtUtc,
+        DateTime? endsAtUtc,
+        int? flowLocalId,
+        String? category,
+      })
+    >
+  >
+  getStandaloneEventsForDateRange({
     required DateTime startUtc,
     required DateTime endUtc,
     int limit = 10000,
@@ -660,30 +748,10 @@ class UserEventsRepo {
 
   /// Fetch standalone events in a window, paging until exhausted to avoid server caps.
   /// Returns merged unique rows (by id then client_event_id) plus debug counts.
-  Future<({
-    List<({
-      String? id,
-      String? clientEventId,
-      String title,
-      String? detail,
-      String? location,
-      bool allDay,
-      DateTime startsAtUtc,
-      DateTime? endsAtUtc,
-      int? flowLocalId,
-      String? category,
-    })> events,
-    int pageCount,
-    int rawCount,
-  })> getStandaloneEventsForDateRangeAll({
-    required DateTime startUtc,
-    required DateTime endUtc,
-    int pageSize = 1000,
-  }) async {
-    final user = _client.auth.currentUser;
-    if (user == null) {
-      return (
-        events: <({
+  Future<
+    ({
+      List<
+        ({
           String? id,
           String? clientEventId,
           String title,
@@ -694,7 +762,36 @@ class UserEventsRepo {
           DateTime? endsAtUtc,
           int? flowLocalId,
           String? category,
-        })>[],
+        })
+      >
+      events,
+      int pageCount,
+      int rawCount,
+    })
+  >
+  getStandaloneEventsForDateRangeAll({
+    required DateTime startUtc,
+    required DateTime endUtc,
+    int pageSize = 1000,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      return (
+        events:
+            <
+              ({
+                String? id,
+                String? clientEventId,
+                String title,
+                String? detail,
+                String? location,
+                bool allDay,
+                DateTime startsAtUtc,
+                DateTime? endsAtUtc,
+                int? flowLocalId,
+                String? category,
+              })
+            >[],
         pageCount: 0,
         rawCount: 0,
       );
@@ -720,8 +817,9 @@ class UserEventsRepo {
             .range(offset, offset + pageSize - 1);
 
         final rows = await query;
-        final pageRows =
-            (rows as List).cast<Map<String, dynamic>>().toList(growable: false);
+        final pageRows = (rows as List).cast<Map<String, dynamic>>().toList(
+          growable: false,
+        );
         pageCount++;
         pages.addAll(pageRows);
 
@@ -742,36 +840,42 @@ class UserEventsRepo {
         '(${startUtc.toUtc().toIso8601String()} → ${endUtc.toUtc().toIso8601String()})',
       );
       return (
-        events: <({
-          String? id,
-          String? clientEventId,
-          String title,
-          String? detail,
-          String? location,
-          bool allDay,
-          DateTime startsAtUtc,
-          DateTime? endsAtUtc,
-          int? flowLocalId,
-          String? category,
-        })>[],
+        events:
+            <
+              ({
+                String? id,
+                String? clientEventId,
+                String title,
+                String? detail,
+                String? location,
+                bool allDay,
+                DateTime startsAtUtc,
+                DateTime? endsAtUtc,
+                int? flowLocalId,
+                String? category,
+              })
+            >[],
         pageCount: pageCount,
         rawCount: pages.length,
       );
     } catch (e) {
       _log('getStandaloneEventsForDateRangeAll ✗ $e');
       return (
-        events: <({
-          String? id,
-          String? clientEventId,
-          String title,
-          String? detail,
-          String? location,
-          bool allDay,
-          DateTime startsAtUtc,
-          DateTime? endsAtUtc,
-          int? flowLocalId,
-          String? category,
-        })>[],
+        events:
+            <
+              ({
+                String? id,
+                String? clientEventId,
+                String title,
+                String? detail,
+                String? location,
+                bool allDay,
+                DateTime startsAtUtc,
+                DateTime? endsAtUtc,
+                int? flowLocalId,
+                String? category,
+              })
+            >[],
         pageCount: pageCount,
         rawCount: pages.length,
       );
@@ -779,18 +883,21 @@ class UserEventsRepo {
 
     final seenIds = <String>{};
     final seenCids = <String>{};
-    final List<({
-      String? id,
-      String? clientEventId,
-      String title,
-      String? detail,
-      String? location,
-      bool allDay,
-      DateTime startsAtUtc,
-      DateTime? endsAtUtc,
-      int? flowLocalId,
-      String? category,
-    })> events = [];
+    final List<
+      ({
+        String? id,
+        String? clientEventId,
+        String title,
+        String? detail,
+        String? location,
+        bool allDay,
+        DateTime startsAtUtc,
+        DateTime? endsAtUtc,
+        int? flowLocalId,
+        String? category,
+      })
+    >
+    events = [];
 
     for (final row in pages) {
       final id = row['id'] as String?;
@@ -829,23 +936,30 @@ class UserEventsRepo {
   }
 
   /// Fetch reminder events by client_event_id prefix. Reminders-only.
-  Future<List<({
-    String? clientEventId,
-    String title,
-    String? detail,
-    String? location,
-    bool allDay,
-    DateTime startsAtUtc,
-    DateTime? endsAtUtc,
-    int? flowLocalId,
-    String? category,
-  })>> getReminderEvents({int limit = 5000}) async {
+  Future<
+    List<
+      ({
+        String? clientEventId,
+        String title,
+        String? detail,
+        String? location,
+        bool allDay,
+        DateTime startsAtUtc,
+        DateTime? endsAtUtc,
+        int? flowLocalId,
+        String? category,
+      })
+    >
+  >
+  getReminderEvents({int limit = 5000}) async {
     final user = _client.auth.currentUser;
     if (user == null) return [];
 
     var query = _client
         .from(_kTable)
-        .select('id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category')
+        .select(
+          'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
+        )
         .eq('user_id', user.id)
         .like('client_event_id', 'reminder:%')
         .order('starts_at', ascending: true);
@@ -862,7 +976,9 @@ class UserEventsRepo {
         location: row['location'] as String?,
         allDay: (row['all_day'] as bool?) ?? false,
         startsAtUtc: DateTime.parse(row['starts_at'] as String),
-        endsAtUtc: row['ends_at'] == null ? null : DateTime.parse(row['ends_at'] as String),
+        endsAtUtc: row['ends_at'] == null
+            ? null
+            : DateTime.parse(row['ends_at'] as String),
         flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
         category: row['category'] as String?,
       );
@@ -899,23 +1015,30 @@ class UserEventsRepo {
   }
 
   /// Fetch events by client_event_id prefix.
-  Future<List<({
-    String? clientEventId,
-    String title,
-    String? detail,
-    String? location,
-    bool allDay,
-    DateTime startsAtUtc,
-    DateTime? endsAtUtc,
-    int? flowLocalId,
-    String? category,
-  })>> getEventsByPrefix(String prefix, {int limit = 2000}) async {
+  Future<
+    List<
+      ({
+        String? clientEventId,
+        String title,
+        String? detail,
+        String? location,
+        bool allDay,
+        DateTime startsAtUtc,
+        DateTime? endsAtUtc,
+        int? flowLocalId,
+        String? category,
+      })
+    >
+  >
+  getEventsByPrefix(String prefix, {int limit = 2000}) async {
     final user = _client.auth.currentUser;
     if (user == null) return const [];
 
     var query = _client
         .from(_kTable)
-        .select('client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category')
+        .select(
+          'client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
+        )
         .eq('user_id', user.id)
         .like('client_event_id', '$prefix%')
         .order('starts_at', ascending: true);
@@ -932,7 +1055,9 @@ class UserEventsRepo {
         location: row['location'] as String?,
         allDay: (row['all_day'] as bool?) ?? false,
         startsAtUtc: DateTime.parse(row['starts_at'] as String),
-        endsAtUtc: row['ends_at'] == null ? null : DateTime.parse(row['ends_at'] as String),
+        endsAtUtc: row['ends_at'] == null
+            ? null
+            : DateTime.parse(row['ends_at'] as String),
         flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
         category: row['category'] as String?,
       );
@@ -940,12 +1065,12 @@ class UserEventsRepo {
   }
 
   /// Fetch reminder occurrences by prefix and from-date (includes id + detail for override detection).
-  Future<List<({
-    String id,
-    String? clientEventId,
-    String? detail,
-    DateTime startsAtUtc,
-  })>> getReminderOccurrenceRows(
+  Future<
+    List<
+      ({String id, String? clientEventId, String? detail, DateTime startsAtUtc})
+    >
+  >
+  getReminderOccurrenceRows(
     String prefix, {
     required DateTime fromUtc,
     int limit = 2000,
@@ -992,7 +1117,9 @@ class UserEventsRepo {
 
     var query = _client
         .from(_kTable)
-        .select('id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,updated_at,created_at')
+        .select(
+          'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,updated_at,created_at',
+        )
         .eq('user_id', user.id)
         .gte('starts_at', startUtc.toUtc().toIso8601String())
         .lte('starts_at', endUtc.toUtc().toIso8601String())
@@ -1003,21 +1130,29 @@ class UserEventsRepo {
     }
 
     final rows = await query;
-    return (rows as List).cast<Map<String, dynamic>>().map(UserEvent.fromRow).toList();
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(UserEvent.fromRow)
+        .toList();
   }
 
-  Future<List<({
-    String? id,
-    String? clientEventId,
-    String title,
-    String? detail,
-    String? location,
-  bool allDay,
-  DateTime startsAtUtc,
-  DateTime? endsAtUtc,
-  int? flowLocalId,
-  String? category,
-  })>> getEventsForFlow(int flowId) async {
+  Future<
+    List<
+      ({
+        String? id,
+        String? clientEventId,
+        String title,
+        String? detail,
+        String? location,
+        bool allDay,
+        DateTime startsAtUtc,
+        DateTime? endsAtUtc,
+        int? flowLocalId,
+        String? category,
+      })
+    >
+  >
+  getEventsForFlow(int flowId) async {
     try {
       final rows = await _client
           .from('user_events')
@@ -1065,10 +1200,9 @@ class UserEventsRepo {
   }
 
   /// Fetch client_event_id for given row ids (debug/logging helpers).
-  Future<List<({
-    String id,
-    String? clientEventId,
-  })>> getClientEventIdsByIds(List<String> ids) async {
+  Future<List<({String id, String? clientEventId})>> getClientEventIdsByIds(
+    List<String> ids,
+  ) async {
     if (ids.isEmpty) return const [];
     final user = _client.auth.currentUser;
     if (user == null) return const [];
@@ -1139,10 +1273,14 @@ class UserEventsRepo {
     String? shareId,
   }) async {
     if (flowId <= 0) return;
-    final filteredTags = tags.where(_allowedFeedbackTags.contains).toSet().toList();
+    final filteredTags = tags
+        .where(_allowedFeedbackTags.contains)
+        .toSet()
+        .toList();
     if (filteredTags.isEmpty) return;
-    final int? safeRating =
-        rating != null && rating >= 1 && rating <= 5 ? rating : null;
+    final int? safeRating = rating != null && rating >= 1 && rating <= 5
+        ? rating
+        : null;
 
     await track(
       event: 'flow_feedback',
@@ -1210,12 +1348,15 @@ class UserEventsRepo {
     if (user == null) return;
     final dateStr =
         '${completedOnDate.year}-${completedOnDate.month.toString().padLeft(2, '0')}-${completedOnDate.day.toString().padLeft(2, '0')}';
-    await _client.rpc('record_event_completion', params: {
-      'p_client_event_id': clientEventId,
-      'p_flow_id': flowId,
-      'p_completed_on': dateStr,
-      'p_source': source,
-    });
+    await _client.rpc(
+      'record_event_completion',
+      params: {
+        'p_client_event_id': clientEventId,
+        'p_flow_id': flowId,
+        'p_completed_on': dateStr,
+        'p_source': source,
+      },
+    );
   }
 
   /// Undo completion by deleting the row for this client_event_id.
@@ -1278,8 +1419,7 @@ class UserEventsRepo {
       'fork',
       'template',
     };
-    if (originType != null &&
-        allowedOriginTypes.contains(originType.trim())) {
+    if (originType != null && allowedOriginTypes.contains(originType.trim())) {
       payload['origin_type'] = originType.trim();
     }
     if (originFlowId != null && originFlowId > 0) {
@@ -1332,10 +1472,10 @@ class UserEventsRepo {
       return;
     }
     try {
-      await _client.rpc('flow_commit', params: {
-        'p_generation_id': generationId,
-        'p_flow_id': flowId,
-      });
+      await _client.rpc(
+        'flow_commit',
+        params: {'p_generation_id': generationId, 'p_flow_id': flowId},
+      );
       _log('flow_commit ✓ gen=$generationId flow=$flowId');
     } on PostgrestException catch (e, st) {
       _log('flow_commit ✗ ${e.code} ${e.message}');
@@ -1349,21 +1489,26 @@ class UserEventsRepo {
   }
 
   /// Fetch all flows for the signed-in user.
-  Future<List<({
-    int id,
-    String name,
-    int color,
-    bool active,
-    bool isSaved,
-    DateTime? startDate,
-    DateTime? endDate,
-    String? notes,
-    String rules,
-    String? shareId, // NEW: Include shareId
-    bool isHidden,
-    bool isReminder,
-    String? reminderUuid,
-  })>> getAllFlows() async {
+  Future<
+    List<
+      ({
+        int id,
+        String name,
+        int color,
+        bool active,
+        bool isSaved,
+        DateTime? startDate,
+        DateTime? endDate,
+        String? notes,
+        String rules,
+        String? shareId, // NEW: Include shareId
+        bool isHidden,
+        bool isReminder,
+        String? reminderUuid,
+      })
+    >
+  >
+  getAllFlows() async {
     final user = _client.auth.currentUser;
     if (user == null) return [];
 
@@ -1374,21 +1519,27 @@ class UserEventsRepo {
         .order('created_at', ascending: false);
 
     return (res as List)
-        .map((row) => (
-    id: (row['id'] as num).toInt(),
-    name: row['name'] as String,
-    color: (row['color'] as num).toInt(),
-    active: row['active'] as bool,
-    isSaved: (row['is_saved'] as bool?) ?? false,
-    startDate: row['start_date'] == null ? null : DateTime.parse(row['start_date'] as String),
-    endDate: row['end_date'] == null ? null : DateTime.parse(row['end_date'] as String),
-    notes: row['notes'] as String?,
-    rules: jsonEncode(row['rules']),
-    shareId: row['share_id'] as String?, // NEW: Include share_id
-    isHidden: (row['is_hidden'] as bool?) ?? false,
-    isReminder: (row['is_reminder'] as bool?) ?? false,
-    reminderUuid: row['reminder_uuid'] as String?,
-    ))
+        .map(
+          (row) => (
+            id: (row['id'] as num).toInt(),
+            name: row['name'] as String,
+            color: (row['color'] as num).toInt(),
+            active: row['active'] as bool,
+            isSaved: (row['is_saved'] as bool?) ?? false,
+            startDate: row['start_date'] == null
+                ? null
+                : DateTime.parse(row['start_date'] as String),
+            endDate: row['end_date'] == null
+                ? null
+                : DateTime.parse(row['end_date'] as String),
+            notes: row['notes'] as String?,
+            rules: jsonEncode(row['rules']),
+            shareId: row['share_id'] as String?, // NEW: Include share_id
+            isHidden: (row['is_hidden'] as bool?) ?? false,
+            isReminder: (row['is_reminder'] as bool?) ?? false,
+            reminderUuid: row['reminder_uuid'] as String?,
+          ),
+        )
         .toList();
   }
 
@@ -1430,7 +1581,7 @@ class UserEventsRepo {
           .from('flows')
           .update({'share_id': shareId})
           .eq('id', flowId);
-      
+
       if (kDebugMode) {
         print('[UserEventsRepo] Updated flow $flowId with share_id: $shareId');
       }
@@ -1460,7 +1611,8 @@ class UserEventsRepo {
     } on PostgrestException catch (e, st) {
       if (kDebugMode) {
         debugPrint(
-            '[UserEventsRepo] setFlowSaved FAILED: ${e.code} ${e.message} ${e.details}');
+          '[UserEventsRepo] setFlowSaved FAILED: ${e.code} ${e.message} ${e.details}',
+        );
         debugPrint('$st');
       }
       rethrow;
@@ -1481,7 +1633,7 @@ class UserEventsRepo {
           .select('id')
           .eq('share_id', shareId)
           .maybeSingle();
-      
+
       return response?['id'] as int?;
     } catch (e) {
       if (kDebugMode) {

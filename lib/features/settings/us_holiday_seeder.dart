@@ -19,7 +19,9 @@ class UsHolidaySeeder {
   static String _slug(String input) {
     final lower = input.toLowerCase();
     final cleaned = lower.replaceAll(RegExp(r'[^a-z0-9]+'), '-');
-    return cleaned.replaceAll(RegExp(r'-+'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
+    return cleaned
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
   }
 
   static String _clientEventId(_Holiday h) {
@@ -28,8 +30,10 @@ class UsHolidaySeeder {
   }
 
   static DateTime _observed(DateTime date) {
-    if (date.weekday == DateTime.saturday) return date.subtract(const Duration(days: 1));
-    if (date.weekday == DateTime.sunday) return date.add(const Duration(days: 1));
+    if (date.weekday == DateTime.saturday)
+      return date.subtract(const Duration(days: 1));
+    if (date.weekday == DateTime.sunday)
+      return date.add(const Duration(days: 1));
     return date;
   }
 
@@ -57,15 +61,27 @@ class UsHolidaySeeder {
   static List<_Holiday> _holidaysForYear(int year) {
     return [
       _Holiday("New Year's Day", _observed(DateTime(year, 1, 1))),
-      _Holiday('Martin Luther King Jr. Day', _nthWeekdayOfMonth(year, 1, DateTime.monday, 3)),
-      _Holiday("Presidents' Day", _nthWeekdayOfMonth(year, 2, DateTime.monday, 3)),
+      _Holiday(
+        'Martin Luther King Jr. Day',
+        _nthWeekdayOfMonth(year, 1, DateTime.monday, 3),
+      ),
+      _Holiday(
+        "Presidents' Day",
+        _nthWeekdayOfMonth(year, 2, DateTime.monday, 3),
+      ),
       _Holiday('Memorial Day', _lastWeekdayOfMonth(year, 5, DateTime.monday)),
       _Holiday('Juneteenth', _observed(DateTime(year, 6, 19))),
       _Holiday('Independence Day', _observed(DateTime(year, 7, 4))),
       _Holiday('Labor Day', _nthWeekdayOfMonth(year, 9, DateTime.monday, 1)),
-      _Holiday("Indigenous Peoples' Day", _nthWeekdayOfMonth(year, 10, DateTime.monday, 2)),
+      _Holiday(
+        "Indigenous Peoples' Day",
+        _nthWeekdayOfMonth(year, 10, DateTime.monday, 2),
+      ),
       _Holiday('Veterans Day', _observed(DateTime(year, 11, 11))),
-      _Holiday('Thanksgiving Day', _nthWeekdayOfMonth(year, 11, DateTime.thursday, 4)),
+      _Holiday(
+        'Thanksgiving Day',
+        _nthWeekdayOfMonth(year, 11, DateTime.thursday, 4),
+      ),
       _Holiday('Christmas Day', _observed(DateTime(year, 12, 25))),
     ];
   }
@@ -98,6 +114,7 @@ class UsHolidaySeeder {
           startsAtUtc: startLocal.toUtc(),
           detail: 'US holiday (auto-added from Settings)',
           allDay: true,
+          caller: 'holiday_seed',
         );
         inserted++;
       }

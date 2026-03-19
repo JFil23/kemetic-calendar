@@ -9,6 +9,71 @@ import '../data/user_events_repo.dart';
 
 const _channelName = 'com.kemetic.calendar/sync';
 
+bool _isLikelyHolidayTitle(String title) {
+  final t = title.trim().toLowerCase();
+  const holidayTokens = <String>[
+    'new year',
+    'martin luther king',
+    'presidents day',
+    'memorial day',
+    'juneteenth',
+    'independence day',
+    'labor day',
+    'indigenous',
+    'veterans day',
+    'thanksgiving',
+    'christmas',
+    'easter',
+    'hanukkah',
+    'diwali',
+    'passover',
+    'good friday',
+    'mlk',
+    'columbus day',
+    'holi',
+  ];
+  return holidayTokens.any((token) => t.contains(token));
+}
+
+bool _looksLikeHolidayDescription(String? detail) {
+  if (detail == null) return false;
+  final d = detail.toLowerCase();
+  return d.contains('public holiday') ||
+      d.contains('observance') ||
+      d.contains('bank holiday') ||
+      d.contains('to hide observances');
+}
+
+bool _shouldImportNativeEvent(NativeCalendarEvent native) {
+  final src = native.source.toLowerCase();
+  if (src.contains('holiday') || src.contains('observance')) {
+    return false;
+  }
+  final calId = native.calendarId?.toLowerCase() ?? '';
+  if (calId.contains('holiday') || calId.contains('observance')) {
+    return false;
+  }
+  if (native.allDay &&
+      (_isLikelyHolidayTitle(native.title) ||
+          _looksLikeHolidayDescription(native.description))) {
+    return false;
+  }
+  return true;
+}
+
+bool _isAppOwnedCid(String cid) {
+  final c = cid.trim().toLowerCase();
+  return c.startsWith('reminder:') ||
+      c.startsWith('nutrition:') ||
+      c.startsWith('holiday:') ||
+      c.startsWith('ky=');
+}
+
+bool _hasAppOwnedMarker(NativeCalendarEvent native) {
+  final desc = native.description?.toLowerCase() ?? '';
+  return desc.contains('kemet_cid:');
+}
+
 /// Represents a native calendar event returned from iOS EventKit / Android Calendar Provider.
 @immutable
 class NativeCalendarEvent {
@@ -70,13 +135,13 @@ class NativeCalendarEvent {
   }
 
   String get fingerprint => _fingerprint(
-        title: title,
-        start: start,
-        end: end,
-        allDay: allDay,
-        location: location,
-        description: description,
-      );
+    title: title,
+    start: start,
+    end: end,
+    allDay: allDay,
+    location: location,
+    description: description,
+  );
 
   Map<String, dynamic> toMapForUpsert() {
     return {
@@ -86,17 +151,24 @@ class NativeCalendarEvent {
       'location': location,
       'allDay': allDay,
       'start': start.millisecondsSinceEpoch,
-      'end': (end ?? start.add(const Duration(hours: 1))).millisecondsSinceEpoch,
+      'end':
+          (end ?? start.add(const Duration(hours: 1))).millisecondsSinceEpoch,
       'calendarId': calendarId,
       'timeZone': timeZone ?? DateTime.now().timeZoneName,
       'clientEventId': clientEventId,
     };
   }
 
-  static NativeCalendarEvent fromMap(Map<dynamic, dynamic> raw, {required String source}) {
+  static NativeCalendarEvent fromMap(
+    Map<dynamic, dynamic> raw, {
+    required String source,
+  }) {
     DateTime _parseMs(dynamic v) {
       final num? n = v as num?;
-      return DateTime.fromMillisecondsSinceEpoch((n?.toInt() ?? 0), isUtc: false);
+      return DateTime.fromMillisecondsSinceEpoch(
+        (n?.toInt() ?? 0),
+        isUtc: false,
+      );
     }
 
     final desc = raw['description'] as String?;
@@ -112,7 +184,9 @@ class NativeCalendarEvent {
       end: raw['end'] == null ? null : _parseMs(raw['end']),
       calendarId: raw['calendarId']?.toString(),
       timeZone: raw['timeZone'] as String?,
-      lastModified: raw['lastModified'] == null ? null : _parseMs(raw['lastModified']),
+      lastModified: raw['lastModified'] == null
+          ? null
+          : _parseMs(raw['lastModified']),
       clientEventId: extractedCid,
       source: source,
     );
@@ -138,21 +212,25 @@ class _SyncCacheEntry {
   });
 
   Map<String, dynamic> toJson() => {
-        'nativeId': nativeId,
-        'nativeCalendarId': nativeCalendarId,
-        'nativeModified': nativeModified?.toIso8601String(),
-        'supabaseUpdated': supabaseUpdated?.toIso8601String(),
-        'nativeFingerprint': nativeFingerprint,
-        'supabaseFingerprint': supabaseFingerprint,
-      };
+    'nativeId': nativeId,
+    'nativeCalendarId': nativeCalendarId,
+    'nativeModified': nativeModified?.toIso8601String(),
+    'supabaseUpdated': supabaseUpdated?.toIso8601String(),
+    'nativeFingerprint': nativeFingerprint,
+    'supabaseFingerprint': supabaseFingerprint,
+  };
 
   static _SyncCacheEntry? fromJson(dynamic raw) {
     if (raw is! Map) return null;
     return _SyncCacheEntry(
       nativeId: raw['nativeId'] as String?,
       nativeCalendarId: raw['nativeCalendarId'] as String?,
-      nativeModified: raw['nativeModified'] == null ? null : DateTime.tryParse(raw['nativeModified'] as String),
-      supabaseUpdated: raw['supabaseUpdated'] == null ? null : DateTime.tryParse(raw['supabaseUpdated'] as String),
+      nativeModified: raw['nativeModified'] == null
+          ? null
+          : DateTime.tryParse(raw['nativeModified'] as String),
+      supabaseUpdated: raw['supabaseUpdated'] == null
+          ? null
+          : DateTime.tryParse(raw['supabaseUpdated'] as String),
       nativeFingerprint: raw['nativeFingerprint'] as String?,
       supabaseFingerprint: raw['supabaseFingerprint'] as String?,
     );
@@ -162,7 +240,7 @@ class _SyncCacheEntry {
 /// Platform bridge wrapper around the method channel.
 class CalendarPlatformBridge {
   CalendarPlatformBridge({MethodChannel? channel})
-      : _channel = channel ?? const MethodChannel(_channelName);
+    : _channel = channel ?? const MethodChannel(_channelName);
 
   final MethodChannel _channel;
 
@@ -177,7 +255,10 @@ class CalendarPlatformBridge {
     }
   }
 
-  Future<List<NativeCalendarEvent>> fetchEvents(DateTime start, DateTime end) async {
+  Future<List<NativeCalendarEvent>> fetchEvents(
+    DateTime start,
+    DateTime end,
+  ) async {
     if (kIsWeb) return const [];
     try {
       final res = await _channel.invokeMethod<List<dynamic>>('fetchEvents', {
@@ -198,7 +279,10 @@ class CalendarPlatformBridge {
   Future<String?> upsertEvent(NativeCalendarEvent event) async {
     if (kIsWeb) return null;
     try {
-      final res = await _channel.invokeMethod<String>('upsertEvent', event.toMapForUpsert());
+      final res = await _channel.invokeMethod<String>(
+        'upsertEvent',
+        event.toMapForUpsert(),
+      );
       return res;
     } catch (e) {
       debugPrint('[calendar-sync] upsertEvent error: $e');
@@ -209,7 +293,9 @@ class CalendarPlatformBridge {
   Future<bool> deleteEvent(String nativeId) async {
     if (kIsWeb) return false;
     try {
-      final deleted = await _channel.invokeMethod<bool>('deleteEvent', {'eventId': nativeId});
+      final deleted = await _channel.invokeMethod<bool>('deleteEvent', {
+        'eventId': nativeId,
+      });
       return deleted ?? false;
     } catch (e) {
       debugPrint('[calendar-sync] deleteEvent error: $e');
@@ -237,8 +323,8 @@ Future<void> disposeSharedCalendarSyncService() async {
 /// Sync engine that reconciles native calendars with the Supabase user_events table.
 class CalendarSyncService {
   CalendarSyncService(this._client, {CalendarPlatformBridge? platform})
-      : _platform = platform ?? CalendarPlatformBridge(),
-        _eventsRepo = UserEventsRepo(_client);
+    : _platform = platform ?? CalendarPlatformBridge(),
+      _eventsRepo = UserEventsRepo(_client);
 
   final SupabaseClient _client;
   final CalendarPlatformBridge _platform;
@@ -297,14 +383,18 @@ class CalendarSyncService {
     if (_client.auth.currentSession == null) return;
 
     await ensureInitialized();
-    final start = windowStart ?? DateTime.now().subtract(const Duration(days: 30));
+    final start =
+        windowStart ?? DateTime.now().subtract(const Duration(days: 30));
     final end = windowEnd ?? DateTime.now().add(const Duration(days: 180));
 
     _syncing = true;
     try {
       final granted = await _platform.requestPermissions();
       if (!granted) {
-        _stateBox?.put('lastPermissionDenied', DateTime.now().toIso8601String());
+        _stateBox?.put(
+          'lastPermissionDenied',
+          DateTime.now().toIso8601String(),
+        );
         return;
       }
 
@@ -355,10 +445,36 @@ class CalendarSyncService {
       final nativeFingerprint = native.fingerprint;
       final nativeModified = native.lastModified ?? native.start;
       final supFingerprint = sup == null ? null : _fingerprintFromSupabase(sup);
-      final supUpdated = sup?.updatedAt ?? sup?.startsAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final supUpdated =
+          sup?.updatedAt ??
+          sup?.startsAt ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+
+      if (!_shouldImportNativeEvent(native)) {
+        debugPrint(
+          '[calendar-sync] skip native holiday/observance cid=$cid title=${native.title}',
+        );
+        continue;
+      }
+
+      if (_isAppOwnedCid(cid) || _hasAppOwnedMarker(native)) {
+        debugPrint(
+          '[calendar-sync] skip app-owned cid=$cid title=${native.title}',
+        );
+        continue;
+      }
+
+      if (!cid.startsWith('native:')) {
+        debugPrint(
+          '[calendar-sync] skip non-native cid=$cid title=${native.title}',
+        );
+        continue;
+      }
 
       if (sup == null && _deletedCids.contains(cid)) {
-        debugPrint('[calendar-sync] skipping upsert for deleted-in-app cid=$cid');
+        debugPrint(
+          '[calendar-sync] skipping upsert for deleted-in-app cid=$cid',
+        );
         continue;
       }
 
@@ -372,8 +488,10 @@ class CalendarSyncService {
           allDay: native.allDay,
           endsAtUtc: native.end?.toUtc(),
           category: 'native_sync',
+          caller: 'native_sync',
         );
-      } else if (nativeFingerprint != supFingerprint && nativeModified.isAfter(supUpdated)) {
+      } else if (nativeFingerprint != supFingerprint &&
+          nativeModified.isAfter(supUpdated)) {
         await _eventsRepo.update(
           id: sup.id,
           title: native.title,
@@ -413,7 +531,9 @@ class CalendarSyncService {
       final supUpdated = sup.updatedAt ?? sup.startsAt;
 
       if (native == null) {
-        final created = await _platform.upsertEvent(_fromSupabase(sup, cid: cid));
+        final created = await _platform.upsertEvent(
+          _fromSupabase(sup, cid: cid),
+        );
         _writeCache(
           cid,
           _SyncCacheEntry(
@@ -431,7 +551,9 @@ class CalendarSyncService {
       final nativeFingerprint = native.fingerprint;
       final nativeModified = native.lastModified ?? native.start;
 
-      final supNewer = supUpdated.isAfter(nativeModified) && supFingerprint != nativeFingerprint;
+      final supNewer =
+          supUpdated.isAfter(nativeModified) &&
+          supFingerprint != nativeFingerprint;
       if (supNewer) {
         final updatedId = await _platform.upsertEvent(
           native.copyWith(
@@ -440,7 +562,9 @@ class CalendarSyncService {
             location: sup.location,
             allDay: sup.allDay,
             start: sup.startsAt.toLocal(),
-            end: sup.endsAt?.toLocal() ?? sup.startsAt.toLocal().add(const Duration(hours: 1)),
+            end:
+                sup.endsAt?.toLocal() ??
+                sup.startsAt.toLocal().add(const Duration(hours: 1)),
             clientEventId: cid,
           ),
         );
@@ -474,7 +598,10 @@ class CalendarSyncService {
 
   /* ───────────────────────── Utilities ───────────────────────── */
 
-  Future<List<UserEvent>> _loadSupabaseEvents(DateTime start, DateTime end) async {
+  Future<List<UserEvent>> _loadSupabaseEvents(
+    DateTime start,
+    DateTime end,
+  ) async {
     try {
       return await _eventsRepo.getEventsForWindow(
         startUtc: start.toUtc(),
@@ -487,15 +614,19 @@ class CalendarSyncService {
     }
   }
 
-  _SyncCacheEntry? _readCache(String cid) => _SyncCacheEntry.fromJson(_cacheBox?.get(cid));
+  _SyncCacheEntry? _readCache(String cid) =>
+      _SyncCacheEntry.fromJson(_cacheBox?.get(cid));
 
   void _writeCache(String cid, _SyncCacheEntry entry) {
     _cacheBox?.put(cid, entry.toJson());
   }
 
   String? _resolveCid(NativeCalendarEvent e) {
-    if (e.clientEventId != null && e.clientEventId!.isNotEmpty) return e.clientEventId;
-    final cachedById = e.nativeId == null ? null : _stateBox?.get('cid-for-native-${e.nativeId}');
+    if (e.clientEventId != null && e.clientEventId!.isNotEmpty)
+      return e.clientEventId;
+    final cachedById = e.nativeId == null
+        ? null
+        : _stateBox?.get('cid-for-native-${e.nativeId}');
     if (cachedById is String && cachedById.isNotEmpty) return cachedById;
     if (e.nativeId != null && e.nativeId!.isNotEmpty) {
       return 'native:${e.source}:${e.nativeId}';
@@ -505,7 +636,8 @@ class CalendarSyncService {
 
   NativeCalendarEvent _fromSupabase(UserEvent e, {required String cid}) {
     final localStart = e.startsAt.toLocal();
-    final localEnd = (e.endsAt ?? e.startsAt.add(const Duration(hours: 1))).toLocal();
+    final localEnd = (e.endsAt ?? e.startsAt.add(const Duration(hours: 1)))
+        .toLocal();
     return NativeCalendarEvent(
       nativeId: null,
       title: e.title,

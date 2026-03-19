@@ -1865,6 +1865,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
         detail: '${item.purpose}\nSource: ${item.source}',
         startsAtUtc: localStart.toUtc(),
         allDay: false,
+        caller: 'nutrition_sync',
       );
       if (!item.schedule.repeat) break;
     }

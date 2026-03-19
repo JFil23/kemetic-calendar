@@ -33,7 +33,7 @@ import 'features/reflections/decan_reflection_detail_page.dart';
 
 // Conditional import: on web we use URL cleanup + visibility hook; elsewhere no-ops.
 import 'utils/web_history.dart'
-if (dart.library.html) 'utils/web_history_web.dart';
+    if (dart.library.html) 'utils/web_history_web.dart';
 
 // ---- Supabase configuration via --dart-define ----
 const SUPABASE_URL = String.fromEnvironment('SUPABASE_URL');
@@ -82,58 +82,59 @@ void _configureLogging() {
 }
 
 Future<void> main() async {
-  await runZoned(
-    () async {
-      _configureLogging();
+  await runZoned(() async {
+    _configureLogging();
 
-      WidgetsFlutterBinding.ensureInitialized();
+    WidgetsFlutterBinding.ensureInitialized();
 
-      // Register background handler for FCM (no-op on web)
-      registerPushBackgroundHandler();
+    // Register background handler for FCM (no-op on web)
+    registerPushBackgroundHandler();
 
-      final supabaseConfig = await _loadSupabaseConfig();
+    final supabaseConfig = await _loadSupabaseConfig();
 
-      if (kDebugMode) {
-        debugPrint('🔍 SUPABASE_URL: ${supabaseConfig.url}');
-        debugPrint('🔍 Has ANON_KEY: ${supabaseConfig.anonKey.isNotEmpty}');
-      }
+    if (kDebugMode) {
+      debugPrint('🔍 SUPABASE_URL: ${supabaseConfig.url}');
+      debugPrint('🔍 Has ANON_KEY: ${supabaseConfig.anonKey.isNotEmpty}');
+    }
 
-      if (supabaseConfig.url.isEmpty || supabaseConfig.anonKey.length <= 20) {
-        runApp(const MaterialApp(
+    if (supabaseConfig.url.isEmpty || supabaseConfig.anonKey.length <= 20) {
+      runApp(
+        const MaterialApp(
           debugShowCheckedModeBanner: false,
-          home: Scaffold(body: Center(child: Text('Missing Supabase configuration.'))),
-        ));
-        return;
-      }
-
-      // Normalize URL: strip trailing slash if present
-      final _supabaseUrl = supabaseConfig.url.endsWith('/')
-          ? supabaseConfig.url.substring(0, supabaseConfig.url.length - 1)
-          : supabaseConfig.url;
-
-      await Supabase.initialize(
-        url: _supabaseUrl,  // Use normalized URL
-        anonKey: supabaseConfig.anonKey,
-        authOptions: FlutterAuthClientOptions(
-          autoRefreshToken: true,
-          localStorage: kIsWeb ? HiveLocalStorageWeb() : null,
+          home: Scaffold(
+            body: Center(child: Text('Missing Supabase configuration.')),
+          ),
         ),
       );
+      return;
+    }
 
-      // 🚨 Initialize notifications
-      // Ensures notification channels and platform-specific setup happen before the app builds.
-      await Notify.init();
-      await PushNotifications.instance(Supabase.instance.client).init();
+    // Normalize URL: strip trailing slash if present
+    final _supabaseUrl = supabaseConfig.url.endsWith('/')
+        ? supabaseConfig.url.substring(0, supabaseConfig.url.length - 1)
+        : supabaseConfig.url;
 
-      // Web/PWA boot hardening (iOS PWA friendly)
-      await _completeWebOAuthIfNeeded();   // 1) exchange ?code once
-      await _rehydrateSessionOnce();       // 2) load persisted session into memory
-      _installVisibilityRefresh();         // 3) refresh on foreground to stay "warm"
+    await Supabase.initialize(
+      url: _supabaseUrl, // Use normalized URL
+      anonKey: supabaseConfig.anonKey,
+      authOptions: FlutterAuthClientOptions(
+        autoRefreshToken: true,
+        localStorage: kIsWeb ? HiveLocalStorageWeb() : null,
+      ),
+    );
 
-      runApp(const MyApp());
-    },
-    zoneSpecification: _releasePrintSilencer,
-  );
+    // 🚨 Initialize notifications
+    // Ensures notification channels and platform-specific setup happen before the app builds.
+    await Notify.init();
+    await PushNotifications.instance(Supabase.instance.client).init();
+
+    // Web/PWA boot hardening (iOS PWA friendly)
+    await _completeWebOAuthIfNeeded(); // 1) exchange ?code once
+    await _rehydrateSessionOnce(); // 2) load persisted session into memory
+    _installVisibilityRefresh(); // 3) refresh on foreground to stay "warm"
+
+    runApp(const MyApp());
+  }, zoneSpecification: _releasePrintSilencer);
 }
 
 final supabase = Supabase.instance.client;
@@ -186,7 +187,10 @@ class Events {
     }
   }
 
-  static Future<void> trackIfAuthed(String event, Map<String, dynamic> props) async {
+  static Future<void> trackIfAuthed(
+    String event,
+    Map<String, dynamic> props,
+  ) async {
     final s = supabase.auth.currentSession;
     if (s == null) {
       debugPrint('[events] skipped "$event" (no session)');
@@ -234,10 +238,7 @@ final _router = GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: '/',
   routes: [
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const AuthGate(),
-    ),
+    GoRoute(path: '/', builder: (context, state) => const AuthGate()),
     GoRoute(
       path: '/inbox',
       builder: (context, state) {
@@ -279,7 +280,9 @@ class MyApp extends StatelessWidget {
         final isTablet = mq.size.shortestSide >= 600;
         // Boost text size by ~20% on iPad/tablet only.
         final textScaler = isTablet
-            ? TextScaler.linear(mq.textScaleFactor * 1.5) // total ~50% boost on tablets
+            ? TextScaler.linear(
+                mq.textScaleFactor * 1.5,
+              ) // total ~50% boost on tablets
             : mq.textScaler;
         return MediaQuery(
           data: mq.copyWith(textScaler: textScaler),
@@ -300,12 +303,14 @@ class _AuthGateState extends State<AuthGate> {
   StreamSubscription<AuthState>? _authSub;
   StreamSubscription<Uri>? _linkSub;
   AppLinks? _appLinks;
-  
+
   // Add these fields for ICS handling:
   StreamSubscription? _intentDataStreamSubscription;
   CalendarSyncService? _calendarSync;
   StreamSubscription<Map<String, dynamic>>? _pushNavSub;
-  final DecanReflectionScheduler _decanScheduler = DecanReflectionScheduler(supabase);
+  final DecanReflectionScheduler _decanScheduler = DecanReflectionScheduler(
+    supabase,
+  );
   bool _scheduledDecans = false;
 
   // One-shot guards
@@ -323,11 +328,12 @@ class _AuthGateState extends State<AuthGate> {
       if (mounted) setState(() {});
       final ev = data.event;
 
-      if (ev == AuthChangeEvent.initialSession || ev == AuthChangeEvent.signedIn) {
+      if (ev == AuthChangeEvent.initialSession ||
+          ev == AuthChangeEvent.signedIn) {
         Events.debugAuthBanner('onAuthStateChange:$ev');
-        await _ensureProfile();          // keep profiles hydrated with email
+        await _ensureProfile(); // keep profiles hydrated with email
         await UserEventsRepo.refreshTelemetrySettings(supabase);
-        await _logAppOpenOnce();         // one-shot per cold start
+        await _logAppOpenOnce(); // one-shot per cold start
         unawaited(_initNotificationsSafely());
         unawaited(PushNotifications.instance(supabase).registerForUser());
         _installPushNavigation();
@@ -338,7 +344,8 @@ class _AuthGateState extends State<AuthGate> {
         unawaited(_calendarSync?.start());
       }
 
-      if (ev == AuthChangeEvent.signedOut || ev == AuthChangeEvent.userDeleted) {
+      if (ev == AuthChangeEvent.signedOut ||
+          ev == AuthChangeEvent.userDeleted) {
         _calendarSync?.stop();
         unawaited(PushNotifications.instance(supabase).unregister());
       }
@@ -378,14 +385,19 @@ class _AuthGateState extends State<AuthGate> {
 
     final repo = UserEventsRepo(supabase);
     try {
-      await repo.track(event: 'app_open', properties: {
-        'platform': kIsWeb ? 'web' : 'mobile',
-        'ts': DateTime.now().toUtc().toIso8601String(),
-      });
-      unawaited(repo.track(
-        event: 'telemetry_enabled',
-        properties: {'v': kAppEventsSchemaVersion},
-      ));
+      await repo.track(
+        event: 'app_open',
+        properties: {
+          'platform': kIsWeb ? 'web' : 'mobile',
+          'ts': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
+      unawaited(
+        repo.track(
+          event: 'telemetry_enabled',
+          properties: {'v': kAppEventsSchemaVersion},
+        ),
+      );
       _appOpenLogged = true;
     } catch (_) {
       // keep false; try again later
@@ -442,7 +454,9 @@ class _AuthGateState extends State<AuthGate> {
     final qp = uri.queryParameters;
     final frag = uri.fragment;
     final looksLikeAuth =
-        qp.containsKey('code') || frag.contains('access_token=') || frag.contains('refresh_token=');
+        qp.containsKey('code') ||
+        frag.contains('access_token=') ||
+        frag.contains('refresh_token=');
     if (!looksLikeAuth) return;
     try {
       await supabase.auth.exchangeCodeForSession(uri.toString());
@@ -455,73 +469,92 @@ class _AuthGateState extends State<AuthGate> {
   // ------------------------------------
   // ICS FILE HANDLING
   // ------------------------------------
-  
+
   void _initSharingIntent() {
     print('[ICS] Initializing sharing intent handling...');
-    
+
     // Handle files shared while app is closed
-    ReceiveSharingIntent.instance.getInitialMedia().then((List<SharedMediaFile> value) {
-      if (value.isNotEmpty) {
-        print('[ICS] Received initial files: ${value.length}');
-        for (final file in value) {
-          print('[ICS] Initial file: ${file.path}');
-        }
-        _handleSharedFiles(value.map((f) => PlatformFile(
-          name: f.path.split('/').last,
-          size: 0,
-          path: f.path,
-        )).toList());
-        
-        // 🔥 FIX: Clear the shared files after handling them
-        ReceiveSharingIntent.instance.reset();
-      }
-    }).catchError((error) {
-      print('[ICS] Error getting initial media: $error');
-    });
+    ReceiveSharingIntent.instance
+        .getInitialMedia()
+        .then((List<SharedMediaFile> value) {
+          if (value.isNotEmpty) {
+            print('[ICS] Received initial files: ${value.length}');
+            for (final file in value) {
+              print('[ICS] Initial file: ${file.path}');
+            }
+            _handleSharedFiles(
+              value
+                  .map(
+                    (f) => PlatformFile(
+                      name: f.path.split('/').last,
+                      size: 0,
+                      path: f.path,
+                    ),
+                  )
+                  .toList(),
+            );
+
+            // 🔥 FIX: Clear the shared files after handling them
+            ReceiveSharingIntent.instance.reset();
+          }
+        })
+        .catchError((error) {
+          print('[ICS] Error getting initial media: $error');
+        });
 
     // Handle files shared while app is open
-    _intentDataStreamSubscription = ReceiveSharingIntent.instance.getMediaStream()
-        .listen((List<SharedMediaFile> value) {
-      if (value.isNotEmpty) {
-        print('[ICS] Received stream files: ${value.length}');
-        for (final file in value) {
-          print('[ICS] Stream file: ${file.path}');
-        }
-        _handleSharedFiles(value.map((f) => PlatformFile(
-          name: f.path.split('/').last,
-          size: 0,
-          path: f.path,
-        )).toList());
-        
-        // 🔥 FIX: Clear the shared files after handling them
-        ReceiveSharingIntent.instance.reset();
-      }
-    }, onError: (error) {
-      print('[ICS] Error in media stream: $error');
-    });
+    _intentDataStreamSubscription = ReceiveSharingIntent.instance
+        .getMediaStream()
+        .listen(
+          (List<SharedMediaFile> value) {
+            if (value.isNotEmpty) {
+              print('[ICS] Received stream files: ${value.length}');
+              for (final file in value) {
+                print('[ICS] Stream file: ${file.path}');
+              }
+              _handleSharedFiles(
+                value
+                    .map(
+                      (f) => PlatformFile(
+                        name: f.path.split('/').last,
+                        size: 0,
+                        path: f.path,
+                      ),
+                    )
+                    .toList(),
+              );
+
+              // 🔥 FIX: Clear the shared files after handling them
+              ReceiveSharingIntent.instance.reset();
+            }
+          },
+          onError: (error) {
+            print('[ICS] Error in media stream: $error');
+          },
+        );
   }
 
   Future<void> _handleSharedFiles(List<PlatformFile> files) async {
     print('[ICS] Handling ${files.length} shared files');
-    
+
     for (final file in files) {
       final path = file.path;
       print('[ICS] Processing file: $path');
-      
+
       // Check if it's an ICS file
       if (path != null && path.toLowerCase().endsWith('.ics')) {
         print('[ICS] Received ICS file: $path');
-        
+
         // Parse the ICS file
         final events = await IcsParser.parseFile(path);
-        
+
         if (events.isEmpty) {
           print('[ICS] No events found in file');
           continue;
         }
-        
+
         print('[ICS] Found ${events.length} events in file');
-        
+
         // Show preview card for the first event
         final event = events.first;
         if (mounted) {
@@ -541,7 +574,7 @@ class _AuthGateState extends State<AuthGate> {
         allowedExtensions: ['ics'],
         allowMultiple: false,
       );
-      
+
       if (result != null && result.files.isNotEmpty) {
         print('[ICS] File picked: ${result.files.first.path}');
         await _handleSharedFiles(result.files);
@@ -591,15 +624,17 @@ class _AuthGateState extends State<AuthGate> {
   Future<void> _addEventFromIcs(IcsEvent event) async {
     try {
       print('[ICS] Starting import for event: ${event.title}');
-      
+
       // Convert Gregorian date to Kemetic using your existing logic
       final kemeticDate = KemeticMath.fromGregorian(event.startTime);
-      print('[ICS] Converted to Kemetic date: ${kemeticDate.kYear}-${kemeticDate.kMonth}-${kemeticDate.kDay}');
-      
+      print(
+        '[ICS] Converted to Kemetic date: ${kemeticDate.kYear}-${kemeticDate.kMonth}-${kemeticDate.kDay}',
+      );
+
       // Extract time info
       final startHour = event.isAllDay ? null : event.startTime.hour;
       final startMinute = event.isAllDay ? null : event.startTime.minute;
-      
+
       // Use YOUR _buildCid format to create the client event ID
       final clientEventId = _buildCid(
         ky: kemeticDate.kYear,
@@ -611,11 +646,11 @@ class _AuthGateState extends State<AuthGate> {
         allDay: event.isAllDay,
         flowId: -1, // -1 indicates standalone event (not part of a flow)
       );
-      
+
       print('[ICS] Generated client ID: $clientEventId');
-      
+
       final repo = UserEventsRepo(supabase);
-      
+
       await repo.upsertByClientId(
         clientEventId: clientEventId,
         title: event.title,
@@ -624,12 +659,15 @@ class _AuthGateState extends State<AuthGate> {
         detail: event.description,
         location: event.location,
         allDay: event.isAllDay,
+        caller: 'ics_import',
       );
-      
+
       print('[ICS] Event imported successfully: ${event.title}');
-      print('[ICS] Kemetic date: ${kemeticDate.kYear}-${kemeticDate.kMonth}-${kemeticDate.kDay}');
+      print(
+        '[ICS] Kemetic date: ${kemeticDate.kYear}-${kemeticDate.kMonth}-${kemeticDate.kDay}',
+      );
       print('[ICS] Client ID: $clientEventId');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -658,7 +696,9 @@ class _AuthGateState extends State<AuthGate> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Edit & Add coming soon - event added directly for now'),
+          content: Text(
+            'Edit & Add coming soon - event added directly for now',
+          ),
           backgroundColor: Color(0xFFD4AF37),
         ),
       );
@@ -702,9 +742,9 @@ class _AuthGateState extends State<AuthGate> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign-in failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Sign-in failed: $e')));
     }
   }
 
@@ -777,9 +817,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     // Authenticated
-    return const Scaffold(
-      body: CalendarPage(),
-    );
+    return const Scaffold(body: CalendarPage());
   }
 
   void _installPushNavigation() {
@@ -791,17 +829,23 @@ class _AuthGateState extends State<AuthGate> {
   void _handlePushNavigation(Map<String, dynamic> data) {
     final kind = data['kind'] ?? data['type'];
     final reflectionId = data['reflectionId'] ?? data['reflection_id'];
-    if (kind == 'decan_reflection' && reflectionId is String && reflectionId.isNotEmpty) {
+    if (kind == 'decan_reflection' &&
+        reflectionId is String &&
+        reflectionId.isNotEmpty) {
       final uid = supabase.auth.currentUser?.id;
       if (uid == null) return;
       final nav = _rootNavigatorKey.currentState;
       if (nav == null) return;
-      nav.push(MaterialPageRoute(
-        builder: (_) => ProfilePage(userId: uid, isMyProfile: true),
-      ));
-      nav.push(MaterialPageRoute(
-        builder: (_) => DecanReflectionDetailPage(reflectionId: reflectionId),
-      ));
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => ProfilePage(userId: uid, isMyProfile: true),
+        ),
+      );
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => DecanReflectionDetailPage(reflectionId: reflectionId),
+        ),
+      );
     }
   }
 }

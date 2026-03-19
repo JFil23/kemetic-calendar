@@ -45,7 +45,6 @@ class _InboxPageState extends State<InboxPage> {
     await Future<void>.delayed(const Duration(milliseconds: 300));
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -75,7 +74,10 @@ class _InboxPageState extends State<InboxPage> {
                 if (unreadCount > 0) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: _gold,
                       borderRadius: BorderRadius.circular(12),
@@ -115,20 +117,14 @@ class _InboxPageState extends State<InboxPage> {
                   const SizedBox(height: 16),
                   const Text(
                     'Failed to load inbox',
-                    style: TextStyle(
-                      color: _silver,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: _silver, fontSize: 16),
                   ),
                   const SizedBox(height: 8),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Text(
                       '${snapshot.error}',
-                      style: const TextStyle(
-                        color: _silver,
-                        fontSize: 12,
-                      ),
+                      style: const TextStyle(color: _silver, fontSize: 12),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -175,11 +171,11 @@ class _InboxPageState extends State<InboxPage> {
               final items = entries[index].value;
               final last = items.last;
               final currentUserId = _inboxRepo.currentUserId;
-              
+
               if (currentUserId == null) {
                 return const SizedBox.shrink();
               }
-              
+
               final otherProfile = _resolveOtherProfile(last, currentUserId);
               final hasUnread = items.any(
                 (i) => i.recipientId == currentUserId && i.isUnread,
@@ -199,10 +195,13 @@ class _InboxPageState extends State<InboxPage> {
       ),
     );
   }
-  
-  ConversationUser _resolveOtherProfile(InboxShareItem item, String currentUserId) {
+
+  ConversationUser _resolveOtherProfile(
+    InboxShareItem item,
+    String currentUserId,
+  ) {
     final isMine = item.senderId == currentUserId;
-    
+
     if (!isMine) {
       // Item was sent TO me, so sender is the "other" person
       return ConversationUser(
@@ -222,7 +221,7 @@ class _InboxPageState extends State<InboxPage> {
       );
     }
   }
-  
+
   Widget _buildConversationBar({
     required BuildContext context,
     required String otherUserId,
@@ -242,32 +241,33 @@ class _InboxPageState extends State<InboxPage> {
       ),
       confirmDismiss: (_) async {
         return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: const Color(0xFF0D0D0F),
-            title: const Text(
-              'Delete Conversation?',
-              style: TextStyle(color: Colors.white),
-            ),
-            content: Text(
-              'This will remove all shared flows/messages with '
-              '${otherProfile.displayName ?? otherProfile.handle ?? 'this user'} '
-              'from your inbox. It will not affect them.',
-              style: const TextStyle(color: Colors.white70),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+              context: context,
+              builder: (context) => AlertDialog(
+                backgroundColor: const Color(0xFF0D0D0F),
+                title: const Text(
+                  'Delete Conversation?',
+                  style: TextStyle(color: Colors.white),
+                ),
+                content: Text(
+                  'This will remove all shared flows/messages with '
+                  '${otherProfile.displayName ?? otherProfile.handle ?? 'this user'} '
+                  'from your inbox. It will not affect them.',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    child: const Text('Delete'),
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Delete'),
-              ),
-            ],
-          ),
-        ) ?? false;
+            ) ??
+            false;
       },
       onDismissed: (_) async {
         final shareRepo = ShareRepo(Supabase.instance.client);
@@ -331,10 +331,7 @@ class _InboxPageState extends State<InboxPage> {
           lastItem.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
-            fontSize: 14,
-          ),
+          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -393,11 +390,9 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   void _openProfile(String userId) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ProfilePage(userId: userId),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => ProfilePage(userId: userId)));
   }
 
   Widget _buildEmptyState() {
@@ -433,7 +428,6 @@ class _InboxPageState extends State<InboxPage> {
   }
 }
 
-
 // Legacy code below - keeping for FlowPreviewCard compatibility
 // Preview Card Widget
 class FlowPreviewCard extends StatefulWidget {
@@ -468,9 +462,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Container(
-      constraints: BoxConstraints(
-        maxHeight: screenHeight * 0.85,
-      ),
+      constraints: BoxConstraints(maxHeight: screenHeight * 0.85),
       decoration: const BoxDecoration(
         color: _bg,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -488,7 +480,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           // Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -511,9 +503,9 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
               ],
             ),
           ),
-          
+
           const Divider(color: _silver, height: 1),
-          
+
           // Content
           Flexible(
             child: SingleChildScrollView(
@@ -529,17 +521,17 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
                   // Sender info
                   _buildSenderInfo(),
                   const SizedBox(height: 24),
-                  
+
                   // Flow title and details
                   _buildFlowDetails(),
                   const SizedBox(height: 24),
-                  
+
                   // Suggested schedule (if present)
                   if (widget.item.suggestedSchedule != null) ...[
                     _buildScheduleSection(),
                     const SizedBox(height: 24),
                   ],
-                  
+
                   // Action buttons
                   _buildActionButtons(),
                 ],
@@ -650,7 +642,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
           ),
         ),
         const SizedBox(height: 12),
-        
+
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -665,9 +657,11 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
               if (schedule.startDate.isNotEmpty) ...[
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, 
-                        size: 16, 
-                        color: Colors.white.withOpacity(0.5)),
+                    Icon(
+                      Icons.calendar_today,
+                      size: 16,
+                      color: Colors.white.withOpacity(0.5),
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Starts: ${schedule.startDate}',
@@ -680,7 +674,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
                 ),
                 const SizedBox(height: 12),
               ],
-              
+
               // Weekdays
               if (schedule.weekdays.isNotEmpty) ...[
                 Text(
@@ -718,7 +712,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
                 ),
                 const SizedBox(height: 12),
               ],
-              
+
               // Times
               if (schedule.timesByWeekday.isNotEmpty) ...[
                 Text(
@@ -797,9 +791,9 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
               if (!context.mounted) return;
               if (flowId != null) {
                 await _handleRefresh();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Flow imported')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Flow imported')));
               }
             },
             style: ElevatedButton.styleFrom(
@@ -830,10 +824,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
             ),
             child: const Text(
               'Close',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -843,20 +834,22 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
 
   Widget _buildImportButton() {
     return FutureBuilder<int?>(
-      future: UserEventsRepo(Supabase.instance.client).getFlowIdByShareId(widget.item.shareId),
+      future: UserEventsRepo(
+        Supabase.instance.client,
+      ).getFlowIdByShareId(widget.item.shareId),
       builder: (context, snapshot) {
         final flowId = snapshot.data;
         final isImported = flowId != null; // Flow exists in user's flows
-        
+
         return ElevatedButton(
           onPressed: _isImporting || isImported ? null : _handleImport,
           style: ElevatedButton.styleFrom(
-            backgroundColor: isImported 
-              ? const Color(0xFF4A4A4A)  // Visible medium grey
-              : const Color(0xFFD4AF37),
-            foregroundColor: isImported 
-              ? const Color(0xFFAAAAAA)  // Light grey text
-              : Colors.black,
+            backgroundColor: isImported
+                ? const Color(0xFF4A4A4A) // Visible medium grey
+                : const Color(0xFFD4AF37),
+            foregroundColor: isImported
+                ? const Color(0xFFAAAAAA) // Light grey text
+                : Colors.black,
             minimumSize: const Size(double.infinity, 56),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -872,11 +865,11 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
                   ),
                 )
               : Text(
-                  isImported 
+                  isImported
                       ? 'Already Imported'
                       : (widget.item.isFlow
-                          ? 'Import Flow to Calendar'
-                          : 'Import Event to Calendar'),
+                            ? 'Import Flow to Calendar'
+                            : 'Import Event to Calendar'),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -889,26 +882,28 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
 
   Future<void> _handleImport() async {
     setState(() => _isImporting = true);
-    
+
     try {
       final inboxRepo = InboxRepo(Supabase.instance.client);
       final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      
+
       int? flowId;
       if (widget.item.isFlow) {
         // Step 1: Import the flow and get the flowId
         flowId = await _importFlow(widget.item);
-        
+
         if (kDebugMode) {
-          print('[InboxPage] ✓ Successfully imported flow $flowId and linked to share ${widget.item.shareId}');
+          print(
+            '[InboxPage] ✓ Successfully imported flow $flowId and linked to share ${widget.item.shareId}',
+          );
         }
       } else {
         // TODO: Implement event import
         throw Exception('Event import not yet implemented');
       }
-      
+
       if (!mounted) return;
-      
+
       // Step 4: Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -917,22 +912,22 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
           duration: const Duration(seconds: 2),
         ),
       );
-      
+
       // Close the preview modal
       Navigator.pop(context); // Close preview
-      
+
       // Notify parent to refresh
       widget.onImportComplete();
-      
+
       // ✅ NEW: Close inbox and return the flowId to calendar
       Navigator.pop(context, flowId);
     } catch (e) {
       if (kDebugMode) {
         print('[InboxPage] ✗ Import failed: $e');
       }
-      
+
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to import: ${e.toString()}'),
@@ -951,18 +946,18 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
       if (kDebugMode) {
         print('[InboxPage] Starting import for: ${item.title}');
       }
-      
+
       // Step 1: Extract flow data from payloadJson
       final payloadJson = item.payloadJson;
       if (payloadJson == null) {
         throw Exception('No flow data available to import');
       }
-      
+
       final name = payloadJson['name'] as String;
       final color = payloadJson['color'] as int;
       final notes = payloadJson['notes'] as String?;
       final rulesData = payloadJson['rules']; // This is a List
-      
+
       // Extract start_date from suggested_schedule if available
       DateTime? startDate;
       if (item.suggestedSchedule != null) {
@@ -974,7 +969,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
           }
         }
       }
-      
+
       if (kDebugMode) {
         print('[InboxPage] Flow data: name=$name, color=$color');
         print('[InboxPage] Rules type: ${rulesData.runtimeType}');
@@ -982,15 +977,15 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
 
       final originFlowId =
           (payloadJson['flow_id'] as num?)?.toInt() ??
-              int.tryParse(item.payloadId);
-      
+          int.tryParse(item.payloadId);
+
       // Step 2: Convert rules from List to JSON String
       final rulesString = jsonEncode(rulesData);
-      
+
       if (kDebugMode) {
         print('[InboxPage] Rules JSON string: $rulesString');
       }
-      
+
       // Step 3: Import the flow using UserEventsRepo
       final userEventsRepo = UserEventsRepo(Supabase.instance.client);
       final flowId = await userEventsRepo.upsertFlow(
@@ -1005,17 +1000,17 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
         originFlowId: originFlowId,
         rootFlowId: originFlowId,
       );
-      
+
       if (kDebugMode) {
         print('[InboxPage] ✓ Flow created with ID: $flowId');
       }
-      
+
       // Step 4: Link the flow to the share for re-import tracking
       await userEventsRepo.updateFlowShareId(
         flowId: flowId,
         shareId: item.shareId,
       );
-      
+
       if (kDebugMode) {
         print('[InboxPage] ✓ Flow linked to share: ${item.shareId}');
       }
@@ -1038,27 +1033,23 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
           }
         }
       }
-      
+
       // Step 5: Mark the share as imported
       final inboxRepo = InboxRepo(Supabase.instance.client);
-      final success = await inboxRepo.markImported(
-        item.shareId,
-        isFlow: true,
-      );
-      
+      final success = await inboxRepo.markImported(item.shareId, isFlow: true);
+
       if (!success) {
         throw Exception('Failed to mark share as imported');
       }
-      
+
       if (kDebugMode) {
         print('[InboxPage] ✓ Share marked as imported');
       }
-      
+
       // Step 6: Schedule the flow's notes immediately using the NEW flow ID
       await _scheduleImportedFlow(flowId, item);
-      
+
       return flowId;
-      
     } catch (e, stackTrace) {
       if (kDebugMode) {
         print('[InboxPage] ✗ Import failed: $e');
@@ -1073,33 +1064,42 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
     try {
       final payloadJson = item.payloadJson;
       if (payloadJson == null) return;
-      
+
       final rulesData = payloadJson['rules'] as List?;
       if (rulesData == null || rulesData.isEmpty) return;
-      
+
       // Parse rules using CalendarPage's static method
-      final rules = rulesData.map((r) => 
-        CalendarPage.ruleFromJson(r as Map<String, dynamic>)
-      ).toList();
-      
+      final rules = rulesData
+          .map((r) => CalendarPage.ruleFromJson(r as Map<String, dynamic>))
+          .toList();
+
       final repo = UserEventsRepo(Supabase.instance.client);
       final start = DateTime.now();
       final end = start.add(const Duration(days: 90));
-      
+
       // Clear existing notes for this flow
       await repo.deleteByFlowId(flowId, fromDate: start.toUtc());
-      
+
       int scheduledCount = 0;
-      
-      for (var date = start; date.isBefore(end); date = date.add(const Duration(days: 1))) {
+
+      for (
+        var date = start;
+        date.isBefore(end);
+        date = date.add(const Duration(days: 1))
+      ) {
         final kDate = KemeticMath.fromGregorian(date);
-        
+
         for (final rule in rules) {
-          if (rule.matches(ky: kDate.kYear, km: kDate.kMonth, kd: kDate.kDay, g: date)) {
+          if (rule.matches(
+            ky: kDate.kYear,
+            km: kDate.kMonth,
+            kd: kDate.kDay,
+            g: date,
+          )) {
             final noteTitle = payloadJson['name'] as String? ?? item.title;
             final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
             final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
-            
+
             final cid = EventCidUtil.buildClientEventId(
               ky: kDate.kYear,
               km: kDate.kMonth,
@@ -1110,28 +1110,41 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
               allDay: rule.allDay,
               flowId: flowId,
             );
-            
-            final startsAt = DateTime(date.year, date.month, date.day, startHour, startMinute);
+
+            final startsAt = DateTime(
+              date.year,
+              date.month,
+              date.day,
+              startHour,
+              startMinute,
+            );
             DateTime? endsAt;
             if (!rule.allDay && rule.end != null) {
-              endsAt = DateTime(date.year, date.month, date.day, rule.end!.hour, rule.end!.minute);
+              endsAt = DateTime(
+                date.year,
+                date.month,
+                date.day,
+                rule.end!.hour,
+                rule.end!.minute,
+              );
             }
-            
+
             await repo.upsertByClientId(
               clientEventId: cid,
               title: noteTitle,
               startsAtUtc: startsAt.toUtc(),
-              detail: '',  // ✅ Remove the flowLocalId from detail
+              detail: '', // ✅ Remove the flowLocalId from detail
               allDay: rule.allDay,
               endsAtUtc: endsAt?.toUtc(),
-              flowLocalId: flowId,  // ✅ ADD THIS - Proper parameter!
+              flowLocalId: flowId, // ✅ ADD THIS - Proper parameter!
+              caller: 'inbox_page_schedule',
             );
-            
+
             scheduledCount++;
           }
         }
       }
-      
+
       if (kDebugMode) {
         print('[InboxPage] ✓ Scheduled $scheduledCount notes for flow $flowId');
       }
@@ -1141,8 +1154,6 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
       }
     }
   }
-
-
 }
 
 class InboxFlowDetailsPage extends StatelessWidget {
@@ -1202,10 +1213,7 @@ class InboxFlowDetailsPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text(name),
-      ),
+      appBar: AppBar(backgroundColor: Colors.black, title: Text(name)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
