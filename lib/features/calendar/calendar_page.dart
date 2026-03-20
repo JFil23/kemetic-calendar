@@ -7956,6 +7956,53 @@ class _CalendarPageState extends State<CalendarPage>
 
   /* ───── Day Sheet ───── */
 
+  static const int _flowHydrationLookbackDays = 365; // 12 months back
+  static const int _flowHydrationLookaheadDays = 540; // ~18 months ahead
+  static const Duration _flowHydrationPadding = Duration(days: 14);
+
+  ({DateTime startUtc, DateTime endUtc}) _computeFlowHydrationWindow(
+    Set<int> activeFlowIds,
+    Map<int, _Flow> flowIndex,
+  ) {
+    final today = DateUtils.dateOnly(DateTime.now());
+    DateTime? minStart;
+    DateTime? maxEnd;
+
+    for (final fid in activeFlowIds) {
+      final flow = flowIndex[fid];
+      if (flow == null) continue;
+      final s = flow.start != null ? DateUtils.dateOnly(flow.start!) : null;
+      final e = flow.end != null ? DateUtils.dateOnly(flow.end!) : null;
+      if (s != null && (minStart == null || s.isBefore(minStart))) {
+        minStart = s;
+      }
+      if (e != null && (maxEnd == null || e.isAfter(maxEnd))) {
+        maxEnd = e;
+      }
+    }
+
+    final startFloor =
+        today.subtract(const Duration(days: _flowHydrationLookbackDays));
+    DateTime start = minStart == null
+        ? startFloor
+        : (minStart.isBefore(startFloor) ? startFloor : minStart);
+
+    final endCeiling =
+        today.add(const Duration(days: _flowHydrationLookaheadDays));
+    DateTime end;
+    if (maxEnd == null) {
+      end = endCeiling;
+    } else {
+      end = maxEnd.isAfter(endCeiling) ? endCeiling : maxEnd;
+    }
+
+    start = start.subtract(_flowHydrationPadding);
+    end = end.add(_flowHydrationPadding);
+
+    final exclusiveEnd = end.add(const Duration(days: 1));
+    return (startUtc: start.toUtc(), endUtc: exclusiveEnd.toUtc());
+  }
+
   ({DateTime startUtc, DateTime endUtc}) _computeStandaloneHydrationWindow(
     List<_Flow> flows,
   ) {
@@ -10203,17 +10250,19 @@ class _CalendarPageState extends State<CalendarPage>
       }
       return;
     }
-    // Order: load reminder rules, reconcile reminder occurrences, hydrate events/flows.
+    // Order: load reminder rules, hydrate events/flows, then sync reminders in background.
     await _loadReminderRules();
-    try {
-      await _syncReminderEvents(refreshUi: false);
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('[startup] reminder sync failed: $e');
-        debugPrint('$st');
-      }
-    }
     await _loadFromDisk(source: 'startup:$reason');
+    unawaited(() async {
+      try {
+        await _syncReminderEvents(refreshUi: false);
+      } catch (e, st) {
+        if (kDebugMode) {
+          debugPrint('[startup] reminder sync failed (async): $e');
+          debugPrint('$st');
+        }
+      }
+    }());
   }
 
   Future<void> _loadFromDisk({String source = 'manual'}) async {
@@ -10344,18 +10393,85 @@ class _CalendarPageState extends State<CalendarPage>
         }
       }
 
+      ({DateTime startUtc, DateTime endUtc})? flowWindow;
+      if (activeFlowIds.isNotEmpty) {
+        flowWindow = _computeFlowHydrationWindow(activeFlowIds, flowIndex);
+        if (kDebugMode) {
+          debugPrint(
+            '[loadFromDisk] flow hydration window '
+            '${flowWindow.startUtc.toIso8601String()} → ${flowWindow.endUtc.toIso8601String()}',
+          );
+        }
+      }
+
+      // Batched fetch of flow-backed events to avoid N sequential network calls.
+      final Map<int, List<FlowEventRow>> eventsByFlowId = {};
+      if (activeFlowIds.isNotEmpty) {
+        try {
+          final batchedEvents = await repo.getEventsForFlowIds(
+            activeFlowIds,
+            startUtc: flowWindow?.startUtc,
+            endUtc: flowWindow?.endUtc,
+          );
+          for (final evt in batchedEvents) {
+            final fid = evt.flowLocalId;
+            if (fid == null) continue;
+            if (!activeFlowIds.contains(fid)) continue;
+            eventsByFlowId.putIfAbsent(fid, () => <FlowEventRow>[]).add(evt);
+          }
+          if (kDebugMode) {
+            debugPrint(
+              '[loadFromDisk] getEventsForFlowIds count=${batchedEvents.length} flows=${eventsByFlowId.length}',
+            );
+          }
+        } catch (err, st) {
+          if (kDebugMode) {
+            debugPrint(
+              '[loadFromDisk] batched flow event fetch failed: $err',
+            );
+            debugPrint('$st');
+          }
+        }
+      }
+
+      // Fallback to per-flow fetch if batching fails or returns nothing.
+      if (eventsByFlowId.isEmpty && activeFlowIds.isNotEmpty) {
+        for (final flowId in activeFlowIds) {
+          try {
+            final flowEvents = await repo.getEventsForFlow(
+              flowId,
+              startUtc: flowWindow?.startUtc,
+              endUtc: flowWindow?.endUtc,
+            );
+            eventsByFlowId[flowId] = flowEvents;
+            if (kDebugMode) {
+              debugPrint(
+                '[loadFromDisk] getEventsForFlow($flowId) count: ${flowEvents.length} (fallback)',
+              );
+            }
+          } catch (err, st) {
+            if (kDebugMode) {
+              debugPrint(
+                '[loadFromDisk] failed to hydrate events for flow $flowId: $err',
+              );
+              debugPrint('$st');
+            }
+          }
+        }
+      } else if (kDebugMode && eventsByFlowId.isNotEmpty) {
+        eventsByFlowId.forEach((fid, events) {
+          debugPrint(
+            '[loadFromDisk] flow $fid events (batched) count: ${events.length}',
+          );
+        });
+      }
+
       int flowAddedCount = 0;
 
       for (final flowId in activeFlowIds) {
         try {
-          // 🔥 NEW: pull ALL events for this specific flow from DB,
-          // even if they're past the pagination horizon
-          final flowEvents = await repo.getEventsForFlow(flowId);
-          if (kDebugMode) {
-            debugPrint(
-              '[loadFromDisk] getEventsForFlow($flowId) count: ${flowEvents.length}',
-            );
-          }
+          final flowEvents =
+              eventsByFlowId[flowId] ?? const <FlowEventRow>[];
 
           for (final evt in flowEvents) {
             // Convert DB UTC timestamps -> device local -> Kemetic date

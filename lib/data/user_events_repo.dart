@@ -11,6 +11,19 @@ void _log(String msg) {
   if (kDebugMode) debugPrint('[user_events] $msg');
 }
 
+typedef FlowEventRow = ({
+  String? id,
+  String? clientEventId,
+  String title,
+  String? detail,
+  String? location,
+  bool allDay,
+  DateTime startsAtUtc,
+  DateTime? endsAtUtc,
+  int? flowLocalId,
+  String? category,
+});
+
 bool _isUuid(String? v) {
   if (v == null) return false;
   return RegExp(
@@ -1136,27 +1149,13 @@ class UserEventsRepo {
         .toList();
   }
 
-  Future<
-    List<
-      ({
-        String? id,
-        String? clientEventId,
-        String title,
-        String? detail,
-        String? location,
-        bool allDay,
-        DateTime startsAtUtc,
-        DateTime? endsAtUtc,
-        int? flowLocalId,
-        String? category,
-      })
-    >
-  >
-  getEventsForFlow(int flowId) async {
+  Future<List<FlowEventRow>> getEventsForFlow(
+    int flowId, {
+    DateTime? startUtc,
+    DateTime? endUtc,
+  }) async {
     try {
-      final rows = await _client
-          .from('user_events')
-          .select('''
+      var query = _client.from('user_events').select('''
             id,
             client_event_id,
             title,
@@ -1167,11 +1166,18 @@ class UserEventsRepo {
             ends_at,
             flow_local_id,
             category
-          ''')
-          .eq('flow_local_id', flowId)
-          .order('starts_at', ascending: true);
+          ''').eq('flow_local_id', flowId);
 
-      return (rows as List).map((row) {
+      if (startUtc != null) {
+        query = query.gte('starts_at', startUtc.toUtc().toIso8601String());
+      }
+      if (endUtc != null) {
+        query = query.lt('starts_at', endUtc.toUtc().toIso8601String());
+      }
+
+      final rows = await query.order('starts_at', ascending: true);
+
+      return (rows as List).map<FlowEventRow>((row) {
         return (
           id: row['id'] as String?,
           clientEventId: row['client_event_id'] as String?,
@@ -1197,6 +1203,92 @@ class UserEventsRepo {
       }
       return [];
     }
+  }
+
+  Future<List<FlowEventRow>> getEventsForFlowIds(
+    Set<int> flowIds, {
+    int pageSize = 1000,
+    DateTime? startUtc,
+    DateTime? endUtc,
+  }) async {
+    if (flowIds.isEmpty) return const [];
+    final user = _client.auth.currentUser;
+    if (user == null) return const [];
+
+    final ids = flowIds.toList()..sort();
+    final events = <FlowEventRow>[];
+    int offset = 0;
+    int pageCount = 0;
+
+    try {
+      while (true) {
+        var query = _client
+            .from('user_events')
+            .select(
+              'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
+            )
+            .eq('user_id', user.id)
+            .inFilter('flow_local_id', ids);
+
+        if (startUtc != null) {
+          query = query.gte('starts_at', startUtc.toUtc().toIso8601String());
+        }
+        if (endUtc != null) {
+          query = query.lt('starts_at', endUtc.toUtc().toIso8601String());
+        }
+
+        final rows = await query
+            .order('flow_local_id', ascending: true)
+            .order('starts_at', ascending: true)
+            .range(offset, offset + pageSize - 1);
+        final page = (rows as List).map<FlowEventRow>((row) {
+          return (
+            id: row['id'] as String?,
+            clientEventId: row['client_event_id'] as String?,
+            title: (row['title'] as String?) ?? '',
+            detail: row['detail'] as String?,
+            location: row['location'] as String?,
+            allDay: (row['all_day'] as bool?) ?? false,
+            startsAtUtc: DateTime.parse(row['starts_at'] as String).toUtc(),
+            endsAtUtc: row['ends_at'] != null
+                ? DateTime.parse(row['ends_at'] as String).toUtc()
+                : null,
+            flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+            category: row['category'] as String?,
+          );
+        }).toList();
+
+        events.addAll(page);
+        pageCount++;
+
+        if (page.length < pageSize) {
+          break;
+        }
+        offset += pageSize;
+      }
+
+      if (kDebugMode) {
+        _log(
+          'getEventsForFlowIds ✓ flows=${ids.length} events=${events.length} pages=$pageCount',
+        );
+      }
+    } on PostgrestException catch (e, st) {
+      if (kDebugMode) {
+        debugPrint(
+          '[UserEventsRepo] getEventsForFlowIds error: ${e.code} ${e.message}',
+        );
+        debugPrint('$st');
+      }
+      return const [];
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[UserEventsRepo] getEventsForFlowIds error: $e');
+        debugPrint('$st');
+      }
+      return const [];
+    }
+
+    return events;
   }
 
   /// Fetch client_event_id for given row ids (debug/logging helpers).
