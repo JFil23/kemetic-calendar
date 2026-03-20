@@ -40,6 +40,18 @@ LinearGradient _glossFromColor(Color c) {
 
 enum CalendarMode { kemetic, gregorian }
 
+// Internal directives to keep AI output structure stable while raising the
+// expertise and feedback loop quality of generated flows.
+const String _aiExpertiseDirectives = '''
+SYSTEM DIRECTIVES (do not surface to the user):
+- Preserve the current note template: opening orientation, sequenced actions, and a late-day reflection; keep formatting identical and avoid repetition.
+- Raise expert depth: include specific techniques, dependencies, risk mitigations, checkpoints, and measurable outcomes that move the user toward the stated goal without changing structure.
+- Always offer concrete, runnable options for any experiment or practice (e.g., name the exact circuit, configuration, variables to tweak, and what to watch for) while keeping the tone conversational—not a dry checklist.
+- For each primary note (not the reflection), open with a practical physical orientation that grounds the user: where they are, what’s in their hands, safety/comfort checks, and the immediate setup state before proceeding.
+- After the orientation, deliver expert-level, specific guidance: give realistic options/variants, parameter ranges, what to observe/measure, how to adjust if results differ, and the rationale. Longer outputs are acceptable if they increase clarity and competence.
+- Avoid standardized numbering by default; only use numbering when it truly improves clarity for multi-part instructions. Favor natural language sequencing.
+- Use the knowledge graph and decision matrix backing this system to pick the strongest actions, surface decision points, and flag which signals/outcomes to log so future generations improve.''';
+
 class AIFlowGenerationModal extends StatefulWidget {
   const AIFlowGenerationModal({Key? key}) : super(key: key);
 
@@ -121,6 +133,10 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
     });
 
     try {
+      final enrichedDescription = _composeDirectivePrompt(
+        _descriptionController.text,
+      );
+
       // ✅ CRITICAL: Convert color to hex string format
       // Ensure _selectedColorIndex is within bounds
       final safeColorIndex = _selectedColorIndex.clamp(0, _flowPalette.length - 1);
@@ -140,7 +156,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
         print('🎨 [AI Modal] Color value (ARGB int): $colorValue');
         print('🎨 [AI Modal] Color as hex string: $colorAsHex');
         print('🚀 [AI Modal] Request payload:');
-        print('   Description: ${_descriptionController.text.trim()}');
+        print('   Description: $enrichedDescription');
         print('   Start Date: ${_formatDate(_startDate!)}');
         print('   End Date: ${_formatDate(_endDate!)}');
         print('   Flow Color: $colorAsHex');  // Should always be "#rrggbb"
@@ -170,7 +186,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
 
       // Generate flow using new simplified service API
       final response = await _service.generate(
-        description: _descriptionController.text.trim(),
+        description: enrichedDescription,
         startDate: _startDate!,
         endDate: _endDate!,
         flowColor: colorAsHex,
@@ -230,6 +246,15 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
     if (_startDate == null || _endDate == null) return '';
     final days = _endDate!.difference(_startDate!).inDays + 1;
     return '$days day${days == 1 ? '' : 's'}';
+  }
+
+  /// Keep user prompt intact while injecting system directives that boost
+  /// expertise, knowledge-graph use, and decision quality without altering
+  /// the established flow format.
+  String _composeDirectivePrompt(String rawDescription) {
+    final trimmed = rawDescription.trim();
+    if (trimmed.isEmpty) return _aiExpertiseDirectives.trim();
+    return '$trimmed\n\n$_aiExpertiseDirectives'.trim();
   }
 
   String _formatDate(DateTime date) {
