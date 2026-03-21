@@ -341,6 +341,43 @@ class Notify {
     }
   }
 
+  static Future<Set<String>> _existingEventIdsForNotifications(
+    Set<String> clientEventIds,
+  ) async {
+    final filtered = clientEventIds.where((id) => id.isNotEmpty).toSet();
+    if (filtered.isEmpty) return const <String>{};
+
+    try {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) return const <String>{};
+
+      final existing = <String>{};
+      const batchSize = 100;
+      final ids = filtered.toList();
+
+      for (int i = 0; i < ids.length; i += batchSize) {
+        final batch = ids.skip(i).take(batchSize).toList();
+        final rows = await client
+            .from('user_events')
+            .select('client_event_id')
+            .eq('user_id', userId)
+            .inFilter('client_event_id', batch);
+        for (final row in (rows as List).cast<Map<String, dynamic>>()) {
+          final cid = row['client_event_id'] as String?;
+          if (cid != null && cid.isNotEmpty) {
+            existing.add(cid);
+          }
+        }
+      }
+
+      return existing;
+    } catch (e) {
+      _log('⚠️ Error checking event existence for notifications: $e');
+      return filtered;
+    }
+  }
+
   /// **NEW**: Reschedule all active notifications from database
   /// Call this on app startup to restore all scheduled notifications
   static Future<void> rescheduleAllFromDatabase() async {
@@ -371,17 +408,40 @@ class Notify {
 
       final notifications = response as List<dynamic>;
 
+      final candidateIds = notifications
+          .map((n) => n['client_event_id'] as String?)
+          .whereType<String>()
+          .toSet();
+      final existingEventIds =
+          await _existingEventIdsForNotifications(candidateIds);
+
       _log('Rescheduling ${notifications.length} active notifications');
 
       int rescheduled = 0;
       for (final notif in notifications) {
         try {
           final scheduledAt = DateTime.parse(notif['scheduled_at'] as String);
+          final clientEventId = notif['client_event_id'] as String?;
+          final notificationId = notif['notification_id'] as int?;
+          final shouldReschedule = clientEventId != null &&
+              clientEventId.isNotEmpty &&
+              existingEventIds.contains(clientEventId);
+
+          if (!shouldReschedule) {
+            if (notificationId != null) {
+              await _plugin.cancel(notificationId);
+            }
+            if (clientEventId != null && clientEventId.isNotEmpty) {
+              await _markNotificationInactive(clientEventId);
+              _log('Skipping reschedule; event missing for $clientEventId');
+            }
+            continue;
+          }
 
           // Only reschedule future notifications
           if (scheduledAt.isAfter(now)) {
             await _scheduleLocalNotification(
-              id: notif['notification_id'] as int,
+              id: notificationId ?? _generateStableNotificationId(clientEventId),
               scheduledAt: scheduledAt,
               title: notif['title'] as String,
               body: notif['body'] as String?,
@@ -390,7 +450,10 @@ class Notify {
             rescheduled++;
           } else {
             // Mark past notifications as inactive
-            await _markNotificationInactive(notif['client_event_id'] as String);
+            if (notificationId != null) {
+              await _plugin.cancel(notificationId);
+            }
+            await _markNotificationInactive(clientEventId);
           }
         } catch (e) {
           _log('⚠️ Error rescheduling notification ${notif['id']}: $e');

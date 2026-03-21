@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:functions_client/functions_client.dart';
 
 import '../models/ai_flow_generation_response.dart';
 
@@ -48,6 +49,7 @@ class AIFlowGenerationService {
         events: null,
         modelUsed: null,
         cached: null,
+        errorMessage: 'You need to sign in before generating a flow.',
       );
     }
 
@@ -63,11 +65,32 @@ class AIFlowGenerationService {
     };
 
     // 3) Auth-retry wrapped invoke (SDK auto-attaches JWT)
-    final res = await _withAuthRetry(() {
-      return _sb.functions.invoke(
-        'ai_generate_flow',
-        body: payload,
-      );
+    final FunctionResponse res = await _withAuthRetry(() async {
+      try {
+        return await _sb.functions.invoke(
+          'ai_generate_flow',
+          body: payload,
+        );
+      } on FunctionException catch (e) {
+        final msg = _fnErrorMessage(e);
+        return FunctionResponse(
+          data: {
+            'success': false,
+            'error': 'FunctionException',
+            'message': msg,
+          },
+          status: e.status,
+        );
+      } catch (e) {
+        return FunctionResponse(
+          data: {
+            'success': false,
+            'error': 'client_error',
+            'message': e.toString(),
+          },
+          status: 500,
+        );
+      }
     });
 
     // TEMPORARY DEBUG: Log response details
@@ -80,6 +103,34 @@ class AIFlowGenerationService {
       debugPrint('[AI invoke] FAIL ❌ ${res.data}');
     }
 
+    // Fail fast on HTTP error status
+    if (res.status != 200) {
+      String? msg;
+      try {
+        if (res.data is Map) {
+          final m = res.data as Map;
+          msg = (m['error'] ?? m['message'] ?? m['detail'])?.toString();
+        } else if (res.data is String) {
+          msg = res.data as String;
+        }
+      } catch (_) {
+        msg = null;
+      }
+      return AIFlowGenerationResponse(
+        success: false,
+        errorMessage:
+            msg?.isNotEmpty == true ? msg : 'Generation failed (HTTP ${res.status}).',
+        flowId: null,
+        flowName: null,
+        flowColor: null,
+        notes: null,
+        notesCount: null,
+        events: null,
+        modelUsed: null,
+        cached: null,
+      );
+    }
+
     // 4) Parse response (defensive)
     try {
       final data = res.data;
@@ -87,7 +138,29 @@ class AIFlowGenerationService {
           ? json.decode(data) as Map<String, dynamic>
           : Map<String, dynamic>.from(data as Map);
 
-      return AIFlowGenerationResponse.fromJson(map);
+      final parsed = AIFlowGenerationResponse.fromJson(map);
+      // If backend returned success=false but no message, add a friendly one
+      if (parsed.success != true && parsed.errorMessage == null) {
+        return AIFlowGenerationResponse(
+          success: parsed.success,
+          flowId: parsed.flowId,
+          flowName: parsed.flowName,
+          flowColor: parsed.flowColor,
+          overviewTitle: parsed.overviewTitle,
+          overviewSummary: parsed.overviewSummary,
+          notes: parsed.notes,
+          notesCount: parsed.notesCount,
+          events: parsed.events,
+          modelUsed: parsed.modelUsed,
+          cached: parsed.cached,
+          generationId: parsed.generationId,
+          schemaVersion: parsed.schemaVersion,
+          policyVersion: parsed.policyVersion,
+          snapshotVersion: parsed.snapshotVersion,
+          errorMessage: 'Generation failed. Please try again in a moment.',
+        );
+      }
+      return parsed;
     } catch (e, st) {
       debugPrint('[AI invoke] parse error: $e');
       debugPrint('$st');
@@ -101,7 +174,24 @@ class AIFlowGenerationService {
         events: null,
         modelUsed: null,
         cached: null,
+        errorMessage: 'Unable to read AI response. Please try again.',
       );
     }
+  }
+
+  String? _fnErrorMessage(FunctionException e) {
+    try {
+      final d = e.details;
+      if (d is Map) {
+        // Common locations for the OpenAI error payload
+        final msg = d['message'] ??
+            (d['error'] is Map ? (d['error'] as Map)['message'] : null) ??
+            d['detail'];
+        if (msg is String && msg.trim().isNotEmpty) return msg.trim();
+      }
+    } catch (_) {
+      // ignore parsing errors
+    }
+    return e.toString();
   }
 }

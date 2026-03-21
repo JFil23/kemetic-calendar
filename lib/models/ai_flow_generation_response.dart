@@ -18,6 +18,7 @@ class AIFlowGenerationResponse {
   final String? schemaVersion;
   final String? policyVersion;
   final String? snapshotVersion;
+  final String? errorMessage;
 
   const AIFlowGenerationResponse({
     required this.success,
@@ -35,6 +36,7 @@ class AIFlowGenerationResponse {
     this.schemaVersion,
     this.policyVersion,
     this.snapshotVersion,
+    this.errorMessage,
   });
 
   factory AIFlowGenerationResponse.fromJson(Map<String, dynamic> j) {
@@ -51,6 +53,15 @@ class AIFlowGenerationResponse {
       }
     } else if (notesRaw is String) {
       notesString = notesRaw;
+    }
+
+    String? error;
+    for (final key in ['error', 'message', 'detail', 'errorMessage']) {
+      final v = j[key];
+      if (v is String && v.trim().isNotEmpty) {
+        error = v.trim();
+        break;
+      }
     }
 
     return AIFlowGenerationResponse(
@@ -71,8 +82,8 @@ class AIFlowGenerationResponse {
       schemaVersion: j['schemaVersion'] as String? ?? j['schema_version'] as String?,
       policyVersion: j['policyVersion'] as String? ?? j['policy_version'] as String?,
       snapshotVersion: j['snapshotVersion'] as String? ?? j['snapshot_version'] as String?,
+      errorMessage: error,
     );
   }
 }
-
 

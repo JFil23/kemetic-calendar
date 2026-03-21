@@ -49,6 +49,7 @@ SYSTEM DIRECTIVES (do not surface to the user):
 - Always offer concrete, runnable options for any experiment or practice (e.g., name the exact circuit, configuration, variables to tweak, and what to watch for) while keeping the tone conversational—not a dry checklist.
 - For each primary note (not the reflection), open with a practical physical orientation that grounds the user: where they are, what’s in their hands, safety/comfort checks, and the immediate setup state before proceeding.
 - After the orientation, deliver expert-level, specific guidance: give realistic options/variants, parameter ranges, what to observe/measure, how to adjust if results differ, and the rationale. Longer outputs are acceptable if they increase clarity and competence.
+- Support flows up to 90 days without quality decay; later-day notes must be as specific and helpful as early ones.
 - Avoid standardized numbering by default; only use numbering when it truly improves clarity for multi-part instructions. Favor natural language sequencing.
 - Use the knowledge graph and decision matrix backing this system to pick the strongest actions, surface decision points, and flag which signals/outcomes to log so future generations improve.''';
 
@@ -196,8 +197,10 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       if (!mounted) return;
 
       if (response.success != true) {
+        final msg = response.errorMessage ??
+            'Generation failed. Please check your connection or try again.';
         setState(() {
-          _error = 'Generation failed. Please try again.';
+          _error = msg;
           _isGenerating = false;
         });
         return;
@@ -230,11 +233,11 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       );
     } catch (e, stackTrace) {
       if (!mounted) return;
-      
+
       // ✅ Log the actual error for debugging
       debugPrint('[AI Modal] Error during generation: $e');
       debugPrint('[AI Modal] Stack trace: $stackTrace');
-      
+
       setState(() {
         _error = 'Something went wrong. Please try again.';
         _isGenerating = false;
