@@ -26,6 +26,10 @@ import '../../widgets/inbox_icon_with_badge.dart';
 import '../ai_generation/ai_flow_generation_modal.dart';
 import '../../services/ai_flow_generation_service.dart';
 import '../../models/ai_flow_generation_response.dart';
+import '../../services/ai_reflection_service.dart';
+import '../../data/decan_reflection_repo.dart';
+import '../../data/decan_reflection_model.dart';
+import '../../data/journal_repo.dart';
 import '../../widgets/kemetic_day_info.dart';
 import '../../widgets/pronounce_icon_button.dart';
 import '../../services/speech/speech_service.dart';
@@ -50,6 +54,8 @@ import '../../data/reminders_repo.dart';
 import '../../utils/event_cid_util.dart';
 import 'package:share_plus/share_plus.dart';
 import '../journal/journal_event_badge.dart';
+import '../journal/journal_badge_utils.dart';
+import '../journal/journal_v2_document_model.dart';
 import '../journal/journal_swipe_layer.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
@@ -1854,6 +1860,11 @@ class _CalendarPageState extends State<CalendarPage>
 
   // Repository instances
   late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
+  late final JournalRepo _journalRepo = JournalRepo(Supabase.instance.client);
+  late final DecanReflectionRepo _decanReflectionRepo =
+      DecanReflectionRepo(Supabase.instance.client);
+  late final AIReflectionService _aiReflectionService =
+      AIReflectionService(Supabase.instance.client);
   // Reminders (Flutter-only layer)
   late final ReminderService _reminderService = ReminderService();
   StreamSubscription<List<Reminder>>? _reminderSub; // unused now (safety)
@@ -1879,7 +1890,24 @@ class _CalendarPageState extends State<CalendarPage>
   static const String _kManualDeleteTombstonesKey =
       'calendar:manual_delete_tombstones';
   static const String _kCidMigrationPrefKey = 'calendar:cid_migration_done';
+  static const String _kReflectionSeenPrefKey =
+      'calendar:last_seen_reflection_start';
   final Set<String> _endedReminderIds = {};
+
+  // Decan reflection prompt state
+  ({
+    String? id,
+    String decanName,
+    String? decanTheme,
+    DateTime decanStart,
+    DateTime decanEnd,
+    int badgeCount,
+    String reflectionText,
+    bool persisted,
+  })? _reflectionPrompt;
+  bool _reflectionInFlight = false;
+  bool _archivingReflection = false;
+  DateTime? _lastReflectionCheckDay;
 
   Future<void> _loadReminderSettings() async {
     try {
@@ -2464,6 +2492,7 @@ class _CalendarPageState extends State<CalendarPage>
     _journalController.init().then((_) {
       if (mounted) {
         setState(() => _journalInitialized = true);
+        _maybeLoadDecanReflectionPrompt();
       }
     });
   }
@@ -2763,6 +2792,7 @@ class _CalendarPageState extends State<CalendarPage>
         _refreshAfterReturn();
       }
       _checkDueReminders();
+      unawaited(_maybeLoadDecanReflectionPrompt(force: true));
     }
   }
 
@@ -2779,6 +2809,7 @@ class _CalendarPageState extends State<CalendarPage>
       _lastRefreshTime = DateTime.now();
       if (mounted) setState(() {});
       _checkDueReminders();
+      await _maybeLoadDecanReflectionPrompt(force: true);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[CalendarPage] Error refreshing: $e');
@@ -10253,6 +10284,7 @@ class _CalendarPageState extends State<CalendarPage>
     // Order: load reminder rules, hydrate events/flows, then sync reminders in background.
     await _loadReminderRules();
     await _loadFromDisk(source: 'startup:$reason');
+    await _maybeLoadDecanReflectionPrompt();
     unawaited(() async {
       try {
         await _syncReminderEvents(refreshUi: false);
@@ -12470,7 +12502,7 @@ class _CalendarPageState extends State<CalendarPage>
       _ensurePortraitCentered();
     }
 
-    return JournalSwipeLayer(
+    final content = JournalSwipeLayer(
       controller: _journalController,
       isPortrait: isPortrait,
       handle: _journalSwipeHandle,
@@ -12485,6 +12517,621 @@ class _CalendarPageState extends State<CalendarPage>
         ),
       ),
     );
+
+    return Stack(
+      children: [
+        content,
+        if (_reflectionPrompt != null) _buildReflectionBadge(),
+      ],
+    );
+  }
+
+  /* ───────────── Decan Reflection Badge & Archive ───────────── */
+
+  Widget _buildReflectionBadge() {
+    final prompt = _reflectionPrompt;
+    if (prompt == null) return const SizedBox.shrink();
+
+    final media = MediaQuery.of(context);
+    final maxWidth = media.size.width * 0.72;
+    final preview = prompt.reflectionText.trim().isEmpty
+        ? 'Decan reflection ready'
+        : prompt.reflectionText.trim();
+
+    return Positioned(
+      right: 12,
+      bottom: 16 + media.padding.bottom,
+      child: Material(
+        color: Colors.black.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(14),
+        elevation: 8,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: _showReflectionSheet,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.menu_book_rounded,
+                      color: _gold, size: 18),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Decan reflection',
+                          style: TextStyle(
+                            color: _gold,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          preview,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.5,
+                            height: 1.25,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showReflectionSheet() {
+    final prompt = _reflectionPrompt;
+    if (prompt == null) return;
+    final dateRange =
+        '${_formatDateOnlyLocal(prompt.decanStart)} → ${_formatDateOnlyLocal(prompt.decanEnd)}';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetCtx) {
+        final inset = MediaQuery.of(sheetCtx).viewInsets.bottom;
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + inset),
+            child: SizedBox(
+              height: MediaQuery.of(sheetCtx).size.height * 0.65,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 48,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white12,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    prompt.decanName,
+                    style: const TextStyle(
+                      color: _gold,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    dateRange,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                  if (prompt.badgeCount > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '${prompt.badgeCount} badge${prompt.badgeCount == 1 ? '' : 's'} captured',
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Text(
+                        prompt.reflectionText,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14.5,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _archivingReflection
+                            ? null
+                            : () => _archiveReflectionPrompt(sheetCtx),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _gold,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                        icon: _archivingReflection
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.black,
+                                ),
+                              )
+                            : const Icon(Icons.archive_outlined, size: 18),
+                        label: const Text('Archive to profile'),
+                      ),
+                      const SizedBox(width: 12),
+                      TextButton(
+                        onPressed: () => Navigator.of(sheetCtx).pop(),
+                        child: const Text(
+                          'Close',
+                          style: TextStyle(color: _gold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatDateOnlyLocal(DateTime date) {
+    final d = date.toLocal();
+    final yyyy = d.year.toString().padLeft(4, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
+    return '$yyyy-$mm-$dd';
+  }
+
+  DateTime _dateOnlyLocal(DateTime date) {
+    final d = date.toLocal();
+    return DateTime(d.year, d.month, d.day);
+  }
+
+  Future<bool> _hasSeenReflection(DateTime decanStart) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString(_kReflectionSeenPrefKey);
+      return stored == _formatDateOnlyLocal(decanStart);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _markReflectionSeen(DateTime decanStart) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _kReflectionSeenPrefKey,
+        _formatDateOnlyLocal(decanStart),
+      );
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  ({
+    DateTime start,
+    DateTime end,
+    String decanName,
+    String? decanTheme,
+    int kMonth,
+    int kYear,
+  })? _latestCompletedDecanWindow() {
+    final now = DateTime.now();
+    final kem = KemeticMath.fromGregorian(now);
+
+    // Skip epagomenal days (month 13) for reflection generation; fall back to month 12.
+    int kMonth = kem.kMonth;
+    int kYear = kem.kYear;
+    int completedDecan = kem.kDay ~/ 10; // 1-based decan completion count
+
+    if (kMonth == 13) {
+      kMonth = 12;
+      completedDecan = 3;
+    }
+
+    if (completedDecan == 0) {
+      if (kMonth <= 1) {
+        kYear -= 1;
+        kMonth = 12;
+      } else {
+        kMonth -= 1;
+      }
+      completedDecan = 3;
+    }
+
+    completedDecan = completedDecan.clamp(1, 3);
+    if (kMonth == 13) return null; // guard epagomenal month fallback
+
+    final decanStartDay = ((completedDecan - 1) * 10) + 1;
+    final decanEndDay = completedDecan * 10;
+
+    final start = KemeticMath.toGregorian(kYear, kMonth, decanStartDay);
+    final end = KemeticMath.toGregorian(kYear, kMonth, decanEndDay);
+    final todayLocal = _dateOnlyLocal(DateTime.now());
+    if (_dateOnlyLocal(end).isAfter(todayLocal)) return null; // only after completion
+
+    final decanLabel = DecanMetadata.decanNameFor(
+      kMonth: kMonth,
+      kDay: decanEndDay,
+      expanded: true,
+    );
+    final monthLabel = getMonthById(kMonth).displayShort;
+
+    return (
+      start: start,
+      end: end,
+      decanName: '$monthLabel — $decanLabel',
+      decanTheme: decanLabel,
+      kMonth: kMonth,
+      kYear: kYear,
+    );
+  }
+
+  JournalDocument? _documentFromJournalEntry(JournalEntry entry) {
+    final body = entry.body.trim();
+    if (body.isEmpty) return JournalDocument.fromPlainText('');
+
+    if (body.startsWith('{') && body.contains('"version"')) {
+      try {
+        final map = jsonDecode(body) as Map<String, dynamic>;
+        return JournalDocument.fromJson(map);
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('Failed to parse journal document for ${entry.gregDate}: $e');
+        }
+      }
+    }
+
+    return JournalDocument.fromPlainText(body);
+  }
+
+  Future<
+      List<
+          ({
+            EventBadgeToken token,
+            DateTime occurredOn,
+            DateTime? occurredAt,
+          })>> _collectDecanBadges(DateTime decanStart, DateTime decanEnd) async {
+    final entries = await _journalRepo.listRange(start: decanStart, end: decanEnd);
+    final badges = <({
+      EventBadgeToken token,
+      DateTime occurredOn,
+      DateTime? occurredAt,
+    })>[];
+    final seen = <String>{};
+
+    void addBadges(List<EventBadgeToken> tokens, DateTime fallbackDay) {
+      final day = _dateOnlyLocal(fallbackDay);
+      for (final token in tokens) {
+        if (!seen.add(token.id)) continue;
+        final occurred = token.start != null ? _dateOnlyLocal(token.start!) : day;
+        badges.add((token: token, occurredOn: occurred, occurredAt: token.start));
+      }
+    }
+
+    for (final entry in entries) {
+      final doc = _documentFromJournalEntry(entry);
+      if (doc == null) continue;
+      addBadges(JournalBadgeUtils.tokensFromDocument(doc), entry.gregDate);
+    }
+
+    final currentDoc = _journalController.currentDocument;
+    final currentDate = _journalController.currentDate;
+    if (currentDoc != null && currentDate != null) {
+      addBadges(
+        JournalBadgeUtils.tokensFromDocument(currentDoc),
+        currentDate,
+      );
+    }
+
+    badges.sort((a, b) {
+      final cmp = a.occurredOn.compareTo(b.occurredOn);
+      if (cmp != 0) return cmp;
+      if (a.occurredAt == null && b.occurredAt == null) return 0;
+      if (a.occurredAt == null) return 1;
+      if (b.occurredAt == null) return -1;
+      return a.occurredAt!.compareTo(b.occurredAt!);
+    });
+
+    return badges;
+  }
+
+  String _buildReflectionFromBadges(List<EventBadgeToken> badges) {
+    if (badges.isEmpty) {
+      return 'Time moved quietly this decan. Silence is still a shape—space held open for whatever wants to speak next.';
+    }
+
+    final titleCounts = <String, int>{};
+    int morningCount = 0;
+    int eveningCount = 0;
+
+    for (final b in badges) {
+      final t = b.title.trim().toLowerCase();
+      if (t.isNotEmpty) {
+        titleCounts[t] = (titleCounts[t] ?? 0) + 1;
+      }
+      final start = b.start;
+      if (start != null) {
+        final h = start.toLocal().hour;
+        if (h < 12) morningCount++;
+        if (h >= 18) eveningCount++;
+      }
+    }
+
+    final sorted = titleCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final dominant = sorted.isNotEmpty ? sorted.first.value : 0;
+    final total = badges.length;
+    final dominantRatio = total == 0 ? 0.0 : dominant / total;
+
+    final focused = dominantRatio >= 0.5;
+    final exploratory = sorted.length >= 3 && dominantRatio < 0.5;
+    final morningLean = morningCount > total / 2;
+    final eveningLean = eveningCount > total / 2;
+
+    final opening = focused
+        ? 'This decan moved in close circles—choosing depth over breadth.'
+        : exploratory
+            ? 'Your days touched many currents, yet an inner note stayed steady.'
+            : 'You moved with measured steps, neither rushing nor drifting.';
+
+    final pattern = focused
+        ? 'Returning to similar moments suggests you were seeking alignment more than variety—choosing what felt true over what was simply available.'
+        : exploratory
+            ? 'You let yourself explore without fixing on one shape. That kind of wandering is listening for what rings honest.'
+            : 'Your marks carried a quiet negotiation between stability and change, steadying yourself while testing new edges.';
+
+    final rhythm = morningLean
+        ? 'Mornings held more of your presence—as if first light gave the clearest signal.'
+        : eveningLean
+            ? 'Evenings gathered your energy—closing light became a place to settle what mattered.'
+            : 'Your hours spread across the day, a gentle pulse rather than a single surge.';
+
+    const silence =
+        'Some spaces stayed quiet—not as neglect, but as rest points waiting to receive you when you are ready.';
+
+    const invitation =
+        'As the next decan opens, carry forward the feeling that felt most like you, and let one quiet space be touched—only if it calls.';
+
+    const closing =
+        'Archive what mattered so you do not have to relearn it later. Endings are easier when you can see the shape you already made.';
+
+    final dominantTitle =
+        sorted.isNotEmpty ? 'Most frequent: “${sorted.first.key}”. ' : '';
+    final badgesLine = 'Badges logged: $total. ${dominantTitle.trim()}';
+
+    return [
+      opening,
+      pattern,
+      rhythm,
+      silence,
+      badgesLine,
+      invitation,
+      closing,
+    ].join('\n\n');
+  }
+
+  Future<void> _maybeLoadDecanReflectionPrompt({bool force = false}) async {
+    if (!mounted || _reflectionInFlight) return;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    final today = DateUtils.dateOnly(DateTime.now());
+    if (!force &&
+        _lastReflectionCheckDay != null &&
+        DateUtils.isSameDay(today, _lastReflectionCheckDay) &&
+        _reflectionPrompt != null) {
+      return;
+    }
+    _lastReflectionCheckDay = today;
+
+    final window = _latestCompletedDecanWindow();
+    if (window == null) {
+      if (_reflectionPrompt != null) {
+        setState(() => _reflectionPrompt = null);
+      }
+      return;
+    }
+
+    if (!force && await _hasSeenReflection(window.start)) {
+      if (_reflectionPrompt != null) {
+        setState(() => _reflectionPrompt = null);
+      }
+      return;
+    }
+
+    _reflectionInFlight = true;
+    try {
+      final existing =
+          await _decanReflectionRepo.findByWindow(window.start, window.end);
+      if (existing != null) {
+        if (!mounted) return;
+        setState(() {
+          _reflectionPrompt = (
+            id: existing.id,
+            decanName: existing.decanName,
+            decanTheme: existing.decanTheme,
+            decanStart: existing.decanStart,
+            decanEnd: existing.decanEnd,
+            badgeCount: existing.badgeCount,
+            reflectionText: existing.reflectionText,
+            persisted: true,
+          );
+        });
+        return;
+      }
+
+      final decanBadges =
+          await _collectDecanBadges(window.start, window.end);
+      final payloadBadges = decanBadges
+          .map(
+            (b) => {
+              'title': b.token.title,
+              'details': b.token.description ?? b.token.title,
+              'tags': <String>[],
+              'occurred_on': _formatDateOnlyLocal(b.occurredOn),
+              if (b.occurredAt != null)
+                'occurred_at': b.occurredAt!.toUtc().toIso8601String(),
+            },
+          )
+          .toList();
+
+      String reflectionText = '';
+      int badgeCount = decanBadges.length;
+      String? reflectionId;
+
+      try {
+        final response = await _aiReflectionService.generateReflection(
+          decanName: window.decanName,
+          decanTheme: window.decanTheme,
+          decanStart: window.start,
+          decanEnd: window.end,
+          persist: true,
+          useKnowledgeGraph: true,
+          useDecisionMatrix: true,
+          badges: payloadBadges,
+        );
+        if (response.success && (response.reflection?.trim().isNotEmpty ?? false)) {
+          reflectionText = response.reflection!.trim();
+          badgeCount = response.badgeCount ?? badgeCount;
+          reflectionId = response.reflectionId;
+          Events.trackIfAuthed('decan_reflection_generated', {
+            'kg': true,
+            'decision_matrix': true,
+            'badge_count': badgeCount,
+            'persisted': response.reflectionId != null,
+            'branch': response.branch ?? 'unknown',
+          });
+        }
+      } catch (_) {
+        // Ignore and fall back to local generation
+      }
+
+      if (reflectionText.trim().isEmpty) {
+        reflectionText =
+            _buildReflectionFromBadges(decanBadges.map((b) => b.token).toList());
+      }
+
+      if (reflectionText.trim().isEmpty) {
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _reflectionPrompt = (
+          id: reflectionId,
+          decanName: window.decanName,
+          decanTheme: window.decanTheme,
+          decanStart: window.start,
+          decanEnd: window.end,
+          badgeCount: badgeCount,
+          reflectionText: reflectionText.trim(),
+          persisted: reflectionId != null,
+        );
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[DecanReflection] prompt load failed: $e');
+      }
+    } finally {
+      _reflectionInFlight = false;
+    }
+  }
+
+  Future<void> _archiveReflectionPrompt([BuildContext? ctx]) async {
+    final prompt = _reflectionPrompt;
+    if (prompt == null || _archivingReflection) return;
+
+    if (mounted) {
+      setState(() => _archivingReflection = true);
+    }
+
+    try {
+      DecanReflection? saved = prompt.persisted && prompt.id != null
+          ? await _decanReflectionRepo.getById(prompt.id!)
+          : null;
+
+      saved ??= await _decanReflectionRepo.saveReflection(
+        decanName: prompt.decanName,
+        decanTheme: prompt.decanTheme,
+        decanStart: prompt.decanStart,
+        decanEnd: prompt.decanEnd,
+        badgeCount: prompt.badgeCount,
+        reflectionText: prompt.reflectionText,
+      );
+      if (saved == null) {
+        throw Exception('Unable to save reflection');
+      }
+
+      await _markReflectionSeen(prompt.decanStart);
+
+      if (mounted) {
+        setState(() => _reflectionPrompt = null);
+        if (ctx != null && Navigator.of(ctx).canPop()) {
+          Navigator.of(ctx).pop();
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Reflection archived to your profile'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not archive reflection: $e'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _archivingReflection = false);
+      } else {
+        _archivingReflection = false;
+      }
+    }
   }
 
   Widget _buildCalendarScrollView() {

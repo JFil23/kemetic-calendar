@@ -7,6 +7,14 @@ class DecanReflectionRepo {
   final SupabaseClient _client;
   const DecanReflectionRepo(this._client);
 
+  String _fmtDate(DateTime date) {
+    final d = date.toUtc();
+    final yyyy = d.year.toString().padLeft(4, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
+    return '$yyyy-$mm-$dd';
+  }
+
   Future<List<DecanReflection>> listMine() async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return [];
@@ -40,6 +48,66 @@ class DecanReflectionRepo {
     } catch (e) {
       debugPrint('[DecanReflectionRepo] getById error: $e');
       return null;
+    }
+  }
+
+  Future<DecanReflection?> findByWindow(
+    DateTime decanStart,
+    DateTime decanEnd,
+  ) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return null;
+    try {
+      final res = await _client
+          .from('decan_reflections')
+          .select()
+          .eq('user_id', uid)
+          .eq('decan_start', _fmtDate(decanStart))
+          .eq('decan_end', _fmtDate(decanEnd))
+          .maybeSingle();
+      if (res == null) return null;
+      return DecanReflection.fromJson(res as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint('[DecanReflectionRepo] findByWindow error: $e');
+      return null;
+    }
+  }
+
+  Future<DecanReflection?> saveReflection({
+    required String decanName,
+    String? decanTheme,
+    required DateTime decanStart,
+    required DateTime decanEnd,
+    required int badgeCount,
+    required String reflectionText,
+  }) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return null;
+    try {
+      final payload = <String, dynamic>{
+        'user_id': uid,
+        'decan_name': decanName,
+        'decan_start': _fmtDate(decanStart),
+        'decan_end': _fmtDate(decanEnd),
+        'badge_count': badgeCount,
+        'reflection_text': reflectionText,
+      };
+
+      if (decanTheme != null && decanTheme.trim().isNotEmpty) {
+        payload['decan_theme'] = decanTheme;
+      }
+
+      final res = await _client
+          .from('decan_reflections')
+          .upsert(payload, onConflict: 'user_id,decan_start,decan_end')
+          .select()
+          .maybeSingle();
+      if (res == null) return null;
+      return DecanReflection.fromJson(res as Map<String, dynamic>);
+    } catch (e, st) {
+      debugPrint('[DecanReflectionRepo] saveReflection error: $e');
+      debugPrint('$st');
+      rethrow;
     }
   }
 }

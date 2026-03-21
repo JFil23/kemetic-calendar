@@ -53,6 +53,8 @@ class AIReflectionService {
     required DateTime decanEnd,
     bool includeHistory = true,
     bool persist = false,
+    bool useKnowledgeGraph = false,
+    bool useDecisionMatrix = false,
     List<Map<String, dynamic>>? badges,
   }) async {
     final sess = _sb.auth.currentSession;
@@ -83,6 +85,8 @@ class AIReflectionService {
       'include_history': includeHistory,
       'v2': true,
       'persist': persist,
+      if (useKnowledgeGraph) 'use_knowledge_graph': true,
+      if (useDecisionMatrix) 'use_decision_matrix': true,
       if (badges != null) 'badges': badges,
     };
 
