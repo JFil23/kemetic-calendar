@@ -12857,7 +12857,10 @@ class _CalendarPageState extends State<CalendarPage>
 
     final currentDoc = _journalController.currentDocument;
     final currentDate = _journalController.currentDate;
-    if (currentDoc != null && currentDate != null) {
+    final withinWindow = currentDate != null &&
+        !currentDate.isBefore(_dateOnlyLocal(decanStart)) &&
+        !currentDate.isAfter(_dateOnlyLocal(decanEnd));
+    if (currentDoc != null && currentDate != null && withinWindow) {
       addBadges(
         JournalBadgeUtils.tokensFromDocument(currentDoc),
         currentDate,
@@ -13026,6 +13029,7 @@ class _CalendarPageState extends State<CalendarPage>
           decanTheme: window.decanTheme,
           decanStart: window.start,
           decanEnd: window.end,
+          includeHistory: false, // prioritize current decan’s badges
           persist: true,
           useKnowledgeGraph: true,
           useDecisionMatrix: true,
