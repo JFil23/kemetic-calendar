@@ -84,6 +84,9 @@ class DecanReflectionRepo {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return null;
     try {
+      final existing = await findByWindow(decanStart, decanEnd);
+      if (existing != null) return existing;
+
       final payload = <String, dynamic>{
         'user_id': uid,
         'decan_name': decanName,
@@ -97,11 +100,7 @@ class DecanReflectionRepo {
         payload['decan_theme'] = decanTheme;
       }
 
-      final res = await _client
-          .from('decan_reflections')
-          .upsert(payload, onConflict: 'user_id,decan_start,decan_end')
-          .select()
-          .maybeSingle();
+      final res = await _client.from('decan_reflections').insert(payload).select().maybeSingle();
       if (res == null) return null;
       return DecanReflection.fromJson(res as Map<String, dynamic>);
     } catch (e, st) {

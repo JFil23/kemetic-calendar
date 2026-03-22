@@ -12960,12 +12960,10 @@ class _CalendarPageState extends State<CalendarPage>
     if (user == null) return;
 
     final today = DateUtils.dateOnly(DateTime.now());
-    if (!force &&
-        _lastReflectionCheckDay != null &&
+    if (_lastReflectionCheckDay != null &&
         DateUtils.isSameDay(today, _lastReflectionCheckDay) &&
-        _reflectionPrompt != null) {
-      return;
-    }
+        !force &&
+        _reflectionPrompt != null) return;
     _lastReflectionCheckDay = today;
 
     final window = _latestCompletedDecanWindow();
@@ -12976,10 +12974,20 @@ class _CalendarPageState extends State<CalendarPage>
       return;
     }
 
-    if (!force && await _hasSeenReflection(window.start)) {
-      if (_reflectionPrompt != null) {
-        setState(() => _reflectionPrompt = null);
-      }
+    if (await _hasSeenReflection(window.start)) {
+      if (_reflectionPrompt != null) setState(() => _reflectionPrompt = null);
+      return;
+    }
+
+    // Gate visibility until 8pm local on the 10th day of the decan
+    final decanStartLocal = window.start.toLocal();
+    final gateLocal = DateTime(
+      decanStartLocal.year,
+      decanStartLocal.month,
+      decanStartLocal.day,
+    ).add(const Duration(days: 9, hours: 20)); // day 10 at 8pm
+    if (DateTime.now().isBefore(gateLocal)) {
+      if (_reflectionPrompt != null) setState(() => _reflectionPrompt = null);
       return;
     }
 
@@ -12989,18 +12997,10 @@ class _CalendarPageState extends State<CalendarPage>
           await _decanReflectionRepo.findByWindow(window.start, window.end);
       if (existing != null) {
         if (!mounted) return;
-        setState(() {
-          _reflectionPrompt = (
-            id: existing.id,
-            decanName: existing.decanName,
-            decanTheme: existing.decanTheme,
-            decanStart: existing.decanStart,
-            decanEnd: existing.decanEnd,
-            badgeCount: existing.badgeCount,
-            reflectionText: existing.reflectionText,
-            persisted: true,
-          );
-        });
+        await _markReflectionSeen(window.start);
+        if (_reflectionPrompt != null) {
+          setState(() => _reflectionPrompt = null);
+        }
         return;
       }
 
