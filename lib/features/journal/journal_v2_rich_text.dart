@@ -45,7 +45,9 @@ class JournalBadgeSpanBuilder {
 
       if (token != null) {
         if (renderBadgesInline) {
-          final expanded = expansionState != null ? (expansionState[token.id] ?? false) : false;
+          final expanded = expansionState != null
+              ? (expansionState[token.id] ?? false)
+              : false;
 
           // Force badge to a new block with breathing room
           // In edit mode (compact), ensure badges are on their own line
@@ -66,7 +68,9 @@ class JournalBadgeSpanBuilder {
                     child: EventBadgeWidget(
                       token: token,
                       initialExpanded: compact ? false : expanded,
-                      onToggle: onToggle != null ? (next) => onToggle(token.id, next) : null,
+                      onToggle: onToggle != null
+                          ? (next) => onToggle(token.id, next)
+                          : null,
                     ),
                   ),
                 ),
@@ -103,8 +107,10 @@ class _FormattedTextEditingController extends TextEditingController {
   Map<String, bool> get badgeExpansion => Map.unmodifiable(_badgeExpansion);
   final BadgeToggleCallback? onExternalBadgeToggle;
 
-  _FormattedTextEditingController({required this.block, this.onExternalBadgeToggle})
-      : super(text: _opsToPlainText(block.ops));
+  _FormattedTextEditingController({
+    required this.block,
+    this.onExternalBadgeToggle,
+  }) : super(text: _opsToPlainText(block.ops));
 
   @override
   set value(TextEditingValue newValue) {
@@ -114,12 +120,28 @@ class _FormattedTextEditingController extends TextEditingController {
       return true;
     }());
     super.value = protected;
+
+    // If external code (e.g., custom keyboards) updates the controller text,
+    // keep the rendered block in sync so buildTextSpan shows the new content.
+    final currentPlain = _opsToPlainText(block.ops);
+    if (protected.text != currentPlain) {
+      block = ParagraphBlock(
+        id: block.id.isEmpty
+            ? 'p-${DateTime.now().millisecondsSinceEpoch}'
+            : block.id,
+        ops: [TextOp(insert: protected.text)],
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) => notifyListeners());
+    }
   }
-  
+
   // helper to find badge ranges in text
   List<TextRange> _findBadgeRanges(String text) {
     final regex = RegExp(r'⟦EVENT_BADGE([\s\S]*?)⟧');
-    return regex.allMatches(text).map((m) => TextRange(start: m.start, end: m.end)).toList();
+    return regex
+        .allMatches(text)
+        .map((m) => TextRange(start: m.start, end: m.end))
+        .toList();
   }
 
   TextEditingValue _protectEventBadgeTokens(
@@ -140,7 +162,10 @@ class _FormattedTextEditingController extends TextEditingController {
 
     // Let formatter handle reroute; just clamp selection away from badges here.
     final protectedRanges = _findBadgeRanges(newText);
-    final selection = _clampSelectionOutsideBadges(protectedRanges, newValue.selection);
+    final selection = _clampSelectionOutsideBadges(
+      protectedRanges,
+      newValue.selection,
+    );
     return newValue.copyWith(selection: selection, composing: TextRange.empty);
   }
 
@@ -171,7 +196,7 @@ class _FormattedTextEditingController extends TextEditingController {
   static String _opsToPlainText(List<TextOp> ops) {
     return ops.map((op) => op.insert).join();
   }
-  
+
   /// Add/remove real newline padding around a badge token to force spacing.
   void onBadgeToggled(String badgeId, bool expanded) {
     _badgeExpansion[badgeId] = expanded;
@@ -203,7 +228,8 @@ class _FormattedTextEditingController extends TextEditingController {
     final padAfter = '\n' * afterLines;
 
     final newText = '$prefix$padBefore$token$padAfter$suffix';
-    final newSelOffset = (prefix.length + padBefore.length + token.length).clamp(0, newText.length);
+    final newSelOffset = (prefix.length + padBefore.length + token.length)
+        .clamp(0, newText.length);
 
     value = value.copyWith(
       text: newText,
@@ -237,22 +263,24 @@ class _FormattedTextEditingController extends TextEditingController {
     final baseStyle = style ?? const TextStyle();
 
     for (final op in block.ops) {
-      spans.addAll(JournalBadgeSpanBuilder.build(
-        text: op.insert,
-        style: _buildTextStyle(op.attrs, baseStyle),
-        expansionState: _badgeExpansion,
-        onToggle: (id, expanded) {
-          onBadgeToggled(id, expanded);
-          onExternalBadgeToggle?.call(id, expanded);
-        },
-        compact: true,
-        renderBadgesInline: false,
-      ));
+      spans.addAll(
+        JournalBadgeSpanBuilder.build(
+          text: op.insert,
+          style: _buildTextStyle(op.attrs, baseStyle),
+          expansionState: _badgeExpansion,
+          onToggle: (id, expanded) {
+            onBadgeToggled(id, expanded);
+            onExternalBadgeToggle?.call(id, expanded);
+          },
+          compact: true,
+          renderBadgesInline: false,
+        ),
+      );
     }
 
     return TextSpan(children: spans, style: baseStyle);
   }
-  
+
   void _debugLogValueChange(
     String where,
     TextEditingValue oldValue,
@@ -262,16 +290,18 @@ class _FormattedTextEditingController extends TextEditingController {
     final hasOld = oldValue.text.contains('⟦EVENT_BADGE');
     final hasIncoming = incoming.text.contains('⟦EVENT_BADGE');
     final hasProtected = protected.text.contains('⟦EVENT_BADGE');
-    debugPrint('[badge-debug][$where] old=${oldValue.text.length} incoming=${incoming.text.length} protected=${protected.text.length} | tokens old=$hasOld incoming=$hasIncoming protected=$hasProtected');
+    debugPrint(
+      '[badge-debug][$where] old=${oldValue.text.length} incoming=${incoming.text.length} protected=${protected.text.length} | tokens old=$hasOld incoming=$hasIncoming protected=$hasProtected',
+    );
   }
-  
+
   TextStyle _buildTextStyle(TextAttrs? attrs, TextStyle? baseStyle) {
     if (attrs == null) return baseStyle ?? const TextStyle();
-    
+
     final decorations = <TextDecoration>[];
     if (attrs.underline) decorations.add(TextDecoration.underline);
     if (attrs.strikethrough) decorations.add(TextDecoration.lineThrough);
-    
+
     return (baseStyle ?? const TextStyle()).copyWith(
       fontWeight: attrs.bold ? FontWeight.bold : null,
       fontStyle: attrs.italic ? FontStyle.italic : null,
@@ -279,11 +309,11 @@ class _FormattedTextEditingController extends TextEditingController {
           ? _parseColor(attrs.backgroundColor!)
           : null,
       color: attrs.color != null ? _parseColor(attrs.color!) : null,
-      decoration: decorations.isEmpty 
-          ? TextDecoration.none 
-          : decorations.length == 1 
-              ? decorations.first 
-              : TextDecoration.combine(decorations),
+      decoration: decorations.isEmpty
+          ? TextDecoration.none
+          : decorations.length == 1
+          ? decorations.first
+          : TextDecoration.combine(decorations),
       decorationColor: Colors.white,
       decorationThickness: 2.0,
     );
@@ -302,7 +332,10 @@ class _FormattedTextEditingController extends TextEditingController {
 class _BadgeProtectingFormatter extends TextInputFormatter {
   List<TextRange> _findBadgeRanges(String text) {
     final regex = RegExp(r'⟦EVENT_BADGE([^⟧]+)⟧');
-    return regex.allMatches(text).map((m) => TextRange(start: m.start, end: m.end)).toList();
+    return regex
+        .allMatches(text)
+        .map((m) => TextRange(start: m.start, end: m.end))
+        .toList();
   }
 
   List<String> _badgeSubstrings(String text, List<TextRange> ranges) {
@@ -325,10 +358,7 @@ class _BadgeProtectingFormatter extends TextInputFormatter {
     return sel;
   }
 
-  TextRange _clampRangeOutsideBadges(
-    List<TextRange> ranges,
-    TextRange range,
-  ) {
+  TextRange _clampRangeOutsideBadges(List<TextRange> ranges, TextRange range) {
     var res = range;
     for (final r in ranges) {
       if (res.start > r.start && res.start < r.end) {
@@ -342,7 +372,10 @@ class _BadgeProtectingFormatter extends TextInputFormatter {
   }
 
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final oldText = oldValue.text;
     final newText = newValue.text;
 
@@ -361,9 +394,12 @@ class _BadgeProtectingFormatter extends TextInputFormatter {
     }
 
     // Just clamp selection/composing outside badge ranges - NO REROUTE
-    final clampedSel = _clampSelectionOutsideBadges(newRanges, newValue.selection);
+    final clampedSel = _clampSelectionOutsideBadges(
+      newRanges,
+      newValue.selection,
+    );
     final clampedComp = _clampRangeOutsideBadges(newRanges, newValue.composing);
-    
+
     return newValue.copyWith(
       selection: clampedSel,
       composing: clampedComp.isValid ? clampedComp : TextRange.empty,
@@ -439,7 +475,7 @@ class RichTextEditorState extends State<RichTextEditor> {
   /// Apply formatting to current selection
   void applyFormat(TextAttrs attrs) {
     final selection = _controller.selection;
-    
+
     if (!selection.isValid || selection.isCollapsed) {
       return;
     }
@@ -466,18 +502,18 @@ class RichTextEditorState extends State<RichTextEditor> {
           final beforeText = op.insert.substring(0, start - currentPos);
           newOps.add(TextOp(insert: beforeText, attrs: op.attrs));
         }
-        
+
         final insideStart = start > currentPos ? start - currentPos : 0;
         final insideEnd = end < opEnd ? end - currentPos : op.insert.length;
         final insideText = op.insert.substring(insideStart, insideEnd);
         newOps.add(TextOp(insert: insideText, attrs: attrs));
-        
+
         if (opEnd > end) {
           final afterText = op.insert.substring(end - currentPos);
           newOps.add(TextOp(insert: afterText, attrs: op.attrs));
         }
       }
-      
+
       currentPos = opEnd;
     }
 
@@ -491,7 +527,7 @@ class RichTextEditorState extends State<RichTextEditor> {
       _currentBlock = newBlock;
       _controller.updateBlock(newBlock);
     });
-    
+
     widget.onChanged(newBlock);
   }
 
@@ -505,7 +541,10 @@ class RichTextEditorState extends State<RichTextEditor> {
       if (current == null) {
         current = op;
       } else if (_attrsEqual(current.attrs, op.attrs)) {
-        current = TextOp(insert: current.insert + op.insert, attrs: current.attrs);
+        current = TextOp(
+          insert: current.insert + op.insert,
+          attrs: current.attrs,
+        );
       } else {
         optimized.add(current);
         current = op;
@@ -538,7 +577,7 @@ class RichTextEditorState extends State<RichTextEditor> {
 
   void _handleTextChanged(String text) {
     if (_isUpdating) return;
-    
+
     // Convert to single op (formatting happens via toolbar)
     final newBlock = ParagraphBlock(
       id: _currentBlock.id,
@@ -551,7 +590,7 @@ class RichTextEditorState extends State<RichTextEditor> {
       _controller.updateBlock(newBlock);
     });
     _isUpdating = false;
-    
+
     widget.onChanged(newBlock);
   }
 
@@ -581,10 +620,12 @@ class RichTextEditorState extends State<RichTextEditor> {
 
     if (!showReadOnly) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_savedSelection != null && _controller.selection != _savedSelection) {
+        if (_savedSelection != null &&
+            _controller.selection != _savedSelection) {
           _controller.selection = _savedSelection!;
         }
-        if (_savedTextScrollOffset != null && _textScrollController.hasClients) {
+        if (_savedTextScrollOffset != null &&
+            _textScrollController.hasClients) {
           final max = _textScrollController.position.maxScrollExtent;
           final target = _savedTextScrollOffset!.clamp(0, max).toDouble();
           _textScrollController.jumpTo(target);
@@ -617,20 +658,13 @@ class RichTextEditorState extends State<RichTextEditor> {
       scrollPadding: EdgeInsets.only(bottom: bottomInset + 32),
       enableInteractiveSelection: !widget.readOnly,
       textAlignVertical: TextAlignVertical.top,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 16,
-        height: 1.5,
-      ),
+      style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
       inputFormatters: _formatters,
       cursorColor: const Color(0xFFD4AF37),
       decoration: const InputDecoration(
         border: InputBorder.none,
         hintText: 'Write your day…',
-        hintStyle: TextStyle(
-          color: Color(0xFF666666),
-          fontSize: 16,
-        ),
+        hintStyle: TextStyle(color: Color(0xFF666666), fontSize: 16),
       ),
       onChanged: _handleTextChanged,
     );
@@ -645,13 +679,15 @@ class RichTextEditorState extends State<RichTextEditor> {
 
     final spans = <InlineSpan>[];
     for (final op in _currentBlock.ops) {
-      spans.addAll(JournalBadgeSpanBuilder.build(
-        text: op.insert,
-        style: baseStyle,
-        expansionState: _controller.badgeExpansion,
-        onToggle: _handleBadgeToggle,
-        compact: false,
-      ));
+      spans.addAll(
+        JournalBadgeSpanBuilder.build(
+          text: op.insert,
+          style: baseStyle,
+          expansionState: _controller.badgeExpansion,
+          onToggle: _handleBadgeToggle,
+          compact: false,
+        ),
+      );
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {

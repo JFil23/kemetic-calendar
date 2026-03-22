@@ -30,6 +30,7 @@ import 'services/decan_reflection_scheduler.dart';
 import 'data/decan_reflection_repo.dart';
 import 'features/profile/profile_page.dart';
 import 'features/reflections/decan_reflection_detail_page.dart';
+import 'widgets/kemetic_keyboard.dart';
 
 // Conditional import: on web we use URL cleanup + visibility hook; elsewhere no-ops.
 import 'utils/web_history.dart'
@@ -286,7 +287,7 @@ class MyApp extends StatelessWidget {
             : mq.textScaler;
         return MediaQuery(
           data: mq.copyWith(textScaler: textScaler),
-          child: child ?? const SizedBox.shrink(),
+          child: KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
         );
       },
     );
