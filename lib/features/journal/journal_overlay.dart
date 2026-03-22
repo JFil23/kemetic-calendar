@@ -17,10 +17,6 @@ import '../../data/journal_repo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'journal_event_badge.dart';
 import 'journal_badge_utils.dart';
-import '../../services/ai_reflection_service.dart';
-import '../../widgets/kemetic_day_info.dart';
-import '../../core/day_key.dart';
-import '../../widgets/kemetic_date_picker.dart' show KemeticMath;
 
 class JournalOverlay extends StatefulWidget {
   final JournalController controller;
@@ -38,19 +34,16 @@ class JournalOverlay extends StatefulWidget {
   State<JournalOverlay> createState() => _JournalOverlayState();
 }
 
-enum _JournalPane { journal, reflection }
+enum _JournalPane { journal }
 
 class _JournalOverlayState extends State<JournalOverlay>
     with SingleTickerProviderStateMixin {
-  static const bool _REFLECTION_LOCAL_FALLBACK = false;
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
   late TextEditingController _textController;
   late ScrollController _scrollController;
   late ScrollController _badgeScrollController;
   late FocusNode _focusNode;
-  late final AIReflectionService _reflectionService;
-  late final JournalRepo _journalRepo;
 
   double _dragOffset = 0;
 
@@ -67,15 +60,8 @@ class _JournalOverlayState extends State<JournalOverlay>
   // Universal undo/redo system
   late JournalUndoSystem _undoSystem;
 
-  // Reflection tab state
   _JournalPane _activePane = _JournalPane.journal;
-  String? _reflectionText;
-  int? _reflectionBadgeCount;
-  int? _reflectionEvidenceCount;
-  String? _reflectionBranch;
-  List<String>? _reflectionTopTags;
-  bool _isGeneratingReflection = false;
-  bool _isSavingReflection = false;
+  // Reflection tab removed — keep state lean
 
   @override
   void initState() {
@@ -96,10 +82,6 @@ class _JournalOverlayState extends State<JournalOverlay>
     _badgeScrollController = ScrollController();
     _focusNode = FocusNode();
     widget.controller.onDraftChanged = _onDraftChanged;
-    _reflectionService = AIReflectionService(Supabase.instance.client);
-    _journalRepo = JournalRepo(Supabase.instance.client);
-
-    // Journal remains default view; Nutrition toggle is user-driven
 
     // V2 initialization
     _undoSystem = JournalUndoSystem();
@@ -138,76 +120,6 @@ class _JournalOverlayState extends State<JournalOverlay>
         _textController.text = widget.controller.currentDraft;
       });
     }
-  }
-
-  String _buildReflectionFromBadges(List<EventBadgeToken> badges) {
-    if (badges.isEmpty) {
-      return 'Time moved quietly this decan. Silence is still a shape—space held open for whatever wants to speak next.';
-    }
-
-    final titleCounts = <String, int>{};
-    int morningCount = 0;
-    int eveningCount = 0;
-
-    for (final b in badges) {
-      final t = b.title.trim().toLowerCase();
-      if (t.isNotEmpty) {
-        titleCounts[t] = (titleCounts[t] ?? 0) + 1;
-      }
-      final start = b.start;
-      if (start != null) {
-        final h = start.toLocal().hour;
-        if (h < 12) morningCount++;
-        if (h >= 18) eveningCount++;
-      }
-    }
-
-    final sorted = titleCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final dominant = sorted.isNotEmpty ? sorted.first.value : 0;
-    final total = badges.length;
-    final dominantRatio = total == 0 ? 0.0 : dominant / total;
-
-    final focused = dominantRatio >= 0.5;
-    final exploratory = sorted.length >= 3 && dominantRatio < 0.5;
-    final morningLean = morningCount > total / 2;
-    final eveningLean = eveningCount > total / 2;
-
-    final opening = focused
-        ? 'This decan moved in close circles—choosing depth over breadth.'
-        : exploratory
-            ? 'Your days touched many currents, yet an inner note stayed steady.'
-            : 'You moved with measured steps, neither rushing nor drifting.';
-
-    final pattern = focused
-        ? 'Returning to similar moments suggests you were seeking alignment more than variety—choosing what felt true over what was simply available.'
-        : exploratory
-            ? 'You let yourself explore without fixing on one shape. That kind of wandering is listening for what rings honest.'
-            : 'Your marks carried a quiet negotiation between stability and change, steadying yourself while testing new edges.';
-
-    final rhythm = morningLean
-        ? 'Mornings held more of your presence—as if first light gave the clearest signal.'
-        : eveningLean
-            ? 'Evenings gathered your energy—closing light became a place to settle what mattered.'
-            : 'Your hours spread across the day, a gentle pulse rather than a single surge.';
-
-    const silence =
-        'Some spaces stayed quiet—not as neglect, but as rest points waiting to receive you when you are ready.';
-
-    const invitation =
-        'As the next decan opens, carry forward the feeling that felt most like you, and let one quiet space be touched—only if it calls.';
-
-    const closing =
-        'Balance is already leaning toward you; meet it with the smallest honest gesture.';
-
-    return [
-      opening,
-      pattern,
-      rhythm,
-      silence,
-      invitation,
-      closing,
-    ].join(' ');
   }
 
   void _handleTextChanged(String text) {
@@ -481,8 +393,6 @@ class _JournalOverlayState extends State<JournalOverlay>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Flexible(child: _buildTabButton(label: 'Journal', pane: _JournalPane.journal)),
-                const SizedBox(width: 8),
-                Flexible(child: _buildTabButton(label: 'Reflection', pane: _JournalPane.reflection)),
               ],
             ),
           ),
@@ -560,9 +470,6 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   /// Returns either the Journal editor (default) or the Nutrition grid.
   Widget _buildContent() {
-    if (_activePane == _JournalPane.reflection) {
-      return _buildReflectionPane();
-    }
     return _buildEditor(); // existing editor builder
   }
 
@@ -589,51 +496,6 @@ class _JournalOverlayState extends State<JournalOverlay>
     );
   }
 
-  ({String dayLabel, String decanLabel, String monthLabel, int kDay}) _currentKemeticContext() {
-    final date = widget.controller.currentDate ?? DateTime.now();
-    final kem = KemeticMath.fromGregorian(date);
-    final dayKey = kemeticDayKey(kem.kMonth, kem.kDay);
-    final info = KemeticDayData.getInfoForDay(dayKey);
-    final monthLabel = info?.month ?? 'Month ${kem.kMonth}';
-    final decanLabel =
-        KemeticDayData.resolveDecanNameFromKey(dayKey, expanded: true) ??
-            info?.decanName ??
-            'Decan ${decanForDay(kem.kDay)}';
-    final dayLabel = '$monthLabel ${kem.kDay}';
-    return (
-      dayLabel: dayLabel,
-      decanLabel: decanLabel,
-      monthLabel: monthLabel,
-      kDay: kem.kDay,
-    );
-  }
-
-  ({DateTime start, DateTime end}) _currentDecanWindow() {
-    final date = widget.controller.currentDate ?? DateTime.now();
-    final kem = KemeticMath.fromGregorian(date);
-    final decanStartDay = ((kem.kDay - 1) ~/ 10) * 10 + 1;
-    final maxDay = (kem.kMonth == 13)
-        ? (KemeticMath.isLeapKemeticYear(kem.kYear) ? 6 : 5)
-        : 30;
-    final decanEndDay = (decanStartDay + 9) > maxDay ? maxDay : decanStartDay + 9;
-    final start = KemeticMath.toGregorian(kem.kYear, kem.kMonth, decanStartDay);
-    final end = KemeticMath.toGregorian(kem.kYear, kem.kMonth, decanEndDay);
-    return (start: start, end: end);
-  }
-
-  String _formatDateOnly(DateTime date) {
-    final d = date.toLocal();
-    final yyyy = d.year.toString().padLeft(4, '0');
-    final mm = d.month.toString().padLeft(2, '0');
-    final dd = d.day.toString().padLeft(2, '0');
-    return '$yyyy-$mm-$dd';
-  }
-
-  DateTime _dateOnly(DateTime date) {
-    final d = date.toLocal();
-    return DateTime(d.year, d.month, d.day);
-  }
-
   JournalDocument? _documentFromEntry(JournalEntry entry) {
     final body = entry.body.trim();
     if (body.isEmpty) return JournalDocument.fromPlainText('');
@@ -652,289 +514,6 @@ class _JournalOverlayState extends State<JournalOverlay>
     return JournalDocument.fromPlainText(body);
   }
 
-  Future<List<({EventBadgeToken token, DateTime occurredOn, DateTime? occurredAt})>> _collectDecanBadges(
-    DateTime decanStart,
-    DateTime decanEnd,
-  ) async {
-    final entries = await _journalRepo.listRange(start: decanStart, end: decanEnd);
-    final badges = <({EventBadgeToken token, DateTime occurredOn, DateTime? occurredAt})>[];
-    final seen = <String>{};
-
-    void addBadges(List<EventBadgeToken> tokens, DateTime fallbackDay) {
-      final day = _dateOnly(fallbackDay);
-      for (final token in tokens) {
-        if (!seen.add(token.id)) continue;
-        final occurred = token.start != null ? _dateOnly(token.start!) : day;
-        badges.add((token: token, occurredOn: occurred, occurredAt: token.start));
-      }
-    }
-
-    for (final entry in entries) {
-      final doc = _documentFromEntry(entry);
-      if (doc == null) continue;
-      addBadges(JournalBadgeUtils.tokensFromDocument(doc), entry.gregDate);
-    }
-
-    final currentDoc = widget.controller.currentDocument;
-    if (currentDoc != null) {
-      addBadges(
-        JournalBadgeUtils.tokensFromDocument(currentDoc),
-        widget.controller.currentDate ?? DateTime.now(),
-      );
-    }
-
-    badges.sort((a, b) {
-      final cmp = a.occurredOn.compareTo(b.occurredOn);
-      if (cmp != 0) return cmp;
-      if (a.occurredAt == null && b.occurredAt == null) return 0;
-      if (a.occurredAt == null) return 1;
-      if (b.occurredAt == null) return -1;
-      return a.occurredAt!.compareTo(b.occurredAt!);
-    });
-
-    return badges;
-  }
-
-  String _buildReflectionText(List<EventBadgeToken> badges) {
-    // Fallback reflection grounded in badge patterns (no journal text, no badge/task recap).
-    return _buildReflectionFromBadges(badges);
-  }
-
-  Future<void> _handleGenerateReflection() async {
-    if (_isGeneratingReflection) return;
-    setState(() {
-      _isGeneratingReflection = true;
-    });
-    final ctx = _currentKemeticContext();
-    final window = _currentDecanWindow();
-    final decanBadges = await _collectDecanBadges(window.start, window.end);
-    final fallbackTokens = decanBadges.map((b) => b.token).toList();
-
-    // Map badges to lightweight payload for the edge function (client-provided badge evidence)
-    final payloadBadges = decanBadges
-        .map(
-          (b) => {
-            'title': b.token.title,
-            'details': b.token.description ?? b.token.title,
-            'tags': <String>[],
-            'occurred_on': _formatDateOnly(b.occurredOn),
-            if (b.occurredAt != null) 'occurred_at': b.occurredAt!.toUtc().toIso8601String(),
-          },
-        )
-        .toList();
-
-    String generated = '';
-    try {
-      final response = await _reflectionService.generateReflection(
-        decanName: '${ctx.monthLabel} — ${ctx.decanLabel}',
-        decanTheme: ctx.decanLabel,
-        decanStart: window.start,
-        decanEnd: window.end,
-        badges: payloadBadges,
-      );
-      if (kDebugMode) {
-        debugPrint(
-            'REFL success=${response.success} model=${response.modelUsed} err=${response.error}');
-        debugPrint('REFL text length=${response.reflection?.length ?? 0}');
-        debugPrint(
-            'REFL badgeCount=${response.badgeCount} evidenceCount=${response.evidenceCount} branch=${response.branch} topTags=${response.topTags}');
-      }
-      if (response.success && (response.reflection?.trim().isNotEmpty ?? false)) {
-        generated = response.reflection!.trim();
-        _reflectionBadgeCount = response.badgeCount;
-        _reflectionEvidenceCount = response.evidenceCount;
-        _reflectionBranch = response.branch;
-        _reflectionTopTags = response.topTags;
-      } else if (_REFLECTION_LOCAL_FALLBACK) {
-        generated = _buildReflectionText(fallbackTokens);
-      } else {
-        generated = 'Reflection unavailable.';
-      }
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('Generate reflection failed: $e');
-        debugPrint('$st');
-      }
-      if (_REFLECTION_LOCAL_FALLBACK) {
-        generated = _buildReflectionText(fallbackTokens);
-      } else {
-        generated = 'Reflection unavailable.';
-      }
-    }
-
-    final text = generated.isNotEmpty ? generated : 'Reflection unavailable.';
-    setState(() {
-      _reflectionText = text;
-      _isGeneratingReflection = false;
-    });
-  }
-
-  Future<void> _handleSaveReflection() async {
-    if (_isSavingReflection) return;
-    setState(() {
-      _isSavingReflection = true;
-    });
-
-    final badges = _extractBadges();
-    final text = _reflectionText ?? _buildReflectionText(badges);
-    try {
-      await widget.controller.appendToToday('\n\n$text');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Reflection saved to journal'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-        setState(() {
-          _activePane = _JournalPane.journal;
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _reflectionText = text;
-          _isSavingReflection = false;
-        });
-      }
-    }
-  }
-
-  Widget _buildReflectionPane() {
-    final badges = _extractBadges();
-    final ctx = _currentKemeticContext();
-    final reflection = _reflectionText;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Decan Reflection',
-            style: const TextStyle(
-              color: Color(0xFFD4AF37),
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${ctx.monthLabel} — ${ctx.decanLabel}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildBadgeSummary(badges),
-          const SizedBox(height: 16),
-          Text(
-            reflection ?? 'Generate a reflection that reads your time-shape from badges alone (journal text stays private).',
-            style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.4),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              ElevatedButton.icon(
-                onPressed: _isGeneratingReflection ? null : _handleGenerateReflection,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4AF37),
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                icon: _isGeneratingReflection
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                      )
-                    : const Icon(Icons.auto_awesome, size: 18),
-                label: const Text('Generate'),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: _isSavingReflection ? null : _handleSaveReflection,
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2),
-                  foregroundColor: const Color(0xFFD4AF37),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                icon: _isSavingReflection
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD4AF37)),
-                      )
-                    : const Icon(Icons.check_circle_outline, size: 18),
-                label: const Text('Save to Journal'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextButton(
-            onPressed: () {
-              setState(() => _activePane = _JournalPane.journal);
-              Future.microtask(() => _focusNode.requestFocus());
-            },
-            child: const Text(
-              'Back to Journal',
-              style: TextStyle(color: Color(0xFFD4AF37)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBadgeSummary(List<EventBadgeToken> badges) {
-    if (badges.isEmpty) {
-      return const Text(
-        'No badges yet for this entry.',
-        style: TextStyle(color: Color(0xFFAAAAAA)),
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A0A0A),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF333333), width: 1),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Badges • ${badges.length}',
-              style: const TextStyle(
-                color: Color(0xFFD4AF37),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...badges.map((token) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: EventBadgeWidget(
-                  token: token,
-                  initialExpanded: _badgeExpansion[token.id] ?? false,
-                  onToggle: (next) {
-                    setState(() {
-                      _badgeExpansion[token.id] = next;
-                    });
-                  },
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildEditor() {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
