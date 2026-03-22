@@ -818,7 +818,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     // Authenticated
-    return const Scaffold(body: CalendarPage());
+    return Scaffold(body: CalendarPage());
   }
 
   void _installPushNavigation() {

@@ -14,7 +14,7 @@ import 'flow_post_picker_page.dart';
 import 'flow_post_detail_page.dart';
 import '_post_glossy_helper.dart';
 import 'follow_list_page.dart';
-import 'my_flows_page.dart';
+import '../calendar/calendar_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final String userId;
@@ -438,8 +438,17 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
 
+    final calendarState = CalendarPage.globalKey.currentState;
+    if (calendarState != null) {
+      calendarState.openMyFlowsFromOutside();
+      return;
+    }
+
+    // Fallback: push CalendarPage and ask it to open My Flows on launch.
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const MyFlowsPage()),
+      MaterialPageRoute(
+        builder: (_) => CalendarPage(openMyFlowsOnLaunch: true),
+      ),
     );
   }
 

@@ -1500,8 +1500,13 @@ GlobalKey keyForMonth(int ky, int km) => GlobalObjectKey('y${ky}m${km}');
 
 class CalendarPage extends StatefulWidget {
   final int? initialFlowIdToEdit;
+  final bool openMyFlowsOnLaunch;
 
-  const CalendarPage({super.key, this.initialFlowIdToEdit});
+  CalendarPage({
+    Key? key,
+    this.initialFlowIdToEdit,
+    this.openMyFlowsOnLaunch = false,
+  }) : super(key: key ?? CalendarPage.globalKey);
 
   // Global key for accessing calendar state from other pages
   static final GlobalKey<_CalendarPageState> globalKey =
@@ -7263,6 +7268,16 @@ class _CalendarPageState extends State<CalendarPage>
     );
   }
 
+  /// Public entrypoint so other screens (e.g., Profile) can open Flow Studio's
+  /// "My Flows" viewer without duplicating UI.
+  Future<void> openMyFlowsFromOutside() async {
+    if (_flows.isEmpty && !_isLoadingFromDisk) {
+      await _loadFromDisk();
+    }
+    if (!mounted) return;
+    _openMyFlowsList();
+  }
+
   // Manage Flows callback: jump straight to My Flows (or specific flow editor if id provided).
   void Function(int? flowId) _getMyFlowsCallback() {
     return (int? flowId) {
@@ -10251,8 +10266,11 @@ class _CalendarPageState extends State<CalendarPage>
       if (user != null) {
         _requestStartupRun(reason: 'init').then((_) {
           final targetFlowId = widget.initialFlowIdToEdit;
-          if (mounted && targetFlowId != null) {
+          if (!mounted) return;
+          if (targetFlowId != null) {
             _openFlowEditorDirectly(targetFlowId);
+          } else if (widget.openMyFlowsOnLaunch) {
+            _openMyFlowsList();
           }
         });
       } else {
@@ -10270,6 +10288,11 @@ class _CalendarPageState extends State<CalendarPage>
       if (targetFlowId != null) {
         _openFlowEditorDirectly(targetFlowId);
       }
+    } else if (widget.openMyFlowsOnLaunch) {
+      // If already initialized and caller requested My Flows, honor it.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openMyFlowsList();
+      });
     }
 
     if (_pendingInitialHydration &&
@@ -12437,7 +12460,6 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     return Scaffold(
-      key: CalendarPage.globalKey,
       backgroundColor: _bg,
       appBar: AppBar(
         backgroundColor: Colors.black,
@@ -19806,7 +19828,96 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     }
   }
 
-  List<Widget> _buildSchedule({required _Flow flow, required bool kemetic}) {
+  List<Widget> _buildSchedule({
+    required _Flow flow,
+    required bool kemetic,
+    ReminderRule? reminderRule,
+  }) {
+    // Special-case reminder-backed flows: show their repeat pattern instead of
+    // the empty rules table.
+    if (reminderRule != null) {
+      final repeatLabel = _reminderRepeatLabel(reminderRule);
+      final startLabel = widget.fmt(reminderRule.startLocal);
+      final timeLabel = reminderRule.allDay
+          ? 'All day'
+          : TimeOfDay.fromDateTime(reminderRule.startLocal).format(context);
+
+      TextStyle head = const TextStyle(
+        color: Colors.white70,
+        fontWeight: FontWeight.w600,
+        fontSize: 12,
+      );
+      TextStyle cell = const TextStyle(color: Colors.white, fontSize: 13);
+
+      return [
+        Table(
+          columnWidths: const {1: FlexColumnWidth(2)},
+          children: [
+            TableRow(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text('REPEAT', style: head),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    repeatLabel,
+                    style: cell,
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+              ],
+            ),
+            const TableRow(
+              children: [
+                SizedBox(height: 1, child: ColoredBox(color: Colors.white10)),
+                SizedBox(height: 1, child: ColoredBox(color: Colors.white10)),
+              ],
+            ),
+            TableRow(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text('STARTS', style: head),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    startLabel,
+                    style: cell,
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+              ],
+            ),
+            const TableRow(
+              children: [
+                SizedBox(height: 1, child: ColoredBox(color: Colors.white10)),
+                SizedBox(height: 1, child: ColoredBox(color: Colors.white10)),
+              ],
+            ),
+            TableRow(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text('TIME', style: head),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    timeLabel,
+                    style: cell,
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ];
+    }
+
     final rows = <TableRow>[];
 
     TextStyle head = const TextStyle(
@@ -20051,8 +20162,10 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     events,
     required bool loading,
     required Object? error,
+    ReminderRule? reminderRule,
   }) {
     final displayOverview = _effectiveOverview(flow.notes, meta.overview);
+    final isReminderFlow = reminderRule != null || flow.isReminder;
 
     return ListView(
       key: PageStorageKey('flow-${flow.id}'),
@@ -20103,7 +20216,11 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           gradient: silverGloss,
         ),
         const SizedBox(height: 6),
-        ..._buildSchedule(flow: flow, kemetic: meta.kemetic),
+        ..._buildSchedule(
+          flow: flow,
+          kemetic: meta.kemetic,
+          reminderRule: reminderRule,
+        ),
 
         const SizedBox(height: 24),
 
@@ -20134,6 +20251,12 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
               'No days or notes for this flow yet.',
               style: TextStyle(fontSize: 14, color: Colors.white70),
             ),
+          )
+        else if (isReminderFlow)
+          _buildReminderSummaryCard(
+            flow: flow,
+            rule: reminderRule,
+            events: events,
           )
         else
           ...events.map(_buildEventTile),
@@ -20263,12 +20386,14 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           final events = _eventsByFlow[flow.id] ?? const [];
           final loading = _loadingFlowIds.contains(flow.id);
           final error = _eventsErrorByFlow[flow.id];
+          final reminderRule = _reminderRuleFromFlow(flow);
           return _buildFlowBody(
             flow: flow,
             meta: meta,
             events: events,
             loading: loading,
             error: error,
+            reminderRule: reminderRule,
           );
         },
       ),
@@ -20328,7 +20453,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       return cidPattern.hasMatch(withPrefix);
     }
 
-    final detailText = _stripCidLines(e.detail?.trim() ?? '');
+    final detailText = _stripCidLines(_cleanDetail(e.detail));
     final hasDetail = detailText.isNotEmpty && !_isCidDetail(detailText);
     final hasLocation = (e.location != null && e.location!.trim().isNotEmpty);
 
@@ -20382,6 +20507,120 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
               onTap: () => _launchLocationFromPreview(e.location!.trim()),
               child: Text(
                 e.location!.trim(),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.white,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReminderSummaryCard({
+    required _Flow flow,
+    required List<
+      ({
+        String? id,
+        String? clientEventId,
+        String title,
+        String? detail,
+        String? location,
+        bool allDay,
+        DateTime startsAtUtc,
+        DateTime? endsAtUtc,
+        int? flowLocalId,
+        String? category,
+      })
+    >
+    events,
+    ReminderRule? rule,
+  }) {
+    final first = events.isNotEmpty ? events.first : null;
+    final repeat = rule?.repeat ?? _decodeReminderRepeat(first?.detail);
+    final startLocal =
+        rule?.startLocal ?? first?.startsAtUtc.toLocal() ?? DateTime.now();
+    final allDay = rule?.allDay ?? (first?.allDay ?? false);
+
+    final effectiveRule = ReminderRule(
+      id: rule?.id ?? flow.reminderUuid ?? 'reminder',
+      title: flow.name,
+      startLocal: startLocal,
+      allDay: allDay,
+      color: rule?.color ?? flow.color,
+      category: rule?.category ?? first?.category,
+      active: rule?.active ?? true,
+      repeat: repeat ?? const ReminderRepeat(),
+    );
+
+    final repeatLabel = _reminderRepeatLabel(effectiveRule);
+    final timeLabel = allDay
+        ? 'All day'
+        : TimeOfDay.fromDateTime(startLocal).format(context);
+    final dateLabel = widget.fmt(DateUtils.dateOnly(startLocal));
+    final detail = _cleanDetail(first?.detail);
+    final hasDetail = detail.isNotEmpty;
+    final location = (first?.location ?? '').trim();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111111),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x22FFFFFF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  flow.name.isEmpty ? '(Untitled reminder)' : flow.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '$dateLabel · $timeLabel',
+                style: const TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Repeats: $repeatLabel',
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.white70,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (hasDetail) ...[
+            const SizedBox(height: 8),
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 13, color: Colors.white),
+                children: _buildDetailSpans(detail),
+              ),
+            ),
+          ],
+          if (location.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => _launchLocationFromPreview(location),
+              child: Text(
+                location,
                 style: const TextStyle(
                   fontSize: 13,
                   color: Colors.white,
@@ -20622,9 +20861,107 @@ String notesEncode({
 
 // Derive a human-friendly overview string, falling back to stored notes content
 // (including repeating-note metadata) when the encoded overview is empty.
+ReminderRule? _tryParseReminderRuleFromNotes(String? notes) {
+  if (notes == null || notes.trim().isEmpty) return null;
+  try {
+    final decoded = jsonDecode(notes.trim());
+    if (decoded is Map<String, dynamic>) {
+      return ReminderRule.fromJson(decoded);
+    }
+  } catch (_) {
+    // Not a reminder json blob; ignore.
+  }
+  return null;
+}
+
+String _formatBasicTime(DateTime dt) {
+  final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+  final m = dt.minute.toString().padLeft(2, '0');
+  final mer = dt.hour >= 12 ? 'PM' : 'AM';
+  return '$h:$m $mer';
+}
+
+ReminderRule? _reminderRuleFromFlow(_Flow f) =>
+    _tryParseReminderRuleFromNotes(f.notes);
+
+ReminderRepeat _decodeReminderRepeat(String? detail) {
+  if (detail == null || detail.isEmpty) return const ReminderRepeat();
+  final marker = 'repeat=';
+  final idx = detail.indexOf(marker);
+  if (idx < 0) return const ReminderRepeat();
+  final start = idx + marker.length;
+  final end = detail.indexOf(';', start);
+  final jsonStr =
+      (end >= 0) ? detail.substring(start, end) : detail.substring(start);
+  try {
+    final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+    return ReminderRepeat.fromJson(map);
+  } catch (_) {
+    return const ReminderRepeat();
+  }
+}
+
+String _reminderRepeatLabel(ReminderRule rule) {
+  String ordinal(int n) {
+    if (n >= 11 && n <= 13) return '${n}th';
+    switch (n % 10) {
+      case 1:
+        return '${n}st';
+      case 2:
+        return '${n}nd';
+      case 3:
+        return '${n}rd';
+      default:
+        return '${n}th';
+    }
+  }
+
+  switch (rule.repeat.kind) {
+    case ReminderRepeatKind.none:
+      return 'One-time';
+    case ReminderRepeatKind.everyNDays:
+      final iv = rule.repeat.interval <= 0 ? 1 : rule.repeat.interval;
+      return iv == 1 ? 'Every day' : 'Every $iv days';
+    case ReminderRepeatKind.weekly:
+      if (rule.repeat.weekdays.isEmpty) return 'Weekly';
+      const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      final parts = rule.repeat.weekdays.toList()..sort();
+      return parts.map((d) => labels[(d - 1).clamp(0, 6)]).join(', ');
+    case ReminderRepeatKind.monthlyDay:
+      final days = rule.repeat.monthDays.isNotEmpty
+          ? rule.repeat.monthDays
+          : {
+              if (rule.repeat.monthDay != null)
+                rule.repeat.monthDay!.clamp(1, 31)
+            };
+      final labels = days.toList()..sort();
+      return 'Monthly ${labels.map(ordinal).join(", ")} (G)';
+    case ReminderRepeatKind.kemeticEveryNDecans:
+      final iv = rule.repeat.interval <= 0 ? 1 : rule.repeat.interval;
+      return iv == 1 ? 'Every Decan' : 'Every $iv Decans';
+    case ReminderRepeatKind.kemeticDecanDay:
+      final ds = rule.repeat.decanDays.toList()..sort();
+      return ds.isEmpty
+          ? 'Each Decan'
+          : 'Each Decan · Day ${ds.join(", ")}';
+    case ReminderRepeatKind.kemeticMonthDay:
+      final ds = rule.repeat.kemeticMonthDays.toList()..sort();
+      if (ds.isEmpty) return 'Monthly (Kemetic)';
+      return 'Monthly ${ds.map(ordinal).join(", ")} (K)';
+  }
+}
+
 String _effectiveOverview(String? notes, String decodedOverview) {
   final trimmed = decodedOverview.trim();
   if (trimmed.isNotEmpty) return trimmed;
+
+  final reminderRule = _tryParseReminderRuleFromNotes(notes);
+  if (reminderRule != null) {
+    final repeatLabel = _reminderRepeatLabel(reminderRule);
+    final timeLabel =
+        reminderRule.allDay ? 'All day' : _formatBasicTime(reminderRule.startLocal);
+    return 'Repeats $repeatLabel · $timeLabel';
+  }
 
   final raw = (notes ?? '').trim();
   if (raw.isEmpty) return '';
@@ -20788,6 +21125,10 @@ String _cleanTitle(String? s) {
 String _cleanDetail(String? s) {
   if (s == null || s.isEmpty) return '';
   var t = s;
+  final decodedColor = _decodeDetailColor(t);
+  if (decodedColor.detail != null) {
+    t = decodedColor.detail!;
+  }
   if (t.startsWith('flowLocalId=')) {
     final i = t.indexOf(';');
     t = (i >= 0 && i < t.length - 1) ? t.substring(i + 1) : '';
