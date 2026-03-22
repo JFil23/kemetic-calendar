@@ -37,7 +37,7 @@ class KemeticKeyboardController extends ChangeNotifier {
       _lastEditable = editable;
     } else if (!_open) {
       // Only clear when the custom keyboard is not showing; keep the last known
-      // editable while open to survive transient focus loss.
+      // editable while open to survive transient blur (notably on iOS PWA).
       _editable = null;
     }
     if (editable == null && !_open) _open = false;
@@ -168,6 +168,11 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
       editable = focus!.context!.findAncestorStateOfType<EditableTextState>();
     }
     if (editable == null) {
+      // On iOS web/PWA the system keyboard toggle can null focus; keep the last
+      // target instead of clearing so inserts continue to work.
+      if (_isIosWebPwa()) {
+        return;
+      }
       // If the custom keyboard is open, keep the last target so PWA/iOS blur
       // doesn't drop inserts. If we're closed, clear the target.
       if (!_controller.isOpen) {
@@ -223,7 +228,8 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
     }
     target.widget.focusNode.requestFocus(); // keep the text input connection
     _controller.attachEditable(target); // ensure _editable is set for opening
-    // On iOS web/PWA, avoid hiding the system keyboard to prevent focus loss.
+    // On iOS web/PWA, avoid hiding the system keyboard to prevent focus loss
+    // while still letting native builds behave as before.
     if (!_isIosWebPwa()) {
       try {
         await SystemChannels.textInput.invokeMethod('TextInput.hide');
