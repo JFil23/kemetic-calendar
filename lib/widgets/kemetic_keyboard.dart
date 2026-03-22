@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:characters/characters.dart';
@@ -8,12 +9,14 @@ import 'package:characters/characters.dart';
 /// the Medu Neter keyboard is open.
 class KemeticKeyboardController extends ChangeNotifier {
   EditableTextState? _editable;
+  EditableTextState? _lastEditable;
   bool _open = false;
   bool _opening = false;
 
-  bool get hasTarget => _editable != null;
+  bool get hasTarget => _editable != null || _lastEditable != null;
   bool get isOpen => _open;
   EditableTextState? get editable => _editable;
+  EditableTextState? get lastEditable => _lastEditable;
 
   EditableTextState? _findEditableFromFocus() {
     final focus = FocusManager.instance.primaryFocus;
@@ -29,8 +32,15 @@ class KemeticKeyboardController extends ChangeNotifier {
   }
 
   void attachEditable(EditableTextState? editable) {
-    _editable = editable;
-    if (editable == null) _open = false;
+    if (editable != null && editable.mounted) {
+      _editable = editable;
+      _lastEditable = editable;
+    } else if (!_open) {
+      // Only clear when the custom keyboard is not showing; keep the last known
+      // editable while open to survive transient focus loss.
+      _editable = null;
+    }
+    if (editable == null && !_open) _open = false;
     notifyListeners();
   }
 
@@ -59,16 +69,14 @@ class KemeticKeyboardController extends ChangeNotifier {
   }
 
   void requestSystemKeyboard() {
-    _editable?.requestKeyboard();
+    final target = _selectUsableEditable();
+    target?.widget.focusNode.requestFocus();
+    target?.requestKeyboard();
   }
 
   void insert(String value, _OutputMode mode) {
-    var target = _editable;
-    if (target == null) {
-      ensureEditableFromFocus();
-      target = _editable;
-      if (target == null) return;
-    }
+    final target = _selectUsableEditable();
+    if (target == null) return;
 
     final controller = target.widget.controller;
     final selection = controller.selection;
@@ -97,6 +105,26 @@ class KemeticKeyboardController extends ChangeNotifier {
       selection: TextSelection.collapsed(offset: newOffset),
       composing: TextRange.empty,
     );
+  }
+
+  EditableTextState? _selectUsableEditable() {
+    // Prefer current editable; if unusable, try focused; then last known.
+    EditableTextState? candidate = _editable;
+    if (!_isUsable(candidate)) {
+      final focused = _findEditableFromFocus();
+      if (_isUsable(focused)) {
+        attachEditable(focused);
+        candidate = focused;
+      }
+    }
+    if (!_isUsable(candidate) && _isUsable(_lastEditable)) {
+      candidate = _lastEditable;
+    }
+    return _isUsable(candidate) ? candidate : null;
+  }
+
+  bool _isUsable(EditableTextState? editable) {
+    return editable != null && editable.mounted && editable.context.mounted;
   }
 }
 
@@ -131,17 +159,21 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
   }
 
   void _handleFocusChange() {
+    // Ignore transient focus churn while swapping keyboards.
+    if (_opening) return;
+
     final focus = FocusManager.instance.primaryFocus;
     EditableTextState? editable;
     if (focus?.context != null) {
       editable = focus!.context!.findAncestorStateOfType<EditableTextState>();
     }
     if (editable == null) {
-      // No editable in focus: hide the custom keyboard and clear stale targets.
-      if (_controller.isOpen) {
+      // If the custom keyboard is open, keep the last target so PWA/iOS blur
+      // doesn't drop inserts. If we're closed, clear the target.
+      if (!_controller.isOpen) {
         _controller.close();
+        _controller.attachEditable(null);
       }
-      _controller.attachEditable(null);
       return;
     }
 
@@ -181,19 +213,23 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
     if (_opening) return;
     _opening = true;
     _controller.beginOpening();
-    if (!_controller.hasTarget) {
-      _controller.ensureEditableFromFocus();
-      if (!_controller.hasTarget) {
-        _controller.endOpening(success: false);
-        _opening = false;
-        return;
-      }
+    _controller.ensureEditableFromFocus();
+    final target =
+        _controller.editable ?? _controller.lastEditable ?? _controller.editable;
+    if (target == null) {
+      _controller.endOpening(success: false);
+      _opening = false;
+      return;
     }
-    _controller.editable?.requestKeyboard(); // keep the text input connection
-    try {
-      await SystemChannels.textInput.invokeMethod('TextInput.hide');
-    } catch (_) {
-      // ignore platform quirks
+    target.widget.focusNode.requestFocus(); // keep the text input connection
+    _controller.attachEditable(target); // ensure _editable is set for opening
+    // On iOS web/PWA, avoid hiding the system keyboard to prevent focus loss.
+    if (!_isIosWebPwa()) {
+      try {
+        await SystemChannels.textInput.invokeMethod('TextInput.hide');
+      } catch (_) {
+        // ignore platform quirks
+      }
     }
     _controller.endOpening(success: true);
     _opening = false;
@@ -202,6 +238,11 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
   void _closeCustomAndRestoreSystem() {
     _controller.close();
     _controller.requestSystemKeyboard();
+  }
+
+  bool _isIosWebPwa() {
+    // Web-only guard; iOS Safari PWAs lose focus when hiding keyboards.
+    return kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
   }
 }
 
