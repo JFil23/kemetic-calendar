@@ -15237,6 +15237,35 @@ class _EpagomenalCard extends StatelessWidget {
   final void Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
 
+  // Weekday labels row for epagomenal days (5 or 6 days)
+  Widget _epagomenalWeekdayRow(int dayCount) {
+    const letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final labels = List<String>.generate(dayCount, (i) {
+      final gregorian =
+          safeLocalDisplay(KemeticMath.toGregorian(kYear, 13, i + 1));
+      final idx = gregorian.weekday - 1; // Monday = 1
+      return letters[idx];
+    });
+
+    return Row(
+      children: [
+        for (int i = 0; i < labels.length; i++) ...[
+          Expanded(
+            child: Center(
+              child: Text(
+                labels[i],
+                style: _weekdayLabelStyle.copyWith(
+                  color: showGregorian ? _blueLight : _goldLight,
+                ),
+              ),
+            ),
+          ),
+          if (i < labels.length - 1) const SizedBox(width: 3),
+        ],
+      ],
+    );
+  }
+
   String? _gregMonthForEpagomenal(int ky, int epiCount) {
     for (int d = 1; d <= epiCount; d++) {
       final g = KemeticMath.toGregorian(ky, 13, d);
@@ -15337,6 +15366,9 @@ class _EpagomenalCard extends StatelessWidget {
               SizedBox(
                 height: expansionLevel == MonthExpansionLevel.details ? 0 : 10,
               ),
+
+              _epagomenalWeekdayRow(epiCount),
+              const SizedBox(height: 4),
 
               Row(
                 children: [
