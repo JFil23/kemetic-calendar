@@ -12,7 +12,6 @@ import 'package:mobile/utils/color_bits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'landscape_month_view.dart';
-import 'dart:convert' as json;
 import 'dart:convert';
 import 'day_view.dart';
 import '../profile/profile_page.dart';
@@ -1891,7 +1890,7 @@ class _CalendarPageState extends State<CalendarPage>
       'calendar:manual_delete_tombstones';
   static const String _kCidMigrationPrefKey = 'calendar:cid_migration_done';
   static const String _kReflectionSeenPrefKey =
-      'calendar:last_seen_reflection_start';
+      'calendar:seen_reflection_by_user';
   final Set<String> _endedReminderIds = {};
 
   // Decan reflection prompt state
@@ -12727,9 +12726,14 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Future<bool> _hasSeenReflection(DateTime decanStart) async {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return false;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final stored = prefs.getString(_kReflectionSeenPrefKey);
+      final raw = prefs.getString(_kReflectionSeenPrefKey);
+      if (raw == null || raw.isEmpty) return false;
+      final map = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      final stored = map[uid] as String?;
       return stored == _formatDateOnlyLocal(decanStart);
     } catch (_) {
       return false;
@@ -12737,12 +12741,16 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _markReflectionSeen(DateTime decanStart) async {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        _kReflectionSeenPrefKey,
-        _formatDateOnlyLocal(decanStart),
-      );
+      final raw = prefs.getString(_kReflectionSeenPrefKey);
+      final map = raw == null || raw.isEmpty
+          ? <String, dynamic>{}
+          : Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      map[uid] = _formatDateOnlyLocal(decanStart);
+      await prefs.setString(_kReflectionSeenPrefKey, jsonEncode(map));
     } catch (_) {
       // ignore
     }
@@ -15370,6 +15378,12 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     super.dispose();
   }
 
+  String? _extractEnglishCue(String? title) {
+    if (title == null) return null;
+    final match = RegExp(r'"([^"]+)"').firstMatch(title);
+    return match?.group(1);
+  }
+
   @override
   Widget build(BuildContext context) {
     final monthMeta = getMonthById(widget.kMonth);
@@ -15391,9 +15405,8 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     String _buildSpeakLine() {
       if (_currentDecanIndex == null) {
         return SpeechResolver.month(
-          monthId: widget.kMonth,
-          fallbackTranslit: monthMeta.displayTransliteration,
-          englishCue: monthMeta.displayShort,
+          month: monthMeta,
+          displayName: monthMeta.displayShort,
         );
       }
       // Decans only exist for months 1..12
@@ -15408,10 +15421,10 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
       final shortName =
           (DecanMetadata.decanNames[widget.kMonth] ?? const [''])[decanInMonth -
               1];
-      final englishCue = DecanMetadata.decanTitles[shortName];
+      final englishCue = _extractEnglishCue(DecanMetadata.decanTitles[shortName]);
       return SpeechResolver.decan(
         decanId: decanId,
-        fallbackTranslit: shortName,
+        displayName: shortName,
         englishCue: englishCue,
       );
     }
