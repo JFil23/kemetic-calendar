@@ -130,6 +130,104 @@ class ProfileRepo {
     }
   }
 
+  /// List the followers for a given user.
+  Future<List<UserSearchResult>> listFollowers(String userId) async {
+    try {
+      final rows = await _client
+          .from('follows')
+          .select('follower_id, created_at')
+          .eq('followee_id', userId)
+          .order('created_at', ascending: false);
+
+      final followerIds = ((rows as List<dynamic>?) ?? const [])
+          .map((r) => r['follower_id'] as String?)
+          .whereType<String>()
+          .toList();
+      if (followerIds.isEmpty) return const [];
+
+      final profilesResp = await _client
+          .from('profiles')
+          .select('id, handle, display_name, avatar_url, email')
+          .inFilter('id', followerIds);
+
+      final profileMap = <String, Map<String, dynamic>>{};
+      for (final row in (profilesResp as List<dynamic>? ?? const [])) {
+        final id = row['id'] as String?;
+        if (id != null) {
+          profileMap[id] = row as Map<String, dynamic>;
+        }
+      }
+
+      final results = <UserSearchResult>[];
+      for (final id in followerIds) {
+        final p = profileMap[id];
+        if (p == null) continue;
+        results.add(
+          UserSearchResult(
+            userId: id,
+            handle: p['handle'] as String?,
+            displayName: p['display_name'] as String?,
+            avatarUrl: p['avatar_url'] as String?,
+            email: p['email'] as String?,
+          ),
+        );
+      }
+      return results;
+    } catch (e) {
+      print('[ProfileRepo] Error listing followers: $e');
+      return const [];
+    }
+  }
+
+  /// List the accounts a user is following.
+  Future<List<UserSearchResult>> listFollowing(String userId) async {
+    try {
+      final rows = await _client
+          .from('follows')
+          .select('followee_id, created_at')
+          .eq('follower_id', userId)
+          .order('created_at', ascending: false);
+
+      final followeeIds = ((rows as List<dynamic>?) ?? const [])
+          .map((r) => r['followee_id'] as String?)
+          .whereType<String>()
+          .toList();
+      if (followeeIds.isEmpty) return const [];
+
+      final profilesResp = await _client
+          .from('profiles')
+          .select('id, handle, display_name, avatar_url, email')
+          .inFilter('id', followeeIds);
+
+      final profileMap = <String, Map<String, dynamic>>{};
+      for (final row in (profilesResp as List<dynamic>? ?? const [])) {
+        final id = row['id'] as String?;
+        if (id != null) {
+          profileMap[id] = row as Map<String, dynamic>;
+        }
+      }
+
+      final results = <UserSearchResult>[];
+      for (final id in followeeIds) {
+        final p = profileMap[id];
+        if (p == null) continue;
+        results.add(
+          UserSearchResult(
+            userId: id,
+            handle: p['handle'] as String?,
+            displayName: p['display_name'] as String?,
+            avatarUrl: p['avatar_url'] as String?,
+            email: p['email'] as String?,
+          ),
+        );
+      }
+      return results;
+    } catch (e) {
+      print('[ProfileRepo] Error listing following: $e');
+      return const [];
+    }
+  }
+
   /// Fetch profile by handle
   Future<UserProfile?> getProfileByHandle(String handle) async {
     try {

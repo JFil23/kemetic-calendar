@@ -13,6 +13,8 @@ import '../settings/settings_page.dart';
 import 'flow_post_picker_page.dart';
 import 'flow_post_detail_page.dart';
 import '_post_glossy_helper.dart';
+import 'follow_list_page.dart';
+import 'my_flows_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final String userId;
@@ -305,20 +307,34 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildStats(UserProfile profile) {
     final stats = [
       (
-        'Followers',
-        (profile.followersCount ?? 0).toString(),
+        label: 'Followers',
+        value: (profile.followersCount ?? 0).toString(),
+        onTap: () => _openFollowList(
+          profile,
+          FollowListType.followers,
+        ),
+        enabled: true,
       ),
       (
-        'Following',
-        (profile.followingCount ?? 0).toString(),
+        label: 'Following',
+        value: (profile.followingCount ?? 0).toString(),
+        onTap: () => _openFollowList(
+          profile,
+          FollowListType.following,
+        ),
+        enabled: true,
       ),
       (
-        'Active Flows',
-        (profile.activeFlowsCount ?? 0).toString(),
+        label: 'Active Flows',
+        value: (profile.activeFlowsCount ?? 0).toString(),
+        onTap: _onActiveFlowsTap,
+        enabled: _isViewingOwnProfile,
       ),
       (
-        'Flow Events',
-        (profile.totalFlowEventsCount ?? 0).toString(),
+        label: 'Flow Events',
+        value: (profile.totalFlowEventsCount ?? 0).toString(),
+        onTap: null,
+        enabled: true,
       ),
     ];
 
@@ -327,31 +343,103 @@ class _ProfilePageState extends State<ProfilePage> {
       runSpacing: 16,
       alignment: WrapAlignment.center,
       children: stats
-          .map((stat) => _buildStatItem(label: stat.$1, value: stat.$2))
+          .map(
+            (stat) => _buildStatItem(
+              label: stat.label,
+              value: stat.value,
+              onTap: stat.onTap,
+              enabled: stat.enabled,
+            ),
+          )
           .toList(),
     );
   }
 
-  Widget _buildStatItem({required String label, required String value}) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            color: Color(0xFFD4AF37), // Gold
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
+  Widget _buildStatItem({
+    required String label,
+    required String value,
+    VoidCallback? onTap,
+    bool enabled = true,
+  }) {
+    final numberColor = enabled
+        ? const Color(0xFFD4AF37)
+        : const Color(0xFFD4AF37).withOpacity(0.6);
+    final labelColor = enabled
+        ? Colors.white.withOpacity(0.6)
+        : Colors.white.withOpacity(0.35);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Column(
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  color: numberColor,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: labelColor,
+                  fontSize: 13,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.6),
-            fontSize: 13,
-          ),
+      ),
+    );
+  }
+
+  void _openFollowList(UserProfile profile, FollowListType type) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FollowListPage(
+          userId: profile.id,
+          type: type,
+          userHandle: profile.handle,
+          userDisplayName: profile.effectiveName,
+          onUserTap: _openProfileFromFollowList,
         ),
-      ],
+      ),
+    );
+  }
+
+  void _openProfileFromFollowList(String userId) {
+    if (userId == widget.userId) return;
+    final myId = Supabase.instance.client.auth.currentUser?.id;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProfilePage(
+          userId: userId,
+          isMyProfile: myId != null && userId == myId,
+        ),
+      ),
+    );
+  }
+
+  void _onActiveFlowsTap() {
+    if (!_isViewingOwnProfile) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You can only view your own active flows.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const MyFlowsPage()),
     );
   }
 
