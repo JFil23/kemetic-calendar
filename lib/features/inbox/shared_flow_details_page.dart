@@ -12,6 +12,7 @@ import '../../data/share_repo.dart';
 import '../../data/flows_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../repositories/inbox_repo.dart';
+import '../../utils/detail_sanitizer.dart';
 import '../../shared/glossy_text.dart';
 import '../../features/calendar/calendar_page.dart' show CalendarPage, notesDecode, ImportFlowData;
 import '../../features/calendar/kemetic_month_metadata.dart' show getMonthById;
@@ -83,7 +84,8 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       final allDay = (e['all_day'] as bool?) ?? false;
       final start = (e['start_time'] as String? ?? '').trim().toLowerCase();
       final end = (e['end_time'] as String? ?? '').trim().toLowerCase();
-      final detail = (e['detail'] as String? ?? '').trim().toLowerCase();
+      final detail =
+          cleanFlowDetail(e['detail'] as String?).trim().toLowerCase();
       final location = (e['location'] as String? ?? '').trim().toLowerCase();
       return [
         title,
@@ -97,8 +99,10 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
     }
 
     for (final e in events) {
-      final k = keyFor(e);
-      seen[k] = e; // keep latest; they are equivalent for display
+      final normalized = Map<String, dynamic>.from(e);
+      normalized['detail'] = cleanFlowDetail(e['detail'] as String?);
+      final k = keyFor(normalized);
+      seen[k] = normalized; // keep latest; they are equivalent for display
     }
     return seen.values.toList();
   }
@@ -848,7 +852,7 @@ class _SharedEventTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final title = (event['title'] as String?) ?? 'Untitled Event';
-    final detail = event['detail'] as String?;
+    final detail = cleanFlowDetail(event['detail'] as String?);
     final location = event['location'] as String?;
     final allDay = event['all_day'] as bool? ?? false;
     final startTime = event['start_time'] as String?;
@@ -867,29 +871,29 @@ class _SharedEventTile extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Title and offset
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+      children: [
+        // Title and offset
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
               ),
             ),
-          ),
-          if (dayNumber != null)
-            Text(
-              'Day $dayNumber',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.white70,
+            if (dayNumber != null)
+              Text(
+                'Day $dayNumber',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.white70,
+                ),
               ),
-            ),
             ],
           ),
 
@@ -915,7 +919,7 @@ class _SharedEventTile extends StatelessWidget {
           ],
 
           // Detail
-          if (detail != null && detail.trim().isNotEmpty) ...[
+          if (detail.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
               detail.trim(),

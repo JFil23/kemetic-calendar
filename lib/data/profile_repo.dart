@@ -5,6 +5,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart' show DateUtils;
+import 'package:mobile/utils/detail_sanitizer.dart';
+import 'package:mobile/utils/event_cid_util.dart';
+import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 import 'profile_model.dart';
 import 'share_models.dart';
 import 'flow_post_model.dart';
@@ -330,18 +333,21 @@ class ProfileRepo {
           return '$h:$m $mer';
         }
 
-        final startLocal = e.startsAtUtc.toLocal();
-        final endLocal = e.endsAtUtc?.toLocal();
+          final startLocal = e.startsAtUtc.toLocal();
+          final endLocal = e.endsAtUtc?.toLocal();
 
-        return {
-          'offset_days': offset,
-          'title': e.title,
-          'detail': e.detail,
-          'location': e.location,
-          'all_day': e.allDay,
-          'start_time': e.allDay ? null : _fmtTime(startLocal),
-          'end_time': e.allDay || endLocal == null ? null : _fmtTime(endLocal),
-        };
+          final detail = cleanFlowDetail(e.detail);
+          final location = e.location?.trim();
+
+          return {
+            'offset_days': offset,
+            'title': e.title,
+            'detail': detail,
+            'location': location == null || location.isEmpty ? null : location,
+            'all_day': e.allDay,
+            'start_time': e.allDay ? null : _fmtTime(startLocal),
+            'end_time': e.allDay || endLocal == null ? null : _fmtTime(endLocal),
+          };
       }
 
        final payload = {
@@ -430,10 +436,126 @@ class ProfileRepo {
         }
       }
 
+      await _copyFlowPostEvents(
+        targetFlowId: newId,
+        post: post,
+        userEventsRepo: userEventsRepo,
+      );
+
       return newId;
     } catch (e) {
       print('[ProfileRepo] Error saving flow post: $e');
       return null;
+    }
+  }
+
+  Future<void> _copyFlowPostEvents({
+    required int targetFlowId,
+    required FlowPost post,
+    required UserEventsRepo userEventsRepo,
+  }) async {
+    final payload = post.payloadJson;
+    final events = payload?['events'] as List<dynamic>?;
+    if (events == null || events.isEmpty) return;
+
+    DateTime? _parseDate(String? raw) {
+      if (raw == null) return null;
+      try {
+        return DateTime.tryParse(raw);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    (int hour, int minute)? _parseTime(String? raw) {
+      if (raw == null) return null;
+      final match =
+          RegExp(r'^\s*(\d{1,2}):(\d{2})\s*(am|pm)?\s*$', caseSensitive: false)
+              .firstMatch(raw);
+      if (match == null) return null;
+      var hour = int.tryParse(match.group(1) ?? '');
+      final minute = int.tryParse(match.group(2) ?? '');
+      if (hour == null || minute == null) return null;
+      final meridian = match.group(3)?.toLowerCase();
+      if (meridian == 'pm' && hour < 12) hour += 12;
+      if (meridian == 'am' && hour == 12) hour = 0;
+      if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+      return (hour, minute);
+    }
+
+    final baseStart =
+        DateUtils.dateOnly(post.startDate ?? _parseDate(payload?['start_date']) ?? DateTime.now());
+
+    for (final raw in events) {
+      final e = raw as Map<String, dynamic>;
+
+      final offset = (e['offset_days'] as num?)?.toInt() ?? 0;
+      final date = baseStart.add(Duration(days: offset));
+
+      final allDay = e['all_day'] as bool? ?? false;
+      final rawTitle = (e['title'] as String?) ?? post.name;
+      final title = rawTitle.trim().isEmpty ? post.name : rawTitle.trim();
+
+      final detailRaw = e['detail'] as String?;
+      final detailClean = cleanFlowDetail(detailRaw);
+      final detailForStore = detailClean.isEmpty ? null : detailClean;
+
+      final locationRaw = (e['location'] as String?)?.trim();
+      final location =
+          (locationRaw == null || locationRaw.isEmpty) ? null : locationRaw;
+
+      final parsedStart = _parseTime(e['start_time'] as String?);
+      final parsedEnd = _parseTime(e['end_time'] as String?);
+
+      final startHour = parsedStart?.$1 ?? 9;
+      final startMinute = parsedStart?.$2 ?? 0;
+
+      final startDt = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        startHour,
+        startMinute,
+      );
+
+      DateTime? endDt;
+      if (!allDay) {
+        if (parsedEnd != null) {
+          endDt = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            parsedEnd.$1,
+            parsedEnd.$2,
+          );
+        } else {
+          endDt = startDt.add(const Duration(hours: 1));
+        }
+      }
+
+      final kDate = KemeticMath.fromGregorian(date);
+      final cid = EventCidUtil.buildClientEventId(
+        ky: kDate.kYear,
+        km: kDate.kMonth,
+        kd: kDate.kDay,
+        title: title,
+        startHour: startHour,
+        startMinute: startMinute,
+        allDay: allDay,
+        flowId: targetFlowId,
+      );
+
+      await userEventsRepo.upsertByClientId(
+        clientEventId: cid,
+        title: title,
+        startsAtUtc: startDt.toUtc(),
+        detail: detailForStore,
+        location: location,
+        allDay: allDay,
+        endsAtUtc: endDt?.toUtc(),
+        flowLocalId: targetFlowId,
+        caller: 'profile_import_events',
+      );
     }
   }
 }
