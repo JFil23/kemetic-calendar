@@ -118,6 +118,12 @@ const TextStyle _decanStyle = TextStyle(
   fontWeight: FontWeight.w400,
   color: Colors.white,
 );
+const TextStyle _weekdayLabelStyle = TextStyle(
+  fontSize: 11,
+  fontWeight: FontWeight.w600,
+  letterSpacing: 0.2,
+  color: _blueLight,
+);
 // Neutral on black — match day numbers / decan rows (no gradient, no glow)
 const TextStyle _neutralOnBlack = TextStyle(
   fontSize: 12, // match day-number size
@@ -13895,6 +13901,8 @@ class _MonthCard extends StatelessWidget {
         : '$seasonShort $yStart/$yEnd';
 
     final isMonthToday = (todayMonth != null && todayMonth == kMonth);
+    final gapBeforeRow =
+        expansionLevel == MonthExpansionLevel.details ? 0.0 : 6.0;
 
     return Padding(
       key: anchorKey,
@@ -14007,11 +14015,14 @@ class _MonthCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  SizedBox(
-                    height: expansionLevel == MonthExpansionLevel.details
-                        ? 0
-                        : 6,
+                  SizedBox(height: gapBeforeRow),
+                  _WeekdayRow(
+                    kYear: kYear,
+                    kMonth: kMonth,
+                    decanIndex: i,
+                    showGregorian: showGregorian,
                   ),
+                  const SizedBox(height: 4),
 
                   _DecanRow(
                     kYear: kYear,
@@ -14040,9 +14051,7 @@ class _MonthCard extends StatelessWidget {
                   ),
                   if (i < 2)
                     SizedBox(
-                      height: expansionLevel == MonthExpansionLevel.details
-                          ? 0
-                          : 6,
+                      height: gapBeforeRow,
                     ),
                 ],
               ],
@@ -14072,6 +14081,51 @@ String _getKemeticDayKey(int kYear, int kMonth, int kDay) {
   // final key format must match kemetic_day_info.dart exactly
   // e.g. thoth_11_2
   return kemeticDayKey(kMonth, kDay);
+}
+
+class _WeekdayRow extends StatelessWidget {
+  const _WeekdayRow({
+    required this.kYear,
+    required this.kMonth,
+    required this.decanIndex,
+    required this.showGregorian,
+  });
+
+  final int kYear;
+  final int kMonth;
+  final int decanIndex; // 0..2
+  final bool showGregorian;
+
+  static const List<String> _weekdayLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = List<String>.generate(10, (i) {
+      final day = decanIndex * 10 + i + 1;
+      final gregorian =
+          safeLocalDisplay(KemeticMath.toGregorian(kYear, kMonth, day));
+      final idx = gregorian.weekday - 1; // Monday = 1
+      return _weekdayLetters[idx];
+    });
+
+    return Row(
+      children: [
+        for (int i = 0; i < labels.length; i++) ...[
+          Expanded(
+            child: Center(
+              child: Text(
+                labels[i],
+                style: _weekdayLabelStyle.copyWith(
+                  color: showGregorian ? _blueLight : _goldLight,
+                ),
+              ),
+            ),
+          ),
+          if (i < labels.length - 1) const SizedBox(width: 3),
+        ],
+      ],
+    );
+  }
 }
 
 class _DecanRow extends StatelessWidget {
