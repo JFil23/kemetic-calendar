@@ -8275,8 +8275,9 @@ class _CalendarPageState extends State<CalendarPage>
         isScrollControlled: true,
         backgroundColor: Colors.transparent, // ✅ More stable like Flow Studio
         useSafeArea: true,
-        isDismissible: tablet ? false : true,
-        enableDrag: tablet ? false : true,
+        // iPad/tablet: allow swipe-to-close + backdrop tap to avoid trapped sheets.
+        isDismissible: true,
+        enableDrag: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
@@ -8551,14 +8552,40 @@ class _CalendarPageState extends State<CalendarPage>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // drag handle
-                          Container(
-                            width: 36,
-                            height: 4,
-                            margin: const EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white24,
-                              borderRadius: BorderRadius.circular(2),
+                          // drag handle + explicit close (prevents getting trapped on tablets)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: SizedBox(
+                              height: 32,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white24,
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: IconButton(
+                                      tooltip: 'Close',
+                                      onPressed: () {
+                                        Navigator.of(sheetCtx).maybePop();
+                                      },
+                                      visualDensity: VisualDensity.compact,
+                                      padding: const EdgeInsets.all(4),
+                                      constraints: const BoxConstraints(),
+                                      icon: const Icon(
+                                        Icons.close,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
 
