@@ -29,15 +29,17 @@
       touch-action: manipulation;
     }
 
-    /* Pin Flutter surface to the real viewport and accept touches */
+    /* Pin Flutter surface to the viewport; let the engine size it (avoids iPad hit-test drift). */
     #flt-glass-pane, .flt-glass-pane, canvas {
-      position: fixed !important;
-      inset: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      touch-action: manipulation !important;
-      pointer-events: auto !important;
-      z-index: 1 !important;
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100svh;
+      height: 100dvh;
+      touch-action: manipulation;
+      pointer-events: auto;
+      z-index: 1;
     }
 
     /* Do NOT fix the body or hide overflow; that causes iOS PWA desyncs */

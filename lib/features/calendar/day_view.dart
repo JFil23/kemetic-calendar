@@ -500,27 +500,35 @@ class _DayViewPageState extends State<DayViewPage> {
   @override
   Widget build(BuildContext context) {
     final dataListenable = widget.dataVersion ?? _kZeroListenable;
+    final size = MediaQuery.sizeOf(context);
+    final isTablet = size.shortestSide >= 600;
 
     return ValueListenableBuilder<int>(
       valueListenable: dataListenable,
       builder: (context, _, __) {
-        final orientation = MediaQuery.of(context).orientation;
+        final reportedOrientation = MediaQuery.of(context).orientation;
+        // Tablets should stay on the portrait day view regardless of rotation.
+        final effectiveOrientation =
+            isTablet ? Orientation.portrait : reportedOrientation;
 
         // Track orientation changes for debugging
-        if (_lastOrientation != null && _lastOrientation != orientation) {
+        if (_lastOrientation != null && _lastOrientation != effectiveOrientation) {
           if (kDebugMode) {
-            print('\n📱 [DAY VIEW] Orientation changed: $_lastOrientation → $orientation');
+            print(
+              '\n📱 [DAY VIEW] Orientation changed: $_lastOrientation → $effectiveOrientation',
+            );
           }
         }
-        
-        _lastOrientation = orientation;
+        _lastOrientation = effectiveOrientation;
         final flowIndex = widget.flowIndexBuilder?.call() ?? widget.flowIndex;
 
         return Scaffold(
           backgroundColor: const Color(0xFF000000), // True black
           body: OrientationBuilder(
             builder: (context, orientation) {
-              if (orientation == Orientation.landscape) {
+              final orient =
+                  isTablet ? Orientation.portrait : orientation;
+              if (orient == Orientation.landscape) {
                 return LandscapeMonthView(
                   initialKy: _currentKy,
                   initialKm: _currentKm,
@@ -2261,6 +2269,11 @@ class _DayViewGridState extends State<DayViewGrid> {
     bool isPreview = false,
   }) {
     final event = block.event;
+    final bool showTitle = event.title.trim().isNotEmpty;
+    final bool showLocation =
+        event.location != null && event.location!.trim().isNotEmpty;
+    final double textScale =
+        MediaQuery.maybeOf(context)?.textScaleFactor ?? 1.0;
     
     // 🔍 DEBUG: Log block being rendered
     if (kDebugMode) {
@@ -2283,9 +2296,15 @@ class _DayViewGridState extends State<DayViewGrid> {
       durationMinutes = 180;
     }
     
-    // Reminders are always half the height of a 1-hour block, regardless of duration.
+    // Reminders: start at half a block, but expand for extra lines / text scale to avoid overflow.
+    final int reminderLineCount = (showTitle ? 1 : 0) + (showLocation ? 1 : 0);
+    final double reminderHeight = math.max(
+      _kMinEventBlockHeight / 2,
+      (reminderLineCount * (14.0 * textScale)) + 12,
+    );
+
     final double height = event.isReminder
-        ? (_kMinEventBlockHeight / 2)
+        ? reminderHeight
         : () {
             final double rawHeight = durationMinutes.toDouble();
             final double minHeight = _kMinEventBlockHeight;
@@ -2309,7 +2328,10 @@ class _DayViewGridState extends State<DayViewGrid> {
         border: border,
         borderRadius: BorderRadius.circular(4),
       ),
-      padding: const EdgeInsets.all(4),
+      padding: EdgeInsets.symmetric(
+        horizontal: 4,
+        vertical: event.isReminder ? 3 : 4,
+      ),
       clipBehavior: Clip.hardEdge, // ✅ Prevent overflow
       child: _buildEventTextContents(
         event,

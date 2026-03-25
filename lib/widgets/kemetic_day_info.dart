@@ -10803,6 +10803,7 @@ class KemeticDayDropdown extends StatelessWidget {
   final VoidCallback onClose;
   final String dayKey;
   final int kYear;
+  static const List<String> _meduFontFallback = ['GentiumPlus'];
 
   const KemeticDayDropdown({
     Key? key,
@@ -10971,50 +10972,56 @@ class KemeticDayDropdown extends StatelessWidget {
                 thumbVisibility: true,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildInfoSection('Gregorian Date:', gregorianDateString),
-                      _buildInfoSection('Kemetic Date:', dayInfo.kemeticDate),
-                      _buildInfoSection('Season:', dayInfo.season),
-                      _buildInfoSectionWithSpeech(
-                        label: 'Month:',
-                        value: monthLine,
-                        englishCue: null,
-                        speakOverride: monthSpeakLine,
-                        isPhonetic: true,
-                      ),
-                      _buildInfoSectionWithSpeech(
-                        label: isEpagomenal ? 'Epagomenal Day:' : 'Decan Name:',
-                        value: decanLine,
-                        englishCue: null,
-                        speakOverride: decanSpeakLine,
-                        isPhonetic: true,
-                      ),
-                      if (!isEpagomenal)
-                        _buildInfoSection('Star Cluster:', dayInfo.starCluster),
-                      _buildInfoSection('Ma\'at Principle:', dayInfo.maatPrinciple),
-                      const SizedBox(height: 20),
-                      _buildSectionHeader('△ Cosmic Context'),
-                      const SizedBox(height: 8),
-                      Text(
-                        dayInfo.cosmicContext,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFFCCCCCC),
-                          height: 1.5,
+                  child: DefaultTextStyle.merge(
+                    style: const TextStyle(
+                      fontFamilyFallback: _meduFontFallback,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildInfoSection('Gregorian Date:', gregorianDateString),
+                        _buildInfoSection('Kemetic Date:', dayInfo.kemeticDate),
+                        _buildInfoSection('Season:', dayInfo.season),
+                        _buildInfoSectionWithSpeech(
+                          label: 'Month:',
+                          value: monthLine,
+                          englishCue: null,
+                          speakOverride: monthSpeakLine,
+                          isPhonetic: true,
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      _buildSectionHeader(isEpagomenal ? '▽ Epagomenal Flow' : '▽ Decan Flow'),
-                      const SizedBox(height: 12),
-                      _buildDecanFlowTable(context),
-                      const SizedBox(height: 24),
-                      _buildSectionHeader('▽ Medu Neter Key'),
-                      const SizedBox(height: 12),
-                      _buildMeduNeterSection(context),
-                      const SizedBox(height: 8), // Bottom padding
-                    ],
+                        _buildInfoSectionWithSpeech(
+                          label: isEpagomenal ? 'Epagomenal Day:' : 'Decan Name:',
+                          value: decanLine,
+                          englishCue: null,
+                          speakOverride: decanSpeakLine,
+                          isPhonetic: true,
+                        ),
+                        if (!isEpagomenal)
+                          _buildInfoSection('Star Cluster:', dayInfo.starCluster),
+                        _buildInfoSection('Ma\'at Principle:', dayInfo.maatPrinciple),
+                        const SizedBox(height: 20),
+                        _buildSectionHeader('△ Cosmic Context'),
+                        const SizedBox(height: 8),
+                        Text(
+                          dayInfo.cosmicContext,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFFCCCCCC),
+                            height: 1.5,
+                            fontFamilyFallback: _meduFontFallback,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        _buildSectionHeader(isEpagomenal ? '▽ Epagomenal Flow' : '▽ Decan Flow'),
+                        const SizedBox(height: 12),
+                        _buildDecanFlowTable(context),
+                        const SizedBox(height: 24),
+                        _buildSectionHeader('▽ Medu Neter Key'),
+                        const SizedBox(height: 12),
+                        _buildMeduNeterSection(context),
+                        const SizedBox(height: 8), // Bottom padding
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -11047,13 +11054,18 @@ class KemeticDayDropdown extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: RichText(
         text: TextSpan(
-          style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFFCCCCCC),
+            fontFamilyFallback: _meduFontFallback,
+          ),
           children: [
             TextSpan(
               text: '$label ',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Color(0xFFC9A961), // Richer gold for labels
+                fontFamilyFallback: _meduFontFallback,
               ),
             ),
             TextSpan(text: value),
@@ -11090,13 +11102,18 @@ class KemeticDayDropdown extends StatelessWidget {
           Expanded(
             child: RichText(
               text: TextSpan(
-                style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFFCCCCCC),
+                  fontFamilyFallback: _meduFontFallback,
+                ),
                 children: [
                   TextSpan(
                     text: '$label ',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Color(0xFFC9A961),
+                      fontFamilyFallback: _meduFontFallback,
                     ),
                   ),
                   TextSpan(text: value),
@@ -11125,6 +11142,7 @@ class KemeticDayDropdown extends StatelessWidget {
         fontSize: 18,
         fontWeight: FontWeight.bold,
         color: Color(0xFFC9A961), // Richer gold
+        fontFamilyFallback: _meduFontFallback,
       ),
     );
   }
@@ -11156,6 +11174,7 @@ class KemeticDayDropdown extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFFC9A961),
+                      fontFamilyFallback: _meduFontFallback,
                     ),
                   ),
                 ),
@@ -11167,6 +11186,7 @@ class KemeticDayDropdown extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFFC9A961),
+                      fontFamilyFallback: _meduFontFallback,
                     ),
                   ),
                 ),
@@ -11178,6 +11198,7 @@ class KemeticDayDropdown extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFFC9A961),
+                      fontFamilyFallback: _meduFontFallback,
                     ),
                   ),
                 ),
@@ -11189,6 +11210,7 @@ class KemeticDayDropdown extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFFC9A961),
+                      fontFamilyFallback: _meduFontFallback,
                     ),
                   ),
                 ),
@@ -11213,56 +11235,60 @@ class KemeticDayDropdown extends StatelessWidget {
                   // Day Column
                   SizedBox(
                     width: 50,
+                  child: Text(
+                    '${day.day}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFC9A961),
+                      fontFamilyFallback: _meduFontFallback,
+                    ),
+                  ),
+                ),
+                // Theme Column
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    day.theme,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      fontFamilyFallback: _meduFontFallback,
+                    ),
+                  ),
+                ),
+                // Action Column
+                Expanded(
+                  flex: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Text(
-                      '${day.day}',
+                      day.action,
                       style: const TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFC9A961),
+                        color: Color(0xFFCCCCCC),
+                        fontFamilyFallback: _meduFontFallback,
                       ),
                     ),
                   ),
-                  // Theme Column
-                  Expanded(
-                    flex: 2,
+                ),
+                // Reflection Column
+                Expanded(
+                  flex: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Text(
-                      day.theme,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                      day.reflection,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withOpacity(0.7),
+                        fontStyle: FontStyle.italic,
+                        fontFamilyFallback: _meduFontFallback,
                       ),
                     ),
                   ),
-                  // Action Column
-                  Expanded(
-                    flex: 3,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        day.action,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFFCCCCCC),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Reflection Column
-                  Expanded(
-                    flex: 3,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        day.reflection,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withOpacity(0.7),
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-                  ),
+                ),
                 ],
               ),
             );
@@ -11280,13 +11306,18 @@ class KemeticDayDropdown extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 8),
           child: RichText(
             text: TextSpan(
-              style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFFCCCCCC),
+                fontFamilyFallback: _meduFontFallback,
+              ),
               children: [
                 const TextSpan(
                   text: '• Glyph: ',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Color(0xFFC9A961), // Richer gold
+                    fontFamilyFallback: _meduFontFallback,
                   ),
                 ),
                 TextSpan(text: dayInfo.meduNeter.glyph),
@@ -11298,13 +11329,18 @@ class KemeticDayDropdown extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 8),
           child: RichText(
             text: TextSpan(
-              style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFFCCCCCC),
+                fontFamilyFallback: _meduFontFallback,
+              ),
               children: [
                 const TextSpan(
                   text: '• Color Frequency: ',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Color(0xFFC9A961), // Richer gold
+                    fontFamilyFallback: _meduFontFallback,
                   ),
                 ),
                 TextSpan(text: dayInfo.meduNeter.colorFrequency),
@@ -11314,13 +11350,18 @@ class KemeticDayDropdown extends StatelessWidget {
         ),
         RichText(
           text: TextSpan(
-            style: const TextStyle(fontSize: 14, color: Color(0xFFCCCCCC)),
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFFCCCCCC),
+              fontFamilyFallback: _meduFontFallback,
+            ),
             children: [
               const TextSpan(
                 text: '• Mantra: ',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Color(0xFFC9A961), // Richer gold
+                  fontFamilyFallback: _meduFontFallback,
                 ),
               ),
               TextSpan(text: dayInfo.meduNeter.mantra),
@@ -11450,13 +11491,6 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
     );
   }
 }
-
-
-
-
-
-
-
 
 
 
