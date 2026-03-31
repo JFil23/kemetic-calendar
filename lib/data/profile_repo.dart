@@ -496,10 +496,49 @@ class ProfileRepo {
   }
 
   /// Save someone else's flow post into my saved flows.
-  Future<int?> saveFlowPostToMyFlows(FlowPost post) async {
+  Future<int?> saveFlowPostToMyFlows(
+    FlowPost post, {
+    DateTime? startDateOverride,
+  }) async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return null;
+
+      DateTime? _parseDate(String? raw) {
+        if (raw == null) return null;
+        try {
+          return DateTime.tryParse(raw);
+        } catch (_) {
+          return null;
+        }
+      }
+
+      DateTime _dateOnly(DateTime d) => DateUtils.dateOnly(d);
+      final today = _dateOnly(DateTime.now());
+      final payloadStart =
+          _parseDate(post.payloadJson?['start_date'] as String?);
+      final rawStart = startDateOverride ?? post.startDate ?? payloadStart;
+      final normalizedStart = rawStart == null ? null : _dateOnly(rawStart);
+      final effectiveStart = (normalizedStart == null)
+          ? today
+          : (startDateOverride == null && normalizedStart.isBefore(today))
+              ? today
+              : normalizedStart;
+
+      DateTime? effectiveEnd;
+      if (post.endDate != null) {
+        final originalStart = post.startDate ?? payloadStart;
+        final endOnly = _dateOnly(post.endDate!);
+        if (originalStart != null) {
+          final startOnly = _dateOnly(originalStart);
+          final span = endOnly.difference(startOnly);
+          effectiveEnd = _dateOnly(effectiveStart.add(span));
+        } else {
+          effectiveEnd = endOnly.isBefore(effectiveStart)
+              ? effectiveStart
+              : endOnly;
+        }
+      }
 
       final userEventsRepo = UserEventsRepo(_client);
       final rulesString = jsonEncode(post.rules);
@@ -509,8 +548,8 @@ class ProfileRepo {
         active: true,
         isSaved: true,
         isHidden: false,
-        startDate: post.startDate,
-        endDate: post.endDate,
+        startDate: effectiveStart,
+        endDate: effectiveEnd,
         notes: post.notes,
         rules: rulesString,
         originType: 'profile_import',
@@ -538,6 +577,7 @@ class ProfileRepo {
         targetFlowId: newId,
         post: post,
         userEventsRepo: userEventsRepo,
+        baseStart: effectiveStart,
       );
 
       return newId;
@@ -551,19 +591,11 @@ class ProfileRepo {
     required int targetFlowId,
     required FlowPost post,
     required UserEventsRepo userEventsRepo,
+    required DateTime baseStart,
   }) async {
     final payload = post.payloadJson;
     final events = payload?['events'] as List<dynamic>?;
     if (events == null || events.isEmpty) return;
-
-    DateTime? _parseDate(String? raw) {
-      if (raw == null) return null;
-      try {
-        return DateTime.tryParse(raw);
-      } catch (_) {
-        return null;
-      }
-    }
 
     (int hour, int minute)? _parseTime(String? raw) {
       if (raw == null) return null;
@@ -581,14 +613,13 @@ class ProfileRepo {
       return (hour, minute);
     }
 
-    final baseStart =
-        DateUtils.dateOnly(post.startDate ?? _parseDate(payload?['start_date']) ?? DateTime.now());
+    final baseStartLocal = DateUtils.dateOnly(baseStart);
 
     for (final raw in events) {
       final e = raw as Map<String, dynamic>;
 
       final offset = (e['offset_days'] as num?)?.toInt() ?? 0;
-      final date = baseStart.add(Duration(days: offset));
+      final date = baseStartLocal.add(Duration(days: offset));
 
       final allDay = e['all_day'] as bool? ?? false;
       final rawTitle = (e['title'] as String?) ?? post.name;

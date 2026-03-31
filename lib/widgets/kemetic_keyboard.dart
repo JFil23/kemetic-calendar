@@ -5,16 +5,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:characters/characters.dart';
 
+enum KeyboardMode { system, custom }
+
 /// ChangeNotifier that tracks the currently focused editable field and whether
 /// the Medu Neter keyboard is open.
 class KemeticKeyboardController extends ChangeNotifier {
   EditableTextState? _editable;
   EditableTextState? _lastEditable;
-  bool _open = false;
+  KeyboardMode _mode = KeyboardMode.system;
   bool _opening = false;
 
-  bool get hasTarget => _editable != null || _lastEditable != null;
-  bool get isOpen => _open;
+  bool get hasTarget => hasFocusedEditable || isOpen || isOpening;
+  bool get hasFocusedEditable =>
+      _isUsable(_editable) && _editable!.widget.focusNode.hasFocus;
+  bool get hasUsableEditable =>
+      _isUsable(_editable) || _isUsable(_lastEditable);
+  bool get shouldShowToggle => hasFocusedEditable && !isOpen && !_opening;
+  bool get shouldShowPanel => (isOpen || _opening) && hasUsableEditable;
+  bool get isOpen => _mode == KeyboardMode.custom;
+  bool get isCustomMode => _mode == KeyboardMode.custom;
+  bool get isOpening => _opening;
   EditableTextState? get editable => _editable;
   EditableTextState? get lastEditable => _lastEditable;
 
@@ -35,12 +45,11 @@ class KemeticKeyboardController extends ChangeNotifier {
     if (editable != null && editable.mounted) {
       _editable = editable;
       _lastEditable = editable;
-    } else if (!_open) {
+    } else if (!isOpen) {
       // Only clear when the custom keyboard is not showing; keep the last known
       // editable while open to survive transient blur (notably on iOS PWA).
       _editable = null;
     }
-    if (editable == null && !_open) _open = false;
     notifyListeners();
   }
 
@@ -51,21 +60,30 @@ class KemeticKeyboardController extends ChangeNotifier {
   void endOpening({required bool success}) {
     _opening = false;
     if (success && _editable != null) {
-      _open = true;
+      _mode = KeyboardMode.custom;
     }
     notifyListeners();
   }
 
   void open() {
     if (_editable == null) return;
-    _open = true;
+    _mode = KeyboardMode.custom;
     notifyListeners();
   }
 
   void close() {
-    if (!_open) return;
-    _open = false;
+    if (_mode == KeyboardMode.system) return;
+    _mode = KeyboardMode.system;
     notifyListeners();
+  }
+
+  void closeAndClearTargets() {
+    final changed =
+        _mode == KeyboardMode.custom || _editable != null || _lastEditable != null;
+    _mode = KeyboardMode.system;
+    _editable = null;
+    _lastEditable = null;
+    if (changed) notifyListeners();
   }
 
   void requestSystemKeyboard() {
@@ -167,18 +185,27 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
     if (focus?.context != null) {
       editable = focus!.context!.findAncestorStateOfType<EditableTextState>();
     }
-    if (editable == null) {
-      // On iOS web/PWA the system keyboard toggle can null focus; keep the last
-      // target instead of clearing so inserts continue to work.
-      if (_isIosWebPwa()) {
-        return;
-      }
-      // If the custom keyboard is open, keep the last target so PWA/iOS blur
-      // doesn't drop inserts. If we're closed, clear the target.
-      if (!_controller.isOpen) {
-        _controller.close();
+
+    // Custom mode: keep last target, prevent system keyboard from re-opening.
+    if (_controller.isCustomMode) {
+      if (editable != null) {
+        _controller.attachEditable(editable);
+        if (kIsWeb) {
+          editable.widget.focusNode.unfocus();
+        } else {
+          try {
+            SystemChannels.textInput.invokeMethod('TextInput.hide');
+          } catch (_) {}
+        }
+      } else {
         _controller.attachEditable(null);
       }
+      return;
+    }
+
+    // System mode.
+    if (editable == null) {
+      _controller.closeAndClearTargets();
       return;
     }
 
@@ -226,17 +253,21 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
       _opening = false;
       return;
     }
-    target.widget.focusNode.requestFocus(); // keep the text input connection
     _controller.attachEditable(target); // ensure _editable is set for opening
-    // On iOS web/PWA, avoid hiding the system keyboard to prevent focus loss
-    // while still letting native builds behave as before.
-    if (!_isIosWebPwa()) {
+
+    if (kIsWeb) {
+      // On web/PWAs, hide the native keyboard by blurring; keep last editable
+      // so custom inserts still work while unfocused.
+      target.widget.focusNode.unfocus();
+    } else {
+      target.widget.focusNode.requestFocus(); // keep the text input connection
       try {
         await SystemChannels.textInput.invokeMethod('TextInput.hide');
       } catch (_) {
         // ignore platform quirks
       }
     }
+
     _controller.endOpening(success: true);
     _opening = false;
   }
@@ -244,11 +275,6 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
   void _closeCustomAndRestoreSystem() {
     _controller.close();
     _controller.requestSystemKeyboard();
-  }
-
-  bool _isIosWebPwa() {
-    // Web-only guard; iOS Safari PWAs lose focus when hiding keyboards.
-    return kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
   }
 }
 
@@ -270,7 +296,7 @@ class _KeyboardToggle extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
-        final visible = controller.hasTarget && !controller.isOpen;
+        final visible = controller.shouldShowToggle;
         final anchor = (bottomInset > 0 ? bottomInset : 0) + 12.0;
         return AnimatedPositioned(
           duration: const Duration(milliseconds: 220),
@@ -329,7 +355,7 @@ class _KeyboardPanelState extends State<_KeyboardPanel> {
     return AnimatedBuilder(
       animation: widget.controller,
       builder: (context, _) {
-        final open = widget.controller.hasTarget && widget.controller.isOpen;
+        final open = widget.controller.shouldShowPanel;
         if (!open) return const SizedBox.shrink();
         return Align(
           alignment: Alignment.bottomCenter,

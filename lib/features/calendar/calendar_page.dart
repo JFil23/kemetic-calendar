@@ -58,6 +58,7 @@ import '../journal/journal_v2_document_model.dart';
 import '../journal/journal_swipe_layer.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
+import '../../widgets/flow_start_date_picker.dart';
 
 typedef _QuickAddParse = ({
   DateTime date,
@@ -19633,6 +19634,8 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   _eventsByFlow = {};
   final Map<int, Object?> _eventsErrorByFlow = {};
   final Set<int> _loadingFlowIds = {};
+  DateTime? _selectedStartForSaved;
+  bool _isImportingSaved = false;
 
   @override
   void initState() {
@@ -19884,6 +19887,167 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       }
     } catch (_) {
       // ignore
+    }
+  }
+
+  DateTime _savedDefaultStart(_Flow flow) {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final start = flow.start;
+    if (start == null) return today;
+    final normalized = DateUtils.dateOnly(start);
+    return normalized.isBefore(today) ? today : normalized;
+  }
+
+  DateTime _savedDisplayStart(_Flow flow) =>
+      DateUtils.dateOnly(_selectedStartForSaved ?? _savedDefaultStart(flow));
+
+  Future<void> _pickSavedStart(_Flow flow) async {
+    final picked = await FlowStartDatePicker.show(
+      context,
+      initialDate: _savedDisplayStart(flow),
+    );
+    if (picked != null && mounted) {
+      setState(() => _selectedStartForSaved = DateUtils.dateOnly(picked));
+    }
+  }
+
+  Future<int> _importSavedFlow(_Flow template, DateTime startDate) async {
+    DateTime _dateOnly(DateTime d) => DateUtils.dateOnly(d);
+    final targetStart = _dateOnly(startDate);
+    final events = await _userEventsRepo.getEventsForFlow(template.id);
+
+    DateTime _minDate(DateTime a, DateTime b) => a.isBefore(b) ? a : b;
+    DateTime _maxDate(DateTime a, DateTime b) => a.isAfter(b) ? a : b;
+
+    DateTime baseStart = targetStart;
+    if (template.start != null) {
+      baseStart = _dateOnly(template.start!);
+    } else if (events.isNotEmpty) {
+      baseStart = _dateOnly(
+        events
+            .map((e) => e.startsAtUtc.toLocal())
+            .reduce(_minDate),
+      );
+    }
+
+    final deltaDays = targetStart.difference(baseStart).inDays;
+
+    DateTime? templateEnd = template.end;
+    if (templateEnd == null && events.isNotEmpty) {
+      templateEnd = events
+          .map((e) => _dateOnly(e.startsAtUtc.toLocal()))
+          .reduce(_maxDate);
+    }
+    final DateTime? newEnd = templateEnd == null
+        ? null
+        : _dateOnly(templateEnd.add(Duration(days: deltaDays)));
+
+    final rulesJson =
+        jsonEncode(template.rules.map(_CalendarPageState.ruleToJson).toList());
+
+    final newId = await _userEventsRepo.upsertFlow(
+      name: template.name,
+      color: template.color.value,
+      active: true,
+      startDate: targetStart,
+      endDate: newEnd,
+      notes: template.notes,
+      rules: rulesJson,
+      isHidden: false,
+      isSaved: false,
+      shareId: template.shareId,
+      originType: 'saved_import',
+      originFlowId: template.id,
+      rootFlowId: template.id,
+      isReminder: template.isReminder,
+      reminderUuid: template.reminderUuid,
+    );
+
+    for (final e in events) {
+      final localStart = e.startsAtUtc.toLocal();
+      final originDate = _dateOnly(localStart);
+      final offset = originDate.difference(baseStart).inDays;
+      final newDate = targetStart.add(Duration(days: offset));
+
+      final startDt = DateTime(
+        newDate.year,
+        newDate.month,
+        newDate.day,
+        localStart.hour,
+        localStart.minute,
+        localStart.second,
+        localStart.millisecond,
+        localStart.microsecond,
+      );
+
+      DateTime? endDt;
+      final localEnd = e.endsAtUtc?.toLocal();
+      if (localEnd != null) {
+        final endOrigin = _dateOnly(localEnd);
+        final endOffset = endOrigin.difference(baseStart).inDays;
+        final endDate = targetStart.add(Duration(days: endOffset));
+        endDt = DateTime(
+          endDate.year,
+          endDate.month,
+          endDate.day,
+          localEnd.hour,
+          localEnd.minute,
+          localEnd.second,
+          localEnd.millisecond,
+          localEnd.microsecond,
+        );
+      }
+
+      final (:kYear, :kMonth, :kDay) = KemeticMath.fromGregorian(startDt);
+      final cid = EventCidUtil.buildClientEventId(
+        ky: kYear,
+        km: kMonth,
+        kd: kDay,
+        title: e.title.isEmpty ? template.name : e.title,
+        startHour: startDt.hour,
+        startMinute: startDt.minute,
+        allDay: e.allDay,
+        flowId: newId,
+      );
+
+      await _userEventsRepo.upsertByClientId(
+        clientEventId: cid,
+        title: e.title,
+        startsAtUtc: startDt.toUtc(),
+        detail: (e.detail ?? '').trim().isEmpty ? null : e.detail,
+        location: (e.location ?? '').trim().isEmpty ? null : e.location,
+        allDay: e.allDay,
+        endsAtUtc: endDt?.toUtc(),
+        flowLocalId: newId,
+        category: e.category,
+        caller: 'saved_flow_import',
+      );
+    }
+
+    return newId;
+  }
+
+  Future<void> _handleImportSaved(_Flow flow) async {
+    if (_isImportingSaved) return;
+    setState(() => _isImportingSaved = true);
+    final startDate = _savedDisplayStart(flow);
+    try {
+      final newId = await _importSavedFlow(flow, startDate);
+      if (!mounted) return;
+      setState(() => _isImportingSaved = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Flow imported to your calendar'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      Navigator.of(context).pop<int?>(newId);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isImportingSaved = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Import failed: $e')),
+      );
     }
   }
 
@@ -20436,6 +20600,8 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         onPageChanged: (index) {
           setState(() {
             _currentIndex = index;
+            _selectedStartForSaved = null;
+            _isImportingSaved = false;
           });
           _loadEventsFor(_flowSequence[index]);
         },
@@ -20455,6 +20621,53 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
             reminderRule: reminderRule,
           );
         },
+      ),
+      bottomNavigationBar:
+          currentFlow.isSaved ? _buildSavedImportFooter(currentFlow) : null,
+    );
+  }
+
+  Widget _buildSavedImportFooter(_Flow flow) {
+    final startDate = _savedDisplayStart(flow);
+    final bool hasExplicitSelection =
+        _selectedStartForSaved != null || flow.start != null;
+    final label = hasExplicitSelection
+        ? 'Start: ${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}'
+        : 'Select a start date';
+
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.white54),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onPressed:
+                  _isImportingSaved ? null : () => _pickSavedStart(flow),
+              child: Text(label),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF161616),
+                foregroundColor: const Color(0xFF8A74FF),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              onPressed:
+                  _isImportingSaved ? null : () => _handleImportSaved(flow),
+              child: Text(_isImportingSaved ? 'Importing…' : 'Import Flow'),
+            ),
+          ),
+        ],
       ),
     );
   }
