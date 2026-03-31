@@ -524,8 +524,9 @@ class _FlowBubble extends StatelessWidget {
   }
 
   String _formatTime(DateTime date) {
+    final localDate = date.toLocal();
     final now = DateTime.now();
-    final diff = now.difference(date);
+    final diff = now.difference(localDate);
 
     if (diff.inDays == 0) {
       return 'Today';
@@ -534,7 +535,7 @@ class _FlowBubble extends StatelessWidget {
     } else if (diff.inDays < 7) {
       return '${diff.inDays}d ago';
     } else {
-      return '${date.month}/${date.day}/${date.year}';
+      return '${localDate.month}/${localDate.day}/${localDate.year}';
     }
   }
 }
@@ -592,20 +593,21 @@ class _MessageBubble extends StatelessWidget {
   }
 
   String _formatTime(DateTime date) {
+    final localDate = date.toLocal();
     final now = DateTime.now();
-    final diff = now.difference(date);
+    final diff = now.difference(localDate);
 
     if (diff.inDays == 0) {
-      final hours = date.hour % 12 == 0 ? 12 : date.hour % 12;
-      final minutes = date.minute.toString().padLeft(2, '0');
-      final suffix = date.hour >= 12 ? 'PM' : 'AM';
+      final hours = localDate.hour % 12 == 0 ? 12 : localDate.hour % 12;
+      final minutes = localDate.minute.toString().padLeft(2, '0');
+      final suffix = localDate.hour >= 12 ? 'PM' : 'AM';
       return '$hours:$minutes $suffix';
     } else if (diff.inDays == 1) {
       return 'Yesterday';
     } else if (diff.inDays < 7) {
       return '${diff.inDays}d ago';
     } else {
-      return '${date.month}/${date.day}/${date.year}';
+      return '${localDate.month}/${localDate.day}/${localDate.year}';
     }
   }
 }
