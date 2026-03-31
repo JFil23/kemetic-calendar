@@ -16,6 +16,7 @@ import '../utils/event_cid_util.dart';
 class InboxRepo {
   final SupabaseClient _client;
   final ShareRepo _shareRepo;
+  int? _cachedDmPlaceholderFlowId;
 
   InboxRepo(this._client) : _shareRepo = ShareRepo(_client);
 
@@ -172,6 +173,92 @@ class InboxRepo {
 
       return grouped;
     });
+  }
+
+  /// Send a plain text message into a conversation thread.
+  /// Uses flow_shares with a hidden placeholder flow owned by the sender.
+  Future<InboxShareItem?> sendTextMessage({
+    required String recipientId,
+    required String text,
+  }) async {
+    final senderId = currentUserId;
+    if (senderId == null) {
+      throw Exception('Not signed in');
+    }
+
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return null;
+
+    final dmFlowId = await _ensureDmPlaceholderFlow(senderId);
+
+    final payload = {
+      'type': 'message',
+      'text': trimmed,
+      'name': trimmed, // keeps inbox title consistent
+    };
+
+    try {
+      // We don't need to parse the insert response; the realtime stream will deliver the inbox view.
+      await _client.from('flow_shares').insert({
+        'flow_id': dmFlowId,
+        'sender_id': senderId,
+        'recipient_id': recipientId,
+        'channel': 'in_app',
+        'status': 'sent',
+        'payload_json': payload,
+      });
+      return null;
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[InboxRepo] sendTextMessage failed: $e');
+        debugPrint('$st');
+      }
+      rethrow;
+    }
+  }
+
+  Future<int> _ensureDmPlaceholderFlow(String userId) async {
+    if (_cachedDmPlaceholderFlowId != null) {
+      return _cachedDmPlaceholderFlowId!;
+    }
+
+    try {
+      final existing = await _client
+          .from('flows')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('notes', '__dm_placeholder__')
+          .limit(1)
+          .maybeSingle();
+
+      final existingId = (existing?['id'] as num?)?.toInt();
+      if (existingId != null) {
+        _cachedDmPlaceholderFlowId = existingId;
+        return existingId;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[InboxRepo] lookup dm placeholder failed: $e');
+      }
+    }
+
+    final inserted = await _client
+        .from('flows')
+        .insert({
+          'user_id': userId,
+          'name': 'DM Messages',
+          'color': 0,
+          'active': false,
+          'rules': [],
+          'notes': '__dm_placeholder__',
+          'ai_metadata': {'dm_placeholder': true},
+        })
+        .select('id')
+        .single();
+
+    final id = (inserted['id'] as num).toInt();
+    _cachedDmPlaceholderFlowId = id;
+    return id;
   }
 
   /// Watch a specific conversation with another user

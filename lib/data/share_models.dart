@@ -121,7 +121,8 @@ class ShareResult {
 /// Type-safe enum for inbox share kinds
 enum InboxShareKind {
   flow,
-  event;
+  event,
+  message;
 
   static InboxShareKind? tryFromString(String raw) {
     switch (raw) {
@@ -129,6 +130,8 @@ enum InboxShareKind {
         return InboxShareKind.flow;
       case 'event':
         return InboxShareKind.event;
+      case 'message':
+        return InboxShareKind.message;
       default:
         return null;
     }
@@ -148,6 +151,8 @@ enum InboxShareKind {
         return 'flow';
       case InboxShareKind.event:
         return 'event';
+      case InboxShareKind.message:
+        return 'message';
     }
   }
 }
@@ -276,12 +281,27 @@ class InboxShareItem {
   // Computed properties
   bool get isFlow => kind == InboxShareKind.flow;
   bool get isEvent => kind == InboxShareKind.event;
+  bool get isTextMessage =>
+      kind == InboxShareKind.message ||
+      (payloadJson?['type'] == 'message' ||
+          payloadJson?['kind'] == 'message');
   bool get isDeleted => deletedAt != null;
   bool get isUnread => viewedAt == null && !isDeleted;
   bool get isImported => importedAt != null && !isDeleted;
 
+  /// Extracts a text body for chat-style messages if present.
+  String? get messageText {
+    if (payloadJson == null) return null;
+    return (payloadJson?['text'] as String?) ??
+        (payloadJson?['message'] as String?) ??
+        (payloadJson?['name'] as String?);
+  }
+
   String get subtitle {
     final handle = senderHandle ?? 'unknown';
+    if (isTextMessage) {
+      return messageText ?? 'Message';
+    }
     if (isFlow) {
       return 'Flow shared by @$handle';
     } else {
@@ -303,7 +323,6 @@ class InboxShareItem {
     }
   }
 }
-
 
 
 

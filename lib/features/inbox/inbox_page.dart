@@ -328,7 +328,9 @@ class _InboxPageState extends State<InboxPage> {
           ),
         ),
         subtitle: Text(
-          lastItem.title,
+          lastItem.isTextMessage
+              ? (lastItem.messageText ?? 'Message')
+              : lastItem.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
@@ -416,7 +418,7 @@ class _InboxPageState extends State<InboxPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Shared flows will appear here',
+            'Shared flows and messages will appear here',
             style: TextStyle(
               color: Colors.white.withOpacity(0.5),
               fontSize: 14,
