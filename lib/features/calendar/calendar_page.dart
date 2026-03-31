@@ -5131,6 +5131,72 @@ class _CalendarPageState extends State<CalendarPage>
     final note = list[index];
     final String deletedTitle = note.title;
     final manualCid = _manualCidForNote(note, kYear, kMonth, kDay);
+    final int? flowIdForNote = note.flowId;
+
+    // If this is a repeating-note micro-flow, delete the entire series (flow + all occurrences).
+    if (flowIdForNote != null && flowIdForNote > 0) {
+      _Flow? owningFlow;
+      try {
+        owningFlow = _flows.firstWhere((f) => f.id == flowIdForNote);
+      } catch (_) {
+        owningFlow = null;
+      }
+      final isRepeatingNoteFlow =
+          owningFlow != null && owningFlow.isHidden && !owningFlow.isReminder;
+      if (isRepeatingNoteFlow) {
+        final repo = UserEventsRepo(Supabase.instance.client);
+
+        // Remove all local occurrences tied to this flow and cancel their notifications.
+        final List<String> cidsToCancel = [];
+        _notes.removeWhere((_, bucket) {
+          bucket.removeWhere((n) {
+            final match = (n.flowId ?? -1) == flowIdForNote;
+            if (match && n.clientEventId != null) {
+              cidsToCancel.add(n.clientEventId!);
+            }
+            return match;
+          });
+          return bucket.isEmpty;
+        });
+        for (final cid in cidsToCancel) {
+          try {
+            await Notify.cancelNotificationForEvent(cid);
+          } catch (_) {
+            // ignore cancellation errors
+          }
+        }
+
+        // Remove the flow locally so it disappears from cache-driven views.
+        _flows.removeWhere((f) => f.id == flowIdForNote);
+        setState(() {});
+        _notifyDayViewDataChanged();
+
+        // Delete from Supabase: all events for the flow, then the flow row.
+        try {
+          await repo.deleteByFlowId(flowIdForNote);
+          await repo.deleteFlow(flowIdForNote);
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint(
+              '[delete-note] Failed to delete repeating flow $flowIdForNote: $e',
+            );
+          }
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✓ Deleted repeating note series: $deletedTitle'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+
+        await _loadFromDisk(source: 'delete_repeat_series');
+        return true;
+      }
+    }
     final pendingKey = _buildDeletionKey(
       id: note.id,
       clientEventId: note.clientEventId,
@@ -5558,6 +5624,14 @@ class _CalendarPageState extends State<CalendarPage>
     final list = _notes[key];
     if (list == null) return null;
 
+    // Fast path: match by id or clientEventId if present.
+    final idxByIds = _findNoteIndexByIdOrClientId(
+      key,
+      eventId: evt.id,
+      clientEventId: evt.clientEventId,
+    );
+    if (idxByIds >= 0) return idxByIds;
+
     int startHour = evt.startMin ~/ 60;
     int startMinute = evt.startMin % 60;
     int endHour = evt.endMin ~/ 60;
@@ -5565,7 +5639,8 @@ class _CalendarPageState extends State<CalendarPage>
 
     for (int i = 0; i < list.length; i++) {
       final n = list[i];
-      if ((n.flowId ?? -1) != -1) continue; // only standalone notes
+      // For flow-driven events, require flowId match when provided.
+      if (evt.flowId != null && (n.flowId ?? -1) != evt.flowId) continue;
       if (n.allDay != evt.allDay) continue;
       if (!evt.allDay) {
         if (n.start == null ||
@@ -10457,33 +10532,35 @@ class _CalendarPageState extends State<CalendarPage>
       // Build index/maps for later use
       final Map<int, _Flow> flowIndex = {for (final f in newFlows) f.id: f};
 
-      // We'll only hydrate events for flows that are still active AND visible.
-      final activeFlowIds = newFlows
-          .where((f) => f.active && !f.isHidden && _isActiveByEndDate(f.end))
+      // Hydrate events for flows that are still active and in-range.
+      // Hidden flows (repeating notes) must be included so their occurrences appear.
+      final hydrationFlowIds = newFlows
+          .where((f) => f.active && _isActiveByEndDate(f.end))
           .map((f) => f.id)
           .toSet(); // 👈 Set for O(1) contains() lookups
       if (kDebugMode) {
         debugPrint(
-          '[loadFromDisk] activeFlowIds count: ${activeFlowIds.length}',
+          '[loadFromDisk] hydrationFlowIds count: ${hydrationFlowIds.length}',
         );
-        if (activeFlowIds.isNotEmpty) {
-          for (final fid in activeFlowIds) {
+        if (hydrationFlowIds.isNotEmpty) {
+          for (final fid in hydrationFlowIds) {
             final flow = flowIndex[fid];
             if (flow == null) continue;
             final rn = _decodeRepeatingNoteMetadata(flow.notes);
             final looksLikeRepeatingNote =
                 rn.detail != null || rn.location != null || rn.category != null;
             debugPrint(
-              '[loadFromDisk] visible flow id=$fid name="${flow.name}" '
-              'isReminder=${flow.isReminder} notesLikeRepeatingNote=$looksLikeRepeatingNote',
+              '[loadFromDisk] flow id=$fid name="${flow.name}" '
+              'isReminder=${flow.isReminder} hidden=${flow.isHidden} '
+              'notesLikeRepeatingNote=$looksLikeRepeatingNote',
             );
           }
         }
       }
 
       ({DateTime startUtc, DateTime endUtc})? flowWindow;
-      if (activeFlowIds.isNotEmpty) {
-        flowWindow = _computeFlowHydrationWindow(activeFlowIds, flowIndex);
+      if (hydrationFlowIds.isNotEmpty) {
+        flowWindow = _computeFlowHydrationWindow(hydrationFlowIds, flowIndex);
         if (kDebugMode) {
           debugPrint(
             '[loadFromDisk] flow hydration window '
@@ -10494,17 +10571,17 @@ class _CalendarPageState extends State<CalendarPage>
 
       // Batched fetch of flow-backed events to avoid N sequential network calls.
       final Map<int, List<FlowEventRow>> eventsByFlowId = {};
-      if (activeFlowIds.isNotEmpty) {
+      if (hydrationFlowIds.isNotEmpty) {
         try {
           final batchedEvents = await repo.getEventsForFlowIds(
-            activeFlowIds,
+            hydrationFlowIds,
             startUtc: flowWindow?.startUtc,
             endUtc: flowWindow?.endUtc,
           );
           for (final evt in batchedEvents) {
             final fid = evt.flowLocalId;
             if (fid == null) continue;
-            if (!activeFlowIds.contains(fid)) continue;
+            if (!hydrationFlowIds.contains(fid)) continue;
             eventsByFlowId.putIfAbsent(fid, () => <FlowEventRow>[]).add(evt);
           }
           if (kDebugMode) {
@@ -10523,8 +10600,8 @@ class _CalendarPageState extends State<CalendarPage>
       }
 
       // Fallback to per-flow fetch if batching fails or returns nothing.
-      if (eventsByFlowId.isEmpty && activeFlowIds.isNotEmpty) {
-        for (final flowId in activeFlowIds) {
+      if (eventsByFlowId.isEmpty && hydrationFlowIds.isNotEmpty) {
+        for (final flowId in hydrationFlowIds) {
           try {
             final flowEvents = await repo.getEventsForFlow(
               flowId,
@@ -10556,7 +10633,7 @@ class _CalendarPageState extends State<CalendarPage>
 
       int flowAddedCount = 0;
 
-      for (final flowId in activeFlowIds) {
+      for (final flowId in hydrationFlowIds) {
         try {
           final flowEvents =
               eventsByFlowId[flowId] ?? const <FlowEventRow>[];
@@ -10568,15 +10645,13 @@ class _CalendarPageState extends State<CalendarPage>
             final kDate = KemeticMath.fromGregorian(localStart);
 
             // Build _Note, same shape the rest of the app expects
-            // 👈 SAFETY NET: Skip events for flows that don't exist or are inactive
+            // 👈 SAFETY NET: Skip events for flows that don't exist or are inactive/expired.
             final owningFlow = flowIndex[flowId];
-            final flowVisible =
-                owningFlow != null &&
+            final flowEligible = owningFlow != null &&
                 owningFlow.active &&
-                !owningFlow.isHidden &&
                 _isActiveByEndDate(owningFlow.end);
-            if (!flowVisible) {
-              // skip events that belong to deleted / inactive / hidden / expired flows
+            if (!flowEligible) {
+              // skip events that belong to deleted / inactive / expired flows
               continue;
             }
 
@@ -11012,9 +11087,11 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Future<int?> _findFlowIdByReminderUuid(String reminderUuid) async {
+    final dbUuid = _dbReminderUuidFromRuleId(reminderUuid);
+    if (dbUuid == null) return null;
     try {
       final repo = FlowsRepo(Supabase.instance.client);
-      return await repo.getFlowIdByReminderUuid(reminderUuid);
+      return await repo.getFlowIdByReminderUuid(dbUuid);
     } catch (_) {
       return null;
     }
@@ -11657,6 +11734,9 @@ class _CalendarPageState extends State<CalendarPage>
 
     // 8. Trigger materialization of events into user_events via the shared engine.
     await _triggerFlowSchedule(flowId);
+
+    // 9. Refresh local caches so the new repeating note series shows up immediately.
+    unawaited(_loadFromDisk(source: 'repeat_note_save'));
   }
 
   /// Universal date picker supporting Kemetic/Gregorian toggle

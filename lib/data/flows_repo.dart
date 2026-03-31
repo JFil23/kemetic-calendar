@@ -9,6 +9,13 @@ void _log(String msg) {
   if (kDebugMode) debugPrint('[flows] $msg');
 }
 
+bool _isUuid(String? v) {
+  if (v == null) return false;
+  return RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  ).hasMatch(v);
+}
+
 /// Returns true if the end date is unset or today-or-later (UTC date-only).
 bool _isActiveByEndDate(DateTime? endDate) {
   if (endDate == null) return true;
@@ -344,6 +351,9 @@ class FlowsRepo {
 
   /// Fetch a flow id by reminder_uuid.
   Future<int?> getFlowIdByReminderUuid(String reminderUuid) async {
+    if (!_isUuid(reminderUuid)) {
+      return null;
+    }
     try {
       final response = await _client
           .from(_kFlows)
