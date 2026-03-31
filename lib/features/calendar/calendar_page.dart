@@ -21762,7 +21762,15 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   List<_Flow> get _savedItems =>
-      widget.flows.where((f) => f.isSaved && !f.isHidden).toList()
+      widget.flows
+          .where(
+            (f) =>
+                f.isSaved &&
+                !f.isHidden &&
+                f.active &&
+                _isActiveByEndDate(f.end),
+          )
+          .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   // UI still filters by end date even though repos do, because _flows is an

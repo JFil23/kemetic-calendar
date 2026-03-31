@@ -1639,24 +1639,22 @@ class UserEventsRepo {
   Future<void> deleteFlow(int flowId) async {
     _log('deleteFlow($flowId)');
     try {
-      // Block deleting saved flows; prefer soft-delete semantics
       final row = await _client
           .from('flows')
           .select('id, is_saved')
           .eq('id', flowId)
           .maybeSingle();
       final isSaved = (row?['is_saved'] as bool?) ?? false;
-      if (isSaved) {
-        _log('deleteFlow BLOCKED (saved flow): $flowId');
-        return;
-      }
 
-      // Soft delete: hide and deactivate
+      // Soft delete: hide and deactivate even for saved flows so they disappear from UI.
+      // Saved flows intentionally keep their row; the UI uses is_hidden/active to filter.
       await _client
           .from('flows')
           .update({'is_hidden': true, 'active': false})
           .eq('id', flowId);
-      _log('deleteFlow ✓ (soft)');
+      _log(
+        'deleteFlow ✓ (soft${isSaved ? ', saved flow' : ''})',
+      );
     } on PostgrestException catch (e) {
       _log('deleteFlow ✗ ${e.code} ${e.message}');
       rethrow;

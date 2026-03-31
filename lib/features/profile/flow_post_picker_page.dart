@@ -5,7 +5,7 @@ import '../../data/flows_repo.dart';
 import '../../data/profile_repo.dart';
 import '_post_glossy_helper.dart';
 
-enum FlowPostTab { active, saved, maat }
+enum FlowPostTab { active, saved }
 
 class FlowPostPickerPage extends StatefulWidget {
   const FlowPostPickerPage({super.key});
@@ -39,19 +39,32 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
     });
   }
 
+  bool _isActiveByEndDate(DateTime? endDate) {
+    if (endDate == null) return true;
+    final endUtc = endDate.toUtc();
+    final endDateOnly = DateTime.utc(endUtc.year, endUtc.month, endUtc.day);
+    final now = DateTime.now().toUtc();
+    final today = DateTime.utc(now.year, now.month, now.day);
+    return !endDateOnly.isBefore(today);
+  }
+
   List<FlowRow> get _activeFlows =>
-      _flows.where((f) => f.active && !f.isHidden).toList()
+      _flows
+          .where(
+            (f) => f.active && !f.isHidden && _isActiveByEndDate(f.endDate),
+          )
+          .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   List<FlowRow> get _savedFlows =>
-      _flows.where((f) => f.isSaved && !f.isHidden).toList()
-        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-
-  List<FlowRow> get _maatFlows =>
       _flows
-          .where((f) =>
-              !f.isHidden &&
-              (f.notes ?? '').toLowerCase().contains('maat='))
+          .where(
+            (f) =>
+                f.isSaved &&
+                !f.isHidden &&
+                f.active &&
+                _isActiveByEndDate(f.endDate),
+          )
           .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
@@ -86,7 +99,6 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
     final flows = switch (_tab) {
       FlowPostTab.active => _activeFlows,
       FlowPostTab.saved => _savedFlows,
-      FlowPostTab.maat => _maatFlows,
     };
 
     return Scaffold(
@@ -130,10 +142,6 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
                       ButtonSegment(
                         value: FlowPostTab.saved,
                         label: Text('Saved Flows'),
-                      ),
-                      ButtonSegment(
-                        value: FlowPostTab.maat,
-                        label: Text("ḥꜣw"),
                       ),
                     ],
                     selected: <FlowPostTab>{_tab},
@@ -207,15 +215,12 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
     final label = switch (_tab) {
       FlowPostTab.active => 'No active flows',
       FlowPostTab.saved => 'No saved flows',
-      FlowPostTab.maat => "No ḥꜣw flows found",
     };
     final hint = switch (_tab) {
       FlowPostTab.active =>
           'Create a flow in Flow Studio to post it here.',
       FlowPostTab.saved =>
           'Save a flow first, then you can post it here.',
-      FlowPostTab.maat =>
-          "Start an ḥꜣw from Flow Studio, then post it here.",
     };
     return Center(
       child: Padding(
