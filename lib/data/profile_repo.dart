@@ -13,6 +13,7 @@ import 'share_models.dart';
 import 'flow_post_model.dart';
 import 'flows_repo.dart';
 import 'user_events_repo.dart';
+import 'flow_post_comment_model.dart';
 
 class ProfileRepo {
   final SupabaseClient _client;
@@ -687,6 +688,134 @@ class ProfileRepo {
       );
     }
   }
+
+  /// Fetch like count and whether the current user has liked a flow post.
+  Future<(int count, bool likedByMe)> getFlowPostLikeState(String postId) async {
+    try {
+      final currentUserId = _client.auth.currentUser?.id;
+      final rows = await _client
+          .from('flow_post_likes')
+          .select('user_id')
+          .eq('flow_post_id', postId);
+
+      final list = (rows as List<dynamic>?) ?? const [];
+      final count = list.length;
+      final liked = currentUserId == null
+          ? false
+          : list.any((row) => row['user_id'] == currentUserId);
+
+      return (count, liked);
+    } catch (e) {
+      if (_isMissingTable(e, 'flow_post_likes')) {
+        throw const FlowPostEngagementUnavailable('flow_post_likes');
+      }
+      print('[ProfileRepo] Error fetching flow post likes: $e');
+      return (0, false);
+    }
+  }
+
+  /// Like or unlike a flow post for the current user.
+  Future<bool> setFlowPostLike(String postId, {required bool like}) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return false;
+
+      if (like) {
+        await _client.from('flow_post_likes').upsert(
+          {
+            'flow_post_id': postId,
+            'user_id': userId,
+          },
+          onConflict: 'flow_post_id,user_id',
+        );
+      } else {
+        await _client
+            .from('flow_post_likes')
+            .delete()
+            .eq('flow_post_id', postId)
+            .eq('user_id', userId);
+      }
+
+      return true;
+    } catch (e) {
+      if (_isMissingTable(e, 'flow_post_likes')) {
+        throw const FlowPostEngagementUnavailable('flow_post_likes');
+      }
+      print('[ProfileRepo] Error updating flow post like: $e');
+      return false;
+    }
+  }
+
+  /// List comments for a flow post (oldest first).
+  Future<List<FlowPostComment>> getFlowPostComments(String postId) async {
+    try {
+      final rows = await _client
+          .from('flow_post_comments')
+          .select(
+              'id, flow_post_id, user_id, body, created_at, profiles(display_name, handle, avatar_url)')
+          .eq('flow_post_id', postId)
+          .order('created_at', ascending: true);
+
+      return (rows as List<dynamic>)
+          .map((r) => FlowPostComment.fromJson(r as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      if (_isMissingTable(e, 'flow_post_comments')) {
+        throw const FlowPostEngagementUnavailable('flow_post_comments');
+      }
+      print('[ProfileRepo] Error fetching flow post comments: $e');
+      return const [];
+    }
+  }
+
+  /// Add a comment to a flow post (client enforces 150 chars).
+  Future<FlowPostComment?> addFlowPostComment(
+    String postId,
+    String body,
+  ) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return null;
+
+      final trimmed = body.trim();
+      if (trimmed.isEmpty || trimmed.length > 150) return null;
+
+      final inserted = await _client
+          .from('flow_post_comments')
+          .insert({
+            'flow_post_id': postId,
+            'user_id': userId,
+            'body': trimmed,
+          })
+          .select(
+            'id, flow_post_id, user_id, body, created_at, profiles(display_name, handle, avatar_url)',
+          )
+          .single();
+
+      return FlowPostComment.fromJson(inserted as Map<String, dynamic>);
+    } catch (e) {
+      if (_isMissingTable(e, 'flow_post_comments')) {
+        throw const FlowPostEngagementUnavailable('flow_post_comments');
+      }
+      print('[ProfileRepo] Error adding flow post comment: $e');
+      return null;
+    }
+  }
+
+  bool _isMissingTable(Object e, String table) {
+    return e is PostgrestException &&
+        e.code == 'PGRST205' &&
+        (e.message.toLowerCase().contains(table));
+  }
+}
+
+/// Thrown when engagement tables have not been created on the backend yet.
+class FlowPostEngagementUnavailable implements Exception {
+  final String table;
+  const FlowPostEngagementUnavailable(this.table);
+
+  @override
+  String toString() => 'Flow post engagement table missing: $table';
 }
 
 /// User search result for user search

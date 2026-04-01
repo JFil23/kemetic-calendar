@@ -15,6 +15,7 @@ import 'flow_post_detail_page.dart';
 import '_post_glossy_helper.dart';
 import 'follow_list_page.dart';
 import '../calendar/calendar_page.dart';
+import 'flow_post_engagement_row.dart';
 
 class ProfilePage extends StatefulWidget {
   final String userId;
@@ -729,6 +730,8 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
             const SizedBox(height: 12),
+            FlowPostEngagementRow(post: post),
+            const SizedBox(height: 8),
             Row(
               children: [
                 if (_isViewingOwnProfile)
