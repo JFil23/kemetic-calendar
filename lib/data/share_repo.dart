@@ -1,16 +1,115 @@
 // lib/data/share_repo.dart
 // ShareRepo - Repository Layer for Flow Sharing System
 
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:postgrest/postgrest.dart' show PostgrestException;
+import 'package:realtime_client/realtime_client.dart';
 import 'share_models.dart';
 
 class ShareRepo {
   final SupabaseClient _client;
 
   ShareRepo(this._client);
+
+  // Activity items (likes, comments, follows) for unified inbox feed.
+  Future<List<InboxActivityItem>> getRecentActivity({
+    int limit = 50,
+  }) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return const [];
+
+    try {
+      final likes = await _client
+          .from('flow_post_likes')
+          .select(
+            'created_at, user_id, flow_post_id, profiles(display_name, handle, avatar_url), flow_posts!inner(name, user_id)',
+          )
+          .eq('flow_posts.user_id', uid)
+          .order('created_at', ascending: false)
+          .limit(limit);
+
+      final comments = await _client
+          .from('flow_post_comments')
+          .select(
+            'created_at, user_id, body, flow_post_id, profiles(display_name, handle, avatar_url), flow_posts!inner(name, user_id)',
+          )
+          .eq('flow_posts.user_id', uid)
+          .order('created_at', ascending: false)
+          .limit(limit);
+
+      final follows = await _client
+          .from('follows')
+          .select(
+            'created_at, follower_id, profiles!follower_id(display_name, handle, avatar_url)',
+          )
+          .eq('followee_id', uid)
+          .order('created_at', ascending: false)
+          .limit(limit);
+
+      final items = <InboxActivityItem>[];
+
+      for (final row in (likes as List? ?? const [])) {
+        final profile = row['profiles'] as Map<String, dynamic>?;
+        final createdAt = DateTime.parse(row['created_at'] as String);
+        items.add(
+          InboxActivityItem(
+            type: InboxActivityType.like,
+            createdAt: createdAt,
+            actorId: row['user_id'] as String?,
+            actorHandle: profile?['handle'] as String?,
+            actorName: profile?['display_name'] as String?,
+            actorAvatar: profile?['avatar_url'] as String?,
+            flowPostId: row['flow_post_id'] as String?,
+            flowName: (row['flow_posts'] as Map?)?['name'] as String?,
+          ),
+        );
+      }
+
+      for (final row in (comments as List? ?? const [])) {
+        final profile = row['profiles'] as Map<String, dynamic>?;
+        final createdAt = DateTime.parse(row['created_at'] as String);
+        items.add(
+          InboxActivityItem(
+            type: InboxActivityType.comment,
+            createdAt: createdAt,
+            actorId: row['user_id'] as String?,
+            actorHandle: profile?['handle'] as String?,
+            actorName: profile?['display_name'] as String?,
+            actorAvatar: profile?['avatar_url'] as String?,
+            flowPostId: row['flow_post_id'] as String?,
+            flowName: (row['flow_posts'] as Map?)?['name'] as String?,
+            commentPreview: row['body'] as String?,
+          ),
+        );
+      }
+
+      for (final row in (follows as List? ?? const [])) {
+        final profile = row['profiles'] as Map<String, dynamic>?;
+        final createdAt = DateTime.parse(row['created_at'] as String);
+        items.add(
+          InboxActivityItem(
+            type: InboxActivityType.follow,
+            createdAt: createdAt,
+            actorId: row['follower_id'] as String?,
+            actorHandle: profile?['handle'] as String?,
+            actorName: profile?['display_name'] as String?,
+            actorAvatar: profile?['avatar_url'] as String?,
+          ),
+        );
+      }
+
+      items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return items.take(limit).toList();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[ShareRepo] getRecentActivity error: $e');
+      }
+      return const [];
+    }
+  }
 
   /// Share a flow with recipients
   Future<List<ShareResult>> shareFlow({
@@ -279,13 +378,19 @@ class ShareRepo {
 
   /// Get unread count for inbox badge
   Future<int> getUnreadCount() async {
-    try {
-      final response = await _client
-          .from('inbox_unread_count_filtered')
-          .select('count')
-          .maybeSingle();
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return 0;
 
-      return response?['count'] as int? ?? 0;
+    try {
+      final resp = await _client
+          .from('inbox_share_items_filtered')
+          .select('share_id')
+          .eq('recipient_id', uid)
+          .filter('viewed_at', 'is', null)
+          .filter('deleted_at', 'is', null);
+
+      if (resp is List) return resp.length;
+      return 0;
     } catch (e) {
       print('[ShareRepo] Error fetching unread count: $e');
       return 0;
@@ -481,24 +586,72 @@ class ShareRepo {
     if (uid == null) {
       return Stream.value(0);
     }
+    final controller = StreamController<int>();
 
-    // Stream the filtered items and compute unread on the client.
-    // Only count items this user *received* and hasn't viewed/deleted.
-    return _client
-        .from('inbox_share_items_filtered')
-        .stream(primaryKey: ['share_id'])
-        .map((rows) {
-          final unread = rows.where((row) {
-            final viewedAt = row['viewed_at'];
-            final deletedAt = row['deleted_at'];
-            final recipientId = row['recipient_id'];
+    Future<void> _refresh() async {
+      final count = await getUnreadCount();
+      if (!controller.isClosed) controller.add(count);
+    }
 
-            // ✅ Only count flows this user *received* and hasn't viewed/deleted.
-            return recipientId == uid &&
-                viewedAt == null &&
-                deletedAt == null;
-          }).length;
-          return unread;
-        });
+    // Subscribe to both flow and event shares for this recipient
+    final channel = _client.channel('inbox_unread_$uid')
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'flow_shares',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'recipient_id',
+          value: uid,
+        ),
+        callback: (_) => _refresh(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'event_shares',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'recipient_id',
+          value: uid,
+        ),
+        callback: (_) => _refresh(),
+      )
+      ..subscribe();
+
+    // Initial load
+    _refresh();
+
+    controller.onCancel = () {
+      channel.unsubscribe();
+    };
+
+    return controller.stream;
   }
+}
+
+enum InboxActivityType { like, comment, follow }
+
+class InboxActivityItem {
+  InboxActivityItem({
+    required this.type,
+    required this.createdAt,
+    this.actorId,
+    this.actorHandle,
+    this.actorName,
+    this.actorAvatar,
+    this.flowPostId,
+    this.flowName,
+    this.commentPreview,
+  });
+
+  final InboxActivityType type;
+  final DateTime createdAt;
+  final String? actorId;
+  final String? actorHandle;
+  final String? actorName;
+  final String? actorAvatar;
+  final String? flowPostId;
+  final String? flowName;
+  final String? commentPreview;
 }

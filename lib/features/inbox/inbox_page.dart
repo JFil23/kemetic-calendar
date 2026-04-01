@@ -11,6 +11,8 @@ import '../calendar/calendar_page.dart';
 import '../../utils/event_cid_util.dart';
 import 'inbox_conversation_page.dart';
 import 'conversation_user.dart';
+import '../../data/share_repo.dart' show InboxActivityItem, InboxActivityType;
+import 'dart:async';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
@@ -31,6 +33,14 @@ class _InboxPageState extends State<InboxPage> {
 
   late final InboxRepo _inboxRepo;
   late final ShareRepo _shareRepo;
+  StreamSubscription<Map<String, List<InboxShareItem>>>? _convSub;
+  Map<String, List<InboxShareItem>> _latestThreads = const {};
+  List<_UnifiedInboxItem> _unified = const [];
+  bool _loading = true;
+  InboxActivityItem? _latestFollow;
+  InboxActivityItem? _latestEngagement;
+  List<InboxActivityItem> _activity = const [];
+  bool _marking = false;
 
   @override
   void initState() {
@@ -38,11 +48,78 @@ class _InboxPageState extends State<InboxPage> {
     final client = Supabase.instance.client;
     _shareRepo = ShareRepo(client);
     _inboxRepo = InboxRepo(client);
+    _convSub = _inboxRepo.watchConversations().listen((threads) {
+      _latestThreads = threads;
+      _refreshUnified();
+    });
+    _refreshUnified();
   }
 
   Future<void> _handleRefresh() async {
-    // Stream auto-updates; small delay to let stream catch up
-    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await _refreshUnified();
+  }
+
+  Future<void> _refreshUnified() async {
+    setState(() => _loading = true);
+    final activity = await _shareRepo.getRecentActivity(limit: 50);
+    _activity = activity;
+    _latestFollow = activity.firstWhere(
+      (a) => a.type == InboxActivityType.follow,
+      orElse: () => null as InboxActivityItem,
+    );
+    _latestEngagement = activity.firstWhere(
+      (a) => a.type == InboxActivityType.like || a.type == InboxActivityType.comment,
+      orElse: () => null as InboxActivityItem,
+    );
+
+    // Build message threads (use latest item in each thread)
+    final messageItems = <_UnifiedInboxItem>[];
+    _latestThreads.forEach((otherId, items) {
+      if (items.isEmpty) return;
+      final last = items.last;
+      final currentUserId = _inboxRepo.currentUserId;
+      if (currentUserId == null) return;
+      final otherProfile = _resolveOtherProfile(last, currentUserId);
+      final hasUnread = items.any(
+        (i) => i.recipientId == currentUserId && i.isUnread,
+      );
+      messageItems.add(
+        _UnifiedInboxItem.message(
+          createdAt: last.createdAt,
+          otherUserId: otherId,
+          otherProfile: otherProfile,
+          items: items,
+          hasUnread: hasUnread,
+        ),
+      );
+    });
+
+    // Convert activity items
+    final activityItems = activity
+        .map(
+          (a) => _UnifiedInboxItem.activity(
+            createdAt: a.createdAt,
+            activity: a,
+          ),
+        )
+        .toList();
+    // Only messages appear in the feed; activity stays behind summary buttons.
+    final merged = [...messageItems]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    await _markAllUnreadViewed();
+
+    if (!mounted) return;
+    setState(() {
+      _unified = merged;
+      _loading = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    _convSub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -105,94 +182,37 @@ class _InboxPageState extends State<InboxPage> {
     return RefreshIndicator(
       onRefresh: _handleRefresh,
       color: _gold,
-      child: StreamBuilder<Map<String, List<InboxShareItem>>>(
-        stream: _inboxRepo.watchConversations(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Failed to load inbox',
-                    style: TextStyle(color: _silver, fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Text(
-                      '${snapshot.error}',
-                      style: const TextStyle(color: _silver, fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _handleRefresh,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _gold,
-                      foregroundColor: Colors.black,
-                    ),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          if (!snapshot.hasData) {
-            return const Center(
+      child: _loading
+          ? const Center(
               child: CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(_gold),
               ),
-            );
-          }
-
-          final threads = snapshot.data!;
-          if (threads.isEmpty) {
-            return _buildEmptyState();
-          }
-
-          final entries = threads.entries.toList()
-            ..sort((a, b) {
-              // Sort by newest message in thread (descending)
-              final aLast = a.value.last.createdAt;
-              final bLast = b.value.last.createdAt;
-              return bLast.compareTo(aLast);
-            });
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: entries.length,
-            itemBuilder: (context, index) {
-              final otherUserId = entries[index].key;
-              final items = entries[index].value;
-              final last = items.last;
-              final currentUserId = _inboxRepo.currentUserId;
-
-              if (currentUserId == null) {
-                return const SizedBox.shrink();
-              }
-
-              final otherProfile = _resolveOtherProfile(last, currentUserId);
-              final hasUnread = items.any(
-                (i) => i.recipientId == currentUserId && i.isUnread,
-              );
-
-              return _buildConversationBar(
-                context: context,
-                otherUserId: otherUserId,
-                otherProfile: otherProfile,
-                lastItem: last,
-                hasUnread: hasUnread,
-                items: items,
-              );
-            },
-          );
-        },
-      ),
+            )
+          : (_unified.isEmpty && !_hasSummaries
+              ? _buildEmptyState()
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _unified.length + _summaryTileCount,
+                  itemBuilder: (context, index) {
+                    if (_hasSummaries && index < _summaryTileCount) {
+                      return _buildSummaryTile(index);
+                    }
+                    final adjIndex = _hasSummaries ? index - _summaryTileCount : index;
+                    final item = _unified[adjIndex];
+                    if (item.kind == _UnifiedKind.message) {
+                      return _buildConversationBar(
+                        context: context,
+                        otherUserId: item.otherUserId!,
+                        otherProfile: item.otherProfile!,
+                        lastItem: item.items!.last,
+                        hasUnread: item.hasUnread ?? false,
+                        items: item.items!,
+                      );
+                    } else {
+                      return _buildActivityRow(item.activity!);
+                    }
+                  },
+                )),
     );
   }
 
@@ -397,6 +417,223 @@ class _InboxPageState extends State<InboxPage> {
     ).push(MaterialPageRoute(builder: (_) => ProfilePage(userId: userId)));
   }
 
+  Future<void> _markAllUnreadViewed() async {
+    if (_marking) return;
+    final currentUserId = _inboxRepo.currentUserId;
+    if (currentUserId == null) return;
+    _marking = true;
+    final tasks = <Future<bool>>[];
+    for (final thread in _latestThreads.values) {
+      for (final item in thread) {
+        final isIncoming = item.recipientId == currentUserId;
+        if (isIncoming && item.viewedAt == null) {
+          tasks.add(_shareRepo.markViewed(item.shareId, isFlow: item.isFlow));
+        }
+      }
+    }
+    try {
+      if (tasks.isNotEmpty) {
+        await Future.wait(tasks);
+      }
+    } finally {
+      _marking = false;
+    }
+  }
+
+  Widget _buildActivityRow(InboxActivityItem activity) {
+    IconData icon;
+    Color color;
+    String title;
+    String subtitle;
+
+    switch (activity.type) {
+      case InboxActivityType.like:
+        icon = Icons.favorite;
+        color = Colors.redAccent;
+        title = '${activity.actorName ?? activity.actorHandle ?? 'Someone'} liked your flow';
+        subtitle = activity.flowName ?? '';
+        break;
+      case InboxActivityType.comment:
+        icon = Icons.chat_bubble_outline;
+        color = const Color(0xFFD4AF37);
+        title = '${activity.actorName ?? activity.actorHandle ?? 'Someone'} commented on your flow';
+        subtitle = activity.commentPreview ?? activity.flowName ?? '';
+        break;
+      case InboxActivityType.follow:
+        icon = Icons.person_add;
+        color = Colors.blueAccent;
+        title = '${activity.actorName ?? activity.actorHandle ?? 'Someone'} started following you';
+        subtitle = '';
+        break;
+    }
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: color.withOpacity(0.1),
+        child: Icon(icon, color: color),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      ),
+      subtitle: subtitle.isNotEmpty
+          ? Text(
+              subtitle,
+              style: TextStyle(color: Colors.white.withOpacity(0.7)),
+            )
+          : null,
+      onTap: activity.actorId != null ? () => _openProfile(activity.actorId!) : null,
+    );
+  }
+
+  bool get _hasSummaries => _latestFollow != null || _latestEngagement != null;
+  int get _summaryTileCount =>
+      (_latestFollow != null ? 1 : 0) + (_latestEngagement != null ? 1 : 0);
+
+  Widget _buildSummaryTile(int index) {
+    // Order: follow first, then engagement
+    if (_latestFollow != null && index == 0) {
+      final a = _latestFollow!;
+      final title =
+          '${a.actorName ?? a.actorHandle ?? 'Someone'} started following you';
+      return ListTile(
+        leading: const CircleAvatar(
+          backgroundColor: Colors.blueAccent,
+          child: Icon(Icons.person_add, color: Colors.white),
+        ),
+        title: Text(
+          'New followers',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(
+          title,
+          style: TextStyle(color: Colors.white.withOpacity(0.7)),
+        ),
+        onTap: _openFollowersSheet,
+      );
+    }
+
+    final a = _latestEngagement!;
+    final who = a.actorName ?? a.actorHandle ?? 'Someone';
+    final preview = a.type == InboxActivityType.comment
+        ? (a.commentPreview ?? a.flowName ?? '')
+        : (a.flowName ?? '');
+
+    return ListTile(
+      leading: const CircleAvatar(
+        backgroundColor: Colors.pinkAccent,
+        child: Icon(Icons.favorite, color: Colors.white),
+      ),
+      title: const Text(
+        'Activity',
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+      ),
+      subtitle: Text(
+        a.type == InboxActivityType.comment
+            ? '$who commented on your flow'
+            : '$who liked your flow',
+        style: TextStyle(color: Colors.white.withOpacity(0.7)),
+      ),
+      trailing: preview.isNotEmpty
+          ? Text(
+              preview,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: Colors.white.withOpacity(0.5)),
+            )
+          : null,
+      onTap: _openEngagementSheet,
+    );
+  }
+
+  void _openFollowersSheet() {
+    final followers = _activity
+        .where((a) => a.type == InboxActivityType.follow)
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    _showActivitySheet(
+      title: 'New followers',
+      items: followers,
+    );
+  }
+
+  void _openEngagementSheet() {
+    final engagement = _activity
+        .where((a) => a.type == InboxActivityType.like || a.type == InboxActivityType.comment)
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    _showActivitySheet(
+      title: 'Activity',
+      items: engagement,
+    );
+  }
+
+  void _showActivitySheet({
+    required String title,
+    required List<InboxActivityItem> items,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _bg,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (items.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      'Nothing here yet.',
+                      style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        final a = items[index];
+                        return _buildActivityRow(a);
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -428,6 +665,40 @@ class _InboxPageState extends State<InboxPage> {
       ),
     );
   }
+}
+
+enum _UnifiedKind { message, activity }
+
+class _UnifiedInboxItem {
+  _UnifiedInboxItem.message({
+    required this.createdAt,
+    required this.otherUserId,
+    required this.otherProfile,
+    required this.items,
+    required this.hasUnread,
+  }) : kind = _UnifiedKind.message,
+        activity = null;
+
+  _UnifiedInboxItem.activity({
+    required this.createdAt,
+    required this.activity,
+  }) : kind = _UnifiedKind.activity,
+        otherUserId = null,
+        otherProfile = null,
+        items = null,
+        hasUnread = null;
+
+  final _UnifiedKind kind;
+  final DateTime createdAt;
+
+  // Message thread fields
+  final String? otherUserId;
+  final ConversationUser? otherProfile;
+  final List<InboxShareItem>? items;
+  final bool? hasUnread;
+
+  // Activity fields
+  final InboxActivityItem? activity;
 }
 
 // Legacy code below - keeping for FlowPreviewCard compatibility

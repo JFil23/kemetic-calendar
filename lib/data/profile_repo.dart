@@ -807,6 +807,34 @@ class ProfileRepo {
         e.code == 'PGRST205' &&
         (e.message.toLowerCase().contains(table));
   }
+
+  /// Send a push notification via the edge function `send_push`.
+  /// This mirrors the DM notification path: fan-out to push_tokens for userIds.
+  Future<void> sendFlowPostPush({
+    required String targetUserId,
+    required String title,
+    String? body,
+    Map<String, String>? data,
+  }) async {
+    final currentUserId = _client.auth.currentUser?.id;
+    if (currentUserId == null) return;
+    if (currentUserId == targetUserId) return; // Don't notify self
+
+    try {
+      await _client.functions.invoke(
+        'send_push',
+        body: {
+          'userIds': [targetUserId],
+          'notification': {'title': title, if (body != null) 'body': body},
+          if (data != null) 'data': data,
+        },
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('[ProfileRepo] sendFlowPostPush failed: $e');
+      }
+    }
+  }
 }
 
 /// Thrown when engagement tables have not been created on the backend yet.

@@ -196,6 +196,18 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
           _likedByMe = target;
           _likesCount += target ? 1 : -1;
           if (_likesCount < 0) _likesCount = 0;
+          if (target) {
+            _repo.sendFlowPostPush(
+              targetUserId: widget.post.userId,
+              title: 'New like on your flow',
+              body: widget.post.name,
+              data: {
+                'type': 'flow_like',
+                'flow_post_id': widget.post.id,
+                'flow_name': widget.post.name,
+              },
+            );
+          }
         } else {
           _showError('Could not update like. Please try again.');
         }
@@ -465,6 +477,16 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
       if (created != null) {
         _comments = List<FlowPostComment>.from(_comments)..add(created);
         _commentController.clear();
+        _repo.sendFlowPostPush(
+          targetUserId: widget.post.userId,
+          title: 'New comment on your flow',
+          body: created.body,
+          data: {
+            'type': 'flow_comment',
+            'flow_post_id': widget.post.id,
+            'flow_name': widget.post.name,
+          },
+        );
       } else {
         _showError('Could not post comment. Please try again.');
       }
