@@ -2731,7 +2731,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                             ],
                           ),
                       ),
-                      if (flow != null)
+                      if (flow != null && !isReminder)
                         const PopupMenuItem(
                           value: 'edit',
                           child: Row(
@@ -2742,7 +2742,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                             ],
                           ),
                         ),
-                      if (flow != null)
+                      if (flow != null && !isReminder)
                         const PopupMenuItem(
                           value: 'share',
                           child: Row(
@@ -2753,7 +2753,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                             ],
                           ),
                         ),
-                      if (flow != null)
+                      if (flow != null && !isReminder)
                         const PopupMenuItem(
                           value: 'save',
                           child: Row(

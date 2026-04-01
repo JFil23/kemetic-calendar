@@ -14998,7 +14998,7 @@ class _DayChip extends StatelessWidget {
                               ],
                             ),
                           ),
-                        if (note.flowId != null)
+                        if (note.flowId != null && !note.isReminder)
                           const PopupMenuItem(
                             value: 'edit_flow',
                             child: Row(
@@ -15012,7 +15012,7 @@ class _DayChip extends StatelessWidget {
                               ],
                             ),
                           ),
-                        if (note.flowId != null)
+                        if (note.flowId != null && !note.isReminder)
                           const PopupMenuItem(
                             value: 'share_flow',
                             child: Row(
@@ -15026,7 +15026,7 @@ class _DayChip extends StatelessWidget {
                               ],
                             ),
                           ),
-                        if (note.flowId != null)
+                        if (note.flowId != null && !note.isReminder)
                           const PopupMenuItem(
                             value: 'save_flow',
                             child: Row(
