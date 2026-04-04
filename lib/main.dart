@@ -31,6 +31,7 @@ import 'data/decan_reflection_repo.dart';
 import 'features/profile/profile_page.dart';
 import 'features/reflections/decan_reflection_detail_page.dart';
 import 'widgets/kemetic_keyboard.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 
 // Conditional import: on web we use URL cleanup + visibility hook; elsewhere no-ops.
 import 'utils/web_history.dart'
@@ -57,7 +58,15 @@ Future<({String url, String anonKey})> _loadSupabaseConfig() async {
       final json = jsonDecode(raw) as Map<String, dynamic>;
       final fileUrl = (json['SUPABASE_URL'] as String?)?.trim() ?? '';
       final fileKey = (json['SUPABASE_ANON_KEY'] as String?)?.trim() ?? '';
-      if (fileUrl.isNotEmpty && fileKey.length > 20) {
+      final looksServiceRole =
+          fileKey.toLowerCase().contains('service_role') || fileKey.toLowerCase().contains('service-role');
+      if (kDebugMode && looksServiceRole) {
+        debugPrint('[env] Ignoring service_role key in env/dev.json; only anon keys allowed.');
+      }
+      final looksPlaceholder =
+          fileUrl.contains('YOUR_PROJECT_REF') || fileKey.contains('YOUR_SUPABASE_ANON_KEY');
+
+      if (fileUrl.isNotEmpty && fileKey.length > 20 && !looksServiceRole && !looksPlaceholder) {
         url = fileUrl;
         anonKey = fileKey;
         if (kDebugMode) {
@@ -95,7 +104,13 @@ Future<void> main() async {
 
     if (kDebugMode) {
       debugPrint('🔍 SUPABASE_URL: ${supabaseConfig.url}');
-      debugPrint('🔍 Has ANON_KEY: ${supabaseConfig.anonKey.isNotEmpty}');
+      final key = supabaseConfig.anonKey;
+      final startLen = key.length >= 8 ? 8 : key.length;
+      final endLen = key.length >= 6 ? 6 : key.length;
+      final maskedKey = key.isEmpty
+          ? '<empty>'
+          : '${key.substring(0, startLen)}...${key.substring(key.length - endLen)} (len=${key.length})';
+      debugPrint('🔍 ANON_KEY present: ${key.isNotEmpty}, fingerprint: $maskedKey');
     }
 
     if (supabaseConfig.url.isEmpty || supabaseConfig.anonKey.length <= 20) {
@@ -336,7 +351,17 @@ class _AuthGateState extends State<AuthGate> {
         await UserEventsRepo.refreshTelemetrySettings(supabase);
         await _logAppOpenOnce(); // one-shot per cold start
         unawaited(_initNotificationsSafely());
-        unawaited(PushNotifications.instance(supabase).registerForUser());
+        if (!kIsWeb) {
+          unawaited(
+            PushNotifications.instance(supabase).registerForUser().then((ok) {
+              if (!ok && kDebugMode) {
+                debugPrint('[push] registerForUser failed');
+              }
+            }),
+          );
+        } else if (kDebugMode) {
+          debugPrint('[push] registerForUser skipped on web (manual button required)');
+        }
         _installPushNavigation();
         if (!_scheduledDecans) {
           _scheduledDecans = true;
@@ -818,7 +843,9 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     // Authenticated
-    return Scaffold(body: CalendarPage());
+    return Scaffold(
+      body: CalendarPage(),
+    );
   }
 
   void _installPushNavigation() {

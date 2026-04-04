@@ -4,6 +4,7 @@
 // KEY FIX: The old code was checking flow_shares.flow_id (sender's original flow)
 // The new code checks flows.share_id (user's imported copy linked to inbox share)
 
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert';
@@ -207,6 +208,8 @@ class InboxRepo {
         'status': 'sent',
         'payload_json': payload,
       });
+      // Fire-and-forget push notification for DM
+      unawaited(_sendDmPush(recipientId, trimmed));
       return null;
     } catch (e, st) {
       if (kDebugMode) {
@@ -259,6 +262,54 @@ class InboxRepo {
     final id = (inserted['id'] as num).toInt();
     _cachedDmPlaceholderFlowId = id;
     return id;
+  }
+
+  Future<void> _sendDmPush(String recipientId, String text) async {
+    final senderId = currentUserId;
+    if (senderId == null || senderId == recipientId) return;
+
+    try {
+      if (kDebugMode) {
+        debugPrint(
+          '[push][dm] invoking send_push via shared Supabase client; sender=$senderId recipient=$recipientId',
+        );
+      }
+
+      final profile = await _client
+          .from('profiles')
+          .select('display_name, handle')
+          .eq('id', senderId)
+          .maybeSingle();
+
+      final displayName = (profile?['display_name'] as String?)?.trim();
+      final handle = (profile?['handle'] as String?)?.trim();
+      final senderLabel = (displayName?.isNotEmpty ?? false)
+          ? displayName!
+          : (handle?.isNotEmpty ?? false)
+              ? '@$handle'
+              : 'Someone';
+      final preview = text.length > 120 ? '${text.substring(0, 120)}...' : text;
+
+      await _client.functions.invoke(
+        'send_push',
+        body: {
+          'userIds': [recipientId],
+          'notification': {
+            'title': 'New message from $senderLabel',
+            'body': preview,
+          },
+          'data': {
+            'type': 'dm',
+            'sender_id': senderId,
+          },
+        },
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[InboxRepo] _sendDmPush failed: $e');
+        debugPrint('$st');
+      }
+    }
   }
 
   /// Watch a specific conversation with another user

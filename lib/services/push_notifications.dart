@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -31,7 +33,7 @@ class _PushTokenRepo {
   const _PushTokenRepo(this._client);
   final SupabaseClient _client;
 
-  Future<void> upsertToken({
+  Future<bool> upsertToken({
     required String token,
     required String platform,
     required String deviceId,
@@ -40,7 +42,7 @@ class _PushTokenRepo {
     final uid = user?.id;
     if (uid == null) {
       debugPrint('[push] upsert skipped: no user');
-      return;
+      return false;
     }
     final nowIso = DateTime.now().toUtc().toIso8601String();
     final payload = {
@@ -59,8 +61,10 @@ class _PushTokenRepo {
           .upsert(payload, onConflict: 'device_id')
           .select();
       debugPrint('[push] token upsert succeeded');
+      return true;
     } catch (e) {
       debugPrint('[push] token upsert failed: $e');
+      return false;
     }
   }
 
@@ -86,6 +90,7 @@ class PushNotifications {
   bool _initialized = false;
   bool _askedPermission = false;
   final StreamController<Map<String, dynamic>> _openedMessages = StreamController.broadcast();
+  String? _resolvedWebVapidKey;
 
   Stream<Map<String, dynamic>> get openedMessages => _openedMessages.stream;
 
@@ -117,7 +122,8 @@ class PushNotifications {
     final token = await _getToken();
     debugPrint('[push] requestAndRegisterToken token: $token');
     if (token != null) {
-      await _registerToken(token);
+      final okReg = await _registerToken(token);
+      if (!okReg) return null;
     }
     return token;
   }
@@ -125,7 +131,10 @@ class PushNotifications {
   Future<void> init() async {
     if (_initialized) return;
     final ok = await _ensureFirebaseInitialized();
-    if (!ok) return;
+    if (!ok) {
+      debugPrint('[push] Firebase init failed; push disabled');
+      return;
+    }
 
     // Foreground presentation (iOS/macOS/web)
     await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
@@ -157,21 +166,32 @@ class PushNotifications {
     });
   }
 
-  Future<void> registerForUser() async {
+  Future<bool> registerForUser() async {
     final session = _client.auth.currentSession;
-    if (session == null) return;
+    if (session == null) return false;
     debugPrint('[push] registerForUser: user=${session.user.id}');
     final ok = await initAndRequestPermission();
     debugPrint('[push] permission ok: $ok');
-    if (!ok) return;
-    if (kIsWeb) {
-      await _requestWebPermissionAndLogToken();
-    }
+    if (!ok) return false;
     final token = await _getToken();
-    debugPrint('[push] token fetched: $token');
-    if (token != null) {
-      await _registerToken(token);
+    if (token == null) {
+      debugPrint('[push] token fetched: <null>');
+      return false;
     }
+    final masked = token.length > 10
+        ? '${token.substring(0, 6)}...${token.substring(token.length - 6)} (len=${token.length})'
+        : token;
+    debugPrint('[push] token fetched: $masked');
+    if (token == null) return false;
+    final registered = await _registerToken(token);
+    if (kDebugMode) {
+      final suffix = token.length > 8 ? token.substring(token.length - 8) : token;
+      debugPrint('[push] token registered=$registered len=${token.length} suffix=$suffix');
+    }
+    if (!registered) {
+      debugPrint('[push] token registration failed');
+    }
+    return registered;
   }
 
   Future<void> unregister() async {
@@ -215,9 +235,9 @@ class PushNotifications {
       if (Firebase.apps.isNotEmpty) return true;
 
       if (kIsWeb) {
-        final opts = _webOptionsFromEnv();
+        final opts = await _resolveWebOptions();
         if (opts == null) {
-          debugPrint('[push] missing FIREBASE_WEB_* env vars; web push disabled');
+          debugPrint('[push] missing web Firebase config; set FIREBASE_WEB_* or web/env.json');
           return false;
         }
         await Firebase.initializeApp(options: opts);
@@ -235,7 +255,11 @@ class PushNotifications {
   Future<String?> _getToken() async {
     try {
       return await FirebaseMessaging.instance.getToken(
-        vapidKey: kIsWeb ? (_webVapidKey.isEmpty ? null : _webVapidKey) : null,
+        vapidKey: kIsWeb
+            ? (_resolvedWebVapidKey?.isNotEmpty == true
+                ? _resolvedWebVapidKey
+                : (_webVapidKey.isEmpty ? null : _webVapidKey))
+            : null,
       );
     } catch (e) {
       debugPrint('[push] getToken failed: $e');
@@ -243,11 +267,15 @@ class PushNotifications {
     }
   }
 
-  Future<void> _registerToken(String token) async {
+  Future<bool> _registerToken(String token) async {
     final deviceId = await _deviceId();
     final platform = _platformLabel();
     debugPrint('[push] registering token for platform=$platform deviceId=$deviceId');
-    await _repo.upsertToken(token: token, platform: platform, deviceId: deviceId);
+    return await _repo.upsertToken(
+      token: token,
+      platform: platform,
+      deviceId: deviceId,
+    );
   }
 
   Future<void> emitInitialMessage() async {
@@ -280,6 +308,41 @@ class PushNotifications {
       messagingSenderId: _webSender,
       projectId: _webProjectId,
     );
+  }
+
+  Future<FirebaseOptions?> _resolveWebOptions() async {
+    final fromEnv = _webOptionsFromEnv();
+    if (fromEnv != null) {
+      _resolvedWebVapidKey = _webVapidKey;
+      return fromEnv;
+    }
+
+    // Fallback: try to load web/env.json for hosted builds that rely on that file.
+    try {
+      final uri = Uri.base.resolve('env.json');
+      final resp = await http.get(uri);
+      if (resp.statusCode == 200) {
+        final json = jsonDecode(resp.body) as Map<String, dynamic>;
+        final apiKey = (json['FIREBASE_WEB_API_KEY'] as String?) ?? '';
+        final appId = (json['FIREBASE_WEB_APP_ID'] as String?) ?? '';
+        final senderId = (json['FIREBASE_WEB_SENDER_ID'] as String?) ?? '';
+        final projectId = (json['FIREBASE_WEB_PROJECT_ID'] as String?) ?? '';
+        final vapid = (json['FIREBASE_WEB_VAPID_KEY'] as String?) ?? '';
+        if (apiKey.isNotEmpty && appId.isNotEmpty && senderId.isNotEmpty && projectId.isNotEmpty) {
+          _resolvedWebVapidKey = vapid;
+          return FirebaseOptions(
+            apiKey: apiKey,
+            appId: appId,
+            messagingSenderId: senderId,
+            projectId: projectId,
+          );
+        }
+      }
+      debugPrint('[push] env.json missing FIREBASE_WEB_* keys (status=${resp.statusCode})');
+    } catch (e) {
+      debugPrint('[push] failed to load env.json for web Firebase config: $e');
+    }
+    return null;
   }
 
   /// Web-only: request permission explicitly and log the token for debugging.
