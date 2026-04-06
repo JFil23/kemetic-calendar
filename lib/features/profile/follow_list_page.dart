@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 import '../../data/profile_repo.dart';
 
@@ -70,7 +71,7 @@ class _FollowListPageState extends State<FollowListPage> {
         backgroundColor: const Color(0xFF000000),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Color(0xFFD4AF37)),
+          icon: KemeticGold.icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -86,7 +87,7 @@ class _FollowListPageState extends State<FollowListPage> {
           ? const Center(
               child: CircularProgressIndicator(
                 valueColor:
-                    AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                    AlwaysStoppedAnimation<Color>(KemeticGold.base),
               ),
             )
           : _buildBody(),
@@ -96,7 +97,7 @@ class _FollowListPageState extends State<FollowListPage> {
   Widget _buildBody() {
     if (_users.isEmpty) {
       return RefreshIndicator(
-        color: const Color(0xFFD4AF37),
+        color: KemeticGold.base,
         backgroundColor: Colors.black,
         onRefresh: _load,
         child: ListView(
@@ -136,7 +137,7 @@ class _FollowListPageState extends State<FollowListPage> {
     }
 
     return RefreshIndicator(
-      color: const Color(0xFFD4AF37),
+      color: KemeticGold.base,
       backgroundColor: Colors.black,
       onRefresh: _load,
       child: ListView.separated(
@@ -166,15 +167,14 @@ class _FollowListPageState extends State<FollowListPage> {
             ),
             leading: CircleAvatar(
               radius: 20,
-              backgroundColor: const Color(0xFFD4AF37).withOpacity(0.2),
+              backgroundColor: KemeticGold.base.withOpacity(0.2),
               backgroundImage: user.avatarUrl != null
                   ? NetworkImage(user.avatarUrl!)
                   : null,
               child: user.avatarUrl == null
-                  ? Text(
+                  ? KemeticGold.text(
                       initials,
                       style: const TextStyle(
-                        color: Color(0xFFD4AF37),
                         fontWeight: FontWeight.bold,
                       ),
                     )
@@ -195,8 +195,7 @@ class _FollowListPageState extends State<FollowListPage> {
                     style: TextStyle(color: Colors.white.withOpacity(0.6)),
                   )
                 : null,
-            trailing:
-                const Icon(Icons.chevron_right, color: Color(0xFFD4AF37)),
+            trailing: KemeticGold.icon(Icons.chevron_right),
             onTap: () => widget.onUserTap(user.userId),
           );
         },

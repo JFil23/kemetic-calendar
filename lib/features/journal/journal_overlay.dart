@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:mobile/shared/glossy_text.dart';
 import 'journal_controller.dart';
 import 'journal_constants.dart';
 import '../../core/feature_flags.dart';
@@ -351,7 +352,7 @@ class _JournalOverlayState extends State<JournalOverlay>
                         decoration: BoxDecoration(
                           color: const Color(0xFF000000),
                           border: Border.all(
-                            color: const Color(0xFFD4AF37),
+                            color: KemeticGold.base,
                             width: 1.0,
                           ),
                           borderRadius: widget.isPortrait
@@ -400,21 +401,21 @@ class _JournalOverlayState extends State<JournalOverlay>
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: const Icon(Icons.history, color: Color(0xFFD4AF37)),
+                icon: KemeticGold.icon(Icons.history),
                 onPressed: _openArchive,
                 tooltip: 'View archive',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
               IconButton(
-                icon: const Icon(Icons.delete_outline, color: Color(0xFFD4AF37)),
+                icon: KemeticGold.icon(Icons.delete_outline),
                 onPressed: () async {
                   await widget.controller.clearToday();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Cleared today\'s journal'),
-                        backgroundColor: Color(0xFFD4AF37),
+                        backgroundColor: KemeticGold.base,
                         duration: Duration(seconds: 2),
                       ),
                     );
@@ -425,7 +426,7 @@ class _JournalOverlayState extends State<JournalOverlay>
                 constraints: const BoxConstraints(),
               ),
               IconButton(
-                icon: const Icon(Icons.close, color: Color(0xFFD4AF37)),
+                icon: KemeticGold.icon(Icons.close),
                 onPressed: _close,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -457,11 +458,11 @@ class _JournalOverlayState extends State<JournalOverlay>
       child: Text(
         label,
         style: TextStyle(
-          color: isActive ? const Color(0xFFD4AF37) : const Color(0xFF888888),
+          color: isActive ? KemeticGold.base : const Color(0xFF888888),
           fontSize: 18,
           fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
           decoration: isActive ? TextDecoration.underline : TextDecoration.none,
-          decorationColor: const Color(0xFFD4AF37),
+          decorationColor: KemeticGold.base,
           decorationThickness: 2,
         ),
       ),

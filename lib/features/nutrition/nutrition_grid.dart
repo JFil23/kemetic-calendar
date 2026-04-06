@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // LogicalKeyboardKey
 import 'package:flutter/foundation.dart'; // setEquals
 import 'package:uuid/uuid.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 import '../../core/kemetic_converter.dart';
 import '../../data/nutrition_repo.dart';
@@ -1955,7 +1956,7 @@ class _ErrorState extends StatelessWidget {
             FilledButton(
               onPressed: onRetry,
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFD4AF37),
+                backgroundColor: KemeticGold.base,
                 foregroundColor: Colors.black,
               ),
               child: const Text('Retry'),

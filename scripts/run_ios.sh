@@ -50,4 +50,5 @@ SUPABASE_URL="${ENV_INFO[0]:-}"
 ANON_MASK="${ENV_INFO[1]:-}"
 
 echo "▶️  Running on iOS device $DEVICE with $ENV_FILE (SUPABASE_URL=$SUPABASE_URL, ANON=$ANON_MASK)"
+scripts/ensure_ios_firebase.sh
 flutter run --dart-define-from-file="$ENV_FILE" -d "$DEVICE"

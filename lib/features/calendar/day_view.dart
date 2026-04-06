@@ -13,6 +13,7 @@ import 'package:flutter/rendering.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/shared/glossy_text.dart';
 import 'calendar_page.dart';
 import 'landscape_month_view.dart';
 import '../sharing/share_flow_sheet.dart';
@@ -2596,14 +2597,13 @@ class _DayViewGridState extends State<DayViewGrid> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFD4AF37).withOpacity(0.2),
+                        color: KemeticGold.base.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text(
+                      child: KemeticGold.text(
                         'Reminder',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: Color(0xFFD4AF37),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -2612,19 +2612,18 @@ class _DayViewGridState extends State<DayViewGrid> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFD4AF37).withOpacity(0.2),
+                        color: KemeticGold.base.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.local_drink, size: 14, color: Color(0xFFD4AF37)),
-                          SizedBox(width: 4),
-                          Text(
+                          KemeticGold.icon(Icons.local_drink, size: 14),
+                          const SizedBox(width: 4),
+                          KemeticGold.text(
                             'Nutrition',
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 12,
-                              color: Color(0xFFD4AF37),
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -2640,7 +2639,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                     _buildEndNoteButton(event),
                   const SizedBox(width: 8),
                   PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, color: Color(0xFFD4AF37)),
+                    icon: KemeticGold.icon(Icons.more_vert),
                     tooltip: 'Event options',
                     onSelected: (value) async {
                       if (value == 'journal') {
@@ -2666,7 +2665,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                           ScaffoldMessenger.of(rootContext).showSnackBar(
                             const SnackBar(
                               content: Text('Flow shared successfully!'),
-                              backgroundColor: Color(0xFFD4AF37),
+                              backgroundColor: KemeticGold.base,
                               duration: Duration(seconds: 2),
                             ),
                           );
@@ -2723,88 +2722,88 @@ class _DayViewGridState extends State<DayViewGrid> {
                     itemBuilder: (context) => [
                       PopupMenuItem(
                         value: 'journal',
-                          child: Row(
-                            children: const [
-                              Icon(Icons.check_circle, color: Color(0xFFD4AF37)),
-                              SizedBox(width: 12),
-                              Text('Done / Add to journal', style: TextStyle(color: Colors.white)),
-                            ],
-                          ),
+                        child: Row(
+                          children: [
+                            KemeticGold.icon(Icons.check_circle),
+                            const SizedBox(width: 12),
+                            const Text('Done / Add to journal', style: TextStyle(color: Colors.white)),
+                          ],
+                        ),
                       ),
                       if (flow != null && !isReminder)
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'edit',
                           child: Row(
                             children: [
-                              Icon(Icons.edit, color: Color(0xFFD4AF37)),
-                              SizedBox(width: 12),
-                              Text('Edit Flow', style: TextStyle(color: Colors.white)),
+                              KemeticGold.icon(Icons.edit),
+                              const SizedBox(width: 12),
+                              const Text('Edit Flow', style: TextStyle(color: Colors.white)),
                             ],
                           ),
                         ),
                       if (flow != null && !isReminder)
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'share',
                           child: Row(
                             children: [
-                              Icon(Icons.share, color: Color(0xFFD4AF37)),
-                              SizedBox(width: 12),
-                              Text('Share Flow', style: TextStyle(color: Colors.white)),
+                              KemeticGold.icon(Icons.share),
+                              const SizedBox(width: 12),
+                              const Text('Share Flow', style: TextStyle(color: Colors.white)),
                             ],
                           ),
                         ),
                       if (flow != null && !isReminder)
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'save',
                           child: Row(
                             children: [
-                              Icon(Icons.bookmark_add, color: Color(0xFFD4AF37)),
-                              SizedBox(width: 12),
-                              Text('Save Flow', style: TextStyle(color: Colors.white)),
+                              KemeticGold.icon(Icons.bookmark_add),
+                              const SizedBox(width: 12),
+                              const Text('Save Flow', style: TextStyle(color: Colors.white)),
                             ],
                           ),
                         ),
                       if (isReminder && widget.onEditReminder != null && event.reminderId != null)
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'edit_reminder',
                           child: Row(
                             children: [
-                              Icon(Icons.edit, color: Color(0xFFD4AF37)),
-                              SizedBox(width: 12),
-                              Text('Edit Reminder', style: TextStyle(color: Colors.white)),
+                              KemeticGold.icon(Icons.edit),
+                              const SizedBox(width: 12),
+                              const Text('Edit Reminder', style: TextStyle(color: Colors.white)),
                             ],
                           ),
                         ),
                       if (isReminder && widget.onShareReminder != null)
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'share_reminder',
                           child: Row(
                             children: [
-                              Icon(Icons.share, color: Color(0xFFD4AF37)),
-                              SizedBox(width: 12),
-                              Text('Share Reminder', style: TextStyle(color: Colors.white)),
+                              KemeticGold.icon(Icons.share),
+                              const SizedBox(width: 12),
+                              const Text('Share Reminder', style: TextStyle(color: Colors.white)),
                             ],
                           ),
                         ),
                       if (flow == null && !isReminder && widget.onEditNote != null)
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'edit_note',
                           child: Row(
                             children: [
-                              Icon(Icons.edit, color: Color(0xFFD4AF37)),
-                              SizedBox(width: 12),
-                              Text('Edit Note', style: TextStyle(color: Colors.white)),
+                              KemeticGold.icon(Icons.edit),
+                              const SizedBox(width: 12),
+                              const Text('Edit Note', style: TextStyle(color: Colors.white)),
                             ],
                           ),
                         ),
                       if (flow == null && !isReminder && widget.onShareNote != null)
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'share_note',
                           child: Row(
                             children: [
-                              Icon(Icons.share, color: Color(0xFFD4AF37)),
-                              SizedBox(width: 12),
-                              Text('Share Note', style: TextStyle(color: Colors.white)),
+                              KemeticGold.icon(Icons.share),
+                              const SizedBox(width: 12),
+                              const Text('Share Note', style: TextStyle(color: Colors.white)),
                             ],
                           ),
                         ),

@@ -297,7 +297,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
 
     return _SharedFlowData(
       name: payload['name'] as String? ?? 'Flow',
-      color: (payload['color'] as num?)?.toInt() ?? 0xFFD4AF37,
+      color: (payload['color'] as num?)?.toInt() ?? KemeticGold.base.value,
       notes: payload['notes'] as String? ?? '',
       rulesJson: (payload['rules'] as List<dynamic>? ?? const [])
           .cast<Map<String, dynamic>>(),
@@ -556,12 +556,12 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                               color: selected ? Colors.black : Colors.white,
                             ),
                             selected: selected,
-                            selectedColor: const Color(0xFFD4AF37),
+                            selectedColor: KemeticGold.base,
                             checkmarkColor: Colors.black,
                             backgroundColor: const Color(0xFF111111),
                             side: BorderSide(
                               color: selected
-                                  ? const Color(0xFFD4AF37)
+                                  ? KemeticGold.base
                                   : Colors.white24,
                             ),
                             onSelected: (value) {
@@ -596,11 +596,11 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                               color: selected ? Colors.black : Colors.white,
                             ),
                             selected: selected,
-                            selectedColor: const Color(0xFFD4AF37),
+                            selectedColor: KemeticGold.base,
                             backgroundColor: const Color(0xFF111111),
                             side: BorderSide(
                               color: selected
-                                  ? const Color(0xFFD4AF37)
+                                  ? KemeticGold.base
                                   : Colors.white24,
                             ),
                             onSelected: (value) {

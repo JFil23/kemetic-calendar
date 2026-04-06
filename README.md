@@ -69,6 +69,12 @@ Keep real secrets out of git: commit `env/dev.example.json` / `env/prod.example.
 Auth redirect scheme: keep `kemet.app://login-callback` allowlisted in Supabase; do not change schemes without updating the allowlist.
 
 Note on environments: if dev/prod currently point to the same Supabase project, that’s fine—document it in your local env files. When you add a dedicated prod project later, these scripts already support separate env JSONs.
+
+## iOS push (Firebase)
+
+- Grab the iOS `GoogleService-Info.plist` for bundle `com.jaralephillips.hawcalendar` from Firebase and drop it at `ios/config/GoogleService-Info.plist` (gitignored). `ios/config/GoogleService-Info.example.plist` shows the expected shape.
+- `scripts/ensure_ios_firebase.sh` copies that file into `ios/Runner/` for Flutter builds; the Xcode build phase **Sync Firebase Config** runs the same check so you don’t accidentally build without push. Simulator builds skip the failure and just warn because iOS simulators can’t receive push anyway.
+- Entitlements are split: Debug uses `RunnerDebug.entitlements` (aps-environment=development), Release/Profile use `RunnerRelease.entitlements` (aps-environment=production). Keep your provisioning profiles aligned so APNs tokens register correctly.
 ## 🚀 Running with env defines
 
 Use the shared env file (`env/dev.json`) so Android/iOS/web all receive the same dart-defines:

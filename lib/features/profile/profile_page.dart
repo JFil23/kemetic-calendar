@@ -16,6 +16,7 @@ import '_post_glossy_helper.dart';
 import 'follow_list_page.dart';
 import '../calendar/calendar_page.dart';
 import 'flow_post_engagement_row.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 class ProfilePage extends StatefulWidget {
   final String userId;
@@ -129,7 +130,7 @@ class _ProfilePageState extends State<ProfilePage> {
         backgroundColor: const Color(0xFF000000),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Color(0xFFD4AF37)), // Gold
+          icon: KemeticGold.icon(Icons.close), // Gold
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -145,7 +146,7 @@ class _ProfilePageState extends State<ProfilePage> {
           if (_isViewingOwnProfile)
             IconButton(
               tooltip: 'Reflections',
-              icon: const Icon(Icons.menu_book, color: Color(0xFFD4AF37)),
+              icon: KemeticGold.icon(Icons.menu_book),
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const DecanReflectionArchivePage()),
@@ -154,7 +155,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           IconButton(
             tooltip: 'Settings',
-            icon: const Icon(Icons.settings, color: Color(0xFFD4AF37)),
+            icon: KemeticGold.icon(Icons.settings),
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const SettingsPage()),
@@ -166,7 +167,7 @@ class _ProfilePageState extends State<ProfilePage> {
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
               ),
             )
           : _profile == null
@@ -276,7 +277,7 @@ class _ProfilePageState extends State<ProfilePage> {
         shape: BoxShape.circle,
         color: const Color(0xFF0D0D0F), // Dark surface
         border: Border.all(
-          color: const Color(0xFFD4AF37), // Gold border
+          color: KemeticGold.base, // Gold border
           width: 2,
         ),
       ),
@@ -297,7 +298,7 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Text(
         profile.effectiveName[0].toUpperCase(),
         style: const TextStyle(
-          color: Color(0xFFD4AF37), // Gold
+          color: KemeticGold.base, // Gold
           fontSize: 40,
           fontWeight: FontWeight.bold,
         ),
@@ -363,8 +364,8 @@ class _ProfilePageState extends State<ProfilePage> {
     bool enabled = true,
   }) {
     final numberColor = enabled
-        ? const Color(0xFFD4AF37)
-        : const Color(0xFFD4AF37).withOpacity(0.6);
+        ? KemeticGold.base
+        : KemeticGold.base.withOpacity(0.6);
     final labelColor = enabled
         ? Colors.white.withOpacity(0.6)
         : Colors.white.withOpacity(0.35);
@@ -461,14 +462,14 @@ class _ProfilePageState extends State<ProfilePage> {
         onPressed: _followUpdating ? null : _toggleFollow,
         style: ElevatedButton.styleFrom(
           backgroundColor:
-              isFollowing ? Colors.black : const Color(0xFFD4AF37),
+              isFollowing ? Colors.black : KemeticGold.base,
           foregroundColor:
               isFollowing ? Colors.white : const Color(0xFF000000),
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(
-              color: const Color(0xFFD4AF37),
+              color: KemeticGold.base,
               width: isFollowing ? 1.5 : 0,
             ),
           ),
@@ -479,7 +480,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                  valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
                 ),
               )
             : Text(
@@ -514,7 +515,7 @@ class _ProfilePageState extends State<ProfilePage> {
           }
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFD4AF37), // Gold
+          backgroundColor: KemeticGold.base, // Gold
           foregroundColor: const Color(0xFF000000), // Black text
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
@@ -557,16 +558,16 @@ class _ProfilePageState extends State<ProfilePage> {
           );
         },
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFFD4AF37)),
-          foregroundColor: const Color(0xFFD4AF37),
+          side: const BorderSide(color: KemeticGold.base),
+          foregroundColor: KemeticGold.base,
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        child: const Text(
+        child: KemeticGold.text(
           'Find People',
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
@@ -579,17 +580,17 @@ class _ProfilePageState extends State<ProfilePage> {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
-        icon: const Icon(Icons.upload, color: Color(0xFFD4AF37)),
-        label: const Text(
+        icon: KemeticGold.icon(Icons.upload),
+        label: KemeticGold.text(
           'Post a Flow',
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
           ),
         ),
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFFD4AF37)),
-          foregroundColor: const Color(0xFFD4AF37),
+          side: const BorderSide(color: KemeticGold.base),
+          foregroundColor: KemeticGold.base,
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -604,7 +605,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (_postsLoading) {
       return const Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+          valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
         ),
       );
     }
@@ -749,7 +750,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD4AF37),
+                        backgroundColor: KemeticGold.base,
                         foregroundColor: Colors.black,
                       ),
                       onPressed: () => _savePost(post),
@@ -817,7 +818,7 @@ class _ProfilePageState extends State<ProfilePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Flow saved to your flows'),
-        backgroundColor: Color(0xFFD4AF37),
+        backgroundColor: KemeticGold.base,
       ),
     );
   }

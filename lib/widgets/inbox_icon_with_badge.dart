@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/share_repo.dart';
 import '../features/inbox/inbox_page.dart';
+import '../shared/glossy_text.dart';
 
 class InboxIconWithBadge extends StatelessWidget {
   final Color iconColor;
@@ -13,7 +14,7 @@ class InboxIconWithBadge extends StatelessWidget {
 
   const InboxIconWithBadge({
     Key? key,
-    this.iconColor = const Color(0xFFD4AF37),
+    this.iconColor = KemeticGold.base,
     this.onRefreshSync,
     this.onRefreshAsync,
     this.onImportFlow,
@@ -25,12 +26,16 @@ class InboxIconWithBadge extends StatelessWidget {
       stream: ShareRepo(Supabase.instance.client).watchUnreadCount(),
       builder: (context, snapshot) {
         final unreadCount = snapshot.data ?? 0;
+        final useGoldGradient = iconColor == KemeticGold.base;
+        final Widget iconWidget = useGoldGradient
+            ? KemeticGold.icon(Icons.mail_outline)
+            : Icon(Icons.mail_outline, color: iconColor);
         
         return Stack(
           clipBehavior: Clip.none,
           children: [
             IconButton(
-              icon: Icon(Icons.mail_outline, color: iconColor),
+              icon: iconWidget,
               tooltip: 'Inbox',
               onPressed: () async {
                 final importedFlowId = await Navigator.push(
@@ -82,7 +87,6 @@ class InboxIconWithBadge extends StatelessWidget {
     );
   }
 }
-
 
 
 

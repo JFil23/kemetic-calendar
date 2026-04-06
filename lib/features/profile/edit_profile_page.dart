@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mobile/shared/glossy_text.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 
@@ -174,7 +175,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         backgroundColor: const Color(0xFF000000),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Color(0xFFD4AF37)),
+          icon: KemeticGold.icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -189,10 +190,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
           if (!_isLoading)
             TextButton(
               onPressed: _saveProfile,
-              child: const Text(
+              child: KemeticGold.text(
                 'Save',
-                style: TextStyle(
-                  color: Color(0xFFD4AF37),
+                style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
                 ),
@@ -203,7 +203,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
               ),
             )
           : SingleChildScrollView(
@@ -222,7 +222,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           shape: BoxShape.circle,
                           color: const Color(0xFF0D0D0F),
                           border: Border.all(
-                            color: const Color(0xFFD4AF37),
+                            color: KemeticGold.base,
                             width: 2,
                           ),
                         ),
@@ -235,7 +235,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               )
                             : const Icon(
                                 Icons.camera_alt,
-                                color: Color(0xFFD4AF37),
+                                color: KemeticGold.base,
                                 size: 40,
                               ),
                       ),
@@ -279,8 +279,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         labelText: 'Handle',
-                        prefixText: '@',
-                        prefixStyle: const TextStyle(color: Color(0xFFD4AF37)),
+                        prefix: Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: KemeticGold.text(
+                            '@',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
                         labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
                         filled: true,
                         fillColor: const Color(0xFF0D0D0F),
@@ -296,7 +301,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                                    valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
                                   ),
                                 ),
                               )
@@ -370,7 +375,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           const Text(
                             'Privacy',
                             style: TextStyle(
-                              color: Color(0xFFD4AF37),
+                              color: KemeticGold.base,
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
@@ -390,7 +395,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 fontSize: 13,
                               ),
                             ),
-                            activeColor: const Color(0xFFD4AF37),
+                            activeColor: KemeticGold.base,
                             contentPadding: EdgeInsets.zero,
                           ),
                           const Divider(color: Color(0xFF1A1A1A)),
@@ -408,7 +413,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 fontSize: 13,
                               ),
                             ),
-                            activeColor: const Color(0xFFD4AF37),
+                            activeColor: KemeticGold.base,
                             contentPadding: EdgeInsets.zero,
                           ),
                         ],
@@ -421,4 +426,3 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 }
-

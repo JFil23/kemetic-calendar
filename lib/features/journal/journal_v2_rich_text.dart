@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mobile/shared/glossy_text.dart';
 import 'journal_v2_document_model.dart';
 import 'journal_event_badge.dart';
 import 'journal_v2_toolbar.dart';
@@ -660,7 +661,7 @@ class RichTextEditorState extends State<RichTextEditor> {
       textAlignVertical: TextAlignVertical.top,
       style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
       inputFormatters: _formatters,
-      cursorColor: const Color(0xFFD4AF37),
+      cursorColor: KemeticGold.base,
       decoration: const InputDecoration(
         border: InputBorder.none,
         hintText: 'Write your day…',

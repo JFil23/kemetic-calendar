@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 import '../../data/flow_post_model.dart';
 import '../../data/profile_repo.dart';
@@ -57,7 +58,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
                   child: ElevatedButton(
                     onPressed: _saving ? null : _save,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD4AF37),
+                      backgroundColor: KemeticGold.base,
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
@@ -98,7 +99,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Flow saved to your flows'),
-        backgroundColor: Color(0xFFD4AF37),
+        backgroundColor: KemeticGold.base,
       ),
     );
   }

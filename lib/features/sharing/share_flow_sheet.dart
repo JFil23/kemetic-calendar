@@ -8,6 +8,7 @@ import '../../data/share_repo.dart';
 import '../../data/profile_repo.dart';
 import '../inbox/inbox_conversation_page.dart';
 import '../inbox/conversation_user.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 class ShareFlowSheet extends StatefulWidget {
   final int? flowId;
@@ -67,7 +68,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.close, color: Color(0xFFD4AF37)),
+                  icon: KemeticGold.icon(Icons.close),
                   onPressed: () => Navigator.pop(context),
                 ),
                 Expanded(
@@ -97,7 +98,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                 ElevatedButton(
                   onPressed: (_recipients.isEmpty && !_isNoteMode) || _sending ? null : _sendShares,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD4AF37),
+                    backgroundColor: KemeticGold.base,
                     foregroundColor: Colors.black,
                     disabledBackgroundColor: Colors.grey.shade800,
                     disabledForegroundColor: Colors.grey.shade600,
@@ -178,7 +179,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFD4AF37)),
+          borderSide: const BorderSide(color: KemeticGold.base),
         ),
       ),
       onChanged: _onSearchChanged,
@@ -290,7 +291,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       decoration: BoxDecoration(
         color: Colors.grey[900],
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.3)),
+        border: Border.all(color: KemeticGold.base.withOpacity(0.3)),
       ),
       child: ListView.builder(
         shrinkWrap: true,
@@ -310,7 +311,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
           
           return ListTile(
             leading: CircleAvatar(
-              backgroundColor: const Color(0xFFD4AF37),
+              backgroundColor: KemeticGold.base,
               child: Text(
                 displayChar,
                 style: const TextStyle(color: Colors.black),
@@ -329,7 +330,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                     style: TextStyle(color: Colors.grey[400]),
                   )
                 : null,
-            trailing: const Icon(Icons.add, color: Color(0xFFD4AF37)),
+            trailing: KemeticGold.icon(Icons.add),
             onTap: () => _addUserToRecipients(user),
           );
         },
@@ -371,7 +372,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                 : recipient.type == ShareRecipientType.email
                     ? Icons.email
                     : Icons.phone,
-            color: const Color(0xFFD4AF37),
+            color: KemeticGold.base,
             size: 20,
           ),
           const SizedBox(width: 8),
@@ -533,7 +534,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Flow shared successfully'),
-              backgroundColor: Color(0xFFD4AF37),
+              backgroundColor: KemeticGold.base,
             ),
           );
         }
@@ -628,8 +629,6 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     }
   }
 }
-
-
 
 
 

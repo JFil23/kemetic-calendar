@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 /// 🔧 DIAGNOSTIC WIDGET - Add this temporarily to test AI generation
 /// 
@@ -286,11 +287,17 @@ class _AIGenerationDiagnosticWidgetState
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
                   onPressed: _testing ? null : _runDiagnostics,
-                  icon: const Icon(Icons.bug_report),
-                  label: const Text('Run Full Diagnostics'),
+                  icon: KemeticGold.icon(Icons.bug_report),
+                  label: KemeticGold.text(
+                    'Run Full Diagnostics',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFD4AF37), // Gold
-                    side: const BorderSide(color: Color(0xFFD4AF37)),
+                    foregroundColor: KemeticGold.base, // Gold
+                    side: const BorderSide(color: KemeticGold.base),
                     minimumSize: const Size(double.infinity, 48),
                   ),
                 ),
@@ -331,7 +338,7 @@ class _AIGenerationDiagnosticWidgetState
                   if (log.contains('❌')) textColor = Colors.redAccent;
                   if (log.contains('⚠️')) textColor = Colors.orangeAccent;
                   if (log.contains('TEST')) textColor = Colors.cyanAccent;
-                  if (log.contains('═══')) textColor = const Color(0xFFD4AF37);
+                  if (log.contains('═══')) textColor = KemeticGold.base;
                   
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
@@ -369,7 +376,7 @@ class _AIGenerationDiagnosticWidgetState
                 label: const Text('Print Logs to Console'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white,
-                  side: const BorderSide(color: Color(0xFFD4AF37)),
+                  side: const BorderSide(color: KemeticGold.base),
                 ),
               ),
             ),
@@ -378,8 +385,6 @@ class _AIGenerationDiagnosticWidgetState
     );
   }
 }
-
-
 
 
 

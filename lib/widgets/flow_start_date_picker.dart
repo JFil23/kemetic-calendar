@@ -370,7 +370,7 @@ class FlowStartDatePicker {
                       Expanded(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFD4AF37),
+                            backgroundColor: KemeticGold.base,
                             foregroundColor: Colors.black,
                           ),
                           onPressed: () {

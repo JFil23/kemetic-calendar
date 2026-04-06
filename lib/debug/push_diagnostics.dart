@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../services/push_notifications.dart';
+import '../shared/glossy_text.dart';
 import '../main.dart' show supabase;
 
 class PushDiagnosticsPage extends StatefulWidget {
@@ -93,10 +94,16 @@ class _PushDiagnosticsPageState extends State<PushDiagnosticsPage> {
               child: ElevatedButton(
                 onPressed: _refresh,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4AF37),
+                  backgroundColor: KemeticGold.base,
                   foregroundColor: Colors.black,
                 ),
-                child: const Text('Retry push registration'),
+                child: KemeticGold.text(
+                  'Retry push registration',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ],

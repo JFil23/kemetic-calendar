@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import '../profile/profile_page.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 class InboxPage extends StatefulWidget {
   const InboxPage({Key? key}) : super(key: key);
@@ -28,7 +29,7 @@ class InboxPage extends StatefulWidget {
 class _InboxPageState extends State<InboxPage> {
   static const _bg = Color(0xFF000000);
   static const _cardBg = Color(0xFF0D0D0F);
-  static const _gold = Color(0xFFD4AF37);
+  static const _gold = KemeticGold.base;
   static const _silver = Color(0xFFB0B0B0);
 
   late final InboxRepo _inboxRepo;
@@ -130,7 +131,7 @@ class _InboxPageState extends State<InboxPage> {
         backgroundColor: _bg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: _gold),
+          icon: KemeticGold.icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
         title: StreamBuilder<int>(
@@ -360,7 +361,7 @@ class _InboxPageState extends State<InboxPage> {
           children: [
             IconButton(
               tooltip: 'View profile',
-              icon: const Icon(Icons.person, color: _gold),
+              icon: KemeticGold.icon(Icons.person),
               onPressed: () => _openProfile(otherUserId),
             ),
             if (hasUnread)
@@ -455,7 +456,7 @@ class _InboxPageState extends State<InboxPage> {
         break;
       case InboxActivityType.comment:
         icon = Icons.chat_bubble_outline;
-        color = const Color(0xFFD4AF37);
+        color = KemeticGold.base;
         title = '${activity.actorName ?? activity.actorHandle ?? 'Someone'} commented on your flow';
         subtitle = activity.commentPreview ?? activity.flowName ?? '';
         break;
@@ -502,7 +503,7 @@ class _InboxPageState extends State<InboxPage> {
           child: Icon(Icons.person_add, color: Colors.white),
         ),
         title: Text(
-          'New followers',
+          'Community',
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
         ),
         subtitle: Text(
@@ -518,6 +519,10 @@ class _InboxPageState extends State<InboxPage> {
     final preview = a.type == InboxActivityType.comment
         ? (a.commentPreview ?? a.flowName ?? '')
         : (a.flowName ?? '');
+    final summary = a.type == InboxActivityType.comment
+        ? '$who commented on your flow'
+        : '$who liked your flow';
+    final subtitleText = preview.isNotEmpty ? '$summary - $preview' : summary;
 
     return ListTile(
       leading: const CircleAvatar(
@@ -525,23 +530,15 @@ class _InboxPageState extends State<InboxPage> {
         child: Icon(Icons.favorite, color: Colors.white),
       ),
       title: const Text(
-        'Activity',
+        'Movement',
         style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
       ),
       subtitle: Text(
-        a.type == InboxActivityType.comment
-            ? '$who commented on your flow'
-            : '$who liked your flow',
+        subtitleText,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(color: Colors.white.withOpacity(0.7)),
       ),
-      trailing: preview.isNotEmpty
-          ? Text(
-              preview,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: Colors.white.withOpacity(0.5)),
-            )
-          : null,
       onTap: _openEngagementSheet,
     );
   }
@@ -552,7 +549,7 @@ class _InboxPageState extends State<InboxPage> {
         .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     _showActivitySheet(
-      title: 'New followers',
+      title: 'Community',
       items: followers,
     );
   }
@@ -563,7 +560,7 @@ class _InboxPageState extends State<InboxPage> {
         .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     _showActivitySheet(
-      title: 'Activity',
+      title: 'Movement',
       items: engagement,
     );
   }
@@ -722,7 +719,7 @@ class FlowPreviewCard extends StatefulWidget {
 class _FlowPreviewCardState extends State<FlowPreviewCard> {
   static const _bg = Color(0xFF000000);
   static const _cardBg = Color(0xFF0D0D0F);
-  static const _gold = Color(0xFFD4AF37);
+  static const _gold = KemeticGold.base;
   static const _silver = Color(0xFFB0B0B0);
 
   final _shareRepo = ShareRepo(Supabase.instance.client);
@@ -1070,7 +1067,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD4AF37),
+              backgroundColor: KemeticGold.base,
               foregroundColor: Colors.black,
             ),
             child: const Text('View Full Details'),
@@ -1119,7 +1116,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
           style: ElevatedButton.styleFrom(
             backgroundColor: isImported
                 ? const Color(0xFF4A4A4A) // Visible medium grey
-                : const Color(0xFFD4AF37),
+                : KemeticGold.base,
             foregroundColor: isImported
                 ? const Color(0xFFAAAAAA) // Light grey text
                 : Colors.black,
@@ -1181,7 +1178,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${widget.item.title} imported successfully!'),
-          backgroundColor: const Color(0xFFD4AF37),
+          backgroundColor: KemeticGold.base,
           duration: const Duration(seconds: 2),
         ),
       );

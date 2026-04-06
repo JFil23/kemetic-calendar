@@ -21,6 +21,7 @@ import 'features/sharing/share_preview_page.dart';
 import 'features/inbox/inbox_page.dart';
 import 'utils/event_cid_util.dart';
 import 'telemetry/telemetry.dart';
+import 'shared/glossy_text.dart';
 
 import 'utils/hive_local_storage_web.dart';
 import 'core/theme/app_theme.dart';
@@ -698,7 +699,7 @@ class _AuthGateState extends State<AuthGate> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Event "${event.title}" added to calendar'),
-            backgroundColor: const Color(0xFFD4AF37),
+            backgroundColor: KemeticGold.base,
             duration: const Duration(seconds: 2),
           ),
         );
@@ -725,7 +726,7 @@ class _AuthGateState extends State<AuthGate> {
           content: Text(
             'Edit & Add coming soon - event added directly for now',
           ),
-          backgroundColor: Color(0xFFD4AF37),
+          backgroundColor: KemeticGold.base,
         ),
       );
       // Just add it directly for now
@@ -789,12 +790,11 @@ class _AuthGateState extends State<AuthGate> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  KemeticGold.text(
                     'Kemetic Calendar',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFFD4AF37), // Gold color
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -815,7 +815,7 @@ class _AuthGateState extends State<AuthGate> {
                       style: TextStyle(color: Colors.black),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD4AF37), // Gold button
+                      backgroundColor: KemeticGold.base, // Gold button
                       padding: const EdgeInsets.symmetric(
                         horizontal: 32,
                         vertical: 16,
@@ -828,9 +828,9 @@ class _AuthGateState extends State<AuthGate> {
                       onPressed: () async {
                         await supabase.auth.signOut();
                       },
-                      child: const Text(
+                      child: KemeticGold.text(
                         'Sign out (debug)',
-                        style: TextStyle(color: Color(0xFFD4AF37)),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],

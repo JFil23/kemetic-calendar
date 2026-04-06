@@ -46,12 +46,20 @@ class GlossyText extends StatelessWidget {
   final String text;
   final TextStyle style;
   final Gradient gradient;
+  final int? maxLines;
+  final TextOverflow? overflow;
+  final bool? softWrap;
+  final TextAlign? textAlign;
 
   const GlossyText({
     super.key,
     required this.text,
     required this.style,
     required this.gradient,
+    this.maxLines,
+    this.overflow,
+    this.softWrap,
+    this.textAlign,
   });
 
   @override
@@ -76,9 +84,10 @@ class GlossyText extends StatelessWidget {
         child: Text(
           text,
           style: masked,
-          softWrap: false,
-          maxLines: 1,
-          overflow: TextOverflow.fade,
+          softWrap: softWrap ?? false,
+          maxLines: maxLines ?? 1,
+          overflow: overflow ?? TextOverflow.fade,
+          textAlign: textAlign,
           textHeightBehavior: const TextHeightBehavior(
             applyHeightToFirstAscent: false,
             applyHeightToLastDescent: false,
@@ -89,6 +98,58 @@ class GlossyText extends StatelessWidget {
   }
 }
 
+// ---- Shared glossy icon ----
+class GlossyIcon extends StatelessWidget {
+  final IconData icon;
+  final Gradient gradient;
+  final double? size;
 
+  const GlossyIcon({
+    super.key,
+    required this.icon,
+    required this.gradient,
+    this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ShaderMask(
+      shaderCallback: (Rect bounds) => gradient.createShader(bounds),
+      blendMode: BlendMode.srcIn,
+      child: Icon(icon, color: Colors.white, size: size),
+    );
+  }
+}
+
+// ---- Single source of truth for gold styling ----
+class KemeticGold {
+  static const Color light = goldLight;
+  static const Color base = gold;
+  static const Color deep = goldDeep;
+  static const Gradient gloss = goldGloss;
+
+  static GlossyText text(
+    String text, {
+    required TextStyle style,
+    int? maxLines,
+    TextOverflow? overflow,
+    bool? softWrap,
+    TextAlign? textAlign,
+  }) {
+    return GlossyText(
+      text: text,
+      style: style,
+      gradient: gloss,
+      maxLines: maxLines,
+      overflow: overflow,
+      softWrap: softWrap,
+      textAlign: textAlign,
+    );
+  }
+
+  static GlossyIcon icon(IconData icon, {double? size}) {
+    return GlossyIcon(icon: icon, gradient: gloss, size: size);
+  }
+}
 
 

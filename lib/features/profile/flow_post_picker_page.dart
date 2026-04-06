@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 import '../../data/flows_repo.dart';
 import '../../data/profile_repo.dart';
@@ -88,7 +89,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Flow posted to your profile'),
-        backgroundColor: Color(0xFFD4AF37),
+        backgroundColor: KemeticGold.base,
       ),
     );
     Navigator.of(context).pop(true);
@@ -116,7 +117,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                  valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
                 ),
               ),
             ),
@@ -125,7 +126,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
               ),
             )
           : Column(

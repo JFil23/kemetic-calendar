@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 import '../../data/flow_post_comment_model.dart';
 import '../../data/flow_post_model.dart';
@@ -121,15 +122,15 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor:
-                                AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                                AlwaysStoppedAnimation<Color>(KemeticGold.base),
                           ),
                         )
-                      : Icon(
-                          _likedByMe ? Icons.favorite : Icons.favorite_border,
-                          color: _likedByMe
-                              ? Colors.redAccent
-                              : const Color(0xFFD4AF37),
-                        ),
+                      : (_likedByMe
+                          ? const Icon(
+                              Icons.favorite,
+                              color: Colors.redAccent,
+                            )
+                          : KemeticGold.icon(Icons.favorite_border)),
                   const SizedBox(width: 6),
                   Text(
                     _engagementUnavailable
@@ -150,8 +151,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.chat_bubble_outline,
-                      color: Color(0xFFD4AF37)),
+                  KemeticGold.icon(Icons.chat_bubble_outline),
                   const SizedBox(width: 6),
                   Text(
                     _engagementUnavailable
@@ -289,7 +289,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                             ? const Center(
                                 child: CircularProgressIndicator(
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    Color(0xFFD4AF37),
+                                    KemeticGold.base,
                                   ),
                                 ),
                               )
@@ -410,7 +410,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
               ? null
               : () => _submitComment(modalSetState),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFD4AF37),
+            backgroundColor: KemeticGold.base,
             foregroundColor: Colors.black,
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
             minimumSize: const Size(48, 48),
@@ -500,7 +500,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
     return CircleAvatar(
       radius: 16,
       backgroundColor: const Color(0xFF1C1C1E),
-      foregroundColor: const Color(0xFFD4AF37),
+      foregroundColor: KemeticGold.base,
       child: Text(
         initial,
         style: const TextStyle(fontWeight: FontWeight.w700),

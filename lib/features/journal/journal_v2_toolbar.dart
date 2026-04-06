@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:mobile/shared/glossy_text.dart';
 import '../calendar/calendar_page.dart' show KemeticMath;
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
 import 'journal_controller.dart';
@@ -172,7 +173,7 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
         decoration: BoxDecoration(
           color: isActive ? const Color(0xFF333333) : Colors.transparent,
           border: Border.all(
-            color: isActive ? const Color(0xFFD4AF37) : const Color(0xFF666666),
+            color: isActive ? KemeticGold.base : const Color(0xFF666666),
             width: 1.5,
           ),
           borderRadius: BorderRadius.circular(6),
@@ -181,7 +182,7 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
           child: Text(
             label,
             style: TextStyle(
-              color: isActive ? const Color(0xFFD4AF37) : const Color(0xFF999999),
+              color: isActive ? KemeticGold.base : const Color(0xFF999999),
               fontSize: 16,
               fontWeight: bold ? FontWeight.bold : FontWeight.normal,
               fontStyle: italic ? FontStyle.italic : FontStyle.normal,
@@ -190,7 +191,7 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
                   : strikethrough
                       ? TextDecoration.lineThrough
                       : TextDecoration.none,
-              decorationColor: isActive ? const Color(0xFFD4AF37) : const Color(0xFF999999),
+              decorationColor: isActive ? KemeticGold.base : const Color(0xFF999999),
             ),
           ),
         ),
@@ -242,7 +243,7 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
         Container(
           decoration: BoxDecoration(
             border: Border.all(
-              color: widget.canUndo ? const Color(0xFFD4AF37) : const Color(0xFF444444),
+              color: widget.canUndo ? KemeticGold.base : const Color(0xFF444444),
               width: 1.5,
             ),
             borderRadius: BorderRadius.circular(6),
@@ -256,7 +257,7 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
                 padding: const EdgeInsets.all(6),
                 child: Icon(
                   Icons.undo,
-                  color: widget.canUndo ? const Color(0xFFD4AF37) : const Color(0xFF666666),
+                  color: widget.canUndo ? KemeticGold.base : const Color(0xFF666666),
                   size: 18,
                 ),
               ),
@@ -267,7 +268,7 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
         Container(
           decoration: BoxDecoration(
             border: Border.all(
-              color: widget.canRedo ? const Color(0xFFD4AF37) : const Color(0xFF444444),
+              color: widget.canRedo ? KemeticGold.base : const Color(0xFF444444),
               width: 1.5,
             ),
             borderRadius: BorderRadius.circular(6),
@@ -281,7 +282,7 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
                 padding: const EdgeInsets.all(6),
                 child: Icon(
                   Icons.redo,
-                  color: widget.canRedo ? const Color(0xFFD4AF37) : const Color(0xFF666666),
+                  color: widget.canRedo ? KemeticGold.base : const Color(0xFF666666),
                   size: 18,
                 ),
               ),

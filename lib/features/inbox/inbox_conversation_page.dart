@@ -4,6 +4,7 @@
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/shared/glossy_text.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
 import '../../repositories/inbox_repo.dart';
@@ -94,14 +95,14 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
         backgroundColor: const Color(0xFF000000),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFD4AF37)),
+          icon: KemeticGold.icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
           children: [
             CircleAvatar(
               radius: 16,
-              backgroundColor: const Color(0xFFD4AF37).withOpacity(0.2),
+              backgroundColor: KemeticGold.base.withOpacity(0.2),
               backgroundImage: widget.otherProfile.avatarUrl != null
                   ? NetworkImage(widget.otherProfile.avatarUrl!)
                   : null,
@@ -113,7 +114,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                           .toString()
                           .toUpperCase(),
                       style: const TextStyle(
-                        color: Color(0xFFD4AF37),
+                        color: KemeticGold.base,
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
@@ -134,7 +135,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
         actions: [
           IconButton(
             tooltip: 'View profile',
-            icon: const Icon(Icons.person, color: Color(0xFFD4AF37)),
+            icon: KemeticGold.icon(Icons.person),
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -171,7 +172,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                   if (!snapshot.hasData) {
                     return const Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                        valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
                       ),
                     );
                   }
@@ -231,7 +232,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('Flow imported successfully! Open Flow Studio to edit.'),
-                                  backgroundColor: Color(0xFFD4AF37),
+                                  backgroundColor: KemeticGold.base,
                                   duration: Duration(seconds: 2),
                                 ),
                               );
@@ -405,7 +406,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
             ElevatedButton(
               onPressed: _sendingMessage ? null : _sendMessage,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD4AF37),
+                backgroundColor: KemeticGold.base,
                 foregroundColor: Colors.black,
                 minimumSize: const Size(52, 48),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -449,12 +450,12 @@ class _FlowBubble extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 280),
       decoration: BoxDecoration(
         color: isMine
-            ? const Color(0xFFD4AF37).withOpacity(0.2)
+            ? KemeticGold.base.withOpacity(0.2)
             : const Color(0xFF0D0D0F),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isMine
-              ? const Color(0xFFD4AF37).withOpacity(0.3)
+              ? KemeticGold.base.withOpacity(0.3)
               : Colors.white.withOpacity(0.1),
           width: 1,
         ),
@@ -468,13 +469,13 @@ class _FlowBubble extends StatelessWidget {
               Icon(
                 Icons.view_timeline,
                 size: 16,
-                color: isMine ? const Color(0xFFD4AF37) : Colors.white70,
+                color: isMine ? KemeticGold.base : Colors.white70,
               ),
               const SizedBox(width: 6),
               Text(
                 'Flow',
                 style: TextStyle(
-                  color: isMine ? const Color(0xFFD4AF37) : Colors.white70,
+                  color: isMine ? KemeticGold.base : Colors.white70,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -559,12 +560,12 @@ class _MessageBubble extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 320),
       decoration: BoxDecoration(
         color: isMine
-            ? const Color(0xFFD4AF37).withOpacity(0.2)
+            ? KemeticGold.base.withOpacity(0.2)
             : Colors.white.withOpacity(0.06),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isMine
-              ? const Color(0xFFD4AF37).withOpacity(0.4)
+              ? KemeticGold.base.withOpacity(0.4)
               : Colors.white.withOpacity(0.08),
         ),
       ),

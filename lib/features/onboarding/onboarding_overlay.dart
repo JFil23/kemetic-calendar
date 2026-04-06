@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 class OnboardingStep {
   const OnboardingStep({
@@ -262,7 +263,6 @@ class _OnboardingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const gold = Color(0xFFD4AF37);
     const cardBg = Color(0xFF111216);
 
     return Container(
@@ -330,7 +330,7 @@ class _OnboardingCard extends StatelessWidget {
               ElevatedButton(
                 onPressed: onNext,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: gold,
+                  backgroundColor: KemeticGold.base,
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,

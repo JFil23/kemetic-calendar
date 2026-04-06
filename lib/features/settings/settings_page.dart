@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 import '../calendar/calendar_page.dart';
 import 'us_holiday_seeder.dart';
@@ -209,7 +210,7 @@ class _SettingsPageState extends State<SettingsPage> {
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
+          child: CircularProgressIndicator(color: KemeticGold.base),
         ),
       );
     }
@@ -218,8 +219,13 @@ class _SettingsPageState extends State<SettingsPage> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: KemeticGold.icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
         title: const Text('Settings', style: TextStyle(color: Colors.white)),
-        iconTheme: const IconThemeData(color: Color(0xFFD4AF37)),
+        iconTheme: const IconThemeData(color: KemeticGold.base),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -228,7 +234,7 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             _sectionTitle('Notifications'),
             SwitchListTile(
-              activeColor: const Color(0xFFD4AF37),
+              activeColor: KemeticGold.base,
               title: const Text('Real-time alerts (PWA push where supported)'),
               subtitle: const Text(
                 'Requires installed PWA + notification permission on iOS/Android browsers.',
@@ -243,7 +249,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 8),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD4AF37),
+                backgroundColor: KemeticGold.base,
                 foregroundColor: Colors.black,
               ),
               onPressed: _requestingPush
@@ -292,7 +298,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 8),
             _sectionTitle('Catch-up reminders'),
             SwitchListTile(
-              activeColor: const Color(0xFFD4AF37),
+              activeColor: KemeticGold.base,
               title: const Text('Show missed reminders on open'),
               subtitle: const Text(
                 'Always available, even if push is disabled.',
@@ -305,7 +311,7 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
             SwitchListTile(
-              activeColor: const Color(0xFFD4AF37),
+              activeColor: KemeticGold.base,
               title: const Text('End-of-day summary'),
               subtitle: const Text(
                 'Show a daily review modal for incomplete items.',
@@ -318,7 +324,7 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
             SwitchListTile(
-              activeColor: const Color(0xFFD4AF37),
+              activeColor: KemeticGold.base,
               title: const Text('Catch-up banners during the day'),
               value: _catchUpReminders,
               onChanged: (v) {
@@ -329,7 +335,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 12),
             _sectionTitle('Calendar'),
             SwitchListTile(
-              activeColor: const Color(0xFFD4AF37),
+              activeColor: KemeticGold.base,
               title: const Text('US holidays'),
               subtitle: Text(
                 _seedingHolidays
@@ -345,7 +351,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       width: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Color(0xFFD4AF37),
+                        color: KemeticGold.base,
                       ),
                     )
                   : null,
@@ -353,7 +359,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 12),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD4AF37),
+                backgroundColor: KemeticGold.base,
                 foregroundColor: Colors.black,
               ),
               icon: _syncingCalendar

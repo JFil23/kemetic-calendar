@@ -1,6 +1,7 @@
 // lib/features/calendar/ics_preview_card.dart
 
 import 'package:flutter/material.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 class IcsPreviewCard extends StatelessWidget {
   final String title;
@@ -41,11 +42,7 @@ class IcsPreviewCard extends StatelessWidget {
               // Header
               Row(
                 children: [
-                  const Icon(
-                    Icons.calendar_today,
-                    color: Color(0xFFD4AF37), // Gold
-                    size: 24,
-                  ),
+                  KemeticGold.icon(Icons.calendar_today, size: 24),
                   const SizedBox(width: 12),
                   const Expanded(
                     child: Text(
@@ -58,7 +55,7 @@ class IcsPreviewCard extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Color(0xFFD4AF37)),
+                    icon: KemeticGold.icon(Icons.close),
                     onPressed: onCancel,
                   ),
                 ],
@@ -123,8 +120,8 @@ class IcsPreviewCard extends StatelessWidget {
                     child: OutlinedButton(
                       onPressed: onEditAndAdd,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFD4AF37),
-                        side: const BorderSide(color: Color(0xFFD4AF37)),
+                        foregroundColor: KemeticGold.base,
+                        side: const BorderSide(color: KemeticGold.base),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -146,7 +143,7 @@ class IcsPreviewCard extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: onAdd,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD4AF37), // Gold
+                        backgroundColor: KemeticGold.base, // Gold
                         foregroundColor: const Color(0xFF000000), // Black text
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
@@ -230,4 +227,3 @@ class IcsPreviewCard extends StatelessWidget {
     return months[month - 1];
   }
 }
-

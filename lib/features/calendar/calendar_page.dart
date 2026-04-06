@@ -82,12 +82,12 @@ const Color _blueLight = Color(0xFFBFE0FF);
 const Color _blueDeep = Color(0xFF0B64C0);
 
 // Richer, deeper gold with visible gleam
-const Color _gold = Color(0xFFD4AF37);
+const Color _gold = KemeticGold.base;
 const Color _cardBorderGold = _gold;
 const Color _goldLight = Color(
   0xFFE6C85A,
 ); // Slightly brighter than base gold (for visible gleam)
-const Color _goldMid = Color(0xFFD4AF37); // Base gold as mid-tone
+const Color _goldMid = KemeticGold.base; // Base gold as mid-tone
 const Color _goldDeep = Color(0xFF9D7A1F); // Much deeper shadow
 const Color _silverLight = Color(0xFFF5F7FA);
 const Color _silverDeep = Color(0xFF7A838C);
@@ -2916,9 +2916,9 @@ class _CalendarPageState extends State<CalendarPage>
                         );
                         Navigator.of(context).pop();
                       },
-                      child: const Text(
+                      child: KemeticGold.text(
                         'Done',
-                        style: TextStyle(color: Color(0xFFD4AF37)),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
                   );
@@ -2927,9 +2927,9 @@ class _CalendarPageState extends State<CalendarPage>
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text(
+                    child: KemeticGold.text(
                       'Close',
-                      style: TextStyle(color: Color(0xFFD4AF37)),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
@@ -3006,7 +3006,7 @@ class _CalendarPageState extends State<CalendarPage>
                               : ''),
                       style: const TextStyle(color: Colors.white70),
                     ),
-                    activeColor: const Color(0xFFD4AF37),
+                    activeColor: KemeticGold.base,
                     checkColor: Colors.black,
                   );
                 }),
@@ -3015,9 +3015,9 @@ class _CalendarPageState extends State<CalendarPage>
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text(
+                    child: KemeticGold.text(
                       'Close',
-                      style: TextStyle(color: Color(0xFFD4AF37)),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
@@ -9227,14 +9227,14 @@ class _CalendarPageState extends State<CalendarPage>
                                     ).withOpacity(0.2),
                                     labelStyle: TextStyle(
                                       color: selectedCategory == cat
-                                          ? const Color(0xFFD4AF37)
+                                          ? KemeticGold.base
                                           : Colors.white,
                                       fontWeight: FontWeight.w600,
                                     ),
                                     backgroundColor: const Color(0xFF1A1A1A),
                                     side: BorderSide(
                                       color: selectedCategory == cat
-                                          ? const Color(0xFFD4AF37)
+                                          ? KemeticGold.base
                                           : Colors.white24,
                                     ),
                                   ),
@@ -10164,7 +10164,7 @@ class _CalendarPageState extends State<CalendarPage>
                           Expanded(
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFD4AF37),
+                                backgroundColor: KemeticGold.base,
                                 foregroundColor: Colors.black,
                               ),
                               onPressed: () async {
@@ -10235,17 +10235,17 @@ class _CalendarPageState extends State<CalendarPage>
                               _openDaySheet(
                                 _today.kYear,
                                 _today.kMonth,
-                                _today.kDay,
-                                allowDateChange: true,
-                              );
-                            },
-                            child: const Text(
-                              'Open full editor',
-                              style: TextStyle(color: Color(0xFFD4AF37)),
-                            ),
-                          ),
-                        ],
+                          _today.kDay,
+                          allowDateChange: true,
+                        );
+                      },
+                      child: KemeticGold.text(
+                        'Open full editor',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
+                    ),
+                  ],
+                ),
                     ],
                   ),
                 );
@@ -14877,14 +14877,14 @@ class _DayChip extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFD4AF37).withOpacity(0.2),
+                          color: KemeticGold.base.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
                           'Reminder',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFFD4AF37),
+                            color: KemeticGold.base,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -14896,7 +14896,7 @@ class _DayChip extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFD4AF37).withOpacity(0.2),
+                          color: KemeticGold.base.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Row(
@@ -14905,14 +14905,14 @@ class _DayChip extends StatelessWidget {
                             Icon(
                               Icons.local_drink,
                               size: 14,
-                              color: Color(0xFFD4AF37),
+                              color: KemeticGold.base,
                             ),
                             SizedBox(width: 4),
                             Text(
                               'Nutrition',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFFD4AF37),
+                                color: KemeticGold.base,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -14932,7 +14932,7 @@ class _DayChip extends StatelessWidget {
                     PopupMenuButton<String>(
                       icon: const Icon(
                         Icons.more_vert,
-                        color: Color(0xFFD4AF37),
+                        color: KemeticGold.base,
                       ),
                       tooltip: 'Event options',
                       color: Colors.black,
@@ -14963,7 +14963,7 @@ class _DayChip extends StatelessWidget {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Flow shared successfully!'),
-                                backgroundColor: Color(0xFFD4AF37),
+                                backgroundColor: KemeticGold.base,
                                 duration: Duration(seconds: 2),
                               ),
                             );
@@ -14999,16 +14999,13 @@ class _DayChip extends StatelessWidget {
                       },
                       itemBuilder: (context) => [
                         if (onAppendToJournal != null)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'journal',
                             child: Row(
                               children: [
-                                Icon(
-                                  Icons.check_circle,
-                                  color: Color(0xFFD4AF37),
-                                ),
-                                SizedBox(width: 12),
-                                Text(
+                                KemeticGold.icon(Icons.check_circle),
+                                const SizedBox(width: 12),
+                                const Text(
                                   'Done / Add to journal',
                                   style: TextStyle(color: Colors.white),
                                 ),
@@ -15016,13 +15013,13 @@ class _DayChip extends StatelessWidget {
                             ),
                           ),
                         if (note.flowId != null && !note.isReminder)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'edit_flow',
                             child: Row(
                               children: [
-                                Icon(Icons.edit, color: Color(0xFFD4AF37)),
-                                SizedBox(width: 12),
-                                Text(
+                                KemeticGold.icon(Icons.edit),
+                                const SizedBox(width: 12),
+                                const Text(
                                   'Edit Flow',
                                   style: TextStyle(color: Colors.white),
                                 ),
@@ -15030,13 +15027,13 @@ class _DayChip extends StatelessWidget {
                             ),
                           ),
                         if (note.flowId != null && !note.isReminder)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'share_flow',
                             child: Row(
                               children: [
-                                Icon(Icons.share, color: Color(0xFFD4AF37)),
-                                SizedBox(width: 12),
-                                Text(
+                                KemeticGold.icon(Icons.share),
+                                const SizedBox(width: 12),
+                                const Text(
                                   'Share Flow',
                                   style: TextStyle(color: Colors.white),
                                 ),
@@ -15044,16 +15041,13 @@ class _DayChip extends StatelessWidget {
                             ),
                           ),
                         if (note.flowId != null && !note.isReminder)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'save_flow',
                             child: Row(
                               children: [
-                                Icon(
-                                  Icons.bookmark_add,
-                                  color: Color(0xFFD4AF37),
-                                ),
-                                SizedBox(width: 12),
-                                Text(
+                                KemeticGold.icon(Icons.bookmark_add),
+                                const SizedBox(width: 12),
+                                const Text(
                                   'Save Flow',
                                   style: TextStyle(color: Colors.white),
                                 ),
@@ -15063,13 +15057,13 @@ class _DayChip extends StatelessWidget {
                         if (note.isReminder &&
                             onEditReminder != null &&
                             event.reminderId != null)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'edit_reminder',
                             child: Row(
                               children: [
-                                Icon(Icons.edit, color: Color(0xFFD4AF37)),
-                                SizedBox(width: 12),
-                                Text(
+                                KemeticGold.icon(Icons.edit),
+                                const SizedBox(width: 12),
+                                const Text(
                                   'Edit Reminder',
                                   style: TextStyle(color: Colors.white),
                                 ),
@@ -15077,13 +15071,13 @@ class _DayChip extends StatelessWidget {
                             ),
                           ),
                         if (note.isReminder && onShareReminder != null)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'share_reminder',
                             child: Row(
                               children: [
-                                Icon(Icons.share, color: Color(0xFFD4AF37)),
-                                SizedBox(width: 12),
-                                Text(
+                                KemeticGold.icon(Icons.share),
+                                const SizedBox(width: 12),
+                                const Text(
                                   'Share Reminder',
                                   style: TextStyle(color: Colors.white),
                                 ),
@@ -15093,13 +15087,13 @@ class _DayChip extends StatelessWidget {
                         if (!note.isReminder &&
                             note.flowId == null &&
                             onEditNote != null)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'edit_note',
                             child: Row(
                               children: [
-                                Icon(Icons.edit, color: Color(0xFFD4AF37)),
-                                SizedBox(width: 12),
-                                Text(
+                                KemeticGold.icon(Icons.edit),
+                                const SizedBox(width: 12),
+                                const Text(
                                   'Edit Note',
                                   style: TextStyle(color: Colors.white),
                                 ),
@@ -15109,13 +15103,13 @@ class _DayChip extends StatelessWidget {
                         if (!note.isReminder &&
                             note.flowId == null &&
                             onShareNote != null)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'share_note',
                             child: Row(
                               children: [
-                                Icon(Icons.share, color: Color(0xFFD4AF37)),
-                                SizedBox(width: 12),
-                                Text(
+                                KemeticGold.icon(Icons.share),
+                                const SizedBox(width: 12),
+                                const Text(
                                   'Share Note',
                                   style: TextStyle(color: Colors.white),
                                 ),
@@ -18648,7 +18642,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.auto_awesome, color: Color(0xFFD4AF37)),
+                KemeticGold.icon(Icons.auto_awesome),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -19996,7 +19990,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         actions: [
           // ✨ NEW: AI Generation Button
           IconButton(
-            icon: const Icon(Icons.auto_awesome, color: Color(0xFFD4AF37)),
+            icon: KemeticGold.icon(Icons.auto_awesome),
             onPressed: _showAIGenerationModal,
             tooltip: 'Generate with AI',
           ),
@@ -21065,10 +21059,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
               child: const Text('End Flow'),
             ),
           PopupMenuButton<String>(
-            icon: const Icon(
-              Icons.more_vert,
-              color: Color(0xFFD4AF37),
-            ), // ⋮ vertical dots
+            icon: KemeticGold.icon(Icons.more_vert), // ⋮ vertical dots
             tooltip: 'Flow options',
             onSelected: (value) async {
               if (value == 'journal') {
@@ -21082,36 +21073,36 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'journal',
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle, color: Color(0xFFD4AF37)),
-                    SizedBox(width: 12),
-                    Text(
+                    KemeticGold.icon(Icons.check_circle),
+                    const SizedBox(width: 12),
+                    const Text(
                       'Done / Add to journal',
                       style: TextStyle(color: Colors.white),
                     ),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'edit',
                 child: Row(
                   children: [
-                    Icon(Icons.edit, color: Color(0xFFD4AF37)),
-                    SizedBox(width: 12),
-                    Text('Edit Flow', style: TextStyle(color: Colors.white)),
+                    KemeticGold.icon(Icons.edit),
+                    const SizedBox(width: 12),
+                    const Text('Edit Flow', style: TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'share',
                 child: Row(
                   children: [
-                    Icon(Icons.share, color: Color(0xFFD4AF37)),
-                    SizedBox(width: 12),
-                    Text('Share Flow', style: TextStyle(color: Colors.white)),
+                    KemeticGold.icon(Icons.share),
+                    const SizedBox(width: 12),
+                    const Text('Share Flow', style: TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
@@ -21119,11 +21110,8 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
                 value: 'save',
                 child: Row(
                   children: [
-                    Icon(
-                      currentFlow.isSaved
-                          ? Icons.bookmark_remove
-                          : Icons.bookmark_add,
-                      color: const Color(0xFFD4AF37),
+                    KemeticGold.icon(
+                      currentFlow.isSaved ? Icons.bookmark_remove : Icons.bookmark_add,
                     ),
                     const SizedBox(width: 12),
                     Text(
@@ -21630,7 +21618,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Flow shared successfully!'),
-          backgroundColor: Color(0xFFD4AF37),
+          backgroundColor: KemeticGold.base,
           duration: Duration(seconds: 2),
         ),
       );
@@ -22527,11 +22515,11 @@ class _FlowHubPage extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [
                     Color(0xFFB8860B),
-                    Color(0xFFD4AF37),
+                    KemeticGold.base,
                     Color(0xFFF0D879),
                   ],
                 ),
-                borderColor: const Color(0xFFD4AF37),
+                borderColor: KemeticGold.base,
                 onPressed: openMyFlows, // <-- use the callback you passed in
               ),
               const SizedBox(height: 14),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../shared/glossy_text.dart';
 
 import '../../data/decan_reflection_repo.dart';
 import '../../data/decan_reflection_model.dart';
@@ -39,7 +40,13 @@ class _DecanReflectionArchivePageState extends State<DecanReflectionArchivePage>
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFFD4AF37)),
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: KemeticGold.icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+        iconTheme: const IconThemeData(color: KemeticGold.base),
         title: const Text(
           'Decan Reflections',
           style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
@@ -48,7 +55,7 @@ class _DecanReflectionArchivePageState extends State<DecanReflectionArchivePage>
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation(Color(0xFFD4AF37)),
+                valueColor: AlwaysStoppedAnimation(KemeticGold.base),
               ),
             )
           : _items.isEmpty

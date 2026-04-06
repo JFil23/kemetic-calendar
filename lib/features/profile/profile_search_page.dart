@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 import '../../data/profile_repo.dart';
 
@@ -66,7 +67,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
         backgroundColor: const Color(0xFF000000),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Color(0xFFD4AF37)),
+          icon: KemeticGold.icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
@@ -88,7 +89,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
             if (_searching)
               const Center(
                 child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                  valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
                 ),
               )
             else if (_results.isEmpty && _query.length < 2)
@@ -114,7 +115,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
         prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.5)),
         suffixIcon: _query.isNotEmpty
             ? IconButton(
-                icon: const Icon(Icons.close, color: Color(0xFFD4AF37)),
+                icon: KemeticGold.icon(Icons.close),
                 onPressed: () {
                   _controller.clear();
                   _onQueryChanged('');
@@ -129,7 +130,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFD4AF37)),
+          borderSide: const BorderSide(color: KemeticGold.base),
         ),
       ),
       onChanged: _onQueryChanged,
@@ -207,7 +208,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
           contentPadding: const EdgeInsets.symmetric(vertical: 8),
           leading: CircleAvatar(
             radius: 20,
-            backgroundColor: const Color(0xFFD4AF37).withOpacity(0.2),
+            backgroundColor: KemeticGold.base.withOpacity(0.2),
             backgroundImage: user.avatarUrl != null
                 ? NetworkImage(user.avatarUrl!)
                 : null,
@@ -215,7 +216,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
                 ? Text(
                     initials,
                     style: const TextStyle(
-                      color: Color(0xFFD4AF37),
+                      color: KemeticGold.base,
                       fontWeight: FontWeight.bold,
                     ),
                   )
@@ -236,7 +237,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
                   style: TextStyle(color: Colors.white.withOpacity(0.6)),
                 )
               : null,
-          trailing: const Icon(Icons.chevron_right, color: Color(0xFFD4AF37)),
+          trailing: KemeticGold.icon(Icons.chevron_right),
           onTap: () => _selectUser(user),
         );
       },

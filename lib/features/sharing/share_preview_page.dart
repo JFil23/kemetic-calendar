@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/shared/glossy_text.dart';
 import '../../data/share_repo.dart';
 import '../../data/share_models.dart';
 
@@ -72,7 +73,7 @@ class _SharePreviewPageState extends State<SharePreviewPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Flow imported successfully!'),
-            backgroundColor: Color(0xFFD4AF37),
+            backgroundColor: KemeticGold.base,
           ),
         );
         
@@ -104,7 +105,7 @@ class _SharePreviewPageState extends State<SharePreviewPage> {
         elevation: 0,
         title: const Text('Shared Flow', style: TextStyle(color: Colors.white)),
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Color(0xFFD4AF37)),
+          icon: KemeticGold.icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -115,7 +116,7 @@ class _SharePreviewPageState extends State<SharePreviewPage> {
   Widget _buildBody() {
     if (_loading) {
       return const Center(
-        child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
+        child: CircularProgressIndicator(color: KemeticGold.base),
       );
     }
 
@@ -149,7 +150,7 @@ class _SharePreviewPageState extends State<SharePreviewPage> {
               ElevatedButton(
                 onPressed: _loadShare,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4AF37),
+                  backgroundColor: KemeticGold.base,
                   foregroundColor: Colors.black,
                 ),
                 child: const Text('Retry'),
@@ -182,7 +183,7 @@ class _SharePreviewPageState extends State<SharePreviewPage> {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundColor: const Color(0xFFD4AF37),
+                  backgroundColor: KemeticGold.base,
                   backgroundImage: sender['avatar_url'] != null
                       ? NetworkImage(sender['avatar_url'])
                       : null,
@@ -274,7 +275,7 @@ class _SharePreviewPageState extends State<SharePreviewPage> {
               decoration: BoxDecoration(
                 color: const Color(0xFF0D0D0F),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.3)),
+                border: Border.all(color: KemeticGold.base.withOpacity(0.3)),
               ),
               child: Text(
                 _formatSchedule(schedule),
@@ -295,7 +296,7 @@ class _SharePreviewPageState extends State<SharePreviewPage> {
             child: ElevatedButton(
               onPressed: importedAt != null || _importing ? null : _importFlow,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD4AF37),
+                backgroundColor: KemeticGold.base,
                 foregroundColor: Colors.black,
                 disabledBackgroundColor: Colors.grey.shade800,
                 disabledForegroundColor: Colors.grey.shade600,

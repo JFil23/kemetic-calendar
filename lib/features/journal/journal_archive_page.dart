@@ -12,6 +12,7 @@ import 'dart:convert';
 import '../calendar/calendar_page.dart' show KemeticMath;
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
 import 'package:flutter/cupertino.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 class JournalArchivePage extends StatefulWidget {
   final JournalRepo repo;
@@ -136,7 +137,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Entry saved'),
-          backgroundColor: Color(0xFFD4AF37),
+          backgroundColor: KemeticGold.base,
         ),
       );
     } catch (e) {
@@ -252,9 +253,8 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
         backgroundColor: Colors.black,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(
+          icon: KemeticGold.icon(
             _selectedEntry != null ? Icons.arrow_back : Icons.close,
-            color: const Color(0xFFD4AF37),
           ),
           onPressed: _selectedEntry != null ? _closeEntry : widget.onClose,
         ),
@@ -270,10 +270,9 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
           if (!_isEditing)
             TextButton(
               onPressed: _startEditing,
-              child: const Text(
+              child: KemeticGold.text(
                 'Edit',
-                style: TextStyle(
-                  color: Color(0xFFD4AF37),
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -282,10 +281,9 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
           else
             TextButton(
               onPressed: _saveEntry,
-              child: const Text(
+              child: KemeticGold.text(
                 'Save',
-                style: TextStyle(
-                  color: Color(0xFFD4AF37),
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -301,7 +299,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     if (_loading) {
       return const Center(
         child: CircularProgressIndicator(
-          color: Color(0xFFD4AF37),
+          color: KemeticGold.base,
         ),
       );
     }
@@ -400,7 +398,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
                     Text(
                       header,
                       style: const TextStyle(
-                        color: Color(0xFFD4AF37),
+                        color: KemeticGold.base,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -468,7 +466,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
           child: Text(
             header,
             style: const TextStyle(
-              color: Color(0xFFD4AF37),
+              color: KemeticGold.base,
               fontSize: 20,
               fontWeight: FontWeight.w600,
             ),
@@ -681,7 +679,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
               child: ElevatedButton(
                 onPressed: _saveEntry,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4AF37),
+                  backgroundColor: KemeticGold.base,
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(

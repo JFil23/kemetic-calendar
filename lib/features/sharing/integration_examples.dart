@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 // Integration Example: How to use ShareFlowSheet in your calendar
 
@@ -8,7 +9,7 @@ import 'package:flutter/material.dart';
 void _addShareButtonExample() {
   // Add this to your widget's build method:
   IconButton(
-    icon: const Icon(Icons.share, color: Color(0xFFD4AF37)),
+    icon: KemeticGold.icon(Icons.share),
     onPressed: () {
       // _openShareSheet(context, flowId, flowTitle);
     },
@@ -30,7 +31,7 @@ Future<void> _openShareSheet(BuildContext context, int flowId, String flowTitle)
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Flow shared successfully!'),
-        backgroundColor: Color(0xFFD4AF37),
+        backgroundColor: KemeticGold.base,
       ),
     );
   }
@@ -43,11 +44,11 @@ Widget _addToolbarExample() {
   return Row(
     children: [
       IconButton(
-        icon: const Icon(Icons.save, color: Color(0xFFD4AF37)),
+        icon: KemeticGold.icon(Icons.save),
         onPressed: () {}, // _saveFlow
       ),
       IconButton(
-        icon: const Icon(Icons.share, color: Color(0xFFD4AF37)),
+        icon: KemeticGold.icon(Icons.share),
         onPressed: () {
           // _openShareSheet(context, _currentFlow.id, _currentFlow.title);
         },
@@ -73,7 +74,7 @@ class FlowDetailPage extends StatelessWidget {
         title: const Text('Flow Title'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.share, color: Color(0xFFD4AF37)),
+            icon: KemeticGold.icon(Icons.share),
             onPressed: () {
               // _openShareSheet(context);
             },
@@ -100,7 +101,7 @@ class FlowDetailPage extends StatelessWidget {
                     icon: const Icon(Icons.share),
                     label: const Text('Share Flow'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD4AF37),
+                      backgroundColor: KemeticGold.base,
                       foregroundColor: Colors.black,
                     ),
                   ),
@@ -111,11 +112,14 @@ class FlowDetailPage extends StatelessWidget {
                     onPressed: () {
                       // _editFlow();
                     },
-                    icon: const Icon(Icons.edit),
-                    label: const Text('Edit'),
+                    icon: KemeticGold.icon(Icons.edit),
+                    label: KemeticGold.text(
+                      'Edit',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFD4AF37),
-                      side: const BorderSide(color: Color(0xFFD4AF37)),
+                      foregroundColor: KemeticGold.base,
+                      side: const BorderSide(color: KemeticGold.base),
                     ),
                   ),
                 ),
@@ -145,10 +149,9 @@ class FlowDetailPage extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Flow shared successfully!'),
-          backgroundColor: Color(0xFFD4AF37),
+          backgroundColor: KemeticGold.base,
         ),
       );
     }
   }
 }
-

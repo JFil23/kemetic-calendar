@@ -21,11 +21,12 @@ import '../nutrition/nutrition_grid.dart';
 import '../../data/nutrition_repo.dart';
 import '../../data/user_events_repo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 // ========================================
 // SHARED CONSTANTS FOR LANDSCAPE VIEW
 // ========================================
-const Color _landscapeGold = Color(0xFFFFC145);
+const Color _landscapeGold = KemeticGold.base;
 const Color _landscapeBg = Color(0xFF000000); // True black
 const Color _landscapeSurface = Color(0xFF0D0D0F); // Dark surface
 const Color _landscapeDivider = Color(0xFF1A1A1A); // Divider lines
@@ -523,17 +524,14 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
               // Flow Studio button - OUTSIDE GestureDetector (no gesture interference)
               IconButton(
                 tooltip: 'Nutrition',
-                icon: const Icon(
-                  Icons.table_chart_outlined,
-                  color: _landscapeGold,
-                ),
+                icon: KemeticGold.icon(Icons.table_chart_outlined),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 onPressed: _openNutritionSheet,
               ),
               // Flow Studio button - OUTSIDE GestureDetector (no gesture interference)
               IconButton(
                 tooltip: 'Flow Studio',
-                icon: const Icon(Icons.view_timeline, color: _landscapeGold),
+                icon: KemeticGold.icon(Icons.view_timeline),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 onPressed: widget.onManageFlows != null
                     ? () {
@@ -547,7 +545,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
               // Add Note button - OUTSIDE GestureDetector (no gesture interference)
               IconButton(
                 tooltip: 'New note',
-                icon: const Icon(Icons.add, color: _landscapeGold),
+                icon: KemeticGold.icon(Icons.add),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 onPressed: widget.onAddNote != null
                     ? () {
@@ -1589,29 +1587,24 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                           horizontal: 8,
                           vertical: 4,
                         ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD4AF37).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.local_drink,
-                              size: 14,
-                              color: Color(0xFFD4AF37),
+                      decoration: BoxDecoration(
+                        color: KemeticGold.base.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          KemeticGold.icon(Icons.local_drink, size: 14),
+                          const SizedBox(width: 4),
+                          KemeticGold.text(
+                            'Nutrition',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
                             ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Nutrition',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFFD4AF37),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
+                      ),
                       ),
                     const Spacer(),
                     if (flow != null && widget.onEndFlow != null)
@@ -1624,8 +1617,11 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                           Navigator.pop(context);
                           widget.onEndFlow?.call(flow.id);
                         },
-                        icon: const Icon(Icons.stop_circle),
-                        label: const Text('End Flow'),
+                        icon: KemeticGold.icon(Icons.stop_circle),
+                        label: KemeticGold.text(
+                          'End Flow',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
                       )
                     else if (flow == null && widget.onDeleteNote != null)
                       OutlinedButton.icon(
@@ -1642,15 +1638,15 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                             event,
                           );
                         },
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text('End Note'),
+                        icon: KemeticGold.icon(Icons.delete_outline),
+                        label: KemeticGold.text(
+                          'End Note',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
                       ),
                     const SizedBox(width: 8),
                     PopupMenuButton<String>(
-                      icon: const Icon(
-                        Icons.more_vert,
-                        color: Color(0xFFD4AF37),
-                      ),
+                      icon: KemeticGold.icon(Icons.more_vert),
                       tooltip: 'Event options',
                       onSelected: (value) async {
                         if (value == 'journal') {
@@ -1678,7 +1674,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Flow shared successfully!'),
-                                backgroundColor: Color(0xFFD4AF37),
+                                backgroundColor: KemeticGold.base,
                                 duration: Duration(seconds: 2),
                               ),
                             );
@@ -1701,16 +1697,13 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                         }
                       },
                       itemBuilder: (context) => [
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'journal',
                           child: Row(
                             children: [
-                              Icon(
-                                Icons.check_circle,
-                                color: Color(0xFFD4AF37),
-                              ),
-                              SizedBox(width: 12),
-                              Text(
+                              KemeticGold.icon(Icons.check_circle),
+                              const SizedBox(width: 12),
+                              const Text(
                                 'Done / Add to journal',
                                 style: TextStyle(color: Colors.white),
                               ),
@@ -1718,13 +1711,13 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                           ),
                         ),
                         if (flow != null)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'edit',
                             child: Row(
                               children: [
-                                Icon(Icons.edit, color: Color(0xFFD4AF37)),
-                                SizedBox(width: 12),
-                                Text(
+                                KemeticGold.icon(Icons.edit),
+                                const SizedBox(width: 12),
+                                const Text(
                                   'Edit Flow',
                                   style: TextStyle(color: Colors.white),
                                 ),
@@ -1732,13 +1725,13 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                             ),
                           ),
                         if (flow != null)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'share',
                             child: Row(
                               children: [
-                                Icon(Icons.share, color: Color(0xFFD4AF37)),
-                                SizedBox(width: 12),
-                                Text(
+                                KemeticGold.icon(Icons.share),
+                                const SizedBox(width: 12),
+                                const Text(
                                   'Share Flow',
                                   style: TextStyle(color: Colors.white),
                                 ),
@@ -1746,13 +1739,13 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                             ),
                           ),
                         if (flow == null && widget.onEditNote != null)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'edit_note',
                             child: Row(
                               children: [
-                                Icon(Icons.edit, color: Color(0xFFD4AF37)),
-                                SizedBox(width: 12),
-                                Text(
+                                KemeticGold.icon(Icons.edit),
+                                const SizedBox(width: 12),
+                                const Text(
                                   'Edit Note',
                                   style: TextStyle(color: Colors.white),
                                 ),
@@ -1760,13 +1753,13 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                             ),
                           ),
                         if (flow == null && widget.onShareNote != null)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'share_note',
                             child: Row(
                               children: [
-                                Icon(Icons.share, color: Color(0xFFD4AF37)),
-                                SizedBox(width: 12),
-                                Text(
+                                KemeticGold.icon(Icons.share),
+                                const SizedBox(width: 12),
+                                const Text(
                                   'Share Note',
                                   style: TextStyle(color: Colors.white),
                                 ),

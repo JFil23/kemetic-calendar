@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'journal_controller.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 /// Wraps the AppBar in landscape mode to enable down-swipe gesture
 class LandscapeJournalHeader extends StatefulWidget {
@@ -54,7 +55,7 @@ class _LandscapeJournalHeaderState extends State<LandscapeJournalHeader> {
                 color: Colors.black,
                 border: Border(
                   bottom: BorderSide(
-                    color: Color(0xFFD4AF37).withOpacity(_dragDistance / _openThreshold),
+                    color: KemeticGold.base.withOpacity(_dragDistance / _openThreshold),
                     width: 2,
                   ),
                 ),
