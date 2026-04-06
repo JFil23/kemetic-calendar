@@ -16075,7 +16075,7 @@ class _EventsTab extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
       itemCount: notes.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.white10),
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (ctx, i) {
         final e = notes[i];
         final g = KemeticMath.toGregorian(kYear, kMonth, e.day);
@@ -16083,84 +16083,94 @@ class _EventsTab extends StatelessWidget {
         final gregLabel =
             '${g.month.toString().padLeft(2, '0')}/${g.day.toString().padLeft(2, '0')}/${g.year}';
 
-        return InkWell(
-          onTap: () => onOpenDay(e.day),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12.0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  margin: const EdgeInsets.only(top: 6),
-                  decoration: BoxDecoration(
-                    color: e.color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        dateLabel,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+        return Container(
+          decoration: BoxDecoration(
+            color: e.color.withOpacity(0.18),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => onOpenDay(e.day),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 12.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      margin: const EdgeInsets.only(top: 6),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        e.displayTitle,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Wrap(
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _chip(e.timeLabel, icon: Icons.schedule),
-                          _chip(gregLabel, icon: Icons.calendar_today_outlined),
-                          if (e.flowName != null && e.flowName!.trim().isNotEmpty)
-                            _chip(e.flowName!.trim(), icon: Icons.auto_awesome),
-                          if (e.note.isReminder)
-                            _chip('Reminder', icon: Icons.notifications_active),
+                          Text(
+                            dateLabel,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            e.displayTitle,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            children: [
+                              _chip(e.timeLabel, icon: Icons.schedule),
+                              _chip(gregLabel, icon: Icons.calendar_today_outlined),
+                              if (e.flowName != null && e.flowName!.trim().isNotEmpty)
+                                _chip(e.flowName!.trim(), icon: Icons.auto_awesome),
+                              if (e.note.isReminder)
+                                _chip('Reminder', icon: Icons.notifications_active),
+                            ],
+                          ),
+                          if ((e.location ?? '').isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              e.location!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                decoration: TextDecoration.underline,
+                                decorationColor: Colors.white54,
+                              ),
+                            ),
+                          ],
+                          if ((e.detail ?? '').trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              e.detail!.trim(),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
-                      if ((e.location ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          e.location!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            decoration: TextDecoration.underline,
-                            decorationColor: Colors.white54,
-                          ),
-                        ),
-                      ],
-                      if ((e.detail ?? '').trim().isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          e.detail!.trim(),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         );
