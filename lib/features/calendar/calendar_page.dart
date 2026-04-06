@@ -13949,7 +13949,6 @@ class _MonthCard extends StatelessWidget {
         builder: (_) => _MonthDetailPage(
           kYear: kYear,
           kMonth: kMonth,
-          seasonShort: seasonShort,
           todayMonth: todayMonth,
           todayDay: todayDay,
           showGregorian: showGregorian,
@@ -13978,7 +13977,6 @@ class _MonthCard extends StatelessWidget {
         builder: (_) => _MonthDetailPage(
           kYear: kYear,
           kMonth: kMonth,
-          seasonShort: seasonShort,
           todayMonth: todayMonth,
           todayDay: todayDay,
           showGregorian: showGregorian,
@@ -15551,7 +15549,6 @@ class _MonthDetailPage extends StatefulWidget {
   const _MonthDetailPage({
     required this.kYear,
     required this.kMonth,
-    required this.seasonShort,
     required this.todayMonth,
     required this.todayDay,
     required this.showGregorian,
@@ -15573,7 +15570,6 @@ class _MonthDetailPage extends StatefulWidget {
 
   final int kYear;
   final int kMonth;
-  final String seasonShort;
   final int? todayMonth;
   final int? todayDay;
   final bool showGregorian;
@@ -15599,17 +15595,24 @@ class _MonthDetailPage extends StatefulWidget {
 }
 
 class _MonthDetailPageState extends State<_MonthDetailPage> {
+  // Track the visible month page (0-based) for horizontal swipes.
+  late final PageController _pageController;
+  static const int _pageCount = 12; // Months 1..12 participate in detail paging.
+  late int _currentPage;
   int? _currentDecanIndex;
 
   @override
   void initState() {
     super.initState();
     _currentDecanIndex = widget.decanIndex;
+    _currentPage = (widget.kMonth.clamp(1, _pageCount)) - 1;
+    _pageController = PageController(initialPage: _currentPage);
   }
 
   @override
   void dispose() {
     SpeechService.instance.stop();
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -15619,50 +15622,47 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     return match?.group(1);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final monthMeta = getMonthById(widget.kMonth);
-    final infoTitle = _currentDecanIndex == null
-        ? monthMeta.displayFull
-        : (DecanMetadata.decanNames[widget.kMonth] ??
-              const ['Decan A', 'Decan B', 'Decan C'])[_currentDecanIndex!];
-
-    final infoBody = _currentDecanIndex == null
-        ? (_monthInfo[widget.kMonth] ?? '')
-        : _decanInfo[(widget.kMonth - 1) * 3 + _currentDecanIndex!];
-
-    final yStart = KemeticMath.toGregorian(widget.kYear, widget.kMonth, 1).year;
-    final yEnd = KemeticMath.toGregorian(widget.kYear, widget.kMonth, 30).year;
-    final rightLabel = (yStart == yEnd)
-        ? '${widget.seasonShort} $yStart'
-        : '${widget.seasonShort} $yStart/$yEnd';
-
-    String _buildSpeakLine() {
-      if (_currentDecanIndex == null) {
-        return SpeechResolver.month(
-          month: monthMeta,
-          displayName: monthMeta.displayShort,
-        );
-      }
-      // Decans only exist for months 1..12
-      if (widget.kMonth < 1 || widget.kMonth > 12) {
-        return infoTitle;
-      }
-      final decanInMonth = _currentDecanIndex! + 1;
-      final decanId = decanIdFromMonthAndIndex(
-        monthIndex: widget.kMonth,
-        decanInMonth: decanInMonth,
-      );
-      final shortName =
-          (DecanMetadata.decanNames[widget.kMonth] ?? const [''])[decanInMonth -
-              1];
-      final englishCue = _extractEnglishCue(DecanMetadata.decanTitles[shortName]);
-      return SpeechResolver.decan(
-        decanId: decanId,
-        displayName: shortName,
-        englishCue: englishCue,
+  String _buildSpeakLine(int month, int? decanIndex) {
+    final monthMeta = getMonthById(month);
+    if (decanIndex == null) {
+      return SpeechResolver.month(
+        month: monthMeta,
+        displayName: monthMeta.displayShort,
       );
     }
+    if (month < 1 || month > 12) return monthMeta.displayFull;
+    final decanInMonth = decanIndex + 1;
+    final decanId = decanIdFromMonthAndIndex(
+      monthIndex: month,
+      decanInMonth: decanInMonth,
+    );
+    final shortName =
+        (DecanMetadata.decanNames[month] ?? const [''])[decanInMonth - 1];
+    final englishCue = _extractEnglishCue(DecanMetadata.decanTitles[shortName]);
+    return SpeechResolver.decan(
+      decanId: decanId,
+      displayName: shortName,
+      englishCue: englishCue,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activeMonth = _currentPage + 1;
+    final activeMonthMeta = getMonthById(activeMonth);
+    final activeInfoTitle = _currentDecanIndex == null
+        ? activeMonthMeta.displayFull
+        : (DecanMetadata.decanNames[activeMonth] ??
+            const ['Decan A', 'Decan B', 'Decan C'])[_currentDecanIndex!];
+
+    final yStart =
+        KemeticMath.toGregorian(widget.kYear, activeMonth, 1).year;
+    final yEnd =
+        KemeticMath.toGregorian(widget.kYear, activeMonth, 30).year;
+    final activeSeasonLabel = activeMonthMeta.season.label;
+    final rightLabel = (yStart == yEnd)
+        ? '$activeSeasonLabel $yStart'
+        : '$activeSeasonLabel $yStart/$yEnd';
 
     return Scaffold(
       backgroundColor: _bg,
@@ -15676,7 +15676,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: GlossyText(
-          text: infoTitle,
+          text: activeInfoTitle,
           style: _monthTitleGold,
           gradient: goldGloss,
         ),
@@ -15693,84 +15693,111 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.only(top: 10),
-              children: [
-                _MonthCard(
-                  kYear: widget.kYear,
-                  kMonth: widget.kMonth,
-                  seasonShort: widget.seasonShort,
-                  todayMonth: widget.todayMonth,
-                  todayDay: widget.todayDay,
-                  todayDayKey: null,
-                  notesGetter: widget.notesGetter,
-                  flowColorsGetter: widget.flowColorsGetter,
-                  onDayTap: widget.onDayTap,
-                  showGregorian: widget.showGregorian,
-                  flowNameGetter: widget.flowNameGetter,
-                  onManageFlows: widget.onManageFlows,
-                  onEditNote: widget.onEditNote,
-                  onDeleteNote: widget.onDeleteNote,
-                  onShareNote: widget.onShareNote,
-                  onEditReminder: widget.onEditReminder,
-                  onEndReminder: widget.onEndReminder,
-                  onShareReminder: widget.onShareReminder,
-                  onEndFlow: widget.onEndFlow,
-                  onAppendToJournal: widget.onAppendToJournal,
-                  onMonthHeaderTap: (_) =>
-                      setState(() => _currentDecanIndex = null),
-                  onDecanTap: (_, idx) =>
-                      setState(() => _currentDecanIndex = idx),
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: _pageCount,
+        onPageChanged: (page) {
+          if (!mounted) return;
+          setState(() {
+            _currentPage = page;
+            _currentDecanIndex = null;
+          });
+          SpeechService.instance.stop();
+        },
+        itemBuilder: (ctx, index) {
+          final month = index + 1;
+          final isActive = index == _currentPage;
+          final decanIndex = isActive ? _currentDecanIndex : null;
+          final monthMeta = getMonthById(month);
+          final seasonLabel = monthMeta.season.label;
+          final infoTitle = decanIndex == null
+              ? monthMeta.displayFull
+              : (DecanMetadata.decanNames[month] ??
+                  const ['Decan A', 'Decan B', 'Decan C'])[decanIndex];
+          final infoBody = decanIndex == null
+              ? (_monthInfo[month] ?? '')
+              : _decanInfo[(month - 1) * 3 + decanIndex];
+
+          return Column(
+            children: [
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.only(top: 10),
+                  children: [
+                    _MonthCard(
+                      kYear: widget.kYear,
+                      kMonth: month,
+                      seasonShort: seasonLabel,
+                      todayMonth: widget.todayMonth,
+                      todayDay: widget.todayDay,
+                      todayDayKey: null,
+                      notesGetter: widget.notesGetter,
+                      flowColorsGetter: widget.flowColorsGetter,
+                      onDayTap: widget.onDayTap,
+                      showGregorian: widget.showGregorian,
+                      flowNameGetter: widget.flowNameGetter,
+                      onManageFlows: widget.onManageFlows,
+                      onEditNote: widget.onEditNote,
+                      onDeleteNote: widget.onDeleteNote,
+                      onShareNote: widget.onShareNote,
+                      onEditReminder: widget.onEditReminder,
+                      onEndReminder: widget.onEndReminder,
+                      onShareReminder: widget.onShareReminder,
+                      onEndFlow: widget.onEndFlow,
+                      onAppendToJournal: widget.onAppendToJournal,
+                      onMonthHeaderTap: (_) =>
+                          setState(() => _currentDecanIndex = null),
+                      onDecanTap: (_, idx) =>
+                          setState(() => _currentDecanIndex = idx),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: Colors.white10),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+              ),
+              const Divider(height: 1, color: Colors.white10),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: GlossyText(
-                          text: infoTitle,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: GlossyText(
+                              text: infoTitle,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              gradient: silverGloss,
+                            ),
                           ),
-                          gradient: silverGloss,
-                        ),
+                          const SizedBox(width: 8),
+                          PronounceIconButton(
+                            speakText: _buildSpeakLine(month, decanIndex),
+                            color: _gold,
+                            size: 22,
+                            isPhonetic: true,
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      PronounceIconButton(
-                        speakText: _buildSpeakLine(),
-                        color: _gold,
-                        size: 22,
-                        isPhonetic: true,
+                      const SizedBox(height: 8),
+                      Text(
+                        infoBody.trim(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          height: 1.35,
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    infoBody.trim(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      height: 1.35,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
