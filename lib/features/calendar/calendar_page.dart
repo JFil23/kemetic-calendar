@@ -15696,6 +15696,39 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     widget.onDayTap(ctx, km, kd);
   }
 
+  Future<void> _jumpToToday() async {
+    final today = KemeticMath.fromGregorian(DateTime.now());
+    final monthOffset =
+        (today.kYear - widget.kYear) * 12 + (today.kMonth - widget.kMonth);
+    final targetPage = _pageSeed + monthOffset;
+    setState(() => _currentDecanIndex = null);
+    SpeechService.instance.stop();
+    await _pageController.animateToPage(
+      targetPage,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  String? _scrubDetail(String? detail) {
+    if (detail == null) return null;
+    final blocked = RegExp(
+      r'google calendar|automatically created|official google calendar|gmail|mail\.google\.com|observance|holiday|to hide observances|created from an email|to see detailed information|use the official',
+      caseSensitive: false,
+    );
+    final lines = detail
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty && !blocked.hasMatch(l))
+        .toList();
+    if (lines.isEmpty) return null;
+    // If the only remaining line is a generic label (e.g., "Observance"), drop it.
+    if (lines.length == 1 && lines.first.toLowerCase() == 'observance') {
+      return null;
+    }
+    return lines.join('\n');
+  }
+
   String _timeLabel(_Note n) {
     if (n.allDay) return 'All day';
     String fmt(TimeOfDay t) {
@@ -15721,6 +15754,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
             ? -1
             : ((n.start?.hour ?? 9) * 60 + (n.start?.minute ?? 0));
         final flowName = widget.flowNameGetter?.call(n);
+        final cleanedDetail = _scrubDetail(n.detail);
         final displayTitle = (() {
           final title = n.title.trim();
           if (title.isNotEmpty) return title;
@@ -15739,6 +15773,10 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
             timeLabel: _timeLabel(n),
             color: widget.noteColorResolver(n),
             sortKey: day * 1440 + startMin,
+            detail: cleanedDetail,
+            location: (n.location ?? '').trim().isEmpty
+                ? null
+                : n.location!.trim(),
           ),
         );
       }
@@ -15776,23 +15814,22 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
           icon: const _GlossyIcon(Icons.close, gradient: goldGloss),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: GlossyText(
-          text: activeInfoTitle,
-          style: _monthTitleGold,
-          gradient: goldGloss,
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: Center(
-              child: GlossyText(
-                text: rightLabel,
-                style: _rightSmall,
-                gradient: whiteGloss,
-              ),
+        title: TextButton.icon(
+          onPressed: _jumpToToday,
+          icon: const Icon(Icons.today, color: _gold, size: 18),
+          label: const Text(
+            'Today',
+            style: TextStyle(
+              color: _gold,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ],
+          style: TextButton.styleFrom(
+            foregroundColor: _gold,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+          ),
+        ),
       ),
       body: PageView.builder(
         controller: _pageController,
@@ -15908,6 +15945,8 @@ class _MonthEvent {
   final String timeLabel;
   final Color color;
   final int sortKey;
+  final String? detail;
+  final String? location;
 
   _MonthEvent({
     required this.day,
@@ -15917,6 +15956,8 @@ class _MonthEvent {
     required this.timeLabel,
     required this.color,
     required this.sortKey,
+    this.detail,
+    this.location,
   });
 }
 
@@ -16091,10 +16132,23 @@ class _EventsTab extends StatelessWidget {
                             _chip('Reminder', icon: Icons.notifications_active),
                         ],
                       ),
-                      if ((e.note.detail ?? '').trim().isNotEmpty) ...[
+                      if ((e.location ?? '').isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          e.location!,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Colors.white54,
+                          ),
+                        ),
+                      ],
+                      if ((e.detail ?? '').trim().isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
-                          e.note.detail!.trim(),
+                          e.detail!.trim(),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
