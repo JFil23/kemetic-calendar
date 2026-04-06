@@ -3421,6 +3421,17 @@ class _CalendarPageState extends State<CalendarPage>
   Future<void> _deleteReminderRule(String id) async {
     _endedReminderIds.add(id);
     await _saveEndedReminderIds();
+
+    final eventsRepo = UserEventsRepo(Supabase.instance.client);
+    final cidPrefix = 'reminder:$id:';
+    try {
+      await eventsRepo.deleteByClientIdPrefix(cidPrefix);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[reminders] delete reminder events failed ($cidPrefix): $e');
+      }
+    }
+
     try {
       final flowsRepo = FlowsRepo(Supabase.instance.client);
       final dbUuid = _dbReminderUuidFromRuleId(id);
@@ -3428,6 +3439,13 @@ class _CalendarPageState extends State<CalendarPage>
           ? null
           : await _findFlowIdByReminderUuid(dbUuid);
       if (existingId != null) {
+        try {
+          await eventsRepo.deleteByFlowId(existingId);
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('[reminders] delete reminder flow events failed: $e');
+          }
+        }
         await flowsRepo.delete(existingId);
       }
     } catch (e) {
