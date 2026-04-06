@@ -13955,6 +13955,7 @@ class _MonthCard extends StatelessWidget {
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
+          noteColorResolver: noteColorResolver,
           flowNameGetter: flowNameGetter,
           onManageFlows: onManageFlows,
           onEditNote: onEditNote,
@@ -13983,6 +13984,7 @@ class _MonthCard extends StatelessWidget {
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
           onDayTap: onDayTap,
+          noteColorResolver: noteColorResolver,
           flowNameGetter: flowNameGetter,
           onManageFlows: onManageFlows,
           onEditNote: onEditNote,
@@ -15555,6 +15557,7 @@ class _MonthDetailPage extends StatefulWidget {
     required this.notesGetter,
     required this.flowColorsGetter,
     required this.onDayTap,
+    required this.noteColorResolver,
     required this.decanIndex, // null => month view; 0..2 => specific decan
     this.flowNameGetter,
     this.onManageFlows,
@@ -15576,6 +15579,7 @@ class _MonthDetailPage extends StatefulWidget {
   final List<_Note> Function(int kMonth, int kDay) notesGetter;
   final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
+  final Color Function(_Note) noteColorResolver;
   final int? decanIndex;
   final String? Function(_Note)? flowNameGetter;
   final void Function(int?)? onManageFlows;
@@ -15595,9 +15599,10 @@ class _MonthDetailPage extends StatefulWidget {
 }
 
 class _MonthDetailPageState extends State<_MonthDetailPage> {
+  final _tabTitles = const ['Info', 'Events', 'Planner'];
   // Track the visible month page (0-based) for horizontal swipes.
   late final PageController _pageController;
-  static const int _pageCount = 12; // Months 1..12 participate in detail paging.
+  static const int _pageSeed = 12000; // Large seed to allow long-range swiping in both directions.
   late int _currentPage;
   int? _currentDecanIndex;
 
@@ -15605,7 +15610,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
   void initState() {
     super.initState();
     _currentDecanIndex = widget.decanIndex;
-    _currentPage = (widget.kMonth.clamp(1, _pageCount)) - 1;
+    _currentPage = _pageSeed;
     _pageController = PageController(initialPage: _currentPage);
   }
 
@@ -15646,9 +15651,105 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     );
   }
 
+  int _floorDiv(int a, int b) {
+    // Dart's integer division truncates toward zero; adjust to true floor.
+    return (a - (a % b)) ~/ b;
+  }
+
+  int _mod(int a, int b) {
+    final r = a % b;
+    return r < 0 ? r + b : r;
+  }
+
+  (int year, int month) _yearMonthForPage(int page) {
+    final offset = page - _pageSeed;
+    final totalMonths = (widget.kMonth - 1) + offset;
+    final monthIndex = _mod(totalMonths, 12); // 0-based
+    final month = monthIndex + 1;
+    final yearOffset = _floorDiv(totalMonths, 12);
+    final year = widget.kYear + yearOffset;
+    return (year, month);
+  }
+
+  List<_Note> _notesFor(int ky, int km, int kd) {
+    final state = CalendarPage.globalKey.currentState;
+    if (state != null) {
+      return state._getNotes(ky, km, kd);
+    }
+    return widget.notesGetter(km, kd);
+  }
+
+  List<Color> _flowColorsFor(int ky, int km, int kd) {
+    final state = CalendarPage.globalKey.currentState;
+    if (state != null) {
+      return state.getFlowColorsForDay(ky, km, kd);
+    }
+    return widget.flowColorsGetter(ky, km, kd);
+  }
+
+  void _handleDayTap(BuildContext ctx, int ky, int km, int kd) {
+    final state = CalendarPage.globalKey.currentState;
+    if (state != null) {
+      state._openDayView(ctx, ky, km, kd);
+      return;
+    }
+    widget.onDayTap(ctx, km, kd);
+  }
+
+  String _timeLabel(_Note n) {
+    if (n.allDay) return 'All day';
+    String fmt(TimeOfDay t) {
+      final h = t.hour;
+      final m = t.minute;
+      final period = h >= 12 ? 'PM' : 'AM';
+      final h12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+      return '$h12:${m.toString().padLeft(2, '0')} $period';
+    }
+
+    final start = n.start ?? const TimeOfDay(hour: 9, minute: 0);
+    final end = n.end;
+    if (end == null) return fmt(start);
+    return '${fmt(start)} – ${fmt(end)}';
+  }
+
+  List<_MonthEvent> _buildMonthEvents(int year, int month) {
+    final items = <_MonthEvent>[];
+    for (int day = 1; day <= 30; day++) {
+      final notes = _notesFor(year, month, day);
+      for (final n in notes) {
+        final startMin = n.allDay
+            ? -1
+            : ((n.start?.hour ?? 9) * 60 + (n.start?.minute ?? 0));
+        final flowName = widget.flowNameGetter?.call(n);
+        final displayTitle = (() {
+          final title = n.title.trim();
+          if (title.isNotEmpty) return title;
+          if (flowName != null && flowName.trim().isNotEmpty) {
+            return flowName.trim();
+          }
+          return 'Event';
+        })();
+
+        items.add(
+          _MonthEvent(
+            day: day,
+            note: n,
+            displayTitle: displayTitle,
+            flowName: flowName,
+            timeLabel: _timeLabel(n),
+            color: widget.noteColorResolver(n),
+            sortKey: day * 1440 + startMin,
+          ),
+        );
+      }
+    }
+    items.sort((a, b) => a.sortKey.compareTo(b.sortKey));
+    return items;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final activeMonth = _currentPage + 1;
+    final (activeYear, activeMonth) = _yearMonthForPage(_currentPage);
     final activeMonthMeta = getMonthById(activeMonth);
     final activeInfoTitle = _currentDecanIndex == null
         ? activeMonthMeta.displayFull
@@ -15656,9 +15757,9 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
             const ['Decan A', 'Decan B', 'Decan C'])[_currentDecanIndex!];
 
     final yStart =
-        KemeticMath.toGregorian(widget.kYear, activeMonth, 1).year;
+        KemeticMath.toGregorian(activeYear, activeMonth, 1).year;
     final yEnd =
-        KemeticMath.toGregorian(widget.kYear, activeMonth, 30).year;
+        KemeticMath.toGregorian(activeYear, activeMonth, 30).year;
     final activeSeasonLabel = activeMonthMeta.season.label;
     final rightLabel = (yStart == yEnd)
         ? '$activeSeasonLabel $yStart'
@@ -15695,7 +15796,6 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
       ),
       body: PageView.builder(
         controller: _pageController,
-        itemCount: _pageCount,
         onPageChanged: (page) {
           if (!mounted) return;
           setState(() {
@@ -15705,7 +15805,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
           SpeechService.instance.stop();
         },
         itemBuilder: (ctx, index) {
-          final month = index + 1;
+          final (pageYear, month) = _yearMonthForPage(index);
           final isActive = index == _currentPage;
           final decanIndex = isActive ? _currentDecanIndex : null;
           final monthMeta = getMonthById(month);
@@ -15725,15 +15825,16 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                   padding: const EdgeInsets.only(top: 10),
                   children: [
                     _MonthCard(
-                      kYear: widget.kYear,
+                      kYear: pageYear,
                       kMonth: month,
                       seasonShort: seasonLabel,
                       todayMonth: widget.todayMonth,
                       todayDay: widget.todayDay,
                       todayDayKey: null,
-                      notesGetter: widget.notesGetter,
-                      flowColorsGetter: widget.flowColorsGetter,
-                      onDayTap: widget.onDayTap,
+                      notesGetter: (m, d) => _notesFor(pageYear, m, d),
+                      flowColorsGetter: (ky, km, kd) =>
+                          _flowColorsFor(pageYear, km, kd),
+                      onDayTap: (c, m, d) => _handleDayTap(c, pageYear, m, d),
                       showGregorian: widget.showGregorian,
                       flowNameGetter: widget.flowNameGetter,
                       onManageFlows: widget.onManageFlows,
@@ -15755,40 +15856,36 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
               ),
               const Divider(height: 1, color: Colors.white10),
               Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                child: DefaultTabController(
+                  length: _tabTitles.length,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: GlossyText(
-                              text: infoTitle,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              gradient: silverGloss,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          PronounceIconButton(
-                            speakText: _buildSpeakLine(month, decanIndex),
-                            color: _gold,
-                            size: 22,
-                            isPhonetic: true,
-                          ),
+                      TabBar(
+                        labelColor: _gold,
+                        unselectedLabelColor: Colors.white70,
+                        indicatorColor: _gold,
+                        tabs: [
+                          for (final t in _tabTitles) Tab(text: t),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        infoBody.trim(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          height: 1.35,
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            _InfoTab(
+                              title: infoTitle,
+                              body: infoBody,
+                              speakText: _buildSpeakLine(month, decanIndex),
+                            ),
+                            _EventsTab(
+                              kYear: pageYear,
+                              kMonth: month,
+                              monthLabel: getMonthById(month).displayShort,
+                              notes: _buildMonthEvents(pageYear, month),
+                              onOpenDay: (d) =>
+                                  _handleDayTap(context, pageYear, month, d),
+                            ),
+                            const _PlannerTabPlaceholder(),
+                          ],
                         ),
                       ),
                     ],
@@ -15798,6 +15895,238 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _MonthEvent {
+  final int day;
+  final _Note note;
+  final String displayTitle;
+  final String? flowName;
+  final String timeLabel;
+  final Color color;
+  final int sortKey;
+
+  _MonthEvent({
+    required this.day,
+    required this.note,
+    required this.displayTitle,
+    required this.flowName,
+    required this.timeLabel,
+    required this.color,
+    required this.sortKey,
+  });
+}
+
+class _InfoTab extends StatelessWidget {
+  final String title;
+  final String body;
+  final String speakText;
+
+  const _InfoTab({
+    required this.title,
+    required this.body,
+    required this.speakText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: GlossyText(
+                  text: title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  gradient: silverGloss,
+                ),
+              ),
+              const SizedBox(width: 8),
+              PronounceIconButton(
+                speakText: speakText,
+                color: _gold,
+                size: 22,
+                isPhonetic: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            body.trim(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EventsTab extends StatelessWidget {
+  final int kYear;
+  final int kMonth;
+  final String monthLabel;
+  final List<_MonthEvent> notes;
+  final void Function(int day) onOpenDay;
+
+  const _EventsTab({
+    required this.kYear,
+    required this.kMonth,
+    required this.monthLabel,
+    required this.notes,
+    required this.onOpenDay,
+  });
+
+  Widget _chip(String text, {IconData? icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.only(right: 8, bottom: 6),
+      decoration: BoxDecoration(
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 12, color: Colors.white70),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (notes.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24.0),
+          child: Text(
+            'No events for this month yet.',
+            style: TextStyle(color: Colors.white70),
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+      itemCount: notes.length,
+      separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.white10),
+      itemBuilder: (ctx, i) {
+        final e = notes[i];
+        final g = KemeticMath.toGregorian(kYear, kMonth, e.day);
+        final dateLabel = '$monthLabel ${e.day}';
+        final gregLabel =
+            '${g.month.toString().padLeft(2, '0')}/${g.day.toString().padLeft(2, '0')}/${g.year}';
+
+        return InkWell(
+          onTap: () => onOpenDay(e.day),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  margin: const EdgeInsets.only(top: 6),
+                  decoration: BoxDecoration(
+                    color: e.color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        dateLabel,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        e.displayTitle,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        children: [
+                          _chip(e.timeLabel, icon: Icons.schedule),
+                          _chip(gregLabel, icon: Icons.calendar_today_outlined),
+                          if (e.flowName != null && e.flowName!.trim().isNotEmpty)
+                            _chip(e.flowName!.trim(), icon: Icons.auto_awesome),
+                          if (e.note.isReminder)
+                            _chip('Reminder', icon: Icons.notifications_active),
+                        ],
+                      ),
+                      if ((e.note.detail ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          e.note.detail!.trim(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PlannerTabPlaceholder extends StatelessWidget {
+  const _PlannerTabPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(24.0),
+        child: Text(
+          'Planner view coming soon.',
+          style: TextStyle(color: Colors.white70),
+        ),
       ),
     );
   }
