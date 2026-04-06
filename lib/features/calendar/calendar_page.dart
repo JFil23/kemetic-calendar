@@ -16050,7 +16050,7 @@ class _EventsTab extends StatelessWidget {
     required this.onOpenDay,
   });
 
-  Widget _chip(String text, {IconData? icon}) {
+  Widget _chip(String text, {IconData? icon, Color? color, Color? textColor}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       margin: const EdgeInsets.only(right: 8, bottom: 6),
@@ -16062,13 +16062,13 @@ class _EventsTab extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 12, color: Colors.white70),
+            Icon(icon, size: 12, color: color ?? Colors.white70),
             const SizedBox(width: 4),
           ],
           Text(
             text,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: textColor ?? Colors.white,
               fontSize: 12,
             ),
           ),
@@ -16104,8 +16104,11 @@ class _EventsTab extends StatelessWidget {
 
         return Container(
           decoration: BoxDecoration(
-            color: e.color.withOpacity(0.18),
+            color: e.color.withOpacity(0.2),
             borderRadius: BorderRadius.circular(12),
+            border: Border(
+              left: BorderSide(color: e.color, width: 3),
+            ),
           ),
           child: Material(
             color: Colors.transparent,
@@ -16140,50 +16143,55 @@ class _EventsTab extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            e.displayTitle,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                      Text(
+                        e.displayTitle,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                           const SizedBox(height: 6),
                           Wrap(
                             children: [
                               _chip(e.timeLabel, icon: Icons.schedule),
                               _chip(gregLabel, icon: Icons.calendar_today_outlined),
                               if (e.flowName != null && e.flowName!.trim().isNotEmpty)
-                                _chip(e.flowName!.trim(), icon: Icons.auto_awesome),
+                                _chip(
+                                  e.flowName!.trim(),
+                                  icon: Icons.auto_awesome,
+                                  color: e.color,
+                                  textColor: e.color,
+                                ),
                               if (e.note.isReminder)
                                 _chip('Reminder', icon: Icons.notifications_active),
                             ],
                           ),
-                          if ((e.location ?? '').isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              e.location!,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                decoration: TextDecoration.underline,
-                                decorationColor: Colors.white54,
-                              ),
-                            ),
-                          ],
-                          if ((e.detail ?? '').trim().isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              e.detail!.trim(),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
+                      if ((e.location ?? '').isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          e.location!,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Colors.white54,
+                          ),
+                        ),
+                      ],
+                      if ((e.detail ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          e.detail!.trim(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                         ],
                       ),
                     ),
