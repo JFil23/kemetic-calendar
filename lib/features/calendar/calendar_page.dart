@@ -14465,24 +14465,22 @@ class _DayChip extends StatelessWidget {
     Widget _buildMiniBlocks() {
       if (isCompact) {
         final noteCount = notes.length;
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (noteCount > 0) const _GlossyDot(gradient: silverGloss),
-            if (flowColors.isNotEmpty) ...[
-              const SizedBox(width: 3),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final c in flowColors.take(3)) ...[
-                    _ColorDot(color: c),
-                    const SizedBox(width: 2.5),
-                  ],
-                ],
-              ),
+        // Show a single dot set: flow colors if present; otherwise a single silver dot when notes exist.
+        if (flowColors.isNotEmpty) {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final c in flowColors.take(3)) ...[
+                _ColorDot(color: c),
+                const SizedBox(width: 2.5),
+              ],
             ],
-          ],
-        );
+          );
+        }
+        if (noteCount > 0) {
+          return const _GlossyDot(gradient: silverGloss);
+        }
+        return const SizedBox.shrink();
       }
 
       final sorted = [...notes]
