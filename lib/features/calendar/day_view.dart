@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/widgets/month_name_text.dart';
 import 'calendar_page.dart';
 import 'landscape_month_view.dart';
 import '../sharing/share_flow_sheet.dart';
@@ -23,6 +24,25 @@ import '../../data/user_events_repo.dart';
 import '../journal/journal_event_badge.dart';
 
 const double _kMinEventBlockHeight = 64.0;  // was 32.0
+const Color _dayGold = KemeticGold.base;
+const Gradient _dayGoldGloss = KemeticGold.gloss;
+const TextStyle _goldHeaderStyle = TextStyle(
+  fontSize: 17,
+  fontWeight: FontWeight.w600,
+  fontFamily: 'GentiumPlus',
+  fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+);
+const TextStyle _goldMonthStyle = TextStyle(
+  fontSize: 18,
+  fontWeight: FontWeight.w500,
+  fontFamily: 'GentiumPlus',
+  fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+);
+const TextStyle _miniCalendarNumberStyle = TextStyle(
+  fontSize: 14,
+  fontFamily: 'GentiumPlus',
+  fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+);
 
 // ========================================
 // EVENT LAYOUT ENGINE
@@ -617,13 +637,30 @@ class _DayViewPageState extends State<DayViewPage> {
   Widget _buildDayHeader() {
     final monthName = widget.getMonthName(_currentKm);
     
-    return Text(
+    return KemeticGold.text(
       '$monthName $_currentKy, Day $_currentKd',
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFFFFC145), // Gold
+      style: _goldMonthStyle,
+    );
+  }
+
+  Widget _buildGoldMonthLabel(String text) {
+    return ShaderMask(
+      shaderCallback: (Rect bounds) => _dayGoldGloss.createShader(bounds),
+      blendMode: BlendMode.srcIn,
+      child: MonthNameText(
+        text,
+        style: _goldMonthStyle,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.fade,
       ),
+    );
+  }
+
+  Widget _buildGoldNavText(String text, {TextStyle? style}) {
+    return KemeticGold.text(
+      text,
+      style: style ?? _goldHeaderStyle,
     );
   }
 
@@ -655,31 +692,24 @@ class _DayViewPageState extends State<DayViewPage> {
                 children: [
                   // Close button
                   IconButton(
-                    icon: const Icon(Icons.close, color: Color(0xFFFFC145)),
+                    icon: KemeticGold.icon(Icons.close),
                     onPressed: () => Navigator.pop(context),
                   ),
                   // Month name
                   Expanded(
-                    child: Text(
-                      monthName,
-                      style: const TextStyle(
-                        color: Color(0xFFFFC145),
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: _buildGoldMonthLabel(monthName),
                   ),
                   // Flow Studio button
                   IconButton(
                     tooltip: 'Flow Studio',
-                    icon: const Icon(Icons.view_timeline, color: Color(0xFFFFC145)),
+                    icon: KemeticGold.icon(Icons.view_timeline),
                     padding: const EdgeInsets.symmetric(horizontal: 4), // 🔧 Reduced padding
                     onPressed: widget.onOpenFlowStudio,
                   ),
                   // 🔧 NEW: Add note button
                   IconButton(
                     tooltip: 'New note',
-                    icon: const Icon(Icons.add, color: Color(0xFFFFC145)),
+                    icon: KemeticGold.icon(Icons.add),
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     onPressed: widget.onAddNote != null
                         ? () {
@@ -736,13 +766,7 @@ class _DayViewPageState extends State<DayViewPage> {
                         _isJumpingToToday = false;
                       });
                     },
-                    child: const Text(
-                      'Today',
-                      style: TextStyle(
-                        color: Color(0xFFFFC145),
-                        fontSize: 17,
-                      ),
-                    ),
+                    child: _buildGoldNavText('Today'),
                   ),
                 ],
               ),
@@ -785,19 +809,18 @@ class _DayViewPageState extends State<DayViewPage> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: isCurrentDay
-                          ? Border.all(color: const Color(0xFFFFC145), width: 1.5)
+                          ? Border.all(color: _dayGold, width: 1.5)
                           : null,
                       ),
                       child: Center(
                         child: Text(
                           '$day',
-                          style: TextStyle(
+                          style: _miniCalendarNumberStyle.copyWith(
                             color: isToday 
-                              ? const Color(0xFFFFC145)
+                              ? _dayGold
                               : (isCurrentDay 
                                 ? const Color(0xFFAAAAAA)
                                 : Colors.white54),
-                            fontSize: 14, // Reduced from 16
                             fontWeight: isCurrentDay || isToday 
                               ? FontWeight.w600 
                               : FontWeight.normal,
@@ -819,7 +842,7 @@ class _DayViewPageState extends State<DayViewPage> {
               child: KemeticDayButton(
                 dayKey: _getKemeticDayKey(_currentKy, _currentKm, _currentKd),
                 kYear: _currentKy,
-                child: Text(
+                child: MonthNameText(
                   // Show: "Renwet 2, 2025" (Kemetic date + Gregorian year)
                   '${monthName.split(' ').first} $_currentKd, $gregorianYear',
                   style: const TextStyle(
@@ -827,6 +850,8 @@ class _DayViewPageState extends State<DayViewPage> {
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                   ),
+                  softWrap: false,
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
@@ -1094,8 +1119,8 @@ class _DayViewGridState extends State<DayViewGrid> {
   ButtonStyle _endButtonStyle() {
     // Slightly smaller footprint (~12% shorter) to avoid pushing other controls.
     return OutlinedButton.styleFrom(
-      side: const BorderSide(color: Color(0xFFFFC145)),
-      foregroundColor: const Color(0xFFFFC145),
+      side: const BorderSide(color: _dayGold),
+      foregroundColor: _dayGold,
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
       minimumSize: const Size(0, 35),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1947,7 +1972,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                         child: Container(
                           height: bandHeight,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFC145).withOpacity(0.08),
+                            color: _dayGold.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -1960,8 +1985,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                       child: IgnorePointer(
                         child: Container(
                           height: 1.5,
-                          color:
-                              const Color(0xFFFFC145).withOpacity(0.85),
+                          color: _dayGold.withOpacity(0.85),
                         ),
                       ),
                     ),
@@ -2158,9 +2182,9 @@ class _DayViewGridState extends State<DayViewGrid> {
           height: durationMinutes.toDouble().clamp(_kMinEventBlockHeight, 180.0),
           margin: const EdgeInsets.only(right: 4, bottom: 2),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFC145).withOpacity(0.2),
+            color: _dayGold.withOpacity(0.2),
             border: const Border(
-              left: BorderSide(color: Color(0xFFFFC145), width: 3),
+              left: BorderSide(color: _dayGold, width: 3),
             ),
             borderRadius: BorderRadius.circular(4),
           ),
@@ -2500,7 +2524,7 @@ class _DayViewGridState extends State<DayViewGrid> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Added to journal'),
-          backgroundColor: Color(0xFFFFC145),
+          backgroundColor: _dayGold,
           duration: Duration(seconds: 2),
         ),
       );
@@ -2838,7 +2862,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                         ),
                         value: completed,
-                        activeColor: const Color(0xFFFFC145),
+                        activeColor: _dayGold,
                         onChanged: (val) async {
                           final date = _kemeticToDate(widget.ky, widget.km, widget.kd);
                           if (val) {
@@ -2944,26 +2968,24 @@ class _DayViewGridState extends State<DayViewGrid> {
                             Navigator.pop(context);
                             widget.onManageFlows!(null);
                           },
-                    icon: Icon(
-                      Icons.view_timeline, 
-                      color: widget.onManageFlows == null 
-                        ? Color(0xFF404040) 
-                        : Color(0xFFFFC145), // Gold when enabled
-                    ),
-                    label: Text(
-                      'Manage Flows',
-                      style: TextStyle(
-                        color: widget.onManageFlows == null 
-                          ? Color(0xFF404040) 
-                          : Color(0xFFFFC145), // Gold when enabled
-                      ),
-                    ),
+                    icon: widget.onManageFlows == null
+                        ? const Icon(Icons.view_timeline, color: Color(0xFF404040))
+                        : KemeticGold.icon(Icons.view_timeline),
+                    label: widget.onManageFlows == null
+                        ? const Text(
+                            'Manage Flows',
+                            style: TextStyle(color: Color(0xFF404040)),
+                          )
+                        : KemeticGold.text(
+                            'Manage Flows',
+                            style: _goldHeaderStyle.copyWith(fontSize: 15),
+                          ),
                   ),
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text(
+                    child: KemeticGold.text(
                       'Close',
-                      style: TextStyle(color: Color(0xFFFFC145)), // Gold
+                      style: _goldHeaderStyle.copyWith(fontSize: 15),
                     ),
                   ),
                 ],
