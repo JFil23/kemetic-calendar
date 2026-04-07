@@ -1775,6 +1775,34 @@ class _CalendarPageState extends State<CalendarPage>
     return '$base-${alertUtc.toIso8601String()}';
   }
 
+  int? _effectiveAlertMinutes(int? raw) {
+    if (raw == null || raw == _alertNoneMinutes) return null; // explicit/legacy none
+    return raw;
+  }
+
+  DateTime? _alertDateTimeLocal({
+    required _Note note,
+    required int kYear,
+    required int kMonth,
+    required int kDay,
+  }) {
+    final alertMinutes = _effectiveAlertMinutes(note.alertOffsetMinutes);
+    if (alertMinutes == null) return null;
+
+    final gDay = KemeticMath.toGregorian(kYear, kMonth, kDay);
+    final startHour = note.start?.hour ?? 9;
+    final startMinute = note.start?.minute ?? 0;
+    final startLocal = DateTime(
+      gDay.year,
+      gDay.month,
+      gDay.day,
+      note.allDay ? 9 : startHour,
+      note.allDay ? 0 : startMinute,
+    );
+
+    return startLocal.subtract(Duration(minutes: alertMinutes));
+  }
+
   // UI still filters by end date even though repos do, because _flows is an
   // in-memory cache that can contain stale rows until the next sync. This keeps
   // ended flows out of visible lists.
@@ -3505,7 +3533,12 @@ class _CalendarPageState extends State<CalendarPage>
   String _encodeReminderDetail(ReminderRule rule) {
     final repeatJson = jsonEncode(rule.repeat.toJson());
     final meta = 'repeat=$repeatJson;';
-    return _encodeDetailWithColor(meta, rule.color) ?? meta;
+    return _encodeDetailWithMeta(
+          meta,
+          color: rule.color,
+          alertMinutes: rule.alertOffsetMinutes,
+        ) ??
+        meta;
   }
 
   ReminderRepeat _decodeReminderRepeat(String? detail) {
@@ -3570,6 +3603,7 @@ class _CalendarPageState extends State<CalendarPage>
       startLocal: remote.startLocal,
       allDay: remote.allDay,
       active: remote.active,
+      alertOffsetMinutes: remote.alertOffsetMinutes,
     );
   }
 
@@ -3815,6 +3849,7 @@ class _CalendarPageState extends State<CalendarPage>
         isReminder: true,
         reminderId: rule.id,
         flowId: flowId,
+        alertOffsetMinutes: rule.alertOffsetMinutes,
       );
     }
   }
@@ -3952,7 +3987,7 @@ class _CalendarPageState extends State<CalendarPage>
             continue;
           }
           try {
-            await repo.upsertByClientId(
+            final savedEvent = await repo.upsertByClientId(
               clientEventId: cid,
               title: rule.title,
               startsAtUtc: start.toUtc(),
@@ -3965,6 +4000,29 @@ class _CalendarPageState extends State<CalendarPage>
                   ? flowIdForReminder
                   : null,
               caller: 'reminder_sync',
+            );
+
+            final note = _Note(
+              title: rule.title,
+              detail: null,
+              location: null,
+              allDay: rule.allDay,
+              start: startTod,
+              end: endTod,
+              flowId: flowIdForReminder,
+              category: rule.category,
+              isReminder: true,
+              reminderId: rule.id,
+              alertOffsetMinutes: rule.alertOffsetMinutes,
+            );
+
+            await _scheduleAlertForEvent(
+              note: note,
+              ky: kDate.kYear,
+              km: kDate.kMonth,
+              kd: kDate.kDay,
+              clientEventId: savedEvent.clientEventId ?? cid,
+              eventId: savedEvent.id,
             );
           } catch (_) {
             // non-fatal for individual reminders; local cache already updated
@@ -4062,6 +4120,7 @@ class _CalendarPageState extends State<CalendarPage>
     String? category = existing?.category;
     ReminderRepeat repeat = existing?.repeat ?? const ReminderRepeat();
     bool active = existing?.active ?? true;
+    int alertMinutesBefore = existing?.alertOffsetMinutes ?? 0;
 
     if (!mounted) {
       return false;
@@ -4574,6 +4633,60 @@ class _CalendarPageState extends State<CalendarPage>
                           ),
                         ),
                       ),
+                      const SizedBox(height: 12),
+
+                      // Alert row
+                      InkWell(
+                        onTap: () async {
+                          final picked = await _pickAlertMinutes(
+                            context,
+                            alertMinutesBefore,
+                          );
+                          if (picked != null) {
+                            setModalState(() {
+                              alertMinutesBefore = picked;
+                            });
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white24),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Alert',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  GlossyText(
+                                    text:
+                                        _alertLabelFor(alertMinutesBefore),
+                                    gradient: goldGloss,
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.chevron_right,
+                                    color: Colors.white54,
+                                    size: 20,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       repeatField(),
                       const SizedBox(height: 16),
@@ -4660,6 +4773,7 @@ class _CalendarPageState extends State<CalendarPage>
                               category: category,
                               active: active,
                               repeat: repeat,
+                              alertOffsetMinutes: alertMinutesBefore,
                             );
                             final today = DateUtils.dateOnly(DateTime.now());
                             final windowEnd = _reminderWindowEnd(today, [
@@ -4898,6 +5012,7 @@ class _CalendarPageState extends State<CalendarPage>
     String? category,
     bool isReminder = false,
     String? reminderId,
+    int? alertOffsetMinutes,
   }) {
     final shouldSkip =
         _isPendingDelete(
@@ -4940,6 +5055,7 @@ class _CalendarPageState extends State<CalendarPage>
         category: category,
         isReminder: isReminder,
         reminderId: reminderId,
+        alertOffsetMinutes: alertOffsetMinutes,
       ),
     );
     // Do not schedule notifications here; scheduling is handled by the caller.
@@ -5712,6 +5828,7 @@ class _CalendarPageState extends State<CalendarPage>
         initialEndTime: note.end,
         initialColor: note.manualColor,
         initialCategory: note.category,
+        initialAlertMinutes: note.alertOffsetMinutes,
         editingIndex: idx,
       );
     });
@@ -5930,6 +6047,9 @@ class _CalendarPageState extends State<CalendarPage>
         minute: clampedEnd % 60,
       );
 
+      final updatedMeta = _decodeDetailMetadata(updated.detail);
+      final cleanedDetail = _cleanDetail(updatedMeta.detail);
+
       _Note reminderNote;
       localIdx = _findNoteIndexByIdOrClientId(
         key,
@@ -5947,9 +6067,13 @@ class _CalendarPageState extends State<CalendarPage>
         final replacement = existing.copyWith(
           id: updated.id,
           clientEventId: updated.clientEventId,
-          detail: updated.detail,
+          detail: cleanedDetail,
           start: updatedStart,
           end: updatedEnd,
+          alertOffsetMinutes:
+              existing.alertOffsetMinutes ??
+              updatedMeta.alertMinutes ??
+              _alertNoneMinutes,
         );
         _notes[key]![localIdx] = replacement;
         updatedLocalNote = true;
@@ -5965,7 +6089,7 @@ class _CalendarPageState extends State<CalendarPage>
           id: updated.id?.trim(),
           clientEventId: updated.clientEventId?.trim(),
           title: updated.title,
-          detail: updated.detail,
+          detail: cleanedDetail,
           location: updated.location,
           allDay: updated.allDay,
           start: updatedStart,
@@ -5975,6 +6099,7 @@ class _CalendarPageState extends State<CalendarPage>
           category: updated.category,
           isReminder: evt.isReminder,
           reminderId: evt.reminderId,
+          alertOffsetMinutes: updatedMeta.alertMinutes ?? _alertNoneMinutes,
         );
         final bucket = _notes.putIfAbsent(key, () => <_Note>[]);
         bucket.add(reminderNote);
@@ -6012,29 +6137,37 @@ class _CalendarPageState extends State<CalendarPage>
         _logBucket('move: reconciled _notes (fallback)');
       }
 
-      final reminderId = _reminderIdForNote(reminderNote, startLocal.toUtc());
-      await _reminderService.addOrUpdate(
-        Reminder(
-          id: reminderId,
-          eventId: reminderNote.id?.toString(),
-          title: reminderNote.title,
-          detail: reminderNote.detail,
-          alertAtUtc: startLocal.toUtc(),
-          flowId: reminderNote.flowId?.toString(),
-          createdAt: DateTime.now().toUtc(),
-          updatedAt: DateTime.now().toUtc(),
-        ),
-      );
+      final alertMinutes =
+          _effectiveAlertMinutes(reminderNote.alertOffsetMinutes);
+      DateTime? alertLocal;
+      if (alertMinutes != null) {
+        alertLocal = startLocal.subtract(Duration(minutes: alertMinutes));
+        final reminderId = _reminderIdForNote(reminderNote, alertLocal.toUtc());
+        await _reminderService.addOrUpdate(
+          Reminder(
+            id: reminderId,
+            eventId: reminderNote.id?.toString(),
+            title: reminderNote.title,
+            detail: reminderNote.detail,
+            alertAtUtc: alertLocal.toUtc(),
+            flowId: reminderNote.flowId?.toString(),
+            createdAt: DateTime.now().toUtc(),
+            updatedAt: DateTime.now().toUtc(),
+          ),
+        );
+      }
 
       if (updated.clientEventId != null && updated.clientEventId!.isNotEmpty) {
         await Notify.cancelNotificationForEvent(updated.clientEventId!);
-        await Notify.scheduleAlertWithPersistence(
-          clientEventId: updated.clientEventId!,
-          scheduledAt: startLocal.toUtc(),
-          title: updated.title,
-          body: updated.detail ?? '',
-          payload: '{}',
-        );
+        if (alertLocal != null) {
+          await Notify.scheduleAlertWithPersistence(
+            clientEventId: updated.clientEventId!,
+            scheduledAt: alertLocal,
+            title: updated.title,
+            body: updated.detail ?? '',
+            payload: '{}',
+          );
+        }
       }
 
       _notifyDayViewDataChanged();
@@ -6153,6 +6286,7 @@ class _CalendarPageState extends State<CalendarPage>
         if ((n.flowId ?? -1) == fromId) {
           final updatedNote = _Note(
             id: n.id,
+            clientEventId: n.clientEventId,
             title: n.title,
             detail: n.detail,
             location: n.location,
@@ -6160,6 +6294,7 @@ class _CalendarPageState extends State<CalendarPage>
             start: n.start,
             end: n.end,
             flowId: toId,
+            alertOffsetMinutes: n.alertOffsetMinutes,
           );
 
           // Parse the key to get ky, km, kd
@@ -6959,166 +7094,96 @@ class _CalendarPageState extends State<CalendarPage>
 
     // Only handle plannedNotes here when we didn't already persist them via _persistFlowStudioResult
     if (!notesAlreadyPersisted && edited.plannedNotes.isNotEmpty) {
+      final repo2 = UserEventsRepo(Supabase.instance.client);
       for (final p in edited.plannedNotes) {
         final n = p.note;
+
+        // Determine which flow id to tag: prefer the note's current flowId,
+        // else fall back to the captured finalFlowId, else -1.
+        final int noteFlowId = (n.flowId ?? finalFlowId) ?? -1;
+        final _Note persisted = n.copyWith(flowId: noteFlowId);
 
         _addNote(
           p.ky,
           p.km,
           p.kd,
-          n.title,
-          n.detail,
-          location: n.location,
-          allDay: n.allDay,
-          start: n.start,
-          end: n.end,
-          flowId:
-              n.flowId ??
-              finalFlowId, // <-- NEW: ensure notes carry the flow id
-          category: n.category,
+          persisted.title,
+          persisted.detail,
+          location: persisted.location,
+          allDay: persisted.allDay,
+          start: persisted.start,
+          end: persisted.end,
+          flowId: noteFlowId >= 0 ? noteFlowId : null,
+          category: persisted.category,
+          alertOffsetMinutes: persisted.alertOffsetMinutes,
         );
 
-        final gDay = KemeticMath.toGregorian(p.ky, p.km, p.kd);
-        final when = n.allDay
-            ? DateTime(gDay.year, gDay.month, gDay.day, 9, 0)
-            : DateTime(
-                gDay.year,
-                gDay.month,
-                gDay.day,
-                (n.start ?? const TimeOfDay(hour: 9, minute: 0)).hour,
-                (n.start ?? const TimeOfDay(hour: 9, minute: 0)).minute,
-              );
-
-        final bodyLines = <String>[
-          if ((n.location ?? '').trim().isNotEmpty) n.location!.trim(),
-          if ((n.detail ?? '').trim().isNotEmpty) n.detail!.trim(),
-        ];
-        final body = bodyLines.isEmpty ? null : bodyLines.join('\n');
-
-        // Generate clientEventId for this flow event. Use the unified
-        // schema so that notifications persist across restarts and can be
-        // cancelled by CID. Determine the correct flow id to stamp:
-        final int noteFlowId = (n.flowId ?? finalFlowId) ?? -1;
-        final String flowCid = _buildCid(
+        // Build canonical id using placement and persisted note fields
+        final String cid = _buildCid(
           ky: p.ky,
           km: p.km,
           kd: p.kd,
-          title: n.title,
-          startHour: (n.start ?? const TimeOfDay(hour: 9, minute: 0)).hour,
-          startMinute: (n.start ?? const TimeOfDay(hour: 9, minute: 0)).minute,
-          allDay: n.allDay,
+          title: persisted.title,
+          startHour: persisted.start?.hour ?? 9,
+          startMinute: persisted.start?.minute ?? 0,
+          allDay: persisted.allDay,
           flowId: noteFlowId,
         );
-        await Notify.scheduleAlertWithPersistence(
-          clientEventId: flowCid,
-          scheduledAt: when,
-          title: n.title,
-          body: body,
-          payload: '{}',
-        );
-      }
 
-      // Persist planned notes to Supabase for custom flows. Without this,
-      // notes created via applyFlowStudioResult (e.g. editing an existing
-      // flow) would vanish after a restart. Use the same unified clientEventId
-      // and detail prefix logic as in _persistFlowStudioResult. Also stamp
-      // the flow id onto the in-memory note so that deletion can reference
-      // the correct flow.
-      try {
-        final repo2 = UserEventsRepo(Supabase.instance.client);
-        for (final p in edited.plannedNotes) {
-          final n = p.note;
-          // Determine which flow id to tag: prefer the note's current flowId,
-          // else fall back to the captured finalFlowId, else -1.
-          final int noteFlowId = (n.flowId ?? finalFlowId) ?? -1;
-          // Create a persisted copy of the note with the selected flow id.
-          final _Note persisted = _Note(
-            id: n.id,
-            title: n.title,
-            detail: n.detail,
-            location: n.location,
-            allDay: n.allDay,
-            start: n.start,
-            end: n.end,
-            flowId: noteFlowId,
-            manualColor: n.manualColor,
-            category: n.category,
-          );
-          // Build canonical id using placement and persisted note fields
-          final String cid = _buildCid(
-            ky: p.ky,
-            km: p.km,
-            kd: p.kd,
-            title: persisted.title,
-            startHour: persisted.start?.hour,
-            startMinute: persisted.start?.minute,
-            allDay: persisted.allDay,
-            flowId: noteFlowId,
-          );
-          final gDay = KemeticMath.toGregorian(p.ky, p.km, p.kd);
-          final DateTime startsAt = DateTime(
+        final gDay = KemeticMath.toGregorian(p.ky, p.km, p.kd);
+        final DateTime startsAt = DateTime(
+          gDay.year,
+          gDay.month,
+          gDay.day,
+          persisted.start?.hour ?? 9,
+          persisted.start?.minute ?? 0,
+        );
+        DateTime? endsAt;
+        if (!persisted.allDay && persisted.end != null) {
+          endsAt = DateTime(
             gDay.year,
             gDay.month,
             gDay.day,
-            persisted.start?.hour ?? 9,
-            persisted.start?.minute ?? 0,
+            persisted.end!.hour,
+            persisted.end!.minute,
           );
-          DateTime? endsAt;
-          if (persisted.allDay == false && persisted.end != null) {
-            endsAt = DateTime(
-              gDay.year,
-              gDay.month,
-              gDay.day,
-              persisted.end!.hour,
-              persisted.end!.minute,
-            );
-          } else {
-            endsAt = null;
-          }
-          final String? det = persisted.detail;
-          final String detailPayload = det?.trim() ?? '';
+        }
 
-          // 🔍 DIAGNOSTIC LOGGING: Before upsert
-          print('🔍 ABOUT TO UPSERT:');
-          print('   noteFlowId=$noteFlowId');
-          print('   n.flowId=${n.flowId}');
-          print('   finalFlowId=$finalFlowId');
-          print('   cid=$cid');
+        final trimmedDetail = (persisted.detail ?? '').trim();
+        final baseDetail = trimmedDetail.isEmpty ? null : trimmedDetail;
+        final detailWithMeta = _encodeDetailWithMeta(
+          baseDetail,
+          alertMinutes: persisted.alertOffsetMinutes,
+        );
+        final detailToSave = detailWithMeta ?? baseDetail;
 
-          await repo2.upsertByClientId(
+        try {
+          final savedEvent = await repo2.upsertByClientId(
             clientEventId: cid,
             title: persisted.title,
             startsAtUtc: startsAt.toUtc(),
-            detail: detailPayload.isEmpty ? null : detailPayload,
+            detail: detailToSave,
             location: (persisted.location ?? '').trim().isEmpty
                 ? null
                 : persisted.location!.trim(),
             allDay: persisted.allDay,
             endsAtUtc: endsAt?.toUtc(),
-            flowLocalId: noteFlowId >= 0
-                ? noteFlowId
-                : null, // ✅ FIX: Set flow_local_id for Flow Studio saves
+            flowLocalId: noteFlowId >= 0 ? noteFlowId : null,
             category: persisted.category,
             caller: 'persist_flow_planned',
           );
 
-          // 🔍 DIAGNOSTIC LOGGING: After upsert - verify database
-          print('🔍 AFTER UPSERT - checking database...');
-          try {
-            final verify = await Supabase.instance.client
-                .from('user_events')
-                .select('flow_local_id, title, starts_at')
-                .eq('client_event_id', cid)
-                .maybeSingle();
-            print(
-              '🔍 DB shows: flow_local_id=${verify?['flow_local_id']}, title=${verify?['title']}, starts_at=${verify?['starts_at']}',
-            );
-          } catch (e) {
-            print('🔍 Verification query failed: $e');
-          }
+          await _scheduleAlertForEvent(
+            note: persisted,
+            ky: p.ky,
+            km: p.km,
+            kd: p.kd,
+            clientEventId: savedEvent.clientEventId ?? cid,
+            eventId: savedEvent.id,
+          );
+        } catch (e) {
+          debugPrint('persist planned notes (apply) failed: $e');
         }
-      } catch (e) {
-        debugPrint('persist planned notes (apply) failed: $e');
       }
     }
   }
@@ -7948,8 +8013,13 @@ class _CalendarPageState extends State<CalendarPage>
       // Create/update local reminders for timed events on this day (Flutter-only)
       for (final n in notes) {
         if (n.isReminder) continue; // reminders manage their own schedule
-        if (n.allDay || n.start == null) continue;
-        final alertLocal = DateTime(y, m, d, n.start!.hour, n.start!.minute);
+        final alertLocal = _alertDateTimeLocal(
+          note: n,
+          kYear: y,
+          kMonth: m,
+          kDay: d,
+        );
+        if (alertLocal == null) continue;
         final alertUtc = alertLocal.toUtc();
         final rid = _reminderIdForNote(n, alertUtc);
         _reminderService.addOrUpdate(
@@ -8298,6 +8368,7 @@ class _CalendarPageState extends State<CalendarPage>
     String? initialDetail,
     Color? initialColor,
     String? initialCategory,
+    int? initialAlertMinutes,
     int? editingIndex,
   }) {
     // Ensure reminder rules are loaded before building the sheet so the list is populated.
@@ -8346,6 +8417,7 @@ class _CalendarPageState extends State<CalendarPage>
         initialStartTime ?? const TimeOfDay(hour: 12, minute: 0);
     TimeOfDay? endTime = initialEndTime ?? const TimeOfDay(hour: 13, minute: 0);
     String? selectedCategory = initialCategory;
+    int alertMinutesBefore = initialAlertMinutes ?? _alertNoneMinutes;
 
     // Repeat state
     NoteRepeatOption repeatOption = NoteRepeatOption.never;
@@ -9297,6 +9369,55 @@ class _CalendarPageState extends State<CalendarPage>
 
                             const SizedBox(height: 12),
 
+                            // Alert row
+                            InkWell(
+                              onTap: () async {
+                                final picked = await _pickAlertMinutes(
+                                  sheetCtx,
+                                  alertMinutesBefore,
+                                );
+                                if (picked != null) {
+                                  setSheetState(() {
+                                    alertMinutesBefore = picked;
+                                  });
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const GlossyText(
+                                      text: 'Alert',
+                                      gradient: silverGloss,
+                                      style: TextStyle(fontSize: 14),
+                                    ),
+                                    Row(
+                                      children: [
+                                        GlossyText(
+                                          text:
+                                              _alertLabelFor(alertMinutesBefore),
+                                          gradient: goldGloss,
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                          Icons.chevron_right,
+                                          size: 18,
+                                          color: Colors.white54,
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 8),
+
                             // Repeat row
                             InkWell(
                               onTap: () async {
@@ -9783,6 +9904,7 @@ class _CalendarPageState extends State<CalendarPage>
                                         endTime: endTime,
                                         color: selectedColor,
                                         category: selectedCategory,
+                                        alertMinutesBefore: alertMinutesBefore,
                                       );
                                     } else {
                                       // Repeating note - create hidden flow
@@ -9806,6 +9928,7 @@ class _CalendarPageState extends State<CalendarPage>
                                         endCount: endCount,
                                         color: selectedColor,
                                         category: selectedCategory,
+                                        alertMinutesBefore: alertMinutesBefore,
                                       );
                                     }
 
@@ -10192,6 +10315,7 @@ class _CalendarPageState extends State<CalendarPage>
                                         : parsed.start,
                                     endTime: parsed.allDay ? null : parsed.end,
                                     color: null,
+                                    alertMinutesBefore: _alertNoneMinutes,
                                   );
                                   if (mounted) {
                                     Navigator.pop(context);
@@ -10684,6 +10808,9 @@ class _CalendarPageState extends State<CalendarPage>
               continue;
             }
 
+            final meta = _decodeDetailMetadata(evt.detail);
+            final cleanedDetail = _cleanDetail(meta.detail);
+
             if (_isTombstoned(evt.clientEventId)) {
               continue;
             }
@@ -10706,7 +10833,7 @@ class _CalendarPageState extends State<CalendarPage>
               id: evt.id,
               clientEventId: evt.clientEventId,
               title: _cleanTitle(evt.title),
-              detail: _cleanDetail(evt.detail), // Clean the flowLocalId prefix
+              detail: cleanedDetail, // Clean the flowLocalId prefix
               location: evt.location,
               allDay: evt.allDay,
               start: startTime,
@@ -10717,6 +10844,8 @@ class _CalendarPageState extends State<CalendarPage>
               reminderId: (owningFlow?.isReminder ?? false)
                   ? owningFlow?.reminderUuid
                   : null,
+              manualColor: meta.color,
+              alertOffsetMinutes: meta.alertMinutes,
             );
 
             final key = _kKey(kDate.kYear, kDate.kMonth, kDate.kDay);
@@ -10844,7 +10973,7 @@ class _CalendarPageState extends State<CalendarPage>
             // ✅ If it passed all guards → this is a true standalone note
             final localStart = evt.startsAtUtc.toLocal();
             final kDate = KemeticMath.fromGregorian(localStart);
-            final decoded = _decodeDetailColor(rawDetail);
+            final decoded = _decodeDetailMetadata(rawDetail);
             final cleanedDetail = _cleanDetail(decoded.detail);
 
             final startTime = evt.allDay
@@ -10889,6 +11018,7 @@ class _CalendarPageState extends State<CalendarPage>
               category: evt.category,
               isReminder: isReminderEvent,
               reminderId: reminderRuleId,
+              alertOffsetMinutes: decoded.alertMinutes,
             );
 
             final key = _kKey(kDate.kYear, kDate.kMonth, kDate.kDay);
@@ -11147,6 +11277,61 @@ class _CalendarPageState extends State<CalendarPage>
     return oldFlow.color != newFlow.color.value;
   }
 
+  Future<void> _scheduleAlertForEvent({
+    required _Note note,
+    required int ky,
+    required int km,
+    required int kd,
+    required String clientEventId,
+    String? eventId,
+  }) async {
+    if (note.alertOffsetMinutes == _alertNoneMinutes) {
+      try {
+        await Notify.cancelNotificationForEvent(clientEventId);
+      } catch (_) {
+        // Ignore cancellation failures; nothing else to do.
+      }
+      return;
+    }
+
+    final alertAtLocal = _alertDateTimeLocal(
+      note: note,
+      kYear: ky,
+      kMonth: km,
+      kDay: kd,
+    );
+    final effectiveMinutes = _effectiveAlertMinutes(note.alertOffsetMinutes);
+    if (alertAtLocal == null || effectiveMinutes == null) return;
+
+    final bodyLines = <String>[
+      if ((note.location ?? '').trim().isNotEmpty) note.location!.trim(),
+      if ((note.detail ?? '').trim().isNotEmpty) note.detail!.trim(),
+    ];
+    final body = bodyLines.isEmpty ? null : bodyLines.join('\n');
+
+    await Notify.scheduleAlertWithPersistence(
+      clientEventId: clientEventId,
+      scheduledAt: alertAtLocal,
+      title: note.title,
+      body: body,
+      payload: '{}',
+    );
+
+    final reminderId = _reminderIdForNote(note, alertAtLocal.toUtc());
+    await _reminderService.addOrUpdate(
+      Reminder(
+        id: reminderId,
+        eventId: eventId,
+        title: note.title,
+        detail: note.detail,
+        alertAtUtc: alertAtLocal.toUtc(),
+        flowId: note.flowId?.toString(),
+        createdAt: DateTime.now().toUtc(),
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
   // Persist flows + planned notes coming back from Flow Studio
   // AFTER
   Future<int?> _persistFlowStudioResult(_FlowStudioResult r) async {
@@ -11319,6 +11504,7 @@ class _CalendarPageState extends State<CalendarPage>
           end: n.end,
           flowId: noteFlowId >= 0 ? noteFlowId : null,
           category: n.category,
+          alertOffsetMinutes: n.alertOffsetMinutes,
         );
 
         // Persist to database
@@ -11355,17 +11541,34 @@ class _CalendarPageState extends State<CalendarPage>
           endsAt = startsAt.add(const Duration(hours: 1));
         }
 
-        await repo2.upsertByClientId(
+        final trimmedDetail = (n.detail ?? '').trim();
+        final baseDetail = trimmedDetail.isEmpty ? null : trimmedDetail;
+        final detailWithMeta = _encodeDetailWithMeta(
+          baseDetail,
+          alertMinutes: n.alertOffsetMinutes,
+        );
+        final detailToSave = detailWithMeta ?? baseDetail;
+
+        final savedEvent = await repo2.upsertByClientId(
           clientEventId: cid,
           title: n.title,
           startsAtUtc: startsAt.toUtc(),
-          detail: (n.detail ?? '').trim().isEmpty ? null : n.detail,
+          detail: detailToSave,
           location: (n.location ?? '').trim().isEmpty ? null : n.location,
           allDay: n.allDay,
           endsAtUtc: endsAt?.toUtc(),
           flowLocalId: noteFlowId >= 0 ? noteFlowId : null,
           category: n.category,
           caller: 'persist_flow_studio',
+        );
+
+        await _scheduleAlertForEvent(
+          note: n,
+          ky: p.ky,
+          km: p.km,
+          kd: p.kd,
+          clientEventId: savedEvent.clientEventId ?? cid,
+          eventId: savedEvent.id,
         );
       }
     }
@@ -11480,10 +11683,11 @@ class _CalendarPageState extends State<CalendarPage>
     TimeOfDay? endTime,
     Color? color,
     String? category,
+    int alertMinutesBefore = _alertNoneMinutes,
   }) async {
-    // Compute when to alert
+    // Compute event start + alert time
     final gDay = KemeticMath.toGregorian(selYear, selMonth, selDay);
-    final scheduledAt = allDay
+    final startLocal = allDay
         ? DateTime(gDay.year, gDay.month, gDay.day, 9, 0) // default 9:00 AM
         : DateTime(
             gDay.year,
@@ -11492,6 +11696,25 @@ class _CalendarPageState extends State<CalendarPage>
             startTime!.hour,
             startTime!.minute,
           );
+    final note = _Note(
+      title: title,
+      detail: detail,
+      location: location,
+      allDay: allDay,
+      start: startTime,
+      end: endTime,
+      flowId: -1,
+      manualColor: color,
+      category: category,
+      alertOffsetMinutes: alertMinutesBefore,
+    );
+
+    final alertAt = _alertDateTimeLocal(
+      note: note,
+      kYear: selYear,
+      kMonth: selMonth,
+      kDay: selDay,
+    );
 
     // Build a simple text body: Location (if any) + Details (if any)
     final bodyLines = <String>[
@@ -11515,24 +11738,10 @@ class _CalendarPageState extends State<CalendarPage>
     await _ensureManualDeleteTombstonesLoaded();
     await _clearManualTombstone(unifiedCid);
 
-    final encodedDetail = _encodeDetailWithColor(detail, color);
-    final notificationBodyLines = <String>[
-      if (location != null && location.isNotEmpty) location,
-      if (detail != null && detail.isNotEmpty) detail,
-      if (color != null)
-        'Color: ${(color.value & 0x00FFFFFF).toRadixString(16).padLeft(6, '0')}',
-    ];
-    final notificationBody = notificationBodyLines.isEmpty
-        ? null
-        : notificationBodyLines.join('\n');
-
-    // Schedule the local notification WITH PERSISTENCE
-    await Notify.scheduleAlertWithPersistence(
-      clientEventId: unifiedCid,
-      scheduledAt: scheduledAt,
-      title: title,
-      body: notificationBody ?? body,
-      payload: '{}',
+    final encodedDetail = _encodeDetailWithMeta(
+      detail,
+      color: color,
+      alertMinutes: alertMinutesBefore,
     );
 
     // Sync to Supabase and persist id/clientEventId
@@ -11551,7 +11760,7 @@ class _CalendarPageState extends State<CalendarPage>
       final updated = await repo.upsertByClientId(
         clientEventId: unifiedCid,
         title: title,
-        startsAtUtc: scheduledAt.toUtc(),
+        startsAtUtc: startLocal.toUtc(),
         detail: encodedDetail,
         location: location,
         allDay: allDay,
@@ -11580,6 +11789,16 @@ class _CalendarPageState extends State<CalendarPage>
         end: endTime,
         manualColor: color,
         category: category,
+        alertOffsetMinutes: alertMinutesBefore,
+      );
+
+      await _scheduleAlertForEvent(
+        note: note.copyWith(id: updated.id, clientEventId: updated.clientEventId),
+        ky: selYear,
+        km: selMonth,
+        kd: selDay,
+        clientEventId: updated.clientEventId ?? unifiedCid,
+        eventId: updated.id,
       );
 
       // Also log to app_events for analytics
@@ -11637,6 +11856,7 @@ class _CalendarPageState extends State<CalendarPage>
     required int endCount,
     required Color color,
     String? category,
+    int alertMinutesBefore = _alertNoneMinutes,
   }) async {
     // 1. First occurrence = selected Kemetic day -> Gregorian
     final DateTime firstOccurrence = KemeticMath.toGregorian(
@@ -11710,6 +11930,7 @@ class _CalendarPageState extends State<CalendarPage>
         detail: detail,
         location: location,
         category: category,
+        alertMinutes: alertMinutesBefore,
       ),
       shareId: null,
       isHidden: true, // Critical: these never show in Flow Studio lists
@@ -12293,6 +12514,7 @@ class _CalendarPageState extends State<CalendarPage>
     String noteTitle = flow?.name ?? 'Flow Event';
     String? noteDetail;
     String? noteLocation;
+    int? noteAlertMinutes;
 
     // Decode flow.notes to extract detail and location for repeating notes
     if (flowNotes != null && flowNotes.isNotEmpty) {
@@ -12302,6 +12524,7 @@ class _CalendarPageState extends State<CalendarPage>
         if (meta['kind'] == 'repeating_note') {
           noteDetail = (meta['detail'] as String?)?.trim();
           noteLocation = (meta['location'] as String?)?.trim();
+          noteAlertMinutes = (meta['alertMinutes'] as num?)?.toInt();
         } else {
           // Legacy flowNotes format - try notesDecode
           try {
@@ -12338,6 +12561,11 @@ class _CalendarPageState extends State<CalendarPage>
           )) {
             final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
             final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
+
+            final detailWithMeta = _encodeDetailWithMeta(
+              noteDetail,
+              alertMinutes: noteAlertMinutes,
+            );
 
             final cid = _buildCid(
               ky: kDate.kYear,
@@ -12386,7 +12614,7 @@ class _CalendarPageState extends State<CalendarPage>
                 title: noteTitle,
                 startsAtUtc: startsAt.toUtc(),
                 endsAtUtc: endsAt?.toUtc(),
-                detail: noteDetail,
+                detail: detailWithMeta ?? noteDetail,
                 location: noteLocation,
                 allDay: rule.allDay,
                 flowLocalId: flowId,
@@ -12425,7 +12653,7 @@ class _CalendarPageState extends State<CalendarPage>
       );
 
       for (final ev in candidateEvents) {
-        await repo.upsertByClientId(
+        final savedEvent = await repo.upsertByClientId(
           clientEventId: ev.clientEventId,
           title: ev.title,
           startsAtUtc: ev.startsAtUtc,
@@ -12435,6 +12663,32 @@ class _CalendarPageState extends State<CalendarPage>
           endsAtUtc: ev.endsAtUtc,
           flowLocalId: ev.flowLocalId,
           caller: 'schedule_flow_notes',
+        );
+
+        final decodedMeta = _decodeDetailMetadata(ev.detail);
+        final localStart = ev.startsAtUtc.toLocal();
+        final kDate = KemeticMath.fromGregorian(localStart);
+        final note = _Note(
+          title: ev.title,
+          detail: decodedMeta.detail ?? ev.detail,
+          location: ev.location,
+          allDay: ev.allDay,
+          start: ev.allDay ? null : TimeOfDay.fromDateTime(localStart),
+          end: ev.endsAtUtc == null
+              ? null
+              : TimeOfDay.fromDateTime(ev.endsAtUtc!.toLocal()),
+          flowId: ev.flowLocalId,
+          alertOffsetMinutes:
+              decodedMeta.alertMinutes ?? _alertNoneMinutes,
+        );
+
+        await _scheduleAlertForEvent(
+          note: note,
+          ky: kDate.kYear,
+          km: kDate.kMonth,
+          kd: kDate.kDay,
+          clientEventId: savedEvent.clientEventId ?? ev.clientEventId,
+          eventId: savedEvent.id,
         );
       }
 
@@ -16325,6 +16579,76 @@ class _WeekSpan {
   });
 }
 
+class _AlertOption {
+  final String label;
+  final int minutes;
+  const _AlertOption(this.label, this.minutes);
+}
+
+// Sentinel for "no alert" selection in Flow Studio note drafts.
+const int _alertNoneMinutes = -1;
+
+const List<_AlertOption> _alertOptions = [
+  _AlertOption('None', _alertNoneMinutes),
+  _AlertOption('At time of event', 0),
+  _AlertOption('5 minutes before', 5),
+  _AlertOption('10 minutes before', 10),
+  _AlertOption('15 minutes before', 15),
+  _AlertOption('30 minutes before', 30),
+  _AlertOption('1 hour before', 60),
+  _AlertOption('2 hours before', 120),
+  _AlertOption('1 day before', 60 * 24),
+  _AlertOption('2 days before', 60 * 24 * 2),
+  _AlertOption('1 week before', 60 * 24 * 7),
+];
+
+String _alertLabelFor(int? minutes) {
+  final val = minutes ?? 0;
+  final match = _alertOptions.firstWhere(
+    (o) => o.minutes == val,
+    orElse: () => const _AlertOption('At time of event', 0),
+  );
+  return match.label;
+}
+
+Future<int?> _pickAlertMinutes(BuildContext context, int current) {
+  return showCupertinoModalPopup<int>(
+    context: context,
+    builder: (sheetCtx) {
+      return CupertinoActionSheet(
+        title: const GlossyText(
+          text: 'Alert',
+          gradient: silverGloss,
+          style: TextStyle(fontSize: 18),
+        ),
+        actions: [
+          for (final opt in _alertOptions)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.pop(sheetCtx, opt.minutes),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GlossyText(
+                    text: opt.label,
+                    gradient: goldGloss,
+                    style: const TextStyle(fontSize: 17),
+                  ),
+                  if (current == opt.minutes)
+                    const Icon(Icons.check, color: _silver),
+                ],
+              ),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDestructiveAction: true,
+          onPressed: () => Navigator.pop(sheetCtx),
+          child: const Text('Cancel'),
+        ),
+      );
+    },
+  );
+}
+
 /// Lightweight inputs holder for one planned note.
 class _NoteDraft {
   final titleCtrl = TextEditingController();
@@ -16334,6 +16658,7 @@ class _NoteDraft {
   TimeOfDay? start = const TimeOfDay(hour: 12, minute: 0);
   TimeOfDay? end = const TimeOfDay(hour: 13, minute: 0);
   String? category;
+  int alertMinutesBefore = _alertNoneMinutes; // -1 = none, null = legacy default
 
   _Note toNote() {
     final t = titleCtrl.text.trim();
@@ -16347,6 +16672,7 @@ class _NoteDraft {
       start: allDay ? null : start,
       end: allDay ? null : end,
       category: category,
+      alertOffsetMinutes: alertMinutesBefore,
     );
   }
 
@@ -16365,6 +16691,7 @@ class _DraftNoteData {
   final int? startMinutes; // null when all-day
   final int? endMinutes; // null when all-day
   final String? category;
+  final int alertMinutesBefore;
 
   const _DraftNoteData({
     required this.title,
@@ -16374,6 +16701,7 @@ class _DraftNoteData {
     required this.startMinutes,
     required this.endMinutes,
     required this.category,
+    required this.alertMinutesBefore,
   });
 
   factory _DraftNoteData.fromDraft(_NoteDraft draft) {
@@ -16389,6 +16717,7 @@ class _DraftNoteData {
           ? null
           : draft.end!.hour * 60 + draft.end!.minute,
       category: draft.category,
+      alertMinutesBefore: draft.alertMinutesBefore,
     );
   }
 
@@ -16412,6 +16741,7 @@ class _DraftNoteData {
       d.end = null;
     }
     d.category = category;
+    d.alertMinutesBefore = alertMinutesBefore;
     return d;
   }
 }
@@ -17771,6 +18101,44 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     );
   }
 
+  Widget _alertPicker(_NoteDraft draft) {
+    return InkWell(
+      onTap: () async {
+        final picked = await _pickAlertMinutes(
+          context,
+          draft.alertMinutesBefore,
+        );
+        if (picked != null) {
+          setState(() => draft.alertMinutesBefore = picked);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const GlossyText(
+              text: 'Alert',
+              style: TextStyle(fontSize: 14),
+              gradient: silverGloss,
+            ),
+            Row(
+              children: [
+                GlossyText(
+                  text: _alertLabelFor(draft.alertMinutesBefore),
+                  gradient: goldGloss,
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right, size: 18, color: Colors.white54),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _notesEditorsPanel() {
     List<_EditorGroup> groups = _buildEditorGroups();
     // Fallback: if selection/range isn't ready but drafts exist, render from drafts.
@@ -17879,6 +18247,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 10),
+                        _alertPicker(draft),
                       ],
                     ),
                   ),
@@ -18059,6 +18429,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             start: noteWithFlowId.start,
             end: noteWithFlowId.end,
             flowId: flowId,
+            alertOffsetMinutes: noteWithFlowId.alertOffsetMinutes,
           );
 
           planned.add(
@@ -18082,6 +18453,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           start: noteWithFlowId.start,
           end: noteWithFlowId.end,
           flowId: flowId,
+          alertOffsetMinutes: noteWithFlowId.alertOffsetMinutes,
         );
 
         for (final d in g.days) {
@@ -19109,7 +19481,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       // Populate controllers
       draft.titleCtrl.text = title;
       draft.locationCtrl.text = event.location ?? '';
-      draft.detailCtrl.text = event.detail ?? '';
+      final decodedDetail = _decodeDetailMetadata(event.detail);
+      draft.detailCtrl.text = _cleanDetail(decodedDetail.detail);
+      draft.alertMinutesBefore =
+          decodedDetail.alertMinutes ?? _alertNoneMinutes; // default to none
 
       // Set times
       final hasExplicitTime =
@@ -21783,8 +22158,12 @@ String? _encodeRepeatingNoteMetadata({
   String? detail,
   String? location,
   String? category,
+  int? alertMinutes,
 }) {
-  if (detail == null && location == null && category == null) return null;
+  if (detail == null &&
+      location == null &&
+      category == null &&
+      alertMinutes == null) return null;
   final parts = <String, dynamic>{'kind': 'repeating_note'};
   if (detail != null && detail.isNotEmpty) {
     parts['detail'] = detail;
@@ -21795,14 +22174,17 @@ String? _encodeRepeatingNoteMetadata({
   if (category != null && category.isNotEmpty) {
     parts['category'] = category;
   }
+  if (alertMinutes != null) {
+    parts['alertMinutes'] = alertMinutes;
+  }
   return jsonEncode(parts);
 }
 
 // Helper: decode detail and location from flow.notes for repeating notes
-({String? detail, String? location, String? category})
+({String? detail, String? location, String? category, int? alertMinutes})
 _decodeRepeatingNoteMetadata(String? notes) {
   if (notes == null || notes.isEmpty)
-    return (detail: null, location: null, category: null);
+    return (detail: null, location: null, category: null, alertMinutes: null);
   try {
     final meta = jsonDecode(notes) as Map<String, dynamic>;
     if (meta['kind'] == 'repeating_note') {
@@ -21810,12 +22192,13 @@ _decodeRepeatingNoteMetadata(String? notes) {
         detail: (meta['detail'] as String?)?.trim(),
         location: (meta['location'] as String?)?.trim(),
         category: (meta['category'] as String?)?.trim(),
+        alertMinutes: (meta['alertMinutes'] as num?)?.toInt(),
       );
     }
   } catch (_) {
     // Not JSON or not our format
   }
-  return (detail: null, location: null, category: null);
+  return (detail: null, location: null, category: null, alertMinutes: null);
 }
 
 // Helper: clean event title by stripping code-like patterns, metadata, and time patterns
@@ -21928,11 +22311,8 @@ String _cleanTitle(String? s) {
 // Helper: clean event detail by stripping legacy flowLocalId= prefix
 String _cleanDetail(String? s) {
   if (s == null || s.isEmpty) return '';
-  var t = s;
-  final decodedColor = _decodeDetailColor(t);
-  if (decodedColor.detail != null) {
-    t = decodedColor.detail!;
-  }
+  final decoded = _decodeDetailMetadata(s);
+  var t = decoded.detail ?? '';
   if (t.startsWith('flowLocalId=')) {
     final i = t.indexOf(';');
     t = (i >= 0 && i < t.length - 1) ? t.substring(i + 1) : '';
@@ -21998,35 +22378,79 @@ String _appendCidMetadata(String detail, String cidMeta) {
   return '$detail$separator$cidMeta';
 }
 
-/// Extract a stored manual color (encoded as `color=RRGGBB;` prefix) and return
-/// the remaining detail string without the prefix.
-({Color? color, String? detail}) _decodeDetailColor(String? raw) {
-  if (raw == null || raw.isEmpty) return (color: null, detail: null);
-
-  final prefix = RegExp(r'^color=([0-9a-fA-FxX]+);');
-  final match = prefix.firstMatch(raw);
-  if (match != null) {
-    final hex = match.group(1)!;
-    try {
-      final int rgb = hex.toLowerCase().startsWith('0x')
-          ? int.parse(hex)
-          : int.parse('0x$hex');
-      final remainder = raw.substring(match.end);
-      return (color: Color(0xFF000000 | (rgb & 0x00FFFFFF)), detail: remainder);
-    } catch (_) {
-      // fall through to raw detail if parsing fails
-    }
+/// Extracts metadata prefixes (color + alert offset) from an event detail string.
+/// Supports multiple prefixes in any order, e.g. `color=ffcc00;alert=-1;My note`.
+({Color? color, int? alertMinutes, String? detail}) _decodeDetailMetadata(
+  String? raw,
+) {
+  if (raw == null || raw.isEmpty) {
+    return (color: null, alertMinutes: null, detail: null);
   }
-  return (color: null, detail: raw);
+
+  Color? color;
+  int? alertMinutes;
+  String remainder = raw;
+
+  final metaPattern = RegExp(r'^(color=([0-9a-fA-FxX]+)|alert=([-+]?\d+));');
+  while (true) {
+    final match = metaPattern.firstMatch(remainder);
+    if (match == null) break;
+
+    final colorHex = match.group(2);
+    final alertRaw = match.group(3);
+
+    if (colorHex != null) {
+      try {
+        final int rgb = colorHex.toLowerCase().startsWith('0x')
+            ? int.parse(colorHex)
+            : int.parse('0x$colorHex');
+        color = Color(0xFF000000 | (rgb & 0x00FFFFFF));
+      } catch (_) {
+        // Ignore invalid color metadata; continue parsing remainder.
+      }
+    } else if (alertRaw != null) {
+      alertMinutes = int.tryParse(alertRaw);
+    }
+
+    remainder = remainder.substring(match.end);
+  }
+
+  return (
+    color: color,
+    alertMinutes: alertMinutes,
+    detail: remainder.isEmpty ? null : remainder,
+  );
 }
 
-String? _encodeDetailWithColor(String? detail, Color? color) {
-  if (color == null) return detail;
-  final hex = (color.value & 0x00FFFFFF).toRadixString(16).padLeft(6, '0');
-  final meta = 'color=$hex;';
-  if (detail == null || detail.isEmpty) return meta;
-  return '$meta$detail';
+// Backwards-compatible wrapper for legacy color-only callers.
+({Color? color, String? detail}) _decodeDetailColor(String? raw) {
+  final meta = _decodeDetailMetadata(raw);
+  return (color: meta.color, detail: meta.detail);
 }
+
+String? _encodeDetailWithMeta(
+  String? detail, {
+  Color? color,
+  int? alertMinutes,
+}) {
+  final buffer = StringBuffer();
+  if (color != null) {
+    final hex = (color.value & 0x00FFFFFF).toRadixString(16).padLeft(6, '0');
+    buffer.write('color=$hex;');
+  }
+  if (alertMinutes != null) {
+    buffer.write('alert=$alertMinutes;');
+  }
+  if (detail != null && detail.isNotEmpty) {
+    buffer.write(detail);
+  }
+  final out = buffer.toString();
+  return out.isEmpty ? null : out;
+}
+
+// Maintains older call-sites while delegating to metadata-aware encoder.
+String? _encodeDetailWithColor(String? detail, Color? color) =>
+    _encodeDetailWithMeta(detail, color: color);
 
 // Helper: label for repeat option
 String _repeatOptionLabel(
@@ -23619,6 +24043,7 @@ class _Note {
   final String? category; // optional category label
   final bool isReminder;
   final String? reminderId;
+  final int? alertOffsetMinutes; // minutes before start; -1 = none, null = default
 
   const _Note({
     this.id,
@@ -23634,6 +24059,7 @@ class _Note {
     this.category,
     this.isReminder = false,
     this.reminderId,
+    this.alertOffsetMinutes,
   });
 
   _Note copyWith({
@@ -23650,6 +24076,7 @@ class _Note {
     String? category,
     bool? isReminder,
     String? reminderId,
+    int? alertOffsetMinutes,
   }) {
     return _Note(
       id: id ?? this.id,
@@ -23665,6 +24092,7 @@ class _Note {
       category: category ?? this.category,
       isReminder: isReminder ?? this.isReminder,
       reminderId: reminderId ?? this.reminderId,
+      alertOffsetMinutes: alertOffsetMinutes ?? this.alertOffsetMinutes,
     );
   }
 }

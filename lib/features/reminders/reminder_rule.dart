@@ -106,6 +106,7 @@ class ReminderRule {
   final String? category;
   final bool active;
   final ReminderRepeat repeat;
+  final int alertOffsetMinutes; // minutes before start; -1 = none
 
   const ReminderRule({
     required this.id,
@@ -116,6 +117,7 @@ class ReminderRule {
     this.category,
     this.active = true,
     this.repeat = const ReminderRepeat(),
+    this.alertOffsetMinutes = -1,
   });
 
   ReminderRule copyWith({
@@ -127,6 +129,7 @@ class ReminderRule {
     String? category,
     bool? active,
     ReminderRepeat? repeat,
+    int? alertOffsetMinutes,
   }) {
     return ReminderRule(
       id: id ?? this.id,
@@ -137,6 +140,7 @@ class ReminderRule {
       category: category ?? this.category,
       active: active ?? this.active,
       repeat: repeat ?? this.repeat,
+      alertOffsetMinutes: alertOffsetMinutes ?? this.alertOffsetMinutes,
     );
   }
 
@@ -150,6 +154,7 @@ class ReminderRule {
       'category': category,
       'active': active,
       'repeat': repeat.toJson(),
+      'alertOffsetMinutes': alertOffsetMinutes,
     };
   }
 
@@ -167,6 +172,8 @@ class ReminderRule {
           (json['repeat'] as Map?) ?? const {},
         ),
       ),
+      alertOffsetMinutes:
+          (json['alertOffsetMinutes'] as num?)?.toInt() ?? -1,
     );
   }
 
