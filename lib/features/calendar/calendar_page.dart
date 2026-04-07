@@ -1776,8 +1776,9 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   int? _effectiveAlertMinutes(int? raw) {
-    if (raw == null || raw == _alertNoneMinutes) return null; // explicit/legacy none
-    return raw;
+    if (raw == _alertNoneMinutes) return null; // explicit "None"
+    // Legacy/unspecified -> default to at-time
+    return raw ?? 0;
   }
 
   DateTime? _alertDateTimeLocal({
