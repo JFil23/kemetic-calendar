@@ -448,6 +448,104 @@ class _GlossyDot extends StatelessWidget {
   }
 }
 
+const int _kActionGridColumns = 3;
+const double _kActionTileWidth = 96.0;
+const double _kActionTileHeight = 96.0;
+const double _kActionGridSpacing = 12.0;
+const double _kActionGridHPadding = 12.0;
+const double _kActionGridVPadding = 12.0;
+
+class _CalendarAction {
+  final IconData icon;
+  final Gradient gradient;
+  final String label;
+  final FutureOr<void> Function() onSelected;
+
+  const _CalendarAction({
+    required this.icon,
+    required this.gradient,
+    required this.label,
+    required this.onSelected,
+  });
+}
+
+class _CalendarActionsGrid extends StatelessWidget {
+  final List<_CalendarAction> actions;
+  final void Function(_CalendarAction action) onSelected;
+
+  const _CalendarActionsGrid({
+    required this.actions,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final rows =
+        (actions.length + _kActionGridColumns - 1) ~/ _kActionGridColumns;
+    final double width = _kActionGridHPadding * 2 +
+        _kActionGridColumns * _kActionTileWidth +
+        (_kActionGridColumns - 1) * _kActionGridSpacing;
+    final double height = _kActionGridVPadding * 2 +
+        rows * _kActionTileHeight +
+        (rows - 1) * _kActionGridSpacing;
+
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: _kActionGridHPadding,
+          vertical: _kActionGridVPadding,
+        ),
+        child: GridView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: _kActionGridColumns,
+            mainAxisSpacing: _kActionGridSpacing,
+            crossAxisSpacing: _kActionGridSpacing,
+            childAspectRatio: _kActionTileWidth / _kActionTileHeight,
+          ),
+          itemCount: actions.length,
+          itemBuilder: (ctx, index) {
+            final action = actions[index];
+            return InkWell(
+              onTap: () => onSelected(action),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                height: _kActionTileHeight,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111111),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _GlossyIcon(action.icon, gradient: action.gradient),
+                    const SizedBox(height: 8),
+                    Text(
+                      action.label,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        height: 1.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 /* ─────────── Flows (routines): palette + gloss-from-color ─────────── */
 
 const List<Color> _flowPalette = [
@@ -1881,9 +1979,6 @@ class _CalendarPageState extends State<CalendarPage>
   int _nextFlowId = 1;
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
   final ScrollController _scrollCtrl = ScrollController();
-  final ScrollController _appBarActionsScrollCtrl = ScrollController();
-  bool _showActionFadeStart = false;
-  bool _showActionFadeEnd = false;
   MonthExpansionLevel _monthExpansion = MonthExpansionLevel.compact;
   double? _scaleGestureAnchor;
   double _pinchExpansionValue = 0.0; // 0=compact,1=stacked,2=details
@@ -2490,7 +2585,6 @@ class _CalendarPageState extends State<CalendarPage>
     _loadPersistedViewState();
 
     _scrollCtrl.addListener(_onVerticalScroll);
-    _appBarActionsScrollCtrl.addListener(_updateActionFades);
 
     // notifications
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -2500,7 +2594,6 @@ class _CalendarPageState extends State<CalendarPage>
         _scrollToToday();
       }
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateActionFades());
 
     // Schedule a one-time migration of clientEventIds to the unified format.
     // Using Future.microtask ensures this runs after the first frame without blocking UI.
@@ -2812,7 +2905,6 @@ class _CalendarPageState extends State<CalendarPage>
     debugPrint('');
     _journalController.dispose();
     _scrollCtrl.dispose();
-    _appBarActionsScrollCtrl.dispose();
     _dayViewDataVersion.dispose();
     super.dispose();
   }
@@ -6783,20 +6875,6 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
-  void _updateActionFades() {
-    if (!mounted) return;
-    if (!_appBarActionsScrollCtrl.hasClients) return;
-    final position = _appBarActionsScrollCtrl.position;
-    final showStart = position.pixels > 2;
-    final showEnd = position.pixels < (position.maxScrollExtent - 2);
-    if (showStart != _showActionFadeStart || showEnd != _showActionFadeEnd) {
-      setState(() {
-        _showActionFadeStart = showStart;
-        _showActionFadeEnd = showEnd;
-      });
-    }
-  }
-
   void _onScaleStart(ScaleStartDetails details) {
     _scaleGestureAnchor = 1.0;
     _isPinching = true;
@@ -6860,15 +6938,6 @@ class _CalendarPageState extends State<CalendarPage>
     });
   }
 
-  double _actionsViewportWidth(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    const double minWidth = 140;
-    const double maxWidth = 220;
-    const double reserved = 220; // title + profile
-    final double available = width - reserved;
-    return available.clamp(minWidth, maxWidth).toDouble();
-  }
-
   Color _noteColor(_Note note) {
     if (note.manualColor != null) return note.manualColor!;
     if (note.flowId != null && note.flowId != -1) {
@@ -6889,28 +6958,6 @@ class _CalendarPageState extends State<CalendarPage>
       } catch (_) {}
     }
     return null;
-  }
-
-  Widget _buildActionFade({required bool isStart}) {
-    const double fadeWidth = 12.0;
-    return Align(
-      alignment: isStart ? Alignment.centerLeft : Alignment.centerRight,
-      child: IgnorePointer(
-        child: Container(
-          width: fadeWidth,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: isStart ? Alignment.centerLeft : Alignment.centerRight,
-              end: isStart ? Alignment.centerRight : Alignment.centerLeft,
-              colors: [
-                Colors.black.withOpacity(0.8),
-                Colors.black.withOpacity(0.0),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   PopupMenuItem<MonthExpansionLevel> _expansionMenuItem(
@@ -6940,85 +6987,170 @@ class _CalendarPageState extends State<CalendarPage>
     );
   }
 
-  Widget _buildScrollableActionsStrip(BuildContext context) {
-    final actionButtons = <Widget>[
-      IconButton(
-        tooltip: 'Journal',
-        icon: const _GlossyIcon(Icons.menu_book_outlined, gradient: goldGloss),
-        onPressed: _openJournalFromAppBar,
+  Future<void> _showDensityMenu(
+    BuildContext context,
+    Rect anchorRect,
+  ) async {
+    final overlay =
+        Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
+    if (overlay == null) return;
+
+    final position = RelativeRect.fromRect(
+      Rect.fromLTWH(
+        anchorRect.left,
+        anchorRect.bottom,
+        anchorRect.width,
+        0,
       ),
-      IconButton(
-        tooltip: 'Today',
-        icon: const _GlossyIcon(Icons.calendar_today, gradient: silverGloss),
-        onPressed: _scrollToToday,
+      Offset.zero & overlay.size,
+    );
+
+    final selection = await showMenu<MonthExpansionLevel>(
+      context: context,
+      position: position,
+      color: const Color(0xFF0F0F12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: Colors.white12),
       ),
-      IconButton(
-        tooltip: 'Search events',
-        icon: const _GlossyIcon(Icons.search, gradient: silverGloss),
-        onPressed: _openSearch,
-      ),
-      PopupMenuButton<MonthExpansionLevel>(
-        tooltip: 'Calendar density',
-        icon: const _GlossyIcon(
-          Icons.view_agenda_outlined,
-          gradient: silverGloss,
+      items: [
+        _expansionMenuItem(
+          MonthExpansionLevel.compact,
+          'Compact',
+          Icons.horizontal_rule,
         ),
-        onSelected: (level) => _setExpansionLevel(level, entryPoint: 'menu'),
-        itemBuilder: (ctx) => [
-          _expansionMenuItem(
-            MonthExpansionLevel.compact,
-            'Compact',
-            Icons.horizontal_rule,
-          ),
-          _expansionMenuItem(
-            MonthExpansionLevel.stacked,
-            'Stacked',
-            Icons.view_column,
-          ),
-          _expansionMenuItem(
-            MonthExpansionLevel.details,
-            'Details',
-            Icons.view_agenda,
-          ),
-        ],
+        _expansionMenuItem(
+          MonthExpansionLevel.stacked,
+          'Stacked',
+          Icons.view_column,
+        ),
+        _expansionMenuItem(
+          MonthExpansionLevel.details,
+          'Details',
+          Icons.view_agenda,
+        ),
+      ],
+    );
+
+    if (selection != null) {
+      _setExpansionLevel(selection, entryPoint: 'menu');
+    }
+  }
+
+  List<_CalendarAction> _calendarActions(
+    BuildContext context,
+    Rect anchorRect,
+  ) {
+    return [
+      _CalendarAction(
+        icon: Icons.menu_book_outlined,
+        gradient: goldGloss,
+        label: 'Journal',
+        onSelected: _openJournalFromAppBar,
       ),
-      IconButton(
-        tooltip: 'Flow Studio',
-        icon: const _GlossyIcon(Icons.view_timeline, gradient: goldGloss),
-        onPressed: () => _getFlowStudioCallback()(null),
+      _CalendarAction(
+        icon: Icons.calendar_today,
+        gradient: silverGloss,
+        label: 'Today',
+        onSelected: _scrollToToday,
       ),
-      IconButton(
-        tooltip: 'New note',
-        icon: const _GlossyIcon(Icons.add, gradient: goldGloss),
-        onPressed: _openQuickAddSheet,
+      _CalendarAction(
+        icon: Icons.search,
+        gradient: silverGloss,
+        label: 'Search',
+        onSelected: _openSearch,
+      ),
+      _CalendarAction(
+        icon: Icons.view_agenda_outlined,
+        gradient: silverGloss,
+        label: 'Calendar density',
+        onSelected: () => _showDensityMenu(context, anchorRect),
+      ),
+      _CalendarAction(
+        icon: Icons.view_timeline,
+        gradient: goldGloss,
+        label: 'Flow Studio',
+        onSelected: () => _getFlowStudioCallback()(null),
+      ),
+      _CalendarAction(
+        icon: Icons.add,
+        gradient: goldGloss,
+        label: 'New note',
+        onSelected: _openQuickAddSheet,
       ),
     ];
+  }
 
-    final double viewportWidth = _actionsViewportWidth(context);
+  Future<void> _showActionsMenu(BuildContext context) async {
+    final buttonBox = context.findRenderObject() as RenderBox?;
+    final overlay =
+        Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
+    if (buttonBox == null || overlay == null) return;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateActionFades());
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 4.0),
-      child: SizedBox(
-        width: viewportWidth,
-        height: kToolbarHeight,
-        child: Stack(
-          children: [
-            ClipRect(
-              child: SingleChildScrollView(
-                controller: _appBarActionsScrollCtrl,
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                child: Row(children: actionButtons),
-              ),
-            ),
-            if (_showActionFadeStart) _buildActionFade(isStart: true),
-            if (_showActionFadeEnd) _buildActionFade(isStart: false),
-          ],
-        ),
-      ),
+    final anchorOffset =
+        buttonBox.localToGlobal(Offset.zero, ancestor: overlay);
+    final anchorRect = Rect.fromLTWH(
+      anchorOffset.dx,
+      anchorOffset.dy,
+      buttonBox.size.width,
+      buttonBox.size.height,
     );
+
+    final actions = _calendarActions(context, anchorRect);
+    final rows =
+        (actions.length + _kActionGridColumns - 1) ~/ _kActionGridColumns;
+    final double menuWidth = _kActionGridHPadding * 2 +
+        _kActionGridColumns * _kActionTileWidth +
+        (_kActionGridColumns - 1) * _kActionGridSpacing;
+    final double menuHeight = _kActionGridVPadding * 2 +
+        rows * _kActionTileHeight +
+        (rows - 1) * _kActionGridSpacing;
+
+    final position = RelativeRect.fromRect(
+      Rect.fromLTWH(
+        anchorRect.left,
+        anchorRect.bottom,
+        anchorRect.width,
+        menuHeight,
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    final selected = await showMenu<_CalendarAction>(
+      context: context,
+      position: position,
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Colors.white12),
+      ),
+      items: [
+        PopupMenuItem<_CalendarAction>(
+          enabled: false,
+          padding: EdgeInsets.zero,
+          height: menuHeight,
+          child: Container(
+            width: menuWidth,
+            height: menuHeight,
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: _CalendarActionsGrid(
+              actions: actions,
+              onSelected: (action) {
+                Navigator.of(context).pop(action);
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (selected != null) {
+      await selected.onSelected();
+    }
   }
 
   Future<void> _openJournalFromAppBar() async {
@@ -12869,7 +13001,13 @@ class _CalendarPageState extends State<CalendarPage>
           ),
         ),
         actions: [
-          _buildScrollableActionsStrip(context),
+          Builder(
+            builder: (ctx) => IconButton(
+              tooltip: 'Menu',
+              icon: const _GlossyIcon(Icons.apps, gradient: goldGloss),
+              onPressed: () => _showActionsMenu(ctx),
+            ),
+          ),
           // My Profile button
           IconButton(
             tooltip: 'My Profile',
