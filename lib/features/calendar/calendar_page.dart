@@ -60,6 +60,9 @@ import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
 import '../../widgets/flow_start_date_picker.dart';
 import 'package:mobile/debug/push_diagnostics.dart';
+import '../inbox/inbox_page.dart';
+import '../reflections/decan_reflection_archive_page.dart';
+import '../settings/settings_page.dart';
 
 typedef _QuickAddParse = ({
   DateTime date,
@@ -7049,6 +7052,24 @@ class _CalendarPageState extends State<CalendarPage>
         onSelected: _openJournalFromAppBar,
       ),
       _CalendarAction(
+        icon: Icons.mail_outline,
+        gradient: goldGloss,
+        label: 'Inbox',
+        onSelected: _openInboxFromMenu,
+      ),
+      _CalendarAction(
+        icon: Icons.psychology_alt_outlined,
+        gradient: goldGloss,
+        label: 'Reflections',
+        onSelected: _openReflectionsFromMenu,
+      ),
+      _CalendarAction(
+        icon: Icons.settings,
+        gradient: goldGloss,
+        label: 'Settings',
+        onSelected: _openSettingsFromMenu,
+      ),
+      _CalendarAction(
         icon: Icons.calendar_today,
         gradient: silverGloss,
         label: 'Today',
@@ -7169,6 +7190,30 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     _journalSwipeHandle.open(entryPoint: 'app_bar_button');
+  }
+
+  Future<void> _openInboxFromMenu() async {
+    final importedFlowId = await Navigator.push<int?>(
+      context,
+      MaterialPageRoute(builder: (_) => const InboxPage()),
+    );
+    if (importedFlowId != null) {
+      await _loadFromDisk();
+    }
+  }
+
+  Future<void> _openReflectionsFromMenu() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const DecanReflectionArchivePage()),
+    );
+  }
+
+  Future<void> _openSettingsFromMenu() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SettingsPage()),
+    );
   }
 
   /* ───── Search ───── */
