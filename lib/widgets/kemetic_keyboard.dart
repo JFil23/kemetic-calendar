@@ -79,7 +79,9 @@ class KemeticKeyboardController extends ChangeNotifier {
 
   void closeAndClearTargets() {
     final changed =
-        _mode == KeyboardMode.custom || _editable != null || _lastEditable != null;
+        _mode == KeyboardMode.custom ||
+        _editable != null ||
+        _lastEditable != null;
     _mode = KeyboardMode.system;
     _editable = null;
     _lastEditable = null;
@@ -247,7 +249,9 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
     _controller.beginOpening();
     _controller.ensureEditableFromFocus();
     final target =
-        _controller.editable ?? _controller.lastEditable ?? _controller.editable;
+        _controller.editable ??
+        _controller.lastEditable ??
+        _controller.editable;
     if (target == null) {
       _controller.endOpening(success: false);
       _opening = false;
@@ -278,7 +282,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
   }
 }
 
-class _KeyboardToggle extends StatelessWidget {
+class _KeyboardToggle extends StatefulWidget {
   final KemeticKeyboardController controller;
   final double bottomInset;
   final VoidCallback onOpenCustom;
@@ -290,31 +294,126 @@ class _KeyboardToggle extends StatelessWidget {
   });
 
   @override
+  State<_KeyboardToggle> createState() => _KeyboardToggleState();
+}
+
+class _KeyboardToggleState extends State<_KeyboardToggle> {
+  static const Size _fallbackSize = Size(176, 56);
+  static const double _edgePadding = 12.0;
+  static const double _hiddenOffset = 140.0;
+
+  final GlobalKey _fabKey = GlobalKey();
+  Size _toggleSize = _fallbackSize;
+  Offset? _customOffset;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateSize());
+  }
+
+  void _updateSize() {
+    final ctx = _fabKey.currentContext;
+    if (ctx == null) return;
+    final measured = ctx.size;
+    if (measured != null &&
+        (((measured.width - _toggleSize.width).abs() > 0.5) ||
+            ((measured.height - _toggleSize.height).abs() > 0.5))) {
+      final resolvedSize = measured;
+      setState(() {
+        _toggleSize = resolvedSize;
+      });
+    }
+  }
+
+  Offset _defaultOffset(Size screenSize, EdgeInsets padding) {
+    final safeBottom = max(widget.bottomInset, padding.bottom);
+    final bottomAnchor = max((safeBottom > 0 ? safeBottom : 0) + 12.0, 32.0);
+    final x = screenSize.width - padding.right - 16.0 - _toggleSize.width;
+    final y = screenSize.height - bottomAnchor - _toggleSize.height;
+    return Offset(x, y);
+  }
+
+  Offset _clampOffset(Offset offset, Size screenSize, EdgeInsets padding) {
+    final safeBottom = max(widget.bottomInset, padding.bottom);
+    final minX = padding.left + _edgePadding;
+    final maxX =
+        screenSize.width - padding.right - _edgePadding - _toggleSize.width;
+    final minY = padding.top + _edgePadding;
+    final maxY =
+        screenSize.height - safeBottom - _edgePadding - _toggleSize.height;
+
+    final clampedX = offset.dx
+        .clamp(minX, maxX < minX ? minX : maxX)
+        .toDouble();
+    final clampedY = offset.dy
+        .clamp(minY, maxY < minY ? minY : maxY)
+        .toDouble();
+    return Offset(clampedX, clampedY);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final media = MediaQuery.of(context);
+    final screenSize = media.size;
+    final padding = media.padding;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateSize());
+
+    var targetOffset = _customOffset ?? _defaultOffset(screenSize, padding);
+    targetOffset = _clampOffset(targetOffset, screenSize, padding);
+
+    // If the screen/resolved bounds changed (e.g., keyboard opened), keep the
+    // saved position clamped without resetting to the default.
+    if (_customOffset != null && targetOffset != _customOffset) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _customOffset = targetOffset);
+      });
+    }
+
+    final hiddenOffset = Offset(
+      targetOffset.dx,
+      screenSize.height + _toggleSize.height + _hiddenOffset,
+    );
 
     return AnimatedBuilder(
-      animation: controller,
+      animation: widget.controller,
       builder: (context, _) {
-        final visible = controller.shouldShowToggle;
-        final anchor = (bottomInset > 0 ? bottomInset : 0) + 12.0;
+        final show = widget.controller.shouldShowToggle;
+        final positionedOffset = show ? targetOffset : hiddenOffset;
+
         return AnimatedPositioned(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOut,
-          right: 16,
-          bottom: visible ? max(anchor, 32.0) : -72.0,
+          left: positionedOffset.dx,
+          top: positionedOffset.dy,
           child: AnimatedOpacity(
             duration: const Duration(milliseconds: 180),
-            opacity: visible ? 1 : 0,
+            opacity: show ? 1 : 0,
             child: IgnorePointer(
-              ignoring: !visible,
-              child: FloatingActionButton.extended(
-                heroTag: 'kemeticKeyboardToggle',
-                backgroundColor: colorScheme.surfaceVariant.withOpacity(0.95),
-                foregroundColor: colorScheme.onSurfaceVariant,
-                icon: const Icon(Icons.translate_outlined),
-                label: const Text('Medu Neter'),
-                onPressed: onOpenCustom,
+              ignoring: !show,
+              child: GestureDetector(
+                onPanStart: (_) => _updateSize(),
+                onPanUpdate: (details) {
+                  final next = _clampOffset(
+                    (_customOffset ?? targetOffset) + details.delta,
+                    screenSize,
+                    padding,
+                  );
+                  setState(() {
+                    _customOffset = next;
+                  });
+                },
+                child: FloatingActionButton.extended(
+                  key: _fabKey,
+                  heroTag: 'kemeticKeyboardToggle',
+                  backgroundColor: colorScheme.surfaceVariant.withOpacity(0.95),
+                  foregroundColor: colorScheme.onSurfaceVariant,
+                  icon: const Icon(Icons.translate_outlined),
+                  label: const Text('Medu Neter'),
+                  onPressed: widget.onOpenCustom,
+                ),
               ),
             ),
           ),
