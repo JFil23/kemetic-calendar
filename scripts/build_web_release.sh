@@ -13,6 +13,7 @@ fi
 flutter clean
 flutter build web --release \
   --dart-define-from-file="$ENV_FILE" \
+  --no-wasm-dry-run \
   --pwa-strategy=offline-first
 
 echo "✅ Web build complete at build/web"

@@ -5,11 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../../data/flow_post_model.dart';
-import '../../widgets/inbox_icon_with_badge.dart';
-import '../reflections/decan_reflection_archive_page.dart';
 import 'edit_profile_page.dart';
 import 'profile_search_page.dart';
-import '../settings/settings_page.dart';
 import 'flow_post_picker_page.dart';
 import 'flow_post_detail_page.dart';
 import '_post_glossy_helper.dart';
@@ -122,6 +119,39 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<void> _openCalendarMenu(BuildContext context) async {
+    final calendarState = CalendarPage.globalKey.currentState;
+    if (calendarState != null) {
+      await calendarState.showActionsMenuFromOutside(context);
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Calendar actions are unavailable right now.')),
+    );
+  }
+
+  Future<void> _openMyProfileAction(BuildContext context) async {
+    final calendarState = CalendarPage.globalKey.currentState;
+    if (calendarState != null) {
+      await calendarState.openProfileFromOutside(context);
+      return;
+    }
+
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      _showError('Please log in to view your profile.');
+      return;
+    }
+
+    if (_isViewingOwnProfile) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProfilePage(userId: userId, isMyProfile: true),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -142,25 +172,15 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         actions: [
-          InboxIconWithBadge(),
-          if (_isViewingOwnProfile)
-            IconButton(
-              tooltip: 'Reflections',
-              icon: KemeticGold.icon(Icons.menu_book),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const DecanReflectionArchivePage()),
-                );
-              },
-            ),
           IconButton(
-            tooltip: 'Settings',
-            icon: KemeticGold.icon(Icons.settings),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsPage()),
-              );
-            },
+            tooltip: 'Menu',
+            icon: const GlossyIcon(icon: Icons.apps, gradient: goldGloss),
+            onPressed: () => _openCalendarMenu(context),
+          ),
+          IconButton(
+            tooltip: 'My Profile',
+            icon: const GlossyIcon(icon: Icons.person, gradient: goldGloss),
+            onPressed: () => _openMyProfileAction(context),
           ),
         ],
       ),

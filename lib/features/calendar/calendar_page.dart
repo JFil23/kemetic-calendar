@@ -7174,6 +7174,37 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
+  Future<void> showActionsMenuFromOutside(BuildContext context) =>
+      _showActionsMenu(context);
+
+  Future<void> _openProfile(BuildContext context) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to view your profile')),
+      );
+      return;
+    }
+
+    UiGuards.disableJournalSwipe();
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProfilePage(userId: userId, isMyProfile: true),
+        ),
+      );
+      if (mounted) {
+        await _loadFromDisk();
+      }
+    } finally {
+      UiGuards.enableJournalSwipe();
+    }
+  }
+
+  Future<void> openProfileFromOutside(BuildContext context) =>
+      _openProfile(context);
+
   Future<void> _openJournalFromAppBar() async {
     final isPortrait =
         MediaQuery.of(context).orientation == Orientation.portrait;
@@ -8275,7 +8306,8 @@ class _CalendarPageState extends State<CalendarPage>
           dataVersion: _dayViewDataVersion,
           getMonthName: getMonthName,
           onManageFlows: (flowId) => _getMyFlowsCallback()(flowId),
-          onOpenFlowStudio: () => _getFlowStudioCallback()(null),
+          onShowActionsMenu: (ctx) => _showActionsMenu(ctx),
+          onOpenProfile: (ctx) => _openProfile(ctx),
           onDeleteNote: (ky, km, kd, evt) async {
             await _deleteNoteByEvent(ky, km, kd, evt);
           },
@@ -13057,29 +13089,7 @@ class _CalendarPageState extends State<CalendarPage>
           IconButton(
             tooltip: 'My Profile',
             icon: const _GlossyIcon(Icons.person, gradient: goldGloss),
-            onPressed: () {
-              final userId = Supabase.instance.client.auth.currentUser?.id;
-              if (userId != null) {
-                UiGuards.disableJournalSwipe();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        ProfilePage(userId: userId, isMyProfile: true),
-                  ),
-                ).then((_) {
-                  UiGuards.enableJournalSwipe();
-                  // ✅ Reload calendar when returning from profile (in case flows were imported)
-                  _loadFromDisk();
-                });
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please log in to view your profile'),
-                  ),
-                );
-              }
-            },
+            onPressed: () => _openProfile(context),
           ),
         ],
       ),

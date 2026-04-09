@@ -290,7 +290,8 @@ class DayViewPage extends StatefulWidget {
   final ValueListenable<int>? dataVersion;
   final String Function(int km) getMonthName;
   final void Function(int?)? onManageFlows; // NEW: Callback to open My Flows
-  final VoidCallback? onOpenFlowStudio; // NEW: dedicated Flow Studio launcher
+  final Future<void> Function(BuildContext context)? onShowActionsMenu;
+  final Future<void> Function(BuildContext context)? onOpenProfile;
   final void Function(int ky, int km, int kd)? onAddNote;
   final Future<void> Function(int ky, int km, int kd, EventItem event)? onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem event)? onEditNote;
@@ -346,7 +347,8 @@ class DayViewPage extends StatefulWidget {
     this.dataVersion,
     required this.getMonthName,
     this.onManageFlows, // NEW
-    this.onOpenFlowStudio, // NEW
+    this.onShowActionsMenu,
+    this.onOpenProfile,
     this.onAddNote, // 🔧 NEW
     this.onDeleteNote,
     this.onEditNote,
@@ -657,13 +659,6 @@ class _DayViewPageState extends State<DayViewPage> {
     );
   }
 
-  Widget _buildGoldNavText(String text, {TextStyle? style}) {
-    return KemeticGold.text(
-      text,
-      style: style ?? _goldHeaderStyle,
-    );
-  }
-
   Widget _buildAppleStyleHeader() {
     final monthName = widget.getMonthName(_currentKm);
     final dayCount = _currentKm == 13 
@@ -684,7 +679,7 @@ class _DayViewPageState extends State<DayViewPage> {
         bottom: false,
         child: Column(
           children: [
-            // Top row: Close button, Month name, Flow Studio, Today
+            // Top row: Close button, Month name, Menu, Profile
             Container(
               height: 44,
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -699,74 +694,32 @@ class _DayViewPageState extends State<DayViewPage> {
                   Expanded(
                     child: _buildGoldMonthLabel(monthName),
                   ),
-                  // Flow Studio button
                   IconButton(
-                    tooltip: 'Flow Studio',
-                    icon: KemeticGold.icon(Icons.view_timeline),
-                    padding: const EdgeInsets.symmetric(horizontal: 4), // 🔧 Reduced padding
-                    onPressed: widget.onOpenFlowStudio,
-                  ),
-                  // 🔧 NEW: Add note button
-                  IconButton(
-                    tooltip: 'New note',
-                    icon: KemeticGold.icon(Icons.add),
+                    tooltip: 'Menu',
+                    icon: const GlossyIcon(icon: Icons.apps, gradient: goldGloss),
                     padding: const EdgeInsets.symmetric(horizontal: 4),
-                    onPressed: widget.onAddNote != null
-                        ? () {
-                            // ✅ NEW: Get fresh context at tap time
-                            final BuildContext btnContext = context;
-                            
-                            // Get current page index
-                            final currentPage = _pageController.page?.round() ?? 0;
-                            final offsetDays = currentPage - _centerPage;
-                            
-                            // Calculate current Kemetic date directly from PageController
-                            final currentGreg = _initialGregorian.add(Duration(days: offsetDays));
-                            final currentKemetic = KemeticMath.fromGregorian(currentGreg);
-                            
-                            // Log for debugging
-                            if (kDebugMode) {
-                              print('➕ ADD NOTE BUTTON TAPPED (from Day View)');
-                              print('   Context valid: ${btnContext.mounted}');
-                            }
-                            
-                            // Call the callback directly
-                            widget.onAddNote!(
-                              currentKemetic.kYear,
-                              currentKemetic.kMonth,
-                              currentKemetic.kDay,
-                            );
-                          }
-                        : null, // Disabled if no callback
-                  ),
-                  // Today button
-                  TextButton(
                     onPressed: () async {
-                      if (!_pageController.hasClients) return;
-
-                      final t = KemeticMath.fromGregorian(DateTime.now());
-                      final g = KemeticMath.toGregorian(t.kYear, t.kMonth, t.kDay);
-                      final offsetDays = g.difference(_initialGregorian).inDays;
-                      final targetPage = _centerPage + offsetDays;
-
-                      _isJumpingToToday = true;
-
-                      await _pageController.animateToPage(
-                        targetPage, duration: const Duration(milliseconds: 280), curve: Curves.easeOut,
-                      );
-
-                      setState(() {
-                        _currentKy = t.kYear;
-                        _currentKm = t.kMonth;
-                        _currentKd = t.kDay;
-                      });
-
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        _scrollMiniCalendarToCenter(_currentKd);
-                        _isJumpingToToday = false;
-                      });
+                      if (widget.onShowActionsMenu != null) {
+                        await widget.onShowActionsMenu!(context);
+                      } else {
+                        await CalendarPage.globalKey.currentState
+                            ?.showActionsMenuFromOutside(context);
+                      }
                     },
-                    child: _buildGoldNavText('Today'),
+                  ),
+                  IconButton(
+                    tooltip: 'My Profile',
+                    icon:
+                        const GlossyIcon(icon: Icons.person, gradient: goldGloss),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    onPressed: () async {
+                      if (widget.onOpenProfile != null) {
+                        await widget.onOpenProfile!(context);
+                      } else {
+                        await CalendarPage.globalKey.currentState
+                            ?.openProfileFromOutside(context);
+                      }
+                    },
                   ),
                 ],
               ),
