@@ -7070,12 +7070,6 @@ class _CalendarPageState extends State<CalendarPage>
         onSelected: _openSettingsFromMenu,
       ),
       _CalendarAction(
-        icon: Icons.calendar_today,
-        gradient: silverGloss,
-        label: 'Today',
-        onSelected: _scrollToToday,
-      ),
-      _CalendarAction(
         icon: Icons.search,
         gradient: silverGloss,
         label: 'Search',
@@ -13078,6 +13072,11 @@ class _CalendarPageState extends State<CalendarPage>
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Today',
+            icon: const _GlossyIcon(Icons.today, gradient: goldGloss),
+            onPressed: _scrollToToday,
+          ),
           Builder(
             builder: (ctx) => IconButton(
               tooltip: 'Menu',

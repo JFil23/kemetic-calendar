@@ -172,15 +172,19 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         actions: [
-          IconButton(
-            tooltip: 'Menu',
-            icon: const GlossyIcon(icon: Icons.apps, gradient: goldGloss),
-            onPressed: () => _openCalendarMenu(context),
+          Builder(
+            builder: (btnCtx) => IconButton(
+              tooltip: 'Menu',
+              icon: const GlossyIcon(icon: Icons.apps, gradient: goldGloss),
+              onPressed: () => _openCalendarMenu(btnCtx),
+            ),
           ),
-          IconButton(
-            tooltip: 'My Profile',
-            icon: const GlossyIcon(icon: Icons.person, gradient: goldGloss),
-            onPressed: () => _openMyProfileAction(context),
+          Builder(
+            builder: (btnCtx) => IconButton(
+              tooltip: 'My Profile',
+              icon: const GlossyIcon(icon: Icons.person, gradient: goldGloss),
+              onPressed: () => _openMyProfileAction(btnCtx),
+            ),
           ),
         ],
       ),

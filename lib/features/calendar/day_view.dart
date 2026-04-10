@@ -378,6 +378,7 @@ class _DayViewPageState extends State<DayViewPage> {
   late int _currentKd;
   late DateTime _initialGregorian; // Added for stable date arithmetic
   static const int _centerPage = 5000;
+  int _gridInstance = 0; // Forces grid rebuilds when jumping
   double? _savedScrollOffset; // Added for scroll persistence
   
   // ✅ Today button guard to prevent duplicate state updates
@@ -478,6 +479,39 @@ class _DayViewPageState extends State<DayViewPage> {
 
   void _onScrollChanged(double offset) {
     _savedScrollOffset = offset;
+  }
+
+  Future<void> _jumpToToday() async {
+    if (_isJumpingToToday || !_pageController.hasClients) return;
+
+    final now = DateTime.now();
+    final today = KemeticMath.fromGregorian(now);
+    final targetGregorian =
+        KemeticMath.toGregorian(today.kYear, today.kMonth, today.kDay);
+    final diffDays = targetGregorian.difference(_initialGregorian).inDays;
+    final targetPage = _centerPage + diffDays;
+
+    // Reset saved scroll so the timeline recenters on the current time.
+    _savedScrollOffset = null;
+    _isJumpingToToday = true;
+
+    try {
+      await _pageController.animateToPage(
+        targetPage,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOut,
+      );
+      if (!mounted) return;
+      setState(() {
+        _currentKy = today.kYear;
+        _currentKm = today.kMonth;
+        _currentKd = today.kDay;
+        _gridInstance++; // rebuild grid to honor cleared scroll offset
+      });
+      _scrollMiniCalendarToCenter(_currentKd);
+    } finally {
+      _isJumpingToToday = false;
+    }
   }
 
   // 🔧 ADD THIS METHOD: Animates the mini calendar scroll
@@ -597,7 +631,9 @@ class _DayViewPageState extends State<DayViewPage> {
                       itemBuilder: (context, index) {
                         final kDate = _dateForPage(index);
                         return DayViewGrid(
-                          key: ValueKey('${kDate.kYear}-${kDate.kMonth}-${kDate.kDay}'), // Add key
+                          key: ValueKey(
+                            '${kDate.kYear}-${kDate.kMonth}-${kDate.kDay}-$_gridInstance',
+                          ), // Add key
                           ky: kDate.kYear,
                           km: kDate.kMonth,
                           kd: kDate.kDay,
@@ -686,27 +722,35 @@ class _DayViewPageState extends State<DayViewPage> {
               child: Row(
                 children: [
                   // Close button
-                  IconButton(
-                    icon: KemeticGold.icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  // Month name
-                  Expanded(
-                    child: _buildGoldMonthLabel(monthName),
-                  ),
-                  IconButton(
-                    tooltip: 'Menu',
-                    icon: const GlossyIcon(icon: Icons.apps, gradient: goldGloss),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    onPressed: () async {
-                      if (widget.onShowActionsMenu != null) {
-                        await widget.onShowActionsMenu!(context);
-                      } else {
-                        await CalendarPage.globalKey.currentState
-                            ?.showActionsMenuFromOutside(context);
-                      }
-                    },
-                  ),
+              IconButton(
+                icon: KemeticGold.icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+              // Month name
+              Expanded(
+                child: _buildGoldMonthLabel(monthName),
+              ),
+              IconButton(
+                tooltip: 'Today',
+                icon: const GlossyIcon(icon: Icons.today, gradient: goldGloss),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                onPressed: _jumpToToday,
+              ),
+              Builder(
+                builder: (btnCtx) => IconButton(
+                  tooltip: 'Menu',
+                  icon: const GlossyIcon(icon: Icons.apps, gradient: goldGloss),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  onPressed: () async {
+                    if (widget.onShowActionsMenu != null) {
+                      await widget.onShowActionsMenu!(btnCtx);
+                    } else {
+                      await CalendarPage.globalKey.currentState
+                          ?.showActionsMenuFromOutside(btnCtx);
+                    }
+                  },
+                ),
+              ),
                   IconButton(
                     tooltip: 'My Profile',
                     icon:
