@@ -289,6 +289,10 @@ class DayViewPage extends StatefulWidget {
   final Map<int, FlowData> Function()? flowIndexBuilder;
   final ValueListenable<int>? dataVersion;
   final String Function(int km) getMonthName;
+  final double? initialScrollOffset; // optional: jump to a target time on open
+  final int? focusStartMin; // minutes since midnight to auto-scroll/highlight
+  final int? focusFlowId; // highlight a flow's events
+  final String? focusTitle; // highlight by title when flow id missing
   final void Function(int?)? onManageFlows; // NEW: Callback to open My Flows
   final Future<void> Function(BuildContext context)? onShowActionsMenu;
   final Future<void> Function(BuildContext context)? onOpenProfile;
@@ -346,6 +350,10 @@ class DayViewPage extends StatefulWidget {
     this.flowIndexBuilder,
     this.dataVersion,
     required this.getMonthName,
+    this.initialScrollOffset,
+    this.focusStartMin,
+    this.focusFlowId,
+    this.focusTitle,
     this.onManageFlows, // NEW
     this.onShowActionsMenu,
     this.onOpenProfile,
@@ -397,6 +405,7 @@ class _DayViewPageState extends State<DayViewPage> {
     _currentKm = widget.initialKm;
     _currentKd = widget.initialKd;
     _initialGregorian = KemeticMath.toGregorian(_currentKy, _currentKm, _currentKd);
+    _savedScrollOffset = widget.initialScrollOffset;
     _pageController = PageController(initialPage: _centerPage);
     
     // 🔧 Initialize mini calendar scroll controller with starting position
@@ -641,6 +650,9 @@ class _DayViewPageState extends State<DayViewPage> {
                           showGregorian: widget.showGregorian,
                           flowIndex: flowIndex,
                           initialScrollOffset: _savedScrollOffset,    // 🔧 NEW
+                          focusStartMin: widget.focusStartMin,
+                          focusFlowId: widget.focusFlowId,
+                          focusTitle: widget.focusTitle,
                           onScrollChanged: _onScrollChanged,          // 🔧 NEW
                           onManageFlows: widget.onManageFlows, // NEW: Pass callback down
                           onAddNote: widget.onAddNote,
@@ -1020,6 +1032,9 @@ class DayViewGrid extends StatefulWidget {
   final bool showGregorian;
   final Map<int, FlowData> flowIndex;
   final double? initialScrollOffset;              // 🔧 NEW
+  final int? focusStartMin; // minutes since midnight
+  final int? focusFlowId;
+  final String? focusTitle;
   final void Function(double offset)? onScrollChanged; // 🔧 NEW
   final void Function(int? flowId)? onManageFlows; // NEW
   final void Function(int ky, int km, int kd)? onAddNote;
@@ -1071,6 +1086,9 @@ class DayViewGrid extends StatefulWidget {
     required this.showGregorian,
     required this.flowIndex,
     this.initialScrollOffset,     // 🔧 NEW
+    this.focusStartMin,
+    this.focusFlowId,
+    this.focusTitle,
     this.onScrollChanged,          // 🔧 NEW
     this.onManageFlows, // NEW
     this.onAddNote, // 🔧 NEW
@@ -1112,6 +1130,9 @@ class _DayViewGridState extends State<DayViewGrid> {
   int? _dragPreviewStartMin;
   EventItem? _dragPreviewEvent;
   int? _lastDragSnappedMinute; // backup of last snapped minute during drag
+  int? get _focusStartMin => widget.focusStartMin;
+  int? get _focusFlowId => widget.focusFlowId;
+  String? get _focusTitle => widget.focusTitle;
 
   ButtonStyle _endButtonStyle() {
     // Slightly smaller footprint (~12% shorter) to avoid pushing other controls.
@@ -1447,25 +1468,40 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   void _scrollToSavedOrCurrentTime() {
-    if (!_scrollController.hasClients) return;
+    if (!_scrollController.hasClients || _hasScrolledToInitial) return;
     
-    if (widget.initialScrollOffset != null && !_hasScrolledToInitial) {
-      // Scroll to saved position
-      _scrollController.jumpTo(widget.initialScrollOffset!);
-      _hasScrolledToInitial = true;
-    } else if (widget.initialScrollOffset == null) {
-      // Auto-scroll to current time
-      final now = DateTime.now().toLocal();
-      final minutesSinceMidnight = now.hour * 60 + now.minute;
+    // 1) Focused event wins
+    if (_focusStartMin != null) {
       const hourHeight = 60.0;
-      final targetOffset = (minutesSinceMidnight / 60) * hourHeight - 200; // 200px above current time
-      
+      final targetOffset = (_focusStartMin! / 60) * hourHeight - 120;
       _scrollController.animateTo(
         targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
-        duration: const Duration(milliseconds: 500),
+        duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOut,
       );
+      _hasScrolledToInitial = true;
+      return;
     }
+
+    // 2) Saved scroll offset next
+    if (widget.initialScrollOffset != null) {
+      _scrollController.jumpTo(widget.initialScrollOffset!);
+      _hasScrolledToInitial = true;
+      return;
+    }
+
+    // 3) Fallback: scroll to current time
+    final now = DateTime.now().toLocal();
+    final minutesSinceMidnight = now.hour * 60 + now.minute;
+    const hourHeight = 60.0;
+    final targetOffset = (minutesSinceMidnight / 60) * hourHeight - 200; // 200px above current time
+    
+    _scrollController.animateTo(
+      targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
+    _hasScrolledToInitial = true;
   }
 
   /// Dedupe notes before rendering to handle legacy duplicates

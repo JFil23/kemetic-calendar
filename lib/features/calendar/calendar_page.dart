@@ -183,173 +183,2028 @@ const List<String> _gregMonthNames = [
 const Map<int, String> _monthInfo = {
   1: '''
 Month 1 – Thoth (Ḏḥwty)
-The first month of Akhet — Thoth — opens with the Nile's swelling. The river bursts its banks, dissolving boundaries — a living metaphor for the chaos before order.
-As waters spread, temple astronomer-priests rose before dawn to watch Sopdet's (Sirius's) heliacal rising and proclaim the renewal of the year. This was an ideal alignment: the civil first of Thoth did not always meet that dawn, yet the vigil framed the year's beginning. These were not abstract rituals — every farmer depended on them. The measurements determined when seed could be sown, when canals would be ready, and how far temples might be safe from the flood. The scribe's stylus, not the soldier's spear, kept civilization alive.
-As the architect of cosmic measure, Thoth counts the days, names the stars, and fixes the span of the gods themselves. When creation first stirred and Ra's words set the world alight, Thoth recorded the command. He did not speak creation — he remembered it. His writing preserved the pattern of Maʿat so that time could repeat without decay. Thoth's month began with careful thought: the mind setting the tone for a balanced year.
+The Measuring of the World as It Returns to Water
+The first month of Akhet — Thoth — opens with the Nile’s swelling.
+The river does not simply rise; it unmakes the land. Boundaries dissolve. Fields disappear beneath dark water. Paths are erased. What was known becomes uncertain again.
+To the Kemite, this was not disaster. It was remembrance.
+The world returns, for a moment, to the state before creation —
+the time when, as the ancient texts say, one stood “alone in the waters, in inertness,” before anything had taken form (Coffin Texts, Spell 76).
+In this condition, nothing can yet be built.
+Nothing should yet be forced.
+So while the flood spreads, the people wait—but not idly.
+Before dawn, temple astronomer-priests climb to their stations. They watch the eastern horizon for Sopdet (Sirius), whose rising signals renewal. They mark time against water, and water against sky. The year does not begin in the field—it begins in attention.
+The farmer cannot sow.
+The builder cannot build.
+The traveler cannot cross.
+But the scribe can measure.
+And so the civilization holds.
+It was understood:
+what keeps the world alive is not strength, but right knowing.
+Thoth stands at the center of this moment—not as a distant god, but as a principle lived by all who observe carefully. He does not create the world; he records its pattern so it can return without decay.
+When Ra first spoke creation, it was Thoth who preserved it.
+When the flood erases boundaries, it is Thoth who restores them—not by force, but by understanding.
+As preserved in the scribal tradition:
+“A man has perished, and his corpse has become dust…
+but writings cause him to be remembered.”
+(Papyrus Chester Beatty IV, “The Immortality of Writers”)
+So too with the world itself.
+If its measures are forgotten, it dissolves.
+If they are remembered, it renews.
+Thus Thoth’s month sets the tone for the entire year:
+Not action first—
+but clear perception, right naming, and faithful record.
 ''',
   2: '''
 Month 2 – Paopi (Mnḫt)
-If Thoth's month teaches order through understanding, Paopi teaches order through movement. The ancients named this month Paopi; in reflection it bears the title Paopi — the Carrying — for its spirit of motion and renewal. The world has been measured; now it must be carried forward.
-The word mnḫt appears in Old Kingdom agricultural records and means “to bring” or “to carry.” It evokes both the physical act of transport — bearing the first loads of mud and seed — and the spiritual duty of carrying Maʿat forward into the year.
-The Nile, still full from the southern rains, moved like a goddess in motion — Hapi herself — and humanity’s task was to join her current, not resist it.
-The Kemite did not see work as drudgery but as sacred rhythm. Every basket lifted, every pole balanced on a shoulder, was an offering.
-In mythology, Paopi's current belonged to the Hathoric cycle — Hathor as Mistress of the West guiding sun and soul across the celestial river. The "bringings" of this month included tribute from each nome — baskets of fish, papyrus, wild herbs, and early lotus flowers. Women wore garlands of blue lotus, symbols of rebirth rising from water; men poured milk and beer into the current, feeding the flood that feeds us.
-In the Coffin Texts, Thoth proclaims that he bears Maʿat before the gods. In Paopi, all people mirror that act — carrying balance through deeds. The flood is still too deep to sow, yet everyone is moving, preparing, connecting. Life is fluid but purposeful. The harmony of Maʿat is not stillness; it is motion in right proportion. In these processions, the community became one body; every shoulder lifting together embodied harmony.
+Carrying the Measured World Forward
+If Thoth’s month teaches order through understanding, Paopi teaches order through movement.
+The world has been measured.
+Now it must be carried.
+The flood still fills the land, but it is no longer disorienting. What was uncertain has been observed. What was observed has been understood. Now the task is to move in accordance with that understanding.
+The ancients named this month Mnḫt — “to carry,” “to bring forth.”
+It is both physical and sacred.
+The Nile itself is the first teacher.
+It does not resist its path—it follows it fully.
+So too the people of Kemet.
+They move.
+Boats cross where roads once were. Goods are transported from one nome to another. Offerings travel to temples. Communities reconnect across water.
+Nothing is planted yet—
+but everything is in motion.
+To carry something in Kemet was not mere labor—it was participation in Maʿat.
+As the older teachings express:
+“I laid the foundation of all things by my own will.”
+(Pyramid Texts, Utterance 527)
+Creation does not end with formation—it continues through continuity.
+So each act of carrying becomes an extension of that first ordering.
+Baskets of fish. Bundles of papyrus. Jars of beer. Offerings of milk poured into the flood. These are not small acts—they are the maintenance of the world.
+In myth, this movement reflects a deeper passage.
+Hathor, Mistress of the West, guides the solar barque across the celestial waters. As the sun travels, so too do the people. As the gods carry light across the sky, humans carry sustenance across the land.
+The Kemite understood:
+Order is not something you achieve once.
+It is something you continue.
+Paopi is that continuation.
+The month teaches that movement must be aligned—not hurried, not resisted.
+To carry wrongly is to spill.
+To carry rightly is to sustain.
 ''',
   3: '''
 Month 3 – Hathor (Ḥwt-Ḥr)
-Hathor — goddess of beauty and the celestial cow — teaches that pleasure is not the opposite of discipline; it perfects it. The laughter of the goddess is the same energy that turns seed to sprout and sorrow to song. To live her month rightly was to dance after toil, to honor beauty without waste, and to recognize that the sweetness of life is part of its order.
-By this time — roughly May 19 to June17 in the resynced solar calendar — the floodwaters have begun to settle and the land glistens green. The joy of Hathor kept morale high after the hardships of the inundation, reminding all that work done in harmony and gratitude is sacred. Women wove garlands of lotus and papyrus; men brewed sweet beer colored with pomegranate.
-At Dendera, ḥmwt-nṯr ḥwt-ḥr — “Servants of the Goddess” — led processions where polished mirrors flashed sunlight to honor her golden face. In village shrines, couples sought fertility and artists sought inspiration. Beauty was not vanity; it was the outward sign of inner balance, proof that joy and order can coexist.
-ḥwt-ḥr means “House of Horus.” In the sky she is the great golden cow whose body forms the heavens, within whose belly the sun and stars travel. As the cow-sky upholds the stars, so joy upholds creation. Every heart that delights in truth becomes, for a moment, a House of Horus.
+Joy That Sustains the World
+Hathor — goddess of beauty, music, and the celestial cow — teaches that joy is not the opposite of discipline; it is what completes it.
+Her laughter is not escape—it is renewal.
+It is the same force that turns seed to sprout,
+and sorrow into song.
+By this time — roughly May 19 to June 17 in the resynced solar calendar — the floodwaters have settled. The land glistens green. What was carried through effort now begins to flourish.
+But the Kemite did not take this lightly.
+They understood:
+what grows must be sustained not only by labor, but by right feeling.
+So after the strain of inundation and the discipline of movement, the people turn toward balance.
+They celebrate.
+Women weave garlands of lotus and papyrus. Men brew sweet beer, sometimes colored with pomegranate. Music returns to the village. Laughter returns to the body.
+Not as excess—but as restoration.
+At Dendera, the great center of Hathor, the ḥmwt-nṯr ḥwt-ḥr — “Servants of the Goddess” — lead processions where polished mirrors catch the sunlight and reflect it outward, honoring her as the golden one.
+Light is not only received—it is returned.
+In homes and shrines, couples seek fertility. Artists seek inspiration. Musicians tune their instruments again. What was structured in earlier months is now made beautiful.
+Because in Kemet, beauty was never separate from truth.
+It was proof of alignment.
+As the solar hymns remind:
+“You rise in beauty…
+the gods come into being at your command.”
+(Middle Kingdom Hymn to Ra)
+To rise in beauty is to be in harmony with creation itself.
+This is Hathor’s teaching.
+Her name, ḥwt-ḥr — “House of Horus” — reveals her nature.
+She is the great celestial cow whose body forms the sky. Within her, the sun travels. Within her, the stars are carried. She does not create the light—she holds it.
+And without that holding, light cannot endure.
+So too with human life.
+Effort alone does not sustain the world.
+Structure alone does not sustain the world.
+It is joy—rightly held—that allows both to continue.
+The Kemite understood:
+To reject joy is to weaken the system.
+To indulge it without measure is to distort it.
+But to honor it properly is to strengthen Maʿat.
+So the month of Hathor is not a break from order.
+It is the moment when order becomes alive, visible, and shared.
+Every heart that delights in what is true
+becomes, for a moment, a House of Horus.
 ''',
   4: '''
 Month 4 – Ka-ḥer-Ka (Kȝ-ḥr-Kȝ)
-Ka-ḥer-ka translates literally as “Ka upon Ka,” the doubling of vital essence. In Kemetic theology, the Ka (vital spirit) is the sustaining life-force present in gods, kings, humans, and even places.
-By this time — roughly June 9 to July 8 in the resynced solar calendar (March 20 = Thoth 1) — the floodwaters drew back, revealing the dark silt called kemet — the very word that named the country itself. Farmers pressed seed into the soft ground, oxen dragged simple wooden plows, and children scattered manure and ash.
-To sow seed was to imitate the burial of Asar (Osiris) — a sacred promise that death would give way to life.
-Families sang lines like:
+Life Upon Life — The Doubling of Essence
+Ka-ḥer-Ka translates as “Ka upon Ka” — the doubling of vital essence.
+In Kemetic understanding, the ka is the sustaining life-force present in gods, kings, humans, and even places. It is what endures, what receives, what continues.
+To place ka upon ka is not excess—it is renewal layered upon what already lives.
+By this time — roughly June 9 to July 8 in the resynced solar calendar — the floodwaters have drawn back. The land reveals the dark, fertile silt called kemet — the Black Land, from which the country itself takes its name.
+The ground is ready.
+So the people begin to plant.
+Farmers press seed into the soft earth. Oxen drag simple wooden plows. Children scatter manure and ash. The work is physical, repetitive, and quiet—but it is never seen as ordinary.
+Because to sow seed is to imitate Asar.
+Each burial of seed mirrors his burial in the earth.
+Each covering of soil is a promise.
+What is placed below will rise again.
+The Kemite did not treat this as metaphor—it was participation in divine process.
+As the sacred texts affirm:
+“Osiris… is not dead.”
+(Pyramid Texts, Utterance 373)
+This is the principle of the month.
+Death is not interruption.
+It is transformation within order.
+Families would sing simple lines:
 “As Asar sleeps, so shall the earth awaken.”
-The Kemite did not seek to escape death — they sought to understand it as part of the whole. To bury unjustly, to hoard grain, or to forget one’s ancestors was to sever the cycle and create isfet. To plant honestly, to mourn truthfully, to give offerings from gratitude — these were acts of divine alignment.
-In this unity of labor and reverence, Maʿat became daily life — balance between what is gone and what is growing.
-Scribes recorded flood heights and grain inventories — not as bureaucracy but as sacred measure, ensuring that the year’s balance matched heaven’s. Children were told stories of  Asar’s (Osiris’) patience: how he endured darkness without fear because he trusted the order of things. To live rightly was to live that same patience — to plant, to trust, to wait.
-On clear nights of this month, the sky over Kemet transformed. Orion (Sah) and Sirius (Sopdet) gleamed low over the horizon — divine reminders of Asar (Osiris) and Aset (Isis) watching over the new-sown fields. The temple ceilings of Dendera and Abydos show this sky in motion. Priests used merkhets (sighting rods) to align their water clocks with the rising decans.
-Each decan marked ten nights of Asar’s (Osiris’) journey through the Duat. The star priests — called “watchers of hours” — noted each rising, saying, “He sails the hidden waters.”
-Thus the heavens became a mirror of the god’s resurrection. As Asar (Osiris) traversed the underworld, the earth sprouted, and the stars themselves declared the triumph of Maʿat.
+Not as poetry—but as truth observed in the field.
+To live rightly in this time was to remain aligned with that cycle.
+To bury unjustly, to hoard grain, or to neglect one’s ancestors was to break continuity—to create isfet within what should flow.
+But to plant honestly, to mourn truthfully, to give offerings from gratitude—these acts sustained the unseen exchange between what is gone and what is becoming.
+Here, Maʿat is not abstract.
+It is the balance between:
+what is buried
+and what is growing.
+Scribes record flood heights and grain stores—not as mere administration, but as sacred measure. The year must match the heavens. What is given must be accounted for.
+Nothing is separate.
+Children hear the stories of Asar’s patience—how he endured darkness without fear because he trusted the order of things. To live rightly is to live that same patience:
+to plant,
+to trust,
+to wait.
+Above them, the sky confirms the work.
+On clear nights, Orion (Sah) and Sirius (Sopdet) rise low over the horizon—forms of Asar and Aset watching over the fields. Their appearance is not symbolic alone—it is timing, guidance, and assurance.
+Priests at Dendera and Abydos align their instruments—merkhets and water clocks—to the rising decans. The “watchers of hours” observe each star and speak:
+“He sails the hidden waters.”
+Each decan marks a passage through the Duat.
+Each night reflects the unseen journey of Asar.
+And as he moves below, the earth responds above.
+Seeds swell. Shoots emerge. Life returns—not suddenly, but faithfully.
+So the heavens and the earth mirror one another:
+Asar travels.
+The seed rises.
+Maʿat holds.
+This is the teaching of Ka-ḥer-Ka.
+Life does not replace death—it builds upon it.
+What is given returns.
+What is buried transforms.
+What is aligned continues.
+Living Principle:
+What you plant in truth will rise in its time.
 ''',
   5: '''
 Month 5 – Šef-Bedet (Šf-bdt)
-The name Šef-Bedet (šf-bdt) appears in the Old Kingdom temple lists of Edfu and Dendera, as well as in agricultural texts from the Middle Kingdom. It translates roughly to "The Nourisher" or "She Who Feeds with Grain." The word šf means "to feed or provide," while bdt denotes "offering, sustenance, or bread."
-This month’s name embodied the first task of the reborn world: to feed life into form. The Kemite worldview held that every being — human, animal, river, or star — has a right to sustenance. To feed another was to feed Maʿat herself.
-This compassion was not sentiment but cosmic maintenance. The villages, newly rebuilt after the flood, glowed with fresh whitewash. The world itself looked washed clean — and in that cleanliness, gratitude arose naturally. The floodplain was now firm enough to walk upon. Farmers rose before dawn to water seedlings with clay jars, ensuring even irrigation.
-They sang short invocations like:
+Nourishment — Sustaining What Has Been Brought Forth
+Šef-Bedet (šf-bdt) means “The Nourisher” — she who feeds with grain.
+šf is to feed, to provide.
+bdt is offering, sustenance, bread.
+Together, they name the first responsibility of a world that has been restored:
+to sustain what now lives.
+By this time — following the sowing of Ka-ḥer-Ka — the land has taken seed. The first signs of growth appear. The work is no longer about planting or proving strength, but about care.
+What has begun must now be fed.
+The Kemite understood this as law, not preference.
+Every being—human, animal, river, or star—has a right to sustenance. To feed another was not generosity—it was participation in Maʿat.
+Because what is not nourished cannot remain in order.
+So the villages move into a quieter rhythm.
+The floodplain is firm beneath the feet. The houses, newly rebuilt, glow with fresh whitewash. The world appears washed clean—and in that clarity, gratitude arises naturally.
+Farmers rise before dawn.
+They carry clay jars to water the seedlings, ensuring even flow across the fields. Nothing is rushed. Nothing is neglected. Each plant is given what it needs—not more, not less.
+They sing as they work:
 “The earth drinks — and I drink with her.”
-Children followed behind, scattering handfuls of ashes and fish bones as fertilizer. Women shaped the first loaves from the previous year’s grain and offered them to Renenutet, saying, “What was given returns.”
-The house of life — the temple's scribal school — reopened its lessons. Students copied hymns to Thoth and accounts of the flood level, connecting the intellectual and agricultural rhythms into one continuous practice of order. In every sense, this month was the first labor of reborn civilization.
-Where Thoth's month (Ḏḥwty) had taught measure, and Ka-ḥer-Ka had taught trust in transformation, Šef-Bedet taught the ethics of care. Šef-Bedet was a month of balance without struggle — of tending rather than striving. It reminded every Kemite that order is not achieved through dominance, but through gentle consistency.
+Children follow behind, scattering ash and fish bones into the soil. Waste becomes nourishment. Nothing is discarded outside the cycle.
+Women shape the first loaves from the previous year’s grain and offer them to Renenutet, saying:
+“What was given returns.”
+This is the law of continuity made visible.
+In the temples, the House of Life opens again. Scribes return to their work—recording flood levels, copying hymns, teaching the young. Intellectual labor and agricultural labor move together as one system.
+There is no separation.
+To measure the grain is to preserve balance.
+To write the record is to sustain memory.
+To feed the people is to uphold the gods.
+This is why nourishment is not sentiment.
+It is maintenance of the world.
+As the wisdom texts teach:
+“Give bread to the hungry…
+so that your name may endure.”
+(Instruction of Ptahhotep)
+To give sustenance is to enter continuity.
+To withhold it is to break it.
+So this month carries a different kind of discipline.
+Not force.
+Not endurance.
+But consistency.
+Water given daily.
+Care given steadily.
+Attention given without interruption.
+This is why Šef-Bedet is a month of balance without struggle.
+Nothing dramatic occurs.
+Yet everything depends on it.
+The Kemite knew:
+Order is not maintained by dominance—
+it is maintained by gentle, repeated care.
+Even the gods reflect this.
+Renenutet guards the harvest.
+The ka is sustained through offerings.
+The ancestors are fed so they may continue to support the living.
+All things are held through nourishment.
+So the teaching of this month is simple, but not easy:
+What has been brought forth must be tended faithfully.
+Not once.
+But continuously.
+Living Principle:
+What you sustain with care will endure in order.
 ''',
   6: '''
 Month 6 – Rekh-Wer (Rḫ-wr)
-The title rḫ-wr, “Great Knowing,” comes from the root rḫ, “to know, to perceive, to understand.” It is found in the Pyramid Texts (Utterance 600) and Coffin Texts, describing the divine faculty that “guides the tongue and keeps the world upright.” This month therefore represents awareness taking form — as crops strengthen and human minds turn toward planning, counting, and teaching.
-In every home, wisdom found practical expression. Women balanced granaries, recording storage and rationing grain fairly. Men taught apprentices the proper way to cut stone or carve wood. Elders gathered in the evenings to recite proverbs that began with the phrase, “He who knows Maʿat…” — a gentle reminder that to know is to live rightly, not merely to think.
-In temple schools, scribes studied arithmetic, surveying, and astronomy. The “stretching of the cord” ceremony was performed again to measure field boundaries — a literal act of restoring Maʿat through precision.
-At dusk, people poured small libations of water on the ground — symbolically “teaching” the soil, reminding it of the Nile’s rhythm, so that the roots would “remember the flood.” Every act of maintenance, from mending a canal to sharpening a sickle, was treated as sacred study — practice as prayer.
-Rekh-Wer was considered sacred to Thoth (ḏḥwty) and the solar goddess Sekhmet, for in this time, knowledge and power had to remain in balance. After the renewal of Asar (Osiris) and the nurturing of Renenutet, the sun began to climb again. Ra's Eye — fiery and vigilant — looked upon the land. The scribes said that Thoth "measured her path" and "taught her restraint." Thus, the month became a symbol of controlled strength: intellect governing energy, compassion guiding productivity. As a later teaching attributed to the Book of Maʿat expressed:
-“He who measures rightly keeps the balance of heaven and earth in his hand.”
+Great Knowing — Awareness That Sustains Order
+Rekh-Wer (rḫ-wr) means “Great Knowing.”
+From the root rḫ — to know, to perceive, to understand — it names not knowledge as accumulation, but knowledge as alignment with what is true.
+In the sacred texts, this knowing is not passive. It is described as a force that guides the tongue and keeps the world upright (Pyramid Texts, Utterance 600).
+So this month marks a shift.
+What has been grown…
+must now be understood.
+The crops are no longer fragile. The systems of care are established. Now attention turns toward refinement—counting, measuring, teaching, remembering.
+Awareness takes form.
+In every home, wisdom becomes practical.
+Women balance granaries, recording storage and rationing grain with fairness. Nothing is taken without measure. Nothing is stored without record.
+Men teach apprentices how to cut stone, carve wood, repair tools—not only the action, but the right way to do it.
+Because in Kemet, skill without understanding was incomplete.
+In the evenings, elders gather and speak:
+“He who knows Maʿat…”
+Not as philosophy—but as instruction.
+To know is to live rightly.
+To understand is to act in proportion.
+In the temples, the House of Life is active again.
+Scribes study arithmetic, surveying, astronomy. They calculate yield, track the stars, and align their measures with the heavens.
+The “stretching of the cord” is performed—fields are measured again, boundaries restored, not by assumption, but by precision.
+This is not administration.
+It is the restoration of Maʿat through exactness.
+Every measure taken correctly reflects the first act of creation—when the world was ordered from undifferentiated waters.
+As the cosmogony affirms:
+“You created your names,
+and they became the gods who came after you.”
+(Pyramid Texts, Utterance 600)
+To name, to measure, to define—these are acts that bring order into being.
+So even the smallest acts become instruction.
+At dusk, people pour libations of water onto the ground—“teaching” the soil, reminding it of the Nile’s rhythm, so that roots may “remember the flood.”
+Canals are repaired. Tools are sharpened. Boundaries are checked.
+Nothing is beneath attention.
+Because everything is part of the system.
+This is why Rekh-Wer belongs to both Thoth and Sekhmet.
+Thoth measures.
+Sekhmet acts.
+One without the other breaks balance.
+Knowledge without power is inert.
+Power without knowledge creates isfet.
+So the scribes say that Thoth “measured her path” and “taught her restraint.”
+This is the harmony of the month:
+intellect governing energy,
+compassion guiding productivity.
+The sun climbs higher now.
+Ra’s Eye—fierce and watchful—moves across the sky. Growth continues, but so does risk. What has been built must now be maintained with awareness.
+So knowledge becomes vigilance.
+Not fear.
+But clarity.
+The Kemite understood:
+To know something is to be responsible for it.
+As later teachings express:
+“He who measures rightly
+keeps the balance of heaven and earth in his hand.”
+This is the essence of Rekh-Wer.
+Not learning for its own sake—
+but knowing that sustains the world.
+Living Principle:
+What is understood clearly can be maintained without error.
 ''',
   7: '''
 Month 7 – Rekh-Nedjes (Rḫ-nḏs)
-The mythology of this month draws from the contests between Horus and Set following Asar's (Osiris') resurrection. The Two Lands were divided; judgment had to be tested through trial and endurance. Aset (Isis), embodying compassion, guided her son not to strike blindly but to learn restraint. In the Coffin Texts, Thoth tells Horus: "Patience is victory; Maʿat is not won by haste."
-rḫ-nḏs, literally "small or lesser knowing," did not imply ignorance but applied learning — the testing of what had been gained in Rekh-Wer. It was the month of the apprentice, the craftsman, the young crop facing its first heat. The Kemite saw this as a sacred stage of life: the soul leaving theory and entering the field.
-In inscriptions from Dendera and Esna, this month’s title is followed by epithets like “of the patient heart” and “of the watching eye. To know less was not to fall — it was to practice wisdom amid imperfection.
-In everyday life, this month felt slower, more introspective. The novelty of the new year had passed; now came the steady heartbeat of maintenance. The Kemite saw divinity in persistence — not the grand miracles of gods but the quiet miracle of one who tends what he began. Even the scribes noted fewer festivals; this was a time of personal discipline. Households cleaned tools, sharpened knives, and recopied old hymns so they would not fade — the renewal of memory as the renewal of order. The sages taught:
+Tested Knowing — Wisdom Proven Through Endurance
+Rekh-Nedjes (rḫ-nḏs) means “Lesser Knowing.”
+But this does not mean ignorance.
+It means knowledge in practice—knowledge that has left the mind and entered the world, where it must prove itself.
+After the clarity of Rekh-Wer, this month begins a different kind of work.
+Not learning.
+Not shaping.
+But testing.
+The mythology reflects this shift.
+After the restoration of Asar, the Two Lands are divided. Horus must contend with Set—not in a single act, but through trials, disputes, and endurance. Victory is not immediate. It must be earned through balance.
+Aset guides her son—not toward force, but restraint.
+And Thoth, keeper of measure, reminds him:
+“Patience is victory; Maʿat is not won by haste.”
+(Coffin Texts, judgment cycle traditions)
+This is the teaching of the month.
+To know is not enough.
+One must hold to what is known under pressure.
+So rḫ-nḏs becomes the stage of the apprentice, the craftsman, the growing crop meeting its first heat.
+What was learned must now endure conditions.
+The field is no longer protected.
+The work is no longer guided at every step.
+The system is no longer new.
+Now it must continue.
+In inscriptions from Dendera and Esna Temple, this time is associated with titles such as “of the patient heart” and “of the watching eye.”
+Because this is not a time of expansion.
+It is a time of attention within action.
+In daily life, everything becomes quieter.
+The early momentum of the year has passed. What remains is the steady rhythm of maintenance. The Kemite saw something sacred here—not in dramatic change, but in continuation without collapse.
+Tools are cleaned and sharpened.
+Old hymns are recopied so they are not lost.
+Work is repeated—not because it is new, but because it must be kept true.
+Even the festivals grow fewer.
+Because this is not a time for display.
+It is a time for integrity.
+The sages taught:
 “He who knows Maʿat must carry her in silence.
 The one who acts without shouting keeps the world from cracking.”
-Here lies the heart of the month — that wisdom untested is illusion. The people of Kemet lived this not as punishment, but as refinement: heat tempers metal; difficulty tempers truth. Through careful work and honest endurance, they honored Maʿat not in speech, but in motion — every furrow drawn straight, every measure fair, every rest deserved.
+Wisdom here is not spoken—it is enacted.
+Every furrow drawn straight.
+Every measure kept fair.
+Every effort sustained without complaint.
+This is how Maʿat is preserved—not in declaration, but in consistency under strain.
+The Kemite understood:
+Untested knowledge is illusion.
+Heat reveals the strength of metal.
+Difficulty reveals the truth of understanding.
+So this month is not hardship—it is refinement.
+What holds is strengthened.
+What fails is corrected.
+What endures becomes real.
+This is the passage from knowing…
+to being able to live what is known.
+Living Principle:
+Wisdom becomes real only when it endures.
 ''',
   8: '''
 Month 8 – Renwet (Rnnwt)
-Renwet (rnnt) takes its name directly from the goddess Renenutet, the serpent of nourishment and fate. Her name derives from rnn (“to nurse, to suckle”) and is interpreted as meaning “She Who Nurtures into Being.” Her image — a rearing cobra with a soft face — adorned every granary wall and harvest vessel. Her domain was twofold: the abundance of the earth and the destiny (šai) of every living being.
-The Kemite said that when a child was born, Renenutet whispered its true name into its ear — not the one given by parents, but the one known by the gods. Thus, she governed not only food but purpose itself. This was the busiest, most joyful time of the year. Laughter returned to the courtyards. The smell of bread, beer, and roasted fish filled the air. Workers were paid from temple granaries, and festivals lasted for days. Children played games of chance — symbolic rehearsals of Shai’s hand in life — while elders blessed them with sayings like:
-“May your name be long, may your Ka be rich, may Renenutet remember you.”
-Yet even amid joy, restraint remained sacred. Overindulgence was seen as offense to the goddess, for abundance must remain balanced. To hoard or waste was to anger Shai — to act against one’s own fate. To the Kemite, this was the final examination of the season: whether, after learning patience, endurance, and knowledge, one could live in humble gratitude. In Renwet, the cycle of Peret closed not with consumption, but with remembrance — returning the first share to the gods, to the ancestors, and to the poor.
-The month of Renwet embodies the highest wisdom of Maʿat: that gratitude is not emotion, but justice. The one who honors the source of nourishment sustains it; the one who forgets it invites loss. In this sense, Renenutet was both gentle and stern — her smile filled the silos, but her silence emptied them. Her teaching was simple:
-“Your destiny is what you nourish. Feed the world that feeds you.”
+Nourishment Fulfilled — Destiny Revealed Through What Is Given
+Renwet (rnnt) takes its name from the goddess Renenutet—the serpent of nourishment and fate.
+From rnn—“to nurse, to suckle”—her name means “She Who Nurtures into Being.” She is depicted as a rearing cobra with a watchful, almost gentle face, her image painted on granaries and carved into storage vessels.
+Her domain is twofold:
+the abundance of the earth…
+and the destiny (šai) of every living being.
+For the Kemite, these were not separate.
+What you receive,
+and what you become,
+are bound together.
+It was said that at birth, Renenutet whispered a child’s true name—not the name given by parents, but the one known by the gods.
+So she nourished not only the body,
+but the path of a life.
+By this time, the harvest has come.
+The fields are cut. The grain is gathered. Storehouses fill. What was planted, tended, and tested has now returned in full.
+The villages come alive again.
+Laughter fills the courtyards.
+The scent of bread, beer, and roasted fish rises into the air.
+Workers are paid from temple granaries.
+Festivals stretch across days.
+Children play games of chance—small rehearsals of fate—while elders bless them:
+“May your name be long,
+may your Ka be rich,
+may Renenutet remember you.”
+Joy is present—but it is not careless.
+Because this is not simply a time of receiving.
+It is a time of reckoning.
+The Kemite understood that abundance reveals character more clearly than hardship.
+To hoard is to break the cycle.
+To waste is to disrespect the source.
+To overindulge is to forget proportion.
+So even in celebration, restraint remains sacred.
+The first share is always returned:
+to the gods,
+to the ancestors,
+to the poor.
+Because what is received must be circulated to remain alive.
+As the offering texts declare:
+“Bread, beer, oxen, and fowl…
+for the one who gives and receives in Maʿat.”
+(Offering Formula, Old Kingdom funerary inscriptions)
+Giving completes receiving.
+This is why Renwet is the final examination of the season.
+Not whether one can endure.
+Not whether one can learn.
+But whether one can receive without forgetting.
+Gratitude here is not feeling—it is action.
+Measured distribution.
+Fair payment.
+Right offering.
+This is Maʿat fulfilled.
+Renenutet, therefore, is both gentle and exacting.
+Her presence fills the silos.
+Her absence empties them.
+Because destiny is not given once.
+It is sustained through what is nourished and what is returned.
+The Kemite knew:
+What you feed will grow.
+What you neglect will diminish.
+So the teaching of the month is simple, but final:
+Your destiny is not separate from your actions.
+It is shaped by them.
+Living Principle:
+Your destiny is what you nourish. Feed the world that feeds you.
 ''',
   9: '''
 Month 9 – Hnsw (Ḥnsw)
-Hnsw opens Shemu as the "traveler's month" — radiant, demanding, alive. It reminds the Kemite that Maʿat is not a resting place, but a path — one walked beneath the eye of Ra, in heat, effort, and gratitude. The texts of the Amduat and Book of Gates describe how Ra, the Sun-God, travels through the sky by day and the Duat by night, sustaining the balance between light and darkness.
-Hnsw (The Traveller) refers to both the sun's daily voyage and the movement of the people as the agricultural year neared completion. This month taught that life, too, must travel its course without resistance. The wise Kemite did not curse the heat; he understood it as Ra's testing of the world's endurance — the necessary fire that strengthens what has been tempered. Caravans of donkeys and boats moved along the river, carrying offerings to temples and food to cities. The people traveled under a blazing sky, yet found rhythm in the motion — as if imitating the sun's steady crossing from horizon to horizon.
-Each journey, each trade, each pilgrimage was considered part of the “path of Ra” — every human journey a reflection of the cosmic voyage.
-The Nile shrank within its banks, leaving gleaming lines of salt on the soil. Fields that once swayed green now stood bare, drying for threshing. Work shifted to transportation and preservation — storing grain, pressing oil, drying fruit and fish. In Hnsw, travel itself became sacred. Families visiting relatives, merchants crossing nomes, and fishermen tracing the Nile's edge all felt they were part of the same vast circulation that sustained Maʿat. Offerings were simple but radiant: bread baked in circular molds, golden beer, honey, and saffron oil — all colored like the sun. Each household was said to anoint their foreheads with oil at midday while reciting:
-"May my path follow the sun's.
-May my heat be righteous, my light not blind."
-This was the heart of Hnsw's philosophy — that power without balance burns, but power guided by Maʿat illumines. Priests instructed meditation on Khepri, the scarab who rolls the sun each dawn, symbol of persistence through adversity. Children were taught to face the morning sun with open hands, to practice humility before its brilliance, and to remember that light must be carried, not hoarded.
-Hnsw taught that Maʿat does not stand still. Even balance moves — like the pendulum of Ra's day and night. To live in Maʿat during the season of heat was to walk with the light without becoming consumed by it. The wise carried inner shade, knowing that endurance and humility are the highest forms of power.
-As an old maxim carved at Heliopolis said:
-“He who travels rightly leaves Maʿat behind him as footprints.”
+The Traveler — Walking the Path of the Sun
+Hnsw (Ḥnsw), “The Traveler,” opens the season of Shemu.
+It is the month of movement—radiant, demanding, alive.
+Here, Maʿat is no longer something held or maintained.
+It is something walked.
+The Kemite understood: balance is not a resting place.
+It is a path—one that must be followed under the eye of Ra.
+The sun now dominates the sky.
+Its heat is not incidental—it is instruction.
+In the sacred texts of the Duat, Ra travels endlessly—by day across the sky, by night through the hidden world—sustaining the balance between light and darkness.
+“I travel my road…
+I do not weary.”
+(Amduat, Book of the Hidden Chamber)
+So too must life continue.
+Hnsw reflects both the sun’s journey and the movement of the people as the agricultural year nears completion. What has been grown and gathered must now be carried, exchanged, and preserved.
+Caravans move across the land.
+Boats travel the Nile.
+Offerings are brought to temples.
+Food is carried to cities.
+Every path becomes part of a greater circulation.
+The Kemite did not curse the heat.
+They understood it.
+Heat reveals endurance.
+Heat tests proportion.
+Heat exposes what cannot hold.
+So movement continues—not in ease, but in alignment.
+The wise do not resist the journey.
+They pace themselves within it.
+Fields that once stood green now dry beneath the sun. The Nile withdraws into its banks, leaving bright traces of salt across the soil. Work shifts again:
+transportation, preservation, continuation.
+Grain is stored.
+Oil is pressed.
+Fish and fruit are dried.
+Nothing is wasted.
+Everything is carried forward.
+Travel itself becomes sacred.
+Families visit distant kin. Merchants cross nomes. Fishermen follow the shrinking Nile. Each movement reflects the same truth:
+all life is in circulation.
+To move rightly is to align with Ra.
+Offerings take on the color of the sun—golden bread, beer, honey, saffron oil. At midday, households anoint their foreheads and recite:
+“May my path follow the sun’s.
+May my heat be righteous, my light not blind.”
+This is the philosophy of Hnsw.
+Power without balance burns.
+Power guided by Maʿat illumines.
+So the priests teach meditation on Khepri—the scarab who rolls the sun each dawn. Not as symbol alone, but as instruction:
+to continue,
+to persist,
+to move even under weight.
+Children are taught to face the rising sun with open hands—not to grasp it, but to receive its measure.
+Because light must be carried, not hoarded.
+This is the deeper teaching of the month:
+Maʿat does not stand still.
+Even balance moves—like the arc of the sun, like the passage through the Duat.
+To live rightly in this season is to walk with the light without being consumed by it.
+The wise carry inner shade.
+They know that endurance, humility, and restraint are the highest forms of power.
+As the old teaching says:
+“He who travels rightly
+leaves Maʿat behind him as footprints.”
+This is Hnsw.
+Not arrival—
+but right movement across time.
+Living Principle:
+Walk in balance, and your path will sustain the world.
 ''',
   10: '''
 Month 10 – Ḥenti-ḥet (Ḥnt-ḥtj)
-Ḥenti-ḥet (ḥnt-ḥtj) literally means "Foremost of Offerings." The word ḥeti (offering) comes from the same root as ḥtp (peace), showing how the act of giving was synonymous with bringing harmony. As the land dried, people began making thank-offerings to Ra, Asar (Osiris), and Renenutet — not to request more abundance, but to acknowledge that what had been received was sufficient.
-To the Kemite, peace was not found in plenty but in knowing when to stop grasping.
-For common folk, life slowed to the rhythm of endurance. Travelers moved by night, carrying water skins and palm-leaf fans. The markets shifted to trade in dried goods and shade cloths. Storytellers and musicians filled the courtyards in the evenings, singing tales of Sekhmet’s laughter and Hathor’s sweetness — cooling the soul as the gods cooled the sky.
-Children learned from elders how to ration and repair, understanding that conservation was not scarcity but wisdom in rhythm with the desert. In the oldest solar hymns, this month corresponds to the time when Ra’s Eye blazes hottest and the gods retreat to shade.
-Mythically, it was said that the fiery Eye (personified as Sekhmet) once grew so fierce that she nearly destroyed humankind. To calm her, Ra commanded the fields to be filled with beer dyed red, which she drank, mistaking it for blood. Her rage softened into laughter — and the world survived.
-Thus, Ḥenti-ḥet celebrated the cooling of divine wrath, the restoration of proportion after excess. It was a warning that even light must rest, even gods must balance. Families made personal offerings of cool water, lotus petals, and milk. The poorest gave only breath — standing before the morning sun, exhaling slowly, saying:
+Foremost of Offerings — Cooling, Return, and the Restoration of Measure
+Ḥenti-ḥet, “Foremost of Offerings,” marks the turning point where receiving gives way to returning.
+The word ḥet (offering) shares its root with ḥtp (peace).
+To the Kemite, peace was not passive — it was the condition created when all things are in right proportion.
+Thus, to offer was not loss, but restoration.
+By this time — in the height of Shemu — the land is dry, the work is complete, and the sun stands at its fiercest.
+Nothing more can be grown. Nothing more should be taken.
+So the people turned not to labor, but to balance.
+Offerings were made not to ask for abundance, but to acknowledge it.
+Bread, beer, cool water, milk, lotus — each given not from surplus alone, but from understanding.
+For what had been received was never owned.
+The teachings remind:
+“Do not set your heart upon wealth;
+there is no ignoring fate and destiny.”
+(Instruction of Amenemope)
+This was the wisdom of the month — that grasping beyond measure invites disorder.
+Daily life reflected this truth.
+Travelers moved at night beneath a cooler sky.
+Markets shifted from growth to preservation — dried grain, stored oil, woven shade.
+Families repaired tools instead of making new ones.
+Children learned rationing not as deprivation, but as alignment with the desert’s rhythm.
+Storytellers filled the evenings, recalling the moment when the Eye of Ra — in the form of Sekhmet — nearly destroyed humanity in her excess.
+Only when her fury was cooled did life continue.
+So too must human force be cooled.
+Because even divine power, when unmeasured, becomes isfet.
+In older temple theology, Ra himself is said to establish Maʿat through offering — not merely receiving it:
+“He gave offerings to the gods…
+he established Maʿat in the place of Isfet.”
+(Pyramid Texts, Utterance 273–274)
+This is the deeper teaching of Ḥenti-ḥet:
+Maʿat is not maintained by accumulation,
+but by circulation.
+What comes must go.
+What is taken must be returned.
+Thus even the poorest made offering.
+Some gave food.
+Some gave water.
+Some gave only breath — standing before the morning sun, exhaling slowly:
 “May my heat cool yours.
 May my heart rest in Maʿat.”
-Under the eye of Ra, the Kemite learns the oldest truth of Maʿat: nothing truly belongs to us — not our strength, not our harvest, not even our breath. All must be offered back in harmony.
+For breath itself is a gift returned.
+Ḥenti-ḥet teaches the most difficult discipline of the year:
+to stop when enough has been given.
+To release without fear.
+To cool without losing strength.
+To give without expecting return.
+Because nothing truly belongs to the self —
+not harvest, not power, not even life-force.
+All is held temporarily within Maʿat.
+And must be returned to it.
+Living Principle:
+Peace is restored when what is received is returned in right measure.
 ''',
   11: '''
 Month 11 – Pa-Ipi (ỉpt-ḥmt)
-Pa-Ipi (ỉpt-ḥmt), "Bringing Together of the Women," is one of the most ancient month names in Kemet. It likely referred to renewal and reunion — the joining of sky and earth, of gods and ancestors, as the year neared its end. By the Middle Kingdom, it was often called Ipi, a shortened form used in temple and civil texts.
-In priestly theology, Ipi carried the same meaning later expressed as Ḥnsw ḥr kꜣ — the traveler's reunion with the Ka, the merging of the living and the ancestral. The Kemite recognized that the year — like the soul — was moving toward death, only to rise again renewed. Offerings to the Ka of ancestors increased, and the living sought harmony with the unseen forces that sustained them.
-This was a month of reflection and gratitude. Families visited graves, shared meals in the fields, and retold stories of their ancestors’ virtues. It was said that the Ka grows stronger through remembrance — and that forgetting was a form of death.
-The air was filled with the scent of lotus and old incense; music slowed to soft flutes and hand drums. Nights were clear and deep — the Milky Way bright enough to guide travelers by its “River of Souls.” Farmers prayed for strength to rebuild; mothers whispered blessings over sleeping children, linking their breath to the rhythm of the river’s return.
-As the Nile prepared to rise again, the people turned their devotion to Asar (Osiris), who dies and returns eternally — the seed that becomes the stalk, the man who becomes god.
-The month taught that to live in Maʿat is to keep the line unbroken. The Kemite saw himself as one link in a living chain — not an isolated self, but a continuation of those before him. The ancestors were not gone; they were present in the Ka, woven into the body of the world. It reminded the Kemite that time itself is alive — that every cycle, every seed, every breath belongs to one vast current.
-By remembering the ancestors and tending the Ka, the people aligned themselves with the eternal rhythm of Maʿat — the order that never dies.
-This understanding dissolved fear of death. To die was to change form; to live rightly was to ensure one’s Ka would continue the journey. Hence the saying preserved at Abydos:
+Reunion — The Return to the Ka
+Pa-Ipi (ỉpt-ḥmt), “Bringing Together of the Women,” is among the oldest names preserved in Kemet. It speaks of reunion—of what was separated now drawing back into alignment.
+By later periods, it was shortened simply to Ipi, but its meaning remained:
+the gathering, the rejoining, the return to source.
+In priestly understanding, this was the same truth expressed in another form:
+the traveler returns to the Ka.
+What has moved outward through the year—through labor, growth, testing, and offering—now begins to turn inward.
+Not in retreat,
+but in recognition.
+The Kemite understood that the year, like the soul, approaches its transformation.
+Not an end—
+but a return.
+This was a month of remembrance.
+Families walked to the tombs of their ancestors. Meals were shared in the fields and at the thresholds between worlds. Names were spoken aloud so they would not fade.
+Because in Kemet, to remember was not symbolic.
+It was sustaining.
+The Ka—the vital essence—does not vanish. It is strengthened through attention, nourished through offering, and maintained through memory.
+To forget was to diminish life.
+To remember was to extend it.
+The teachings affirm:
+“A man lives when his name is spoken.”
+(Tomb inscriptions, Middle Kingdom funerary tradition)
+So the living spoke the names of the dead—
+and in doing so, kept them present.
+The atmosphere itself reflected this turning.
+The air carried lotus and old incense.
+Music slowed to soft flutes and hand drums.
+The nights opened wide and clear.
+The Milky Way stretched across the sky—the “River of Souls”—guiding travelers and reminding all that the path does not end at the horizon.
+The visible and invisible drew closer.
+Farmers, having completed their cycle, now looked toward renewal. Mothers whispered blessings over sleeping children, linking breath to the rhythm of the Nile’s return.
+Everything pointed toward continuity.
+Devotion turned again to Asar.
+He who dies and rises.
+He who is buried and becomes life again.
+The seed beneath the soil.
+The king beneath the earth.
+The god within the cycle.
+His story was not myth alone—it was pattern.
+What is given returns.
+What is buried rises.
+What is aligned endures.
+Pa-Ipi teaches the deepest truth of Maʿat:
+that nothing stands alone.
+Each life is a continuation.
+Each breath is inherited.
+Each act either strengthens or weakens the chain.
+The Kemite did not see himself as separate.
+He was a link—
+between those before
+and those yet to come.
+The ancestors were not gone.
+They were present in the Ka, woven into the body of the world, moving through time as a living current.
+So fear of death dissolved.
+To die was to change form.
+To live rightly was to ensure continuation.
+To maintain Maʿat was to remain within the current.
+As preserved in the traditions of Abydos:
 “He who remembers, endures;
-He who is remembered, returns.”
+he who is remembered, returns.”
+This is the wisdom of Pa-Ipi.
+Not ending—
+but reunion.
+Not loss—
+but continuity restored.
+Living Principle:
+What is remembered lives; what is honored continues.
 ''',
   12: '''
 Month 12 – Mesut-Ra (Mswt-Rꜥ)
-In inscriptions from the Old Kingdom through the Middle Kingdom temple calendars, Mesut-Ra, "The Birth of Ra," was treated as the gestational month of the year — when both earth and gods prepared to bring forth. It was the month of waiting in balance, just before the five Heriu Renpet (ḥr.w rnpt), when the gods themselves would be born anew.
-The word msn (from msi, "to give birth") forms the root of the month's name and of later words such as Mswt ("births") and personal names like Ms-nfrt ("Born of Beauty"). The Hebrew name Moshe (Moses) is linguistically related to this same Egyptian root — all echoing one creative act: emergence from the hidden into the seen.
-Mythologically, Mesut-Ra belongs to Nut, the sky goddess who swallows the sun each evening and gives birth to him each morning.
-In this closing month, the myth expands: Nut becomes the cosmic womb preparing to deliver the divine children — Asar (Osiris), Horus the Elder, Set, Aset (Isis), and Nephthys — born during Heriu Renpet (ḥr.w rnpt).
-Texts from Dendera describe the sky "bent in labor," the stars trembling with anticipation. The people saw in this cosmic image their own renewal: as Nut labored to bring forth the gods, the Nile too would soon "labor" to bring the flood.
-The atmosphere of this month was serene — like a long exhale. The air was hot and still, yet the people's hearts felt light. Children were taught the "Counting of Years," scratching tallies on potsherds to mark the completion of another cycle. The old told stories of floods past — both gentle and wild — to remind the young that life's balance depends on reverence and readiness.
-The nights were filled with ritual songs called ḥeset en renpet — "praises of the year" — sung to Nut and Sopdet, thanking them for carrying the world faithfully through its circle of transformation.
-Temples across Kemet held the "Ritual of Sealing the Year." Priests extinguished the perpetual lamps of the closing cycle, reciting:
-"The breath returns to the sky,
-The seed returns to the soil,
-The order stands — awaiting the dawn."
-Only on the first day of the new year would the lamps be rekindled.
-Families performed their own versions of this rite — clearing altars, washing statues, repainting household shrines. Offerings of water, natron, and lotus symbolized purification; small clay figurines of frogs and scarabs represented fertility and transformation.
-Mesore is the last breath of the solar year — the sacred pause before rebirth. It is both the grave and the womb, the place where silence becomes song again. In this month, the Kemite world stood still not from exhaustion, but from awe. For soon, the five luminous days — the births of the gods — would arrive, and life itself would begin anew.
+The Birth of Ra — The Stillness Before Emergence
+Mesut-Ra, “The Birth of Ra,” is the final movement of the year.
+Not an ending—
+but a gestation.
+From the root msi — “to give birth” — the name carries the act of emergence itself: what is hidden preparing to become seen. It is the same root carried in names and traditions across time, all pointing to one truth:
+life returns through concealment and release.
+In this month, nothing is built.
+Nothing is extended.
+Nothing is sought.
+The work of the year is complete.
+What remains is waiting in balance.
+The Kemite understood this time as belonging to Nut—the sky who swallows the sun each evening and gives birth to him each dawn.
+But now the cycle deepens.
+Nut is not only birthing the daily sun—
+she is preparing to bring forth the gods themselves.
+As the temple texts describe:
+“The sky is bent…
+she trembles as she gives birth to Ra.”
+(Temple inscriptions, Dendera tradition)
+The heavens become a womb.
+The stars hold their places in stillness.
+The air grows quiet.
+The world pauses.
+This is not emptiness.
+It is fullness not yet released.
+The Nile has not yet risen.
+The flood has not yet come.
+The new year has not yet begun.
+But all of it is already forming.
+In daily life, this stillness is mirrored.
+The people slow completely.
+Children mark the “Counting of Years,” scratching tallies into potsherds—not to measure what comes next, but to recognize what has been completed.
+Elders tell stories of past floods—gentle and destructive alike—so that memory becomes preparation.
+Temples perform the Ritual of Sealing the Year.
+The lamps are extinguished.
+The cycle is allowed to close fully.
+“The breath returns to the sky,
+the seed returns to the soil,
+the order stands—awaiting the dawn.”
+No flame remains.
+Because no light should carry over improperly into the next cycle.
+Households mirror this act.
+Altars are cleared.
+Statues are washed.
+Walls are repainted.
+Water, natron, lotus—
+purification, dissolution, readiness.
+Even the symbols change.
+Frogs for emergence.
+Scarabs for transformation.
+Everything points toward becoming again.
+This is the teaching of Mesut-Ra:
+Nothing is forced into birth.
+What is to emerge must first be held in stillness.
+The Kemite did not rush this moment.
+They honored it.
+Because to interrupt gestation
+is to weaken what is born.
+Even the gods follow this law.
+As preserved in the Pyramid Texts:
+“I am born each day…
+I come forth from the horizon renewed.”
+(Pyramid Texts, solar cycle utterances)
+So too the year.
+So too the self.
+Mesut-Ra is both grave and womb.
+What has ended dissolves completely.
+What will begin gathers strength unseen.
+There is no contradiction here.
+Only continuity.
+The world stands still—not from exhaustion,
+but from reverence.
+Because what comes next cannot be controlled.
+It can only be received.
 ''',
 };
 
 const List<String> _decanInfo = [
-  'tpy-ꜣ sbꜣw (“Foremost of the Stars”) — This decan marks orientation. To the Kemite, tpy-ꜣ (“the foremost”) does not mean dominance — it means what appears first and therefore sets direction. This decan represents the moment when attention is gathered and the field of time is surveyed. In practice: assessing conditions after uncertainty; checking measurements; establishing bearings before action. Thoth’s role here is alignment, like the scribe drawing the first line: Where am I standing? What is true right now? Nothing is built yet. Nothing is corrected yet. This is the act of looking clearly before speaking. Living Principle: Order begins when attention is placed correctly.',
-  'ḥry-ib sbꜣw (“Heart of the Stars”) — This decan marks integration. ḥry-ib (“that which is at the heart”) signals internal coherence — observation becoming understanding. It governs reflection, internal calibration, and deciding what matters. In administrative and ritual life: checking accounts, refining plans, correcting imbalance before it spreads. Thoth keeps proportion so thought matches reality and intention matches capacity. Living Principle: Truth is not what appears — it is what holds together under examination.',
-  'sbꜣw (“The Stars”) — This decan marks expression into order. With no modifier, sbꜣw refers to the many points held in relation. Understanding is released into structure: schedules, records, agreements, commitments. Plans become instructions; decisions become actions; knowledge becomes responsibility. For the Kemite, the stars modeled systems that do not lie — many parts, one rhythm. Thoth records and binds so decisions are carried forward faithfully. Living Principle: Order is sustained when understanding is shared and upheld.',
-  'ꜥḥꜣy (“The Riser”) — This decan marks initiation of motion. ꜥḥꜣy refers to rising, appearing, or stepping forward deliberately. It is when what was measured is put into motion: resuming labor, beginning transport, re-entering circulation after pause. To rise is to accept weight; nothing new is decided — what was set begins to travel. Living Principle: What you begin to move, you must be willing to carry.',
-  'ḥry-ib ꜥḥꜣy (“Heart of the Riser”) — This decan marks sustained effort. The focus shifts from starting to maintaining: Can this continue without distortion? It governs pacing, load-balancing, and rhythm in work and travel. Motion without regulation collapses; endurance is listening while moving. Living Principle: Motion remains righteous only when the heart stays awake.',
-  'sbꜣ nfr (“The Beautiful Star”) — This decan marks successful continuity. sbꜣ nfr means rightness of form — movement that stays aligned. Routes are established, labor flows, exchange is reliable; systems prove they hold under use. The star is “beautiful” because it does not falter, letting vigilance ease without inviting chaos. Living Principle: Beauty is motion that no longer needs correction.',
-  'sꜣḥ ("Sah") — This decan marks stability regained. sꜣḥ evokes endurance and renewed stability, symbolically linked to Asar: what has survived disruption and now stands recognizable. It is the moment when continuity is confirmed and fear of collapse recedes. In practice: recognizing what returned after loss; resuming steady labor; trusting order has taken hold. Hathor reassures: What has proven stable? Living Principle: Stability is the foundation that allows joy to exist.',
-  'ḥry-ib sꜣḥ (“Heart of Sah”) — This decan marks harmonization. The heart (ib) orders within what Sah establishes without. Stability is felt and shared through coordinated labor, restored social rhythm, and working in time rather than haste. Hathor asks: Are actions aligned with those around me? Living Principle: Balance is sustained through alignment with others.',
-  'sbꜣ sꜣḥ (“Star of Sah”) — This decan marks expression. sbꜣ is what shines and orients by presence alone; here order no longer needs guarding — it can be shown and maintained through beauty. In practice: creative work and adornment; ritual joy without excess; reinforcing order through pleasure. Hathor asks: What deserves celebration so it remains whole? Living Principle: What is expressed with care preserves order.',
-  'msḥtjw (“The Foreleg”) — This decan marks renewed strength. To the Kemite, msḥtjw represents raw vitality restored after disruption — not aggression, but capacity. Energy re-enters body and land, no longer fragile, no longer tentative. In practice: returning physical strength; resuming demanding labor; testing endurance without excess. Ka-ḥer-Ka teaches doubling, not expansion. Like the foreleg anchoring the body before movement, it asks: Where has strength returned? What force can now be trusted again? Nothing is accelerated or pushed yet. This is the act of feeling power before applying it. Living Principle: Strength must be felt before it is used.',
-  'ḥry-ib msḥtjw (“Heart of the Foreleg”) — This decan marks control. Force without direction creates isfet; ḥry-ib msḥtjw is strength governed by awareness. In practice: pacing effort; balancing labor with rest; directing energy with intention. Ka-ḥer-Ka’s resonance here is mastery: doubled vitality must be managed to avoid fracture. It asks: Is my strength aligned with my purpose? Nothing is exhausted yet. Nothing is depleted yet. This is the act of holding power steady before expression. Living Principle: Power becomes useful when it is governed.',
-  'sbꜣ msḥtjw (“Star of the Foreleg”) — This decan marks applied force. sbꜣ signals what shines as a reliable guide; sbꜣ msḥtjw is strength put into motion to reshape the world without destabilizing it. In practice: sustained labor; building and repair; productive output without strain. Ka-ḥer-Ka completes its lesson: like the foreleg carrying the body forward after balance is secured, it asks: Where can effort now be applied without harm? Nothing is wasted. Nothing is forced. This is the act of using strength in service of continuity. Living Principle: Applied strength preserves balance when guided by restraint.',
-  'ḫnty-ḥr (“Foremost of the Sky”) — This decan marks attention to care. ḫnty-ḥr means precedence of concern — what must be tended first so life can continue without strain. Effort shifts from exertion to nourishment. In practice: checking early growth; stabilizing irrigation and supply; tending what is fragile but promising. Šef-Bedet asks: What requires attention before it can flourish? Nothing is harvested or secured yet. This is noticing needs before responding. Living Principle: Care begins with correct attention.',
-  'ḥry-ib ḫnty-ḥr (“Heart of the Foremost”) — This decan marks sustained nurturing. Nourishment without intention is wasteful; ḥry-ib ḫnty-ḥr is care guided by understanding — the heart directing how resources are given and preserved. In practice: distributing labor evenly; feeding without excess; maintaining balance in supply. Šef-Bedet asks: Am I sustaining life, or merely consuming effort? Nothing is rushed; nothing is depleted. This is giving steadily without imbalance. Living Principle: Sustenance preserves order when given with restraint.',
-  'sbꜣ ḫnty-ḥr (“Star of the Foremost”) — This decan marks trust in growth. sbꜣ indicates what can be relied on without constant supervision; sbꜣ ḫnty-ḥr is nourishment that has taken hold and can proceed under its own rhythm. In practice: easing vigilance; trusting established routines; allowing growth to continue naturally. Šef-Bedet asks: What can I allow to grow without control? Nothing is forced; nothing is withheld. This is supporting life by stepping back. Living Principle: Trust is the final act of care.',
-  'knmw (“Khnum”) — This decan marks formation through knowledge. knmw signifies shaping with understanding — informed craft, not force. Awareness begins to give form to what has been nourished, moving from growth to refinement. In practice: shaping materials deliberately; learning correct technique; beginning instruction and apprenticeship. Rekh-Wer asks: What must be understood before it can be shaped? Nothing is perfected or finalized yet. This is learning before refining. Living Principle: Understanding gives form to effort.',
-  'ḥry-ib knmw (“Heart of Khnum”) — This decan marks discernment. Knowledge without judgment leads to imbalance; ḥry-ib knmw applies awareness inwardly — knowing how, when, and why to shape. In practice: correcting technique; refining methods; teaching through example. Rekh-Wer asks: Is my knowledge used with care and proportion? Nothing is rushed or wasted. This is guiding skill with restraint. Living Principle: Skill becomes wisdom when directed by intention.',
-  'sbꜣ knmw (“Star of Khnum”) — This decan marks competence made reliable. sbꜣ indicates what now guides others; sbꜣ knmw is stabilized knowledge — dependable, repeatable skill. In practice: consistent workmanship; teaching others; applying knowledge without hesitation. Rekh-Wer asks: What understanding can be trusted to lead? Nothing is improvised; nothing is uncertain. This is working from mastered knowledge. Living Principle: True knowledge guides steadily.',
-  'špsswt (“The Noble Ones”) — This decan marks tested understanding. špsswt is refinement under pressure — knowledge leaving the training space and entering lived reality. In practice: applying learned skill in real conditions; encountering resistance or limitation; discovering gaps in understanding. Rekh-Nedjes asks: What holds when conditions are no longer ideal? Nothing is hidden or excused. This is meeting reality without illusion. Living Principle: Wisdom is proven through use.',
-  'ḥry-ib špsswt (“Heart of the Noble Ones”) — This decan marks adaptation. Refinement requires adjustment, not rigidity; ḥry-ib špsswt is inner recalibration — the heart learning from strain and correcting course without collapse. In practice: modifying technique; strengthening weak areas; practicing patience under effort. Rekh-Nedjes asks: What must change so balance can be preserved? Nothing is abandoned or forced. This is refining without breaking. Living Principle: Endurance grows through adjustment.',
-  'sbꜣ špsswt (“Star of the Noble Ones”) — This decan marks quiet competence. sbꜣ signals reliability recognized through consistency; sbꜣ špsswt is knowledge that endured testing and now operates calmly, without display. In practice: steady work without novelty; maintaining what has been learned; performing duties without seeking recognition. Rekh-Nedjes asks: What can now be done correctly without effortful attention? Nothing is celebrated or concluded. This is holding competence without strain. Living Principle: True mastery is quiet.',
-  'ꜥpdw (“The Birds”) — This decan marks return and gathering. ꜥpdw signals movement toward abundance — early signs that effort begins to answer itself. Birds return when grain strengthens; their presence confirms nourishment has taken hold. In practice: early signs of yield; organizing storage and distribution; preparing for increase without excess. Renwet asks: What signals that balance is returning? Nothing is claimed or consumed yet. This is recognizing promise before reward. Living Principle: Return begins with recognition.',
-  'ḥry-ib ꜥpdw (“Heart of the Birds”) — This decan marks discernment in abundance. Increase without judgment leads to loss; ḥry-ib ꜥpdw is inner regulation during growth — the heart guiding how return is received and shared. In practice: deciding fair distribution; balancing enjoyment with responsibility; remembering communal obligation. Renwet asks: How should what returns be honored and sustained? Nothing is hoarded or wasted. This is receiving without imbalance. Living Principle: Abundance must be governed by gratitude.',
-  'sbꜣ ꜥpdw ("Star of the Birds") — This decan marks reward stabilized. sbꜣ indicates what can be trusted to continue; sbꜣ ꜥpdw is abundance settled into order — return that no longer threatens balance. In practice: enjoyment without excess; honoring gods and ancestors; securing what has been gained. Renwet asks: What return can be sustained without fear? Nothing is rushed or grasped. This is resting within earned return. Living Principle: Reward endures when held in balance.',
-  'ẖry ꜥrt ("The One Beneath ꜥrt") — This decan marks departure and first passage. ẖry ("beneath/under") signals movement through constraint — travel beginning under heat, under load, under necessity. In practice: starting journeys early; moving goods and duties while conditions press down; accepting that motion is required even when comfort is not available. Hnsw teaches that Maʿat is kept by correct passage, not perfect conditions. Nothing is gained yet. Nothing is concluded yet. This is the act of stepping onto the path and committing to cross. Living Principle: The journey begins when you move despite constraint.',
-  'rmn ḥry sꜣḥ ("Shoulder Above Sah") — This decan marks sustained carriage. rmn ("shoulder") is the body\'s bearing-point — the place where weight is carried without drama. ḥry ("above") indicates elevation through discipline: the load is held higher, cleaner, and more controlled. In practice: pacing work; protecting the body; keeping routes orderly; carrying responsibility without spilling into chaos. Hnsw asks: Can the burden be carried with dignity? Nothing is rushed. Nothing is forced. This is holding the weight in right proportion. Living Principle: Endurance is disciplined carriage.',
-  'rmn ẖry sꜣḥ ("Shoulder Beneath Sah") — This decan marks regulated descent and recovery. ẖry ("beneath") returns the theme of constraint: the shoulder lowers under strain, and wisdom is knowing when to reduce output to preserve continuity. In practice: ending labor before exhaustion; moving into shade; storing and securing what was carried; letting the body settle so the path can be walked again. Hnsw completes its lesson: rhythm is protection. Nothing is abandoned, but effort is contained. This is the act of finishing the passage without collapse. Living Principle: A path is righteous if you can survive it repeatedly.',
-  'ḥr-sꜣḥ ("Heru upon Sah") — This decan marks vigilance under pressure. Authority stands on endurance: Heru upheld by restored order (Sah/Asar). In practice: rising early to avoid excess heat; guarding what has been secured; maintaining discipline as fatigue increases. Ḥenti-ḥet asks: What must be protected through awareness, not force? Nothing is challenged or seized yet. This is holding position without escalation. Living Principle: Authority endures through vigilance.',
-  'ḥry-ib ḥr-sꜣḥ (“Heart of Heru upon Sah”) — This decan marks restraint. Intensity without regulation fractures; here the heart governs power, choosing when not to act. In practice: conserving strength; reducing unnecessary labor; cooling body and mind. Ḥenti-ḥet asks: Where must effort pause to prevent loss? Nothing is exhausted or burned away. This is withholding force to preserve life. Living Principle: Restraint completes strength.',
-  'sbꜣ ḥr-sꜣḥ ("Star of Heru upon Sah") — This decan marks offering and release. Power guides by example, returning strength to maintain harmony. In practice: offering water and sustenance; releasing excess stores; allowing rest to restore balance. Ḥenti-ḥet asks: What must be offered back so order remains intact? Nothing is hoarded or clung to. This is preserving Maʿat through release. Living Principle: What is given back keeps the world whole.',
-  'sbꜣ nfr ("The Beautiful Star") — This decan marks remembrance. sbꜣ nfr signifies what remains worthy of regard — beauty proven through endurance, not novelty. In practice: recalling what sustained the household; honoring ancestors and elders; reviewing stores, tools, and records. Ipt-ḥmt asks: What deserves remembrance because it endured? Nothing is judged or discarded yet. This is looking back without disruption. Living Principle: Remembrance preserves continuity.',
-  'ḥry-ib sbꜣ nfr (“Heart of the Beautiful Star”) — This decan marks integration. Memory without understanding is weight; here the heart absorbs what was remembered, choosing what to carry forward and what to release. In practice: reconciling success and failure; repairing what still has use; teaching younger generations through example. Ipt-ḥmt asks: What memory strengthens balance rather than burdens it? Nothing is finalized or erased yet. This is holding memory with proportion. Living Principle: Memory must be carried with discernment.',
-  'tpy-ꜣ spdt (“Foremost of Sopdet”) — This decan marks orientation toward renewal. tpy-ꜣ spdt is the first signal of return — awareness that the cycle will begin again. In practice: preparing for closure; cleansing spaces and tools; orienting attention toward what comes next. Ipt-ḥmt asks: What must be set in order so renewal can arrive cleanly? Nothing is begun or concluded yet. This is standing at the threshold without crossing. Living Principle: Preparation allows renewal to arrive whole.',
-  'msḥtjw ḫt (“The Sacred Foreleg”) — Withdrawal into potential. Strength no longer in motion but gathered inward; power resting in sacred suspension — not exhausted, not active, held intact as outward labor ceases and inner readiness begins. In practice: ending major work; securing tools and stores; allowing the body and land to rest. Mswt-Rꜥ teaches containment: like the foreleg supporting the body even at rest, it asks what strength must now be preserved rather than spent. Nothing is initiated or released yet — holding capacity without expression. Living Principle: Rest preserves what effort has built.',
-  'ḥry-ib msḥtjw ḫt (“Heart of the Sacred Foreleg”) — Stillness with awareness. Rest without consciousness dissolves order; this is attentive stillness — the heart alert while action pauses, preparation without movement. In practice: reflection on the completed cycle; quiet ritual and prayer; internal reckoning without judgment. Mswt-Rꜥ emphasizes vigilance: just as the heart continues its rhythm in sleep, it asks what must be kept in awareness while all else rests. Nothing is resolved or undone yet — remaining present within stillness. Living Principle: Stillness must remain conscious.',
-  'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg") — Threshold readiness. sbꜣ signifies guidance visible even in darkness; readiness held at the edge — order intact, awaiting release into renewal. In practice: sealing the year; extinguishing ritual lamps; preparing for the days beyond time. Mswt-Rꜥ completes its lesson: like a guiding star fixed before dawn, it asks what is ready to pass into rebirth without force. Nothing is pushed forward or held back — standing whole at the threshold. Living Principle: Readiness allows renewal without rupture.',
+  '''Orientation — Placing Attention Correctly
+tpy-ꜥ sbꜣw (“Foremost of the Stars”) marks orientation.
+To the Kemite, tpy-ꜥ (“the foremost”) does not mean dominance — it means what appears first and therefore sets direction. Like the first star seen at dusk, it establishes bearing before movement.
+The flood is still high.
+The land is hidden beneath water. Boundaries are gone. Boats replace roads, and even the experienced farmer cannot say where one field ends and another begins.
+This is the moment of first seeing.
+Nothing is built yet.
+Nothing is corrected yet.
+As the ancient texts recall of the beginning:
+“I was alone in the waters…
+I could not find a place to stand.”
+(Coffin Texts, Spell 76)
+So the work here is not action—it is orientation.
+In practice:
+assessing conditions after uncertainty; checking measurements; establishing bearings before action.
+Thoth’s role here is alignment, like the scribe drawing the first line.
+Where am I standing?
+What is true right now?
+Attention gathers. The field of time is surveyed.
+The Kemite understood: if attention is misplaced at the beginning, everything that follows carries that error forward.
+Living Principle:
+Order begins when attention is placed correctly.''',
+  '''Integration — Bringing Thought into Coherence
+ḥry-ib sbꜣw (“Heart of the Stars”) marks integration.
+ḥry-ib (“that which is at the heart”) signals internal coherence—observation becoming understanding. Like the stars held in relation across the sky, meaning emerges not from one point, but from how things hold together.
+The waters still cover the land, but distinctions are now visible.
+Currents shift along hidden edges. Birds return to particular places. Fishermen notice where nets fill and where they remain empty. The world is no longer silent—it is revealing pattern.
+Now observation must be tested.
+In administrative and ritual life:
+checking accounts, refining plans, correcting imbalance before it spreads.
+Thoth keeps proportion so thought matches reality and intention matches capacity.
+For in Kemet, understanding is not assumed—it is verified.
+As expressed in the theology of creation:
+“The heart thinks, and the tongue speaks what the heart has devised.”
+(Memphite Theology, Shabaka Stone)
+But before speech comes alignment.
+This is the work of the heart—to bring what is seen into coherence before it is declared.
+The Kemite knew: a misalignment within becomes disorder without.
+So this phase is quiet, deliberate, exacting.
+Reflection replaces reaction.
+Adjustment replaces assumption.
+Living Principle:
+Truth is not what appears — it is what holds together under examination.''',
+  '''Expression — Releasing Understanding into Structure
+sbꜣw (“The Stars”) marks expression into order.
+Without modifier, sbꜣw refers to the many points held in relation—a system. To the Kemite, the stars modeled a truth: many parts, one rhythm. They do not drift; they hold pattern across time.
+Now the waters withdraw.
+The land rises again, dark and fertile. Boundaries reappear—but they must be re-established, not assumed. What has been observed and refined must now be carried into structure.
+Understanding is released into form.
+Schedules, records, agreements, commitments.
+Plans become instructions.
+Decisions become actions.
+Knowledge becomes responsibility.
+In the villages and temples, scribes begin their work in full. Measurements are recorded. Fields are marked. Provisions are calculated. What was insight becomes shared order.
+For the Kemite, the stars were not decoration—they were proof that order can endure when properly maintained.
+And that endurance depends on record.
+As the scribal tradition teaches:
+“More profitable is a book than a well-built tomb…
+writings cause him to be remembered.”
+(Papyrus Chester Beatty IV)
+So Thoth records and binds, so that decisions are carried forward faithfully.
+Because what is not recorded will drift.
+What drifts will fragment.
+What fragments will fall into isfet.
+Here, the work becomes visible.
+Order is no longer internal—it is enacted, shared, and upheld.
+Living Principle:
+Order is sustained when understanding is shared and upheld.''',
+  '''Initiation of Motion — What Was Set Begins to Move
+ꜥḥꜣy (“The Riser”) marks initiation of motion.
+ꜥḥꜣy refers to rising, appearing, or stepping forward deliberately. It names the moment when what was measured is put into motion: resuming labor, beginning transport, re-entering circulation after pause.
+This is the first lift.
+Thoth’s month established the measure of things. Paopi begins when that measure is no longer only observed, but carried forward.
+The flood still covers much of the land, yet the people are no longer waiting in stillness. Boats begin to move with purpose across known channels. Goods pass from one settlement to another. Temple storehouses receive fish, papyrus, herbs, and jars of beer. What had been held in readiness now begins to travel.
+To the Kemite, this was not merely practical movement. It was the visible sign that order had survived the flood and could now pass through human hands.
+To rise is to accept weight.
+Nothing new is decided here—what was set begins to move. The first burden is lifted. The first route is trusted. The first commitment leaves thought and enters action.
+This is why ꜥḥꜣy is deliberate. A thing that rises must be able to bear its own continuation.
+The Nile itself teaches the principle. It does not leap; it advances in force and rhythm. So too the work of this decan is not haste, but willing entry into responsibility.
+The Kemite understood: what begins to move must be sustained, and what is carried must be worthy of being carried.
+Living Principle:
+What you begin to move, you must be willing to carry.''',
+  '''Sustained Effort — Motion That Remains Aligned
+ḥry-ib ḫꜥy (“Heart of the Riser”) marks sustained effort.
+ḥry-ib (“that which is at the heart”) signals inner regulation—movement guided from within rather than forced from without. What has risen must now be carried correctly.
+The focus shifts from starting to maintaining.
+The boats are already moving. Loads are already lifted. Routes already in use. Now the question is no longer can this begin? but:
+Can this continue without distortion?
+The Nile does not surge endlessly—it holds a rhythm. So too the work of this decan is pacing, load-balancing, and continuity across time.
+In practice:
+checking weight, adjusting pace, maintaining flow in travel and exchange. What was initiated must now be sustained without strain.
+Motion without regulation collapses.
+A load carried too fast spills.
+A route pushed too hard breaks.
+An effort without listening loses its form.
+So endurance here is not force—it is attention while moving.
+The Kemite understood this in both labor and ritual: movement must be corrected as it happens, not after it fails.
+The heart stays active.
+As expressed in the teachings of creation:
+“The heart thinks, and the tongue speaks what the heart has devised.”
+(Memphite Theology, Shabaka Stone)
+Here, the heart does not only think—it regulates.
+It keeps proportion so action matches capacity, and effort matches truth.
+This is the difference between movement that lasts and movement that collapses.
+Living Principle:
+Motion remains righteous only when the heart stays awake.''',
+  '''Stability — Movement That No Longer Falters
+sbꜣ nfr (“The Beautiful Star”) marks successful continuity.
+sbꜣ nfr means rightness of form — movement that stays aligned. It is not beauty as appearance, but beauty as function proven over time.
+Routes are established. Labor flows. Exchange is reliable. Systems prove they hold under use.
+What was initiated in ꜥḥꜣy and regulated in ḥry-ib ꜥḥꜣy now becomes stable without strain.
+The boats move without hesitation. Loads are carried without shifting. Timing holds. What once required attention now moves with its own rhythm.
+This is where vigilance changes form.
+It does not disappear—but it softens.
+Because what is truly aligned does not require constant correction.
+The Kemite saw this in the stars.
+Each point distinct, yet all in relation.
+No collision. No drift.
+Only pattern held across time.
+So too with the work of this decan:
+What holds can be trusted.
+What can be trusted can be shared.
+What is shared becomes part of Maʿat.
+This is the proof of right movement—not that it begins, but that it continues without breaking.
+As the deeper principle of order suggests, what is true is what remains consistent—not once, but repeatedly.
+The star is “beautiful” because it does not falter,
+letting vigilance ease without inviting chaos.
+Living Principle:
+Beauty is motion that no longer needs correction.''',
+  '''Stability Regained — What Endures Becomes Visible
+sꜣḥ (“Sah”) marks stability regained.
+sꜣḥ evokes endurance and renewed stability, symbolically linked to Asar: what has survived disruption and now stands recognizable. It is the moment when continuity is confirmed and fear of collapse recedes.
+The waters have withdrawn.
+The land holds.
+What was uncertain in Thoth, and carried through effort in Paopi, now proves itself by remaining. The fields are visible again. Paths are walked without hesitation. What was once submerged now stands in form.
+This is the first relief.
+Not celebration yet—but recognition.
+In practice:
+recognizing what returned after loss; resuming steady labor; trusting that order has taken hold.
+The Kemite did not assume stability—they looked for it.
+Does the ground hold underfoot?
+Do the routes remain true?
+Does the work continue without strain?
+Only then could the heart begin to release its tension.
+For this is the deeper meaning of sꜣḥ:
+Not that nothing changed—
+but that what matters endured through change.
+This is why it is linked to Asar, who stands again after fragmentation—not as he was before, but as something proven.
+Hathor enters here not with intensity, but with reassurance.
+She does not create stability—
+she reveals that it is safe to feel it.
+As the solar order affirms:
+“He established Ma’at in the place of Isfet.”
+(Pyramid Texts, Utterance 273–274)
+This is that establishment made visible in life.
+The moment when order is no longer fragile,
+but trusted.
+And only from this trust can joy begin to rise.
+Living Principle:
+Stability is the foundation that allows joy to exist.''',
+  '''Harmonization — Stability Shared and Lived
+ḥry-ib sꜣḥ (“Heart of Sah”) marks harmonization.
+The heart (ib) orders within what Sah establishes without. What has proven stable now becomes felt, coordinated, and shared.
+Stability is no longer something observed—it is something lived together.
+The fields hold. The work continues. But now the people begin to move in relation to one another, not just in isolation. Rhythm returns—not only to labor, but to community.
+Boats do not cross at random—they follow timing.
+Work does not overlap—it aligns.
+Voices do not compete—they find measure.
+This is the work of the heart.
+In Kemet, the heart was not emotion alone—it was the seat of discernment, the place where balance is maintained between self and world.
+So this decan governs:
+pacing, coordination, social rhythm, and working in time rather than haste.
+What was rebuilt externally now requires internal agreement.
+Because stability that is not shared will not last.
+The Kemite understood this clearly:
+A field may be fertile, but if workers are out of rhythm, the harvest fails.
+A system may function, but if people are misaligned, it begins to strain.
+So attention shifts outward again—but differently than before.
+Not to initiate.
+Not to test.
+But to align with others.
+Hathor’s presence deepens here.
+Joy is no longer individual—it becomes relational. Music returns not as sound alone, but as coordination—hands, voices, steps, all moving together.
+As the wisdom tradition teaches:
+“Do not set yourself apart from the people…
+Ma’at is great, it endures.”
+(Instruction of Ptahhotep)
+Harmony is not forced—it is recognized and joined.
+This is the heart of sꜣḥ:
+what stands firm can now be shared without breaking.
+Hathor asks:
+Are actions aligned with those around me?
+Because only what is aligned collectively can be sustained beautifully.
+Living Principle:
+Balance is sustained through alignment with others.''',
+  '''Expression — Order Made Visible Through Beauty
+sbꜣ sꜣḥ (“Star of Sah”) marks expression.
+sbꜣ is what shines and orients by presence alone. It does not argue or enforce—it reveals. What has been stabilized and harmonized now becomes visible as form.
+Order no longer needs guarding.
+It can be shown.
+The land is green. The work holds. The people move in rhythm. What was rebuilt and aligned now begins to take on beauty.
+Garlands are worn. Bodies are adorned. Music is played not to restore balance, but to express it.
+This is Hathor fully present.
+Not as effort.
+Not as correction.
+But as radiance.
+In practice:
+creative work and adornment; ritual joy without excess; reinforcing order through pleasure.
+The Kemite did not see beauty as decoration.
+They saw it as proof.
+If something is truly aligned, it can be expressed without distortion.
+If it cannot be expressed, it is not yet complete.
+Like the stars—each one steady, each one placed, each one contributing to a pattern that needs no defense.
+So too with life in this phase:
+What is done well becomes graceful.
+What is stable becomes shareable.
+What is aligned becomes beautiful.
+This is why expression must still be guided.
+Because beauty without measure dissolves into excess.
+But beauty grounded in Maʿat preserves what it reveals.
+As the solar hymns declare:
+“You rise in beauty…
+crowned with your brilliance, adorned in your glory.”
+(Middle Kingdom Hymn to Ra, Papyrus Berlin 3048)
+To rise in beauty is not ornament—it is alignment made visible.
+Hathor asks:
+What deserves celebration so it remains whole?
+Because what is expressed with care does not weaken order—
+it strengthens it.
+Living Principle:
+What is expressed with care preserves order.''',
+  '''Renewed Strength — Power That Has Returned
+msḥtjw (“The Foreleg”) marks renewed strength.
+To the Kemite, msḥtjw represents raw vitality restored after disruption—not aggression, but capacity. It is the foreleg that steadies the body before movement, the point of contact that proves weight can be held again.
+Energy re-enters body and land.
+The fields have been sown. The soil holds the seed. What was buried has not yet risen—but something has already changed.
+The ground is firm.
+The body responds.
+Strength is present again.
+Not fully expressed—but available.
+In practice:
+returning physical strength; resuming demanding labor; testing endurance without excess.
+The Kemite did not rush this phase.
+After inundation, after movement, after stabilization—there is always a moment where strength must be felt before it is trusted.
+A field may be planted—but can it sustain growth?
+A body may move—but can it carry weight?
+So nothing is accelerated. Nothing is pushed.
+This is the act of testing quietly.
+Like the foreleg of a bull placed firmly before forward motion, this decan asks:
+Where has strength returned?
+What force can now be trusted again?
+Ka-ḥer-Ka teaches doubling, not expansion.
+What is restored must be confirmed, not extended too quickly.
+This reflects the deeper pattern of Asar:
+he is not restored all at once—
+he is reconstituted, piece by piece, until strength returns.
+“I have gathered my limbs, I am whole again.”
+(Coffin Texts, Spell 714)
+So too with life in this phase.
+Strength is not assumed—it is recognized through return.
+Only what is felt clearly can be used without breaking.
+Living Principle:
+Strength must be felt before it is used.''',
+  '''Control — Strength Brought Under Awareness
+ḥry-ib msḥtjw (“Heart of the Foreleg”) marks control.
+Force without direction creates isfet; ḥry-ib msḥtjw is strength governed by awareness. What has returned in the previous phase must now be held, measured, and directed.
+The body has regained power.
+The land has received the seed.
+Vitality is present.
+Now it must be managed.
+In practice:
+pacing effort; balancing labor with rest; directing energy with intention.
+The Kemite understood that strength alone is not virtue.
+Unmeasured force exhausts itself.
+Unbalanced labor breaks what it sustains.
+Energy without alignment turns against order.
+So this phase is not about doing more—it is about holding steady.
+The farmer does not overwork the field.
+The laborer does not spend all strength at once.
+The system is maintained through proportion.
+This is the work of the heart (ib).
+In Kemet, the heart is not emotion—it is the regulator, the place where measure is maintained between what is possible and what is right.
+Ka-ḥer-Ka’s resonance here is mastery:
+doubled vitality must be governed, or it fractures.
+So the question becomes:
+Is my strength aligned with my purpose?
+Nothing is exhausted yet.
+Nothing is depleted yet.
+This is the moment of restraint within power—
+the act of holding force steady before expression.
+As the wisdom tradition teaches:
+“Do not overburden yourself…
+your strength will not endure.”
+(Instruction of Amenemope, Chapter 6)
+The Kemite knew:
+Endurance is not force extended endlessly—
+it is force rightly measured.
+Only what is governed can be sustained.
+Living Principle:
+Power becomes useful when it is governed.''',
+  '''Application — Strength Put Into Right Use
+sbꜣ msḥtjw (“Star of the Foreleg”) marks applied force.
+sbꜣ signals what shines as a reliable guide; it does not compel—it orients through presence. Here, strength is no longer only felt or governed—it is used.
+What has returned is now directed outward.
+The fields have been sown and tended. The body has regained capacity. The rhythm of effort is established. Now work becomes productive without strain.
+In practice:
+sustained labor; building and repair; productive output without excess.
+The Kemite understood that this phase is not about exertion—but right application.
+To use strength wrongly is to undo what has been restored.
+To use it rightly is to extend stability into the world.
+So nothing is wasted.
+Nothing is forced.
+Effort is placed where it can hold and continue.
+Like the foreleg carrying the body forward after balance is secured, this decan asks:
+Where can effort now be applied without harm?
+This is the completion of Ka-ḥer-Ka’s teaching.
+Vitality has doubled.
+It has been felt.
+It has been governed.
+Now it must be expressed in service of continuity.
+The Kemite saw this as alignment with divine action itself:
+“I act, and what I do endures.”
+(Pyramid Texts, Utterance 301)
+Endurance is the measure.
+What is applied correctly does not collapse after effort—it continues beyond it.
+So strength is no longer potential.
+It becomes contribution.
+Not for display.
+Not for excess.
+But for maintaining Maʿat across time.
+Living Principle:
+Applied strength preserves balance when guided by restraint.''',
+  '''Attention — Seeing What Must Be Tended First
+ḫnty-ḥr (“Foremost of the Sky”) marks attention to care.
+ḫnty-ḥr means precedence of concern—what must be tended first so life can continue without strain. It is what appears early, what stands forward, what calls for notice before action.
+Effort shifts from exertion to nourishment.
+The seeds have taken. The first growth has emerged. But it is still fragile—easily overlooked, easily lost if neglected.
+So the work changes.
+No longer pushing.
+Now watching.
+In practice:
+checking early growth; stabilizing irrigation and supply; tending what is fragile but promising.
+The Kemite did not wait for failure to respond.
+They looked early.
+Where is water uneven?
+Which shoots are weak?
+What is growing—but not yet secure?
+Like the sky that reveals the stars before they are fully seen, ḫnty-ḥr is about orientation—knowing where to place care before it is urgently demanded.
+Nothing is harvested yet.
+Nothing is secured yet.
+This is the stage of recognition before response.
+Because what is missed early becomes difficult later.
+Šef-Bedet asks:
+What requires attention before it can flourish?
+This is not reaction.
+It is awareness.
+As the wisdom tradition teaches:
+“Do not neglect what is before you…
+it is what sustains the house.”
+(Instruction of Amenemope)
+Care begins not with effort—
+but with seeing clearly.
+Only what is noticed can be nourished correctly.
+Living Principle:
+Care begins with correct attention.''',
+  '''Sustained Nurturing — Care Directed with Understanding
+ḥry-ib ḫnty-ḥr (“Heart of the Foremost”) marks sustained nurturing.
+Nourishment without intention is wasteful; ḥry-ib ḫnty-ḥr is care guided by understanding—the heart directing how resources are given and preserved.
+What was noticed in the previous phase must now be responded to correctly.
+The seedlings are growing. The water is flowing. The work continues—but now distribution matters as much as effort.
+Where attention identified need, the heart now regulates response.
+In practice:
+distributing labor evenly; feeding without excess; maintaining balance in supply.
+The Kemite understood:
+To give too little is to weaken life.
+To give too much is to damage it.
+So nourishment becomes measured.
+Water is carried where it is needed—not everywhere equally.
+Food is shared according to need—not impulse.
+Effort is sustained—not exhausted.
+Nothing is rushed.
+Nothing is depleted.
+This is the discipline of steady provision.
+Because what is being grown is not yet strong enough to endure imbalance.
+So the question becomes:
+Am I sustaining life, or merely consuming effort?
+This is the work of the heart (ib)—to keep proportion between giving and preserving, between care and capacity.
+As the wisdom tradition teaches:
+“Do not consume more than your share…
+it is an abomination to take beyond measure.”
+(Instruction of Amenemope, Chapter 7)
+Sustenance must be governed.
+Only what is given with measure can continue without strain.
+Šef-Bedet reveals here that care is not only kindness—it is precision.
+Giving steadily, without imbalance, is what allows life to hold.
+Living Principle:
+Sustenance preserves order when given with restraint.''',
+  '''Trust — Allowing Growth to Continue
+sbꜣ ḫnty-ḥr (“Star of the Foremost”) marks trust in growth.
+sbꜣ indicates what can be relied on without constant supervision; it is what shines as a guide by its consistency. Here, nourishment has taken hold and can proceed under its own rhythm.
+What was carefully tended no longer requires constant correction.
+The water has been balanced.
+The growth has stabilized.
+The system begins to sustain itself.
+So the work changes again.
+Not adding.
+Not adjusting.
+But allowing.
+In practice:
+easing vigilance; trusting established routines; allowing growth to continue naturally.
+The Kemite understood this as a necessary discipline.
+To interfere too much is to disrupt what has already aligned.
+To withdraw too early is to abandon what still depends.
+So this phase requires discernment:
+What can now be left to grow on its own?
+Nothing is forced.
+Nothing is withheld.
+This is not neglect—it is confidence in what has been properly nourished.
+Like the stars that move without guidance once set in their course, what is aligned begins to hold without constant oversight.
+Šef-Bedet asks:
+What can I allow to grow without control?
+Because control, if continued beyond its time, becomes interference.
+As the wisdom tradition teaches:
+“Do not disturb the balance of what is set…
+it will endure in its proper time.”
+(Instruction of Amenemope)
+Care does not end in effort.
+It ends in trust.
+What has been given correctly, measured carefully, and sustained with balance will continue—without strain, without force.
+This is the completion of nourishment:
+life continuing on its own.
+Living Principle:
+Trust is the final act of care.''',
+  '''Formation — Shaping Through Understanding
+knmw (“Khnum”) marks formation through knowledge.
+knmw signifies shaping with understanding—informed craft, not force. It is the moment when awareness begins to give form to what has been nourished, moving from growth into refinement.
+What has been sustained must now be shaped correctly.
+The fields are growing steadily. The systems hold. But growth alone is not enough—form must follow.
+So the work changes again.
+Not tending.
+Now shaping.
+In practice:
+shaping materials deliberately; learning correct technique; beginning instruction and apprenticeship.
+The Kemite saw this clearly in both craft and life.
+Clay does not become a vessel by force.
+Stone does not take form through haste.
+Skill does not emerge without guidance.
+So the apprentice watches before acting.
+The hand learns proportion before speed.
+This is why knmw is associated with the divine potter—Khnum—who forms life on the wheel, not through pressure alone, but through measured turning and steady hands.
+What is being shaped here is not yet finished.
+Nothing is perfected.
+Nothing is finalized.
+This is learning before refining.
+Because what is formed without understanding will not hold.
+As the creation texts affirm:
+“I created forms from myself.”
+(Pyramid Texts, Utterance 527)
+Form follows knowing.
+So Rekh-Wer asks:
+What must be understood before it can be shaped?
+This is the discipline of early mastery:
+to slow down,
+to observe,
+to align hand with knowledge.
+Only then can effort take form without breaking.
+Living Principle:
+Understanding gives form to effort.''',
+  '''Discernment — Guiding Knowledge with Judgment
+ḥry-ib knmw (“Heart of Khnum”) marks discernment.
+Knowledge without judgment leads to imbalance; ḥry-ib knmw applies awareness inward—knowing how, when, and why to shape. It is not the presence of skill, but the right use of it.
+What was learned must now be refined.
+The hand is no longer uncertain. The work has begun. But now precision matters more than effort.
+Where to press.
+Where to ease.
+When to stop.
+This is the work of the heart (ib).
+In Kemet, the heart is the seat of discernment—the place where truth is weighed and proportion maintained. It governs not only what is done, but how it is done.
+So the craft deepens.
+In practice:
+correcting technique; refining methods; teaching through example.
+The apprentice begins to see mistakes before they form.
+The teacher adjusts without excess.
+The work becomes quieter—but more exact.
+Nothing is rushed.
+Nothing is wasted.
+Because excess—even in knowledge—creates distortion.
+This is where Rekh-Wer becomes mastery.
+Not knowing more—
+but knowing rightly.
+So the question becomes:
+Is my knowledge used with care and proportion?
+Because skill without restraint breaks what it shapes.
+As the wisdom texts teach:
+“Do not act with haste…
+you will ruin what is well-made.”
+(Instruction of Ptahhotep)
+Discernment is what preserves form.
+Here, knowledge turns inward and becomes guidance.
+The hand follows the heart.
+The action follows understanding.
+And in that alignment, skill becomes reliable.
+Living Principle:
+Skill becomes wisdom when directed by intention.''',
+  '''Competence — Knowledge That Can Be Trusted
+sbꜣ knmw (“Star of Khnum”) marks competence made reliable.
+sbꜣ indicates what now guides others—not by force, but by consistency. What has been learned and refined becomes stable enough to orient action beyond the self.
+This is knowledge that holds.
+No longer forming.
+No longer correcting.
+Now guiding.
+sbꜣ knmw is stabilized knowledge—dependable, repeatable skill.
+In practice:
+consistent workmanship; teaching others; applying knowledge without hesitation.
+The Kemite recognized this as a turning point.
+What was once effort becomes standard.
+What was once learned becomes trusted.
+What was once personal becomes shared.
+The artisan no longer experiments—the work flows correctly.
+The teacher no longer explains constantly—the example is enough.
+The system no longer strains—it holds through repetition.
+Nothing is improvised.
+Nothing is uncertain.
+Because what has been mastered does not need to be reinvented.
+Like the stars, which guide by remaining in place, true knowledge becomes a point of orientation for others.
+This is why teaching becomes central here.
+To pass on correct knowledge is to preserve Maʿat across generations.
+To distort it is to introduce error into the future.
+So Rekh-Wer asks:
+What understanding can be trusted to lead?
+Because only what is stable should guide others.
+As the wisdom tradition teaches:
+“If you are a man of knowledge,
+sit among the ignorant and teach them.”
+(Instruction of Ptahhotep)
+Knowledge fulfills itself when it becomes useful beyond the self.
+Here, skill becomes inheritance.
+What is known clearly can be repeated.
+What is repeated correctly can be relied upon.
+What is relied upon becomes part of the world’s order.
+Living Principle:
+True knowledge guides steadily.''',
+  '''Trial — Knowledge Entering the Field
+špsswt (“The Noble Ones”) marks trial.
+špsswt is knowledge in its first application—understanding that must prove itself under real conditions. It is the initial encounter between what is known and what resists it.
+This is the first test.
+What was learned in Rekh-Wer now meets friction.
+The crop faces heat.
+The tool meets resistance.
+The body meets fatigue.
+Nothing is theoretical anymore.
+In practice:
+applying skill under pressure; encountering difficulty without abandoning method; holding to what was learned when ease disappears.
+The Kemite did not expect perfection here.
+They expected contact with reality.
+Because knowledge that has not been tested cannot yet be trusted.
+So mistakes appear.
+Adjustments are required.
+Effort must be sustained even when results are uneven.
+This is where many turn away.
+But the teaching of the month is clear:
+Do not abandon knowledge at the first sign of difficulty.
+The trials of Horus reflect this stage.
+He does not win immediately.
+He is challenged, corrected, restrained.
+And Thoth reminds him:
+“Patience is victory; Maʿat is not won by haste.”
+(Coffin Texts, judgment cycle traditions)
+So this decan is not about success.
+It is about remaining aligned under strain.
+Nothing is mastered yet.
+Nothing is proven yet.
+But something essential begins:
+the separation between what is imagined…
+and what actually holds.
+Šef-Bedet asked for care.
+Rekh-Wer asked for understanding.
+Now Rekh-Nedjes asks:
+Will you remain steady when tested?
+Because only what survives pressure becomes real.
+Living Principle:
+What is known must be tested to become true.''',
+  '''Adaptation — Refining Without Breaking
+ḥry-ib špsswt (“Heart of the Noble Ones”) marks adaptation.
+Refinement requires adjustment, not rigidity; ḥry-ib špsswt is inner recalibration—the heart learning from strain and correcting course without collapse.
+What has been tested now reveals its limits.
+Not as failure—
+but as instruction.
+The pressure of the previous phase exposes where knowledge does not yet hold. The body tires. The method strains. The result wavers.
+So the work changes again.
+Not pushing harder.
+But adjusting correctly.
+In practice:
+modifying technique; strengthening weak areas; practicing patience under effort.
+The Kemite understood that endurance is not stubbornness.
+To continue without change is to break.
+To abandon effort is to lose what was gained.
+So the path is between:
+holding…
+and refining.
+This is the work of the heart (ib).
+It listens while acting.
+It corrects without panic.
+It maintains direction while altering method.
+This is how balance is preserved under pressure.
+The trials of Horus reflect this stage.
+He does not simply resist Set—
+he learns.
+He adjusts his approach, guided by Aset and measured by Thoth, until force becomes controlled and purposeful.
+So Rekh-Nedjes asks:
+What must change so balance can be preserved?
+Nothing is abandoned.
+Nothing is forced.
+This is refining without breaking.
+As the wisdom tradition teaches:
+“Bend with the moment…
+do not be rigid in your path.”
+(Instruction of Amenemope)
+Adaptation is not weakness.
+It is intelligence under pressure.
+What adjusts can endure.
+What endures can be trusted.
+Living Principle:
+Endurance grows through adjustment.''',
+  '''Quiet Competence — Mastery Without Display
+sbꜣ špsswt (“Star of the Noble Ones”) marks quiet competence.
+sbꜣ signals reliability recognized through consistency; sbꜣ špsswt is knowledge that has endured testing and now operates calmly, without display.
+What was strained…
+has stabilized.
+What was uncertain…
+now holds.
+This is not the beginning of skill.
+It is not even its refinement.
+It is the moment when knowledge becomes natural.
+In practice:
+steady work without novelty; maintaining what has been learned; performing duties without seeking recognition.
+The Kemite understood this as a sign of true mastery.
+Not brilliance.
+Not intensity.
+But consistency without effort.
+The hand moves correctly without thought.
+The work is done without strain.
+The system continues without interruption.
+Nothing is improvised.
+Nothing is forced.
+Because what has endured no longer needs to prove itself.
+Like the stars—fixed, reliable, guiding without announcement—true competence does not call attention to itself. It simply holds its place.
+This is why nothing is celebrated here.
+No conclusion is declared.
+No achievement is announced.
+Because what is real does not need to be affirmed—it is evident through continuity.
+So Rekh-Nedjes asks:
+What can now be done correctly without effortful attention?
+This is the transition from effort…
+to embodiment.
+As the wisdom tradition teaches:
+“The silent man prospers…
+his actions endure without noise.”
+(Instruction of Amenemope)
+Mastery is not loud.
+It is stable.
+It is repeatable.
+It is trusted without question.
+And in that trust, Maʿat is preserved—not through declaration, but through unbroken continuation.
+Living Principle:
+True mastery is quiet.''',
+  '''Return — The First Signs of Answer
+ꜥpdw (“The Birds”) marks return and gathering.
+ꜥpdw signals movement toward abundance—the first visible signs that effort begins to answer itself. Like birds returning to known ground, what was sent out begins to come back.
+The harvest has begun—but not fully.
+The fields are being cut in sections. Early yields are gathered and tested. The first grain is measured, not yet consumed in full.
+This is the moment of recognition.
+What was planted…
+has responded.
+Birds circle above the fields, drawn by grain and movement. Their presence is not incidental—it is a sign.
+Life gathers where there is sustenance.
+Return follows provision.
+The Kemite observed this closely.
+Where birds gather, there is food.
+Where food appears, the cycle is holding.
+So this decan is not celebration yet.
+It is confirmation.
+In practice:
+gathering early yield; observing return on effort; preparing storage; beginning distribution carefully.
+Nothing is assumed.
+The first results must be read correctly.
+Is the harvest strong?
+Is the yield balanced?
+Is the labor justified?
+This is where effort begins to speak back.
+And the response must be received with clarity—not excitement.
+Because early abundance can mislead.
+So restraint remains.
+The Kemite knew:
+What returns first must be measured before it is trusted.
+Renenutet’s presence is felt here—not in fullness, but in promise. Šai begins to reveal itself—not as fate declared, but as direction emerging.
+As the offering texts remind:
+“May your provisions come to you…
+as the birds return to their place.”
+(Offering Formula, Old Kingdom inscriptions)
+Return is part of order.
+What is given rightly comes back in its time.
+So Renwet asks:
+What is beginning to return?
+Because in that return lies the first glimpse of destiny fulfilled.
+Living Principle:
+What you give in alignment returns in its time.''',
+  '''Distribution — Receiving in Right Measure
+ḥry-ib ꜥpdw (“Heart of the Birds”) marks distribution.
+What returns must now be received and shared correctly. The gathering of the previous phase gives way to discernment—how abundance is handled determines whether it will endure.
+The harvest is active now.
+Grain is brought in steadily. Storage fills. Movement increases between field, granary, and home. What was first observed is now entering circulation.
+This is where imbalance can begin.
+Too much taken.
+Too little given.
+Too quickly consumed.
+So the work of the heart (ib) becomes central again.
+In practice:
+deciding fair distribution; balancing enjoyment with responsibility; remembering communal obligation.
+The Kemite understood:
+Abundance tests more than scarcity.
+When there is little, restraint is natural.
+When there is much, restraint must be chosen.
+So nothing is hoarded.
+Nothing is wasted.
+The first portions are set aside.
+The stores are measured.
+The sharing is deliberate.
+Because what is received must remain within Maʿat.
+Renenutet provides—but she also observes.
+Šai unfolds—but according to action.
+So this moment carries weight:
+How should what returns be honored and sustained?
+This is not celebration yet.
+It is right handling.
+As the wisdom tradition teaches:
+“Do not eat bread while another stands waiting…
+share what is set before you.”
+(Instruction of Amenemope)
+Receiving without sharing breaks the cycle.
+But giving with measure sustains it.
+Here, abundance becomes responsibility.
+Not a reward—but a condition to be managed with awareness.
+Living Principle:
+Abundance must be governed by gratitude.''',
+  '''Stability — Reward That Can Be Sustained
+sbꜣ ꜥpdw (“Star of the Birds”) marks reward stabilized.
+sbꜣ indicates what can be trusted to continue; it is what holds its place without strain. Here, abundance has settled into order—return that no longer threatens balance.
+The harvest is complete.
+The grain is stored.
+The shares are given.
+The movement has slowed.
+What was gathered and distributed now becomes secure.
+This is the moment of rest—but not release.
+Because rest here is not indulgence.
+It is stability maintained without effort.
+In practice:
+enjoyment without excess; honoring gods and ancestors; securing what has been gained.
+The Kemite understood:
+Reward must be held correctly, or it will dissolve.
+To grasp too tightly invites loss.
+To consume without measure invites emptiness.
+So nothing is rushed.
+Nothing is clung to.
+This is resting within earned return.
+The body relaxes—but awareness remains.
+The stores are full—but still guarded.
+The joy is present—but contained within Maʿat.
+Renenutet’s presence is complete here.
+She has nourished.
+She has revealed.
+Now she maintains.
+Šai, too, becomes visible—not as chance, but as pattern fulfilled.
+What has been given has returned.
+What has been handled rightly now endures.
+So Renwet asks:
+What return can be sustained without fear?
+Because only what is balanced can be enjoyed without loss.
+As the offering texts affirm:
+“May your bread endure,
+may your beer remain…
+in the house of plenty.”
+(Offering Formula, Old Kingdom inscriptions)
+Endurance is the measure of true reward.
+Not how much is gained—
+but how well it is held over time.
+Here, the cycle closes—not with consumption, but with continuity secured.
+What has been earned can now remain.
+Living Principle:
+Reward endures when held in balance.''',
+  '''Departure — Entering the Path Under Constraint
+ẖry ꜥrt (“The One Beneath ꜥrt”) marks departure and first passage.
+ẖry (“beneath, under”) signals movement through constraint—travel beginning under heat, under load, under necessity. It is not the ideal beginning—but the real one.
+The journey starts anyway.
+The sun is already high.
+The air is already heavy.
+The work is already waiting.
+There is no perfect moment.
+So movement begins under pressure.
+In practice:
+starting journeys early; moving goods and duties while conditions press down; accepting that motion is required even when comfort is not available.
+The Kemite understood this as law:
+Maʿat is not maintained by waiting for ease.
+It is maintained by moving correctly within difficulty.
+Caravans depart at first light.
+Boats are loaded before the heat peaks.
+Travelers wrap their heads, measure their pace, and begin.
+Not because it is easy—
+but because it must be done.
+This is the first act of alignment in Hnsw:
+to step onto the path without resistance to its conditions.
+Ra himself does not delay his course.
+“I go upon my road…
+I do not turn back.”
+(Amduat, solar journey texts)
+So too must the traveler.
+Nothing is gained yet.
+Nothing is concluded yet.
+This is not arrival.
+It is commitment.
+The act of beginning, even under strain.
+Hnsw teaches:
+The path does not wait for readiness.
+Readiness is proven by stepping onto it.
+So the question becomes:
+Will you move when movement is required?
+Because delay does not remove burden—it only shifts it forward.
+This is the crossing from intention…
+to action under reality.
+Living Principle:
+The journey begins when you move despite constraint.''',
+  '''Endurance — Carrying With Discipline
+rmn ḥry sꜣḥ (“Shoulder Above Sah”) marks sustained carriage.
+rmn (“shoulder”) is the body’s bearing-point—the place where weight is carried without display. ḥry (“above”) signals elevation through discipline: the load is held higher, cleaner, and more controlled.
+What began in the previous phase must now be carried over distance.
+The journey continues.
+The heat does not lessen.
+The path does not shorten.
+The burden does not disappear.
+So the question is no longer can I begin?
+It is:
+Can I carry correctly?
+In practice:
+pacing work; protecting the body; keeping routes orderly; carrying responsibility without spilling into chaos.
+The Kemite understood:
+Endurance is not force extended blindly.
+It is weight held in proportion over time.
+A load carried poorly exhausts quickly.
+A load carried well can travel far.
+So the body is aligned.
+The pace is measured.
+The breath is controlled.
+Nothing is rushed.
+Nothing is forced.
+This is not strain—it is discipline within movement.
+Like Ra crossing the sky—unchanging in pace, unwavering in path—the traveler learns that consistency is stronger than intensity.
+“I travel and I do not falter…
+my course is set.”
+(Solar Hymns to Ra, New Kingdom tradition)
+So too must the human path hold steady.
+Hnsw asks:
+Can the burden be carried with dignity?
+Because dignity is not ease—it is order maintained under weight.
+This is the refinement of endurance:
+not simply continuing…
+but continuing well.
+What is carried rightly does not break the body.
+What is carried in balance does not disrupt the path.
+Here, movement becomes sustainable.
+Living Principle:
+Endurance is disciplined carriage.''',
+  '''Recovery — Right Measure in Descent
+rmn ḥry sꜣḥ (“Shoulder Beneath Sah”) marks regulated descent and recovery.
+ḥry (“beneath”) returns the theme of constraint—but now as chosen restraint. The shoulder lowers under the load not in weakness, but in understanding. What has been carried must now be set down in right measure.
+Force gives way to proportion.
+The wise do not wait for collapse.
+They reduce before breaking.
+In practice: ending labor before exhaustion; moving into shade; securing what was carried; allowing the body and path to settle into rhythm again.
+This is not stopping.
+It is keeping Maʿat through limitation.
+The Kemetic teachings are clear:
+“Do not overburden your heart…
+what is firm endures.”
+(Instruction tradition — cf. Ptahhotep / Amenemope corpus)
+So the question becomes:
+Do I know when to lessen effort?
+Because excess is as dangerous as neglect.
+To push beyond balance is to enter isfet.
+Like Ra entering the west, the movement changes form.
+The descent is not failure—it is completion of the cycle in order.
+Nothing is abandoned.
+Nothing is forced.
+What was gained is preserved by restraint.
+This is the discipline of reduction:
+to lower the load without losing the work,
+to rest without dissolving order,
+to prepare the body and path for continuation.
+Living Principle:
+What is measured endures; what is excessive breaks.''',
+  '''ḥr-sꜣḥ (“Heru upon Sah”) — This decan marks vigilance under pressure. Authority rests not in force, but in endurance aligned with order. ḥr-sꜣḥ is Heru upheld by Sah (Asar): awareness standing upon what has already been restored and proven stable.
+In practice: rising early to move before the heat; guarding what has been secured; maintaining discipline as fatigue increases; holding position without escalation. Effort is not expanded — it is contained and directed.
+Ḥenti-ḥet asks: What must be protected through awareness, not force?
+“Be vigilant over what is yours,
+for neglect invites loss.”
+(Instruction of Amenemope)
+Nothing is challenged or seized yet. Nothing is tested beyond necessity. This is the act of maintaining order without strain — preserving form through attention rather than exertion.
+Living Principle:
+Authority endures through vigilance, not force.''',
+  '''Restraint — Cooling Power Within
+ḥry-ib ḥr-sꜣḥ (“Heart of Heru upon Sah”) marks restraint.
+If the first decan holds position, this one governs it.
+The authority of Heru is no longer expressed outwardly.
+It is drawn inward—into the heart (ib), where power is weighed, measured, and withheld when necessary.
+ḥry-ib means “that which is at the center,”
+and in Kemet, the heart is not emotion—it is judgment.
+So here, power is not used.
+It is contained.
+Intensity without regulation fractures.
+Heat without pause consumes.
+So the work changes again.
+Not guarding.
+Now reducing.
+In this time, the sun is at its height.
+The body tires more quickly.
+The margin for excess disappears.
+So effort must be chosen carefully.
+In practice: conserving strength; reducing unnecessary labor; cooling body and mind; acting only where action preserves balance.
+Nothing is rushed.
+Nothing is extended beyond its purpose.
+This is the moment of withholding the hand.
+The teachings say:
+“Do not be heated in your speech…
+control yourself, and you will endure.”
+(Instruction of Amenemope)
+Thus the question becomes:
+Where must effort pause to prevent loss?
+Because not all action sustains.
+Some action burns what it touches.
+What is overworked breaks.
+What is overheated collapses.
+So the wise do less—
+but do it exactly.
+Like Sekhmet brought to stillness after her fury,
+power must be cooled before it turns destructive.
+This is not weakness.
+It is completion of strength.
+To act when necessary is power.
+To refrain when needed is mastery.
+Nothing is exhausted.
+Nothing is burned away.
+What is preserved remains available.
+What is measured endures.
+This is how Maʿat is kept under intensity—not through force, but through restraint in the center.
+Living Principle:
+Restraint completes strength.''',
+  '''Release — Offering That Restores the Whole
+sbꜣ ḥr-sꜣḥ (“Star of Heru upon Sah”) marks offering and release.
+If the first decan holds,
+and the second restrains,
+this one returns.
+sbꜣ is what becomes visible, what guides by its presence.
+Here, authority no longer guards or withholds—
+it gives.
+Power completes itself through release.
+What was carried…
+what was protected…
+what was preserved…
+must now be returned to balance.
+In this time, the heat has done its work.
+What could endure has endured.
+What could be kept has been secured.
+Now comes the final act:
+letting go in right measure.
+In practice: offering water and sustenance; releasing excess stores; allowing rest to restore balance; giving back without calculation.
+Nothing is hoarded.
+Nothing is clung to.
+Because what is held beyond its time begins to decay.
+The Kemite understood:
+To keep what should be given
+is to invite loss.
+To release what is complete
+is to preserve it in Maʿat.
+The teachings say:
+“Give to the one who asks…
+for what is stored will not follow you.”
+(Instruction of Amenemope)
+Thus the question becomes:
+What must be offered back so order remains intact?
+Because abundance is not secured by holding—
+it is secured by circulation.
+Like the cooling of Sekhmet,
+like the setting of the sun,
+force must be softened, returned, and redistributed
+so that life may continue.
+This is not loss.
+It is completion.
+The hand opens.
+The store is lightened.
+The body rests without fear.
+What is given returns to the whole.
+What returns sustains the world.
+This is Maʿat preserved through release—
+not by force,
+but by knowing when enough has been held.
+Living Principle:
+What is given back keeps the world whole.''',
+  '''Remembrance — What Endures Is Beautiful
+sbꜣ nfr (“The Beautiful Star”) marks remembrance.
+sbꜣ is what shines and guides.
+nfr is not surface beauty—it is rightness proven over time.
+That which endures without distortion,
+that which holds its form across seasons,
+that which remains in Maʿat—
+this is called nfr.
+So this decan is not about admiration.
+It is about recognition.
+What has lasted…
+what has sustained the household…
+what has remained true under use and time…
+is brought forward into awareness.
+Not to judge.
+Not to change.
+But to acknowledge.
+In practice: recalling what sustained the household; honoring ancestors and elders; reviewing stores, tools, and records; recognizing what proved reliable through the year.
+The Kemite looked back carefully.
+Which tools did not fail?
+Which practices held?
+Which words remained true?
+Because endurance reveals truth.
+What survives is not random.
+It is aligned.
+Nothing is judged yet.
+Nothing is discarded.
+This is not sorting.
+It is seeing clearly.
+To look back without disruption.
+To remember without altering.
+To allow what is real to stand in its completeness.
+The teachings say:
+“A man lives when his name is spoken.”
+(Middle Kingdom funerary tradition)
+So remembrance is not passive.
+It is continuation.
+To recall what endured is to keep it alive.
+To honor what held is to strengthen it further.
+Thus the question becomes:
+What deserves remembrance because it endured?
+Because not all things are equal.
+Some fade because they were never aligned.
+Some remain because they are in accordance with Maʿat.
+These are the things that guide.
+Like a star—steady, visible, unchanged—
+they orient the future by remaining true in the past.
+This is the quiet power of sbꜣ nfr:
+to recognize beauty not in what is new,
+but in what has proven itself.
+Nothing is added.
+Nothing is taken away.
+What is whole is allowed to remain whole.
+Living Principle:
+Remembrance preserves continuity.''',
+  '''Integration — Memory Brought into the Heart
+ḥry-ib sbꜣ nfr (“Heart of the Beautiful Star”) marks integration.
+If the first decan remembers,
+this one decides.
+ḥry-ib — “that which is in the heart” — is not emotion, but discernment.
+The heart weighs, selects, and orders what has been seen.
+Memory alone is not enough.
+What is remembered must be carried correctly.
+What was gathered in reflection…
+what was recognized as enduring…
+what was brought forward without judgment…
+now enters the center.
+Here, it is measured.
+Memory without understanding becomes burden.
+Memory without proportion distorts.
+So the work changes again.
+Not recalling.
+Now integrating.
+In practice: reconciling success and failure; repairing what still has use; teaching through example; choosing what strengthens continuity and what must be released.
+The Kemite did not carry everything forward.
+They carried what aligned.
+What could still serve Maʿat was kept.
+What disrupted balance was set aside.
+Not in rejection—
+but in clarity.
+Nothing is finalized yet.
+Nothing is erased.
+This is not ending.
+It is ordering what will continue.
+The teachings say:
+“Do not load your heart with what you cannot bear…
+set aside what brings imbalance.”
+(Instruction tradition — cf. Amenemope / Ptahhotep)
+Thus the question becomes:
+What memory strengthens balance rather than burdens it?
+Because not all that endures should be carried.
+Some things remain—but are no longer needed.
+Some things persist—but no longer serve.
+Wisdom is knowing the difference.
+Like the weighing of the heart before Maʿat,
+this is the inner measure:
+what is light enough to continue,
+what is heavy enough to be released.
+This is the quiet work of alignment.
+The heart holds…
+but it also chooses.
+What is carried forward shapes the next cycle.
+What is released makes space for it.
+Nothing is forced.
+Nothing is rushed.
+What is true settles into place.
+What is not begins to fall away.
+Living Principle:
+Memory must be carried with discernment.''',
+  '''Continuity — What Is Carried Forward
+sbꜣ sbꜣ nfr (“Star of the Beautiful Star”) marks continuity.
+If the first decan remembers,
+and the second discerns,
+this one carries forward.
+sbꜣ is what guides by remaining.
+Here, what has been tested, remembered, and chosen
+becomes the line that continues.
+Nothing new is added.
+The work of the year is complete.
+The field has given.
+The ancestors have been honored.
+The heart has chosen.
+Now only one question remains:
+What continues?
+What is carried forward is not everything.
+It is what endured…
+what aligned…
+what proved itself across the cycle.
+This becomes the foundation of what follows.
+In practice: preserving what is essential; transmitting knowledge; teaching the next generation; carrying forward names, methods, and measures that sustain Maʿat.
+The Kemite did not begin again from nothing.
+They began from what remained true.
+What was proven becomes instruction.
+What was aligned becomes inheritance.
+Nothing is debated now.
+Nothing is revised.
+This is not reflection.
+This is continuation.
+The teachings say:
+“I have not forgotten the ancestors…
+I have given them their due.”
+(Book of the Dead, Negative Confession — adapted line)
+For to forget is to break the chain.
+But to carry forward is to remain within it.
+Thus the question becomes:
+What must continue so Maʿat does not break?
+Because continuity is not automatic.
+It is maintained.
+Through memory.
+Through action.
+Through transmission.
+Like the Nile that withdraws only to rise again,
+like Asar who dies only to return,
+what is preserved correctly
+does not end.
+It transforms.
+This is the final act of the cycle:
+not completion—
+but unbroken passage.
+What was lived becomes what is carried.
+What is carried becomes what will be lived again.
+Nothing is lost.
+Nothing is clung to.
+What remains…
+continues.
+Living Principle:
+What is carried forward keeps the cycle unbroken.''',
+  '''Emergence — Strength Gathering in Stillness
+msḥtjw ḫt (“The Crocodiles of the Offering”) marks latent emergence.
+msḥtjw (crocodiles) are not symbols of chaos here—but of hidden power beneath the surface. They do not rush forward. They wait, submerged, sensing the right moment.
+ḥt (offering) reminds us that even this power belongs to the cycle—it is not yet to be used, only held in readiness.
+So this is not birth.
+It is the gathering before birth.
+Nothing moves outward yet.
+The flood has not begun.
+The gods have not yet emerged.
+The year has not yet turned.
+But beneath the stillness—
+something is alive.
+This is the first stirring.
+Not visible.
+Not declared.
+But present.
+In practice: remaining still while preparing inwardly; conserving strength; sensing timing; holding energy without release.
+The Kemite understood this moment:
+to act too early
+is to weaken what is forming.
+So nothing is forced.
+Nothing is drawn into action.
+This is the discipline of waiting with awareness.
+The crocodile does not thrash the water.
+It watches.
+It feels.
+It knows when the current changes.
+The teachings say:
+“He who hurries loses the path;
+the one who waits sees clearly.”
+(Instruction tradition — cf. Amenemope)
+Thus the question becomes:
+What is forming that must not yet be moved?
+Because what is premature
+cannot endure.
+What is forced
+cannot take root.
+Like the child in the womb,
+like the sun before dawn,
+like the flood before its rise—
+power gathers in silence
+before it appears.
+Nothing is gained.
+Nothing is shown.
+But everything is becoming.
+This is the first breath of the new cycle—
+still unseen,
+but already alive.
+Living Principle:
+What emerges must first be held in stillness.''',
+  '''Attentive Stillness — The Heart Awake in Silence
+ḥry-ib msḥtjw ḫt (“Heart of the Sacred Foreleg”) marks attentive stillness.
+If the first decan gathers power,
+this one guards it inwardly.
+ḥry-ib — “that which is in the heart” — is awareness at the center.
+Not action.
+Not movement.
+But presence that does not sleep.
+Stillness alone is not enough.
+Rest without awareness dissolves order.
+Silence without attention drifts into neglect.
+So this is not withdrawal.
+It is wakefulness without motion.
+The body is still.
+The hands are still.
+But the heart remains alert.
+Watching.
+Measuring.
+Holding what has been gathered.
+In this time, nothing outward is required.
+The cycle has closed.
+The next has not yet begun.
+So the work turns inward.
+In practice: reflection on the completed cycle; quiet ritual and prayer; internal reckoning; maintaining clarity without acting upon it.
+Nothing is changed yet.
+Nothing is corrected yet.
+This is not decision.
+It is clear seeing without interference.
+The Kemite understood:
+To move too soon breaks formation.
+To sleep too deeply loses alignment.
+So the balance is precise.
+Still…
+but not unaware.
+The teachings say:
+“Be silent, and your heart will hear…
+for the quiet one perceives what others miss.”
+(Instruction tradition — cf. Amenemope)
+Thus the question becomes:
+Can I remain still without losing awareness?
+Because true stillness is not emptiness.
+It is containment.
+What has been gathered is held.
+What has been seen is remembered.
+What is forming is not disturbed.
+Like the crocodile beneath the surface,
+like the child in the womb,
+like the sun before the horizon—
+life is present,
+but not yet expressed.
+Nothing is added.
+Nothing is removed.
+The heart remains steady,
+and in that steadiness, order is preserved.
+This is the center point between cycles:
+not ending,
+not beginning—
+but holding both without movement.
+Living Principle:
+Stillness must remain awake to preserve order.''',
+  '''Threshold — Readiness Before Rebirth
+sbꜣ msḥtjw ḫt (“Star of the Sacred Foreleg”) marks readiness.
+If the first decan gathers,
+and the second holds,
+this one waits at the edge.
+sbꜣ is what remains visible even in darkness—
+a fixed point before dawn.
+Here, nothing is forming anymore.
+Nothing is being shaped.
+Everything is ready.
+The cycle is complete.
+The year is sealed.
+The lamps are extinguished.
+The offerings are made.
+What remains stands in perfect stillness.
+This is not inactivity.
+It is completion without disturbance.
+Nothing is pushed forward.
+Nothing is held back.
+What is ready will emerge.
+What is not will remain unseen.
+In practice: sealing the year; extinguishing ritual lamps; completing final rites; preparing for the days beyond time; standing in stillness without anticipation.
+No correction is made.
+No effort is added.
+Because nothing more can be done.
+The Kemite understood:
+To interfere at this point
+is to break the birth.
+What has reached completion
+must pass on its own.
+The teachings say:
+“Do not press forward what is not yet time…
+the moment arrives in its own measure.”
+(Instruction tradition — cf. Amenemope)
+Thus the question becomes:
+What is ready to pass into rebirth without force?
+Because true renewal is not driven.
+It is released.
+Like the star that holds its place before sunrise,
+like the breath held before speaking,
+like the child at the threshold of birth—
+everything is present,
+but nothing has yet crossed.
+This is the final discipline:
+to do nothing without falling into neglect,
+to wait without grasping,
+to stand without disturbing what is about to begin.
+Nothing is added.
+Nothing is removed.
+Order stands intact—
+awaiting its own renewal.
+This is the end of the cycle—
+not as conclusion,
+but as perfect readiness.
+Living Principle:
+What is ready must be allowed to emerge without force.''',
 ];
 
 /* ─────────── Gloss helpers ─────────── */
@@ -5965,6 +7820,35 @@ class _CalendarPageState extends State<CalendarPage>
     );
   }
 
+  EventItem _noteToEventItem(_Note note) {
+    final startMin = note.allDay
+        ? 9 * 60
+        : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
+    final endMin = note.allDay
+        ? 17 * 60
+        : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
+
+    // Prefer manual color; otherwise use resolver (handles flow color).
+    final resolvedColor = note.manualColor ?? _noteColor(note);
+
+    return EventItem(
+      id: note.id,
+      clientEventId: note.clientEventId,
+      title: note.title,
+      detail: note.detail,
+      location: note.location,
+      startMin: startMin,
+      endMin: endMin,
+      flowId: note.flowId,
+      color: resolvedColor,
+      manualColor: note.manualColor,
+      allDay: note.allDay,
+      category: note.category,
+      isReminder: note.isReminder,
+      reminderId: note.reminderId,
+    );
+  }
+
   Future<void> _moveEventInDayView(
     int ky,
     int km,
@@ -8207,7 +10091,13 @@ class _CalendarPageState extends State<CalendarPage>
 
   /* ───── Day View Navigation ───── */
 
-  void _openDayView(BuildContext ctx, int kYear, int kMonth, int kDay) {
+  void _openDayView(
+    BuildContext ctx,
+    int kYear,
+    int kMonth,
+    int kDay, {
+    EventItem? focusEvent,
+  }) {
     // Adapter: Convert _Note to NoteData, and prime reminders for the day
     final notesForDayFn = (int y, int m, int d) {
       final key = '$y-$m-$d';
@@ -8299,6 +10189,9 @@ class _CalendarPageState extends State<CalendarPage>
           flowIndexBuilder: _buildActiveFlowIndex,
           dataVersion: _dayViewDataVersion,
           getMonthName: getMonthName,
+          focusStartMin: focusEvent?.startMin,
+          focusFlowId: focusEvent?.flowId,
+          focusTitle: focusEvent?.title,
           onManageFlows: (flowId) => _getMyFlowsCallback()(flowId),
           onShowActionsMenu: (ctx) => _showActionsMenu(ctx),
           onOpenProfile: (ctx) => _openProfile(ctx),
@@ -9254,50 +11147,55 @@ class _CalendarPageState extends State<CalendarPage>
                                       start: occ.start,
                                       end: occ.end,
                                     );
-                                    return Row(
-                                      children: [
-                                        // colored dot
-                                        Container(
-                                          width: 10,
-                                          height: 10,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            gradient: _glossFromColor(
-                                              occ.flow.color,
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 4,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          // colored dot
+                                          Container(
+                                            width: 10,
+                                            height: 10,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              gradient: _glossFromColor(
+                                                occ.flow.color,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              GlossyText(
-                                                text: occ.flow.name,
-                                                style: const TextStyle(
-                                                  fontSize: 14,
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                GlossyText(
+                                                  text: occ.flow.name,
+                                                  style: const TextStyle(
+                                                    fontSize: 14,
+                                                  ),
+                                                  gradient: silverGloss,
                                                 ),
-                                                gradient: silverGloss,
-                                              ),
-                                              if (timeLine.isNotEmpty)
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        top: 2.0,
+                                                if (timeLine.isNotEmpty)
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                      top: 2.0,
+                                                    ),
+                                                    child: Text(
+                                                      timeLine,
+                                                      style: const TextStyle(
+                                                        color: Colors.white70,
+                                                        fontSize: 12,
                                                       ),
-                                                  child: Text(
-                                                    timeLine,
-                                                    style: const TextStyle(
-                                                      color: Colors.white70,
-                                                      fontSize: 12,
                                                     ),
                                                   ),
-                                                ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     );
                                   },
                                 ),
@@ -9364,45 +11262,73 @@ class _CalendarPageState extends State<CalendarPage>
                                           CrossAxisAlignment.start,
                                       children: [
                                         Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              GlossyText(
-                                                text: n.title,
-                                                style: const TextStyle(
-                                                  fontSize: 16,
+                                          child: Semantics(
+                                            button: true,
+                                            label: 'Edit ${n.title}',
+                                            child: InkWell(
+                                              onTap: () async {
+                                                Navigator.pop(sheetCtx);
+                                                final evt = _noteToEventItem(n);
+                                                _openDayView(
+                                                  context,
+                                                  selYear,
+                                                  selMonth,
+                                                  selDay,
+                                                  focusEvent: evt,
+                                                );
+                                              },
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  vertical: 4,
                                                 ),
-                                                gradient: silverGloss,
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    GlossyText(
+                                                      text: n.title,
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                      ),
+                                                      gradient: silverGloss,
+                                                    ),
+                                                    if (timeLine.isNotEmpty ||
+                                                        location != null) ...[
+                                                      const SizedBox(
+                                                        height: 2,
+                                                      ),
+                                                      Text(
+                                                        [
+                                                          if (timeLine
+                                                              .isNotEmpty)
+                                                            timeLine,
+                                                          if (location != null)
+                                                            location!,
+                                                        ].join(' • '),
+                                                        style: const TextStyle(
+                                                          color: Colors.white70,
+                                                          fontSize: 12,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                    if (hasDetail) ...[
+                                                      const SizedBox(
+                                                        height: 6,
+                                                      ),
+                                                      Text(
+                                                        cleanedDetail,
+                                                        style: const TextStyle(
+                                                          color: Colors.white70,
+                                                          fontSize: 12,
+                                                          height: 1.35,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
                                               ),
-                                              if (timeLine.isNotEmpty ||
-                                                  location != null) ...[
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  [
-                                                    if (timeLine.isNotEmpty)
-                                                      timeLine,
-                                                    if (location != null)
-                                                      location!,
-                                                  ].join(' • '),
-                                                  style: const TextStyle(
-                                                    color: Colors.white70,
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              ],
-                                              if (hasDetail) ...[
-                                                const SizedBox(height: 6),
-                                                Text(
-                                                  cleanedDetail,
-                                                  style: const TextStyle(
-                                                    color: Colors.white70,
-                                                    fontSize: 12,
-                                                    height: 1.35,
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
+                                            ),
                                           ),
                                         ),
                                         IconButton(
@@ -15151,6 +17077,7 @@ class _DayChip extends StatelessWidget {
 
     return EventItem(
       id: note.id,
+      clientEventId: note.clientEventId,
       title: note.title,
       detail: note.detail,
       location: note.location,
