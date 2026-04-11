@@ -283,7 +283,7 @@ Where this holds, order continues. Where it is not maintained, Isfet appears.'''
     id: 'ausar',
     title: 'Ausar',
     glyph: '𓁹',
-    aliases: ['Osiris', 'Ausar'],
+    aliases: ['Osiris', 'Ausar', 'Asar'],
     body: '''
 Ausar is the principle of restoration through gathering and support. In early texts, he is not restored alone—he is found, held, and reestablished by others.
 “Isis has come, Nephthys has come…
@@ -664,6 +664,486 @@ Where this is maintained, what is built endures within Ma’at. Where it is not,
       KemeticNodeLink(phrase: 'Djehuty', targetId: 'djehuty'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
+    ],
+  ),
+  KemeticNode(
+    id: 'sopdet',
+    title: 'Sopdet (Sirius)',
+    glyph: '𓇼',
+    aliases: ['Sopdet', 'Sothis', 'Sirius'],
+    body: '''
+Sopdet is the heliacal rising star that opened the Kemetic year and announced the flood.
+Her appearance at dawn set the civil calendar and guided agricultural timing; she is a marker of renewal, not ornament.
+Linked to Aset and Ausar, she signals that order returns through cyclical rising.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Aset', targetId: 'aset'),
+      KemeticNodeLink(phrase: 'Ausar', targetId: 'ausar'),
+      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+    ],
+  ),
+  KemeticNode(
+    id: 'coffin_texts',
+    title: 'Coffin Texts',
+    glyph: '𓏏',
+    body: '''
+The Coffin Texts are Middle Kingdom spells written inside coffins so non-royal dead could navigate the Duat.
+They adapt Pyramid Text utterances and add journeys, transformations, and protections for the individual.
+They bridge the Old Kingdom inscriptions and the later Book of the Dead, keeping knowledge active beyond the tomb.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Pyramid Texts', targetId: 'pyramid_texts'),
+      KemeticNodeLink(phrase: 'Book of the Dead', targetId: 'book_of_the_dead'),
+      KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'papyrus_chester_beatty_iv',
+    title: 'Papyrus Chester Beatty IV',
+    glyph: '𓏞',
+    body: '''
+Papyrus Chester Beatty IV contains the "Immortality of Writers" teaching.
+It argues that measured words endure longer than stone or offspring, preserving ren and Ka when bodies decay.
+The text shows how scribal craft is bound to Maʿat and the renewal of memory.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+      KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
+      KemeticNodeLink(phrase: 'ren', targetId: 'ren'),
+    ],
+  ),
+  KemeticNode(
+    id: 'kemet',
+    title: 'Kemet (Black Land)',
+    glyph: '𓈎',
+    body: '''
+Kemet, the “Black Land,” names the dark silt left by the Nile and the country built upon it.
+It stands in contrast to the red desert, marking the bounds where cultivation and settlement can hold.
+Restoring those boundaries after inundation is part of keeping Maʿat in place.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+      KemeticNodeLink(phrase: 'Nile', targetId: 'nile'),
+    ],
+  ),
+  KemeticNode(
+    id: 'pyramid_texts',
+    title: 'Pyramid Texts',
+    glyph: '𓉐',
+    body: '''
+The Pyramid Texts are Old Kingdom utterances carved inside royal pyramids.
+They provide ascent, protection, and identification with netjeru so the king joins the sky and travels the Duat.
+Their formulas establish speech as action and become the base for later funerary corpora.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'hathor',
+    title: 'Hathor',
+    glyph: '𓇋𓏏𓆑',
+    aliases: ['Hathor'],
+    body: '''
+Hathor embodies joy, music, and the sky-cow who carries Ra.
+She is also the Eye of Ra who must be soothed, showing that delight and danger come from the same force when measure is lost.
+Her cult at Dendera celebrates beauty as proof of alignment with Maʿat.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+      KemeticNodeLink(phrase: 'Eye of Ra', targetId: 'eye_of_ra'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'dendera',
+    title: 'Dendera',
+    glyph: '𓉗',
+    body: '''
+Dendera is the principal temple of Hathor, home to rituals of music, fertility, and the rising of the Eye.
+Its ceilings record star clocks and zodiacal imagery, linking observation of the sky to cult practice.
+The site shows how celebration, astronomy, and renewal meet in daily service.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Hathor', targetId: 'hathor'),
+      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+      KemeticNodeLink(phrase: 'decans', targetId: 'decans'),
+    ],
+  ),
+  KemeticNode(
+    id: 'sah',
+    title: 'Sah (Orion)',
+    glyph: '✷',
+    body: '''
+Sah is the constellation Orion, associated with Ausar.
+Its rising with Sopdet marks seasonal change and affirms the god’s reappearance in the sky.
+Sah frames night navigation and the idea that the dead travel with the stars.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ausar', targetId: 'ausar'),
+      KemeticNodeLink(phrase: 'Sopdet', targetId: 'sopdet'),
+    ],
+  ),
+  KemeticNode(
+    id: 'abydos',
+    title: 'Abydos',
+    glyph: '𓉐',
+    body: '''
+Abydos is the chief cult center of Ausar and a major necropolis.
+Pilgrims left stelae to join his mysteries and secure remembrance in the west.
+The site ties local burial to national myths of death and restoration.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ausar', targetId: 'ausar'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'decans',
+    title: 'Decans',
+    glyph: '✵',
+    body: '''
+The decans are thirty-six star groups rising in roughly ten-day intervals.
+Priest-astronomers used them to track hours of night, regulate ritual, and mirror the sun’s passage through the Duat.
+They embody the practice of keeping time through recurring celestial order.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
+      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+    ],
+  ),
+  KemeticNode(
+    id: 'duat',
+    title: 'Duat',
+    glyph: '𓁢',
+    aliases: ['Duat'],
+    body: '''
+The Duat is the unseen realm the sun and the dead traverse each night.
+It is ordered in gates and regions; safe passage depends on names, offerings, and measured speech.
+Journeying through the Duat restores Ra and tests whether a person aligns with Maʿat.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+      KemeticNodeLink(phrase: 'Book of the Dead', targetId: 'book_of_the_dead'),
+    ],
+  ),
+  KemeticNode(
+    id: 'renenutet',
+    title: 'Renenutet',
+    glyph: '𓆤',
+    body: '''
+Renenutet is the guardian of nourishment and harvest.
+She oversees grain stores and the just distribution that sustains Ka and community.
+Offerings to her acknowledge that abundance must be tended, not assumed.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'house_of_life',
+    title: 'House of Life (Per Ankh)',
+    glyph: '𓏠',
+    body: '''
+The House of Life is the temple library and scriptorium.
+Scribes copied rituals, medical texts, astronomy, and instruction here, treating writing as service to the gods.
+It joined intellectual labor to cult practice so knowledge stayed aligned with Maʿat.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+      KemeticNodeLink(phrase: 'Djehuty', targetId: 'djehuty'),
+    ],
+  ),
+  KemeticNode(
+    id: 'instruction_ptahhotep',
+    title: 'Instruction of Ptahhotep',
+    glyph: '𓏏',
+    body: '''
+The Instruction of Ptahhotep teaches measured speech, humility, and fairness.
+Its maxims link daily conduct to Maʿat and warn against arrogance or heated words.
+Students copied it for centuries as practical ethics.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'sekhmet',
+    title: 'Sekhmet',
+    glyph: '𓃭',
+    body: '''
+Sekhmet is the fierce Eye of Ra whose heat can protect or destroy.
+Rituals to cool and pacify her remind that power must be governed and returned to balance.
+She embodies the discipline of directing force so it serves Maʿat.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'rekh_wer',
+    title: 'Rekh-Wer (Great Knowing)',
+    glyph: '𓂋',
+    body: '''
+Rekh-Wer names knowledge applied to sustain order.
+It emphasizes counting, surveying, and teaching so effort matches reality.
+The concept pairs Djehuty’s measure with the restrained strength of Sekhmet.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Djehuty', targetId: 'djehuty'),
+      KemeticNodeLink(phrase: 'Sekhmet', targetId: 'sekhmet'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'set',
+    title: 'Set',
+    glyph: '𓋴',
+    body: '''
+Set embodies force and contest.
+He defends Ra’s barque against Apophis yet opposes Heru in disputes of rule, showing power’s double edge.
+Set must be placed and judged so his strength serves Maʿat rather than isfet.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+      KemeticNodeLink(phrase: 'Heru', targetId: 'heru'),
+      KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
+    ],
+  ),
+  KemeticNode(
+    id: 'esna_temple',
+    title: 'Esna Temple',
+    glyph: '𓉗',
+    body: '''
+The Temple of Esna, dedicated chiefly to Khnum, preserves late hymns and cosmology.
+Its inscriptions include decan lists and festival texts that align local worship to wider celestial rhythms.
+Esna shows how regional temples participated in national timekeeping and renewal.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Khnum', targetId: 'khnum'),
+      KemeticNodeLink(phrase: 'decans', targetId: 'decans'),
+      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+    ],
+  ),
+  KemeticNode(
+    id: 'shai',
+    title: 'Šai (Destiny)',
+    glyph: '𓋴',
+    aliases: ['Šai', 'Shai', 'šai'],
+    body: '''
+Šai personifies allotment or destiny.
+Wisdom texts invoke Šai to remind that outcomes must be met with proportion, not grasping.
+Acknowledging Šai frames effort within limits without denying responsibility.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+      KemeticNodeLink(
+        phrase: 'Instruction of Amenemope',
+        targetId: 'instruction_amenemope',
+      ),
+    ],
+  ),
+  KemeticNode(
+    id: 'offering_formula',
+    title: 'Offering Formula (ḥtp-dỉ-nsw)',
+    glyph: '𓏏',
+    body: '''
+The offering formula grants bread, beer, oxen, and fowl to the dead through the king and the gods.
+It ties giver, recipient, and divine order so Ka and ren remain supplied.
+Its repetition on stelae shows how memory and sustenance are joined in Maʿat.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'shemu',
+    title: 'Shemu',
+    glyph: '𓇯',
+    body: '''
+Shemu is the dry season of harvest and transport.
+Work shifts to gathering, preserving, and carrying what inundation and growth provided.
+The season teaches balance under heat and the discipline of circulation.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'amduat',
+    title: 'Amduat',
+    glyph: '𓁢',
+    body: '''
+The Amduat maps Ra’s twelve-hour journey through the Duat.
+It names beings, gates, and transformations that allow sunrise.
+The text models persistence through darkness with knowledge and measure.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+      KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'khepri',
+    title: 'Khepri',
+    glyph: '𓆣',
+    body: '''
+Khepri is the morning sun as scarab, continually becoming.
+He rolls the light into being each day, teaching steady effort and renewal.
+Meditating on Khepri aligns human labor with emergence rather than haste.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'hotep',
+    title: 'ḥtp (Peace/Offering)',
+    glyph: '𓊵',
+    body: '''
+ḥtp expresses satisfaction and balance achieved through correct offering.
+It underlies formulas like ḥtp-dỉ-nsw and names that signal a state of settled order.
+Cooling excess and giving rightly create ḥtp and keep Maʿat in place.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+      KemeticNodeLink(
+        phrase: 'Offering Formula',
+        targetId: 'offering_formula',
+      ),
+    ],
+  ),
+  KemeticNode(
+    id: 'instruction_amenemope',
+    title: 'Instruction of Amenemope',
+    glyph: '𓏏',
+    body: '''
+The Instruction of Amenemope guides restraint, patience, and fairness under pressure.
+It counsels quiet endurance over grasping advantage, warning that excess invites isfet.
+Its maxims shaped later wisdom traditions on speech and care for the vulnerable.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+      KemeticNodeLink(phrase: 'isfet', targetId: 'isfet'),
+    ],
+  ),
+  KemeticNode(
+    id: 'eye_of_ra',
+    title: 'Eye of Ra',
+    glyph: '𓂋',
+    body: '''
+The Eye of Ra is the outward force of the sun, often manifest as Hathor or Sekhmet.
+Sent to punish, it must be cooled and returned so creation survives its own intensity.
+The Eye shows that power directed outward still requires measure and recall.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+      KemeticNodeLink(phrase: 'Hathor', targetId: 'hathor'),
+      KemeticNodeLink(phrase: 'Sekhmet', targetId: 'sekhmet'),
+    ],
+  ),
+  KemeticNode(
+    id: 'tomb_inscriptions',
+    title: 'Tomb Inscriptions',
+    glyph: '𓐍',
+    body: '''
+Tomb inscriptions record names, deeds, and offering prayers to sustain the dead.
+They join image and text so Ka and ren receive continued attention from the living.
+Their presence affirms that memory and provision are required for continuity.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
+      KemeticNodeLink(phrase: 'ren', targetId: 'ren'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'middle_kingdom_funerary',
+    title: 'Middle Kingdom Funerary Tradition',
+    glyph: '𓊹',
+    body: '''
+Middle Kingdom funerary practice broadened access to afterlife knowledge.
+Coffin Texts, stelae, and models show households preparing with spells, offerings, and remembered names.
+The period links royal formulas to family care within Maʿat.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Coffin Texts', targetId: 'coffin_texts'),
+      KemeticNodeLink(phrase: 'Offering Formula', targetId: 'offering_formula'),
+    ],
+  ),
+  KemeticNode(
+    id: 'nut',
+    title: 'Nut',
+    glyph: '𓇯',
+    body: '''
+Nut is the sky who swallows the sun each night and births it each dawn.
+She arches over Geb, creating the space where life unfolds.
+Her embrace frames cycles of return and the promise of emergence.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'horizon',
+    title: 'Akhet (Horizon)',
+    glyph: '𓈌',
+    body: '''
+Akhet, the horizon, is where sky meets earth and where Ra rises.
+It marks transition points—birth, rebirth, and the visible proof of return.
+Temples align to the horizon to mirror cosmic order and welcome light correctly.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'natron',
+    title: 'Natron',
+    glyph: '𓈗',
+    body: '''
+Natron is the mineral salt used to purify, preserve, and reset ritual space.
+In mummification it dries and cleanses; in daily rites it prepares altars and vessels.
+Its use shows that order depends on deliberate cleansing before renewal.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'nebet_het',
+    title: 'Nebet-Het',
+    glyph: '𓇓',
+    aliases: ['Nebet-Het', 'Nephthys'],
+    body: '''
+Nebet-Het stands at thresholds and guards the dead with Aset.
+She brings protection and lament that restores, present in rites of preparation and mourning.
+Her role shows care at the boundaries between worlds.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Aset', targetId: 'aset'),
+      KemeticNodeLink(phrase: 'Ausar', targetId: 'ausar'),
+    ],
+  ),
+  KemeticNode(
+    id: 'khnum',
+    title: 'Khnum',
+    glyph: '𓎛𓈖𓅓',
+    body: '''
+Khnum fashions bodies on the potter’s wheel and controls the inundation at Elephantine.
+He embodies formation through craft and the measured release of water.
+Temple hymns portray him shaping Ka and ensuring fertility.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+      KemeticNodeLink(phrase: 'decans', targetId: 'decans'),
+    ],
+  ),
+  KemeticNode(
+    id: 'memphite_theology',
+    title: 'Memphite Theology',
+    glyph: '𓉐',
+    aliases: ['Shabaka Stone', 'Memphite Theology'],
+    body: '''
+The Memphite Theology, preserved on the Shabaka Stone, describes creation through Ptah’s heart and tongue.
+It centers thought and speech as the engines of formation and kingship.
+The text shows inscription as preservation of Maʿat against decay.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Ptah', targetId: 'ptah'),
+      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'book_of_the_dead',
+    title: 'Book of the Dead',
+    glyph: '𓏏',
+    aliases: ['Book of Coming Forth by Day', 'Book of the Dead'],
+    body: '''
+The Book of the Dead is a New Kingdom collection of spells for safe passage and vindication.
+It draws on Pyramid and Coffin Texts, emphasizing judgment, names, and transformation.
+Customized papyri show personal engagement with Maʿat and the Duat.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Coffin Texts', targetId: 'coffin_texts'),
+      KemeticNodeLink(phrase: 'Pyramid Texts', targetId: 'pyramid_texts'),
+      KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
     ],
   ),
 ];

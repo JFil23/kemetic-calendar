@@ -64,6 +64,8 @@ import '../inbox/inbox_page.dart';
 import '../reflections/decan_reflection_archive_page.dart';
 import '../settings/settings_page.dart';
 import '../nodes/kemetic_node_list_page.dart';
+import '../nodes/kemetic_node_library.dart';
+import '../nodes/kemetic_node_model.dart';
 
 typedef _QuickAddParse = ({
   DateTime date,
@@ -2283,6 +2285,235 @@ but as perfect readiness.
 Living Principle:
 What is ready must be allowed to emerge without force.''',
 ];
+
+/* ─────────── Info link targets ─────────── */
+
+class _InlineNodeContent {
+  final String id;
+  final String title;
+  final String body;
+  final String glyph;
+  final List<KemeticNodeLink> linkMap;
+
+  const _InlineNodeContent({
+    required this.id,
+    required this.title,
+    required this.body,
+    this.glyph = '★',
+    this.linkMap = const [],
+  });
+}
+
+const List<KemeticNodeLink> _baseDecanLinks = [
+  KemeticNodeLink(phrase: 'Thoth', targetId: 'djehuty'),
+  KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
+  KemeticNodeLink(phrase: 'Coffin Texts', targetId: 'coffin_texts'),
+  KemeticNodeLink(phrase: 'Memphite Theology', targetId: 'memphite_theology'),
+  KemeticNodeLink(phrase: 'Shabaka Stone', targetId: 'memphite_theology'),
+  KemeticNodeLink(
+    phrase: 'Papyrus Chester Beatty IV',
+    targetId: 'papyrus_chester_beatty_iv',
+  ),
+  KemeticNodeLink(phrase: 'Hathor', targetId: 'hathor'),
+  KemeticNodeLink(phrase: 'Asar', targetId: 'ausar'),
+  KemeticNodeLink(phrase: 'Sah', targetId: 'sah'),
+  KemeticNodeLink(phrase: 'Khnum', targetId: 'khnum'),
+  KemeticNodeLink(phrase: 'Renenutet', targetId: 'renenutet'),
+  KemeticNodeLink(phrase: 'Šai', targetId: 'shai'),
+  KemeticNodeLink(phrase: 'šai', targetId: 'shai'),
+  KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+  KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
+  KemeticNodeLink(phrase: 'Amduat', targetId: 'amduat'),
+  KemeticNodeLink(phrase: 'Khepri', targetId: 'khepri'),
+  KemeticNodeLink(phrase: 'Heru', targetId: 'heru'),
+  KemeticNodeLink(phrase: 'Sekhmet', targetId: 'sekhmet'),
+  KemeticNodeLink(
+    phrase: 'Instruction of Ptahhotep',
+    targetId: 'instruction_ptahhotep',
+  ),
+  KemeticNodeLink(
+    phrase: 'Instruction of Amenemope',
+    targetId: 'instruction_amenemope',
+  ),
+  KemeticNodeLink(phrase: 'Pyramid Texts', targetId: 'pyramid_texts'),
+  KemeticNodeLink(phrase: 'Offering Formula', targetId: 'offering_formula'),
+  KemeticNodeLink(phrase: 'Book of the Dead', targetId: 'book_of_the_dead'),
+  KemeticNodeLink(phrase: 'House of Life', targetId: 'house_of_life'),
+  KemeticNodeLink(phrase: 'Dendera', targetId: 'dendera'),
+  KemeticNodeLink(phrase: 'Abydos', targetId: 'abydos'),
+  KemeticNodeLink(phrase: 'Esna Temple', targetId: 'esna_temple'),
+  KemeticNodeLink(phrase: 'isfet', targetId: 'isfet'),
+  KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
+  KemeticNodeLink(phrase: 'ka', targetId: 'ka'),
+  KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
+];
+
+final List<KemeticNodeLink> _decanLinkMap = [
+  ..._baseDecanLinks,
+  ..._buildDecanNameLinks(),
+];
+
+final Map<int, List<KemeticNodeLink>> _monthLinkMap = {
+  1: const [
+    KemeticNodeLink(phrase: 'Thoth', targetId: 'djehuty'),
+    KemeticNodeLink(phrase: 'Sopdet', targetId: 'sopdet'),
+    KemeticNodeLink(phrase: 'Coffin Texts', targetId: 'coffin_texts'),
+    KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+    KemeticNodeLink(
+      phrase: 'Papyrus Chester Beatty IV',
+      targetId: 'papyrus_chester_beatty_iv',
+    ),
+  ],
+  2: const [
+    KemeticNodeLink(phrase: 'Thoth', targetId: 'djehuty'),
+    KemeticNodeLink(phrase: 'Kemet', targetId: 'kemet'),
+    KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
+    KemeticNodeLink(phrase: 'Pyramid Texts', targetId: 'pyramid_texts'),
+    KemeticNodeLink(phrase: 'Hathor', targetId: 'hathor'),
+  ],
+  3: const [
+    KemeticNodeLink(phrase: 'Hathor', targetId: 'hathor'),
+    KemeticNodeLink(phrase: 'Dendera', targetId: 'dendera'),
+    KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+    KemeticNodeLink(phrase: 'Horus', targetId: 'heru'),
+    KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
+  ],
+  4: const [
+    KemeticNodeLink(phrase: 'ka', targetId: 'ka'),
+    KemeticNodeLink(phrase: 'kemet', targetId: 'kemet'),
+    KemeticNodeLink(phrase: 'Asar', targetId: 'ausar'),
+    KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
+    KemeticNodeLink(phrase: 'isfet', targetId: 'isfet'),
+    KemeticNodeLink(phrase: 'Sah', targetId: 'sah'),
+    KemeticNodeLink(phrase: 'Sopdet', targetId: 'sopdet'),
+    KemeticNodeLink(phrase: 'Aset', targetId: 'aset'),
+    KemeticNodeLink(phrase: 'Dendera', targetId: 'dendera'),
+    KemeticNodeLink(phrase: 'Abydos', targetId: 'abydos'),
+    KemeticNodeLink(phrase: 'decans', targetId: 'decans'),
+    KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
+  ],
+  5: const [
+    KemeticNodeLink(phrase: 'Renenutet', targetId: 'renenutet'),
+    KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
+    KemeticNodeLink(phrase: 'House of Life', targetId: 'house_of_life'),
+    KemeticNodeLink(
+      phrase: 'Instruction of Ptahhotep',
+      targetId: 'instruction_ptahhotep',
+    ),
+    KemeticNodeLink(phrase: 'ka', targetId: 'ka'),
+  ],
+  6: const [
+    KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
+    KemeticNodeLink(phrase: 'House of Life', targetId: 'house_of_life'),
+    KemeticNodeLink(phrase: 'Pyramid Texts', targetId: 'pyramid_texts'),
+    KemeticNodeLink(phrase: 'Thoth', targetId: 'djehuty'),
+    KemeticNodeLink(phrase: 'Sekhmet', targetId: 'sekhmet'),
+    KemeticNodeLink(phrase: 'isfet', targetId: 'isfet'),
+    KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+  ],
+  7: const [
+    KemeticNodeLink(phrase: 'Rekh-Wer', targetId: 'rekh_wer'),
+    KemeticNodeLink(phrase: 'Asar', targetId: 'ausar'),
+    KemeticNodeLink(phrase: 'Horus', targetId: 'heru'),
+    KemeticNodeLink(phrase: 'Set', targetId: 'set'),
+    KemeticNodeLink(phrase: 'Aset', targetId: 'aset'),
+    KemeticNodeLink(phrase: 'Thoth', targetId: 'djehuty'),
+    KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
+    KemeticNodeLink(phrase: 'Coffin Texts', targetId: 'coffin_texts'),
+    KemeticNodeLink(phrase: 'Dendera', targetId: 'dendera'),
+    KemeticNodeLink(phrase: 'Esna Temple', targetId: 'esna_temple'),
+  ],
+  8: const [
+    KemeticNodeLink(phrase: 'Renenutet', targetId: 'renenutet'),
+    KemeticNodeLink(phrase: 'šai', targetId: 'shai'),
+    KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
+    KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
+    KemeticNodeLink(phrase: 'Offering Formula', targetId: 'offering_formula'),
+  ],
+  9: const [
+    KemeticNodeLink(phrase: 'Shemu', targetId: 'shemu'),
+    KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
+    KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+    KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
+    KemeticNodeLink(phrase: 'Amduat', targetId: 'amduat'),
+    KemeticNodeLink(phrase: 'Khepri', targetId: 'khepri'),
+  ],
+  10: const [
+    KemeticNodeLink(phrase: 'ḥtp', targetId: 'hotep'),
+    KemeticNodeLink(
+      phrase: 'Instruction of Amenemope',
+      targetId: 'instruction_amenemope',
+    ),
+    KemeticNodeLink(phrase: 'Eye of Ra', targetId: 'eye_of_ra'),
+    KemeticNodeLink(phrase: 'Sekhmet', targetId: 'sekhmet'),
+    KemeticNodeLink(phrase: 'isfet', targetId: 'isfet'),
+    KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+    KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
+    KemeticNodeLink(phrase: 'Pyramid Texts', targetId: 'pyramid_texts'),
+  ],
+  11: const [
+    KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
+    KemeticNodeLink(phrase: 'Tomb inscriptions', targetId: 'tomb_inscriptions'),
+    KemeticNodeLink(
+      phrase: 'Middle Kingdom funerary tradition',
+      targetId: 'middle_kingdom_funerary',
+    ),
+    KemeticNodeLink(phrase: 'Asar', targetId: 'ausar'),
+    KemeticNodeLink(phrase: 'Maʿat', targetId: 'maat'),
+    KemeticNodeLink(phrase: 'Abydos', targetId: 'abydos'),
+  ],
+  12: const [
+    KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+    KemeticNodeLink(phrase: 'Nut', targetId: 'nut'),
+    KemeticNodeLink(phrase: 'Dendera', targetId: 'dendera'),
+    KemeticNodeLink(phrase: 'Pyramid Texts', targetId: 'pyramid_texts'),
+    KemeticNodeLink(phrase: 'horizon', targetId: 'horizon'),
+    KemeticNodeLink(phrase: 'natron', targetId: 'natron'),
+  ],
+  13: const [
+    KemeticNodeLink(phrase: 'Nut', targetId: 'nut'),
+    KemeticNodeLink(phrase: 'Asar', targetId: 'ausar'),
+    KemeticNodeLink(phrase: 'Heru the Elder', targetId: 'heru'),
+    KemeticNodeLink(phrase: 'Set', targetId: 'set'),
+    KemeticNodeLink(phrase: 'Aset', targetId: 'aset'),
+    KemeticNodeLink(phrase: 'Nebet-Het', targetId: 'nebet_het'),
+    KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
+    KemeticNodeLink(phrase: 'natron', targetId: 'natron'),
+  ],
+};
+
+final Map<String, _InlineNodeContent> _decanInlineNodes =
+    _buildDecanInlineNodes();
+
+List<KemeticNodeLink> _buildDecanNameLinks() {
+  final links = <KemeticNodeLink>[];
+  DecanMetadata.decanNames.forEach((_, names) {
+    for (final name in names) {
+      links.add(KemeticNodeLink(phrase: name, targetId: 'decan:$name'));
+    }
+  });
+  return links;
+}
+
+Map<String, _InlineNodeContent> _buildDecanInlineNodes() {
+  final map = <String, _InlineNodeContent>{};
+  DecanMetadata.decanNames.forEach((month, names) {
+    for (int i = 0; i < names.length; i++) {
+      final idx = (month - 1) * 3 + i;
+      if (idx < 0 || idx >= _decanInfo.length) continue;
+      final short = names[i];
+      final title = DecanMetadata.decanTitles[short] ?? short;
+      map['decan:$short'] = _InlineNodeContent(
+        id: 'decan:$short',
+        title: title,
+        body: _decanInfo[idx].trim(),
+        glyph: '✶',
+        linkMap: _decanLinkMap,
+      );
+    }
+  });
+  return map;
+}
 
 /* ─────────── Gloss helpers ─────────── */
 
@@ -18362,6 +18593,10 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
           final infoBody = (decanIndex == null || month == 13)
               ? (_monthInfo[month] ?? '')
               : _decanInfo[(month - 1) * 3 + decanIndex];
+          final infoLinks = (decanIndex == null || month == 13)
+              ? (_monthLinkMap[month] ?? const [])
+              : _decanLinkMap;
+          final backLabel = decanIndex == null ? 'Month Info' : 'Decan Info';
 
           return Column(
             children: [
@@ -18451,6 +18686,9 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                               title: infoTitle,
                               body: infoBody,
                               speakText: _buildSpeakLine(month, decanIndex),
+                              linkMap: infoLinks,
+                              backLabel: backLabel,
+                              inlineNodes: _decanInlineNodes,
                             ),
                             _EventsTab(
                               kYear: pageYear,
@@ -18500,24 +18738,65 @@ class _MonthEvent {
   });
 }
 
-class _InfoTab extends StatelessWidget {
+class _InfoTab extends StatefulWidget {
   final String title;
   final String body;
   final String speakText;
+  final List<KemeticNodeLink> linkMap;
+  final String backLabel;
+  final Map<String, _InlineNodeContent> inlineNodes;
 
   const _InfoTab({
     required this.title,
     required this.body,
     required this.speakText,
+    required this.linkMap,
+    required this.backLabel,
+    required this.inlineNodes,
   });
 
   @override
+  State<_InfoTab> createState() => _InfoTabState();
+}
+
+class _InfoTabState extends State<_InfoTab> {
+  static const TextStyle _bodyStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 14,
+    height: 1.35,
+  );
+
+  final ScrollController _infoController = ScrollController();
+  final ScrollController _nodeController = ScrollController();
+  final List<_InfoNodeEntry> _history = [];
+  double _infoOffset = 0;
+
+  @override
+  void dispose() {
+    _infoController.dispose();
+    _nodeController.dispose();
+    super.dispose();
+  }
+
+  _InfoNodeEntry? get _activeNode =>
+      _history.isEmpty ? null : _history.last;
+
+  @override
   Widget build(BuildContext context) {
+    final node = _activeNode;
+    final isNodeView = node != null;
+    final speakText = node?.body ?? widget.speakText;
+    final title = node?.title ?? widget.title;
+    final body = node?.body ?? widget.body;
+    final links = node?.links ?? widget.linkMap;
+
     return SingleChildScrollView(
+      controller: isNodeView ? _nodeController : _infoController,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (isNodeView) _buildBackRow(),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -18540,20 +18819,337 @@ class _InfoTab extends StatelessWidget {
               ),
             ],
           ),
+          if (isNodeView) ...[
+            const SizedBox(height: 8),
+            _buildNodeHeader(node!),
+          ],
           const SizedBox(height: 8),
-          Text(
-            body.trim(),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              height: 1.35,
-            ),
-          ),
+          ..._buildParagraphs(body.trim(), links),
         ],
       ),
     );
   }
+
+  Widget _buildBackRow() {
+    final previous =
+        _history.length >= 2 ? _history[_history.length - 2].title : null;
+    final label = previous ?? 'Back to ${widget.backLabel}';
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _popNode,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.arrow_back, color: Colors.white70, size: 18),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNodeHeader(_InfoNodeEntry node) {
+    final aliases = node.aliases.where((a) => a.isNotEmpty).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ShaderMask(
+          shaderCallback: (Rect bounds) => goldGloss.createShader(bounds),
+          blendMode: BlendMode.srcIn,
+          child: Text(
+            node.glyph,
+            style: const TextStyle(
+              fontSize: 34,
+              color: Colors.white,
+              fontFamily: 'GentiumPlus',
+              fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        if (aliases.isNotEmpty)
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: aliases
+                .map(
+                  (alias) => Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: Text(
+                      alias,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+      ],
+    );
+  }
+
+  List<Widget> _buildParagraphs(
+    String body,
+    List<KemeticNodeLink> linkMap,
+  ) {
+    final used = <String>{};
+    final widgets = <Widget>[];
+    for (final raw in body.split('\n\n')) {
+      final paragraph = raw.trimRight();
+      if (paragraph.isEmpty) continue;
+      final spans = _linkifyParagraph(paragraph, linkMap, used);
+      widgets.add(
+        RichText(
+          text: TextSpan(style: _bodyStyle, children: spans),
+          textHeightBehavior: const TextHeightBehavior(
+            applyHeightToFirstAscent: false,
+            applyHeightToLastDescent: false,
+          ),
+        ),
+      );
+      widgets.add(const SizedBox(height: 12));
+    }
+    if (widgets.isNotEmpty) {
+      widgets.removeLast();
+    }
+    return widgets;
+  }
+
+  List<InlineSpan> _linkifyParagraph(
+    String paragraph,
+    List<KemeticNodeLink> linkMap,
+    Set<String> used,
+  ) {
+    final matches = <_LinkMatch>[];
+    for (final link in linkMap) {
+      if (used.contains(link.phrase)) continue;
+      if (!_canResolve(link.targetId)) continue;
+      final matchIndex = _findFirstOccurrence(paragraph, link.phrase);
+      if (matchIndex == null) continue;
+      matches.add(
+        _LinkMatch(
+          link: link,
+          start: matchIndex,
+          end: matchIndex + link.phrase.length,
+        ),
+      );
+      used.add(link.phrase);
+    }
+    matches.sort((a, b) => a.start.compareTo(b.start));
+
+    final spans = <InlineSpan>[];
+    int cursor = 0;
+    for (final match in matches) {
+      if (match.start < cursor) continue;
+      if (match.start > cursor) {
+        spans.add(TextSpan(text: paragraph.substring(cursor, match.start)));
+      }
+      spans.add(_buildLinkSpan(match.link));
+      cursor = match.end;
+    }
+    if (cursor < paragraph.length) {
+      spans.add(TextSpan(text: paragraph.substring(cursor)));
+    }
+
+    if (spans.isEmpty) {
+      return [TextSpan(text: paragraph)];
+    }
+    return spans;
+  }
+
+  InlineSpan _buildLinkSpan(KemeticNodeLink link) {
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () => _openNode(link.targetId),
+          child: ShaderMask(
+            shaderCallback: (Rect bounds) => goldGloss.createShader(bounds),
+            blendMode: BlendMode.srcIn,
+            child: Text(
+              link.phrase,
+              style: _bodyStyle.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                shadows: const [
+                  Shadow(
+                    color: Colors.black54,
+                    blurRadius: 2,
+                    offset: Offset(0, 1),
+                  ),
+                  Shadow(
+                    color: Colors.white10,
+                    blurRadius: 5,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openNode(String targetId) {
+    final entry = _resolveNode(targetId);
+    if (entry == null) return;
+    final currentId = _activeNode?.id.toLowerCase();
+    if (currentId != null && currentId == entry.id.toLowerCase()) return;
+    if (_history.isEmpty && _infoController.hasClients) {
+      _infoOffset = _infoController.offset;
+    }
+    setState(() {
+      _history.add(entry);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_nodeController.hasClients) {
+        _nodeController.jumpTo(0);
+      }
+    });
+  }
+
+  _InfoNodeEntry? _resolveNode(String targetId) {
+    final inline = widget.inlineNodes[targetId];
+    if (inline != null) return _InfoNodeEntry.inline(inline);
+    final libNode = KemeticNodeLibrary.resolve(targetId);
+    if (libNode != null) return _InfoNodeEntry.library(libNode);
+    return null;
+  }
+
+  bool _canResolve(String targetId) {
+    return widget.inlineNodes.containsKey(targetId) ||
+        KemeticNodeLibrary.resolve(targetId) != null;
+  }
+
+  bool _popNode() {
+    if (_history.isEmpty) return false;
+    setState(() {
+      _history.removeLast();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_history.isEmpty) {
+        if (_infoController.hasClients) {
+          final max = _infoController.position.maxScrollExtent;
+          final target = _infoOffset.clamp(0.0, max);
+          _infoController.jumpTo(target);
+        }
+      } else {
+        if (_nodeController.hasClients) {
+          _nodeController.jumpTo(0);
+        }
+      }
+    });
+    return true;
+  }
+
+  int? _findFirstOccurrence(String paragraph, String phrase) {
+    int? fallback;
+    int index = paragraph.indexOf(phrase);
+    while (index != -1) {
+      final isWhole = _isWholeWordMatch(paragraph, index, phrase);
+      if (!isWhole) {
+        index = paragraph.indexOf(phrase, index + phrase.length);
+        continue;
+      }
+      final insideQuote = _isInsideQuotedLine(paragraph, index, phrase.length);
+      fallback ??= index;
+      if (!insideQuote) {
+        return index;
+      }
+      index = paragraph.indexOf(phrase, index + phrase.length);
+    }
+    return fallback;
+  }
+
+  bool _isWholeWordMatch(String source, int index, String phrase) {
+    final beforeIndex = index - 1;
+    final afterIndex = index + phrase.length;
+    final before = beforeIndex >= 0 ? source[beforeIndex] : '';
+    final after = afterIndex < source.length ? source[afterIndex] : '';
+    final letterPattern = RegExp(r'[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]');
+    final beforeIsLetter = letterPattern.hasMatch(before);
+    final afterIsLetter = letterPattern.hasMatch(after);
+    return !beforeIsLetter && !afterIsLetter;
+  }
+
+  bool _isInsideQuotedLine(String text, int index, int length) {
+    final lineStart = text.lastIndexOf('\n', index) + 1;
+    final lineEnd = text.indexOf('\n', index);
+    final line = text
+        .substring(lineStart, lineEnd == -1 ? text.length : lineEnd)
+        .trimLeft();
+
+    if (line.startsWith('“') ||
+        line.startsWith('"') ||
+        line.startsWith('‘') ||
+        line.startsWith('—')) {
+      return true;
+    }
+
+    final quotesBefore = RegExp(
+      r'[“”"‘’]',
+    ).allMatches(text.substring(0, index)).length;
+    final quotesThrough = RegExp(
+      r'[“”"‘’]',
+    ).allMatches(text.substring(0, index + length)).length;
+
+    return quotesBefore.isOdd && quotesThrough >= quotesBefore;
+  }
 }
+
+class _InfoNodeEntry {
+  final KemeticNode? node;
+  final _InlineNodeContent? inlineNode;
+
+  _InfoNodeEntry.library(this.node) : inlineNode = null;
+  _InfoNodeEntry.inline(this.inlineNode) : node = null;
+
+  String get id => (node?.id ?? inlineNode?.id) ?? '';
+  String get title => (node?.title ?? inlineNode?.title) ?? '';
+  String get glyph => (node?.glyph ?? inlineNode?.glyph ?? '★');
+  String get body => (node?.body ?? inlineNode?.body) ?? '';
+  List<KemeticNodeLink> get links =>
+      node?.linkMap ?? inlineNode?.linkMap ?? const [];
+  List<String> get aliases => node?.aliases ?? const [];
+}
+
+class _LinkMatch {
+  final KemeticNodeLink link;
+  final int start;
+  final int end;
+
+  const _LinkMatch({
+    required this.link,
+    required this.start,
+    required this.end,
+  });
+}
+
 
 class _EventsTab extends StatelessWidget {
   final int kYear;
