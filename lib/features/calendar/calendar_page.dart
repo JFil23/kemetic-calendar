@@ -63,6 +63,7 @@ import 'package:mobile/debug/push_diagnostics.dart';
 import '../inbox/inbox_page.dart';
 import '../reflections/decan_reflection_archive_page.dart';
 import '../settings/settings_page.dart';
+import '../nodes/kemetic_node_list_page.dart';
 
 typedef _QuickAddParse = ({
   DateTime date,
@@ -2407,19 +2408,18 @@ class _CalendarActionsGrid extends StatelessWidget {
   final List<_CalendarAction> actions;
   final void Function(_CalendarAction action) onSelected;
 
-  const _CalendarActionsGrid({
-    required this.actions,
-    required this.onSelected,
-  });
+  const _CalendarActionsGrid({required this.actions, required this.onSelected});
 
   @override
   Widget build(BuildContext context) {
     final rows =
         (actions.length + _kActionGridColumns - 1) ~/ _kActionGridColumns;
-    final double width = _kActionGridHPadding * 2 +
+    final double width =
+        _kActionGridHPadding * 2 +
         _kActionGridColumns * _kActionTileWidth +
         (_kActionGridColumns - 1) * _kActionGridSpacing;
-    final double height = _kActionGridVPadding * 2 +
+    final double height =
+        _kActionGridVPadding * 2 +
         rows * _kActionTileHeight +
         (rows - 1) * _kActionGridSpacing;
 
@@ -3931,10 +3931,12 @@ class _CalendarPageState extends State<CalendarPage>
   // Repository instances
   late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
   late final JournalRepo _journalRepo = JournalRepo(Supabase.instance.client);
-  late final DecanReflectionRepo _decanReflectionRepo =
-      DecanReflectionRepo(Supabase.instance.client);
-  late final AIReflectionService _aiReflectionService =
-      AIReflectionService(Supabase.instance.client);
+  late final DecanReflectionRepo _decanReflectionRepo = DecanReflectionRepo(
+    Supabase.instance.client,
+  );
+  late final AIReflectionService _aiReflectionService = AIReflectionService(
+    Supabase.instance.client,
+  );
   // Reminders (Flutter-only layer)
   late final ReminderService _reminderService = ReminderService();
   StreamSubscription<List<Reminder>>? _reminderSub; // unused now (safety)
@@ -3974,7 +3976,8 @@ class _CalendarPageState extends State<CalendarPage>
     int badgeCount,
     String reflectionText,
     bool persisted,
-  })? _reflectionPrompt;
+  })?
+  _reflectionPrompt;
   bool _reflectionInFlight = false;
   bool _archivingReflection = false;
   DateTime? _lastReflectionCheckDay;
@@ -5483,7 +5486,9 @@ class _CalendarPageState extends State<CalendarPage>
       await eventsRepo.deleteByClientIdPrefix(cidPrefix);
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[reminders] delete reminder events failed ($cidPrefix): $e');
+        debugPrint(
+          '[reminders] delete reminder events failed ($cidPrefix): $e',
+        );
       }
     }
 
@@ -6697,8 +6702,7 @@ class _CalendarPageState extends State<CalendarPage>
                               Row(
                                 children: [
                                   GlossyText(
-                                    text:
-                                        _alertLabelFor(alertMinutesBefore),
+                                    text: _alertLabelFor(alertMinutesBefore),
                                     gradient: goldGloss,
                                     style: const TextStyle(fontSize: 14),
                                   ),
@@ -8193,8 +8197,9 @@ class _CalendarPageState extends State<CalendarPage>
         _logBucket('move: reconciled _notes (fallback)');
       }
 
-      final alertMinutes =
-          _effectiveAlertMinutes(reminderNote.alertOffsetMinutes);
+      final alertMinutes = _effectiveAlertMinutes(
+        reminderNote.alertOffsetMinutes,
+      );
       DateTime? alertLocal;
       if (alertMinutes != null) {
         alertLocal = startLocal.subtract(Duration(minutes: alertMinutes));
@@ -8950,21 +8955,13 @@ class _CalendarPageState extends State<CalendarPage>
     );
   }
 
-  Future<void> _showDensityMenu(
-    BuildContext context,
-    Rect anchorRect,
-  ) async {
+  Future<void> _showDensityMenu(BuildContext context, Rect anchorRect) async {
     final overlay =
         Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
     if (overlay == null) return;
 
     final position = RelativeRect.fromRect(
-      Rect.fromLTWH(
-        anchorRect.left,
-        anchorRect.bottom,
-        anchorRect.width,
-        0,
-      ),
+      Rect.fromLTWH(anchorRect.left, anchorRect.bottom, anchorRect.width, 0),
       Offset.zero & overlay.size,
     );
 
@@ -9024,6 +9021,12 @@ class _CalendarPageState extends State<CalendarPage>
         onSelected: _openReflectionsFromMenu,
       ),
       _CalendarAction(
+        icon: Icons.auto_awesome,
+        gradient: goldGloss,
+        label: 'sꜣt',
+        onSelected: () => _openKemeticNodes(context),
+      ),
+      _CalendarAction(
         icon: Icons.settings,
         gradient: goldGloss,
         label: 'Settings',
@@ -9062,8 +9065,10 @@ class _CalendarPageState extends State<CalendarPage>
         Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
     if (buttonBox == null || overlay == null) return;
 
-    final anchorOffset =
-        buttonBox.localToGlobal(Offset.zero, ancestor: overlay);
+    final anchorOffset = buttonBox.localToGlobal(
+      Offset.zero,
+      ancestor: overlay,
+    );
     final anchorRect = Rect.fromLTWH(
       anchorOffset.dx,
       anchorOffset.dy,
@@ -9074,10 +9079,12 @@ class _CalendarPageState extends State<CalendarPage>
     final actions = _calendarActions(context, anchorRect);
     final rows =
         (actions.length + _kActionGridColumns - 1) ~/ _kActionGridColumns;
-    final double menuWidth = _kActionGridHPadding * 2 +
+    final double menuWidth =
+        _kActionGridHPadding * 2 +
         _kActionGridColumns * _kActionTileWidth +
         (_kActionGridColumns - 1) * _kActionGridSpacing;
-    final double menuHeight = _kActionGridVPadding * 2 +
+    final double menuHeight =
+        _kActionGridVPadding * 2 +
         rows * _kActionTileHeight +
         (rows - 1) * _kActionGridSpacing;
 
@@ -9192,6 +9199,18 @@ class _CalendarPageState extends State<CalendarPage>
       context,
       MaterialPageRoute(builder: (_) => const DecanReflectionArchivePage()),
     );
+  }
+
+  Future<void> _openKemeticNodes(BuildContext context) async {
+    UiGuards.disableJournalSwipe();
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const KemeticNodeListPage()),
+      );
+    } finally {
+      UiGuards.enableJournalSwipe();
+    }
   }
 
   Future<void> _openSettingsFromMenu() async {
@@ -10370,14 +10389,16 @@ class _CalendarPageState extends State<CalendarPage>
       }
     }
 
-    final startFloor =
-        today.subtract(const Duration(days: _flowHydrationLookbackDays));
+    final startFloor = today.subtract(
+      const Duration(days: _flowHydrationLookbackDays),
+    );
     DateTime start = minStart == null
         ? startFloor
         : (minStart.isBefore(startFloor) ? startFloor : minStart);
 
-    final endCeiling =
-        today.add(const Duration(days: _flowHydrationLookaheadDays));
+    final endCeiling = today.add(
+      const Duration(days: _flowHydrationLookaheadDays),
+    );
     DateTime end;
     if (maxEnd == null) {
       end = endCeiling;
@@ -11257,8 +11278,8 @@ class _CalendarPageState extends State<CalendarPage>
                                                   Padding(
                                                     padding:
                                                         const EdgeInsets.only(
-                                                      top: 2.0,
-                                                    ),
+                                                          top: 2.0,
+                                                        ),
                                                     child: Text(
                                                       timeLine,
                                                       style: const TextStyle(
@@ -11356,8 +11377,8 @@ class _CalendarPageState extends State<CalendarPage>
                                               child: Padding(
                                                 padding:
                                                     const EdgeInsets.symmetric(
-                                                  vertical: 4,
-                                                ),
+                                                      vertical: 4,
+                                                    ),
                                                 child: Column(
                                                   crossAxisAlignment:
                                                       CrossAxisAlignment.start,
@@ -11371,9 +11392,7 @@ class _CalendarPageState extends State<CalendarPage>
                                                     ),
                                                     if (timeLine.isNotEmpty ||
                                                         location != null) ...[
-                                                      const SizedBox(
-                                                        height: 2,
-                                                      ),
+                                                      const SizedBox(height: 2),
                                                       Text(
                                                         [
                                                           if (timeLine
@@ -11389,9 +11408,7 @@ class _CalendarPageState extends State<CalendarPage>
                                                       ),
                                                     ],
                                                     if (hasDetail) ...[
-                                                      const SizedBox(
-                                                        height: 6,
-                                                      ),
+                                                      const SizedBox(height: 6),
                                                       Text(
                                                         cleanedDetail,
                                                         style: const TextStyle(
@@ -11604,8 +11621,9 @@ class _CalendarPageState extends State<CalendarPage>
                                     Row(
                                       children: [
                                         GlossyText(
-                                          text:
-                                              _alertLabelFor(alertMinutesBefore),
+                                          text: _alertLabelFor(
+                                            alertMinutesBefore,
+                                          ),
                                           gradient: goldGloss,
                                           style: const TextStyle(fontSize: 14),
                                         ),
@@ -12565,17 +12583,19 @@ class _CalendarPageState extends State<CalendarPage>
                               _openDaySheet(
                                 _today.kYear,
                                 _today.kMonth,
-                          _today.kDay,
-                          allowDateChange: true,
-                        );
-                      },
-                      child: KemeticGold.text(
-                        'Open full editor',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                                _today.kDay,
+                                allowDateChange: true,
+                              );
+                            },
+                            child: KemeticGold.text(
+                              'Open full editor',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
                     ],
                   ),
                 );
@@ -12940,9 +12960,7 @@ class _CalendarPageState extends State<CalendarPage>
           }
         } catch (err, st) {
           if (kDebugMode) {
-            debugPrint(
-              '[loadFromDisk] batched flow event fetch failed: $err',
-            );
+            debugPrint('[loadFromDisk] batched flow event fetch failed: $err');
             debugPrint('$st');
           }
         }
@@ -12984,8 +13002,7 @@ class _CalendarPageState extends State<CalendarPage>
 
       for (final flowId in hydrationFlowIds) {
         try {
-          final flowEvents =
-              eventsByFlowId[flowId] ?? const <FlowEventRow>[];
+          final flowEvents = eventsByFlowId[flowId] ?? const <FlowEventRow>[];
 
           for (final evt in flowEvents) {
             // Convert DB UTC timestamps -> device local -> Kemetic date
@@ -12996,7 +13013,8 @@ class _CalendarPageState extends State<CalendarPage>
             // Build _Note, same shape the rest of the app expects
             // 👈 SAFETY NET: Skip events for flows that don't exist or are inactive/expired.
             final owningFlow = flowIndex[flowId];
-            final flowEligible = owningFlow != null &&
+            final flowEligible =
+                owningFlow != null &&
                 owningFlow.active &&
                 _isActiveByEndDate(owningFlow.end);
             if (!flowEligible) {
@@ -13999,7 +14017,10 @@ class _CalendarPageState extends State<CalendarPage>
       );
 
       await _scheduleAlertForEvent(
-        note: note.copyWith(id: updated.id, clientEventId: updated.clientEventId),
+        note: note.copyWith(
+          id: updated.id,
+          clientEventId: updated.clientEventId,
+        ),
         ky: selYear,
         km: selMonth,
         kd: selDay,
@@ -14884,8 +14905,7 @@ class _CalendarPageState extends State<CalendarPage>
               ? null
               : TimeOfDay.fromDateTime(ev.endsAtUtc!.toLocal()),
           flowId: ev.flowLocalId,
-          alertOffsetMinutes:
-              decodedMeta.alertMinutes ?? _alertNoneMinutes,
+          alertOffsetMinutes: decodedMeta.alertMinutes ?? _alertNoneMinutes,
         );
 
         await _scheduleAlertForEvent(
@@ -15158,8 +15178,7 @@ class _CalendarPageState extends State<CalendarPage>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.menu_book_rounded,
-                      color: _gold, size: 18),
+                  const Icon(Icons.menu_book_rounded, color: _gold, size: 18),
                   const SizedBox(width: 8),
                   Flexible(
                     child: Column(
@@ -15367,7 +15386,8 @@ class _CalendarPageState extends State<CalendarPage>
     String? decanTheme,
     int kMonth,
     int kYear,
-  })? _latestCompletedDecanWindow() {
+  })?
+  _latestCompletedDecanWindow() {
     final now = DateTime.now();
     final kem = KemeticMath.fromGregorian(now);
 
@@ -15400,7 +15420,8 @@ class _CalendarPageState extends State<CalendarPage>
     final start = KemeticMath.toGregorian(kYear, kMonth, decanStartDay);
     final end = KemeticMath.toGregorian(kYear, kMonth, decanEndDay);
     final todayLocal = _dateOnlyLocal(DateTime.now());
-    if (_dateOnlyLocal(end).isAfter(todayLocal)) return null; // only after completion
+    if (_dateOnlyLocal(end).isAfter(todayLocal))
+      return null; // only after completion
 
     final decanLabel = DecanMetadata.decanNameFor(
       kMonth: kMonth,
@@ -15429,7 +15450,9 @@ class _CalendarPageState extends State<CalendarPage>
         return JournalDocument.fromJson(map);
       } catch (e) {
         if (kDebugMode) {
-          debugPrint('Failed to parse journal document for ${entry.gregDate}: $e');
+          debugPrint(
+            'Failed to parse journal document for ${entry.gregDate}: $e',
+          );
         }
       }
     }
@@ -15438,26 +15461,31 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Future<
-      List<
-          ({
-            EventBadgeToken token,
-            DateTime occurredOn,
-            DateTime? occurredAt,
-          })>> _collectDecanBadges(DateTime decanStart, DateTime decanEnd) async {
-    final entries = await _journalRepo.listRange(start: decanStart, end: decanEnd);
-    final badges = <({
-      EventBadgeToken token,
-      DateTime occurredOn,
-      DateTime? occurredAt,
-    })>[];
+    List<({EventBadgeToken token, DateTime occurredOn, DateTime? occurredAt})>
+  >
+  _collectDecanBadges(DateTime decanStart, DateTime decanEnd) async {
+    final entries = await _journalRepo.listRange(
+      start: decanStart,
+      end: decanEnd,
+    );
+    final badges =
+        <
+          ({EventBadgeToken token, DateTime occurredOn, DateTime? occurredAt})
+        >[];
     final seen = <String>{};
 
     void addBadges(List<EventBadgeToken> tokens, DateTime fallbackDay) {
       final day = _dateOnlyLocal(fallbackDay);
       for (final token in tokens) {
         if (!seen.add(token.id)) continue;
-        final occurred = token.start != null ? _dateOnlyLocal(token.start!) : day;
-        badges.add((token: token, occurredOn: occurred, occurredAt: token.start));
+        final occurred = token.start != null
+            ? _dateOnlyLocal(token.start!)
+            : day;
+        badges.add((
+          token: token,
+          occurredOn: occurred,
+          occurredAt: token.start,
+        ));
       }
     }
 
@@ -15469,14 +15497,12 @@ class _CalendarPageState extends State<CalendarPage>
 
     final currentDoc = _journalController.currentDocument;
     final currentDate = _journalController.currentDate;
-    final withinWindow = currentDate != null &&
+    final withinWindow =
+        currentDate != null &&
         !currentDate.isBefore(_dateOnlyLocal(decanStart)) &&
         !currentDate.isAfter(_dateOnlyLocal(decanEnd));
     if (currentDoc != null && currentDate != null && withinWindow) {
-      addBadges(
-        JournalBadgeUtils.tokensFromDocument(currentDoc),
-        currentDate,
-      );
+      addBadges(JournalBadgeUtils.tokensFromDocument(currentDoc), currentDate);
     }
 
     badges.sort((a, b) {
@@ -15527,20 +15553,20 @@ class _CalendarPageState extends State<CalendarPage>
     final opening = focused
         ? 'This decan moved in close circles—choosing depth over breadth.'
         : exploratory
-            ? 'Your days touched many currents, yet an inner note stayed steady.'
-            : 'You moved with measured steps, neither rushing nor drifting.';
+        ? 'Your days touched many currents, yet an inner note stayed steady.'
+        : 'You moved with measured steps, neither rushing nor drifting.';
 
     final pattern = focused
         ? 'Returning to similar moments suggests you were seeking alignment more than variety—choosing what felt true over what was simply available.'
         : exploratory
-            ? 'You let yourself explore without fixing on one shape. That kind of wandering is listening for what rings honest.'
-            : 'Your marks carried a quiet negotiation between stability and change, steadying yourself while testing new edges.';
+        ? 'You let yourself explore without fixing on one shape. That kind of wandering is listening for what rings honest.'
+        : 'Your marks carried a quiet negotiation between stability and change, steadying yourself while testing new edges.';
 
     final rhythm = morningLean
         ? 'Mornings held more of your presence—as if first light gave the clearest signal.'
         : eveningLean
-            ? 'Evenings gathered your energy—closing light became a place to settle what mattered.'
-            : 'Your hours spread across the day, a gentle pulse rather than a single surge.';
+        ? 'Evenings gathered your energy—closing light became a place to settle what mattered.'
+        : 'Your hours spread across the day, a gentle pulse rather than a single surge.';
 
     const silence =
         'Some spaces stayed quiet—not as neglect, but as rest points waiting to receive you when you are ready.';
@@ -15551,8 +15577,9 @@ class _CalendarPageState extends State<CalendarPage>
     const closing =
         'Archive what mattered so you do not have to relearn it later. Endings are easier when you can see the shape you already made.';
 
-    final dominantTitle =
-        sorted.isNotEmpty ? 'Most frequent: “${sorted.first.key}”. ' : '';
+    final dominantTitle = sorted.isNotEmpty
+        ? 'Most frequent: “${sorted.first.key}”. '
+        : '';
     final badgesLine = 'Badges logged: $total. ${dominantTitle.trim()}';
 
     return [
@@ -15575,7 +15602,8 @@ class _CalendarPageState extends State<CalendarPage>
     if (_lastReflectionCheckDay != null &&
         DateUtils.isSameDay(today, _lastReflectionCheckDay) &&
         !force &&
-        _reflectionPrompt != null) return;
+        _reflectionPrompt != null)
+      return;
     _lastReflectionCheckDay = today;
 
     final window = _latestCompletedDecanWindow();
@@ -15605,8 +15633,10 @@ class _CalendarPageState extends State<CalendarPage>
 
     _reflectionInFlight = true;
     try {
-      final existing =
-          await _decanReflectionRepo.findByWindow(window.start, window.end);
+      final existing = await _decanReflectionRepo.findByWindow(
+        window.start,
+        window.end,
+      );
       if (existing != null) {
         if (!mounted) return;
         await _markReflectionSeen(window.start);
@@ -15616,8 +15646,7 @@ class _CalendarPageState extends State<CalendarPage>
         return;
       }
 
-      final decanBadges =
-          await _collectDecanBadges(window.start, window.end);
+      final decanBadges = await _collectDecanBadges(window.start, window.end);
       final payloadBadges = decanBadges
           .map(
             (b) => {
@@ -15647,7 +15676,8 @@ class _CalendarPageState extends State<CalendarPage>
           useDecisionMatrix: true,
           badges: payloadBadges,
         );
-        if (response.success && (response.reflection?.trim().isNotEmpty ?? false)) {
+        if (response.success &&
+            (response.reflection?.trim().isNotEmpty ?? false)) {
           reflectionText = response.reflection!.trim();
           badgeCount = response.badgeCount ?? badgeCount;
           reflectionId = response.reflectionId;
@@ -15664,8 +15694,9 @@ class _CalendarPageState extends State<CalendarPage>
       }
 
       if (reflectionText.trim().isEmpty) {
-        reflectionText =
-            _buildReflectionFromBadges(decanBadges.map((b) => b.token).toList());
+        reflectionText = _buildReflectionFromBadges(
+          decanBadges.map((b) => b.token).toList(),
+        );
       }
 
       if (reflectionText.trim().isEmpty) {
@@ -15736,9 +15767,7 @@ class _CalendarPageState extends State<CalendarPage>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not archive reflection: $e'),
-          ),
+          SnackBar(content: Text('Could not archive reflection: $e')),
         );
       }
     } finally {
@@ -16499,8 +16528,9 @@ class _MonthCard extends StatelessWidget {
         : '$seasonShort $yStart/$yEnd';
 
     final isMonthToday = (todayMonth != null && todayMonth == kMonth);
-    final gapBeforeRow =
-        expansionLevel == MonthExpansionLevel.details ? 0.0 : 6.0;
+    final gapBeforeRow = expansionLevel == MonthExpansionLevel.details
+        ? 0.0
+        : 6.0;
 
     return Padding(
       key: anchorKey,
@@ -16647,10 +16677,7 @@ class _MonthCard extends StatelessWidget {
                     onEndFlow: onEndFlow,
                     onAppendToJournal: onAppendToJournal,
                   ),
-                  if (i < 2)
-                    SizedBox(
-                      height: gapBeforeRow,
-                    ),
+                  if (i < 2) SizedBox(height: gapBeforeRow),
                 ],
               ],
             ),
@@ -16694,14 +16721,23 @@ class _WeekdayRow extends StatelessWidget {
   final int decanIndex; // 0..2
   final bool showGregorian;
 
-  static const List<String> _weekdayLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  static const List<String> _weekdayLetters = [
+    'M',
+    'T',
+    'W',
+    'T',
+    'F',
+    'S',
+    'S',
+  ];
 
   @override
   Widget build(BuildContext context) {
     final labels = List<String>.generate(10, (i) {
       final day = decanIndex * 10 + i + 1;
-      final gregorian =
-          safeLocalDisplay(KemeticMath.toGregorian(kYear, kMonth, day));
+      final gregorian = safeLocalDisplay(
+        KemeticMath.toGregorian(kYear, kMonth, day),
+      );
       final idx = gregorian.weekday - 1; // Monday = 1
       return _weekdayLetters[idx];
     });
@@ -17810,8 +17846,9 @@ class _EpagomenalCard extends StatelessWidget {
   Widget _epagomenalWeekdayRow(int dayCount) {
     const letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     final labels = List<String>.generate(dayCount, (i) {
-      final gregorian =
-          safeLocalDisplay(KemeticMath.toGregorian(kYear, 13, i + 1));
+      final gregorian = safeLocalDisplay(
+        KemeticMath.toGregorian(kYear, 13, i + 1),
+      );
       final idx = gregorian.weekday - 1; // Monday = 1
       return letters[idx];
     });
@@ -18044,7 +18081,8 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
   final _tabTitles = const ['Info', 'Events', 'Planner'];
   // Track the visible month page (0-based) for horizontal swipes.
   late final PageController _pageController;
-  static const int _pageSeed = 12000; // Large seed to allow long-range swiping in both directions.
+  static const int _pageSeed =
+      12000; // Large seed to allow long-range swiping in both directions.
   static const int _monthsInYear = 13;
   late int _currentPage;
   int? _currentDecanIndex;
@@ -18257,12 +18295,14 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     final activeInfoTitle = (activeMonth == 13 || _currentDecanIndex == null)
         ? activeMonthMeta.displayFull
         : (DecanMetadata.decanNames[activeMonth] ??
-            const ['Decan A', 'Decan B', 'Decan C'])[_currentDecanIndex!];
+              const ['Decan A', 'Decan B', 'Decan C'])[_currentDecanIndex!];
 
-    final yStart =
-        KemeticMath.toGregorian(activeYear, activeMonth, 1).year;
-    final yEnd =
-        KemeticMath.toGregorian(activeYear, activeMonth, activeDaysInMonth).year;
+    final yStart = KemeticMath.toGregorian(activeYear, activeMonth, 1).year;
+    final yEnd = KemeticMath.toGregorian(
+      activeYear,
+      activeMonth,
+      activeDaysInMonth,
+    ).year;
     final activeSeasonLabel = activeMonthMeta.season.label;
     final rightLabel = (yStart == yEnd)
         ? '$activeSeasonLabel $yStart'
@@ -18310,14 +18350,15 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
         itemBuilder: (ctx, index) {
           final (pageYear, month) = _yearMonthForPage(index);
           final isActive = index == _currentPage;
-          final decanIndex =
-              (isActive && month != 13) ? _currentDecanIndex : null;
+          final decanIndex = (isActive && month != 13)
+              ? _currentDecanIndex
+              : null;
           final monthMeta = getMonthById(month);
           final seasonLabel = monthMeta.season.label;
           final infoTitle = (decanIndex == null)
               ? monthMeta.displayFull
               : (DecanMetadata.decanNames[month] ??
-                  const ['Decan A', 'Decan B', 'Decan C'])[decanIndex];
+                    const ['Decan A', 'Decan B', 'Decan C'])[decanIndex];
           final infoBody = (decanIndex == null || month == 13)
               ? (_monthInfo[month] ?? '')
               : _decanInfo[(month - 1) * 3 + decanIndex];
@@ -18401,9 +18442,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                         labelColor: _gold,
                         unselectedLabelColor: Colors.white70,
                         indicatorColor: _gold,
-                        tabs: [
-                          for (final t in _tabTitles) Tab(text: t),
-                        ],
+                        tabs: [for (final t in _tabTitles) Tab(text: t)],
                       ),
                       Expanded(
                         child: TabBarView(
@@ -18548,10 +18587,7 @@ class _EventsTab extends StatelessWidget {
           ],
           Text(
             text,
-            style: TextStyle(
-              color: textColor ?? Colors.white,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: textColor ?? Colors.white, fontSize: 12),
           ),
         ],
       ),
@@ -18587,9 +18623,7 @@ class _EventsTab extends StatelessWidget {
           decoration: BoxDecoration(
             color: e.color.withOpacity(0.2),
             borderRadius: BorderRadius.circular(12),
-            border: Border(
-              left: BorderSide(color: e.color, width: 3),
-            ),
+            border: Border(left: BorderSide(color: e.color, width: 3)),
           ),
           child: Material(
             color: Colors.transparent,
@@ -18597,7 +18631,10 @@ class _EventsTab extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               onTap: () => onOpenDay(e.day),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 12.0),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12.0,
+                  horizontal: 12.0,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -18624,20 +18661,24 @@ class _EventsTab extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 4),
-                      Text(
-                        e.displayTitle,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                          Text(
+                            e.displayTitle,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                           const SizedBox(height: 6),
                           Wrap(
                             children: [
                               _chip(e.timeLabel, icon: Icons.schedule),
-                              _chip(gregLabel, icon: Icons.calendar_today_outlined),
-                              if (e.flowName != null && e.flowName!.trim().isNotEmpty)
+                              _chip(
+                                gregLabel,
+                                icon: Icons.calendar_today_outlined,
+                              ),
+                              if (e.flowName != null &&
+                                  e.flowName!.trim().isNotEmpty)
                                 _chip(
                                   e.flowName!.trim(),
                                   icon: Icons.auto_awesome,
@@ -18645,34 +18686,37 @@ class _EventsTab extends StatelessWidget {
                                   textColor: e.color,
                                 ),
                               if (e.note.isReminder)
-                                _chip('Reminder', icon: Icons.notifications_active),
+                                _chip(
+                                  'Reminder',
+                                  icon: Icons.notifications_active,
+                                ),
                             ],
                           ),
-                      if ((e.location ?? '').isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          e.location!,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            decoration: TextDecoration.underline,
-                            decorationColor: Colors.white54,
-                          ),
-                        ),
-                      ],
-                      if ((e.detail ?? '').trim().isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          e.detail!.trim(),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
+                          if ((e.location ?? '').isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              e.location!,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.7),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                decoration: TextDecoration.underline,
+                                decorationColor: Colors.white54,
+                              ),
+                            ),
+                          ],
+                          if ((e.detail ?? '').trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              e.detail!.trim(),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -18893,7 +18937,8 @@ class _NoteDraft {
   TimeOfDay? start = const TimeOfDay(hour: 12, minute: 0);
   TimeOfDay? end = const TimeOfDay(hour: 13, minute: 0);
   String? category;
-  int alertMinutesBefore = _alertNoneMinutes; // -1 = none, null = legacy default
+  int alertMinutesBefore =
+      _alertNoneMinutes; // -1 = none, null = legacy default
 
   _Note toNote() {
     final t = titleCtrl.text.trim();
@@ -20365,7 +20410,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                   style: const TextStyle(fontSize: 14),
                 ),
                 const SizedBox(width: 4),
-                const Icon(Icons.chevron_right, size: 18, color: Colors.white54),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: Colors.white54,
+                ),
               ],
             ),
           ],
@@ -23072,9 +23121,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       baseStart = _dateOnly(template.start!);
     } else if (events.isNotEmpty) {
       baseStart = _dateOnly(
-        events
-            .map((e) => e.startsAtUtc.toLocal())
-            .reduce(_minDate),
+        events.map((e) => e.startsAtUtc.toLocal()).reduce(_minDate),
       );
     }
 
@@ -23090,8 +23137,9 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         ? null
         : _dateOnly(templateEnd.add(Duration(days: deltaDays)));
 
-    final rulesJson =
-        jsonEncode(template.rules.map(_CalendarPageState.ruleToJson).toList());
+    final rulesJson = jsonEncode(
+      template.rules.map(_CalendarPageState.ruleToJson).toList(),
+    );
 
     final newId = await _userEventsRepo.upsertFlow(
       name: template.name,
@@ -23193,9 +23241,9 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isImportingSaved = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Import failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Import failed: $e')));
     }
   }
 
@@ -23702,7 +23750,10 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
                   children: [
                     KemeticGold.icon(Icons.edit),
                     const SizedBox(width: 12),
-                    const Text('Edit Flow', style: TextStyle(color: Colors.white)),
+                    const Text(
+                      'Edit Flow',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ],
                 ),
               ),
@@ -23712,7 +23763,10 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
                   children: [
                     KemeticGold.icon(Icons.share),
                     const SizedBox(width: 12),
-                    const Text('Share Flow', style: TextStyle(color: Colors.white)),
+                    const Text(
+                      'Share Flow',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ],
                 ),
               ),
@@ -23721,7 +23775,9 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
                 child: Row(
                   children: [
                     KemeticGold.icon(
-                      currentFlow.isSaved ? Icons.bookmark_remove : Icons.bookmark_add,
+                      currentFlow.isSaved
+                          ? Icons.bookmark_remove
+                          : Icons.bookmark_add,
                     ),
                     const SizedBox(width: 12),
                     Text(
@@ -23764,8 +23820,9 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           );
         },
       ),
-      bottomNavigationBar:
-          currentFlow.isSaved ? _buildSavedImportFooter(currentFlow) : null,
+      bottomNavigationBar: currentFlow.isSaved
+          ? _buildSavedImportFooter(currentFlow)
+          : null,
     );
   }
 
@@ -23790,8 +23847,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              onPressed:
-                  _isImportingSaved ? null : () => _pickSavedStart(flow),
+              onPressed: _isImportingSaved ? null : () => _pickSavedStart(flow),
               child: Text(label),
             ),
           ),
@@ -23804,8 +23860,9 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
                 foregroundColor: const Color(0xFF8A74FF),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              onPressed:
-                  _isImportingSaved ? null : () => _handleImportSaved(flow),
+              onPressed: _isImportingSaved
+                  ? null
+                  : () => _handleImportSaved(flow),
               child: Text(_isImportingSaved ? 'Importing…' : 'Import Flow'),
             ),
           ),
@@ -24305,8 +24362,9 @@ ReminderRepeat _decodeReminderRepeat(String? detail) {
   if (idx < 0) return const ReminderRepeat();
   final start = idx + marker.length;
   final end = detail.indexOf(';', start);
-  final jsonStr =
-      (end >= 0) ? detail.substring(start, end) : detail.substring(start);
+  final jsonStr = (end >= 0)
+      ? detail.substring(start, end)
+      : detail.substring(start);
   try {
     final map = jsonDecode(jsonStr) as Map<String, dynamic>;
     return ReminderRepeat.fromJson(map);
@@ -24346,7 +24404,7 @@ String _reminderRepeatLabel(ReminderRule rule) {
           ? rule.repeat.monthDays
           : {
               if (rule.repeat.monthDay != null)
-                rule.repeat.monthDay!.clamp(1, 31)
+                rule.repeat.monthDay!.clamp(1, 31),
             };
       final labels = days.toList()..sort();
       return 'Monthly ${labels.map(ordinal).join(", ")} (G)';
@@ -24355,9 +24413,7 @@ String _reminderRepeatLabel(ReminderRule rule) {
       return iv == 1 ? 'Every Decan' : 'Every $iv Decans';
     case ReminderRepeatKind.kemeticDecanDay:
       final ds = rule.repeat.decanDays.toList()..sort();
-      return ds.isEmpty
-          ? 'Each Decan'
-          : 'Each Decan · Day ${ds.join(", ")}';
+      return ds.isEmpty ? 'Each Decan' : 'Each Decan · Day ${ds.join(", ")}';
     case ReminderRepeatKind.kemeticMonthDay:
       final ds = rule.repeat.kemeticMonthDays.toList()..sort();
       if (ds.isEmpty) return 'Monthly (Kemetic)';
@@ -24372,8 +24428,9 @@ String _effectiveOverview(String? notes, String decodedOverview) {
   final reminderRule = _tryParseReminderRuleFromNotes(notes);
   if (reminderRule != null) {
     final repeatLabel = _reminderRepeatLabel(reminderRule);
-    final timeLabel =
-        reminderRule.allDay ? 'All day' : _formatBasicTime(reminderRule.startLocal);
+    final timeLabel = reminderRule.allDay
+        ? 'All day'
+        : _formatBasicTime(reminderRule.startLocal);
     return 'Repeats $repeatLabel · $timeLabel';
   }
 
@@ -24398,7 +24455,8 @@ String? _encodeRepeatingNoteMetadata({
   if (detail == null &&
       location == null &&
       category == null &&
-      alertMinutes == null) return null;
+      alertMinutes == null)
+    return null;
   final parts = <String, dynamic>{'kind': 'repeating_note'};
   if (detail != null && detail.isNotEmpty) {
     parts['detail'] = detail;
@@ -26278,7 +26336,8 @@ class _Note {
   final String? category; // optional category label
   final bool isReminder;
   final String? reminderId;
-  final int? alertOffsetMinutes; // minutes before start; -1 = none, null = default
+  final int?
+  alertOffsetMinutes; // minutes before start; -1 = none, null = default
 
   const _Note({
     this.id,
