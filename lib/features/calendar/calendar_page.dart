@@ -863,6 +863,82 @@ but from reverence.
 Because what comes next cannot be controlled.
 It can only be received.
 ''',
+  13: '''
+Month 13 – Heriu Renpet (ḥr.w rnpt)
+Days Upon the Year — The Births of the Gods
+Heriu Renpet (ḥr.w rnpt), the “Days upon the Year,” stand outside the calendar.
+They are not counted among the months.
+They do not belong to a season.
+They are the pause between endings and beginnings—
+the moment when the cycle releases its breath.
+To the Kemite, these were not “extra” days.
+They were necessary.
+For without pause,
+nothing can be born.
+These are the days when the gods themselves emerge.
+Asar.
+Heru the Elder.
+Set.
+Aset.
+Nebet-Het.
+And in some reckonings, a final day for Ra—
+the light returning to itself.
+Each day carries a presence.
+Not symbolic—
+but active within the world.
+Asar restores what was broken.
+Heru guards the horizon.
+Set tests strength.
+Aset weaves protection.
+Nebet-Het keeps the hidden places.
+Each force returns to its place
+before the year begins again.
+These days do not move forward.
+They hold.
+The lamps are extinguished.
+Altars are cleared.
+Natron water is poured.
+Nothing unfinished is allowed to cross.
+Because what passes through this threshold
+must be whole.
+Life slows deliberately.
+Speech softens.
+Movement reduces.
+The world enters a state of sacred suspension.
+Songs are offered to Nut,
+who has carried the sun through darkness
+and prepares to give birth again.
+The sky is not empty.
+It is pregnant with return.
+The Kemite understood:
+Before creation, there is stillness.
+Before light, there is containment.
+Before beginning, there is recognition.
+So each day is lived with awareness.
+Not of what will come—
+but of what must be aligned before it does.
+The teachings echo this:
+“He who is purified enters the new day;
+he who carries disorder remains behind.”
+(Temple purification formulae — New Kingdom tradition)
+Thus the question becomes:
+What must be made complete before crossing?
+Because this is not a passage of time.
+It is a passage of order.
+Heriu Renpet is the hinge:
+one year exhales,
+the next inhales.
+Breath returns to the sky.
+Seed returns to the soil.
+Order stands—waiting for first light.
+Nothing begins yet.
+But everything is ready to be born.
+This is the sacred pause that makes renewal possible.
+Not emptiness—
+but perfect readiness.
+Living Principle:
+Before beginning again, honor what is being born.
+''',
 };
 
 const List<String> _decanInfo = [
@@ -17969,6 +18045,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
   // Track the visible month page (0-based) for horizontal swipes.
   late final PageController _pageController;
   static const int _pageSeed = 12000; // Large seed to allow long-range swiping in both directions.
+  static const int _monthsInYear = 13;
   late int _currentPage;
   int? _currentDecanIndex;
   int? _selectedDay;
@@ -18029,12 +18106,19 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     return r < 0 ? r + b : r;
   }
 
+  int _daysInMonth(int year, int month) {
+    if (month == 13) {
+      return KemeticMath.isLeapKemeticYear(year) ? 6 : 5;
+    }
+    return 30;
+  }
+
   (int year, int month) _yearMonthForPage(int page) {
     final offset = page - _pageSeed;
     final totalMonths = (widget.kMonth - 1) + offset;
-    final monthIndex = _mod(totalMonths, 12); // 0-based
+    final monthIndex = _mod(totalMonths, _monthsInYear); // 0-based
     final month = monthIndex + 1;
-    final yearOffset = _floorDiv(totalMonths, 12);
+    final yearOffset = _floorDiv(totalMonths, _monthsInYear);
     final year = widget.kYear + yearOffset;
     return (year, month);
   }
@@ -18067,7 +18151,8 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
   Future<void> _jumpToToday() async {
     final today = KemeticMath.fromGregorian(DateTime.now());
     final monthOffset =
-        (today.kYear - widget.kYear) * 12 + (today.kMonth - widget.kMonth);
+        (today.kYear - widget.kYear) * _monthsInYear +
+        (today.kMonth - widget.kMonth);
     final targetPage = _pageSeed + monthOffset;
     setState(() {
       _currentDecanIndex = null;
@@ -18118,9 +18203,11 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
 
   List<_MonthEvent> _buildMonthEvents(int year, int month) {
     final items = <_MonthEvent>[];
-    for (int day = 1; day <= 30; day++) {
+    final daysInMonth = _daysInMonth(year, month);
+
+    for (int day = 1; day <= daysInMonth; day++) {
       if (_selectedDay != null && day != _selectedDay) continue;
-      if (_selectedDay == null && _currentDecanIndex != null) {
+      if (month != 13 && _selectedDay == null && _currentDecanIndex != null) {
         final start = _currentDecanIndex! * 10 + 1;
         final end = start + 9;
         if (day < start || day > end) continue;
@@ -18166,7 +18253,8 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
   Widget build(BuildContext context) {
     final (activeYear, activeMonth) = _yearMonthForPage(_currentPage);
     final activeMonthMeta = getMonthById(activeMonth);
-    final activeInfoTitle = _currentDecanIndex == null
+    final activeDaysInMonth = _daysInMonth(activeYear, activeMonth);
+    final activeInfoTitle = (activeMonth == 13 || _currentDecanIndex == null)
         ? activeMonthMeta.displayFull
         : (DecanMetadata.decanNames[activeMonth] ??
             const ['Decan A', 'Decan B', 'Decan C'])[_currentDecanIndex!];
@@ -18174,7 +18262,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     final yStart =
         KemeticMath.toGregorian(activeYear, activeMonth, 1).year;
     final yEnd =
-        KemeticMath.toGregorian(activeYear, activeMonth, 30).year;
+        KemeticMath.toGregorian(activeYear, activeMonth, activeDaysInMonth).year;
     final activeSeasonLabel = activeMonthMeta.season.label;
     final rightLabel = (yStart == yEnd)
         ? '$activeSeasonLabel $yStart'
@@ -18222,14 +18310,15 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
         itemBuilder: (ctx, index) {
           final (pageYear, month) = _yearMonthForPage(index);
           final isActive = index == _currentPage;
-          final decanIndex = isActive ? _currentDecanIndex : null;
+          final decanIndex =
+              (isActive && month != 13) ? _currentDecanIndex : null;
           final monthMeta = getMonthById(month);
           final seasonLabel = monthMeta.season.label;
-          final infoTitle = decanIndex == null
+          final infoTitle = (decanIndex == null)
               ? monthMeta.displayFull
               : (DecanMetadata.decanNames[month] ??
                   const ['Decan A', 'Decan B', 'Decan C'])[decanIndex];
-          final infoBody = decanIndex == null
+          final infoBody = (decanIndex == null || month == 13)
               ? (_monthInfo[month] ?? '')
               : _decanInfo[(month - 1) * 3 + decanIndex];
 
@@ -18239,40 +18328,66 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                 child: ListView(
                   padding: const EdgeInsets.only(top: 10),
                   children: [
-                    _MonthCard(
-                      kYear: pageYear,
-                      kMonth: month,
-                      seasonShort: seasonLabel,
-                      todayMonth: widget.todayMonth,
-                      todayDay: widget.todayDay,
-                      todayDayKey: null,
-                      notesGetter: (m, d) => _notesFor(pageYear, m, d),
-                      flowColorsGetter: (ky, km, kd) =>
-                          _flowColorsFor(pageYear, km, kd),
-                      onDayTap: (c, m, d) => setState(() {
-                        _selectedDay = d;
-                        _currentDecanIndex = ((d - 1) / 10).floor();
-                      }),
-                      showGregorian: widget.showGregorian,
-                      flowNameGetter: widget.flowNameGetter,
-                      onManageFlows: widget.onManageFlows,
-                      onEditNote: widget.onEditNote,
-                      onDeleteNote: widget.onDeleteNote,
-                      onShareNote: widget.onShareNote,
-                      onEditReminder: widget.onEditReminder,
-                      onEndReminder: widget.onEndReminder,
-                      onShareReminder: widget.onShareReminder,
-                      onEndFlow: widget.onEndFlow,
-                      onAppendToJournal: widget.onAppendToJournal,
-                      onMonthHeaderTap: (_) => setState(() {
-                        _currentDecanIndex = null;
-                        _selectedDay = null;
-                      }),
-                      onDecanTap: (_, idx) => setState(() {
-                        _currentDecanIndex = idx;
-                        _selectedDay = null;
-                      }),
-                    ),
+                    if (month == 13)
+                      _EpagomenalCard(
+                        kYear: pageYear,
+                        todayMonth: widget.todayMonth,
+                        todayDay: widget.todayDay,
+                        todayDayKey: null,
+                        notesGetter: (m, d) => _notesFor(pageYear, m, d),
+                        flowColorsGetter: (ky, km, kd) =>
+                            _flowColorsFor(pageYear, km, kd),
+                        onDayTap: (c, m, d) => setState(() {
+                          _selectedDay = d;
+                          _currentDecanIndex = null;
+                        }),
+                        showGregorian: widget.showGregorian,
+                        flowNameGetter: widget.flowNameGetter,
+                        onManageFlows: widget.onManageFlows,
+                        onEditNote: widget.onEditNote,
+                        onDeleteNote: widget.onDeleteNote,
+                        onShareNote: widget.onShareNote,
+                        onEditReminder: widget.onEditReminder,
+                        onEndReminder: widget.onEndReminder,
+                        onShareReminder: widget.onShareReminder,
+                        onEndFlow: widget.onEndFlow,
+                        onAppendToJournal: widget.onAppendToJournal,
+                      )
+                    else
+                      _MonthCard(
+                        kYear: pageYear,
+                        kMonth: month,
+                        seasonShort: seasonLabel,
+                        todayMonth: widget.todayMonth,
+                        todayDay: widget.todayDay,
+                        todayDayKey: null,
+                        notesGetter: (m, d) => _notesFor(pageYear, m, d),
+                        flowColorsGetter: (ky, km, kd) =>
+                            _flowColorsFor(pageYear, km, kd),
+                        onDayTap: (c, m, d) => setState(() {
+                          _selectedDay = d;
+                          _currentDecanIndex = ((d - 1) / 10).floor();
+                        }),
+                        showGregorian: widget.showGregorian,
+                        flowNameGetter: widget.flowNameGetter,
+                        onManageFlows: widget.onManageFlows,
+                        onEditNote: widget.onEditNote,
+                        onDeleteNote: widget.onDeleteNote,
+                        onShareNote: widget.onShareNote,
+                        onEditReminder: widget.onEditReminder,
+                        onEndReminder: widget.onEndReminder,
+                        onShareReminder: widget.onShareReminder,
+                        onEndFlow: widget.onEndFlow,
+                        onAppendToJournal: widget.onAppendToJournal,
+                        onMonthHeaderTap: (_) => setState(() {
+                          _currentDecanIndex = null;
+                          _selectedDay = null;
+                        }),
+                        onDecanTap: (_, idx) => setState(() {
+                          _currentDecanIndex = idx;
+                          _selectedDay = null;
+                        }),
+                      ),
                   ],
                 ),
               ),
