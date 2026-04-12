@@ -51,6 +51,25 @@ class DecanReflectionRepo {
     }
   }
 
+  Future<DecanReflection?> getLatest() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return null;
+    try {
+      final res = await _client
+          .from('decan_reflections')
+          .select()
+          .eq('user_id', uid)
+          .order('decan_start', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      if (res == null) return null;
+      return DecanReflection.fromJson(res as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint('[DecanReflectionRepo] getLatest error: $e');
+      return null;
+    }
+  }
+
   Future<DecanReflection?> findByWindow(
     DateTime decanStart,
     DateTime decanEnd,

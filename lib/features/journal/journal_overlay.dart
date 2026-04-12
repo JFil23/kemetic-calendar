@@ -18,6 +18,12 @@ import '../../data/journal_repo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'journal_event_badge.dart';
 import 'journal_badge_utils.dart';
+import '../../data/insight_link_model.dart';
+import '../../data/insight_link_repo.dart';
+import '../../widgets/insight_link_text.dart';
+import '../nodes/kemetic_node_library.dart';
+import '../nodes/kemetic_node_model.dart';
+import '../nodes/kemetic_node_reader_page.dart';
 
 class JournalOverlay extends StatefulWidget {
   final JournalController controller;
@@ -53,6 +59,10 @@ class _JournalOverlayState extends State<JournalOverlay>
   TextAttrs _currentAttrs = const TextAttrs();
   GlobalKey<RichTextEditorState>? _richTextEditorKey;
   final Map<String, bool> _badgeExpansion = {};
+  final InsightLinkRepo _insightRepo = InsightLinkRepo();
+  List<InsightLink> _insightLinks = [];
+  bool _linkMode = false;
+  String _prevText = '';
   
   // Archive state
   bool _showingArchive = false;
@@ -79,6 +89,7 @@ class _JournalOverlayState extends State<JournalOverlay>
     );
 
     _textController = TextEditingController(text: widget.controller.currentDraft);
+    _prevText = widget.controller.currentDraft;
     _scrollController = ScrollController();
     _badgeScrollController = ScrollController();
     _focusNode = FocusNode();
@@ -96,6 +107,8 @@ class _JournalOverlayState extends State<JournalOverlay>
     }
 
     _animationController.forward();
+
+    _loadLinks();
 
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) {
@@ -119,12 +132,55 @@ class _JournalOverlayState extends State<JournalOverlay>
     if (mounted && !FeatureFlags.hasRichText) {
       setState(() {
         _textController.text = widget.controller.currentDraft;
+        _prevText = widget.controller.currentDraft;
       });
     }
   }
 
+  Future<void> _loadLinks() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? 'local';
+    final links = await _insightRepo.fetchLinks(userId);
+    final sourceId = _currentSourceId();
+    setState(() {
+      _insightLinks = links
+          .where((l) =>
+              l.sourceType == InsightSourceType.journalEntry &&
+              l.sourceId == sourceId)
+          .toList();
+    });
+  }
+
+  String _currentSourceId() {
+    final d = widget.controller.currentDate ?? DateTime.now();
+    return 'journal-${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
   void _handleTextChanged(String text) {
+    if (_linkMode && _prevText != text) {
+      setState(() {
+        _insightLinks = InsightLinkRangeUpdater.shiftRanges(
+          previous: _prevText,
+          next: text,
+          links: _insightLinks,
+        );
+        _prevText = text;
+      });
+      _saveLinks();
+    }
     widget.controller.updateDraft(text);
+  }
+
+  Future<void> _saveLinks() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? 'local';
+    final all = await _insightRepo.fetchLinks(userId);
+    final sourceId = _currentSourceId();
+    final filtered = all
+        .where((l) =>
+            !(l.sourceType == InsightSourceType.journalEntry &&
+              l.sourceId == sourceId))
+        .toList();
+    filtered.addAll(_insightLinks);
+    await _insightRepo.saveLinks(userId, filtered);
   }
 
   void _close() {
@@ -211,6 +267,117 @@ class _JournalOverlayState extends State<JournalOverlay>
         }
       });
     }
+  }
+
+  Future<void> _startLinkFlow() async {
+    setState(() {
+      _linkMode = true;
+    });
+    final selection = _textController.selection;
+    if (!selection.isValid || selection.isCollapsed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Select text first, then tap Link Insight.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      setState(() {
+        _linkMode = false;
+      });
+      return;
+    }
+    final selected =
+        _textController.text.substring(selection.start, selection.end);
+    final node = await _pickNode();
+    if (node == null) return;
+    final now = DateTime.now();
+    final link = InsightLink(
+      id: 'link-${now.microsecondsSinceEpoch}',
+      userId: Supabase.instance.client.auth.currentUser?.id ?? 'local',
+      sourceType: InsightSourceType.journalEntry,
+      sourceId: _currentSourceId(),
+      start: selection.start,
+      end: selection.end,
+      selectedText: selected,
+      targetType: InsightTargetType.node,
+      targetId: node.id,
+      createdAt: now,
+      updatedAt: now,
+    );
+    setState(() {
+      _insightLinks = [..._insightLinks, link];
+      _linkMode = false;
+    });
+    await _saveLinks();
+  }
+
+  Future<void> _removeLink(InsightLink link) async {
+    setState(() {
+      _insightLinks = _insightLinks.where((l) => l.id != link.id).toList();
+    });
+    await _saveLinks();
+  }
+
+  Future<KemeticNode?> _pickNode() async {
+    final nodes = KemeticNodeLibrary.nodes;
+    return showModalBottomSheet<KemeticNode>(
+      context: context,
+      backgroundColor: Colors.black,
+      builder: (ctx) {
+        final controller = TextEditingController();
+        return SafeArea(
+          child: StatefulBuilder(
+            builder: (context, setSheet) {
+              final query = controller.text.toLowerCase();
+              final filtered = nodes
+                  .where((n) =>
+                      n.title.toLowerCase().contains(query) ||
+                      n.aliases.any((a) => a.toLowerCase().contains(query)))
+                  .toList();
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    child: TextField(
+                      controller: controller,
+                      autofocus: true,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        hintText: 'Search nodes…',
+                        hintStyle: TextStyle(color: Colors.white54),
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => setSheet(() {}),
+                    ),
+                  ),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: filtered.length,
+                      itemBuilder: (ctx, i) {
+                        final node = filtered[i];
+                        return ListTile(
+                          title: Text(node.title,
+                              style: const TextStyle(color: Colors.white)),
+                          subtitle: node.aliases.isNotEmpty
+                              ? Text(node.aliases.join(', '),
+                                  style:
+                                      const TextStyle(color: Colors.white54))
+                              : null,
+                          onTap: () => Navigator.of(ctx).pop(node),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
   }
 
   void _onInsertChart() {
@@ -408,6 +575,13 @@ class _JournalOverlayState extends State<JournalOverlay>
                 constraints: const BoxConstraints(),
               ),
               IconButton(
+                icon: KemeticGold.icon(Icons.link),
+                onPressed: _startLinkFlow,
+                tooltip: 'Link Insight',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              IconButton(
                 icon: KemeticGold.icon(Icons.delete_outline),
                 onPressed: () async {
                   await widget.controller.clearToday();
@@ -532,6 +706,72 @@ class _JournalOverlayState extends State<JournalOverlay>
             Expanded(
               child: _buildTextLayer(),
             ),
+            if (_insightLinks.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Linked insights',
+                  style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.03),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                        style: const TextStyle(color: Colors.white70, height: 1.4),
+                        children: InsightLinkSpanBuilder.build(
+                          text: _textController.text,
+                          links: _insightLinks,
+                          baseStyle: const TextStyle(color: Colors.white70, height: 1.4),
+                          onTap: (link) {
+                            final node = KemeticNodeLibrary.resolve(link.targetId);
+                            if (node == null) return;
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => KemeticNodeReaderPage(node: node),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: _insightLinks
+                          .map(
+                            (l) => InputChip(
+                              label: Text(
+                                l.selectedText.isNotEmpty
+                                    ? l.selectedText
+                                    : 'Node link',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              deleteIcon: const Icon(Icons.close, size: 16),
+                              onDeleted: () => _removeLink(l),
+                              backgroundColor: Colors.white.withOpacity(0.08),
+                              labelStyle:
+                                  const TextStyle(color: Colors.white70),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             // Badge area (replaces drawing canvas)
             _buildBadgeArea(keyboardVisible),

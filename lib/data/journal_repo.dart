@@ -128,6 +128,44 @@ class JournalRepo {
     }
   }
 
+  /// Fetch the most recent journal entry for the user.
+  Future<JournalEntry?> getLatest() async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return null;
+      final response = await _client
+          .from('journal_entries')
+          .select()
+          .eq('user_id', userId)
+          .order('greg_date', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      if (response == null) return null;
+      return JournalEntry.fromJson(response);
+    } catch (e) {
+      _log('getLatest error: $e');
+      return null;
+    }
+  }
+
+  Future<JournalEntry?> getById(String id) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return null;
+      final res = await _client
+          .from('journal_entries')
+          .select()
+          .eq('user_id', userId)
+          .eq('id', id)
+          .maybeSingle();
+      if (res == null) return null;
+      return JournalEntry.fromJson(res);
+    } catch (e) {
+      _log('getById error: $e');
+      return null;
+    }
+  }
+
   /// Get recent entries (for future features like browsing history)
   Future<List<JournalEntry>> listRecent({int days = 30}) async {
     try {

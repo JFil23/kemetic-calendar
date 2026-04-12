@@ -32,7 +32,8 @@ class KemeticNodeListPage extends StatelessWidget {
         leadingWidth: 64,
         leading: GlyphBackButton(
           showLabel: false,
-          onTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
+          showCloseIcon: true,
+          onTap: () => Navigator.of(context).pop(),
         ),
         titleSpacing: 0,
         title: Column(

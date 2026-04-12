@@ -3,6 +3,7 @@ import '../../shared/glossy_text.dart';
 import 'kemetic_node_library.dart';
 import 'kemetic_node_model.dart';
 import 'widgets.dart';
+import 'node_user_insights_section.dart';
 
 class KemeticNodeReaderPage extends StatefulWidget {
   final KemeticNode node;
@@ -92,11 +93,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
           leadingWidth: 64,
           leading: GlyphBackButton(
             showLabel: false,
-            onTap: () {
-              if (!_popNode()) {
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              }
-            },
+            onTap: () => Navigator.of(context).pop(),
           ),
           titleSpacing: 0,
           title: Column(
@@ -163,7 +160,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
               _horizontalDrag = 0;
               _dragConsumed = false;
             },
-            child: SingleChildScrollView(
+              child: SingleChildScrollView(
               controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
               child: Column(
@@ -172,6 +169,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
                   _buildHeader(),
                   const SizedBox(height: 18),
                   ...paragraphs,
+                  NodeUserInsightsSection(node: _node),
                 ],
               ),
             ),
