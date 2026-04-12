@@ -86,3 +86,12 @@ scripts/run_dev.sh <device>   # target a specific device from `flutter devices`
 ```
 
 `run_dev.sh` wraps `--dart-define-from-file=env/dev.json`, so IDE/Xcode runs stay consistent with CLI.
+
+## 🌐 Web builds (JS, not Wasm)
+
+Some dependencies (e.g., notifications, file picker) pull in native FFI (`win32`), which is fine on mobile/desktop but not Wasm. To keep Chrome/JS builds working, disable the wasm dry run:
+
+- Dev: `./scripts/run_web_dev.sh --dart-define-from-file=env/dev.json`
+- Release: `flutter build web --release --dart-define-from-file=env/prod.json --no-wasm-dry-run`
+
+If you run `flutter run -d chrome` manually, add `--no-wasm-dry-run` or you’ll see `dart:ffi can't be imported when compiling to Wasm` warnings/failures.
