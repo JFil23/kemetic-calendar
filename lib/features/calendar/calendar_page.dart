@@ -66,6 +66,7 @@ import '../settings/settings_page.dart';
 import '../nodes/kemetic_node_list_page.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/kemetic_node_model.dart';
+import '../nodes/node_user_insights_section.dart';
 
 typedef _QuickAddParse = ({
   DateTime date,
@@ -18785,6 +18786,7 @@ class _InfoTabState extends State<_InfoTab> {
   Widget build(BuildContext context) {
     final node = _activeNode;
     final isNodeView = node != null;
+    final libraryNode = node?.node;
     final speakText = node?.body ?? widget.speakText;
     final title = node?.title ?? widget.title;
     final body = node?.body ?? widget.body;
@@ -18825,6 +18827,10 @@ class _InfoTabState extends State<_InfoTab> {
           ],
           const SizedBox(height: 8),
           ..._buildParagraphs(body.trim(), links),
+          if (isNodeView && libraryNode != null) ...[
+            const SizedBox(height: 16),
+            NodeUserInsightsSection(node: libraryNode),
+          ],
         ],
       ),
     );
