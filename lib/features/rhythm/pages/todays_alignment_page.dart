@@ -285,8 +285,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         _notesLocalOnly = true;
         _notes = cached;
         _activeNoteIndex = _clampNoteIndex(cached.length);
-        _fullscreenNote =
-            cached.isEmpty ? null : cached[_activeNoteIndex];
+        _fullscreenNote = null;
       });
       return;
     }
@@ -335,7 +334,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       _notesLocalOnly = false;
       _notes = notes;
       _activeNoteIndex = _clampNoteIndex(notes.length);
-      _fullscreenNote = notes.isEmpty ? null : notes[_activeNoteIndex];
+      _fullscreenNote = null;
     });
   }
 
@@ -368,7 +367,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         _notesLocalOnly = true;
         _notes = updated;
         _activeNoteIndex = updated.length - 1;
-        _fullscreenNote = updated[_activeNoteIndex];
+        _fullscreenNote = null;
       });
       await _saveNotesToPrefs(updated);
       return;
@@ -387,7 +386,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       _notesLocalOnly = false;
       _notes = updated;
       _activeNoteIndex = updated.length - 1;
-      _fullscreenNote = updated[_activeNoteIndex];
+      _fullscreenNote = null;
     });
     await _saveNotesToPrefs(updated);
     if (!mounted) return;
