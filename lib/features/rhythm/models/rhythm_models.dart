@@ -102,6 +102,32 @@ class RhythmTodo {
   final RhythmItemState state;
 }
 
+class RhythmNote {
+  const RhythmNote({
+    required this.id,
+    required this.text,
+    required this.createdAt,
+    required this.position,
+  });
+
+  final String id;
+  final String text;
+  final DateTime createdAt;
+  final int position;
+
+  RhythmNote copyWith({
+    String? text,
+    int? position,
+  }) {
+    return RhythmNote(
+      id: id,
+      text: text ?? this.text,
+      createdAt: createdAt,
+      position: position ?? this.position,
+    );
+  }
+}
+
 /// Static placeholder data to render the UI while backend wiring is added.
 class RhythmMockData {
   RhythmMockData._();

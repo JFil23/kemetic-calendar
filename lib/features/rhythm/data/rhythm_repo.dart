@@ -24,7 +24,39 @@ class RhythmRepo {
 
   final SupabaseClient _client;
 
+  String get _supabaseUrl {
+    const restSuffix = '/rest/v1';
+    final restUrl = _client.rest.url;
+    return restUrl.endsWith(restSuffix)
+        ? restUrl.substring(0, restUrl.length - restSuffix.length)
+        : restUrl;
+  }
+
   String? get _userId => _client.auth.currentUser?.id;
+  String get _projectRef => Uri.tryParse(_supabaseUrl)?.host.split('.').first ?? '';
+
+  void _logNoteAction(
+    String action, {
+    bool? missingTables,
+    String? friendlyError,
+    Object? error,
+    String? detail,
+  }) {
+    final uid = _userId ?? '<null>';
+    final url = _supabaseUrl;
+    final buf = StringBuffer('[planner-notes] $action uid=$uid url=$url ref=$_projectRef');
+    if (missingTables != null) buf.write(' missingTables=$missingTables');
+    if (friendlyError != null) buf.write(' friendlyError="$friendlyError"');
+    if (error != null) {
+      if (error is PostgrestException) {
+        buf.write(' postgrest=${error.code ?? ''}:${error.message}');
+      } else {
+        buf.write(' error=$error');
+      }
+    }
+    if (detail != null) buf.write(' $detail');
+    debugPrint(buf.toString());
+  }
 
   /// Load the user's cycle fields + schedule rules, mapped to UI-friendly sections.
   Future<RhythmRepoResult<List<RhythmSection>>> fetchMyCycle() async {
@@ -374,6 +406,289 @@ class RhythmRepo {
         return const RhythmRepoResult(data: '', missingTables: true);
       }
       return RhythmRepoResult(data: '', friendlyError: _friendlyMessage(e));
+    }
+  }
+
+  Future<RhythmRepoResult<List<RhythmNote>>> fetchAlignmentNotes() async {
+    final uid = _userId;
+    if (uid == null) {
+      _logNoteAction(
+        'fetch_alignment_notes',
+        friendlyError: 'Not signed in',
+        detail: 'skipped Supabase fetch (uid missing)',
+      );
+      return const RhythmRepoResult(data: <RhythmNote>[]);
+    }
+    _logNoteAction('fetch_alignment_notes:start');
+    try {
+      final rows = await _client
+          .from('alignment_notes')
+          .select('id, body, position, created_at')
+          .eq('user_id', uid)
+          .order('position', ascending: true)
+          .order('created_at', ascending: true);
+
+      final notes = rows.map<RhythmNote>((r) {
+        return RhythmNote(
+          id: r['id'] as String? ?? '',
+          text: r['body'] as String? ?? '',
+          position: (r['position'] as num?)?.toInt() ?? 0,
+          createdAt: DateTime.tryParse(r['created_at'] as String? ?? '') ??
+              DateTime.now(),
+        );
+      }).toList();
+
+      _logNoteAction(
+        'fetch_alignment_notes:success',
+        missingTables: false,
+        detail: 'count=${notes.length}',
+      );
+      return RhythmRepoResult(data: notes);
+    } catch (e) {
+      if (_isMissingTable(e)) {
+        _logNoteAction(
+          'fetch_alignment_notes:missing',
+          missingTables: true,
+          error: e,
+        );
+        return const RhythmRepoResult(
+          data: <RhythmNote>[],
+          missingTables: true,
+        );
+      }
+      final friendly = _friendlyMessage(e);
+      _logNoteAction(
+        'fetch_alignment_notes:error',
+        missingTables: false,
+        friendlyError: friendly,
+        error: e,
+      );
+      return RhythmRepoResult(
+        data: const [],
+        friendlyError: friendly,
+      );
+    }
+  }
+
+  Future<RhythmRepoResult<RhythmNote?>> insertAlignmentNote(
+    String text, {
+    int position = 0,
+  }) async {
+    final uid = _userId;
+    if (uid == null) {
+      _logNoteAction(
+        'insert_alignment_note',
+        friendlyError: 'Not signed in',
+        detail: 'skipped Supabase insert (uid missing)',
+      );
+      return const RhythmRepoResult(
+        data: null,
+        friendlyError: 'Not signed in',
+      );
+    }
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      return const RhythmRepoResult(data: null);
+    }
+    _logNoteAction(
+      'insert_alignment_note:start',
+      detail: 'position=$position',
+    );
+    try {
+      final row = await _client
+          .from('alignment_notes')
+          .insert({
+            'user_id': uid,
+            'body': trimmed,
+            'position': position,
+          })
+          .select('id, body, position, created_at')
+          .maybeSingle();
+
+      if (row == null) return const RhythmRepoResult(data: null);
+
+      _logNoteAction(
+        'insert_alignment_note:success',
+        missingTables: false,
+        detail: 'noteId=${row['id'] ?? ''}',
+      );
+      return RhythmRepoResult(
+        data: RhythmNote(
+          id: row['id'] as String? ?? '',
+          text: row['body'] as String? ?? trimmed,
+          position: (row['position'] as num?)?.toInt() ?? position,
+          createdAt: DateTime.tryParse(row['created_at'] as String? ?? '') ??
+              DateTime.now(),
+        ),
+      );
+    } catch (e) {
+      if (_isMissingTable(e)) {
+        _logNoteAction(
+          'insert_alignment_note:missing',
+          missingTables: true,
+          error: e,
+        );
+        return const RhythmRepoResult(data: null, missingTables: true);
+      }
+      final friendly = _friendlyMessage(e);
+      _logNoteAction(
+        'insert_alignment_note:error',
+        missingTables: false,
+        friendlyError: friendly,
+        error: e,
+      );
+      return RhythmRepoResult(
+        data: null,
+        friendlyError: friendly,
+      );
+    }
+  }
+
+  Future<RhythmRepoResult<bool>> updateAlignmentNote(
+    String noteId,
+    String text,
+  ) async {
+    final uid = _userId;
+    if (uid == null) {
+      _logNoteAction(
+        'update_alignment_note',
+        friendlyError: 'Not signed in',
+        detail: 'skipped Supabase update (uid missing) noteId=$noteId',
+      );
+      return const RhythmRepoResult(data: false, friendlyError: 'Not signed in');
+    }
+    _logNoteAction(
+      'update_alignment_note:start',
+      detail: 'noteId=$noteId',
+    );
+    try {
+      await _client
+          .from('alignment_notes')
+          .update({'body': text.trim()})
+          .eq('id', noteId)
+          .eq('user_id', uid);
+      _logNoteAction(
+        'update_alignment_note:success',
+        missingTables: false,
+        detail: 'noteId=$noteId',
+      );
+      return const RhythmRepoResult(data: true);
+    } catch (e) {
+      if (_isMissingTable(e)) {
+        _logNoteAction(
+          'update_alignment_note:missing',
+          missingTables: true,
+          error: e,
+        );
+        return const RhythmRepoResult(data: false, missingTables: true);
+      }
+      final friendly = _friendlyMessage(e);
+      _logNoteAction(
+        'update_alignment_note:error',
+        missingTables: false,
+        friendlyError: friendly,
+        error: e,
+      );
+      return RhythmRepoResult(data: false, friendlyError: friendly);
+    }
+  }
+
+  Future<RhythmRepoResult<bool>> deleteAlignmentNote(String noteId) async {
+    final uid = _userId;
+    if (uid == null) {
+      _logNoteAction(
+        'delete_alignment_note',
+        friendlyError: 'Not signed in',
+        detail: 'skipped Supabase delete (uid missing) noteId=$noteId',
+      );
+      return const RhythmRepoResult(data: false, friendlyError: 'Not signed in');
+    }
+    _logNoteAction(
+      'delete_alignment_note:start',
+      detail: 'noteId=$noteId',
+    );
+    try {
+      await _client
+          .from('alignment_notes')
+          .delete()
+          .eq('id', noteId)
+          .eq('user_id', uid);
+      _logNoteAction(
+        'delete_alignment_note:success',
+        missingTables: false,
+        detail: 'noteId=$noteId',
+      );
+      return const RhythmRepoResult(data: true);
+    } catch (e) {
+      if (_isMissingTable(e)) {
+        _logNoteAction(
+          'delete_alignment_note:missing',
+          missingTables: true,
+          error: e,
+        );
+        return const RhythmRepoResult(data: false, missingTables: true);
+      }
+      final friendly = _friendlyMessage(e);
+      _logNoteAction(
+        'delete_alignment_note:error',
+        missingTables: false,
+        friendlyError: friendly,
+        error: e,
+      );
+      return RhythmRepoResult(data: false, friendlyError: friendly);
+    }
+  }
+
+  Future<RhythmRepoResult<bool>> reorderAlignmentNotes(
+    List<RhythmNote> notes,
+  ) async {
+    final uid = _userId;
+    if (uid == null) {
+      _logNoteAction(
+        'reorder_alignment_notes',
+        friendlyError: 'Not signed in',
+        detail: 'skipped Supabase reorder (uid missing)',
+      );
+      return const RhythmRepoResult(data: false, friendlyError: 'Not signed in');
+    }
+    if (notes.isEmpty) return const RhythmRepoResult(data: true);
+    _logNoteAction(
+      'reorder_alignment_notes:start',
+      detail: 'count=${notes.length}',
+    );
+    try {
+      final payload = [
+        for (final n in notes)
+          {
+            'id': n.id,
+            'user_id': uid,
+            'position': n.position,
+          },
+      ];
+      await _client.from('alignment_notes').upsert(payload);
+      _logNoteAction(
+        'reorder_alignment_notes:success',
+        missingTables: false,
+        detail: 'count=${notes.length}',
+      );
+      return const RhythmRepoResult(data: true);
+    } catch (e) {
+      if (_isMissingTable(e)) {
+        _logNoteAction(
+          'reorder_alignment_notes:missing',
+          missingTables: true,
+          error: e,
+        );
+        return const RhythmRepoResult(data: false, missingTables: true);
+      }
+      final friendly = _friendlyMessage(e);
+      _logNoteAction(
+        'reorder_alignment_notes:error',
+        missingTables: false,
+        friendlyError: friendly,
+        error: e,
+      );
+      return RhythmRepoResult(data: false, friendlyError: friendly);
     }
   }
 

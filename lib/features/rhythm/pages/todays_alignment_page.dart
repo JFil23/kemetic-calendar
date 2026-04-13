@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -40,12 +41,14 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
   List<RhythmItem> _alignmentItems = [];
   List<RhythmTodo> _todos = [];
-  List<String> _notes = [];
+  List<RhythmNote> _notes = [];
   int _activeNoteIndex = 0;
-  String? _fullscreenNote;
+  RhythmNote? _fullscreenNote;
   bool _isSyncingNotePages = false;
   bool _missingTables = false;
   String? _friendlyError;
+  bool _notesLocalOnly = false;
+  bool _notesLocalNoticeShown = false;
 
   @override
   void initState() {
@@ -175,28 +178,165 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     });
   }
 
-  Future<void> _loadNotes() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getStringList('today_alignment_notes') ?? [];
-    if (!mounted) return;
-    setState(() {
-      _notes = stored;
-      _activeNoteIndex = stored.isEmpty
-          ? 0
-          : (_activeNoteIndex >= stored.length
-                ? stored.length - 1
-                : _activeNoteIndex);
-      if (stored.isEmpty) {
-        _fullscreenNote = null;
-      } else if (_fullscreenNote != null) {
-        _fullscreenNote = stored[_activeNoteIndex];
-      }
-    });
+  String _prefsKeyForUser(String? uid) =>
+      'today_alignment_notes${uid == null ? '' : '_$uid'}';
+
+  String? get _currentUserId =>
+      Supabase.instance.client.auth.currentUser?.id;
+
+  int _clampNoteIndex(int length, [int? desired]) {
+    if (length == 0) return 0;
+    final target = desired ?? _activeNoteIndex;
+    if (target < 0) return 0;
+    if (target >= length) return length - 1;
+    return target;
   }
 
-  Future<void> _persistNotes(List<String> updated) async {
+  Future<List<RhythmNote>> _loadNotesFromPrefs([String? uid]) async {
+    final userKey = _prefsKeyForUser(uid ?? _currentUserId);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('today_alignment_notes', updated);
+    final stored = prefs.getStringList(userKey) ?? [];
+    return [
+      for (int i = 0; i < stored.length; i++)
+        () {
+          // Try JSON payload first.
+          try {
+            final decoded = jsonDecode(stored[i]);
+            if (decoded is Map<String, dynamic>) {
+              return RhythmNote(
+                id: (decoded['id'] as String?) ?? 'local_$i',
+                text: (decoded['text'] as String?) ?? '',
+                position: (decoded['position'] as num?)?.toInt() ?? i,
+                createdAt: DateTime.tryParse(decoded['createdAt'] as String? ?? '') ??
+                    DateTime.now(),
+              );
+            }
+          } catch (_) {
+            // Fall through to legacy format.
+          }
+          // Legacy: text only.
+          return RhythmNote(
+            id: 'local_$i',
+            text: stored[i],
+            position: i,
+            createdAt: DateTime.now(),
+          );
+        }(),
+    ];
+  }
+
+  Future<void> _saveNotesToPrefs(
+    List<RhythmNote> notes, {
+    String? uid,
+  }) async {
+    final userKey = _prefsKeyForUser(uid ?? _currentUserId);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      userKey,
+      notes
+          .map(
+            (n) => jsonEncode({
+              'id': n.id,
+              'text': n.text,
+              'position': n.position,
+              'createdAt': n.createdAt.toIso8601String(),
+            }),
+          )
+          .toList(),
+    );
+  }
+
+  void _showLocalNotesWarningOnce() {
+    if (_notesLocalNoticeShown || !mounted) return;
+    _notesLocalNoticeShown = true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Planner notes are saved only on this device. Cloud sync is unavailable.',
+        ),
+        duration: Duration(seconds: 4),
+        backgroundColor: Colors.orangeAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  bool _isLocalNote(RhythmNote note) => note.id.startsWith('local_');
+
+  List<RhythmNote> _withPositions(List<RhythmNote> notes) {
+    return [
+      for (int i = 0; i < notes.length; i++) notes[i].copyWith(position: i),
+    ];
+  }
+
+  Future<void> _loadNotes() async {
+    final result = await _repo.fetchAlignmentNotes();
+    final uid = _currentUserId;
+    if (!mounted) return;
+
+    final cached = await _loadNotesFromPrefs(uid);
+
+    final useLocalOnly =
+        result.missingTables || result.friendlyError != null || uid == null;
+    if (useLocalOnly) {
+      _showLocalNotesWarningOnce();
+      if (!mounted) return;
+      setState(() {
+        _notesLocalOnly = true;
+        _notes = cached;
+        _activeNoteIndex = _clampNoteIndex(cached.length);
+        _fullscreenNote =
+            cached.isEmpty ? null : cached[_activeNoteIndex];
+      });
+      return;
+    }
+
+    var notes = result.data;
+    if (notes.isEmpty && cached.any(_isLocalNote)) {
+      final inserted = <RhythmNote>[];
+      for (int i = 0; i < cached.length; i++) {
+        final res = await _repo.insertAlignmentNote(
+          cached[i].text,
+          position: i,
+        );
+        if (res.data != null) {
+          inserted.add(res.data!);
+        }
+      }
+      if (inserted.isNotEmpty) {
+        notes = inserted;
+      } else {
+        notes = cached;
+      }
+    } else if (notes.isEmpty && cached.isNotEmpty) {
+      // Remote empty but cached reflects previously synced notes; show cached
+      // without re-inserting.
+      notes = cached;
+    } else if (notes.isNotEmpty && cached.any(_isLocalNote)) {
+      final offlineAdds = cached.where(_isLocalNote).toList();
+      final inserted = <RhythmNote>[];
+      for (int i = 0; i < offlineAdds.length; i++) {
+        final res = await _repo.insertAlignmentNote(
+          offlineAdds[i].text,
+          position: notes.length + i,
+        );
+        if (res.data != null) {
+          inserted.add(res.data!);
+        }
+      }
+      if (inserted.isNotEmpty) {
+        notes = [...notes, ...inserted];
+      }
+    }
+
+    await _saveNotesToPrefs(notes, uid: uid);
+    if (!mounted) return;
+    setState(() {
+      _notesLocalOnly = false;
+      _notes = notes;
+      _activeNoteIndex = _clampNoteIndex(notes.length);
+      _fullscreenNote = notes.isEmpty ? null : notes[_activeNoteIndex];
+    });
   }
 
   Future<void> _addNote() async {
@@ -208,13 +348,48 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       return;
     }
 
-    final updated = [..._notes, text];
+    final result = await _repo.insertAlignmentNote(
+      text,
+      position: _notes.length,
+    );
+    if (!mounted) return;
+
+    if (result.missingTables) {
+      _showLocalNotesWarningOnce();
+      final fallback = RhythmNote(
+        id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+        text: text,
+        position: _notes.length,
+        createdAt: DateTime.now(),
+      );
+      final updated = [..._notes, fallback];
+      _noteInputController.clear();
+      setState(() {
+        _notesLocalOnly = true;
+        _notes = updated;
+        _activeNoteIndex = updated.length - 1;
+        _fullscreenNote = updated[_activeNoteIndex];
+      });
+      await _saveNotesToPrefs(updated);
+      return;
+    }
+
+    if (result.friendlyError != null || result.data == null) {
+      final msg = result.friendlyError ?? 'Could not save note.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      return;
+    }
+
+    final note = result.data!;
+    final updated = [..._notes, note];
     _noteInputController.clear();
     setState(() {
+      _notesLocalOnly = false;
       _notes = updated;
       _activeNoteIndex = updated.length - 1;
+      _fullscreenNote = updated[_activeNoteIndex];
     });
-    await _persistNotes(updated);
+    await _saveNotesToPrefs(updated);
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_notePageController.hasClients) return;
@@ -285,7 +460,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                           ),
                         ),
                         title: Text(
-                          note,
+                          note.text,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: RhythmTheme.subheading,
@@ -363,24 +538,53 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     _fullscreenPageController = null;
   }
 
-  Future<void> _persistAndSyncNotes(
-    List<String> updated, {
+  Future<void> _syncNotes(
+    List<RhythmNote> updated, {
     int? activeIndex,
+    bool persistOrder = false,
   }) async {
-    final clampedIndex = updated.isEmpty
-        ? 0
-        : (activeIndex ?? _activeNoteIndex).clamp(0, updated.length - 1);
+    final clampedIndex = _clampNoteIndex(updated.length, activeIndex);
     setState(() {
       _notes = updated;
       _activeNoteIndex = clampedIndex;
-      if (_fullscreenNote != null && updated.isNotEmpty) {
-        _fullscreenNote = updated[clampedIndex];
-      } else if (updated.isEmpty) {
+      if (updated.isEmpty) {
         _fullscreenNote = null;
+      } else if (_fullscreenNote != null) {
+        _fullscreenNote = updated[clampedIndex];
       }
     });
-    await _persistNotes(updated);
-    if (_notePageController.hasClients) {
+
+    await _saveNotesToPrefs(updated);
+
+    if (persistOrder) {
+      final remote = <RhythmNote>[];
+      for (int i = 0; i < updated.length; i++) {
+        final note = updated[i];
+        if (_isLocalNote(note)) continue;
+        remote.add(note.copyWith(position: i));
+      }
+      if (remote.isNotEmpty) {
+        final result = await _repo.reorderAlignmentNotes(remote);
+        if (result.missingTables) {
+          _showLocalNotesWarningOnce();
+          if (mounted) {
+            setState(() {
+              _notesLocalOnly = true;
+            });
+          }
+        } else if (result.friendlyError != null && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result.friendlyError!)),
+          );
+        } else if (mounted) {
+          setState(() {
+            _notesLocalOnly = false;
+          });
+        }
+      }
+    }
+
+    if (_notePageController.hasClients && updated.isNotEmpty) {
       unawaited(
         _notePageController.animateToPage(
           clampedIndex,
@@ -389,7 +593,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         ),
       );
     }
-    if (_fullscreenPageController?.hasClients == true) {
+    if (_fullscreenPageController?.hasClients == true &&
+        updated.isNotEmpty) {
       _fullscreenPageController!.jumpToPage(clampedIndex);
     }
   }
@@ -397,7 +602,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   Future<void> _editNote(int index) async {
     if (index < 0 || index >= _notes.length) return;
     final original = _notes[index];
-    final controller = TextEditingController(text: original);
+    final controller = TextEditingController(text: original.text);
     final updatedText = await showDialog<String>(
       context: context,
       builder: (context) {
@@ -439,12 +644,37 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       ).showSnackBar(const SnackBar(content: Text('Note cannot be empty.')));
       return;
     }
-    final updated = [..._notes]..[index] = updatedText;
-    await _persistAndSyncNotes(updated, activeIndex: index);
+
+    if (!_isLocalNote(original)) {
+      final result = await _repo.updateAlignmentNote(original.id, updatedText);
+      if (result.missingTables) {
+        // fall through to local persistence
+        _showLocalNotesWarningOnce();
+        if (mounted) {
+          setState(() {
+            _notesLocalOnly = true;
+          });
+        }
+      } else if (result.friendlyError != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(result.friendlyError!)));
+        return;
+      } else if (mounted) {
+        setState(() {
+          _notesLocalOnly = false;
+        });
+      }
+    }
+
+    final updated = [..._notes]
+      ..[index] = original.copyWith(text: updatedText);
+    await _syncNotes(updated, activeIndex: index);
   }
 
   Future<void> _deleteNote(int index) async {
     if (index < 0 || index >= _notes.length) return;
+    final note = _notes[index];
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -470,10 +700,35 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       ),
     );
     if (confirmed != true) return;
+
+    if (!_isLocalNote(note)) {
+      final result = await _repo.deleteAlignmentNote(note.id);
+      if (result.missingTables) {
+        // Fall back to local deletion below.
+        _showLocalNotesWarningOnce();
+        if (mounted) {
+          setState(() {
+            _notesLocalOnly = true;
+          });
+        }
+      } else if (result.friendlyError != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(result.friendlyError!)));
+        return;
+      } else if (mounted) {
+        setState(() {
+          _notesLocalOnly = false;
+        });
+      }
+    }
+
     final updated = [..._notes]..removeAt(index);
-    await _persistAndSyncNotes(
-      updated,
-      activeIndex: updated.isEmpty ? 0 : (index - 1),
+    final reindexed = _withPositions(updated);
+    await _syncNotes(
+      reindexed,
+      activeIndex: reindexed.isEmpty ? 0 : (index - 1),
+      persistOrder: true,
     );
   }
 
@@ -495,12 +750,17 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       }
     }
 
-    await _persistAndSyncNotes(updated, activeIndex: newActive);
+    final reindexed = _withPositions(updated);
+    await _syncNotes(
+      reindexed,
+      activeIndex: newActive,
+      persistOrder: true,
+    );
   }
 
   Widget _noteCard(
     BuildContext context,
-    String note, {
+    RhythmNote note, {
     required int index,
     bool fullscreen = false,
   }) {
@@ -545,7 +805,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                     ),
                     child: Center(
                       child: KemeticGold.text(
-                        note,
+                        note.text,
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 34,
@@ -563,7 +823,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             )
           : Center(
               child: KemeticGold.text(
-                note,
+                note.text,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 24,
@@ -621,6 +881,33 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_notesLocalOnly)
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orangeAccent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.orangeAccent.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.cloud_off, color: Colors.orangeAccent, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Planner notes are saved only on this device. Cloud sync is unavailable.',
+                      style: RhythmTheme.subheading.copyWith(
+                        color: Colors.orangeAccent,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Stack(
             children: [
               TextField(
