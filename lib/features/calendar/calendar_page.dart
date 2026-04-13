@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/user_events_repo.dart';
 import '../../data/flows_repo.dart';
@@ -67,6 +68,7 @@ import '../nodes/kemetic_node_list_page.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/kemetic_node_model.dart';
 import '../nodes/node_user_insights_section.dart';
+import '../rhythm/pages/todays_alignment_page.dart';
 
 typedef _QuickAddParse = ({
   DateTime date,
@@ -9239,6 +9241,12 @@ class _CalendarPageState extends State<CalendarPage>
         gradient: goldGloss,
         label: 'Journal',
         onSelected: _openJournalFromAppBar,
+      ),
+      _CalendarAction(
+        icon: Icons.wb_sunny_outlined,
+        gradient: goldGloss,
+        label: 'Planner',
+        onSelected: () => context.push('/rhythm/today'),
       ),
       _CalendarAction(
         icon: Icons.mail_outline,
@@ -18699,7 +18707,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                               onOpenDay: (d) =>
                                   _handleDayTap(context, pageYear, month, d),
                             ),
-                            const _PlannerTabPlaceholder(),
+                            const TodaysAlignmentPage(embedded: true),
                           ],
                         ),
                       ),
@@ -18779,8 +18787,7 @@ class _InfoTabState extends State<_InfoTab> {
     super.dispose();
   }
 
-  _InfoNodeEntry? get _activeNode =>
-      _history.isEmpty ? null : _history.last;
+  _InfoNodeEntry? get _activeNode => _history.isEmpty ? null : _history.last;
 
   @override
   Widget build(BuildContext context) {
@@ -18837,8 +18844,9 @@ class _InfoTabState extends State<_InfoTab> {
   }
 
   Widget _buildBackRow() {
-    final previous =
-        _history.length >= 2 ? _history[_history.length - 2].title : null;
+    final previous = _history.length >= 2
+        ? _history[_history.length - 2].title
+        : null;
     final label = previous ?? 'Back to ${widget.backLabel}';
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -18915,10 +18923,7 @@ class _InfoTabState extends State<_InfoTab> {
     );
   }
 
-  List<Widget> _buildParagraphs(
-    String body,
-    List<KemeticNodeLink> linkMap,
-  ) {
+  List<Widget> _buildParagraphs(String body, List<KemeticNodeLink> linkMap) {
     final used = <String>{};
     final widgets = <Widget>[];
     for (final raw in body.split('\n\n')) {
@@ -19156,7 +19161,6 @@ class _LinkMatch {
   });
 }
 
-
 class _EventsTab extends StatelessWidget {
   final int kYear;
   final int kMonth;
@@ -19329,23 +19333,6 @@ class _EventsTab extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _PlannerTabPlaceholder extends StatelessWidget {
-  const _PlannerTabPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24.0),
-        child: Text(
-          'Planner view coming soon.',
-          style: TextStyle(color: Colors.white70),
-        ),
-      ),
     );
   }
 }

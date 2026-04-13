@@ -66,14 +66,19 @@ class GlossyText extends StatelessWidget {
   Widget build(BuildContext context) {
     final double fs = (style.fontSize ?? 16.0);
     final bool small = fs < 18.0;
+    final bool unlimited = maxLines == null;
 
     final TextStyle masked = style.copyWith(
       color: const Color(0xFFFFFFFF),
       height: style.height,
-      fontSize: (style.fontSize != null) ? style.fontSize!.roundToDouble() : null,
+      fontSize: (style.fontSize != null)
+          ? style.fontSize!.roundToDouble()
+          : null,
       letterSpacing: 0,
       fontFamily: style.fontFamily,
-      fontFamilyFallback: style.fontFamilyFallback ?? const ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+      fontFamilyFallback:
+          style.fontFamilyFallback ??
+          const ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
       shadows: small ? null : style.shadows,
     );
 
@@ -84,9 +89,11 @@ class GlossyText extends StatelessWidget {
         child: Text(
           text,
           style: masked,
-          softWrap: softWrap ?? false,
-          maxLines: maxLines ?? 1,
-          overflow: overflow ?? TextOverflow.fade,
+          softWrap: softWrap ?? (unlimited ? true : false),
+          maxLines: maxLines,
+          overflow:
+              overflow ??
+              (unlimited ? TextOverflow.visible : TextOverflow.fade),
           textAlign: textAlign,
           textHeightBehavior: const TextHeightBehavior(
             applyHeightToFirstAscent: false,
@@ -151,5 +158,3 @@ class KemeticGold {
     return GlossyIcon(icon: icon, gradient: gloss, size: size);
   }
 }
-
-

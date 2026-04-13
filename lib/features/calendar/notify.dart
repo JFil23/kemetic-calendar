@@ -13,8 +13,10 @@ enum NotificationType {
   eventStart('event_start'),
   reminder10min('reminder_10min'),
   dailyReview('daily_review'),
-  flowStep('flow_step');
-  
+  flowStep('flow_step'),
+  /// Flow-adjacent nudges (shared DB constraint with `flow_reminder`).
+  flowReminder('flow_reminder');
+
   final String value;
   const NotificationType(this.value);
 }
@@ -314,6 +316,36 @@ class Notify {
       }
     } catch (e) {
       _log('⚠️ Error cancelling notification: $e');
+    }
+  }
+
+  /// Cancel every active scheduled notification whose [client_event_id] starts with [prefix].
+  /// Used for rhythm field reminders (`rhythm:field:<uuid>:…`).
+  static Future<void> cancelByClientEventIdPrefix(String prefix) async {
+    if (prefix.isEmpty) return;
+    if (!_inited) {
+      await init();
+    }
+    try {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final rows = await client
+          .from('scheduled_notifications')
+          .select('client_event_id')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .like('client_event_id', '$prefix%');
+
+      for (final row in (rows as List).cast<Map<String, dynamic>>()) {
+        final cid = row['client_event_id'] as String?;
+        if (cid != null && cid.isNotEmpty) {
+          await cancelNotificationForEvent(cid);
+        }
+      }
+    } catch (e) {
+      _log('⚠️ cancelByClientEventIdPrefix: $e');
     }
   }
 

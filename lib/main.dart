@@ -30,6 +30,7 @@ import 'services/push_notifications.dart';
 import 'services/decan_reflection_scheduler.dart';
 import 'data/decan_reflection_repo.dart';
 import 'features/profile/profile_page.dart';
+import 'features/rhythm/pages/todays_alignment_page.dart';
 import 'features/reflections/decan_reflection_detail_page.dart';
 import 'widgets/kemetic_keyboard.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -278,6 +279,22 @@ final _router = GoRouter(
           token: state.uri.queryParameters['token'],
         );
       },
+    ),
+    GoRoute(
+      path: '/rhythm/mycycle',
+      builder: (context, state) => const TodaysAlignmentPage(),
+    ),
+    GoRoute(
+      path: '/rhythm/today',
+      builder: (context, state) => const TodaysAlignmentPage(),
+    ),
+    GoRoute(
+      path: '/rhythm/todo',
+      builder: (context, state) => const TodaysAlignmentPage(),
+    ),
+    GoRoute(
+      path: '/rhythm/tracker',
+      builder: (context, state) => const TodaysAlignmentPage(),
     ),
   ],
 );
