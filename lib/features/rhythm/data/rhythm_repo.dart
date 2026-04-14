@@ -198,7 +198,10 @@ class RhythmRepo {
   }
 
   /// Quick-add from Today's Alignment: title only, due today, on checklist.
-  Future<RhythmRepoResult<bool>> insertTodaysCommitment(String title) async {
+  Future<RhythmRepoResult<bool>> insertTodaysCommitment(
+    String title, {
+    DateTime? dueDate,
+  }) async {
     final uid = _userId;
     if (uid == null) {
       return const RhythmRepoResult(data: false, friendlyError: 'Not signed in');
@@ -207,9 +210,8 @@ class RhythmRepo {
     if (trimmed.isEmpty) {
       return const RhythmRepoResult(data: false);
     }
-    final todayIso = DateFormat('yyyy-MM-dd').format(
-      DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
-    );
+    final target = DateUtils.dateOnly(dueDate ?? DateTime.now());
+    final todayIso = DateFormat('yyyy-MM-dd').format(target);
     try {
       await _client.from('todos').insert({
         'user_id': uid,
@@ -663,6 +665,7 @@ class RhythmRepo {
             'id': n.id,
             'user_id': uid,
             'position': n.position,
+            'body': n.text,
           },
       ];
       await _client.from('alignment_notes').upsert(payload);
