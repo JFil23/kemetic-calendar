@@ -93,6 +93,25 @@ void _configureLogging() {
   }
 }
 
+// Kick off heavier services without blocking the first frame.
+void _startBackgroundWarmups() {
+  unawaited(() async {
+    try {
+      await Notify.init();
+    } catch (_) {
+      // best-effort; AuthGate will retry
+    }
+  }());
+
+  unawaited(() async {
+    try {
+      await PushNotifications.instance(Supabase.instance.client).init();
+    } catch (_) {
+      // best-effort; registration path will retry
+    }
+  }());
+}
+
 Future<void> main() async {
   await runZoned(() async {
     _configureLogging();
@@ -141,10 +160,9 @@ Future<void> main() async {
       ),
     );
 
-    // 🚨 Initialize notifications
-    // Ensures notification channels and platform-specific setup happen before the app builds.
-    await Notify.init();
-    await PushNotifications.instance(Supabase.instance.client).init();
+    // 🚨 Initialize notifications/push without blocking the first frame.
+    // AuthGate will re-attempt on sign-in if these fail.
+    _startBackgroundWarmups();
 
     // Web/PWA boot hardening (iOS PWA friendly)
     await _completeWebOAuthIfNeeded(); // 1) exchange ?code once

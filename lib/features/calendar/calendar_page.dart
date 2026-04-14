@@ -4018,7 +4018,8 @@ class _CalendarPageState extends State<CalendarPage>
   // This should be removed after the cleanup runs successfully
   bool _runOneTimeCacheCleanup = false;
 
-  static const int _standaloneHydrationWindowYears = 3;
+  // Narrower initial window for faster startup; flows can still widen it.
+  static const int _standaloneHydrationWindowYears = 1;
   static const Duration _standaloneHydrationPadding = Duration(days: 30);
 
   int _dataVersion = 0;

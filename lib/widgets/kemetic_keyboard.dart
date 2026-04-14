@@ -163,6 +163,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
   final KemeticKeyboardController _controller = KemeticKeyboardController();
   double _lastKeyboardHeight = 300;
   bool _opening = false;
+  bool _systemKeyboardHidden = false;
 
   @override
   void initState() {
@@ -197,6 +198,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
         } else {
           try {
             SystemChannels.textInput.invokeMethod('TextInput.hide');
+            _systemKeyboardHidden = true;
           } catch (_) {}
         }
       } else {
@@ -207,14 +209,20 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
 
     // System mode.
     if (editable == null) {
-      _controller.closeAndClearTargets();
+      // Keep last usable editable so cursor state is preserved while focus
+      // briefly leaves the field (e.g., during long-press gestures).
+      _controller.attachEditable(null);
       return;
     }
 
     _controller.attachEditable(editable);
-    // If we have a text field in focus and the custom keyboard is not showing,
-    // ensure the system keyboard is available.
-    if (!_controller.isOpen) {
+    // If the system keyboard was explicitly hidden (e.g., after custom mode),
+    // restore it once a field regains focus so cursor gestures keep working.
+    if (_systemKeyboardHidden) {
+      _systemKeyboardHidden = false;
+      try {
+        SystemChannels.textInput.invokeMethod('TextInput.show');
+      } catch (_) {}
       _controller.requestSystemKeyboard();
     }
   }
@@ -278,6 +286,10 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
 
   void _closeCustomAndRestoreSystem() {
     _controller.close();
+    try {
+      SystemChannels.textInput.invokeMethod('TextInput.show');
+    } catch (_) {}
+    _systemKeyboardHidden = false;
     _controller.requestSystemKeyboard();
   }
 }
