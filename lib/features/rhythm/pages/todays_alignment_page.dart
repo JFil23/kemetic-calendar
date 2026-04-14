@@ -7,15 +7,19 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:mobile/data/nutrition_repo.dart';
 import 'package:mobile/core/kemetic_converter.dart';
+import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/profile/profile_page.dart';
 import 'package:mobile/features/rhythm/rhythm_add_flow.dart';
 import 'package:mobile/features/rhythm/rhythm_telemetry.dart';
 import 'package:mobile/features/rhythm/rhythm_user_messages.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/widgets/kemetic_day_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:mobile/core/day_key.dart';
 import '../data/rhythm_repo.dart';
 import '../models/rhythm_models.dart';
 import '../theme/rhythm_theme.dart';
@@ -35,6 +39,7 @@ class TodaysAlignmentPage extends StatefulWidget {
 
 class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   final RhythmRepo _repo = RhythmRepo(Supabase.instance.client);
+  final NutritionRepo _nutritionRepo = NutritionRepo(Supabase.instance.client);
   late Future<void> _future;
   final TextEditingController _commitmentInputController =
       TextEditingController();
@@ -45,11 +50,19 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   final PageController _notePageController = PageController(
     viewportFraction: 0.9,
   );
+  late PageController _nutritionPageController;
   PageController? _fullscreenPageController;
   final KemeticConverter _kemeticConverter = KemeticConverter();
   int? _pendingTodoPageIndex;
   bool _pendingTodoPageAnimate = false;
   bool _todoPageJumpScheduled = false;
+
+  final TextEditingController _nutritionNutrientController =
+      TextEditingController();
+  final TextEditingController _nutritionSourceController =
+      TextEditingController();
+  final TextEditingController _nutritionPurposeController =
+      TextEditingController();
 
   List<RhythmItem> _alignmentItems = [];
   List<RhythmTodo> _todos = [];
@@ -66,12 +79,24 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   bool _notesLocalNoticeShown = false;
   bool _showGregorianDates = false;
   Timer? _midnightTimer;
+  List<NutritionItem> _nutritionItems = [];
+  bool _nutritionLoading = true;
+  bool _nutritionMissingTable = false;
+  String? _nutritionError;
+  int _activeNutritionDayIndex = 0;
+  bool _nutritionFormOpen = false;
 
   @override
   void initState() {
     super.initState();
+    _activeNutritionDayIndex = (_currentDecanDay() - 1).clamp(0, 9);
+    _nutritionPageController = PageController(
+      viewportFraction: 0.94,
+      initialPage: _activeNutritionDayIndex,
+    );
     _future = _load();
     unawaited(_loadNotes());
+    unawaited(_loadNutrition());
     _scheduleMidnightRefresh();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(
@@ -89,6 +114,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     _noteInputController.dispose();
     _todoPageController.dispose();
     _notePageController.dispose();
+    _nutritionNutrientController.dispose();
+    _nutritionSourceController.dispose();
+    _nutritionPurposeController.dispose();
+    _nutritionPageController.dispose();
     _fullscreenPageController?.dispose();
     _midnightTimer?.cancel();
     super.dispose();
@@ -119,6 +148,94 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         _todosByDay = {_todayLocal: []};
         _activeTodoDayIndex = 0;
       });
+    }
+  }
+
+  Future<void> _loadNutrition() async {
+    setState(() {
+      _nutritionLoading = true;
+      _nutritionError = null;
+      _nutritionMissingTable = false;
+    });
+    try {
+      final items = await _nutritionRepo.getAll();
+      if (!mounted) return;
+      setState(() {
+        _nutritionItems = items;
+        _nutritionLoading = false;
+      });
+    } on StateError catch (e) {
+      final msg = e.toString().toLowerCase();
+      final missing = msg.contains('nutrition_items');
+      if (!mounted) return;
+      setState(() {
+        _nutritionItems = [];
+        _nutritionLoading = false;
+        _nutritionMissingTable = missing;
+        _nutritionError = missing
+            ? 'Nutrition storage is not available in this environment yet.'
+            : 'Could not load nutrition sources.';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _nutritionItems = [];
+        _nutritionLoading = false;
+        _nutritionError = 'Could not load nutrition sources.';
+      });
+    }
+  }
+
+  Future<void> _addNutritionItem() async {
+    final nutrient = _nutritionNutrientController.text.trim();
+    final source = _nutritionSourceController.text.trim();
+    final purpose = _nutritionPurposeController.text.trim();
+    final decanDay = _activeNutritionDayIndex + 1;
+    if (nutrient.isEmpty && source.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add a nutrient or source first.')),
+      );
+      return;
+    }
+    if (_nutritionMissingTable) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nutrition storage is not available in this environment yet.'),
+        ),
+      );
+      return;
+    }
+    final newItem = NutritionItem(
+      id: '',
+      nutrient: nutrient,
+      source: source,
+      purpose: purpose,
+      enabled: true,
+      schedule: IntakeSchedule(
+        mode: IntakeMode.decan,
+        decanDays: {decanDay},
+        daysOfWeek: const {},
+        repeat: true,
+        time: const TimeOfDay(hour: 9, minute: 0),
+      ),
+    );
+    try {
+      final saved = await _nutritionRepo.upsert(newItem);
+      if (!mounted) return;
+      setState(() {
+        _nutritionItems = [..._nutritionItems, saved];
+      });
+      _nutritionNutrientController.clear();
+      _nutritionSourceController.clear();
+      _nutritionPurposeController.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Saved to Day $decanDay of this decan.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save nutrition item.')),
+      );
     }
   }
 
@@ -217,6 +334,54 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   DateTime get _todayLocal =>
       DateUtils.dateOnly(DateTime.now());
 
+  int _decanDayForKemetic(KemeticDate kd) {
+    if (kd.epagomenal) {
+      return kd.day.clamp(1, 10);
+    }
+    return ((kd.day - 1) % 10) + 1;
+  }
+
+  int _currentDecanDay() {
+    final kd = _kemeticConverter.fromGregorian(_todayLocal);
+    return _decanDayForKemetic(kd);
+  }
+
+  String _currentDecanName() {
+    final kd = _kemeticConverter.fromGregorian(_todayLocal);
+    if (kd.epagomenal) return 'Epagomenal';
+    return DecanMetadata.decanNameFor(kMonth: kd.month, kDay: kd.day);
+  }
+
+  /// Resolves the Kemetic day key for the nutrition pager's active decan day.
+  /// We anchor off today's decan so swiping days 1–10 lines up with the
+  /// current decan block in the calendar.
+  String _nutritionDayKeyForActivePage() {
+    final kd = _kemeticConverter.fromGregorian(_todayLocal);
+    final decanDayToday = _currentDecanDay();
+    final baseDay = kd.day - (decanDayToday - 1); // day 1 of this decan
+    final targetDay = (baseDay + _activeNutritionDayIndex).clamp(1, kd.epagomenal ? 5 : 30);
+    final kMonth = kd.epagomenal ? 13 : kd.month;
+    return kemeticDayKey(kMonth, targetDay);
+  }
+
+  Future<void> _openDecanInfo() async {
+    final dayKey = _nutritionDayKeyForActivePage();
+    final info = KemeticDayData.getInfoForDay(dayKey);
+    if (info == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Decan details are not available yet.')),
+      );
+      return;
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _DecanInfoPage(dayKey: dayKey, info: info),
+      ),
+    );
+  }
+
   DateTime _normalizeDate(DateTime date) =>
       DateTime(date.year, date.month, date.day);
 
@@ -299,6 +464,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       setState(() {
         _future = _load();
       });
+      unawaited(_loadNutrition());
       _scheduleMidnightRefresh();
     });
   }
@@ -334,6 +500,33 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     return _showGregorianDates
         ? blue
         : (RhythmTheme.subheading.color ?? Colors.white70);
+  }
+
+  List<NutritionItem> _itemsForDecanDay(int decanDay) {
+    if (decanDay < 1 || decanDay > 10) return const [];
+    final items = _nutritionItems
+        .where(
+          (n) =>
+              n.enabled &&
+              n.schedule.mode == IntakeMode.decan &&
+              n.schedule.decanDays.contains(decanDay),
+        )
+        .toList();
+    items.sort((a, b) {
+      final aTime = a.schedule.time;
+      final bTime = b.schedule.time;
+      final hourCmp = aTime.hour.compareTo(bTime.hour);
+      if (hourCmp != 0) return hourCmp;
+      final minuteCmp = aTime.minute.compareTo(bTime.minute);
+      if (minuteCmp != 0) return minuteCmp;
+      return a.nutrient.toLowerCase().compareTo(b.nutrient.toLowerCase());
+    });
+    return items;
+  }
+
+  String _presentableText(String value, {String fallback = '—'}) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? fallback : trimmed;
   }
 
   String? _formatTodoDue(RhythmTodo todo, DateTime fallbackDay) {
@@ -1054,6 +1247,521 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
   }
 
+  Widget _buildNutritionTable(List<NutritionItem> items) {
+    if (items.isEmpty) {
+      return Center(
+        child: Text(
+          'No sources mapped to this decan day yet.',
+          style: RhythmTheme.subheading,
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.vertical,
+          physics: const BouncingScrollPhysics(),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: DataTable(
+                headingRowColor: MaterialStateProperty.all(
+                  Colors.white.withValues(alpha: 0.06),
+                ),
+                dataRowColor: MaterialStateProperty.all(
+                  Colors.white.withValues(alpha: 0.02),
+                ),
+                columnSpacing: 22,
+                headingTextStyle: RhythmTheme.subheading.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+                dataTextStyle: RhythmTheme.subheading,
+                columns: const [
+                  DataColumn(label: Text('Nutrient')),
+                  DataColumn(label: Text('Source')),
+                  DataColumn(label: Text('Purpose')),
+                ],
+                rows: items
+                    .map(
+                      (item) => DataRow(
+                        cells: [
+                          DataCell(Text(_presentableText(item.nutrient))),
+                          DataCell(Text(_presentableText(item.source))),
+                          DataCell(Text(_presentableText(item.purpose))),
+                        ],
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showNutritionFullscreen(int decanDay, String decanName) async {
+    final items = _itemsForDecanDay(decanDay);
+    await showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Nutrition detail',
+      barrierColor: Colors.black.withValues(alpha: 0.86),
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (context, _, __) {
+        return SafeArea(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.94),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      KemeticGold.text(
+                        '$decanName · Day $decanDay',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'GentiumPlus',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () =>
+                            Navigator.of(context, rootNavigator: true).maybePop(),
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        tooltip: 'Close',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(child: _buildNutritionTable(items)),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, anim, __, child) {
+        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween(
+              begin: const Offset(0, 0.02),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _nutritionGridPage({
+    required int index,
+    required String decanName,
+  }) {
+    final decanDay = index + 1;
+    final items = _itemsForDecanDay(decanDay);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onDoubleTap: () => _showNutritionFullscreen(decanDay, decanName),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.03),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _openDecanInfo,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: KemeticGold.text(
+                        decanName,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'GentiumPlus',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: RhythmTheme.aurora.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: RhythmTheme.aurora.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Text(
+                    'Day $decanDay',
+                    style: RhythmTheme.label.copyWith(
+                      color: RhythmTheme.aurora,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: items.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No sources mapped to Day $decanDay.',
+                        style: RhythmTheme.subheading,
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  : ListView.separated(
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: items.length,
+                      separatorBuilder: (_, __) => const Divider(
+                        height: 14,
+                        thickness: 0.6,
+                        color: Colors.white12,
+                      ),
+                      itemBuilder: (context, i) {
+                        final item = items[i];
+                        final source = _presentableText(
+                          item.source,
+                          fallback: 'Source not set',
+                        );
+                        return Row(
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: RhythmTheme.aurora,
+                                borderRadius: BorderRadius.circular(6),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: RhythmTheme.aurora.withValues(
+                                      alpha: 0.4,
+                                    ),
+                                    blurRadius: 12,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                source,
+                                style: RhythmTheme.subheading.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Double-tap for nutrient + purpose.',
+              style: RhythmTheme.label.copyWith(color: Colors.white54),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNutritionSection() {
+    final decanName = _currentDecanName();
+
+    return RhythmSectionCard(
+      title: 'Nutrition',
+      subtitle: 'Swipe across the decan to remember your sources.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Add to Day ${_activeNutritionDayIndex + 1}',
+                          style: RhythmTheme.subheading.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: _nutritionFormOpen ? 'Hide add form' : 'Show add form',
+                        icon: Icon(
+                          _nutritionFormOpen ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
+                          color: Colors.white70,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _nutritionFormOpen = !_nutritionFormOpen;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                AnimatedCrossFade(
+                  crossFadeState: _nutritionFormOpen
+                      ? CrossFadeState.showFirst
+                      : CrossFadeState.showSecond,
+                  duration: const Duration(milliseconds: 200),
+                  firstChild: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: _nutritionSourceController,
+                          style: RhythmTheme.subheading,
+                          decoration: InputDecoration(
+                            labelText: 'Source',
+                            hintText: 'e.g., Apple, Supplement, Tea',
+                            labelStyle: RhythmTheme.label.copyWith(color: Colors.white70),
+                            hintStyle: RhythmTheme.label.copyWith(color: Colors.white38),
+                            filled: true,
+                            fillColor: Colors.white.withValues(alpha: 0.05),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.12),
+                              ),
+                            ),
+                          ),
+                          textInputAction: TextInputAction.next,
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _nutritionNutrientController,
+                          style: RhythmTheme.subheading,
+                          decoration: InputDecoration(
+                            labelText: 'Nutrient (optional)',
+                            hintText: 'e.g., Vitamin C, Magnesium',
+                            labelStyle: RhythmTheme.label.copyWith(color: Colors.white70),
+                            hintStyle: RhythmTheme.label.copyWith(color: Colors.white38),
+                            filled: true,
+                            fillColor: Colors.white.withValues(alpha: 0.05),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.12),
+                              ),
+                            ),
+                          ),
+                          textInputAction: TextInputAction.next,
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _nutritionPurposeController,
+                          style: RhythmTheme.subheading,
+                          decoration: InputDecoration(
+                            labelText: 'Purpose (optional)',
+                            hintText: 'e.g., Energy, Sleep, Recovery',
+                            labelStyle: RhythmTheme.label.copyWith(color: Colors.white70),
+                            hintStyle: RhythmTheme.label.copyWith(color: Colors.white38),
+                            filled: true,
+                            fillColor: Colors.white.withValues(alpha: 0.05),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(
+                                color: Colors.white.withValues(alpha: 0.12),
+                              ),
+                            ),
+                          ),
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => unawaited(_addNutritionItem()),
+                        ),
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: RhythmTheme.aurora,
+                              foregroundColor: Colors.black,
+                            ),
+                            onPressed: _nutritionLoading
+                                ? null
+                                : () => unawaited(_addNutritionItem()),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add to grid'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  secondChild: const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (_nutritionMissingTable)
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orangeAccent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.orangeAccent.withValues(alpha: 0.4),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.cloud_off, color: Colors.orangeAccent, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Nutrition tracking is not available in this environment yet.',
+                      style: RhythmTheme.subheading.copyWith(
+                        color: Colors.orangeAccent,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (_nutritionError != null && !_nutritionMissingTable)
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _nutritionError!,
+                      style: RhythmTheme.subheading.copyWith(
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => unawaited(_loadNutrition()),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          if (_nutritionLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: SizedBox(
+                  width: 26,
+                  height: 26,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.6,
+                    valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+                  ),
+                ),
+              ),
+            )
+          else
+            Column(
+              children: [
+                SizedBox(
+                  height: 230,
+                  child: PageView.builder(
+                    controller: _nutritionPageController,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: 10,
+                    onPageChanged: (index) {
+                      setState(() {
+                        _activeNutritionDayIndex = index;
+                      });
+                    },
+                    itemBuilder: (context, index) {
+                      return _nutritionGridPage(
+                        index: index,
+                        decanName: decanName,
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (int i = 0; i < 10; i++)
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        height: 8,
+                        width: _activeNutritionDayIndex == i ? 18 : 8,
+                        decoration: BoxDecoration(
+                          color: _activeNutritionDayIndex == i
+                              ? RhythmTheme.aurora
+                              : Colors.white.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _openDecanInfo,
+                  child: Text(
+                    'Viewing $decanName — decan day ${_activeNutritionDayIndex + 1} of 10. Swipe or double-tap for detail.',
+                    textAlign: TextAlign.center,
+                    style: RhythmTheme.label.copyWith(color: Colors.white54),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _noteCard(
     BuildContext context,
     RhythmNote note, {
@@ -1512,6 +2220,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             const SizedBox(height: 14),
             _buildNotesSection(),
             const SizedBox(height: 14),
+            _buildNutritionSection(),
+            const SizedBox(height: 14),
             RhythmSectionCard(
               title: 'To Do',
               subtitle: 'Add what you want to move today. Tap below to add.',
@@ -1794,5 +2504,121 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
           ),
         );
     return [...doneAlignment, ...doneTodos];
+  }
+}
+
+class _DecanInfoPage extends StatelessWidget {
+  const _DecanInfoPage({
+    required this.dayKey,
+    required this.info,
+  });
+
+  final String dayKey;
+  final KemeticDayInfo info;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: KemeticGold.base),
+        title: KemeticGold.text(
+          info.decanName,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'GentiumPlus',
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: RhythmTheme.cardSurface(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    info.kemeticDate,
+                    style: RhythmTheme.subheading.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${info.season} · ${info.month} · $dayKey',
+                    style: RhythmTheme.label.copyWith(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    info.cosmicContext,
+                    style: RhythmTheme.subheading,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Medu Neter',
+                    style: RhythmTheme.subheading.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    info.meduNeter.glyph,
+                    style: RhythmTheme.subheading,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    info.meduNeter.mantra,
+                    style: RhythmTheme.label.copyWith(color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Decan Flow',
+              style: RhythmTheme.subheading.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            ...info.decanFlow.map(
+              (d) => Container(
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Day ${d.day}: ${d.theme}',
+                      style: RhythmTheme.subheading.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      d.action,
+                      style: RhythmTheme.subheading,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      d.reflection,
+                      style: RhythmTheme.label.copyWith(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
