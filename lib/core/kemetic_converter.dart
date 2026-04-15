@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart' show DateUtils;
 
-import 'package:intl/intl.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 
 // Removed - use getMonthById(id).season instead
 @Deprecated('Use getSeasonName(id) - removes in v3.0')
 final kemeticSeasonsByMonth = <int, String>{
-  1: 'Akhet', 2: 'Akhet', 3: 'Akhet', 4: 'Akhet',
-  5: 'Peret', 6: 'Peret', 7: 'Peret', 8: 'Peret',
-  9: 'Shemu', 10: 'Shemu', 11: 'Shemu', 12: 'Shemu',
+  1: 'Akhet',
+  2: 'Akhet',
+  3: 'Akhet',
+  4: 'Akhet',
+  5: 'Peret',
+  6: 'Peret',
+  7: 'Peret',
+  8: 'Peret',
+  9: 'Shemu',
+  10: 'Shemu',
+  11: 'Shemu',
+  12: 'Shemu',
 };
 
 /// Season meanings for UI.
@@ -34,7 +42,8 @@ class KemeticDate {
     required this.epagomenal,
   });
 
-  String get monthName => epagomenal ? 'Epagomenal' : getMonthById(month).hellenized;
+  String get monthName =>
+      epagomenal ? 'Epagomenal' : getMonthById(month).hellenized;
   String? get season => epagomenal ? null : getSeasonName(month);
 
   @override
@@ -49,7 +58,7 @@ class KemeticDate {
 
 class KemeticConverter {
   KemeticConverter({DateTime? epochLocal})
-      : _epochLocal = toUtcDateOnly(epochLocal ?? kKemeticEpochUtc);
+    : _epochLocal = toUtcDateOnly(epochLocal ?? kKemeticEpochUtc);
 
   final DateTime _epochLocal;
 
@@ -82,7 +91,12 @@ class KemeticConverter {
     if (days < 360) {
       final month = (days ~/ 30) + 1;
       final day = (days % 30) + 1;
-      return KemeticDate(year: kYear, month: month, day: day, epagomenal: false);
+      return KemeticDate(
+        year: kYear,
+        month: month,
+        day: day,
+        epagomenal: false,
+      );
     } else {
       final len = _kemeticYearLength(kYearStart);
       final epiDay = (days - 360) + 1;
@@ -95,7 +109,7 @@ class KemeticConverter {
     int totalDays = 0;
     int y = 1;
     DateTime start = _epochLocal;
-    
+
     if (kd.year >= 1) {
       while (y < kd.year) {
         totalDays += _kemeticYearLength(start);
@@ -109,12 +123,12 @@ class KemeticConverter {
         y--;
       }
     }
-    
+
     final offset = kd.month == 0
         ? 360 + (kd.day - 1)
         : (kd.month - 1) * 30 + (kd.day - 1);
     totalDays += offset;
-    
+
     return utcFromEpochDay(epochDayFromUtc(_epochLocal) + totalDays);
   }
 
@@ -166,9 +180,9 @@ String formatKemeticToday({DateTime? todayLocal, KemeticConverter? conv}) {
   final kd = converter.fromGregorian(local);
 
   if (kd.epagomenal) {
-    return 'Y${kd.year} • Epagomenal Day ${kd.day}';
+    return 'Epagomenal Day ${kd.day}';
   }
   final monthName = getMonthById(kd.month).hellenized;
   final season = getSeasonName(kd.month);
-  return 'Y${kd.year} • $monthName ${kd.day} • $season';
+  return '$monthName ${kd.day} • $season';
 }

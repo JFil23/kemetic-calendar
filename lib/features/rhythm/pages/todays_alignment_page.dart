@@ -587,19 +587,16 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   String _formatKemeticDate(DateTime date, {bool short = false}) {
     final kd = _kemeticConverter.fromGregorian(_normalizeDate(date));
     if (kd.epagomenal) {
-      return short
-          ? 'Epagomenal ${kd.day} · Y${kd.year}'
-          : 'Epagomenal Day ${kd.day} · Y${kd.year}';
+      return short ? 'Epagomenal ${kd.day}' : 'Epagomenal Day ${kd.day}';
     }
     final monthName = getMonthById(kd.month).hellenized;
     final base = '$monthName ${kd.day}';
     if (short) {
-      return '$base · Y${kd.year}';
+      return base;
     }
     final season = getSeasonName(kd.month);
     final buffer = StringBuffer(base);
     if (season != null) buffer.write(' · $season');
-    buffer.write(' · Y${kd.year}');
     return buffer.toString();
   }
 
