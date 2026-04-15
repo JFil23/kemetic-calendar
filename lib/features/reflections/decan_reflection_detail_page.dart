@@ -29,8 +29,10 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   final List<GestureRecognizer> _linkGestureRecognizers = [];
   List<InlineSpan> _reflectionSpans = const [];
   DecanReflection? _reflection;
+  TextSelection _reflectionSelection = const TextSelection.collapsed(
+    offset: -1,
+  );
   bool _loading = true;
-  final _sheetController = TextEditingController();
 
   @override
   void initState() {
@@ -41,7 +43,6 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   @override
   void dispose() {
     _disposeLinkGestureRecognizers();
-    _sheetController.dispose();
     super.dispose();
   }
 
@@ -59,7 +60,6 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
                 l.sourceId == widget.reflectionId,
           )
           .toList();
-      _sheetController.text = data?.reflectionText ?? '';
       _rebuildReflectionSpans();
       _loading = false;
     });
@@ -125,7 +125,6 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   Future<void> _saveLinkSelection({
     required TextSelection rawSelection,
     required String text,
-    VoidCallback? onComplete,
   }) async {
     final selection = normalizeInsightSelection(
       text: text,
@@ -174,7 +173,6 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
         _links = remaining;
         _rebuildReflectionSpans();
       });
-      onComplete?.call();
       return;
     }
 
@@ -212,7 +210,15 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
       _links = [...remaining, link]..sort((a, b) => a.start.compareTo(b.start));
       _rebuildReflectionSpans();
     });
-    onComplete?.call();
+  }
+
+  Future<void> _startLinkFlow() async {
+    final reflection = _reflection;
+    if (reflection == null) return;
+    await _saveLinkSelection(
+      rawSelection: _reflectionSelection,
+      text: reflection.reflectionText,
+    );
   }
 
   @override
@@ -239,7 +245,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
         ),
         actions: [
           IconButton(
-            onPressed: _openLinkSheet,
+            onPressed: _startLinkFlow,
             icon: KemeticGold.icon(Icons.link),
             tooltip: 'Link Insight',
           ),
@@ -301,26 +307,8 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
               ),
               children: _reflectionSpans,
             ),
-            contextMenuBuilder: (context, EditableTextState state) {
-              final items = <ContextMenuButtonItem>[
-                ...state.contextMenuButtonItems,
-                ContextMenuButtonItem(
-                  onPressed: () async {
-                    final selection = state.textEditingValue.selection;
-                    final text = state.textEditingValue.text;
-                    Navigator.of(context).pop(); // close menu
-                    await _saveLinkSelection(
-                      rawSelection: selection,
-                      text: text,
-                    );
-                  },
-                  label: 'Link to Node',
-                ),
-              ];
-              return AdaptiveTextSelectionToolbar.buttonItems(
-                anchors: state.contextMenuAnchors,
-                buttonItems: items,
-              );
+            onSelectionChanged: (selection, _) {
+              _reflectionSelection = selection;
             },
           ),
           if (_links.isNotEmpty) ...[
@@ -356,63 +344,6 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
           ],
         ],
       ),
-    );
-  }
-
-  Future<void> _openLinkSheet() async {
-    if (_reflection == null) return;
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.black,
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-            top: 12,
-            left: 16,
-            right: 16,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Highlight a phrase, then link it to a node.',
-                style: TextStyle(color: Colors.white70),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _sheetController,
-                readOnly: true,
-                maxLines: null,
-                enableInteractiveSelection: true,
-                style: const TextStyle(color: Colors.white, height: 1.4),
-                decoration: const InputDecoration(border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    await _saveLinkSelection(
-                      rawSelection: _sheetController.selection,
-                      text: _sheetController.text,
-                      onComplete: () {
-                        if (!ctx.mounted) return;
-                        Navigator.of(ctx).pop();
-                      },
-                    );
-                  },
-                  icon: const Icon(Icons.link, size: 18),
-                  label: const Text('Link to Node'),
-                ),
-              ),
-              const SizedBox(height: 10),
-            ],
-          ),
-        );
-      },
     );
   }
 
