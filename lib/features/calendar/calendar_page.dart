@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/user_events_repo.dart';
 import '../../data/flows_repo.dart';
@@ -9252,7 +9251,7 @@ class _CalendarPageState extends State<CalendarPage>
         icon: Icons.wb_sunny_outlined,
         gradient: goldGloss,
         label: 'Planner',
-        onSelected: _openPlannerPage,
+        onSelected: () => _openPlannerPage(navigationContext: context),
       ),
       _CalendarAction(
         icon: Icons.mail_outline,
@@ -9441,12 +9440,15 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<void> _openPlannerPage() async {
+  Future<void> _openPlannerPage({BuildContext? navigationContext}) async {
     if (_plannerNavigationInFlight || !mounted) return;
 
     _plannerNavigationInFlight = true;
     try {
-      await context.push('/rhythm/today');
+      final navContext = navigationContext ?? context;
+      await Navigator.of(
+        navContext,
+      ).push(MaterialPageRoute(builder: (_) => const TodaysAlignmentPage()));
     } finally {
       _plannerNavigationInFlight = false;
     }

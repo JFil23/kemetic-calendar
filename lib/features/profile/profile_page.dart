@@ -19,11 +19,8 @@ class ProfilePage extends StatefulWidget {
   final String userId;
   final bool isMyProfile;
 
-  const ProfilePage({
-    Key? key,
-    required this.userId,
-    this.isMyProfile = false,
-  }) : super(key: key);
+  const ProfilePage({Key? key, required this.userId, this.isMyProfile = false})
+    : super(key: key);
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -40,7 +37,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
   bool get _isViewingOwnProfile {
     final currentId = Supabase.instance.client.auth.currentUser?.id;
-    return widget.isMyProfile || (currentId != null && currentId == widget.userId);
+    return widget.isMyProfile ||
+        (currentId != null && currentId == widget.userId);
   }
 
   @override
@@ -93,10 +91,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -126,17 +121,13 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Calendar actions are unavailable right now.')),
+      const SnackBar(
+        content: Text('Calendar actions are unavailable right now.'),
+      ),
     );
   }
 
-  Future<void> _openMyProfileAction(BuildContext context) async {
-    final calendarState = CalendarPage.globalKey.currentState;
-    if (calendarState != null) {
-      await calendarState.openProfileFromOutside(context);
-      return;
-    }
-
+  Future<void> _openMyProfileAction() async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) {
       _showError('Please log in to view your profile.');
@@ -145,11 +136,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (_isViewingOwnProfile) return;
 
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ProfilePage(userId: userId, isMyProfile: true),
-      ),
-    );
+    await _replaceWithProfile(userId);
   }
 
   @override
@@ -179,12 +166,10 @@ class _ProfilePageState extends State<ProfilePage> {
               onPressed: () => _openCalendarMenu(btnCtx),
             ),
           ),
-          Builder(
-            builder: (btnCtx) => IconButton(
-              tooltip: 'My Profile',
-              icon: const GlossyIcon(icon: Icons.person, gradient: goldGloss),
-              onPressed: () => _openMyProfileAction(btnCtx),
-            ),
+          IconButton(
+            tooltip: 'My Profile',
+            icon: const GlossyIcon(icon: Icons.person, gradient: goldGloss),
+            onPressed: _openMyProfileAction,
           ),
         ],
       ),
@@ -195,8 +180,8 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             )
           : _profile == null
-              ? _buildNoProfile()
-              : _buildProfile(),
+          ? _buildNoProfile()
+          : _buildProfile(),
     );
   }
 
@@ -335,19 +320,13 @@ class _ProfilePageState extends State<ProfilePage> {
       (
         label: 'Followers',
         value: (profile.followersCount ?? 0).toString(),
-        onTap: () => _openFollowList(
-          profile,
-          FollowListType.followers,
-        ),
+        onTap: () => _openFollowList(profile, FollowListType.followers),
         enabled: true,
       ),
       (
         label: 'Following',
         value: (profile.followingCount ?? 0).toString(),
-        onTap: () => _openFollowList(
-          profile,
-          FollowListType.following,
-        ),
+        onTap: () => _openFollowList(profile, FollowListType.following),
         enabled: true,
       ),
       (
@@ -412,13 +391,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: labelColor,
-                  fontSize: 13,
-                ),
-              ),
+              Text(label, style: TextStyle(color: labelColor, fontSize: 13)),
             ],
           ),
         ),
@@ -426,24 +399,10 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _openFollowList(UserProfile profile, FollowListType type) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => FollowListPage(
-          userId: profile.id,
-          type: type,
-          userHandle: profile.handle,
-          userDisplayName: profile.effectiveName,
-          onUserTap: _openProfileFromFollowList,
-        ),
-      ),
-    );
-  }
-
-  void _openProfileFromFollowList(String userId) {
-    if (userId == widget.userId) return;
+  Future<void> _replaceWithProfile(String userId) async {
+    if (!mounted || userId == widget.userId) return;
     final myId = Supabase.instance.client.auth.currentUser?.id;
-    Navigator.of(context).push(
+    await Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => ProfilePage(
           userId: userId,
@@ -451,6 +410,25 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
     );
+  }
+
+  Future<void> _openFollowList(UserProfile profile, FollowListType type) async {
+    final selectedUserId = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => FollowListPage(
+          userId: profile.id,
+          type: type,
+          userHandle: profile.handle,
+          userDisplayName: profile.effectiveName,
+        ),
+      ),
+    );
+
+    if (!mounted || selectedUserId == null || selectedUserId == widget.userId) {
+      return;
+    }
+
+    await _replaceWithProfile(selectedUserId);
   }
 
   void _onActiveFlowsTap() {
@@ -485,10 +463,8 @@ class _ProfilePageState extends State<ProfilePage> {
       child: ElevatedButton(
         onPressed: _followUpdating ? null : _toggleFollow,
         style: ElevatedButton.styleFrom(
-          backgroundColor:
-              isFollowing ? Colors.black : KemeticGold.base,
-          foregroundColor:
-              isFollowing ? Colors.white : const Color(0xFF000000),
+          backgroundColor: isFollowing ? Colors.black : KemeticGold.base,
+          foregroundColor: isFollowing ? Colors.white : const Color(0xFF000000),
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -527,12 +503,10 @@ class _ProfilePageState extends State<ProfilePage> {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => EditProfilePage(
-                initialProfile: _profile!,
-              ),
+              builder: (context) => EditProfilePage(initialProfile: _profile!),
             ),
           );
-          
+
           // Reload profile data if updated
           if (result == true) {
             await _loadProfile();
@@ -548,10 +522,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         child: const Text(
           'Edit Profile',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
     );
@@ -563,9 +534,7 @@ class _ProfilePageState extends State<ProfilePage> {
       child: OutlinedButton(
         onPressed: () async {
           final selectedUserId = await Navigator.of(context).push<String>(
-            MaterialPageRoute(
-              builder: (_) => const ProfileSearchPage(),
-            ),
+            MaterialPageRoute(builder: (_) => const ProfileSearchPage()),
           );
 
           if (!mounted || selectedUserId == null) return;
@@ -575,11 +544,7 @@ class _ProfilePageState extends State<ProfilePage> {
             return;
           }
 
-          await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ProfilePage(userId: selectedUserId),
-            ),
-          );
+          await _replaceWithProfile(selectedUserId);
         },
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: KemeticGold.base),
@@ -591,10 +556,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         child: KemeticGold.text(
           'Find People',
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
       ),
     );
@@ -607,10 +569,7 @@ class _ProfilePageState extends State<ProfilePage> {
         icon: KemeticGold.icon(Icons.upload),
         label: KemeticGold.text(
           'Post a Flow',
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: KemeticGold.base),
@@ -812,10 +771,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _openPostDetails(FlowPost post) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => FlowPostDetailPage(
-          post: post,
-          isOwner: _isViewingOwnProfile,
-        ),
+        builder: (_) =>
+            FlowPostDetailPage(post: post, isOwner: _isViewingOwnProfile),
       ),
     );
     if (changed == true) {
@@ -824,9 +781,9 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _openPostPicker() async {
-    final posted = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const FlowPostPickerPage()),
-    );
+    final posted = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const FlowPostPickerPage()));
     if (posted == true) {
       await _loadPosts();
     }

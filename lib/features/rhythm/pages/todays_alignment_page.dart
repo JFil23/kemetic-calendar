@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mobile/data/nutrition_repo.dart';
 import 'package:mobile/core/kemetic_converter.dart';
+import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/profile/profile_page.dart';
@@ -895,9 +895,17 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     _requestTodoPage(todayIndex, animate: true);
   }
 
-  void _openCalendarShortcut() {
+  Future<void> _openCalendarMenu(BuildContext context) async {
+    final calendarState = CalendarPage.globalKey.currentState;
+    if (calendarState != null) {
+      await calendarState.showActionsMenuFromOutside(context);
+      return;
+    }
+
     if (!mounted) return;
-    context.go('/');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Menu is unavailable right now.')),
+    );
   }
 
   void _openProfilePage() {
@@ -3098,10 +3106,12 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
           icon: const GlossyIcon(icon: Icons.today, gradient: goldGloss),
           onPressed: _jumpToTodayTodos,
         ),
-        IconButton(
-          tooltip: 'Calendar',
-          icon: const GlossyIcon(icon: Icons.apps, gradient: goldGloss),
-          onPressed: _openCalendarShortcut,
+        Builder(
+          builder: (btnCtx) => IconButton(
+            tooltip: 'Menu',
+            icon: const GlossyIcon(icon: Icons.apps, gradient: goldGloss),
+            onPressed: () => _openCalendarMenu(btnCtx),
+          ),
         ),
         IconButton(
           tooltip: 'My Profile',

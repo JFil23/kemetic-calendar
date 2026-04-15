@@ -11,14 +11,12 @@ class FollowListPage extends StatefulWidget {
     super.key,
     required this.userId,
     required this.type,
-    required this.onUserTap,
     this.userHandle,
     this.userDisplayName,
   });
 
   final String userId;
   final FollowListType type;
-  final void Function(String userId) onUserTap;
   final String? userHandle;
   final String? userDisplayName;
 
@@ -50,8 +48,9 @@ class _FollowListPageState extends State<FollowListPage> {
   }
 
   String get _title {
-    final base =
-        widget.type == FollowListType.followers ? 'Followers' : 'Following';
+    final base = widget.type == FollowListType.followers
+        ? 'Followers'
+        : 'Following';
     final handle = widget.userHandle;
     if (handle != null && handle.isNotEmpty) {
       return '$base · @$handle';
@@ -86,8 +85,7 @@ class _FollowListPageState extends State<FollowListPage> {
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(KemeticGold.base),
+                valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
               ),
             )
           : _buildBody(),
@@ -143,22 +141,21 @@ class _FollowListPageState extends State<FollowListPage> {
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: _users.length,
-        separatorBuilder: (_, __) => Divider(
-          color: Colors.white.withOpacity(0.05),
-          height: 1,
-        ),
+        separatorBuilder: (_, __) =>
+            Divider(color: Colors.white.withOpacity(0.05), height: 1),
         itemBuilder: (context, index) {
           final user = _users[index];
-          final initials = (user.displayName?.isNotEmpty == true
-                  ? user.displayName![0]
-                  : user.handle?.isNotEmpty == true
+          final initials =
+              (user.displayName?.isNotEmpty == true
+                      ? user.displayName![0]
+                      : user.handle?.isNotEmpty == true
                       ? user.handle![0]
                       : '?')
-              .toUpperCase();
+                  .toUpperCase();
           final subtitle =
               user.displayName != null && user.displayName!.isNotEmpty
-                  ? '@${user.handle ?? 'user'}'
-                  : (user.handle != null ? '@${user.handle}' : null);
+              ? '@${user.handle ?? 'user'}'
+              : (user.handle != null ? '@${user.handle}' : null);
 
           return ListTile(
             contentPadding: const EdgeInsets.symmetric(
@@ -174,9 +171,7 @@ class _FollowListPageState extends State<FollowListPage> {
               child: user.avatarUrl == null
                   ? KemeticGold.text(
                       initials,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     )
                   : null,
             ),
@@ -196,7 +191,7 @@ class _FollowListPageState extends State<FollowListPage> {
                   )
                 : null,
             trailing: KemeticGold.icon(Icons.chevron_right),
-            onTap: () => widget.onUserTap(user.userId),
+            onTap: () => Navigator.of(context).pop(user.userId),
           );
         },
       ),
