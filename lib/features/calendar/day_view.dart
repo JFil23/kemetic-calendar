@@ -1,5 +1,5 @@
 // lib/features/calendar/day_view.dart
-// 
+//
 // Day View - 24-hour timeline with pixel-perfect event layout
 // Uses EventLayoutEngine for consistent positioning
 //
@@ -23,7 +23,7 @@ import 'package:mobile/core/day_key.dart';
 import '../../data/user_events_repo.dart';
 import '../journal/journal_event_badge.dart';
 
-const double _kMinEventBlockHeight = 64.0;  // was 32.0
+const double _kMinEventBlockHeight = 64.0; // was 32.0
 const Color _dayGold = KemeticGold.base;
 const Gradient _dayGoldGloss = KemeticGold.gloss;
 const TextStyle _goldHeaderStyle = TextStyle(
@@ -60,50 +60,9 @@ class EventLayoutEngine {
       print('[EventLayoutEngine] Layout for day $day: ${notes.length} notes');
     }
 
-    // Convert notes to events
-    final events = <EventItem>[];
-    for (final note in notes) {
-      final startMin = note.allDay ? 9 * 60 : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
-      final endMin = note.allDay ? 17 * 60 : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
-      
-      // Get flow color
-      Color eventColor = Colors.blue; // sensible default
-      
-      // 1) per-note manual color wins
-      if (note.manualColor != null) {
-        eventColor = note.manualColor!;
-      }
-      // 2) flow color if this note belongs to a flow
-      else if (note.flowId != null) {
-        final flow = flowIndex[note.flowId];
-        if (flow != null) {
-          eventColor = flow.color;
-        }
-      }
-      // 3) fallback color for plain notes (already set above)
-
-      events.add(EventItem(
-        id: note.id,
-        clientEventId: note.clientEventId,
-        title: note.title,
-        detail: note.detail,
-        location: note.location,
-        startMin: startMin,
-        endMin: endMin,
-        flowId: note.flowId,
-        color: eventColor,
-        manualColor: note.manualColor,
-        allDay: note.allDay,
-        category: note.category,
-        isReminder: note.isReminder,
-        reminderId: note.reminderId,
-      ));
-    }
+    final events = _sortedEventsForDay(notes: notes, flowIndex: flowIndex);
 
     if (events.isEmpty) return [];
-
-    // Sort by start time
-    events.sort((a, b) => a.startMin.compareTo(b.startMin));
 
     // Assign columns to avoid overlaps
     final columnAssignments = _assignColumns(events);
@@ -114,12 +73,14 @@ class EventLayoutEngine {
       final event = events[i];
       final column = columnAssignments[event] ?? 0;
       final leftOffset = column * (columnWidth + columnGap);
-      
-      blocks.add(PositionedEventBlock(
-        event: event,
-        leftOffset: leftOffset,
-        width: columnWidth,
-      ));
+
+      blocks.add(
+        PositionedEventBlock(
+          event: event,
+          leftOffset: leftOffset,
+          width: columnWidth,
+        ),
+      );
     }
 
     if (kDebugMode) {
@@ -136,10 +97,11 @@ class EventLayoutEngine {
     for (final event in events) {
       // Find first available column
       int column = 0;
-      while (columnEndTimes.containsKey(column) && columnEndTimes[column]! > event.startMin) {
+      while (columnEndTimes.containsKey(column) &&
+          columnEndTimes[column]! > event.startMin) {
         column++;
       }
-      
+
       assignments[event] = column;
       columnEndTimes[column] = event.endMin;
     }
@@ -237,6 +199,146 @@ class EventItem {
   }
 }
 
+class DayViewSheetEventTarget {
+  final int ky;
+  final int km;
+  final int kd;
+  final EventItem event;
+
+  const DayViewSheetEventTarget({
+    required this.ky,
+    required this.km,
+    required this.kd,
+    required this.event,
+  });
+}
+
+List<NoteData> _dedupeDayNotesForUi(List<NoteData> notes) {
+  if (notes.isEmpty) return notes;
+
+  final seen = <String, NoteData>{};
+
+  for (final note in notes) {
+    final flowKey = note.flowId?.toString() ?? 'NO_FLOW';
+
+    String startKey;
+    String endKey;
+
+    if (note.allDay) {
+      startKey = 'ALLDAY';
+      endKey = 'ALLDAY';
+    } else if (note.start != null && note.end != null) {
+      startKey = '${note.start!.hour * 60 + note.start!.minute}';
+      endKey = '${note.end!.hour * 60 + note.end!.minute}';
+    } else {
+      startKey = 'NO_START';
+      endKey = 'NO_END';
+    }
+
+    final titleKey = note.title.trim().toLowerCase();
+    final key = '$flowKey|$startKey|$endKey|$titleKey';
+
+    if (!seen.containsKey(key)) {
+      seen[key] = note;
+      continue;
+    }
+
+    final existing = seen[key]!;
+    bool hasIdentity(NoteData n) =>
+        (n.id != null && n.id!.trim().isNotEmpty) ||
+        (n.clientEventId != null && n.clientEventId!.trim().isNotEmpty);
+
+    if (!hasIdentity(existing) && hasIdentity(note)) {
+      seen[key] = note;
+    }
+  }
+
+  return seen.values.toList();
+}
+
+EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
+  final startMin = note.allDay
+      ? 9 * 60
+      : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
+  final endMin = note.allDay
+      ? 17 * 60
+      : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
+
+  Color eventColor = Colors.blue;
+  if (note.manualColor != null) {
+    eventColor = note.manualColor!;
+  } else if (note.flowId != null) {
+    final flow = flowIndex[note.flowId];
+    if (flow != null) {
+      eventColor = flow.color;
+    }
+  }
+
+  return EventItem(
+    id: note.id,
+    clientEventId: note.clientEventId,
+    title: note.title,
+    detail: note.detail,
+    location: note.location,
+    startMin: startMin,
+    endMin: endMin,
+    flowId: note.flowId,
+    color: eventColor,
+    manualColor: note.manualColor,
+    allDay: note.allDay,
+    category: note.category,
+    isReminder: note.isReminder,
+    reminderId: note.reminderId,
+  );
+}
+
+String _eventIdentityKey(EventItem event) {
+  final id = event.id?.trim();
+  if (id != null && id.isNotEmpty) return 'id:$id';
+
+  final clientEventId = event.clientEventId?.trim();
+  if (clientEventId != null && clientEventId.isNotEmpty) {
+    return 'cid:$clientEventId';
+  }
+
+  final reminderId = event.reminderId?.trim();
+  if (reminderId != null && reminderId.isNotEmpty) {
+    return 'rid:$reminderId';
+  }
+
+  return [
+    event.title.trim().toLowerCase(),
+    event.startMin,
+    event.endMin,
+    event.flowId ?? '',
+    event.location?.trim().toLowerCase() ?? '',
+    event.detail?.trim().toLowerCase() ?? '',
+    event.allDay,
+    event.isReminder,
+  ].join('|');
+}
+
+int _compareEventItemsBySchedule(EventItem a, EventItem b) {
+  final startCmp = a.startMin.compareTo(b.startMin);
+  if (startCmp != 0) return startCmp;
+
+  final endCmp = a.endMin.compareTo(b.endMin);
+  if (endCmp != 0) return endCmp;
+
+  return _eventIdentityKey(a).compareTo(_eventIdentityKey(b));
+}
+
+List<EventItem> _sortedEventsForDay({
+  required List<NoteData> notes,
+  required Map<int, FlowData> flowIndex,
+}) {
+  final events = [
+    for (final note in notes) _eventItemFromNote(note, flowIndex),
+  ];
+  events.sort(_compareEventItemsBySchedule);
+  return events;
+}
+
 class _DragPayload {
   final EventItem event;
 
@@ -297,10 +399,18 @@ class DayViewPage extends StatefulWidget {
   final Future<void> Function(BuildContext context)? onShowActionsMenu;
   final Future<void> Function(BuildContext context)? onOpenProfile;
   final void Function(int ky, int km, int kd)? onAddNote;
-  final Future<void> Function(int ky, int km, int kd, EventItem event)? onDeleteNote;
-  final Future<void> Function(int ky, int km, int kd, EventItem event)? onEditNote;
-  final Future<void> Function(int ky, int km, int kd, EventItem evt, int newStartMin)?
-      onMoveEventTime;
+  final Future<void> Function(int ky, int km, int kd, EventItem event)?
+  onDeleteNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem event)?
+  onEditNote;
+  final Future<void> Function(
+    int ky,
+    int km,
+    int kd,
+    EventItem evt,
+    int newStartMin,
+  )?
+  onMoveEventTime;
   final Future<void> Function(EventItem event)? onShareNote;
   final Future<void> Function(String reminderId)? onEditReminder;
   final Future<void> Function(String reminderId)? onEndReminder;
@@ -312,7 +422,8 @@ class DayViewPage extends StatefulWidget {
     TimeOfDay? start,
     TimeOfDay? end,
     bool allDay,
-  })? onOpenAddNoteWithTime;
+  })?
+  onOpenAddNoteWithTime;
   // Optional: create a timed event directly (long-press)
   final void Function(
     int ky,
@@ -324,19 +435,22 @@ class DayViewPage extends StatefulWidget {
     required TimeOfDay start,
     required TimeOfDay end,
     bool allDay,
-  })? onCreateTimedEvent;
+  })?
+  onCreateTimedEvent;
+
   /// Called when user taps "End Flow" on a flow event in the info bar.
   /// If null, the End Flow button is hidden.
   final void Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
   final Future<void> Function(int flowId)? onSaveFlow;
   final Future<Set<String>> Function({int? flowId, DateTime? completedOnDate})?
-      loadCompletedClientEventIds;
+  loadCompletedClientEventIds;
   final Future<void> Function({
     required String clientEventId,
     required int flowId,
     required DateTime completedOnDate,
-  })? onRecordCompletion;
+  })?
+  onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
 
   const DayViewPage({
@@ -388,13 +502,13 @@ class _DayViewPageState extends State<DayViewPage> {
   static const int _centerPage = 5000;
   int _gridInstance = 0; // Forces grid rebuilds when jumping
   double? _savedScrollOffset; // Added for scroll persistence
-  
+
   // ✅ Today button guard to prevent duplicate state updates
   bool _isJumpingToToday = false;
-  
+
   // 🔧 ADD THIS: Persistent scroll controller for mini calendar
   late ScrollController _miniCalendarScrollController;
-  
+
   // 🔧 NEW: Orientation tracking for bidirectional lock
   Orientation? _lastOrientation;
 
@@ -404,16 +518,27 @@ class _DayViewPageState extends State<DayViewPage> {
     _currentKy = widget.initialKy;
     _currentKm = widget.initialKm;
     _currentKd = widget.initialKd;
-    _initialGregorian = KemeticMath.toGregorian(_currentKy, _currentKm, _currentKd);
+    _initialGregorian = KemeticMath.toGregorian(
+      _currentKy,
+      _currentKm,
+      _currentKd,
+    );
     _savedScrollOffset = widget.initialScrollOffset;
     _pageController = PageController(initialPage: _centerPage);
-    
+
     // 🔧 Initialize mini calendar scroll controller with starting position
-    final dayCount = _currentKm == 13 
+    final dayCount = _currentKm == 13
         ? (KemeticMath.isLeapKemeticYear(_currentKy) ? 6 : 5)
         : 30;
-    final initialScroll = ((_currentKd - 5).clamp(0, (dayCount - 10).clamp(0, dayCount))).toDouble() * 34; // 30 width + 4 margin
-    _miniCalendarScrollController = ScrollController(initialScrollOffset: initialScroll);
+    final initialScroll =
+        ((_currentKd - 5).clamp(
+          0,
+          (dayCount - 10).clamp(0, dayCount),
+        )).toDouble() *
+        34; // 30 width + 4 margin
+    _miniCalendarScrollController = ScrollController(
+      initialScrollOffset: initialScroll,
+    );
   }
 
   @override
@@ -423,7 +548,9 @@ class _DayViewPageState extends State<DayViewPage> {
         old.initialKm != widget.initialKm ||
         old.initialKd != widget.initialKd) {
       final g = KemeticMath.toGregorian(
-        widget.initialKy, widget.initialKm, widget.initialKd ?? 1,
+        widget.initialKy,
+        widget.initialKm,
+        widget.initialKd ?? 1,
       );
       setState(() {
         _initialGregorian = g;
@@ -431,11 +558,11 @@ class _DayViewPageState extends State<DayViewPage> {
         _currentKm = widget.initialKm;
         _currentKd = widget.initialKd ?? 1;
         if (_pageController.hasClients) {
-          _pageController.jumpToPage(_centerPage);  // reset paging anchor
+          _pageController.jumpToPage(_centerPage); // reset paging anchor
         }
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollMiniCalendarToCenter(_currentKd);     // keep gold circle centered
+        _scrollMiniCalendarToCenter(_currentKd); // keep gold circle centered
       });
     }
   }
@@ -451,13 +578,13 @@ class _DayViewPageState extends State<DayViewPage> {
   String _getKemeticDayKey(int kYear, int kMonth, int kDay) {
     // kYear parameter kept for API consistency but not used in day key generation.
     // Day keys use DECAN (1-3), not year. Decan is computed from kDay in kemeticDayKey().
-    // 
+    //
     // Guard obvious invalid months; allow epagomenal month 13 but only when
     // we actually have a day card for the generated key (prevents empty dropdowns).
     if (kMonth < 1 || kMonth > 13) {
       return 'unknown_${kDay}_$kYear';
     }
-    
+
     final key = kemeticDayKey(kMonth, kDay);
     return KemeticDayData.dayInfoMap.containsKey(key)
         ? key
@@ -472,16 +599,16 @@ class _DayViewPageState extends State<DayViewPage> {
 
   void _onPageChanged(int pageIndex) {
     final kDate = _dateForPage(pageIndex);
-    
+
     setState(() {
       _currentKy = kDate.kYear;
       _currentKm = kDate.kMonth;
       _currentKd = kDate.kDay;
     });
-    
+
     // ✅ Don't duplicate state updates during Today jump
     if (_isJumpingToToday) return;
-    
+
     // Animate mini calendar when day changes
     _scrollMiniCalendar();
   }
@@ -495,8 +622,11 @@ class _DayViewPageState extends State<DayViewPage> {
 
     final now = DateTime.now();
     final today = KemeticMath.fromGregorian(now);
-    final targetGregorian =
-        KemeticMath.toGregorian(today.kYear, today.kMonth, today.kDay);
+    final targetGregorian = KemeticMath.toGregorian(
+      today.kYear,
+      today.kMonth,
+      today.kDay,
+    );
     final diffDays = targetGregorian.difference(_initialGregorian).inDays;
     final targetPage = _centerPage + diffDays;
 
@@ -526,14 +656,19 @@ class _DayViewPageState extends State<DayViewPage> {
   // 🔧 ADD THIS METHOD: Animates the mini calendar scroll
   void _scrollMiniCalendar() {
     if (!_miniCalendarScrollController.hasClients) return;
-    
-    final dayCount = _currentKm == 13 
+
+    final dayCount = _currentKm == 13
         ? (KemeticMath.isLeapKemeticYear(_currentKy) ? 6 : 5)
         : 30;
-    
+
     // Calculate target scroll position (keep current day around position 5)
-    final targetScroll = ((_currentKd - 5).clamp(0, (dayCount - 10).clamp(0, dayCount))).toDouble() * 34; // 30 width + 4 margin
-    
+    final targetScroll =
+        ((_currentKd - 5).clamp(
+          0,
+          (dayCount - 10).clamp(0, dayCount),
+        )).toDouble() *
+        34; // 30 width + 4 margin
+
     // Animate to the new position
     _miniCalendarScrollController.animateTo(
       targetScroll,
@@ -556,12 +691,90 @@ class _DayViewPageState extends State<DayViewPage> {
     }
   }
 
+  Map<int, FlowData> _activeFlowIndex() =>
+      widget.flowIndexBuilder?.call() ?? widget.flowIndex;
+
+  List<EventItem> _eventsForKemeticDay(int ky, int km, int kd) {
+    final notes = _dedupeDayNotesForUi(widget.notesForDay(ky, km, kd));
+    return _sortedEventsForDay(notes: notes, flowIndex: _activeFlowIndex());
+  }
+
+  DayViewSheetEventTarget? _resolveAdjacentEventTarget({
+    required int ky,
+    required int km,
+    required int kd,
+    required EventItem event,
+    required bool forward,
+  }) {
+    final currentEvents = _eventsForKemeticDay(ky, km, kd);
+    final identity = _eventIdentityKey(event);
+    final currentIndex = currentEvents.indexWhere(
+      (candidate) => _eventIdentityKey(candidate) == identity,
+    );
+
+    if (currentIndex >= 0) {
+      final sameDayIndex = forward ? currentIndex + 1 : currentIndex - 1;
+      if (sameDayIndex >= 0 && sameDayIndex < currentEvents.length) {
+        return DayViewSheetEventTarget(
+          ky: ky,
+          km: km,
+          kd: kd,
+          event: currentEvents[sameDayIndex],
+        );
+      }
+    }
+
+    final currentGregorian = KemeticMath.toGregorian(ky, km, kd);
+    final direction = forward ? 1 : -1;
+    for (int offset = 1; offset <= 366; offset++) {
+      final nextGregorian = currentGregorian.add(
+        Duration(days: direction * offset),
+      );
+      final nextKemetic = KemeticMath.fromGregorian(nextGregorian);
+      final nextDayEvents = _eventsForKemeticDay(
+        nextKemetic.kYear,
+        nextKemetic.kMonth,
+        nextKemetic.kDay,
+      );
+      if (nextDayEvents.isEmpty) continue;
+      return DayViewSheetEventTarget(
+        ky: nextKemetic.kYear,
+        km: nextKemetic.kMonth,
+        kd: nextKemetic.kDay,
+        event: forward ? nextDayEvents.first : nextDayEvents.last,
+      );
+    }
+
+    return null;
+  }
+
+  Future<void> _animateToKemeticDate(int ky, int km, int kd) async {
+    final targetGregorian = KemeticMath.toGregorian(ky, km, kd);
+    final diffDays = targetGregorian.difference(_initialGregorian).inDays;
+    final targetPage = _centerPage + diffDays;
+
+    if (_pageController.hasClients) {
+      await _pageController.animateToPage(
+        targetPage,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOut,
+      );
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _currentKy = ky;
+      _currentKm = km;
+      _currentKd = kd;
+    });
+    _scrollMiniCalendarToCenter(kd);
+  }
+
   // 🔧 NEW: Convert Kemetic date to total days for navigation
   int _kemeticToTotalDays(int ky, int km, int kd) {
     // Approximate total days since epoch
     return ky * 365 + (km - 1) * 30 + kd;
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -574,11 +787,13 @@ class _DayViewPageState extends State<DayViewPage> {
       builder: (context, _, __) {
         final reportedOrientation = MediaQuery.of(context).orientation;
         // Tablets should stay on the portrait day view regardless of rotation.
-        final effectiveOrientation =
-            isTablet ? Orientation.portrait : reportedOrientation;
+        final effectiveOrientation = isTablet
+            ? Orientation.portrait
+            : reportedOrientation;
 
         // Track orientation changes for debugging
-        if (_lastOrientation != null && _lastOrientation != effectiveOrientation) {
+        if (_lastOrientation != null &&
+            _lastOrientation != effectiveOrientation) {
           if (kDebugMode) {
             print(
               '\n📱 [DAY VIEW] Orientation changed: $_lastOrientation → $effectiveOrientation',
@@ -592,8 +807,7 @@ class _DayViewPageState extends State<DayViewPage> {
           backgroundColor: const Color(0xFF000000), // True black
           body: OrientationBuilder(
             builder: (context, orientation) {
-              final orient =
-                  isTablet ? Orientation.portrait : orientation;
+              final orient = isTablet ? Orientation.portrait : orientation;
               if (orient == Orientation.landscape) {
                 return LandscapeMonthView(
                   initialKy: _currentKy,
@@ -609,13 +823,15 @@ class _DayViewPageState extends State<DayViewPage> {
                   onMonthChanged: (ky, km) {
                     // ✅ HANDLE MONTH CHANGE IN DAY VIEW
                     if (kDebugMode) {
-                      print('🔄 [DAY VIEW] Landscape month changed: Year $ky, Month $km');
+                      print(
+                        '🔄 [DAY VIEW] Landscape month changed: Year $ky, Month $km',
+                      );
                     }
                     setState(() {
                       _currentKy = ky;
                       _currentKm = km;
                       // Keep current day if still valid in new month
-                      final maxDay = km == 13 
+                      final maxDay = km == 13
                           ? (KemeticMath.isLeapKemeticYear(ky) ? 6 : 5)
                           : 30;
                       if (_currentKd > maxDay) {
@@ -625,13 +841,13 @@ class _DayViewPageState extends State<DayViewPage> {
                   },
                 );
               }
-              
+
               // Portrait day view
               return Column(
                 children: [
                   // Custom Apple-style header
                   _buildAppleStyleHeader(),
-                  
+
                   // Existing page view with timeline
                   Expanded(
                     child: PageView.builder(
@@ -646,15 +862,20 @@ class _DayViewPageState extends State<DayViewPage> {
                           ky: kDate.kYear,
                           km: kDate.kMonth,
                           kd: kDate.kDay,
-                          notes: widget.notesForDay(kDate.kYear, kDate.kMonth, kDate.kDay),
+                          notes: widget.notesForDay(
+                            kDate.kYear,
+                            kDate.kMonth,
+                            kDate.kDay,
+                          ),
                           showGregorian: widget.showGregorian,
                           flowIndex: flowIndex,
-                          initialScrollOffset: _savedScrollOffset,    // 🔧 NEW
+                          initialScrollOffset: _savedScrollOffset, // 🔧 NEW
                           focusStartMin: widget.focusStartMin,
                           focusFlowId: widget.focusFlowId,
                           focusTitle: widget.focusTitle,
-                          onScrollChanged: _onScrollChanged,          // 🔧 NEW
-                          onManageFlows: widget.onManageFlows, // NEW: Pass callback down
+                          onScrollChanged: _onScrollChanged, // 🔧 NEW
+                          onManageFlows:
+                              widget.onManageFlows, // NEW: Pass callback down
                           onAddNote: widget.onAddNote,
                           onDeleteNote: widget.onDeleteNote,
                           onEditNote: widget.onEditNote,
@@ -665,15 +886,19 @@ class _DayViewPageState extends State<DayViewPage> {
                           onShareReminder: widget.onShareReminder,
                           onOpenAddNoteWithTime: widget.onOpenAddNoteWithTime,
                           onCreateTimedEvent: widget.onCreateTimedEvent,
-                          onEndFlow: widget.onEndFlow, // Pass End Flow callback down
+                          onEndFlow:
+                              widget.onEndFlow, // Pass End Flow callback down
                           onAppendToJournal: widget.onAppendToJournal,
                           onSaveFlow: widget.onSaveFlow,
-                          loadCompletedClientEventIds: widget.loadCompletedClientEventIds,
+                          loadCompletedClientEventIds:
+                              widget.loadCompletedClientEventIds,
                           onRecordCompletion: widget.onRecordCompletion,
                           onUnrecordCompletion: widget.onUnrecordCompletion,
+                          resolveAdjacentEvent: _resolveAdjacentEventTarget,
+                          onNavigateToDay: _animateToKemeticDate,
                         );
                       },
-                  ),
+                    ),
                   ),
                 ],
               );
@@ -686,7 +911,7 @@ class _DayViewPageState extends State<DayViewPage> {
 
   Widget _buildDayHeader() {
     final monthName = widget.getMonthName(_currentKm);
-    
+
     return KemeticGold.text(
       '$monthName $_currentKy, Day $_currentKd',
       style: _goldMonthStyle,
@@ -709,18 +934,22 @@ class _DayViewPageState extends State<DayViewPage> {
 
   Widget _buildAppleStyleHeader() {
     final monthName = widget.getMonthName(_currentKm);
-    final dayCount = _currentKm == 13 
-      ? (KemeticMath.isLeapKemeticYear(_currentKy) ? 6 : 5)
-      : 30;
-    
+    final dayCount = _currentKm == 13
+        ? (KemeticMath.isLeapKemeticYear(_currentKy) ? 6 : 5)
+        : 30;
+
     // Get today's Kemetic date for highlighting
     final now = DateTime.now();
     final today = KemeticMath.fromGregorian(now);
-    
+
     // 🔧 FIX 1: Get Gregorian year for the current Kemetic date
-    final currentGregorian = KemeticMath.toGregorian(_currentKy, _currentKm, _currentKd);
+    final currentGregorian = KemeticMath.toGregorian(
+      _currentKy,
+      _currentKm,
+      _currentKd,
+    );
     final gregorianYear = currentGregorian.year; // This is 2025
-    
+
     return Container(
       color: const Color(0xFF0D0D0F), // Dark surface
       child: SafeArea(
@@ -734,39 +963,45 @@ class _DayViewPageState extends State<DayViewPage> {
               child: Row(
                 children: [
                   // Close button
-              IconButton(
-                icon: KemeticGold.icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
-              ),
-              // Month name
-              Expanded(
-                child: _buildGoldMonthLabel(monthName),
-              ),
-              IconButton(
-                tooltip: 'Today',
-                icon: const GlossyIcon(icon: Icons.today, gradient: goldGloss),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                onPressed: _jumpToToday,
-              ),
-              Builder(
-                builder: (btnCtx) => IconButton(
-                  tooltip: 'Menu',
-                  icon: const GlossyIcon(icon: Icons.apps, gradient: goldGloss),
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  onPressed: () async {
-                    if (widget.onShowActionsMenu != null) {
-                      await widget.onShowActionsMenu!(btnCtx);
-                    } else {
-                      await CalendarPage.globalKey.currentState
-                          ?.showActionsMenuFromOutside(btnCtx);
-                    }
-                  },
-                ),
-              ),
+                  IconButton(
+                    icon: KemeticGold.icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  // Month name
+                  Expanded(child: _buildGoldMonthLabel(monthName)),
+                  IconButton(
+                    tooltip: 'Today',
+                    icon: const GlossyIcon(
+                      icon: Icons.today,
+                      gradient: goldGloss,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    onPressed: _jumpToToday,
+                  ),
+                  Builder(
+                    builder: (btnCtx) => IconButton(
+                      tooltip: 'Menu',
+                      icon: const GlossyIcon(
+                        icon: Icons.apps,
+                        gradient: goldGloss,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      onPressed: () async {
+                        if (widget.onShowActionsMenu != null) {
+                          await widget.onShowActionsMenu!(btnCtx);
+                        } else {
+                          await CalendarPage.globalKey.currentState
+                              ?.showActionsMenuFromOutside(btnCtx);
+                        }
+                      },
+                    ),
+                  ),
                   IconButton(
                     tooltip: 'My Profile',
-                    icon:
-                        const GlossyIcon(icon: Icons.person, gradient: goldGloss),
+                    icon: const GlossyIcon(
+                      icon: Icons.person,
+                      gradient: goldGloss,
+                    ),
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     onPressed: () async {
                       if (widget.onOpenProfile != null) {
@@ -780,7 +1015,7 @@ class _DayViewPageState extends State<DayViewPage> {
                 ],
               ),
             ),
-            
+
             // 🔧 FIXED: Mini calendar now uses persistent controller (smaller size, closer spacing)
             SizedBox(
               height: 32, // Reduced from 40
@@ -789,23 +1024,36 @@ class _DayViewPageState extends State<DayViewPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 itemCount: dayCount,
                 // Auto-scroll to keep current day visible and centered
-                controller: _miniCalendarScrollController, // 🔧 Use persistent controller
+                controller:
+                    _miniCalendarScrollController, // 🔧 Use persistent controller
                 itemBuilder: (context, index) {
                   final day = index + 1;
                   final isCurrentDay = day == _currentKd;
-                  final isToday = today.kYear == _currentKy && 
-                                 today.kMonth == _currentKm && 
-                                 today.kDay == day;
-                  
+                  final isToday =
+                      today.kYear == _currentKy &&
+                      today.kMonth == _currentKm &&
+                      today.kDay == day;
+
                   return GestureDetector(
                     onTap: () {
-                      final currentGregorian = KemeticMath.toGregorian(_currentKy, _currentKm, _currentKd);
-                      final targetGregorian = KemeticMath.toGregorian(_currentKy, _currentKm, day);
-                      final offsetDays = targetGregorian.difference(currentGregorian).inDays;
+                      final currentGregorian = KemeticMath.toGregorian(
+                        _currentKy,
+                        _currentKm,
+                        _currentKd,
+                      );
+                      final targetGregorian = KemeticMath.toGregorian(
+                        _currentKy,
+                        _currentKm,
+                        day,
+                      );
+                      final offsetDays = targetGregorian
+                          .difference(currentGregorian)
+                          .inDays;
                       if (!_pageController.hasClients) return;
-                      final basePage = _pageController.page?.round() ?? _centerPage;
+                      final basePage =
+                          _pageController.page?.round() ?? _centerPage;
                       final targetPage = basePage + offsetDays;
-                      
+
                       _pageController.animateToPage(
                         targetPage,
                         duration: const Duration(milliseconds: 300),
@@ -818,21 +1066,21 @@ class _DayViewPageState extends State<DayViewPage> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: isCurrentDay
-                          ? Border.all(color: _dayGold, width: 1.5)
-                          : null,
+                            ? Border.all(color: _dayGold, width: 1.5)
+                            : null,
                       ),
                       child: Center(
                         child: Text(
                           '$day',
                           style: _miniCalendarNumberStyle.copyWith(
-                            color: isToday 
-                              ? _dayGold
-                              : (isCurrentDay 
-                                ? const Color(0xFFAAAAAA)
-                                : Colors.white54),
-                            fontWeight: isCurrentDay || isToday 
-                              ? FontWeight.w600 
-                              : FontWeight.normal,
+                            color: isToday
+                                ? _dayGold
+                                : (isCurrentDay
+                                      ? const Color(0xFFAAAAAA)
+                                      : Colors.white54),
+                            fontWeight: isCurrentDay || isToday
+                                ? FontWeight.w600
+                                : FontWeight.normal,
                           ),
                         ),
                       ),
@@ -841,9 +1089,8 @@ class _DayViewPageState extends State<DayViewPage> {
                 },
               ),
             ),
-            
+
             const SizedBox(height: 8), // Reduced from 12
-            
             // 🔧 FIX 1: Full date with GREGORIAN year - WITH KEMETIC DAY INFO
             Container(
               padding: const EdgeInsets.only(bottom: 12),
@@ -864,7 +1111,7 @@ class _DayViewPageState extends State<DayViewPage> {
                 ),
               ),
             ),
-            
+
             const Divider(height: 1, color: Color(0xFF1A1A1A)),
           ],
         ),
@@ -879,24 +1126,29 @@ class _DayViewPageState extends State<DayViewPage> {
   /// Detect whether a string looks like a URL, email, or phone number.
   bool _isLikelyUrl(String text) {
     final lower = text.toLowerCase().trim();
-    
+
     // Already has protocol
     if (lower.startsWith('http://') || lower.startsWith('https://')) {
       return true;
     }
-    
+
     // Email pattern (check early - most specific)
     if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
       return true;
     }
-    
+
     // Phone number pattern (check for phone-like formatting)
-    final phonePattern = RegExp(r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$');
+    final phonePattern = RegExp(
+      r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$',
+    );
     final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
-    if (phonePattern.hasMatch(lower) || (digitsOnly.length >= 10 && digitsOnly.length <= 15 && RegExp(r'^\+?[0-9]+$').hasMatch(digitsOnly))) {
+    if (phonePattern.hasMatch(lower) ||
+        (digitsOnly.length >= 10 &&
+            digitsOnly.length <= 15 &&
+            RegExp(r'^\+?[0-9]+$').hasMatch(digitsOnly))) {
       return true;
     }
-    
+
     // Known service domains (most reliable)
     final knownServices = [
       r'zoom\.us',
@@ -912,25 +1164,28 @@ class _DayViewPageState extends State<DayViewPage> {
       r'slack\.com',
       r'teams\.microsoft\.com',
     ];
-    
+
     for (final service in knownServices) {
       if (RegExp(service).hasMatch(lower)) {
         return true;
       }
     }
-    
+
     // Generic domain pattern (but require at least one dot and TLD, no spaces)
-    if (RegExp(r'^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}(/.*)?$').hasMatch(lower) && 
-        lower.contains('.') && 
-        !lower.contains(' ')) { // No spaces = likely URL, not address
+    if (RegExp(
+          r'^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}(/.*)?$',
+        ).hasMatch(lower) &&
+        lower.contains('.') &&
+        !lower.contains(' ')) {
+      // No spaces = likely URL, not address
       return true;
     }
-    
+
     // www. prefix
     if (lower.startsWith('www\.')) {
       return true;
     }
-    
+
     return false;
   }
 
@@ -1013,8 +1268,18 @@ class _DayViewPageState extends State<DayViewPage> {
 
   String _getGregorianMonthName(int month) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return months[month - 1];
   }
@@ -1031,17 +1296,25 @@ class DayViewGrid extends StatefulWidget {
   final List<NoteData> notes;
   final bool showGregorian;
   final Map<int, FlowData> flowIndex;
-  final double? initialScrollOffset;              // 🔧 NEW
+  final double? initialScrollOffset; // 🔧 NEW
   final int? focusStartMin; // minutes since midnight
   final int? focusFlowId;
   final String? focusTitle;
   final void Function(double offset)? onScrollChanged; // 🔧 NEW
   final void Function(int? flowId)? onManageFlows; // NEW
   final void Function(int ky, int km, int kd)? onAddNote;
-  final Future<void> Function(int ky, int km, int kd, EventItem event)? onDeleteNote;
-  final Future<void> Function(int ky, int km, int kd, EventItem event)? onEditNote;
-  final Future<void> Function(int ky, int km, int kd, EventItem evt, int newStartMin)?
-      onMoveEventTime;
+  final Future<void> Function(int ky, int km, int kd, EventItem event)?
+  onDeleteNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem event)?
+  onEditNote;
+  final Future<void> Function(
+    int ky,
+    int km,
+    int kd,
+    EventItem evt,
+    int newStartMin,
+  )?
+  onMoveEventTime;
   final Future<void> Function(EventItem event)? onShareNote;
   final Future<void> Function(String reminderId)? onEditReminder;
   final Future<void> Function(String reminderId)? onEndReminder;
@@ -1053,7 +1326,8 @@ class DayViewGrid extends StatefulWidget {
     TimeOfDay? start,
     TimeOfDay? end,
     bool allDay,
-  })? onOpenAddNoteWithTime;
+  })?
+  onOpenAddNoteWithTime;
   final void Function(
     int ky,
     int km,
@@ -1064,18 +1338,29 @@ class DayViewGrid extends StatefulWidget {
     required TimeOfDay start,
     required TimeOfDay end,
     bool allDay,
-  })? onCreateTimedEvent;
+  })?
+  onCreateTimedEvent;
   final void Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
   final Future<void> Function(int flowId)? onSaveFlow;
   final Future<Set<String>> Function({int? flowId, DateTime? completedOnDate})?
-      loadCompletedClientEventIds;
+  loadCompletedClientEventIds;
   final Future<void> Function({
     required String clientEventId,
     required int flowId,
     required DateTime completedOnDate,
-  })? onRecordCompletion;
+  })?
+  onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final DayViewSheetEventTarget? Function({
+    required int ky,
+    required int km,
+    required int kd,
+    required EventItem event,
+    required bool forward,
+  })?
+  resolveAdjacentEvent;
+  final Future<void> Function(int ky, int km, int kd)? onNavigateToDay;
 
   const DayViewGrid({
     super.key,
@@ -1085,11 +1370,11 @@ class DayViewGrid extends StatefulWidget {
     required this.notes,
     required this.showGregorian,
     required this.flowIndex,
-    this.initialScrollOffset,     // 🔧 NEW
+    this.initialScrollOffset, // 🔧 NEW
     this.focusStartMin,
     this.focusFlowId,
     this.focusTitle,
-    this.onScrollChanged,          // 🔧 NEW
+    this.onScrollChanged, // 🔧 NEW
     this.onManageFlows, // NEW
     this.onAddNote, // 🔧 NEW
     this.onDeleteNote,
@@ -1107,6 +1392,8 @@ class DayViewGrid extends StatefulWidget {
     this.loadCompletedClientEventIds,
     this.onRecordCompletion,
     this.onUnrecordCompletion,
+    this.resolveAdjacentEvent,
+    this.onNavigateToDay,
   });
 
   @override
@@ -1117,7 +1404,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _timelineKey = GlobalKey();
   BuildContext? _timelineCtx;
-  
+
   // 🔧 OPTIMIZATION: Cache layout results
   List<PositionedEventBlock>? _cachedBlocks;
   int? _cachedNotesHash;
@@ -1125,7 +1412,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   List<PositionedEventBlock> _displayBlocks = const [];
   bool _hasScrolledToInitial = false; // Added for scroll persistence
   int? _tempDragStartMin; // minutes since midnight
-  int? _pressStartMin;    // start minute when long press began
+  int? _pressStartMin; // start minute when long press began
   bool _isDraggingEvent = false;
   int? _dragPreviewStartMin;
   EventItem? _dragPreviewEvent;
@@ -1164,14 +1451,20 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
-  Widget _buildEndNoteButton(EventItem event) {
+  Widget _buildEndNoteButton(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+    BuildContext? closeContext,
+  }) {
     final enabled = widget.onDeleteNote != null;
     return OutlinedButton.icon(
       style: _endButtonStyle(),
       onPressed: enabled
           ? () async {
-              Navigator.pop(context);
-              await widget.onDeleteNote!(widget.ky, widget.km, widget.kd, event);
+              Navigator.pop(closeContext ?? context);
+              await widget.onDeleteNote!(ky, km, kd, event);
             }
           : null,
       icon: const Icon(Icons.delete_outline),
@@ -1179,13 +1472,16 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
-  Widget _buildEndReminderButton(EventItem event) {
+  Widget _buildEndReminderButton(
+    EventItem event, {
+    BuildContext? closeContext,
+  }) {
     final enabled = widget.onEndReminder != null && event.reminderId != null;
     return OutlinedButton.icon(
       style: _endButtonStyle(),
       onPressed: enabled
           ? () async {
-              Navigator.pop(context);
+              Navigator.pop(closeContext ?? context);
               final reminderId = event.reminderId;
               if (reminderId != null) {
                 await widget.onEndReminder?.call(reminderId);
@@ -1225,15 +1521,13 @@ class _DayViewGridState extends State<DayViewGrid> {
     return ro is RenderBox ? ro : null;
   }
 
-  int? _snappedMinuteFromGlobalOffset(
-    Offset globalOffset, {
-    RenderBox? box,
-  }) {
+  int? _snappedMinuteFromGlobalOffset(Offset globalOffset, {RenderBox? box}) {
     final renderBox = box ?? _findTimelineBox();
     if (renderBox == null) return null;
     final local = renderBox.globalToLocal(globalOffset);
-    final scrollOffset =
-        _scrollController.hasClients ? _scrollController.offset : 0.0;
+    final scrollOffset = _scrollController.hasClients
+        ? _scrollController.offset
+        : 0.0;
     final double y = local.dy + scrollOffset;
     return ((y / 15).round() * 15).clamp(0, 24 * 60 - 1).toInt();
   }
@@ -1256,11 +1550,15 @@ class _DayViewGridState extends State<DayViewGrid> {
     const step = 18.0;
     double? target;
     if (localDy < threshold) {
-      target = (_scrollController.offset - step)
-          .clamp(0.0, _scrollController.position.maxScrollExtent);
+      target = (_scrollController.offset - step).clamp(
+        0.0,
+        _scrollController.position.maxScrollExtent,
+      );
     } else if (localDy > box.size.height - threshold) {
-      target = (_scrollController.offset + step)
-          .clamp(0.0, _scrollController.position.maxScrollExtent);
+      target = (_scrollController.offset + step).clamp(
+        0.0,
+        _scrollController.position.maxScrollExtent,
+      );
     }
     if (target != null && target != _scrollController.offset) {
       _scrollController.animateTo(
@@ -1279,12 +1577,15 @@ class _DayViewGridState extends State<DayViewGrid> {
     if (box == null) return;
 
     bool shouldSetState = false;
-    final snapped =
-        _snappedMinuteFromGlobalOffset(details.globalPosition, box: box);
+    final snapped = _snappedMinuteFromGlobalOffset(
+      details.globalPosition,
+      box: box,
+    );
     final local = box.globalToLocal(details.globalPosition);
     if (kDebugMode) {
-      final scrollOffset =
-          _scrollController.hasClients ? _scrollController.offset : 0.0;
+      final scrollOffset = _scrollController.hasClients
+          ? _scrollController.offset
+          : 0.0;
       final double y = local.dy + scrollOffset;
       debugPrint(
         '[DayView] dragUpdate global=${details.globalPosition} local.dy=${local.dy.toStringAsFixed(2)} scroll=${scrollOffset.toStringAsFixed(2)} y=${y.toStringAsFixed(2)} snapped=$snapped previewMin=$_dragPreviewStartMin',
@@ -1299,8 +1600,10 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     final scrolled = _maybeAutoScroll(box, local.dy);
     if (scrolled) {
-      final rescanned =
-          _snappedMinuteFromGlobalOffset(details.globalPosition, box: box);
+      final rescanned = _snappedMinuteFromGlobalOffset(
+        details.globalPosition,
+        box: box,
+      );
       if (rescanned != null && rescanned != _dragPreviewStartMin) {
         _dragPreviewStartMin = rescanned;
         _lastDragSnappedMinute = rescanned;
@@ -1323,8 +1626,12 @@ class _DayViewGridState extends State<DayViewGrid> {
       final duration = (block.event.endMin - block.event.startMin).toDouble();
       final heightInRow = math.min(60.0 - top, duration);
       if (heightInRow <= 0) continue;
-      final rect =
-          Rect.fromLTWH(block.leftOffset, top, block.width, heightInRow);
+      final rect = Rect.fromLTWH(
+        block.leftOffset,
+        top,
+        block.width,
+        heightInRow,
+      );
       if (rect.contains(localPosition)) {
         return true;
       }
@@ -1335,24 +1642,29 @@ class _DayViewGridState extends State<DayViewGrid> {
   /// Detect whether a string looks like a URL, email, or phone number.
   bool _isLikelyUrl(String text) {
     final lower = text.toLowerCase().trim();
-    
+
     // Already has protocol
     if (lower.startsWith('http://') || lower.startsWith('https://')) {
       return true;
     }
-    
+
     // Email pattern (check early - most specific)
     if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
       return true;
     }
-    
+
     // Phone number pattern (check for phone-like formatting)
-    final phonePattern = RegExp(r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$');
+    final phonePattern = RegExp(
+      r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$',
+    );
     final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
-    if (phonePattern.hasMatch(lower) || (digitsOnly.length >= 10 && digitsOnly.length <= 15 && RegExp(r'^\+?[0-9]+$').hasMatch(digitsOnly))) {
+    if (phonePattern.hasMatch(lower) ||
+        (digitsOnly.length >= 10 &&
+            digitsOnly.length <= 15 &&
+            RegExp(r'^\+?[0-9]+$').hasMatch(digitsOnly))) {
       return true;
     }
-    
+
     // Known service domains (most reliable)
     final knownServices = [
       r'zoom\.us',
@@ -1368,25 +1680,28 @@ class _DayViewGridState extends State<DayViewGrid> {
       r'slack\.com',
       r'teams\.microsoft\.com',
     ];
-    
+
     for (final service in knownServices) {
       if (RegExp(service).hasMatch(lower)) {
         return true;
       }
     }
-    
+
     // Generic domain pattern (but require at least one dot and TLD, no spaces)
-    if (RegExp(r'^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}(/.*)?$').hasMatch(lower) && 
-        lower.contains('.') && 
-        !lower.contains(' ')) { // No spaces = likely URL, not address
+    if (RegExp(
+          r'^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}(/.*)?$',
+        ).hasMatch(lower) &&
+        lower.contains('.') &&
+        !lower.contains(' ')) {
+      // No spaces = likely URL, not address
       return true;
     }
-    
+
     // www. prefix
     if (lower.startsWith('www\.')) {
       return true;
     }
-    
+
     return false;
   }
 
@@ -1469,7 +1784,7 @@ class _DayViewGridState extends State<DayViewGrid> {
 
   void _scrollToSavedOrCurrentTime() {
     if (!_scrollController.hasClients || _hasScrolledToInitial) return;
-    
+
     // 1) Focused event wins
     if (_focusStartMin != null) {
       const hourHeight = 60.0;
@@ -1494,8 +1809,10 @@ class _DayViewGridState extends State<DayViewGrid> {
     final now = DateTime.now().toLocal();
     final minutesSinceMidnight = now.hour * 60 + now.minute;
     const hourHeight = 60.0;
-    final targetOffset = (minutesSinceMidnight / 60) * hourHeight - 200; // 200px above current time
-    
+    final targetOffset =
+        (minutesSinceMidnight / 60) * hourHeight -
+        200; // 200px above current time
+
     _scrollController.animateTo(
       targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
       duration: const Duration(milliseconds: 500),
@@ -1511,65 +1828,18 @@ class _DayViewGridState extends State<DayViewGrid> {
   /// - Same end time (to the minute, or both all-day)
   /// - Same title (normalized)
   List<NoteData> _dedupeNotesForUI(List<NoteData> notes) {
-    if (notes.isEmpty) return notes;
-    
-    final seen = <String, NoteData>{};
-    
-    for (final note in notes) {
-      // Build unique key from note properties
-      final flowKey = note.flowId?.toString() ?? 'NO_FLOW';
-      
-      // Normalize timestamps (handle both all-day and timed events)
-      String startKey;
-      String endKey;
-      
-      if (note.allDay) {
-        startKey = 'ALLDAY';
-        endKey = 'ALLDAY';
-      } else {
-        // For timed events, normalize to ISO string for minute precision
-        if (note.start != null && note.end != null) {
-          // Convert to minutes since midnight for comparison
-          final startMin = note.start!.hour * 60 + note.start!.minute;
-          final endMin = note.end!.hour * 60 + note.end!.minute;
-          startKey = startMin.toString();
-          endKey = endMin.toString();
-        } else {
-          startKey = 'NO_START';
-          endKey = 'NO_END';
-        }
-      }
-      
-      // Title normalized (trim + lowercase for consistency)
-      final titleKey = note.title.trim().toLowerCase();
-      
-      // Build composite key
-      final key = '$flowKey|$startKey|$endKey|$titleKey';
-      
-      if (!seen.containsKey(key)) {
-        seen[key] = note;
-      } else {
-        // If a canonical note (with identity) arrives later, prefer it over id-less duplicates.
-        final existing = seen[key]!;
-        bool hasIdentity(NoteData n) =>
-            (n.id != null && n.id!.trim().isNotEmpty) ||
-            (n.clientEventId != null && n.clientEventId!.trim().isNotEmpty);
-        if (!hasIdentity(existing) && hasIdentity(note)) {
-          seen[key] = note;
-        }
-      }
-    }
-    
-    return seen.values.toList();
+    return _dedupeDayNotesForUi(notes);
   }
 
   bool _eventsMatch(EventItem a, EventItem b) {
-    final idMatch = (a.id != null &&
+    final idMatch =
+        (a.id != null &&
         a.id!.isNotEmpty &&
         b.id != null &&
         b.id!.isNotEmpty &&
         a.id == b.id);
-    final cidMatch = (a.clientEventId != null &&
+    final cidMatch =
+        (a.clientEventId != null &&
         a.clientEventId!.isNotEmpty &&
         b.clientEventId != null &&
         b.clientEventId!.isNotEmpty &&
@@ -1584,16 +1854,14 @@ class _DayViewGridState extends State<DayViewGrid> {
       return base;
     }
     final preview = _dragPreviewEvent!;
-    final int startMin =
-        _dragPreviewStartMin!.clamp(0, 24 * 60 - 1).toInt();
-    final int duration =
-        (preview.endMin - preview.startMin).clamp(15, 12 * 60).toInt();
+    final int startMin = _dragPreviewStartMin!.clamp(0, 24 * 60 - 1).toInt();
+    final int duration = (preview.endMin - preview.startMin)
+        .clamp(15, 12 * 60)
+        .toInt();
     final int endMin = (startMin + duration).clamp(0, 24 * 60 - 1).toInt();
 
     final filtered = base
-        .where(
-          (b) => !_eventsMatch(b.event, preview),
-        )
+        .where((b) => !_eventsMatch(b.event, preview))
         .toList();
 
     final ghostEvent = EventItem(
@@ -1614,11 +1882,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
 
     filtered.add(
-      PositionedEventBlock(
-        event: ghostEvent,
-        leftOffset: 0,
-        width: 0,
-      ),
+      PositionedEventBlock(event: ghostEvent, leftOffset: 0, width: 0),
     );
     return filtered;
   }
@@ -1675,14 +1939,18 @@ class _DayViewGridState extends State<DayViewGrid> {
     final withPrefix = trimmed.startsWith('kemet_cid:')
         ? trimmed.substring('kemet_cid:'.length)
         : trimmed;
-    final cidPattern = RegExp(r'^ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$');
+    final cidPattern = RegExp(
+      r'^ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
+    );
     return cidPattern.hasMatch(withPrefix);
   }
 
   /// Remove lines that are just cid tokens or legacy flowLocalId lines.
   String _stripCidLines(String detail) {
     final lines = detail.split(RegExp(r'\r?\n'));
-    final cidRegex = RegExp(r'^(kemet_cid:)?ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$');
+    final cidRegex = RegExp(
+      r'^(kemet_cid:)?ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
+    );
     final kept = lines.where((line) {
       final trimmed = line.trim();
       if (trimmed.isEmpty) return false; // drop blank lines
@@ -1697,57 +1965,67 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   int _computeNotesHash(List<NoteData> notes) {
-    return Object.hashAll(notes.map((n) => Object.hash(
-      n.title,
-      n.detail,
-      n.location,
-      n.allDay,
-      n.start?.hour,
-      n.start?.minute,
-      n.end?.hour,
-      n.end?.minute,
-      n.flowId,
-      n.manualColor?.value,
-      n.category,
-      n.isReminder,
-      n.reminderId,
-    )));
+    return Object.hashAll(
+      notes.map(
+        (n) => Object.hash(
+          n.title,
+          n.detail,
+          n.location,
+          n.allDay,
+          n.start?.hour,
+          n.start?.minute,
+          n.end?.hour,
+          n.end?.minute,
+          n.flowId,
+          n.manualColor?.value,
+          n.category,
+          n.isReminder,
+          n.reminderId,
+        ),
+      ),
+    );
   }
 
   int _computeFlowIndexHash(Map<int, FlowData> flowIndex) {
     if (flowIndex.isEmpty) return 0;
     final entries = flowIndex.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
-    return Object.hashAll(entries.map(
-      (e) => Object.hash(
-        e.key,
-        e.value.name,
-        e.value.color.value,
-        e.value.active,
+    return Object.hashAll(
+      entries.map(
+        (e) => Object.hash(
+          e.key,
+          e.value.name,
+          e.value.color.value,
+          e.value.active,
+        ),
       ),
-    ));
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     // ✅ NEW: Dedupe notes before rendering to handle legacy duplicates
     final dedupedNotes = _dedupeNotesForUI(widget.notes);
-    
+
     // 🔧 OPTIMIZATION: Only recalculate layout if notes or flows changed
     final notesHash = _computeNotesHash(dedupedNotes);
     final flowHash = _computeFlowIndexHash(widget.flowIndex);
-    if (_cachedBlocks == null || _cachedNotesHash != notesHash || _cachedFlowHash != flowHash) {
+    if (_cachedBlocks == null ||
+        _cachedNotesHash != notesHash ||
+        _cachedFlowHash != flowHash) {
       final screenWidth = MediaQuery.of(context).size.width;
       final columnWidth = (screenWidth - 100) / 3; // 3 columns max
-      
+
       if (kDebugMode) {
         final originalCount = widget.notes.length;
         final dedupedCount = dedupedNotes.length;
         if (originalCount != dedupedCount) {
-          print('[DayView] Deduplicated events: $originalCount → $dedupedCount (removed ${originalCount - dedupedCount} duplicates)');
+          print(
+            '[DayView] Deduplicated events: $originalCount → $dedupedCount (removed ${originalCount - dedupedCount} duplicates)',
+          );
         }
       }
-      
+
       _cachedBlocks = EventLayoutEngine.layoutEventsForDay(
         notes: dedupedNotes, // ✅ Use deduped notes
         flowIndex: widget.flowIndex,
@@ -1770,16 +2048,15 @@ class _DayViewGridState extends State<DayViewGrid> {
             padding: const EdgeInsets.all(16),
             color: const Color(0xFF0D0D0F),
             child: Text(
-              _formatGregorianDate(KemeticMath.toGregorian(widget.ky, widget.km, widget.kd)),
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF808080),
+              _formatGregorianDate(
+                KemeticMath.toGregorian(widget.ky, widget.km, widget.kd),
               ),
+              style: const TextStyle(fontSize: 14, color: Color(0xFF808080)),
               textAlign: TextAlign.center,
             ),
           ),
         ],
-        
+
         // Timeline grid
         Expanded(
           child: DragTarget<_DragPayload>(
@@ -1850,8 +2127,9 @@ class _DayViewGridState extends State<DayViewGrid> {
               }
 
               if (committedMinute == null) {
-                committedMinute =
-                    _snappedMinuteFromGlobalOffset(details.offset);
+                committedMinute = _snappedMinuteFromGlobalOffset(
+                  details.offset,
+                );
                 if (committedMinute == null) {
                   if (kDebugMode) {
                     debugPrint(
@@ -1900,18 +2178,19 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   Widget _buildHourRow(int hour) {
-    final hourBlocks = _displayBlocks.where((b) => 
-      b.event.startMin >= hour * 60 && b.event.startMin < (hour + 1) * 60
-    ).toList();
+    final hourBlocks = _displayBlocks
+        .where(
+          (b) =>
+              b.event.startMin >= hour * 60 &&
+              b.event.startMin < (hour + 1) * 60,
+        )
+        .toList();
 
     return Container(
       height: 60,
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(
-            color: const Color(0xFF1A1A1A),
-            width: 0.5,
-          ),
+          bottom: BorderSide(color: const Color(0xFF1A1A1A), width: 0.5),
         ),
       ),
       child: Stack(
@@ -1923,10 +2202,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             top: 4,
             child: Text(
               _formatHour(hour),
-              style: const TextStyle(
-                fontSize: 11,
-                color: Color(0xFF808080),
-              ),
+              style: const TextStyle(fontSize: 11, color: Color(0xFF808080)),
             ),
           ),
 
@@ -1990,11 +2266,14 @@ class _DayViewGridState extends State<DayViewGrid> {
               _dragPreviewStartMin! < (hour + 1) * 60) ...[
             Builder(
               builder: (_) {
-                final top =
-                    (_dragPreviewStartMin! - hour * 60).clamp(0, 59).toDouble();
+                final top = (_dragPreviewStartMin! - hour * 60)
+                    .clamp(0, 59)
+                    .toDouble();
                 const bandHeight = 15.0;
-                final bandTop =
-                    (top - bandHeight / 2).clamp(0.0, 60.0 - bandHeight);
+                final bandTop = (top - bandHeight / 2).clamp(
+                  0.0,
+                  60.0 - bandHeight,
+                );
                 return Stack(
                   children: [
                     Positioned(
@@ -2045,7 +2324,8 @@ class _DayViewGridState extends State<DayViewGrid> {
   List<Widget> _buildHourBlocks(List<PositionedEventBlock> hourBlocks) {
     if (hourBlocks.isEmpty) return const [];
 
-    final availableWidth = MediaQuery.of(context).size.width - 60 - 16; // left label + padding
+    final availableWidth =
+        MediaQuery.of(context).size.width - 60 - 16; // left label + padding
     const double gap = 4.0;
     final List<Widget> widgets = [];
 
@@ -2142,10 +2422,8 @@ class _DayViewGridState extends State<DayViewGrid> {
   void _handleLongPressMove(LongPressMoveUpdateDetails details) {
     if (_isDraggingEvent) return;
     if (_pressStartMin == null) return;
-    final deltaMinutes =
-        (details.localOffsetFromOrigin.dy / 60.0 * 60).round();
-    final newStart = (_pressStartMin! + deltaMinutes)
-        .clamp(0, (24 * 60) - 1);
+    final deltaMinutes = (details.localOffsetFromOrigin.dy / 60.0 * 60).round();
+    final newStart = (_pressStartMin! + deltaMinutes).clamp(0, (24 * 60) - 1);
     final snapped = (newStart / 15).round() * 15;
     _tempDragStartMin = snapped;
     setState(() {});
@@ -2212,13 +2490,14 @@ class _DayViewGridState extends State<DayViewGrid> {
         top: minutesIntoHour.toDouble(),
         child: Container(
           width: (MediaQuery.of(context).size.width - 100) / 3,
-          height: durationMinutes.toDouble().clamp(_kMinEventBlockHeight, 180.0),
+          height: durationMinutes.toDouble().clamp(
+            _kMinEventBlockHeight,
+            180.0,
+          ),
           margin: const EdgeInsets.only(right: 4, bottom: 2),
           decoration: BoxDecoration(
             color: _dayGold.withOpacity(0.2),
-            border: const Border(
-              left: BorderSide(color: _dayGold, width: 3),
-            ),
+            border: const Border(left: BorderSide(color: _dayGold, width: 3)),
             borderRadius: BorderRadius.circular(4),
           ),
           padding: const EdgeInsets.all(4),
@@ -2252,9 +2531,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     final isPreview = _isPreviewBlock(block);
 
     if (isPreview) {
-      return IgnorePointer(
-        child: _buildEventBlock(block, isPreview: true),
-      );
+      return IgnorePointer(child: _buildEventBlock(block, isPreview: true));
     }
 
     if (!_isEventDraggable(event)) {
@@ -2321,7 +2598,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
-
   Widget _buildEventBlock(
     PositionedEventBlock block, {
     bool isPreview = false,
@@ -2332,28 +2608,28 @@ class _DayViewGridState extends State<DayViewGrid> {
         event.location != null && event.location!.trim().isNotEmpty;
     final double textScale =
         MediaQuery.maybeOf(context)?.textScaleFactor ?? 1.0;
-    
+
     // 🔍 DEBUG: Log block being rendered
     if (kDebugMode) {
       print(
         '[_buildEventBlock] Rendering: title="${event.title}", flowId=${event.flowId}, cid=${event.clientEventId}',
       );
     }
-    
+
     // ✅ FIX #2A: Calculate and clamp duration to prevent giant blocks
     int durationMinutes = event.endMin - event.startMin;
-    
+
     // Fix garbage durations:
     // - if negative or zero -> minimum 15 min just so it's tappable
     if (durationMinutes <= 0) {
       durationMinutes = 15;
     }
-    
+
     // - if way too long (overnight / malformed) -> cap at 180 min (3h) visually
     if (durationMinutes > 180) {
       durationMinutes = 180;
     }
-    
+
     // Reminders: start at half a block, but expand for extra lines / text scale to avoid overflow.
     final int reminderLineCount = (showTitle ? 1 : 0) + (showLocation ? 1 : 0);
     final double reminderHeight = math.max(
@@ -2369,14 +2645,13 @@ class _DayViewGridState extends State<DayViewGrid> {
             return rawHeight < minHeight ? minHeight : rawHeight;
           }();
 
-    final fillColor =
-        isPreview ? event.color.withOpacity(0.12) : event.color.withOpacity(0.2);
+    final fillColor = isPreview
+        ? event.color.withOpacity(0.12)
+        : event.color.withOpacity(0.2);
     final BoxBorder border = isPreview
         ? Border.all(color: event.color.withOpacity(0.65), width: 1.5)
-        : Border(
-            left: BorderSide(color: event.color, width: 3),
-          );
-    
+        : Border(left: BorderSide(color: event.color, width: 3));
+
     return Container(
       width: block.width,
       height: height,
@@ -2407,15 +2682,16 @@ class _DayViewGridState extends State<DayViewGrid> {
   }) {
     final flow = widget.flowIndex[event.flowId];
     final bool hasFlow = flow != null;
-    
+
     final showTitle = event.title.trim().isNotEmpty;
-    final showLocation = event.location != null &&
-        event.location!.trim().isNotEmpty;
+    final showLocation =
+        event.location != null && event.location!.trim().isNotEmpty;
     final titleColor = isPreview ? Colors.white70 : Colors.white;
-    final flowColor =
-        hasFlow ? event.color.withOpacity(isPreview ? 0.75 : 1.0) : null;
+    final flowColor = hasFlow
+        ? event.color.withOpacity(isPreview ? 0.75 : 1.0)
+        : null;
     final locationColor = Colors.white.withOpacity(isPreview ? 0.55 : 0.7);
-    
+
     return Column(
       mainAxisSize: MainAxisSize.min, // ✅ Don't expand unnecessarily
       mainAxisAlignment: MainAxisAlignment.start,
@@ -2424,7 +2700,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         // Flow name first (if available). Skip for reminders to avoid overflow in short block.
         if (hasFlow && !event.isReminder) ...[
           Text(
-            flow!.name,
+            flow.name,
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w600,
@@ -2435,7 +2711,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           ),
           const SizedBox(height: 2),
         ],
-        
+
         // Note title - only render if meaningful
         if (showTitle)
           Text(
@@ -2445,8 +2721,9 @@ class _DayViewGridState extends State<DayViewGrid> {
               fontWeight: FontWeight.w500,
               color: titleColor,
             ),
-            maxLines:
-                (event.isReminder || hasFlow || durationMinutes < 90) ? 1 : 2,
+            maxLines: (event.isReminder || hasFlow || durationMinutes < 90)
+                ? 1
+                : 2,
             overflow: TextOverflow.ellipsis,
           )
         else
@@ -2462,7 +2739,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-        
+
         // Location (clickable)
         if (showLocation)
           Padding(
@@ -2486,10 +2763,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   Widget _buildNowLine() {
-    return Container(
-      height: 1,
-      color: Colors.red.withOpacity(0.45),
-    );
+    return Container(height: 1, color: Colors.red.withOpacity(0.45));
   }
 
   bool _isCurrentHour(int hour) {
@@ -2501,8 +2775,8 @@ class _DayViewGridState extends State<DayViewGrid> {
     final now = DateTime.now().toLocal();
     final todayK = KemeticMath.fromGregorian(now);
     return widget.ky == todayK.kYear &&
-           widget.km == todayK.kMonth &&
-           widget.kd == todayK.kDay;
+        widget.km == todayK.kMonth &&
+        widget.kd == todayK.kDay;
   }
 
   String _formatHour(int hour) {
@@ -2516,16 +2790,22 @@ class _DayViewGridState extends State<DayViewGrid> {
     return '${date.month}/${date.day}/${date.year}';
   }
 
-  String _buildBadgeToken(EventItem event) {
-    final g = KemeticMath.toGregorian(widget.ky, widget.km, widget.kd);
+  String _buildBadgeToken(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+  }) {
+    final g = KemeticMath.toGregorian(ky, km, kd);
     final dayStart = DateTime(g.year, g.month, g.day);
     final start = dayStart.add(Duration(minutes: event.startMin));
     final end = dayStart.add(Duration(minutes: event.endMin));
     final id = 'badge-${DateTime.now().microsecondsSinceEpoch}';
     final rawDesc = event.detail?.trim() ?? '';
     final cleanedDesc = rawDesc.isEmpty ? null : _stripCidLines(rawDesc);
-    final descForToken =
-        (cleanedDesc == null || cleanedDesc.isEmpty) ? null : cleanedDesc;
+    final descForToken = (cleanedDesc == null || cleanedDesc.isEmpty)
+        ? null
+        : cleanedDesc;
     return EventBadgeToken.buildToken(
       id: id,
       title: event.title.isEmpty ? 'Scheduled block' : event.title,
@@ -2536,11 +2816,16 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
-  Future<void> _quickAddToJournal(EventItem event) async {
+  Future<void> _quickAddToJournal(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+  }) async {
     final cb = widget.onAppendToJournal;
     if (cb == null) return;
 
-    final token = _buildBadgeToken(event);
+    final token = _buildBadgeToken(event, ky: ky, km: km, kd: kd);
     try {
       await cb('$token ');
     } catch (_) {
@@ -2548,11 +2833,17 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
   }
 
-  Future<void> _handleAddToJournal(EventItem event, {BuildContext? sheetContext}) async {
+  Future<void> _handleAddToJournal(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+    BuildContext? sheetContext,
+  }) async {
     if (sheetContext != null) {
       Navigator.pop(sheetContext);
     }
-    await _quickAddToJournal(event);
+    await _quickAddToJournal(event, ky: ky, km: km, kd: kd);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -2564,471 +2855,699 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
   }
 
-  // Show event detail sheet
-  void _showEventDetail(EventItem event) {
-    final flow = widget.flowIndex[event.flowId];
-    final bool isReminder = event.isReminder;
-    final rootContext = context;
-    
-    // 🔍 DEBUG: Comprehensive logging
-    if (kDebugMode) {
-      print('[_showEventDetail] Event: "${event.title}"');
-      print('[_showEventDetail] Event flowId: ${event.flowId} (${event.flowId.runtimeType})');
-      print('[_showEventDetail] Event color: ${event.color}');
-      print('[_showEventDetail] FlowIndex keys: ${widget.flowIndex.keys.toList()}');
-      print('[_showEventDetail] FlowIndex length: ${widget.flowIndex.length}');
-      
-      if (event.flowId != null) {
-        final foundFlow = widget.flowIndex[event.flowId];
-        if (foundFlow != null) {
-          print('[_showEventDetail] ✅ Flow found: ID=${foundFlow.id}, name="${foundFlow.name}", color=${foundFlow.color}, active=${foundFlow.active}');
-        } else {
-          print('[_showEventDetail] ❌ Flow NOT found for flowId=${event.flowId}');
-          print('[_showEventDetail] Available flow IDs: ${widget.flowIndex.keys.toList()}');
-        }
-      } else {
-        print('[_showEventDetail] Event has no flowId');
-      }
-    }
-    
+  String _detailSheetTargetKey(DayViewSheetEventTarget target) =>
+      '${target.ky}:${target.km}:${target.kd}:${_eventIdentityKey(target.event)}';
+
+  ({List<DayViewSheetEventTarget> pages, int currentIndex})
+  _detailSheetPagesForTarget(DayViewSheetEventTarget target) {
+    final previous = widget.resolveAdjacentEvent?.call(
+      ky: target.ky,
+      km: target.km,
+      kd: target.kd,
+      event: target.event,
+      forward: false,
+    );
+    final next = widget.resolveAdjacentEvent?.call(
+      ky: target.ky,
+      km: target.km,
+      kd: target.kd,
+      event: target.event,
+      forward: true,
+    );
+
+    final pages = <DayViewSheetEventTarget>[
+      if (previous != null) previous,
+      target,
+      if (next != null) next,
+    ];
+    return (pages: pages, currentIndex: previous != null ? 1 : 0);
+  }
+
+  Widget _buildEventDetailSheetPage({
+    required BuildContext rootContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+    required ValueNotifier<Map<String, bool>> completionStates,
+    bool scrollable = true,
+  }) {
+    final currentEvent = target.event;
+    final flow = widget.flowIndex[currentEvent.flowId];
+    final bool isReminder = currentEvent.isReminder;
     final bool showCompletionToggle =
-        event.flowId != null && event.clientEventId != null && event.clientEventId!.isNotEmpty;
-    final completionState = ValueNotifier<bool>(false);
+        currentEvent.flowId != null &&
+        currentEvent.clientEventId != null &&
+        currentEvent.clientEventId!.isNotEmpty;
 
-    // Preload completion state if loader provided
-    Future<void>? loadCompletion;
-    if (showCompletionToggle && widget.loadCompletedClientEventIds != null) {
-      loadCompletion = widget
-          .loadCompletedClientEventIds!(
-            flowId: event.flowId,
-            completedOnDate: _kemeticToDate(widget.ky, widget.km, widget.kd),
-          )
-          .then((ids) {
-        completionState.value = ids.contains(event.clientEventId);
-      }).catchError((_) {});
-    }
-
-    showModalBottomSheet(
-      context: rootContext,
-      backgroundColor: Color(0xFF000000),
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (loadCompletion != null)
-                FutureBuilder<void>(
-                  future: loadCompletion,
-                  builder: (context, snapshot) => const SizedBox.shrink(),
-                ),
-              // Header row with flow badge and menu
-              // Check if this is a nutrition event (detail contains "Source:" pattern)
-              // Header row with badges, End Flow, and menu
-              Row(
-                children: [
-                  if (flow != null)
-                    Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: flow.color.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          flow.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: flow.color,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    )
-                  else if (isReminder)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: KemeticGold.base.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: KemeticGold.text(
-                        'Reminder',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    )
-                  else if (event.detail != null && event.detail!.contains('Source:'))
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: KemeticGold.base.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          KemeticGold.icon(Icons.local_drink, size: 14),
-                          const SizedBox(width: 4),
-                          KemeticGold.text(
-                            'Nutrition',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
+    final body = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            if (flow != null)
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
                   ),
-                  const Spacer(),
-                  if (flow != null)
-                    _buildEndFlowButton(flow.id)
-                  else if (isReminder)
-                    _buildEndReminderButton(event)
-                  else if (widget.onDeleteNote != null)
-                    _buildEndNoteButton(event),
-                  const SizedBox(width: 8),
-                  PopupMenuButton<String>(
-                    icon: KemeticGold.icon(Icons.more_vert),
-                    tooltip: 'Event options',
-                    onSelected: (value) async {
-                      if (value == 'journal') {
-                        await _handleAddToJournal(event, sheetContext: sheetContext);
-                      } else if (value == 'edit' && flow != null) {
-                        Navigator.pop(sheetContext);
-                        if (widget.onManageFlows != null) {
-                          widget.onManageFlows!(flow.id);
-                        }
-                      } else if (value == 'share' && flow != null) {
-                        Navigator.pop(sheetContext);
-                        final result = await showModalBottomSheet<bool>(
-                          context: rootContext,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (context) => ShareFlowSheet(
-                            flowId: flow.id,
-                            flowTitle: flow.name,
+                  decoration: BoxDecoration(
+                    color: flow.color.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    flow.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: flow.color,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              )
+            else if (isReminder)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: KemeticGold.base.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: KemeticGold.text(
+                  'Reminder',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              )
+            else if (currentEvent.detail != null &&
+                currentEvent.detail!.contains('Source:'))
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: KemeticGold.base.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    KemeticGold.icon(Icons.local_drink, size: 14),
+                    const SizedBox(width: 4),
+                    KemeticGold.text(
+                      'Nutrition',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const Spacer(),
+            if (flow != null)
+              _buildEndFlowButton(flow.id)
+            else if (isReminder)
+              _buildEndReminderButton(currentEvent, closeContext: sheetContext)
+            else if (widget.onDeleteNote != null)
+              _buildEndNoteButton(
+                currentEvent,
+                ky: target.ky,
+                km: target.km,
+                kd: target.kd,
+                closeContext: sheetContext,
+              ),
+            const SizedBox(width: 8),
+            PopupMenuButton<String>(
+              icon: KemeticGold.icon(Icons.more_vert),
+              tooltip: 'Event options',
+              color: const Color(0xFF000000),
+              onSelected: (value) async {
+                if (value == 'journal') {
+                  await _handleAddToJournal(
+                    currentEvent,
+                    ky: target.ky,
+                    km: target.km,
+                    kd: target.kd,
+                    sheetContext: sheetContext,
+                  );
+                } else if (value == 'edit' && flow != null) {
+                  Navigator.pop(sheetContext);
+                  widget.onManageFlows?.call(flow.id);
+                } else if (value == 'share' && flow != null) {
+                  Navigator.pop(sheetContext);
+                  final result = await showModalBottomSheet<bool>(
+                    context: rootContext,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) =>
+                        ShareFlowSheet(flowId: flow.id, flowTitle: flow.name),
+                  );
+
+                  if (result == true && rootContext.mounted) {
+                    ScaffoldMessenger.of(rootContext).showSnackBar(
+                      const SnackBar(
+                        content: Text('Flow shared successfully!'),
+                        backgroundColor: KemeticGold.base,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                } else if (value == 'save' && flow != null) {
+                  Navigator.pop(sheetContext);
+                  if (widget.onSaveFlow != null) {
+                    await widget.onSaveFlow!(flow.id);
+                  } else {
+                    try {
+                      await UserEventsRepo(
+                        Supabase.instance.client,
+                      ).setFlowSaved(flowId: flow.id, isSaved: true);
+                      if (rootContext.mounted) {
+                        ScaffoldMessenger.of(rootContext).showSnackBar(
+                          const SnackBar(
+                            content: Text('Saved to Saved Flows'),
+                            duration: Duration(seconds: 2),
                           ),
                         );
-
-                        if (result == true && mounted) {
-                          ScaffoldMessenger.of(rootContext).showSnackBar(
-                            const SnackBar(
-                              content: Text('Flow shared successfully!'),
-                              backgroundColor: KemeticGold.base,
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        }
-                      } else if (value == 'save' && flow != null) {
-                        Navigator.pop(sheetContext);
-                        if (widget.onSaveFlow != null) {
-                          await widget.onSaveFlow!(flow.id);
-                        } else {
-                          try {
-                            await UserEventsRepo(Supabase.instance.client)
-                                .setFlowSaved(flowId: flow.id, isSaved: true);
-                            if (mounted) {
-                              ScaffoldMessenger.of(rootContext).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Saved to Saved Flows'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(rootContext).showSnackBar(
-                                SnackBar(content: Text('Unable to save flow: $e')),
-                              );
-                            }
-                          }
-                        }
-                      } else if (value == 'edit_reminder' &&
-                          isReminder &&
-                          widget.onEditReminder != null &&
-                          event.reminderId != null) {
-                        Navigator.pop(sheetContext);
-                        await widget.onEditReminder!(event.reminderId!);
-                      } else if (value == 'share_reminder' &&
-                          isReminder &&
-                          widget.onShareReminder != null) {
-                        Navigator.pop(sheetContext);
-                        await widget.onShareReminder!(event);
-                      } else if (value == 'edit_note' &&
-                          flow == null &&
-                          !isReminder &&
-                          widget.onEditNote != null) {
-                        Navigator.pop(sheetContext);
-                        await widget.onEditNote!(widget.ky, widget.km, widget.kd, event);
-                      } else if (value == 'share_note' &&
-                          flow == null &&
-                          !isReminder &&
-                          widget.onShareNote != null) {
-                        Navigator.pop(sheetContext);
-                        await widget.onShareNote!(event);
                       }
-                    },
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'journal',
-                        child: Row(
-                          children: [
-                            KemeticGold.icon(Icons.check_circle),
-                            const SizedBox(width: 12),
-                            const Text('Done / Add to journal', style: TextStyle(color: Colors.white)),
-                          ],
-                        ),
-                      ),
-                      if (flow != null && !isReminder)
-                        PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              KemeticGold.icon(Icons.edit),
-                              const SizedBox(width: 12),
-                              const Text('Edit Flow', style: TextStyle(color: Colors.white)),
-                            ],
-                          ),
-                        ),
-                      if (flow != null && !isReminder)
-                        PopupMenuItem(
-                          value: 'share',
-                          child: Row(
-                            children: [
-                              KemeticGold.icon(Icons.share),
-                              const SizedBox(width: 12),
-                              const Text('Share Flow', style: TextStyle(color: Colors.white)),
-                            ],
-                          ),
-                        ),
-                      if (flow != null && !isReminder)
-                        PopupMenuItem(
-                          value: 'save',
-                          child: Row(
-                            children: [
-                              KemeticGold.icon(Icons.bookmark_add),
-                              const SizedBox(width: 12),
-                              const Text('Save Flow', style: TextStyle(color: Colors.white)),
-                            ],
-                          ),
-                        ),
-                      if (isReminder && widget.onEditReminder != null && event.reminderId != null)
-                        PopupMenuItem(
-                          value: 'edit_reminder',
-                          child: Row(
-                            children: [
-                              KemeticGold.icon(Icons.edit),
-                              const SizedBox(width: 12),
-                              const Text('Edit Reminder', style: TextStyle(color: Colors.white)),
-                            ],
-                          ),
-                        ),
-                      if (isReminder && widget.onShareReminder != null)
-                        PopupMenuItem(
-                          value: 'share_reminder',
-                          child: Row(
-                            children: [
-                              KemeticGold.icon(Icons.share),
-                              const SizedBox(width: 12),
-                              const Text('Share Reminder', style: TextStyle(color: Colors.white)),
-                            ],
-                          ),
-                        ),
-                      if (flow == null && !isReminder && widget.onEditNote != null)
-                        PopupMenuItem(
-                          value: 'edit_note',
-                          child: Row(
-                            children: [
-                              KemeticGold.icon(Icons.edit),
-                              const SizedBox(width: 12),
-                              const Text('Edit Note', style: TextStyle(color: Colors.white)),
-                            ],
-                          ),
-                        ),
-                      if (flow == null && !isReminder && widget.onShareNote != null)
-                        PopupMenuItem(
-                          value: 'share_note',
-                          child: Row(
-                            children: [
-                              KemeticGold.icon(Icons.share),
-                              const SizedBox(width: 12),
-                              const Text('Share Note', style: TextStyle(color: Colors.white)),
-                            ],
-                          ),
-                        ),
-                  ],
-                  color: const Color(0xFF000000),
-                ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              
-              // Note title
-              Text(
-                event.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (showCompletionToggle)
-                ValueListenableBuilder<bool>(
-                  valueListenable: completionState,
-                  builder: (context, completed, _) => Column(
-                    children: [
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text(
-                          'Done',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                        ),
-                        value: completed,
-                        activeColor: _dayGold,
-                        onChanged: (val) async {
-                          final date = _kemeticToDate(widget.ky, widget.km, widget.kd);
-                          if (val) {
-                            if (widget.onRecordCompletion != null) {
-                              await widget.onRecordCompletion!(
-                                clientEventId: event.clientEventId!,
-                                flowId: event.flowId!,
-                                completedOnDate: date,
-                              );
-                            }
-                          } else {
-                            if (widget.onUnrecordCompletion != null) {
-                              await widget.onUnrecordCompletion!(event.clientEventId!);
-                            }
-                          }
-                          completionState.value = val;
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
-                ),
-              
-              // Time
-              Row(
-                children: [
-                  const Icon(Icons.access_time, size: 16, color: Color(0xFF808080)),
-                  const SizedBox(width: 8),
-                  Text(
-                    _formatTimeRange(event.startMin, event.endMin),
-                    style: const TextStyle(color: Color(0xFF808080)),
-                  ),
-                ],
-              ),
-              
-              // Location (clickable)
-              if (event.location != null && event.location!.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: () => _launchLocation(event.location!.trim()),
+                    } catch (e) {
+                      if (rootContext.mounted) {
+                        ScaffoldMessenger.of(rootContext).showSnackBar(
+                          SnackBar(content: Text('Unable to save flow: $e')),
+                        );
+                      }
+                    }
+                  }
+                } else if (value == 'edit_reminder' &&
+                    isReminder &&
+                    widget.onEditReminder != null &&
+                    currentEvent.reminderId != null) {
+                  Navigator.pop(sheetContext);
+                  await widget.onEditReminder!(currentEvent.reminderId!);
+                } else if (value == 'share_reminder' &&
+                    isReminder &&
+                    widget.onShareReminder != null) {
+                  Navigator.pop(sheetContext);
+                  await widget.onShareReminder!(currentEvent);
+                } else if (value == 'edit_note' &&
+                    flow == null &&
+                    !isReminder &&
+                    widget.onEditNote != null) {
+                  Navigator.pop(sheetContext);
+                  await widget.onEditNote!(
+                    target.ky,
+                    target.km,
+                    target.kd,
+                    currentEvent,
+                  );
+                } else if (value == 'share_note' &&
+                    flow == null &&
+                    !isReminder &&
+                    widget.onShareNote != null) {
+                  Navigator.pop(sheetContext);
+                  await widget.onShareNote!(currentEvent);
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'journal',
                   child: Row(
                     children: [
-                      const Icon(Icons.location_on, size: 16, color: Color(0xFF808080)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          event.location!,
-                          style: const TextStyle(
-                            color: Color(0xFF808080),
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
+                      KemeticGold.icon(Icons.check_circle),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Done / Add to journal',
+                        style: TextStyle(color: Colors.white),
                       ),
                     ],
+                  ),
+                ),
+                if (flow != null && !isReminder)
+                  PopupMenuItem(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        KemeticGold.icon(Icons.edit),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Edit Flow',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (flow != null && !isReminder)
+                  PopupMenuItem(
+                    value: 'share',
+                    child: Row(
+                      children: [
+                        KemeticGold.icon(Icons.share),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Share Flow',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (flow != null && !isReminder)
+                  PopupMenuItem(
+                    value: 'save',
+                    child: Row(
+                      children: [
+                        KemeticGold.icon(Icons.bookmark_add),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Save Flow',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (isReminder &&
+                    widget.onEditReminder != null &&
+                    currentEvent.reminderId != null)
+                  PopupMenuItem(
+                    value: 'edit_reminder',
+                    child: Row(
+                      children: [
+                        KemeticGold.icon(Icons.edit),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Edit Reminder',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (isReminder && widget.onShareReminder != null)
+                  PopupMenuItem(
+                    value: 'share_reminder',
+                    child: Row(
+                      children: [
+                        KemeticGold.icon(Icons.share),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Share Reminder',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (flow == null && !isReminder && widget.onEditNote != null)
+                  PopupMenuItem(
+                    value: 'edit_note',
+                    child: Row(
+                      children: [
+                        KemeticGold.icon(Icons.edit),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Edit Note',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (flow == null && !isReminder && widget.onShareNote != null)
+                  PopupMenuItem(
+                    value: 'share_note',
+                    child: Row(
+                      children: [
+                        KemeticGold.icon(Icons.share),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Share Note',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          currentEvent.title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (showCompletionToggle)
+          ValueListenableBuilder<Map<String, bool>>(
+            valueListenable: completionStates,
+            builder: (context, states, _) {
+              final completed = states[_detailSheetTargetKey(target)] ?? false;
+              return Column(
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(
+                      'Done',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    value: completed,
+                    activeColor: _dayGold,
+                    onChanged: (val) async {
+                      final completedOnDate = _kemeticToDate(
+                        target.ky,
+                        target.km,
+                        target.kd,
+                      );
+                      if (val) {
+                        await widget.onRecordCompletion?.call(
+                          clientEventId: currentEvent.clientEventId!,
+                          flowId: currentEvent.flowId!,
+                          completedOnDate: completedOnDate,
+                        );
+                      } else {
+                        await widget.onUnrecordCompletion?.call(
+                          currentEvent.clientEventId!,
+                        );
+                      }
+                      final nextStates = Map<String, bool>.from(states);
+                      nextStates[_detailSheetTargetKey(target)] = val;
+                      completionStates.value = nextStates;
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              );
+            },
+          ),
+        Row(
+          children: [
+            const Icon(Icons.access_time, size: 16, color: Color(0xFF808080)),
+            const SizedBox(width: 8),
+            Text(
+              _formatTimeRange(currentEvent.startMin, currentEvent.endMin),
+              style: const TextStyle(color: Color(0xFF808080)),
+            ),
+          ],
+        ),
+        if (currentEvent.location != null &&
+            currentEvent.location!.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () => _launchLocation(currentEvent.location!.trim()),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.location_on,
+                  size: 16,
+                  color: Color(0xFF808080),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    currentEvent.location!,
+                    style: const TextStyle(
+                      color: Color(0xFF808080),
+                      decoration: TextDecoration.underline,
+                    ),
                   ),
                 ),
               ],
-              
-            // Details
-            if (event.detail != null && event.detail!.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Builder(
-                builder: (context) {
-                  // Strip legacy flowLocalId prefix if present
-                  String displayDetail = event.detail!;
-                  if (displayDetail.startsWith('flowLocalId=')) {
-                    final semi = displayDetail.indexOf(';');
-                    if (semi > 0 && semi < displayDetail.length - 1) {
-                      displayDetail = displayDetail.substring(semi + 1).trim();
-                    } else {
-                      // Only the prefix, no actual detail
-                      return const SizedBox.shrink();
-                    }
-                  }
-                  displayDetail = _stripCidLines(displayDetail);
-                  if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
-                    return const SizedBox.shrink();
-                  }
-                  
-                  return RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                      ),
-                      children: _buildTextSpans(displayDetail),
-                    ),
-                  );
-                },
-              ),
-            ],
-              
-              const SizedBox(height: 20),
-              
-              // Action buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton.icon(
-                    onPressed: widget.onManageFlows == null
-                        ? null
-                        : () {
-                            Navigator.pop(context);
-                            widget.onManageFlows!(null);
-                          },
-                    icon: widget.onManageFlows == null
-                        ? const Icon(Icons.view_timeline, color: Color(0xFF404040))
-                        : KemeticGold.icon(Icons.view_timeline),
-                    label: widget.onManageFlows == null
-                        ? const Text(
-                            'Manage Flows',
-                            style: TextStyle(color: Color(0xFF404040)),
-                          )
-                        : KemeticGold.text(
-                            'Manage Flows',
-                            style: _goldHeaderStyle.copyWith(fontSize: 15),
-                          ),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: KemeticGold.text(
-                      'Close',
-                      style: _goldHeaderStyle.copyWith(fontSize: 15),
-                    ),
-                  ),
-                ],
-              ),
-            ],
             ),
           ),
+        ],
+        if (currentEvent.detail != null && currentEvent.detail!.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Builder(
+            builder: (context) {
+              String displayDetail = currentEvent.detail!;
+              if (displayDetail.startsWith('flowLocalId=')) {
+                final semi = displayDetail.indexOf(';');
+                if (semi > 0 && semi < displayDetail.length - 1) {
+                  displayDetail = displayDetail.substring(semi + 1).trim();
+                } else {
+                  return const SizedBox.shrink();
+                }
+              }
+              displayDetail = _stripCidLines(displayDetail);
+              if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
+                return const SizedBox.shrink();
+              }
+
+              return RichText(
+                text: TextSpan(
+                  style: const TextStyle(fontSize: 14, color: Colors.white),
+                  children: _buildTextSpans(displayDetail),
+                ),
+              );
+            },
+          ),
+        ],
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton.icon(
+              onPressed: widget.onManageFlows == null
+                  ? null
+                  : () {
+                      Navigator.pop(sheetContext);
+                      widget.onManageFlows!(null);
+                    },
+              icon: widget.onManageFlows == null
+                  ? const Icon(Icons.view_timeline, color: Color(0xFF404040))
+                  : KemeticGold.icon(Icons.view_timeline),
+              label: widget.onManageFlows == null
+                  ? const Text(
+                      'Manage Flows',
+                      style: TextStyle(color: Color(0xFF404040)),
+                    )
+                  : KemeticGold.text(
+                      'Manage Flows',
+                      style: _goldHeaderStyle.copyWith(fontSize: 15),
+                    ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(sheetContext),
+              child: KemeticGold.text(
+                'Close',
+                style: _goldHeaderStyle.copyWith(fontSize: 15),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: scrollable ? SingleChildScrollView(child: body) : body,
+    );
+  }
+
+  // Show event detail sheet
+  void _showEventDetail(EventItem event) {
+    final rootContext = context;
+    final currentTarget = ValueNotifier<DayViewSheetEventTarget>(
+      DayViewSheetEventTarget(
+        ky: widget.ky,
+        km: widget.km,
+        kd: widget.kd,
+        event: event,
+      ),
+    );
+    final completionStates = ValueNotifier<Map<String, bool>>({});
+    final measuredHeights = ValueNotifier<Map<String, double>>({});
+    final initialPages = _detailSheetPagesForTarget(currentTarget.value);
+    PageController sheetPageController = PageController(
+      initialPage: initialPages.currentIndex,
+    );
+
+    if (kDebugMode) {
+      print('[_showEventDetail] Event: "${event.title}"');
+      print(
+        '[_showEventDetail] Event flowId: ${event.flowId} (${event.flowId.runtimeType})',
+      );
+      print('[_showEventDetail] Event color: ${event.color}');
+      print(
+        '[_showEventDetail] FlowIndex keys: ${widget.flowIndex.keys.toList()}',
+      );
+      print('[_showEventDetail] FlowIndex length: ${widget.flowIndex.length}');
+    }
+
+    void updateCompletionState(DayViewSheetEventTarget target, bool completed) {
+      final nextStates = Map<String, bool>.from(completionStates.value);
+      nextStates[_detailSheetTargetKey(target)] = completed;
+      completionStates.value = nextStates;
+    }
+
+    void updateMeasuredHeight(String key, double height) {
+      final normalized = height.ceilToDouble();
+      if (normalized <= 0) return;
+      final previous = measuredHeights.value[key];
+      if (previous != null && (previous - normalized).abs() < 1) return;
+      final nextHeights = Map<String, double>.from(measuredHeights.value);
+      nextHeights[key] = normalized;
+      measuredHeights.value = nextHeights;
+    }
+
+    Future<void> refreshCompletionState(DayViewSheetEventTarget target) async {
+      final currentEvent = target.event;
+      final showCompletionToggle =
+          currentEvent.flowId != null &&
+          currentEvent.clientEventId != null &&
+          currentEvent.clientEventId!.isNotEmpty;
+      if (!showCompletionToggle || widget.loadCompletedClientEventIds == null) {
+        updateCompletionState(target, false);
+        return;
+      }
+
+      try {
+        final ids = await widget.loadCompletedClientEventIds!(
+          flowId: currentEvent.flowId,
+          completedOnDate: _kemeticToDate(target.ky, target.km, target.kd),
+        );
+        updateCompletionState(target, ids.contains(currentEvent.clientEventId));
+      } catch (_) {}
+    }
+
+    void warmVisibleCompletionStates(DayViewSheetEventTarget target) {
+      final pages = _detailSheetPagesForTarget(target);
+      for (final pageTarget in pages.pages) {
+        unawaited(refreshCompletionState(pageTarget));
+      }
+    }
+
+    void resetSheetPageController(int initialPage) {
+      final previous = sheetPageController;
+      sheetPageController = PageController(initialPage: initialPage);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        previous.dispose();
+      });
+    }
+
+    Future<void> moveToTarget(DayViewSheetEventTarget nextTarget) async {
+      final previousTarget = currentTarget.value;
+      currentTarget.value = nextTarget;
+      warmVisibleCompletionStates(nextTarget);
+      if (widget.onNavigateToDay != null &&
+          (nextTarget.ky != previousTarget.ky ||
+              nextTarget.km != previousTarget.km ||
+              nextTarget.kd != previousTarget.kd)) {
+        unawaited(
+          widget.onNavigateToDay!(nextTarget.ky, nextTarget.km, nextTarget.kd),
+        );
+      }
+      HapticFeedback.selectionClick();
+    }
+
+    warmVisibleCompletionStates(currentTarget.value);
+
+    showModalBottomSheet(
+      context: rootContext,
+      backgroundColor: const Color(0xFF000000),
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return ValueListenableBuilder<DayViewSheetEventTarget>(
+          valueListenable: currentTarget,
+          builder: (context, target, _) {
+            final pages = _detailSheetPagesForTarget(target);
+            final currentKey = _detailSheetTargetKey(target);
+            final pageViewKey = ValueKey<String>(
+              '$currentKey:${pages.currentIndex}:${pages.pages.length}',
+            );
+
+            return ValueListenableBuilder<Map<String, double>>(
+              valueListenable: measuredHeights,
+              builder: (context, heights, __) {
+                final maxSheetHeight = math.min(
+                  MediaQuery.sizeOf(context).height * 0.72,
+                  560.0,
+                );
+                final sheetHeight = (heights[currentKey] ?? 220.0).clamp(
+                  0.0,
+                  maxSheetHeight,
+                );
+
+                return SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Offstage(
+                        child: Column(
+                          children: [
+                            for (final pageTarget in pages.pages)
+                              _MeasureSize(
+                                onChange: (size) {
+                                  updateMeasuredHeight(
+                                    _detailSheetTargetKey(pageTarget),
+                                    size.height,
+                                  );
+                                },
+                                child: SizedBox(
+                                  width: MediaQuery.sizeOf(context).width,
+                                  child: _buildEventDetailSheetPage(
+                                    rootContext: rootContext,
+                                    sheetContext: sheetContext,
+                                    target: pageTarget,
+                                    completionStates: completionStates,
+                                    scrollable: false,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOutCubic,
+                        alignment: Alignment.bottomCenter,
+                        child: SizedBox(
+                          height: sheetHeight,
+                          child: PageView.builder(
+                            key: pageViewKey,
+                            controller: sheetPageController,
+                            physics: const PageScrollPhysics(),
+                            itemCount: pages.pages.length,
+                            onPageChanged: (index) {
+                              if (index == pages.currentIndex) return;
+                              final nextTarget = pages.pages[index];
+                              final nextPages = _detailSheetPagesForTarget(
+                                nextTarget,
+                              );
+                              resetSheetPageController(nextPages.currentIndex);
+                              unawaited(moveToTarget(nextTarget));
+                            },
+                            itemBuilder: (context, index) {
+                              return _buildEventDetailSheetPage(
+                                rootContext: rootContext,
+                                sheetContext: sheetContext,
+                                target: pages.pages[index],
+                                completionStates: completionStates,
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
         );
       },
-    );
+    ).whenComplete(() {
+      currentTarget.dispose();
+      completionStates.dispose();
+      measuredHeights.dispose();
+      sheetPageController.dispose();
+    });
   }
 
   String _formatTimeRange(int startMin, int endMin) {
@@ -3036,13 +3555,13 @@ class _DayViewGridState extends State<DayViewGrid> {
     final startMinute = startMin % 60;
     final endHour = endMin ~/ 60;
     final endMinute = endMin % 60;
-    
+
     String formatTime(int h, int m) {
       final period = h >= 12 ? 'PM' : 'AM';
       final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
       return '$hour12:${m.toString().padLeft(2, '0')} $period';
     }
-    
+
     return '${formatTime(startHour, startMinute)} – ${formatTime(endHour, endMinute)}';
   }
 
@@ -3052,6 +3571,42 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 }
 
+class _MeasureSize extends SingleChildRenderObjectWidget {
+  const _MeasureSize({required this.onChange, required super.child});
+
+  final ValueChanged<Size> onChange;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _MeasureSizeRenderObject(onChange);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _MeasureSizeRenderObject renderObject,
+  ) {
+    renderObject.onChange = onChange;
+  }
+}
+
+class _MeasureSizeRenderObject extends RenderProxyBox {
+  _MeasureSizeRenderObject(this.onChange);
+
+  ValueChanged<Size> onChange;
+  Size? _oldSize;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final newSize = child?.size;
+    if (newSize == null || newSize == _oldSize) return;
+    _oldSize = newSize;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      onChange(newSize);
+    });
+  }
+}
 
 // Day View - 24-hour timeline with pixel-perfect event layout
 // Uses EventLayoutEngine for consistent positioning
