@@ -1,5 +1,6 @@
 // lib/services/ai_flow_generation_service.dart
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -33,6 +34,7 @@ class AIFlowGenerationService {
     required DateTime endDate,
     String? flowColor, // hex like "#4dd0e1"
     String? timezone,  // IANA string (e.g., "America/Los_Angeles")
+    String? sourceText,
     bool forceRefresh = false,
   }) async {
     // 1) Session precheck
@@ -60,6 +62,8 @@ class AIFlowGenerationService {
       'endDate': _fmt(endDate),
       if (flowColor != null) 'flowColor': flowColor,
       if (timezone != null) 'timezone': timezone,
+      if (sourceText != null && sourceText.trim().isNotEmpty)
+        'source_text': sourceText.trim(),
       if (forceRefresh) 'force_refresh': true,
       // ⚠️ Do NOT send useKemetic; function doesn't accept it
     };
@@ -91,7 +95,19 @@ class AIFlowGenerationService {
           status: 500,
         );
       }
-    });
+    }).timeout(
+      const Duration(minutes: 4),
+      onTimeout: () => FunctionResponse(
+        data: <String, dynamic>{
+          'success': false,
+          'error': 'timeout',
+          'message':
+              'Generation timed out. If this was a very long 90-day run, try again—'
+              'the server may need a second pass when traffic is high.',
+        },
+        status: 504,
+      ),
+    );
 
     // TEMPORARY DEBUG: Log response details
     debugPrint('[AI invoke] status: ${res.status}');

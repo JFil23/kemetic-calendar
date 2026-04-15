@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/ai_flow_generation_service.dart';
-import '../../models/ai_flow_generation_response.dart';
 import '../../widgets/kemetic_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart';
 import '../../widgets/ai_generation_diagnostic.dart';
@@ -28,8 +27,12 @@ const _flowPalette = [
 
 LinearGradient _glossFromColor(Color c) {
   final hsl = HSLColor.fromColor(c);
-  final lighter = hsl.withLightness((hsl.lightness + 0.15).clamp(0.0, 1.0)).toColor();
-  final darker = hsl.withLightness((hsl.lightness - 0.15).clamp(0.0, 1.0)).toColor();
+  final lighter = hsl
+      .withLightness((hsl.lightness + 0.15).clamp(0.0, 1.0))
+      .toColor();
+  final darker = hsl
+      .withLightness((hsl.lightness - 0.15).clamp(0.0, 1.0))
+      .toColor();
   return LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
@@ -80,10 +83,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
 
   Future<void> _pickRangeStart() async {
     final picked = _mode == CalendarMode.kemetic
-        ? await showKemeticDatePicker(
-            context: context,
-            initialDate: _startDate,
-          )
+        ? await showKemeticDatePicker(context: context, initialDate: _startDate)
         : await showGregorianDatePicker(
             context: context,
             initialDate: _startDate,
@@ -134,51 +134,60 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
     });
 
     try {
-      final enrichedDescription = _composeDirectivePrompt(
-        _descriptionController.text,
-      );
+      final split = _splitForFlowApi(_descriptionController.text);
+      final enrichedDescription = split.description;
 
       // ✅ CRITICAL: Convert color to hex string format
       // Ensure _selectedColorIndex is within bounds
-      final safeColorIndex = _selectedColorIndex.clamp(0, _flowPalette.length - 1);
+      final safeColorIndex = _selectedColorIndex.clamp(
+        0,
+        _flowPalette.length - 1,
+      );
       final selectedColor = _flowPalette[safeColorIndex];
       final colorValue = selectedColor.value;
-      final hexString = colorValue.toRadixString(16).substring(2).padLeft(6, '0');
+      final hexString = colorValue
+          .toRadixString(16)
+          .substring(2)
+          .padLeft(6, '0');
       final colorAsHex = '#$hexString';
-      
+
       // ✅ Safety check: ensure color is never null or empty
       if (colorAsHex.isEmpty || colorAsHex == '#') {
-        throw StateError('Invalid color conversion: $colorValue -> $colorAsHex');
+        throw StateError(
+          'Invalid color conversion: $colorValue -> $colorAsHex',
+        );
       }
 
       // ✅ Debug logging (keep until first successful test)
       if (kDebugMode) {
-        print('🎨 [AI Modal] Color index: $_selectedColorIndex (safe: $safeColorIndex)');
+        print(
+          '🎨 [AI Modal] Color index: $_selectedColorIndex (safe: $safeColorIndex)',
+        );
         print('🎨 [AI Modal] Color value (ARGB int): $colorValue');
         print('🎨 [AI Modal] Color as hex string: $colorAsHex');
         print('🚀 [AI Modal] Request payload:');
         print('   Description: $enrichedDescription');
         print('   Start Date: ${_formatDate(_startDate!)}');
         print('   End Date: ${_formatDate(_endDate!)}');
-        print('   Flow Color: $colorAsHex');  // Should always be "#rrggbb"
+        print('   Flow Color: $colorAsHex'); // Should always be "#rrggbb"
       }
 
       // ✅ Get IANA timezone name (e.g., "America/Los_Angeles") instead of "PST"/"PDT"
       final nowLocal = DateTime.now();
       final offsetHours = nowLocal.timeZoneOffset.inHours;
       final timezoneMap = {
-        -8: 'America/Los_Angeles',  // PST (winter)
-        -7: 'America/Los_Angeles',  // PDT (summer)
-        -6: 'America/Denver',        // MDT (summer) or CST (winter)
-        -5: 'America/Chicago',       // CDT (summer) or EST (winter)
-        -4: 'America/New_York',      // EDT (summer)
-        -10: 'Pacific/Honolulu',     // HST (no DST)
-        -9: 'America/Anchorage',     // AKST/AKDT
-        0: 'Europe/London',          // GMT/BST
-        1: 'Europe/Paris',           // CET/CEST
-        8: 'Asia/Singapore',         // SGT
-        9: 'Asia/Tokyo',             // JST
-        10: 'Australia/Sydney',      // AEST/AEDT
+        -8: 'America/Los_Angeles', // PST (winter)
+        -7: 'America/Los_Angeles', // PDT (summer)
+        -6: 'America/Denver', // MDT (summer) or CST (winter)
+        -5: 'America/Chicago', // CDT (summer) or EST (winter)
+        -4: 'America/New_York', // EDT (summer)
+        -10: 'Pacific/Honolulu', // HST (no DST)
+        -9: 'America/Anchorage', // AKST/AKDT
+        0: 'Europe/London', // GMT/BST
+        1: 'Europe/Paris', // CET/CEST
+        8: 'Asia/Singapore', // SGT
+        9: 'Asia/Tokyo', // JST
+        10: 'Australia/Sydney', // AEST/AEDT
       };
       final ianaTimezone = timezoneMap[offsetHours] ?? 'America/Los_Angeles';
 
@@ -191,13 +200,16 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
         startDate: _startDate!,
         endDate: _endDate!,
         flowColor: colorAsHex,
-        timezone: ianaTimezone, // ✅ IANA format (e.g., "America/Los_Angeles") for Edge Function
+        timezone:
+            ianaTimezone, // ✅ IANA format (e.g., "America/Los_Angeles") for Edge Function
+        sourceText: split.sourceText,
       );
 
       if (!mounted) return;
 
       if (response.success != true) {
-        final msg = response.errorMessage ??
+        final msg =
+            response.errorMessage ??
             'Generation failed. Please check your connection or try again.';
         setState(() {
           _error = msg;
@@ -258,6 +270,78 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
     final trimmed = rawDescription.trim();
     if (trimmed.isEmpty) return _aiExpertiseDirectives.trim();
     return '$trimmed\n\n$_aiExpertiseDirectives'.trim();
+  }
+
+  bool _looksLikeTelemetryBlock(String block) {
+    final compact = block.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (compact.isEmpty) return false;
+    final jsonKeys = RegExp(r'"[\w.-]+":').allMatches(compact).length;
+    final telemetryHits = RegExp(
+      r'(event_message|deployment_id|execution_id|function_id|project_ref|served_by|booted|shutdown|WallClockTime|cpu_time_used|memory_used|timestamp|version|region)',
+      caseSensitive: false,
+    ).allMatches(compact).length;
+    return telemetryHits >= 2 ||
+        (compact.startsWith('{') && compact.endsWith('}') && jsonKeys >= 4);
+  }
+
+  String _extractLongPasteIntent(String raw) {
+    final blocks = raw
+        .split(RegExp(r'\n\s*\n'))
+        .map((b) => b.trim())
+        .where((b) => b.isNotEmpty)
+        .toList();
+    final proseBlocks = blocks
+        .where((b) => !_looksLikeTelemetryBlock(b))
+        .toList();
+    if (proseBlocks.isEmpty) {
+      return raw.length > 1800 ? '${raw.substring(0, 1800)}…' : raw;
+    }
+
+    final requestCue = RegExp(
+      r'(turn|make|convert|transform|create|build|organize|map).{0,40}(flow|\d{1,3}\s*day)',
+      caseSensitive: false,
+      dotAll: true,
+    );
+    final requestBlocks = proseBlocks
+        .where((b) => requestCue.hasMatch(b))
+        .toList();
+
+    final candidates = <String>[
+      if (requestBlocks.isNotEmpty) requestBlocks.first,
+      proseBlocks.first,
+      if (proseBlocks.length > 1) proseBlocks.last,
+    ];
+
+    final seen = <String>{};
+    final chosen = <String>[];
+    for (final block in candidates) {
+      final key = block.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (key.isEmpty || seen.contains(key)) continue;
+      seen.add(key);
+      chosen.add(block);
+    }
+
+    final summary = chosen.join('\n\n');
+    return summary.length > 1800 ? '${summary.substring(0, 1800)}…' : summary;
+  }
+
+  /// Long pastes go to `source_text` on the edge function so the model treats
+  /// them as authoritative material while keeping DICTATION heuristics off.
+  ({String description, String? sourceText}) _splitForFlowApi(String raw) {
+    final trimmed = raw.trim();
+    final directives = _aiExpertiseDirectives.trim();
+    if (trimmed.isEmpty) {
+      return (description: _composeDirectivePrompt(''), sourceText: null);
+    }
+    if (trimmed.length <= 2800) {
+      return (description: _composeDirectivePrompt(trimmed), sourceText: null);
+    }
+    final intent = _extractLongPasteIntent(trimmed);
+    return (
+      description:
+          '$directives\n\nUSER_INTENT_SUMMARY:\n$intent\n\nTransform SOURCE_TEXT into a staged flow for the selected date range. Preserve concrete initiatives, constraints, milestones, numbers, and sequence from SOURCE_TEXT instead of collapsing it into generic advice.',
+      sourceText: trimmed,
+    );
   }
 
   String _formatDate(DateTime date) {
@@ -344,10 +428,13 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _descriptionController,
-                      maxLines: 4,
+                      minLines: 5,
+                      maxLines: 18,
+                      keyboardType: TextInputType.multiline,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        hintText: 'e.g., "Morning meditation for a week" or "Breakfast, lunch, dinner for weekdays"',
+                        hintText:
+                            'Paste a long plan or notes, pick your date range (e.g. 90 days), and ask to turn it into a flow…',
                         hintStyle: TextStyle(
                           color: Colors.white.withOpacity(0.4),
                           fontSize: 14,
@@ -405,11 +492,17 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                         children: const {
                           CalendarMode.kemetic: Padding(
                             padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Text('Kemetic', style: TextStyle(fontSize: 14)),
+                            child: Text(
+                              'Kemetic',
+                              style: TextStyle(fontSize: 14),
+                            ),
                           ),
                           CalendarMode.gregorian: Padding(
                             padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Text('Gregorian', style: TextStyle(fontSize: 14)),
+                            child: Text(
+                              'Gregorian',
+                              style: TextStyle(fontSize: 14),
+                            ),
                           ),
                         },
                       ),
@@ -433,7 +526,10 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
-                              side: const BorderSide(color: silver, width: 1.25),
+                              side: const BorderSide(
+                                color: silver,
+                                width: 1.25,
+                              ),
                               alignment: Alignment.centerLeft,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -442,11 +538,16 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              textStyle: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: -0.1),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.1,
+                              ),
                             ),
                             onPressed: _isGenerating ? null : _pickRangeStart,
                             child: Text(
-                              _startDate == null ? '--' : _formatShortDate(_startDate!),
+                              _startDate == null
+                                  ? '--'
+                                  : _formatShortDate(_startDate!),
                               style: const TextStyle(fontSize: 14),
                             ),
                           ),
@@ -456,7 +557,10 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
-                              side: const BorderSide(color: silver, width: 1.25),
+                              side: const BorderSide(
+                                color: silver,
+                                width: 1.25,
+                              ),
                               alignment: Alignment.centerLeft,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16,
@@ -465,11 +569,16 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              textStyle: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: -0.1),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.1,
+                              ),
                             ),
                             onPressed: _isGenerating ? null : _pickRangeEnd,
                             child: Text(
-                              _endDate == null ? '--' : _formatShortDate(_endDate!),
+                              _endDate == null
+                                  ? '--'
+                                  : _formatShortDate(_endDate!),
                               style: const TextStyle(fontSize: 14),
                             ),
                           ),
@@ -482,10 +591,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                     // Helper text
                     const Text(
                       'Set a start and end date to define rules',
-                      style: TextStyle(
-                        color: Color(0xFF999999),
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: Color(0xFF999999), fontSize: 14),
                     ),
 
                     if (_startDate != null && _endDate != null) ...[
@@ -672,8 +778,18 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
 
   String _formatShortDate(DateTime date) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}';
   }
