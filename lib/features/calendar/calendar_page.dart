@@ -9440,7 +9440,37 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<void> _openPlannerPage({BuildContext? navigationContext}) async {
+  Route<void> _plannerRoute({bool edgeSwipeTransition = false}) {
+    if (!edgeSwipeTransition) {
+      return MaterialPageRoute<void>(
+        builder: (_) => const TodaysAlignmentPage(),
+      );
+    }
+
+    return PageRouteBuilder<void>(
+      pageBuilder: (_, animation, secondaryAnimation) =>
+          const TodaysAlignmentPage(),
+      transitionDuration: const Duration(milliseconds: 260),
+      reverseTransitionDuration: const Duration(milliseconds: 220),
+      transitionsBuilder: (_, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        final offset = Tween<Offset>(
+          begin: const Offset(-1.0, 0.0),
+          end: Offset.zero,
+        ).animate(curved);
+        return SlideTransition(position: offset, child: child);
+      },
+    );
+  }
+
+  Future<void> _openPlannerPage({
+    BuildContext? navigationContext,
+    bool edgeSwipeTransition = false,
+  }) async {
     if (_plannerNavigationInFlight || !mounted) return;
 
     _plannerNavigationInFlight = true;
@@ -9448,7 +9478,7 @@ class _CalendarPageState extends State<CalendarPage>
       final navContext = navigationContext ?? context;
       await Navigator.of(
         navContext,
-      ).push(MaterialPageRoute(builder: (_) => const TodaysAlignmentPage()));
+      ).push(_plannerRoute(edgeSwipeTransition: edgeSwipeTransition));
     } finally {
       _plannerNavigationInFlight = false;
     }
@@ -15445,7 +15475,7 @@ class _CalendarPageState extends State<CalendarPage>
           final dragOpen = traveled > 42;
 
           if (flingOpen || dragOpen) {
-            unawaited(_openPlannerPage());
+            unawaited(_openPlannerPage(edgeSwipeTransition: true));
           }
 
           _plannerSwipeAccum = 0.0;
@@ -21246,39 +21276,40 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
     if (!mounted || result == null) return;
 
+    _FlowStudioResult? edited;
+
     // Prefer DB-loaded flow if flowId is present
     if (result.flowId != null) {
-      Navigator.pop(context);
-      await Navigator.push(
-        context,
+      edited = await Navigator.of(context).push<_FlowStudioResult>(
         MaterialPageRoute(
           builder: (_) => _FlowStudioPage(
-            existingFlows: const [],
+            existingFlows: widget.existingFlows,
             editFlowId: result.flowId,
           ),
         ),
       );
-      if (mounted) setState(() {});
-      return;
+    } else {
+      // Fallback: seed Flow Studio directly from AI response (no DB flowId)
+      final baseStart = _startDate ?? DateTime.now();
+      final importData = _aiImportDataFromResponse(result, baseStart);
+      if (importData == null) return;
+
+      edited = await Navigator.of(context).push<_FlowStudioResult>(
+        MaterialPageRoute(
+          builder: (_) => _FlowStudioPage(
+            existingFlows: widget.existingFlows,
+            editFlowId: null,
+            importData: importData,
+          ),
+        ),
+      );
     }
 
-    // Fallback: seed Flow Studio directly from AI response (no DB flowId)
-    final baseStart = _startDate ?? DateTime.now();
-    final importData = _aiImportDataFromResponse(result, baseStart);
-    if (importData == null) return;
+    if (!mounted || edited == null) return;
 
-    Navigator.pop(context);
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => _FlowStudioPage(
-          existingFlows: const [],
-          editFlowId: null,
-          importData: importData,
-        ),
-      ),
-    );
-    if (mounted) setState(() {});
+    _clearSessionDraft();
+    _suppressDraftSave = true;
+    Navigator.of(context, rootNavigator: true).pop(edited);
   }
 
   Future<void> _save() async {
@@ -25696,16 +25727,10 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
           .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
+  // Saved flows act as templates, so they stay visible even after the user
+  // removes them from the active calendar.
   List<_Flow> get _savedItems =>
-      widget.flows
-          .where(
-            (f) =>
-                f.isSaved &&
-                !f.isHidden &&
-                f.active &&
-                _isActiveByEndDate(f.end),
-          )
-          .toList()
+      widget.flows.where((f) => f.isSaved && !f.isHidden).toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   // UI still filters by end date even though repos do, because _flows is an
@@ -25751,6 +25776,9 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
         final f = items[i];
         final meta = notesDecode(f.notes);
         final modeLabel = meta.kemetic ? 'Kemetic' : 'Gregorian';
+        final statusLabel = _tab == FlowListTab.saved
+            ? 'Saved'
+            : (f.active ? 'Active' : 'Inactive');
         final rangeLabel =
             '${widget.fmtGregorian(f.start)} → ${widget.fmtGregorian(f.end)}';
 
@@ -25790,7 +25818,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
           title: Text(f.name, style: const TextStyle(color: Colors.white)),
           subtitle: Text(
             [
-              f.active ? 'Active' : 'Inactive',
+              statusLabel,
               modeLabel,
               if (f.start != null || f.end != null) rangeLabel,
             ].join(' • '),

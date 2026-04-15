@@ -57,16 +57,9 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
           .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
+  // Saved flows can be posted/shared later even if they are no longer active.
   List<FlowRow> get _savedFlows =>
-      _flows
-          .where(
-            (f) =>
-                f.isSaved &&
-                !f.isHidden &&
-                f.active &&
-                _isActiveByEndDate(f.endDate),
-          )
-          .toList()
+      _flows.where((f) => f.isSaved && !f.isHidden).toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   Future<void> _postFlow(int flowId) async {
