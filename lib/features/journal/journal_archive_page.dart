@@ -1,18 +1,27 @@
 // lib/features/journal/journal_archive_page.dart
 // Journal Archive - Single page with list/detail views
 
-import 'package:flutter/material.dart';
-import '../../data/journal_repo.dart';
-import 'journal_controller.dart';
-import 'journal_v2_document_model.dart';
-import 'journal_v2_rich_text.dart';
-import 'journal_badge_utils.dart';
-import 'journal_event_badge.dart';
 import 'dart:convert';
+
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../data/insight_link_model.dart';
+import '../../data/insight_link_repo.dart';
+import '../../data/insight_link_utils.dart';
+import '../../data/journal_repo.dart';
+import '../../widgets/insight_link_text.dart';
 import '../calendar/calendar_page.dart' show KemeticMath;
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
-import 'package:flutter/cupertino.dart';
+import '../nodes/kemetic_node_library.dart';
+import '../nodes/kemetic_node_reader_page.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'journal_badge_utils.dart';
+import 'journal_controller.dart';
+import 'journal_event_badge.dart';
+import 'journal_v2_document_model.dart';
+import 'journal_v2_rich_text.dart';
 
 class JournalArchivePage extends StatefulWidget {
   final JournalRepo repo;
@@ -39,7 +48,10 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   bool _isEditing = false;
   late TextEditingController _editController;
   late ScrollController _badgeScrollController;
+  final InsightLinkRepo _insightRepo = InsightLinkRepo();
   JournalDocument? _editingDocument;
+  List<InsightLink> _entryLinks = [];
+  String _entryPrevText = '';
   bool _useKemetic = true; // default to Kemetic
 
   @override
@@ -59,7 +71,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
 
   Future<void> _loadEntries() async {
     setState(() => _loading = true);
-    
+
     try {
       final entries = await widget.repo.listRecent(days: 90);
       setState(() {
@@ -73,19 +85,27 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
 
   void _openEntry(JournalEntry entry) {
     final doc = _entryToDocument(entry);
+    final plainText = doc.toPlainText();
 
     setState(() {
       _selectedEntry = entry;
       _isEditing = false;
       _editingDocument = doc;
-      _editController.text = doc.toPlainText();
+      _editController.text = plainText;
+      _entryPrevText = plainText;
+      _entryLinks = [];
     });
+    _loadEntryLinks(entry);
   }
 
   void _closeEntry() {
     setState(() {
       _selectedEntry = null;
       _isEditing = false;
+      _editingDocument = null;
+      _entryLinks = [];
+      _entryPrevText = '';
+      _editController.clear();
     });
   }
 
@@ -95,12 +115,70 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     });
   }
 
+  String _entrySourceId(JournalEntry entry) {
+    return journalInsightSourceId(entry.gregDate);
+  }
+
+  List<TextRange> _entryLinkRanges() {
+    return _entryLinks
+        .map((link) => TextRange(start: link.start, end: link.end))
+        .toList()
+      ..sort((a, b) => a.start.compareTo(b.start));
+  }
+
+  Future<void> _loadEntryLinks(JournalEntry entry) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? 'local';
+    final links = await _insightRepo.fetchLinks(userId);
+    if (!mounted || _selectedEntry?.id != entry.id) return;
+
+    final sourceId = _entrySourceId(entry);
+    setState(() {
+      _entryLinks =
+          links
+              .where(
+                (link) =>
+                    link.sourceType == InsightSourceType.journalEntry &&
+                    link.sourceId == sourceId,
+              )
+              .toList()
+            ..sort((a, b) => a.start.compareTo(b.start));
+    });
+  }
+
+  Future<void> _saveEntryLinks(JournalEntry entry) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? 'local';
+    final all = await _insightRepo.fetchLinks(userId);
+    final sourceId = _entrySourceId(entry);
+    final filtered = all
+        .where(
+          (link) =>
+              !(link.sourceType == InsightSourceType.journalEntry &&
+                  link.sourceId == sourceId),
+        )
+        .toList();
+    filtered.addAll(_entryLinks);
+    await _insightRepo.saveLinks(userId, filtered);
+  }
+
+  Future<void> _handleEntryLinkTap(InsightLink link) async {
+    if (link.targetType != InsightTargetType.node) return;
+    final node = KemeticNodeLibrary.resolve(link.targetId);
+    if (node == null || !mounted) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => KemeticNodeReaderPage(node: node)),
+    );
+  }
+
   void _saveEntry() async {
     if (_selectedEntry == null) return;
-    
+    final messenger = ScaffoldMessenger.maybeOf(context);
+
     try {
+      final selectedEntry = _selectedEntry!;
       // Save the edited document with badges + drawing
-      JournalDocument doc = _editingDocument ??
+      JournalDocument doc =
+          _editingDocument ??
           JournalDocument.fromPlainText(_editController.text);
 
       final blocks = List<JournalBlock>.from(doc.blocks);
@@ -112,36 +190,63 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
           0,
           ParagraphBlock(
             id: 'p-${_selectedEntry!.gregDate.millisecondsSinceEpoch}',
-            ops: [TextOp(insert: _editController.text.isEmpty ? '\n' : _editController.text)],
+            ops: [
+              TextOp(
+                insert: _editController.text.isEmpty
+                    ? '\n'
+                    : _editController.text,
+              ),
+            ],
           ),
         );
       }
 
-      doc = JournalDocument(version: doc.version, blocks: blocks, meta: doc.meta);
+      doc = JournalDocument(
+        version: doc.version,
+        blocks: blocks,
+        meta: doc.meta,
+      );
       doc = JournalBadgeUtils.normalizeDocument(doc);
 
       final body = jsonEncode(doc.toJson());
 
-      await widget.repo.upsert(
-        localDate: _selectedEntry!.gregDate,
-        body: body,
-      );
-      
+      await widget.repo.upsert(localDate: selectedEntry.gregDate, body: body);
+      await _saveEntryLinks(selectedEntry);
+
+      final refreshedEntry =
+          await widget.repo.getByDate(selectedEntry.gregDate) ??
+          JournalEntry(
+            id: selectedEntry.id,
+            userId: selectedEntry.userId,
+            gregDate: selectedEntry.gregDate,
+            body: body,
+            meta: selectedEntry.meta,
+            category: selectedEntry.category,
+            createdAt: selectedEntry.createdAt,
+            updatedAt: DateTime.now(),
+          );
+      final plainText = doc.toPlainText();
+      if (!mounted) return;
+
       setState(() {
+        _selectedEntry = refreshedEntry;
+        _editingDocument = doc;
+        _editController.text = plainText;
+        _entryPrevText = plainText;
         _isEditing = false;
       });
-      
+
       // Reload entries to reflect changes
       await _loadEntries();
-      
-      ScaffoldMessenger.of(context).showSnackBar(
+
+      messenger?.showSnackBar(
         const SnackBar(
           content: Text('Entry saved'),
           backgroundColor: KemeticGold.base,
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger?.showSnackBar(
         SnackBar(
           content: Text('Error saving: $e'),
           backgroundColor: Colors.red,
@@ -197,15 +302,31 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
 
   String _getDayOfWeek(DateTime date) {
     const days = [
-      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
     ];
     return days[date.weekday - 1];
   }
 
   String _getMonthName(int month) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return months[month - 1];
   }
@@ -266,30 +387,32 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        actions: _selectedEntry != null ? [
-          if (!_isEditing)
-            TextButton(
-              onPressed: _startEditing,
-              child: KemeticGold.text(
-                'Edit',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            )
-          else
-            TextButton(
-              onPressed: _saveEntry,
-              child: KemeticGold.text(
-                'Save',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-        ] : null,
+        actions: _selectedEntry != null
+            ? [
+                if (!_isEditing)
+                  TextButton(
+                    onPressed: _startEditing,
+                    child: KemeticGold.text(
+                      'Edit',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  )
+                else
+                  TextButton(
+                    onPressed: _saveEntry,
+                    child: KemeticGold.text(
+                      'Save',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ]
+            : null,
       ),
       body: _selectedEntry != null ? _buildEntryDetail() : _buildEntryList(),
     );
@@ -298,9 +421,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   Widget _buildEntryList() {
     if (_loading) {
       return const Center(
-        child: CircularProgressIndicator(
-          color: KemeticGold.base,
-        ),
+        child: CircularProgressIndicator(color: KemeticGold.base),
       );
     }
 
@@ -309,11 +430,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.book_outlined,
-              size: 64,
-              color: Color(0xFF666666),
-            ),
+            Icon(Icons.book_outlined, size: 64, color: Color(0xFF666666)),
             SizedBox(height: 16),
             Text(
               'No journal entries yet',
@@ -326,10 +443,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
             SizedBox(height: 8),
             Text(
               'Start writing to see your entries here',
-              style: TextStyle(
-                color: Color(0xFF666666),
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Color(0xFF666666), fontSize: 14),
             ),
           ],
         ),
@@ -343,10 +457,8 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
           child: ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: _entries.length,
-            separatorBuilder: (context, index) => const Divider(
-              color: Color(0xFF333333),
-              height: 1,
-            ),
+            separatorBuilder: (context, index) =>
+                const Divider(color: Color(0xFF333333), height: 1),
             itemBuilder: (context, index) {
               final entry = _entries[index];
               return _buildEntryCard(entry);
@@ -367,7 +479,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
       key: ValueKey(entry.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        color: Colors.red.withOpacity(0.8),
+        color: Colors.red.withValues(alpha: 0.8),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: const Icon(Icons.delete, color: Colors.white),
@@ -404,7 +516,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    
+
                     // Preview text
                     Text(
                       previewText,
@@ -417,12 +529,12 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    
+
                     // Character count
                     Text(
                       '$charCount characters',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                         fontSize: 12,
                       ),
                     ),
@@ -432,7 +544,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
               const SizedBox(width: 16),
               Icon(
                 Icons.chevron_right,
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withValues(alpha: 0.3),
                 size: 20,
               ),
             ],
@@ -444,11 +556,10 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
 
   Widget _buildEntryDetail() {
     if (_selectedEntry == null) return const SizedBox.shrink();
-    
+
     final entry = _selectedEntry!;
     final date = entry.gregDate;
     final header = _formatArchiveDate(date);
-    final entryText = _getEntryText(entry);
     final entryDoc = _entryToDocument(entry);
 
     return Column(
@@ -473,14 +584,12 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
             textAlign: TextAlign.center,
           ),
         ),
-        
+
         // Content
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: _isEditing
-                ? _buildEditView()
-                : _buildReadView(entryDoc),
+            child: _isEditing ? _buildEditView() : _buildReadView(entryDoc),
           ),
         ),
       ],
@@ -488,7 +597,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   }
 
   Widget _buildReadView(JournalDocument doc) {
-    final paragraphs = doc.blocks.whereType<ParagraphBlock>();
+    final visibleText = doc.toPlainText();
     final baseStyle = const TextStyle(
       color: Colors.white,
       fontSize: 16,
@@ -496,28 +605,22 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     );
 
     final badges = JournalBadgeUtils.tokensFromDocument(doc);
-    final spans = <InlineSpan>[];
-    if (paragraphs.isNotEmpty) {
-      for (final p in paragraphs) {
-        for (final op in p.ops) {
-          spans.addAll(JournalBadgeSpanBuilder.build(
-            text: op.insert,
-            style: baseStyle,
-            expansionState: null,
-            onToggle: null,
-            compact: false,
-            renderBadgesInline: false,
-          ));
-        }
-        spans.add(const TextSpan(text: '\n'));
-      }
-    }
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          RichText(text: TextSpan(style: baseStyle, children: spans)),
+          RichText(
+            text: TextSpan(
+              style: baseStyle,
+              children: InsightLinkSpanBuilder.build(
+                text: visibleText,
+                links: _entryLinks,
+                baseStyle: baseStyle,
+                onTap: _handleEntryLinkTap,
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
           _buildBadgeSection(badges),
         ],
@@ -527,10 +630,12 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
 
   Widget _buildBadgeSection(List<EventBadgeToken> badges, {double? maxHeight}) {
     final badgeList = badges
-        .map((token) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: EventBadgeWidget(token: token),
-            ))
+        .map(
+          (token) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: EventBadgeWidget(token: token),
+          ),
+        )
         .toList();
 
     Widget badgeBody;
@@ -571,11 +676,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
         border: Border.all(color: const Color(0xFF333333), width: 1),
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
-          BoxShadow(
-            color: Colors.black54,
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black54, blurRadius: 6, offset: Offset(0, 2)),
         ],
       ),
       constraints: maxHeight != null
@@ -595,22 +696,30 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
       } else {
         initialBlock = ParagraphBlock(
           id: 'p-${DateTime.now().millisecondsSinceEpoch}',
-          ops: [TextOp(insert: _editController.text.isEmpty ? '\n' : _editController.text)],
+          ops: [
+            TextOp(
+              insert: _editController.text.isEmpty
+                  ? '\n'
+                  : _editController.text,
+            ),
+          ],
         );
       }
     } else {
       initialBlock = ParagraphBlock(
         id: 'p-${DateTime.now().millisecondsSinceEpoch}',
-        ops: [TextOp(insert: _editController.text.isEmpty ? '\n' : _editController.text)],
+        ops: [
+          TextOp(
+            insert: _editController.text.isEmpty ? '\n' : _editController.text,
+          ),
+        ],
       );
     }
 
     final badges = _editingDocument != null
         ? JournalBadgeUtils.tokensFromDocument(_editingDocument!)
         : <EventBadgeToken>[];
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final keyboardVisible = bottomInset > 0;
-    final badgeHeight = keyboardVisible ? 0.0 : 220.0;
+    const badgeHeight = 220.0;
 
     return Column(
       children: [
@@ -620,21 +729,40 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
               Expanded(
                 child: RichTextEditor(
                   initialBlock: initialBlock,
+                  highlightedRanges: _entryLinkRanges(),
+                  insightLinks: _entryLinks,
+                  onInsightLinkTap: _handleEntryLinkTap,
                   onChanged: (block) {
+                    final previousText = _entryPrevText;
                     setState(() {
-                      final doc = _editingDocument ?? _entryToDocument(_selectedEntry!);
+                      final doc =
+                          _editingDocument ?? _entryToDocument(_selectedEntry!);
                       final blocks = List<JournalBlock>.from(doc.blocks);
-                      final pIdx = blocks.indexWhere((b) => b is ParagraphBlock);
+                      final pIdx = blocks.indexWhere(
+                        (b) => b is ParagraphBlock,
+                      );
                       if (pIdx >= 0) {
                         blocks[pIdx] = block;
                       } else {
                         blocks.insert(0, block);
                       }
-                      _editingDocument = JournalDocument(
+                      final nextDocument = JournalDocument(
                         version: doc.version,
                         blocks: blocks,
                         meta: doc.meta,
                       );
+                      final nextText = nextDocument.toPlainText();
+
+                      _editingDocument = nextDocument;
+                      _editController.text = nextText;
+                      if (previousText != nextText) {
+                        _entryLinks = InsightLinkRangeUpdater.shiftRanges(
+                          previous: previousText,
+                          next: nextText,
+                          links: _entryLinks,
+                        );
+                        _entryPrevText = nextText;
+                      }
                     });
                   },
                 ),
@@ -659,9 +787,17 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
             Expanded(
               child: ElevatedButton(
                 onPressed: () {
+                  final entry = _selectedEntry;
+                  if (entry == null) return;
+                  final originalDoc = _entryToDocument(entry);
+                  final originalText = originalDoc.toPlainText();
                   setState(() {
                     _isEditing = false;
+                    _editingDocument = originalDoc;
+                    _editController.text = originalText;
+                    _entryPrevText = originalText;
                   });
+                  _loadEntryLinks(entry);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.grey[800],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../shared/glossy_text.dart';
+import '../../widgets/insight_link_text.dart';
 import 'kemetic_node_library.dart';
 import 'kemetic_node_model.dart';
 import 'widgets.dart';
@@ -160,7 +161,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
               _horizontalDrag = 0;
               _dragConsumed = false;
             },
-              child: SingleChildScrollView(
+            child: SingleChildScrollView(
               controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
               child: Column(
@@ -348,22 +349,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
             blendMode: BlendMode.srcIn,
             child: Text(
               link.phrase,
-              style: _bodyStyle.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                shadows: const [
-                  Shadow(
-                    color: Colors.black54,
-                    blurRadius: 2,
-                    offset: Offset(0, 1),
-                  ),
-                  Shadow(
-                    color: Colors.white10,
-                    blurRadius: 5,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
+              style: InsightLinkTextStyle.widgetStyle(_bodyStyle),
             ),
           ),
         ),

@@ -1,8 +1,6 @@
 // lib/features/journal/journal_overlay.dart
 // FIXES: 1) Toolbar overflow, 2) Layered coexistence, 3) Drawing undo
 
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mobile/shared/glossy_text.dart';
@@ -20,10 +18,11 @@ import 'journal_event_badge.dart';
 import 'journal_badge_utils.dart';
 import '../../data/insight_link_model.dart';
 import '../../data/insight_link_repo.dart';
+import '../../data/insight_link_utils.dart';
 import '../../widgets/insight_link_text.dart';
 import '../nodes/kemetic_node_library.dart';
-import '../nodes/kemetic_node_model.dart';
 import '../nodes/kemetic_node_reader_page.dart';
+import '../nodes/node_link_picker_sheet.dart';
 
 enum JournalPresentationMode { overlay, page }
 
@@ -34,12 +33,12 @@ class JournalOverlay extends StatefulWidget {
   final JournalPresentationMode presentationMode;
 
   const JournalOverlay({
-    Key? key,
+    super.key,
     required this.controller,
     required this.isPortrait,
     required this.onClose,
     this.presentationMode = JournalPresentationMode.overlay,
-  }) : super(key: key);
+  });
 
   @override
   State<JournalOverlay> createState() => _JournalOverlayState();
@@ -65,7 +64,6 @@ class _JournalOverlayState extends State<JournalOverlay>
   final Map<String, bool> _badgeExpansion = {};
   final InsightLinkRepo _insightRepo = InsightLinkRepo();
   List<InsightLink> _insightLinks = [];
-  bool _linkMode = false;
   String _prevText = '';
 
   // Archive state
@@ -92,10 +90,15 @@ class _JournalOverlayState extends State<JournalOverlay>
       curve: Curves.easeOut,
     );
 
-    _textController = TextEditingController(
-      text: widget.controller.currentDraft,
-    );
-    _prevText = widget.controller.currentDraft;
+    final initialText =
+        widget.controller.currentDocument?.blocks
+            .whereType<ParagraphBlock>()
+            .expand((block) => block.ops)
+            .map((op) => op.insert)
+            .join() ??
+        widget.controller.currentDraft;
+    _textController = TextEditingController(text: initialText);
+    _prevText = initialText;
     _scrollController = ScrollController();
     _badgeScrollController = ScrollController();
     _focusNode = FocusNode();
@@ -161,11 +164,128 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   String _currentSourceId() {
     final d = widget.controller.currentDate ?? DateTime.now();
-    return 'journal-${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    return journalInsightSourceId(d);
+  }
+
+  String _currentEditorText() {
+    if (FeatureFlags.hasRichText) {
+      final editor = _richTextEditorKey?.currentState;
+      if (editor != null) return editor.currentText;
+      final doc = widget.controller.currentDocument;
+      if (doc != null) {
+        return doc.blocks
+            .whereType<ParagraphBlock>()
+            .expand((block) => block.ops)
+            .map((op) => op.insert)
+            .join();
+      }
+    }
+    return _textController.text;
+  }
+
+  TextSelection _currentEditorSelection() {
+    if (FeatureFlags.hasRichText) {
+      final editor = _richTextEditorKey?.currentState;
+      if (editor != null) return editor.currentSelection;
+    }
+    return _textController.selection;
+  }
+
+  List<TextRange> _linkedTextRanges() {
+    return _insightLinks
+        .map((link) => TextRange(start: link.start, end: link.end))
+        .toList()
+      ..sort((a, b) => a.start.compareTo(b.start));
+  }
+
+  void _showSelectionRequiredMessage() {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('Select text first, then tap Link Insight.'),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            MediaQuery.of(context).viewInsets.bottom + 120,
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+
+  Future<void> _saveLinkSelection({
+    required TextSelection selection,
+    required String text,
+    InsightLink? existingLink,
+  }) async {
+    final selectedText = selectedInsightText(text: text, selection: selection);
+    final currentNode = existingLink == null
+        ? null
+        : KemeticNodeLibrary.resolve(existingLink.targetId);
+
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    final result = await showNodeLinkPickerSheet(
+      context: context,
+      selectedText: selectedText,
+      currentNode: currentNode,
+    );
+    if (!mounted || result == null) return;
+
+    final remaining = removeInsightLinksForSelection(
+      links: _insightLinks,
+      selection: selection,
+    );
+    if (result.action == NodeLinkPickerAction.unlink) {
+      setState(() {
+        _insightLinks = remaining;
+      });
+      await _saveLinks();
+      return;
+    }
+
+    final targetNode = result.node;
+    if (targetNode == null) return;
+
+    final now = DateTime.now();
+    final nextLink = InsightLink(
+      id: existingLink?.id ?? 'link-${now.microsecondsSinceEpoch}',
+      userId: Supabase.instance.client.auth.currentUser?.id ?? 'local',
+      sourceType: InsightSourceType.journalEntry,
+      sourceId: _currentSourceId(),
+      start: selection.start,
+      end: selection.end,
+      selectedText: selectedText,
+      targetType: InsightTargetType.node,
+      targetId: targetNode.id,
+      createdAt: existingLink?.createdAt ?? now,
+      updatedAt: now,
+    );
+
+    setState(() {
+      _insightLinks = [...remaining, nextLink]
+        ..sort((a, b) => a.start.compareTo(b.start));
+    });
+    await _saveLinks();
+  }
+
+  void _handleLinkTap(InsightLink link) {
+    if (link.targetType != InsightTargetType.node) return;
+    final node = KemeticNodeLibrary.resolve(link.targetId);
+    if (node == null) return;
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => KemeticNodeReaderPage(node: node)),
+    );
   }
 
   void _handleTextChanged(String text) {
-    if (_linkMode && _prevText != text) {
+    if (_prevText != text) {
       setState(() {
         _insightLinks = InsightLinkRangeUpdater.shiftRanges(
           previous: _prevText,
@@ -258,8 +378,15 @@ class _JournalOverlayState extends State<JournalOverlay>
               .map((op) => op.insert)
               .join();
           _textController.text = plainText;
+          _insightLinks = InsightLinkRangeUpdater.shiftRanges(
+            previous: _prevText,
+            next: plainText,
+            links: _insightLinks,
+          );
+          _prevText = plainText;
         }
       });
+      _saveLinks();
     }
   }
 
@@ -283,128 +410,37 @@ class _JournalOverlayState extends State<JournalOverlay>
               .map((op) => op.insert)
               .join();
           _textController.text = plainText;
+          _insightLinks = InsightLinkRangeUpdater.shiftRanges(
+            previous: _prevText,
+            next: plainText,
+            links: _insightLinks,
+          );
+          _prevText = plainText;
         }
       });
+      _saveLinks();
     }
   }
 
   Future<void> _startLinkFlow() async {
-    setState(() {
-      _linkMode = true;
-    });
-    final selection = _textController.selection;
-    if (!selection.isValid || selection.isCollapsed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Select text first, then tap Link Insight.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      setState(() {
-        _linkMode = false;
-      });
+    final text = _currentEditorText();
+    final selection = normalizeInsightSelection(
+      text: text,
+      selection: _currentEditorSelection(),
+    );
+    if (selection == null) {
+      _showSelectionRequiredMessage();
       return;
     }
-    final selected = _textController.text.substring(
-      selection.start,
-      selection.end,
-    );
-    final node = await _pickNode();
-    if (node == null) return;
-    final now = DateTime.now();
-    final link = InsightLink(
-      id: 'link-${now.microsecondsSinceEpoch}',
-      userId: Supabase.instance.client.auth.currentUser?.id ?? 'local',
-      sourceType: InsightSourceType.journalEntry,
-      sourceId: _currentSourceId(),
-      start: selection.start,
-      end: selection.end,
-      selectedText: selected,
-      targetType: InsightTargetType.node,
-      targetId: node.id,
-      createdAt: now,
-      updatedAt: now,
-    );
-    setState(() {
-      _insightLinks = [..._insightLinks, link];
-      _linkMode = false;
-    });
-    await _saveLinks();
-  }
 
-  Future<void> _removeLink(InsightLink link) async {
-    setState(() {
-      _insightLinks = _insightLinks.where((l) => l.id != link.id).toList();
-    });
-    await _saveLinks();
-  }
-
-  Future<KemeticNode?> _pickNode() async {
-    final nodes = KemeticNodeLibrary.nodes;
-    return showModalBottomSheet<KemeticNode>(
-      context: context,
-      backgroundColor: Colors.black,
-      builder: (ctx) {
-        final controller = TextEditingController();
-        return SafeArea(
-          child: StatefulBuilder(
-            builder: (context, setSheet) {
-              final query = controller.text.toLowerCase();
-              final filtered = nodes
-                  .where(
-                    (n) =>
-                        n.title.toLowerCase().contains(query) ||
-                        n.aliases.any((a) => a.toLowerCase().contains(query)),
-                  )
-                  .toList();
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    child: TextField(
-                      controller: controller,
-                      autofocus: true,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        hintText: 'Search nodes…',
-                        hintStyle: TextStyle(color: Colors.white54),
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (_) => setSheet(() {}),
-                    ),
-                  ),
-                  Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: filtered.length,
-                      itemBuilder: (ctx, i) {
-                        final node = filtered[i];
-                        return ListTile(
-                          title: Text(
-                            node.title,
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                          subtitle: node.aliases.isNotEmpty
-                              ? Text(
-                                  node.aliases.join(', '),
-                                  style: const TextStyle(color: Colors.white54),
-                                )
-                              : null,
-                          onTap: () => Navigator.of(ctx).pop(node),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        );
-      },
+    final existingLink = findInsightLinkForSelection(
+      links: _insightLinks,
+      selection: selection,
+    );
+    await _saveLinkSelection(
+      selection: selection,
+      text: text,
+      existingLink: existingLink,
     );
   }
 
@@ -413,8 +449,10 @@ class _JournalOverlayState extends State<JournalOverlay>
   }
 
   void _onRichTextChanged(ParagraphBlock block) {
-    if (!FeatureFlags.hasRichText || widget.controller.currentDocument == null)
+    if (!FeatureFlags.hasRichText ||
+        widget.controller.currentDocument == null) {
       return;
+    }
 
     final doc = widget.controller.currentDocument!;
 
@@ -439,6 +477,19 @@ class _JournalOverlayState extends State<JournalOverlay>
       blocks: blocks,
       meta: doc.meta,
     );
+
+    final nextText = block.ops.map((op) => op.insert).join();
+    if (_prevText != nextText) {
+      setState(() {
+        _insightLinks = InsightLinkRangeUpdater.shiftRanges(
+          previous: _prevText,
+          next: nextText,
+          links: _insightLinks,
+        );
+        _prevText = nextText;
+      });
+      _saveLinks();
+    }
 
     // Update the undo action with the new document
     _undoSystem.updateLastAction(newDoc);
@@ -535,7 +586,7 @@ class _JournalOverlayState extends State<JournalOverlay>
             child: Material(
               type: MaterialType.transparency,
               child: Container(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 child: GestureDetector(
                   onTap: () {},
                   onPanUpdate: isTablet ? null : _onPanUpdate,
@@ -741,29 +792,8 @@ class _JournalOverlayState extends State<JournalOverlay>
     );
   }
 
-  JournalDocument? _documentFromEntry(JournalEntry entry) {
-    final body = entry.body.trim();
-    if (body.isEmpty) return JournalDocument.fromPlainText('');
-
-    if (body.startsWith('{') && body.contains('"version"')) {
-      try {
-        final map = jsonDecode(body) as Map<String, dynamic>;
-        return JournalDocument.fromJson(map);
-      } catch (e) {
-        if (kDebugMode) {
-          debugPrint(
-            'Failed to parse journal document for ${entry.gregDate}: $e',
-          );
-        }
-      }
-    }
-
-    return JournalDocument.fromPlainText(body);
-  }
-
   Widget _buildEditor() {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final keyboardVisible = bottomInset > 0;
 
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
@@ -775,89 +805,9 @@ class _JournalOverlayState extends State<JournalOverlay>
           children: [
             // Text area (take remaining space)
             Expanded(child: _buildTextLayer()),
-            if (_insightLinks.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Linked insights',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.03),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          height: 1.4,
-                        ),
-                        children: InsightLinkSpanBuilder.build(
-                          text: _textController.text,
-                          links: _insightLinks,
-                          baseStyle: const TextStyle(
-                            color: Colors.white70,
-                            height: 1.4,
-                          ),
-                          onTap: (link) {
-                            final node = KemeticNodeLibrary.resolve(
-                              link.targetId,
-                            );
-                            if (node == null) return;
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    KemeticNodeReaderPage(node: node),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: _insightLinks
-                          .map(
-                            (l) => InputChip(
-                              label: Text(
-                                l.selectedText.isNotEmpty
-                                    ? l.selectedText
-                                    : 'Node link',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              deleteIcon: const Icon(Icons.close, size: 16),
-                              onDeleted: () => _removeLink(l),
-                              backgroundColor: Colors.white.withOpacity(0.08),
-                              labelStyle: const TextStyle(
-                                color: Colors.white70,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ],
-                ),
-              ),
-            ],
             const SizedBox(height: 12),
             // Badge area (replaces drawing canvas)
-            _buildBadgeArea(keyboardVisible),
+            _buildBadgeArea(),
           ],
         ),
       ),
@@ -882,6 +832,9 @@ class _JournalOverlayState extends State<JournalOverlay>
         initialBlock: initialBlock,
         onChanged: _onRichTextChanged,
         currentAttrs: _currentAttrs,
+        highlightedRanges: _linkedTextRanges(),
+        insightLinks: _insightLinks,
+        onInsightLinkTap: _handleLinkTap,
       );
     }
 
@@ -916,13 +869,11 @@ class _JournalOverlayState extends State<JournalOverlay>
     return JournalBadgeUtils.tokensFromDocument(doc);
   }
 
-  Widget _buildBadgeArea(bool keyboardVisible) {
+  Widget _buildBadgeArea() {
     final badges = _extractBadges();
-    final height = keyboardVisible
-        ? 0.0
-        : (widget.presentationMode == JournalPresentationMode.page
-              ? 252.0
-              : 220.0);
+    final height = widget.presentationMode == JournalPresentationMode.page
+        ? 252.0
+        : 220.0;
     final badgeCountLabel = badges.isEmpty
         ? 'No badges yet'
         : '${badges.length} badge${badges.length == 1 ? '' : 's'}';

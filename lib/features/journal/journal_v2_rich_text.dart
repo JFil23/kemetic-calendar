@@ -1,12 +1,16 @@
 // lib/features/journal/journal_v2_rich_text.dart
 // Rich text editor using custom TextEditingController for formatting
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../data/insight_link_model.dart';
+import '../../data/insight_link_utils.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import '../../widgets/insight_link_text.dart';
 import 'journal_v2_document_model.dart';
 import 'journal_event_badge.dart';
-import 'journal_v2_toolbar.dart';
 
 typedef BadgeToggleCallback = void Function(String badgeId, bool expanded);
 
@@ -102,6 +106,8 @@ class JournalBadgeSpanBuilder {
 /// Custom controller that renders formatted text
 class _FormattedTextEditingController extends TextEditingController {
   ParagraphBlock block;
+  List<TextRange> highlightedRanges;
+  double? layoutWidth;
   // Persist badge expansion state across rebuilds so toggle doesn't vanish
   final Map<String, bool> _badgeExpansion = {};
   bool get anyBadgeExpanded => _badgeExpansion.values.any((v) => v);
@@ -110,6 +116,7 @@ class _FormattedTextEditingController extends TextEditingController {
 
   _FormattedTextEditingController({
     required this.block,
+    this.highlightedRanges = const [],
     this.onExternalBadgeToggle,
   }) : super(text: _opsToPlainText(block.ops));
 
@@ -186,14 +193,6 @@ class _FormattedTextEditingController extends TextEditingController {
     return sel;
   }
 
-  bool _listEq(List<String> a, List<String> b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
-  }
-
   static String _opsToPlainText(List<TextOp> ops) {
     return ops.map((op) => op.insert).join();
   }
@@ -250,6 +249,15 @@ class _FormattedTextEditingController extends TextEditingController {
     }
   }
 
+  void updateHighlightedRanges(List<TextRange> ranges) {
+    highlightedRanges = List<TextRange>.unmodifiable(ranges);
+    notifyListeners();
+  }
+
+  void setLayoutWidth(double width) {
+    layoutWidth = width;
+  }
+
   @override
   TextSpan buildTextSpan({
     required BuildContext context,
@@ -262,24 +270,127 @@ class _FormattedTextEditingController extends TextEditingController {
 
     final spans = <InlineSpan>[];
     final baseStyle = style ?? const TextStyle();
+    final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
+    final linkBoxes = _computeLinkBoxes(baseStyle, direction);
+    int offset = 0;
 
     for (final op in block.ops) {
-      spans.addAll(
-        JournalBadgeSpanBuilder.build(
-          text: op.insert,
-          style: _buildTextStyle(op.attrs, baseStyle),
-          expansionState: _badgeExpansion,
-          onToggle: (id, expanded) {
-            onBadgeToggled(id, expanded);
-            onExternalBadgeToggle?.call(id, expanded);
-          },
-          compact: true,
-          renderBadgesInline: false,
-        ),
-      );
+      final opStyle = _buildTextStyle(op.attrs, baseStyle);
+      final opText = op.insert;
+      final opStart = offset;
+      final opEnd = opStart + opText.length;
+      final opRanges =
+          highlightedRanges
+              .where((range) => range.start < opEnd && range.end > opStart)
+              .toList()
+            ..sort((a, b) => a.start.compareTo(b.start));
+
+      if (opRanges.isEmpty) {
+        spans.addAll(_buildTextSpans(text: opText, style: opStyle));
+      } else {
+        int cursor = 0;
+        for (final range in opRanges) {
+          final localStart = (range.start - opStart).clamp(0, opText.length);
+          final localEnd = (range.end - opStart).clamp(0, opText.length);
+          if (localStart > cursor) {
+            spans.addAll(
+              _buildTextSpans(
+                text: opText.substring(cursor, localStart),
+                style: opStyle,
+              ),
+            );
+          }
+          if (localEnd > localStart) {
+            final linkedText = opText.substring(localStart, localEnd);
+            final box = linkBoxes[_rangeKey(range)];
+            spans.addAll(
+              _buildTextSpans(
+                text: linkedText,
+                style: _buildLinkedTextStyle(opStyle, linkedText, box: box),
+              ),
+            );
+          }
+          cursor = localEnd;
+        }
+        if (cursor < opText.length) {
+          spans.addAll(
+            _buildTextSpans(text: opText.substring(cursor), style: opStyle),
+          );
+        }
+      }
+      offset = opEnd;
     }
 
     return TextSpan(children: spans, style: baseStyle);
+  }
+
+  Map<String, Rect> _computeLinkBoxes(
+    TextStyle baseStyle,
+    TextDirection textDirection,
+  ) {
+    final width = layoutWidth;
+    if (width == null ||
+        width <= 0 ||
+        highlightedRanges.isEmpty ||
+        text.isEmpty) {
+      return const {};
+    }
+
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: baseStyle),
+      textDirection: textDirection,
+      textHeightBehavior: const TextHeightBehavior(
+        applyHeightToFirstAscent: false,
+        applyHeightToLastDescent: false,
+      ),
+    )..layout(maxWidth: width);
+
+    final boxes = <String, Rect>{};
+    for (final range in highlightedRanges) {
+      final start = range.start.clamp(0, text.length);
+      final end = range.end.clamp(start, text.length);
+      if (start >= end) continue;
+
+      final textBoxes = painter.getBoxesForSelection(
+        TextSelection(baseOffset: start, extentOffset: end),
+      );
+      if (textBoxes.isEmpty) continue;
+
+      double left = textBoxes.first.left;
+      double top = textBoxes.first.top;
+      double right = textBoxes.first.right;
+      double bottom = textBoxes.first.bottom;
+
+      for (final textBox in textBoxes.skip(1)) {
+        left = math.min(left, textBox.left);
+        top = math.min(top, textBox.top);
+        right = math.max(right, textBox.right);
+        bottom = math.max(bottom, textBox.bottom);
+      }
+
+      boxes[_rangeKey(range)] = Rect.fromLTRB(left, top, right, bottom);
+    }
+
+    return boxes;
+  }
+
+  String _rangeKey(TextRange range) => '${range.start}:${range.end}';
+
+  List<InlineSpan> _buildTextSpans({
+    required String text,
+    required TextStyle style,
+  }) {
+    return JournalBadgeSpanBuilder.build(
+      text: text,
+      style: style,
+      expansionState: _badgeExpansion,
+      onToggle: (id, expanded) {
+        onBadgeToggled(id, expanded);
+        onExternalBadgeToggle?.call(id, expanded);
+      },
+      compact: true,
+      renderBadgesInline: false,
+    );
   }
 
   void _debugLogValueChange(
@@ -320,6 +431,27 @@ class _FormattedTextEditingController extends TextEditingController {
     );
   }
 
+  TextStyle _buildLinkedTextStyle(
+    TextStyle baseStyle,
+    String text, {
+    Rect? box,
+  }) {
+    final fontSize = baseStyle.fontSize ?? 16.0;
+    final shaderRect = box == null
+        ? null
+        : Rect.fromLTWH(
+            box.left,
+            box.top,
+            math.max(box.width, fontSize),
+            math.max(box.height, fontSize * 1.4),
+          );
+    return InsightLinkTextStyle.textSpanStyle(
+      baseStyle,
+      text,
+      shaderRect: shaderRect,
+    );
+  }
+
   Color _parseColor(String value) {
     var hex = value.replaceFirst('#', '');
     if (hex.length == 6) {
@@ -337,10 +469,6 @@ class _BadgeProtectingFormatter extends TextInputFormatter {
         .allMatches(text)
         .map((m) => TextRange(start: m.start, end: m.end))
         .toList();
-  }
-
-  List<String> _badgeSubstrings(String text, List<TextRange> ranges) {
-    return ranges.map((r) => text.substring(r.start, r.end)).toList();
   }
 
   TextSelection _clampSelectionOutsideBadges(
@@ -415,21 +543,29 @@ class RichTextEditor extends StatefulWidget {
   final TextAttrs currentAttrs;
   final ValueChanged<bool>? onBadgeExpansionChanged;
   final bool readOnly;
+  final List<TextRange> highlightedRanges;
+  final List<InsightLink> insightLinks;
+  final ValueChanged<InsightLink>? onInsightLinkTap;
 
   const RichTextEditor({
-    Key? key,
+    super.key,
     required this.initialBlock,
     required this.onChanged,
     this.currentAttrs = const TextAttrs(),
     this.onBadgeExpansionChanged,
     this.readOnly = false,
-  }) : super(key: key);
+    this.highlightedRanges = const [],
+    this.insightLinks = const [],
+    this.onInsightLinkTap,
+  });
 
   @override
   State<RichTextEditor> createState() => RichTextEditorState();
 }
 
 class RichTextEditorState extends State<RichTextEditor> {
+  static const Duration _boundaryLinkTapWindow = Duration(milliseconds: 700);
+
   late _FormattedTextEditingController _controller;
   late FocusNode _focusNode;
   ParagraphBlock _currentBlock = ParagraphBlock(id: '', ops: []);
@@ -439,7 +575,10 @@ class RichTextEditorState extends State<RichTextEditor> {
   final ScrollController _textScrollController = ScrollController();
   final ScrollController _readScrollController = ScrollController();
   TextSelection? _savedSelection;
+  TextSelection? _lastNonCollapsedSelection;
   double? _savedTextScrollOffset;
+  String? _armedBoundaryLinkId;
+  DateTime? _armedBoundaryLinkAt;
 
   @override
   void initState() {
@@ -447,10 +586,12 @@ class RichTextEditorState extends State<RichTextEditor> {
     _currentBlock = widget.initialBlock;
     _controller = _FormattedTextEditingController(
       block: _currentBlock,
+      highlightedRanges: widget.highlightedRanges,
       onExternalBadgeToggle: _handleBadgeToggle,
     );
     _focusNode = FocusNode();
     _formatters = [_BadgeProtectingFormatter()];
+    _controller.addListener(_handleControllerChanged);
   }
 
   @override
@@ -462,15 +603,52 @@ class RichTextEditorState extends State<RichTextEditor> {
         _controller.updateBlock(_currentBlock);
       });
     }
+    if (!_rangesEqual(oldWidget.highlightedRanges, widget.highlightedRanges)) {
+      _controller.updateHighlightedRanges(widget.highlightedRanges);
+    }
+    if (_armedBoundaryLinkId != null &&
+        !widget.insightLinks.any((link) => link.id == _armedBoundaryLinkId)) {
+      _clearArmedBoundaryLink();
+    }
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_handleControllerChanged);
     _textScrollController.dispose();
     _readScrollController.dispose();
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  TextSelection get currentSelection {
+    final selection = _controller.selection;
+    if (selection.isValid && !selection.isCollapsed) {
+      return selection;
+    }
+    return _lastNonCollapsedSelection ?? selection;
+  }
+
+  String get currentText => _controller.text;
+
+  void _handleControllerChanged() {
+    final selection = _controller.selection;
+    if (selection.isValid && !selection.isCollapsed) {
+      _lastNonCollapsedSelection = selection;
+      _clearArmedBoundaryLink();
+    }
+  }
+
+  bool _rangesEqual(List<TextRange> a, List<TextRange> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].start != b[i].start || a[i].end != b[i].end) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /// Apply formatting to current selection
@@ -578,6 +756,7 @@ class RichTextEditorState extends State<RichTextEditor> {
 
   void _handleTextChanged(String text) {
     if (_isUpdating) return;
+    _clearArmedBoundaryLink();
 
     // Convert to single op (formatting happens via toolbar)
     final newBlock = ParagraphBlock(
@@ -614,6 +793,62 @@ class RichTextEditorState extends State<RichTextEditor> {
     }
   }
 
+  void _clearArmedBoundaryLink() {
+    _armedBoundaryLinkId = null;
+    _armedBoundaryLinkAt = null;
+  }
+
+  bool _shouldActivateBoundaryLink(InsightLink link, DateTime now) {
+    final armedAt = _armedBoundaryLinkAt;
+    return _armedBoundaryLinkId == link.id &&
+        armedAt != null &&
+        now.difference(armedAt) <= _boundaryLinkTapWindow;
+  }
+
+  void _handleEditableTap() {
+    if (widget.onInsightLinkTap == null || widget.insightLinks.isEmpty) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final selection = _controller.selection;
+      if (!selection.isValid || !selection.isCollapsed) {
+        _clearArmedBoundaryLink();
+        return;
+      }
+
+      final exactLink = findInsightLinkAtOffset(
+        links: widget.insightLinks,
+        offset: selection.extentOffset,
+      );
+      if (exactLink != null) {
+        _clearArmedBoundaryLink();
+        FocusManager.instance.primaryFocus?.unfocus();
+        widget.onInsightLinkTap?.call(exactLink);
+        return;
+      }
+
+      final boundaryLink = findInsightLinkEndingAtOffset(
+        links: widget.insightLinks,
+        offset: selection.extentOffset,
+      );
+      if (boundaryLink == null) {
+        _clearArmedBoundaryLink();
+        return;
+      }
+
+      final now = DateTime.now();
+      if (_shouldActivateBoundaryLink(boundaryLink, now)) {
+        _clearArmedBoundaryLink();
+        FocusManager.instance.primaryFocus?.unfocus();
+        widget.onInsightLinkTap?.call(boundaryLink);
+        return;
+      }
+
+      _armedBoundaryLinkId = boundaryLink.id;
+      _armedBoundaryLinkAt = now;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
@@ -637,6 +872,7 @@ class RichTextEditorState extends State<RichTextEditor> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        _controller.setLayoutWidth(constraints.maxWidth);
         if (showReadOnly) {
           return _buildReadOnlyView(constraints);
         }
@@ -658,6 +894,7 @@ class RichTextEditorState extends State<RichTextEditor> {
       scrollPhysics: const BouncingScrollPhysics(),
       scrollPadding: EdgeInsets.only(bottom: bottomInset + 32),
       enableInteractiveSelection: !widget.readOnly,
+      onTapAlwaysCalled: true,
       textAlignVertical: TextAlignVertical.top,
       style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
       inputFormatters: _formatters,
@@ -667,6 +904,7 @@ class RichTextEditorState extends State<RichTextEditor> {
         hintText: 'Write your day…',
         hintStyle: TextStyle(color: Color(0xFF666666), fontSize: 16),
       ),
+      onTap: _handleEditableTap,
       onChanged: _handleTextChanged,
     );
   }
