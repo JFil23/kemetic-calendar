@@ -38,7 +38,9 @@ class ProfileRepo {
   }
 
   /// Compute accurate flow and flow-event counts for a user using live tables.
-  Future<(int activeFlows, int flowEvents)> computeFlowCountsForUser(String userId) async {
+  Future<(int activeFlows, int flowEvents)> computeFlowCountsForUser(
+    String userId,
+  ) async {
     try {
       final nowIso = DateTime.now().toUtc().toIso8601String();
 
@@ -267,13 +269,11 @@ class ProfileRepo {
       if (bio != null) updates['bio'] = bio;
       if (location != null) updates['location'] = location;
       if (isDiscoverable != null) updates['is_discoverable'] = isDiscoverable;
-      if (allowIncomingShares != null) updates['allow_incoming_shares'] = allowIncomingShares;
+      if (allowIncomingShares != null)
+        updates['allow_incoming_shares'] = allowIncomingShares;
       updates['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
-      await _client
-          .from('profiles')
-          .update(updates)
-          .eq('id', userId);
+      await _client.from('profiles').update(updates).eq('id', userId);
 
       return true;
     } catch (e) {
@@ -376,11 +376,11 @@ class ProfileRepo {
   Future<bool> hasCompletedProfile() async {
     try {
       final profile = await getMyProfile();
-      return profile != null && 
-             profile.handle != null && 
-             profile.handle!.isNotEmpty &&
-             profile.displayName != null &&
-             profile.displayName!.isNotEmpty;
+      return profile != null &&
+          profile.handle != null &&
+          profile.handle!.isNotEmpty &&
+          profile.displayName != null &&
+          profile.displayName!.isNotEmpty;
     } catch (e) {
       print('[ProfileRepo] Error checking profile completion: $e');
       return false;
@@ -406,6 +406,25 @@ class ProfileRepo {
     }
   }
 
+  /// Fetch a single flow post by id.
+  Future<FlowPost?> getFlowPostById(String postId) async {
+    try {
+      final row = await _client
+          .from('flow_posts')
+          .select()
+          .eq('id', postId)
+          .maybeSingle();
+
+      if (row == null) return null;
+      return FlowPost.fromJson(Map<String, dynamic>.from(row as Map));
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[ProfileRepo] Error fetching flow post by id: $e');
+      }
+      return null;
+    }
+  }
+
   /// Create a flow post for the current user from an existing flow.
   Future<FlowPost?> postFlow(int flowId) async {
     try {
@@ -420,9 +439,9 @@ class ProfileRepo {
       Map<String, dynamic> _eventToPayload(e) {
         int offset = 0;
         if (startDate != null) {
-          offset = DateUtils.dateOnly(e.startsAtUtc.toLocal())
-              .difference(DateUtils.dateOnly(startDate))
-              .inDays;
+          offset = DateUtils.dateOnly(
+            e.startsAtUtc.toLocal(),
+          ).difference(DateUtils.dateOnly(startDate)).inDays;
         }
 
         String _fmtTime(DateTime dt) {
@@ -432,32 +451,32 @@ class ProfileRepo {
           return '$h:$m $mer';
         }
 
-          final startLocal = e.startsAtUtc.toLocal();
-          final endLocal = e.endsAtUtc?.toLocal();
+        final startLocal = e.startsAtUtc.toLocal();
+        final endLocal = e.endsAtUtc?.toLocal();
 
-          final detail = cleanFlowDetail(e.detail);
-          final location = e.location?.trim();
+        final detail = cleanFlowDetail(e.detail);
+        final location = e.location?.trim();
 
-          return {
-            'offset_days': offset,
-            'title': e.title,
-            'detail': detail,
-            'location': location == null || location.isEmpty ? null : location,
-            'all_day': e.allDay,
-            'start_time': e.allDay ? null : _fmtTime(startLocal),
-            'end_time': e.allDay || endLocal == null ? null : _fmtTime(endLocal),
-          };
+        return {
+          'offset_days': offset,
+          'title': e.title,
+          'detail': detail,
+          'location': location == null || location.isEmpty ? null : location,
+          'all_day': e.allDay,
+          'start_time': e.allDay ? null : _fmtTime(startLocal),
+          'end_time': e.allDay || endLocal == null ? null : _fmtTime(endLocal),
+        };
       }
 
-       final payload = {
-         'name': flow.name,
-         'color': flow.color,
-         'notes': flow.notes,
-         'rules': flow.rules,
-         'events': events.map(_eventToPayload).toList(),
-         'start_date': startDate?.toIso8601String(),
-         'end_date': flow.endDate?.toIso8601String(),
-       };
+      final payload = {
+        'name': flow.name,
+        'color': flow.color,
+        'notes': flow.notes,
+        'rules': flow.rules,
+        'events': events.map(_eventToPayload).toList(),
+        'start_date': startDate?.toIso8601String(),
+        'end_date': flow.endDate?.toIso8601String(),
+      };
 
       final inserted = await _client
           .from('flow_posts')
@@ -516,15 +535,16 @@ class ProfileRepo {
 
       DateTime _dateOnly(DateTime d) => DateUtils.dateOnly(d);
       final today = _dateOnly(DateTime.now());
-      final payloadStart =
-          _parseDate(post.payloadJson?['start_date'] as String?);
+      final payloadStart = _parseDate(
+        post.payloadJson?['start_date'] as String?,
+      );
       final rawStart = startDateOverride ?? post.startDate ?? payloadStart;
       final normalizedStart = rawStart == null ? null : _dateOnly(rawStart);
       final effectiveStart = (normalizedStart == null)
           ? today
           : (startDateOverride == null && normalizedStart.isBefore(today))
-              ? today
-              : normalizedStart;
+          ? today
+          : normalizedStart;
 
       DateTime? effectiveEnd;
       if (post.endDate != null) {
@@ -563,10 +583,7 @@ class ProfileRepo {
           'user_id': userId,
           'flow_id': newId,
           'saved_from': 'profile',
-          'metadata': {
-            'flow_post_id': post.id,
-            'source_user_id': post.userId,
-          },
+          'metadata': {'flow_post_id': post.id, 'source_user_id': post.userId},
         }, onConflict: 'user_id,flow_id');
       } catch (e) {
         if (kDebugMode) {
@@ -600,9 +617,10 @@ class ProfileRepo {
 
     (int hour, int minute)? _parseTime(String? raw) {
       if (raw == null) return null;
-      final match =
-          RegExp(r'^\s*(\d{1,2}):(\d{2})\s*(am|pm)?\s*$', caseSensitive: false)
-              .firstMatch(raw);
+      final match = RegExp(
+        r'^\s*(\d{1,2}):(\d{2})\s*(am|pm)?\s*$',
+        caseSensitive: false,
+      ).firstMatch(raw);
       if (match == null) return null;
       var hour = int.tryParse(match.group(1) ?? '');
       final minute = int.tryParse(match.group(2) ?? '');
@@ -631,8 +649,9 @@ class ProfileRepo {
       final detailForStore = detailClean.isEmpty ? null : detailClean;
 
       final locationRaw = (e['location'] as String?)?.trim();
-      final location =
-          (locationRaw == null || locationRaw.isEmpty) ? null : locationRaw;
+      final location = (locationRaw == null || locationRaw.isEmpty)
+          ? null
+          : locationRaw;
 
       final parsedStart = _parseTime(e['start_time'] as String?);
       final parsedEnd = _parseTime(e['end_time'] as String?);
@@ -690,7 +709,9 @@ class ProfileRepo {
   }
 
   /// Fetch like count and whether the current user has liked a flow post.
-  Future<(int count, bool likedByMe)> getFlowPostLikeState(String postId) async {
+  Future<(int count, bool likedByMe)> getFlowPostLikeState(
+    String postId,
+  ) async {
     try {
       final currentUserId = _client.auth.currentUser?.id;
       final rows = await _client
@@ -721,13 +742,10 @@ class ProfileRepo {
       if (userId == null) return false;
 
       if (like) {
-        await _client.from('flow_post_likes').upsert(
-          {
-            'flow_post_id': postId,
-            'user_id': userId,
-          },
-          onConflict: 'flow_post_id,user_id',
-        );
+        await _client.from('flow_post_likes').upsert({
+          'flow_post_id': postId,
+          'user_id': userId,
+        }, onConflict: 'flow_post_id,user_id');
       } else {
         await _client
             .from('flow_post_likes')
@@ -752,7 +770,8 @@ class ProfileRepo {
       final rows = await _client
           .from('flow_post_comments')
           .select(
-              'id, flow_post_id, user_id, body, created_at, profiles(display_name, handle, avatar_url)')
+            'id, flow_post_id, user_id, body, created_at, profiles(display_name, handle, avatar_url)',
+          )
           .eq('flow_post_id', postId)
           .order('created_at', ascending: true);
 
@@ -782,11 +801,7 @@ class ProfileRepo {
 
       final inserted = await _client
           .from('flow_post_comments')
-          .insert({
-            'flow_post_id': postId,
-            'user_id': userId,
-            'body': trimmed,
-          })
+          .insert({'flow_post_id': postId, 'user_id': userId, 'body': trimmed})
           .select(
             'id, flow_post_id, user_id, body, created_at, profiles(display_name, handle, avatar_url)',
           )
@@ -849,14 +864,14 @@ class FlowPostEngagementUnavailable implements Exception {
 /// User search result for user search
 class UserSearchResult {
   final String userId;
-  final String? handle;  // ✅ Made nullable
+  final String? handle; // ✅ Made nullable
   final String? displayName;
   final String? avatarUrl;
   final String? email;
 
   UserSearchResult({
     required this.userId,
-    this.handle,  // ✅ Not required
+    this.handle, // ✅ Not required
     this.displayName,
     this.avatarUrl,
     this.email,
@@ -866,9 +881,6 @@ class UserSearchResult {
 
   /// Convert to ShareRecipient
   ShareRecipient toRecipient() {
-    return ShareRecipient(
-      type: ShareRecipientType.user,
-      value: userId,
-    );
+    return ShareRecipient(type: ShareRecipientType.user, value: userId);
   }
 }

@@ -10,10 +10,12 @@ import '../../data/profile_repo.dart';
 
 class FlowPostEngagementRow extends StatefulWidget {
   final FlowPost post;
+  final bool autoOpenComments;
 
   const FlowPostEngagementRow({
     super.key,
     required this.post,
+    this.autoOpenComments = false,
   });
 
   @override
@@ -31,6 +33,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
   bool _engagementUnavailable = false;
   List<FlowPostComment> _comments = const [];
   final TextEditingController _commentController = TextEditingController();
+  bool _didAutoOpenComments = false;
 
   @override
   void initState() {
@@ -46,10 +49,8 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
 
   Future<void> _loadEngagement() async {
     try {
-      await Future.wait([
-        _loadLikes(),
-        _loadComments(),
-      ]);
+      await Future.wait([_loadLikes(), _loadComments()]);
+      _maybeAutoOpenComments();
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -58,6 +59,19 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
         _commentsLoading = false;
       });
     }
+  }
+
+  void _maybeAutoOpenComments() {
+    if (_didAutoOpenComments ||
+        !widget.autoOpenComments ||
+        _engagementUnavailable) {
+      return;
+    }
+    _didAutoOpenComments = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _openCommentsSheet();
+    });
   }
 
   Future<void> _loadLikes() async {
@@ -121,23 +135,24 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(KemeticGold.base),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              KemeticGold.base,
+                            ),
                           ),
                         )
                       : (_likedByMe
-                          ? const Icon(
-                              Icons.favorite,
-                              color: Colors.redAccent,
-                            )
-                          : KemeticGold.icon(Icons.favorite_border)),
+                            ? const Icon(
+                                Icons.favorite,
+                                color: Colors.redAccent,
+                              )
+                            : KemeticGold.icon(Icons.favorite_border)),
                   const SizedBox(width: 6),
                   Text(
                     _engagementUnavailable
                         ? 'Unavailable'
                         : _likesLoading
-                            ? 'Like'
-                            : '${_likesCount.toString()} Likes',
+                        ? 'Like'
+                        : '${_likesCount.toString()} Likes',
                     style: labelStyle,
                   ),
                 ],
@@ -146,7 +161,9 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
           ),
           Expanded(
             child: InkWell(
-              onTap: _engagementUnavailable ? _showMigrationNeeded : _openCommentsSheet,
+              onTap: _engagementUnavailable
+                  ? _showMigrationNeeded
+                  : _openCommentsSheet,
               borderRadius: BorderRadius.circular(10),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -157,8 +174,8 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                     _engagementUnavailable
                         ? 'Unavailable'
                         : _commentsLoading
-                            ? 'Comments'
-                            : '${_comments.length.toString()} Comments',
+                        ? 'Comments'
+                        : '${_comments.length.toString()} Comments',
                     style: labelStyle,
                   ),
                 ],
@@ -294,73 +311,75 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                                 ),
                               )
                             : _comments.isEmpty
-                                ? Center(
-                                    child: Text(
-                                      'No comments yet.',
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.7),
-                                      ),
+                            ? Center(
+                                child: Text(
+                                  'No comments yet.',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.7),
+                                  ),
+                                ),
+                              )
+                            : ListView.builder(
+                                itemCount: _comments.length,
+                                itemBuilder: (context, index) {
+                                  final c = _comments[index];
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
                                     ),
-                                  )
-                                : ListView.builder(
-                                    itemCount: _comments.length,
-                                    itemBuilder: (context, index) {
-                                      final c = _comments[index];
-                                      return Padding(
-                                        padding:
-                                            const EdgeInsets.symmetric(vertical: 8),
-                                        child: Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            _buildAvatarForComment(c),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        _buildAvatarForComment(c),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
                                                 children: [
-                                                  Row(
-                                                    children: [
-                                                      Expanded(
-                                                        child: Text(
-                                                          c.displayName ??
-                                                              c.handle ??
-                                                              'User',
-                                                          style: const TextStyle(
-                                                            color: Colors.white,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                          ),
-                                                        ),
+                                                  Expanded(
+                                                    child: Text(
+                                                      c.displayName ??
+                                                          c.handle ??
+                                                          'User',
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontWeight:
+                                                            FontWeight.w600,
                                                       ),
-                                                      Text(
-                                                        _formatCommentDate(
-                                                            c.createdAt),
-                                                        style: TextStyle(
-                                                          color: Colors.white
-                                                              .withOpacity(0.55),
-                                                          fontSize: 12,
-                                                        ),
-                                                      ),
-                                                    ],
+                                                    ),
                                                   ),
-                                                  const SizedBox(height: 4),
                                                   Text(
-                                                    c.body,
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      height: 1.3,
+                                                    _formatCommentDate(
+                                                      c.createdAt,
+                                                    ),
+                                                    style: TextStyle(
+                                                      color: Colors.white
+                                                          .withOpacity(0.55),
+                                                      fontSize: 12,
                                                     ),
                                                   ),
                                                 ],
                                               ),
-                                            ),
-                                          ],
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                c.body,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  height: 1.3,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      );
-                                    },
-                                  ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
                       ),
                       const SizedBox(height: 12),
                       _buildCommentInput(modalSetState),
@@ -386,9 +405,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               hintText: 'Add a comment (150 characters max)',
-              hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.6),
-              ),
+              hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
               filled: true,
               fillColor: Colors.white.withOpacity(0.05),
               counterStyle: TextStyle(
@@ -399,8 +416,10 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
               ),
-              contentPadding:
-                  const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 10,
+                horizontal: 12,
+              ),
             ),
           ),
         ),
@@ -421,8 +440,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(Colors.black),
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
                   ),
                 )
               : const Icon(Icons.send),
@@ -501,10 +519,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
       radius: 16,
       backgroundColor: const Color(0xFF1C1C1E),
       foregroundColor: KemeticGold.base,
-      child: Text(
-        initial,
-        style: const TextStyle(fontWeight: FontWeight.w700),
-      ),
+      child: Text(initial, style: const TextStyle(fontWeight: FontWeight.w700)),
     );
   }
 
@@ -525,15 +540,13 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
   void _showError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
   void _showMigrationNeeded() {
     _showError(
-        'Likes and comments need the latest update. Please apply the new Supabase migration.');
+      'Likes and comments need the latest update. Please apply the new Supabase migration.',
+    );
   }
 }
