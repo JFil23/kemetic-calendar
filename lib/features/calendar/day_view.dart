@@ -2884,366 +2884,80 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   Widget _buildEventDetailSheetPage({
-    required BuildContext rootContext,
-    required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
-    required ValueNotifier<Map<String, bool>> completionStates,
     bool scrollable = true,
   }) {
     final currentEvent = target.event;
     final flow = widget.flowIndex[currentEvent.flowId];
     final bool isReminder = currentEvent.isReminder;
-    final bool showCompletionToggle =
-        currentEvent.flowId != null &&
-        currentEvent.clientEventId != null &&
-        currentEvent.clientEventId!.isNotEmpty;
+    final bool isNutrition =
+        currentEvent.detail != null && currentEvent.detail!.contains('Source:');
+
+    Widget? metaChip;
+    if (flow != null) {
+      metaChip = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: flow.color.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          flow.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12,
+            color: flow.color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    } else if (isReminder) {
+      metaChip = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: KemeticGold.base.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: KemeticGold.text(
+          'Reminder',
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      );
+    } else if (isNutrition) {
+      metaChip = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: KemeticGold.base.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            KemeticGold.icon(Icons.local_drink, size: 14),
+            const SizedBox(width: 4),
+            KemeticGold.text(
+              'Nutrition',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      );
+    }
 
     final body = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            if (flow != null)
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: flow.color.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    flow.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: flow.color,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              )
-            else if (isReminder)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: KemeticGold.base.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: KemeticGold.text(
-                  'Reminder',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              )
-            else if (currentEvent.detail != null &&
-                currentEvent.detail!.contains('Source:'))
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: KemeticGold.base.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    KemeticGold.icon(Icons.local_drink, size: 14),
-                    const SizedBox(width: 4),
-                    KemeticGold.text(
-                      'Nutrition',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const Spacer(),
-            if (flow != null)
-              _buildEndFlowButton(flow.id)
-            else if (isReminder)
-              _buildEndReminderButton(currentEvent, closeContext: sheetContext)
-            else if (widget.onDeleteNote != null)
-              _buildEndNoteButton(
-                currentEvent,
-                ky: target.ky,
-                km: target.km,
-                kd: target.kd,
-                closeContext: sheetContext,
-              ),
-            const SizedBox(width: 8),
-            PopupMenuButton<String>(
-              icon: KemeticGold.icon(Icons.more_vert),
-              tooltip: 'Event options',
-              color: const Color(0xFF000000),
-              onSelected: (value) async {
-                if (value == 'journal') {
-                  await _handleAddToJournal(
-                    currentEvent,
-                    ky: target.ky,
-                    km: target.km,
-                    kd: target.kd,
-                    sheetContext: sheetContext,
-                  );
-                } else if (value == 'edit' && flow != null) {
-                  Navigator.pop(sheetContext);
-                  widget.onManageFlows?.call(flow.id);
-                } else if (value == 'share' && flow != null) {
-                  Navigator.pop(sheetContext);
-                  final result = await showModalBottomSheet<bool>(
-                    context: rootContext,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) =>
-                        ShareFlowSheet(flowId: flow.id, flowTitle: flow.name),
-                  );
-
-                  if (result == true && rootContext.mounted) {
-                    ScaffoldMessenger.of(rootContext).showSnackBar(
-                      const SnackBar(
-                        content: Text('Flow shared successfully!'),
-                        backgroundColor: KemeticGold.base,
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                } else if (value == 'save' && flow != null) {
-                  Navigator.pop(sheetContext);
-                  if (widget.onSaveFlow != null) {
-                    await widget.onSaveFlow!(flow.id);
-                  } else {
-                    try {
-                      await UserEventsRepo(
-                        Supabase.instance.client,
-                      ).setFlowSaved(flowId: flow.id, isSaved: true);
-                      if (rootContext.mounted) {
-                        ScaffoldMessenger.of(rootContext).showSnackBar(
-                          const SnackBar(
-                            content: Text('Saved to Saved Flows'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (rootContext.mounted) {
-                        ScaffoldMessenger.of(rootContext).showSnackBar(
-                          SnackBar(content: Text('Unable to save flow: $e')),
-                        );
-                      }
-                    }
-                  }
-                } else if (value == 'edit_reminder' &&
-                    isReminder &&
-                    widget.onEditReminder != null &&
-                    currentEvent.reminderId != null) {
-                  Navigator.pop(sheetContext);
-                  await widget.onEditReminder!(currentEvent.reminderId!);
-                } else if (value == 'share_reminder' &&
-                    isReminder &&
-                    widget.onShareReminder != null) {
-                  Navigator.pop(sheetContext);
-                  await widget.onShareReminder!(currentEvent);
-                } else if (value == 'edit_note' &&
-                    flow == null &&
-                    !isReminder &&
-                    widget.onEditNote != null) {
-                  Navigator.pop(sheetContext);
-                  await widget.onEditNote!(
-                    target.ky,
-                    target.km,
-                    target.kd,
-                    currentEvent,
-                  );
-                } else if (value == 'share_note' &&
-                    flow == null &&
-                    !isReminder &&
-                    widget.onShareNote != null) {
-                  Navigator.pop(sheetContext);
-                  await widget.onShareNote!(currentEvent);
-                }
-              },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'journal',
-                  child: Row(
-                    children: [
-                      KemeticGold.icon(Icons.check_circle),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Done / Add to journal',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-                if (flow != null && !isReminder)
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        KemeticGold.icon(Icons.edit),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Edit Flow',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (flow != null && !isReminder)
-                  PopupMenuItem(
-                    value: 'share',
-                    child: Row(
-                      children: [
-                        KemeticGold.icon(Icons.share),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Share Flow',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (flow != null && !isReminder)
-                  PopupMenuItem(
-                    value: 'save',
-                    child: Row(
-                      children: [
-                        KemeticGold.icon(Icons.bookmark_add),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Save Flow',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (isReminder &&
-                    widget.onEditReminder != null &&
-                    currentEvent.reminderId != null)
-                  PopupMenuItem(
-                    value: 'edit_reminder',
-                    child: Row(
-                      children: [
-                        KemeticGold.icon(Icons.edit),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Edit Reminder',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (isReminder && widget.onShareReminder != null)
-                  PopupMenuItem(
-                    value: 'share_reminder',
-                    child: Row(
-                      children: [
-                        KemeticGold.icon(Icons.share),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Share Reminder',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (flow == null && !isReminder && widget.onEditNote != null)
-                  PopupMenuItem(
-                    value: 'edit_note',
-                    child: Row(
-                      children: [
-                        KemeticGold.icon(Icons.edit),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Edit Note',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (flow == null && !isReminder && widget.onShareNote != null)
-                  PopupMenuItem(
-                    value: 'share_note',
-                    child: Row(
-                      children: [
-                        KemeticGold.icon(Icons.share),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Share Note',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
+        if (metaChip != null) metaChip,
+        if (metaChip != null) const SizedBox(height: 12),
+        KemeticGold.text(
           currentEvent.title,
-          maxLines: 2,
+          maxLines: 3,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
-        const SizedBox(height: 12),
-        if (showCompletionToggle)
-          ValueListenableBuilder<Map<String, bool>>(
-            valueListenable: completionStates,
-            builder: (context, states, _) {
-              final completed = states[_detailSheetTargetKey(target)] ?? false;
-              return Column(
-                children: [
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(
-                      'Done',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    value: completed,
-                    activeColor: _dayGold,
-                    onChanged: (val) async {
-                      final completedOnDate = _kemeticToDate(
-                        target.ky,
-                        target.km,
-                        target.kd,
-                      );
-                      if (val) {
-                        await widget.onRecordCompletion?.call(
-                          clientEventId: currentEvent.clientEventId!,
-                          flowId: currentEvent.flowId!,
-                          completedOnDate: completedOnDate,
-                        );
-                      } else {
-                        await widget.onUnrecordCompletion?.call(
-                          currentEvent.clientEventId!,
-                        );
-                      }
-                      final nextStates = Map<String, bool>.from(states);
-                      nextStates[_detailSheetTargetKey(target)] = val;
-                      completionStates.value = nextStates;
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              );
-            },
-          ),
+        const SizedBox(height: 14),
         Row(
           children: [
             const Icon(Icons.access_time, size: 16, color: Color(0xFF808080)),
@@ -3307,45 +3021,378 @@ class _DayViewGridState extends State<DayViewGrid> {
             },
           ),
         ],
-        const SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            TextButton.icon(
-              onPressed: widget.onManageFlows == null
-                  ? null
-                  : () {
-                      Navigator.pop(sheetContext);
-                      widget.onManageFlows!(null);
-                    },
-              icon: widget.onManageFlows == null
-                  ? const Icon(Icons.view_timeline, color: Color(0xFF404040))
-                  : KemeticGold.icon(Icons.view_timeline),
-              label: widget.onManageFlows == null
-                  ? const Text(
-                      'Manage Flows',
-                      style: TextStyle(color: Color(0xFF404040)),
-                    )
-                  : KemeticGold.text(
-                      'Manage Flows',
-                      style: _goldHeaderStyle.copyWith(fontSize: 15),
-                    ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(sheetContext),
-              child: KemeticGold.text(
-                'Close',
-                style: _goldHeaderStyle.copyWith(fontSize: 15),
-              ),
-            ),
-          ],
-        ),
       ],
     );
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: scrollable ? SingleChildScrollView(child: body) : body,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: _dayGold.withOpacity(0.4)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.45),
+              blurRadius: 18,
+              spreadRadius: 1,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: scrollable
+            ? SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: body,
+              )
+            : body,
+      ),
+    );
+  }
+
+  Widget _buildEventDetailTopActionRow({
+    required BuildContext rootContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    final currentEvent = target.event;
+    final flow = widget.flowIndex[currentEvent.flowId];
+    final isReminder = currentEvent.isReminder;
+
+    return Row(
+      children: [
+        const Spacer(),
+        if (flow != null)
+          _buildEndFlowButton(flow.id)
+        else if (isReminder)
+          _buildEndReminderButton(currentEvent, closeContext: sheetContext)
+        else if (widget.onDeleteNote != null)
+          _buildEndNoteButton(
+            currentEvent,
+            ky: target.ky,
+            km: target.km,
+            kd: target.kd,
+            closeContext: sheetContext,
+          ),
+        const SizedBox(width: 8),
+        _buildEventDetailOverflowButton(
+          rootContext: rootContext,
+          sheetContext: sheetContext,
+          target: target,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEventDetailPrimaryAction({
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    final currentEvent = target.event;
+    final flow = widget.flowIndex[currentEvent.flowId];
+    final isReminder = currentEvent.isReminder;
+
+    if (flow != null) {
+      final enabled = widget.onManageFlows != null;
+      return TextButton.icon(
+        onPressed: enabled
+            ? () {
+                Navigator.pop(sheetContext);
+                widget.onManageFlows!(flow.id);
+              }
+            : null,
+        icon: enabled
+            ? KemeticGold.icon(Icons.view_timeline)
+            : const Icon(Icons.view_timeline, color: Color(0xFF404040)),
+        label: enabled
+            ? KemeticGold.text(
+                'Manage Flows',
+                style: _goldHeaderStyle.copyWith(fontSize: 15),
+              )
+            : const Text(
+                'Manage Flows',
+                style: TextStyle(color: Color(0xFF404040)),
+              ),
+      );
+    }
+
+    if (isReminder) {
+      final enabled =
+          widget.onEditReminder != null && currentEvent.reminderId != null;
+      return TextButton.icon(
+        onPressed: enabled
+            ? () async {
+                Navigator.pop(sheetContext);
+                await widget.onEditReminder!(currentEvent.reminderId!);
+              }
+            : null,
+        icon: enabled
+            ? KemeticGold.icon(Icons.notifications_active_outlined)
+            : const Icon(
+                Icons.notifications_active_outlined,
+                color: Color(0xFF404040),
+              ),
+        label: enabled
+            ? KemeticGold.text(
+                'Reminder',
+                style: _goldHeaderStyle.copyWith(fontSize: 15),
+              )
+            : const Text(
+                'Reminder',
+                style: TextStyle(color: Color(0xFF404040)),
+              ),
+      );
+    }
+
+    final enabled = widget.onEditNote != null;
+    return TextButton.icon(
+      onPressed: enabled
+          ? () async {
+              Navigator.pop(sheetContext);
+              await widget.onEditNote!(
+                target.ky,
+                target.km,
+                target.kd,
+                currentEvent,
+              );
+            }
+          : null,
+      icon: enabled
+          ? KemeticGold.icon(Icons.note_alt_outlined)
+          : const Icon(Icons.note_alt_outlined, color: Color(0xFF404040)),
+      label: enabled
+          ? KemeticGold.text(
+              'Note',
+              style: _goldHeaderStyle.copyWith(fontSize: 15),
+            )
+          : const Text('Note', style: TextStyle(color: Color(0xFF404040))),
+    );
+  }
+
+  Widget _buildEventDetailOverflowButton({
+    required BuildContext rootContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    final currentEvent = target.event;
+    final flow = widget.flowIndex[currentEvent.flowId];
+    final isReminder = currentEvent.isReminder;
+
+    return PopupMenuButton<String>(
+      icon: KemeticGold.icon(Icons.more_vert),
+      tooltip: 'Event options',
+      color: const Color(0xFF000000),
+      onSelected: (value) async {
+        if (value == 'journal') {
+          await _handleAddToJournal(
+            currentEvent,
+            ky: target.ky,
+            km: target.km,
+            kd: target.kd,
+            sheetContext: sheetContext,
+          );
+        } else if (value == 'edit' && flow != null) {
+          Navigator.pop(sheetContext);
+          widget.onManageFlows?.call(flow.id);
+        } else if (value == 'share' && flow != null) {
+          Navigator.pop(sheetContext);
+          final result = await showModalBottomSheet<bool>(
+            context: rootContext,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) =>
+                ShareFlowSheet(flowId: flow.id, flowTitle: flow.name),
+          );
+
+          if (result == true && rootContext.mounted) {
+            ScaffoldMessenger.of(rootContext).showSnackBar(
+              const SnackBar(
+                content: Text('Flow shared successfully!'),
+                backgroundColor: KemeticGold.base,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        } else if (value == 'save' && flow != null) {
+          Navigator.pop(sheetContext);
+          if (widget.onSaveFlow != null) {
+            await widget.onSaveFlow!(flow.id);
+          } else {
+            try {
+              await UserEventsRepo(
+                Supabase.instance.client,
+              ).setFlowSaved(flowId: flow.id, isSaved: true);
+              if (rootContext.mounted) {
+                ScaffoldMessenger.of(rootContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Saved to Saved Flows'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            } catch (e) {
+              if (rootContext.mounted) {
+                ScaffoldMessenger.of(rootContext).showSnackBar(
+                  SnackBar(content: Text('Unable to save flow: $e')),
+                );
+              }
+            }
+          }
+        } else if (value == 'edit_reminder' &&
+            isReminder &&
+            widget.onEditReminder != null &&
+            currentEvent.reminderId != null) {
+          Navigator.pop(sheetContext);
+          await widget.onEditReminder!(currentEvent.reminderId!);
+        } else if (value == 'share_reminder' &&
+            isReminder &&
+            widget.onShareReminder != null) {
+          Navigator.pop(sheetContext);
+          await widget.onShareReminder!(currentEvent);
+        } else if (value == 'edit_note' &&
+            flow == null &&
+            !isReminder &&
+            widget.onEditNote != null) {
+          Navigator.pop(sheetContext);
+          await widget.onEditNote!(
+            target.ky,
+            target.km,
+            target.kd,
+            currentEvent,
+          );
+        } else if (value == 'share_note' &&
+            flow == null &&
+            !isReminder &&
+            widget.onShareNote != null) {
+          Navigator.pop(sheetContext);
+          await widget.onShareNote!(currentEvent);
+        }
+      },
+      itemBuilder: (context) => [
+        if (widget.onAppendToJournal != null)
+          PopupMenuItem(
+            value: 'journal',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.library_add_check),
+                const SizedBox(width: 12),
+                const Text(
+                  'Add to journal',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (flow != null && !isReminder)
+          PopupMenuItem(
+            value: 'edit',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text('Edit Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (flow != null && !isReminder)
+          PopupMenuItem(
+            value: 'share',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.share),
+                const SizedBox(width: 12),
+                const Text('Share Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (flow != null && !isReminder)
+          PopupMenuItem(
+            value: 'save',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.bookmark_add),
+                const SizedBox(width: 12),
+                const Text('Save Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (isReminder &&
+            widget.onEditReminder != null &&
+            currentEvent.reminderId != null)
+          PopupMenuItem(
+            value: 'edit_reminder',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text(
+                  'Edit Reminder',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (isReminder && widget.onShareReminder != null)
+          PopupMenuItem(
+            value: 'share_reminder',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.share),
+                const SizedBox(width: 12),
+                const Text(
+                  'Share Reminder',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (flow == null && !isReminder && widget.onEditNote != null)
+          PopupMenuItem(
+            value: 'edit_note',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text('Edit Note', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (flow == null && !isReminder && widget.onShareNote != null)
+          PopupMenuItem(
+            value: 'share_note',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.share),
+                const SizedBox(width: 12),
+                const Text('Share Note', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildEventDetailBottomActionRow({
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildEventDetailPrimaryAction(
+          sheetContext: sheetContext,
+          target: target,
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(sheetContext),
+          child: KemeticGold.text(
+            'Close',
+            style: _goldHeaderStyle.copyWith(fontSize: 15),
+          ),
+        ),
+      ],
     );
   }
 
@@ -3360,7 +3407,6 @@ class _DayViewGridState extends State<DayViewGrid> {
         event: event,
       ),
     );
-    final completionStates = ValueNotifier<Map<String, bool>>({});
     final measuredHeights = ValueNotifier<Map<String, double>>({});
     final initialPages = _detailSheetPagesForTarget(currentTarget.value);
     PageController sheetPageController = PageController(
@@ -3379,12 +3425,6 @@ class _DayViewGridState extends State<DayViewGrid> {
       print('[_showEventDetail] FlowIndex length: ${widget.flowIndex.length}');
     }
 
-    void updateCompletionState(DayViewSheetEventTarget target, bool completed) {
-      final nextStates = Map<String, bool>.from(completionStates.value);
-      nextStates[_detailSheetTargetKey(target)] = completed;
-      completionStates.value = nextStates;
-    }
-
     void updateMeasuredHeight(String key, double height) {
       final normalized = height.ceilToDouble();
       if (normalized <= 0) return;
@@ -3393,33 +3433,6 @@ class _DayViewGridState extends State<DayViewGrid> {
       final nextHeights = Map<String, double>.from(measuredHeights.value);
       nextHeights[key] = normalized;
       measuredHeights.value = nextHeights;
-    }
-
-    Future<void> refreshCompletionState(DayViewSheetEventTarget target) async {
-      final currentEvent = target.event;
-      final showCompletionToggle =
-          currentEvent.flowId != null &&
-          currentEvent.clientEventId != null &&
-          currentEvent.clientEventId!.isNotEmpty;
-      if (!showCompletionToggle || widget.loadCompletedClientEventIds == null) {
-        updateCompletionState(target, false);
-        return;
-      }
-
-      try {
-        final ids = await widget.loadCompletedClientEventIds!(
-          flowId: currentEvent.flowId,
-          completedOnDate: _kemeticToDate(target.ky, target.km, target.kd),
-        );
-        updateCompletionState(target, ids.contains(currentEvent.clientEventId));
-      } catch (_) {}
-    }
-
-    void warmVisibleCompletionStates(DayViewSheetEventTarget target) {
-      final pages = _detailSheetPagesForTarget(target);
-      for (final pageTarget in pages.pages) {
-        unawaited(refreshCompletionState(pageTarget));
-      }
     }
 
     void resetSheetPageController(int initialPage) {
@@ -3433,7 +3446,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     Future<void> moveToTarget(DayViewSheetEventTarget nextTarget) async {
       final previousTarget = currentTarget.value;
       currentTarget.value = nextTarget;
-      warmVisibleCompletionStates(nextTarget);
       if (widget.onNavigateToDay != null &&
           (nextTarget.ky != previousTarget.ky ||
               nextTarget.km != previousTarget.km ||
@@ -3444,8 +3456,6 @@ class _DayViewGridState extends State<DayViewGrid> {
       }
       HapticFeedback.selectionClick();
     }
-
-    warmVisibleCompletionStates(currentTarget.value);
 
     showModalBottomSheet(
       context: rootContext,
@@ -3468,10 +3478,9 @@ class _DayViewGridState extends State<DayViewGrid> {
                   MediaQuery.sizeOf(context).height * 0.72,
                   560.0,
                 );
-                final sheetHeight = (heights[currentKey] ?? 220.0).clamp(
-                  0.0,
-                  maxSheetHeight,
-                );
+                final sheetHeight = (heights[currentKey] ?? 200.0)
+                    .clamp(0.0, math.max(180.0, maxSheetHeight - 112.0))
+                    .toDouble();
 
                 return SafeArea(
                   top: false,
@@ -3492,10 +3501,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                                 child: SizedBox(
                                   width: MediaQuery.sizeOf(context).width,
                                   child: _buildEventDetailSheetPage(
-                                    rootContext: rootContext,
-                                    sheetContext: sheetContext,
                                     target: pageTarget,
-                                    completionStates: completionStates,
                                     scrollable: false,
                                   ),
                                 ),
@@ -3503,35 +3509,52 @@ class _DayViewGridState extends State<DayViewGrid> {
                           ],
                         ),
                       ),
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeOutCubic,
-                        alignment: Alignment.bottomCenter,
-                        child: SizedBox(
-                          height: sheetHeight,
-                          child: PageView.builder(
-                            key: pageViewKey,
-                            controller: sheetPageController,
-                            physics: const PageScrollPhysics(),
-                            itemCount: pages.pages.length,
-                            onPageChanged: (index) {
-                              if (index == pages.currentIndex) return;
-                              final nextTarget = pages.pages[index];
-                              final nextPages = _detailSheetPagesForTarget(
-                                nextTarget,
-                              );
-                              resetSheetPageController(nextPages.currentIndex);
-                              unawaited(moveToTarget(nextTarget));
-                            },
-                            itemBuilder: (context, index) {
-                              return _buildEventDetailSheetPage(
-                                rootContext: rootContext,
-                                sheetContext: sheetContext,
-                                target: pages.pages[index],
-                                completionStates: completionStates,
-                              );
-                            },
-                          ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildEventDetailTopActionRow(
+                              rootContext: rootContext,
+                              sheetContext: sheetContext,
+                              target: target,
+                            ),
+                            const SizedBox(height: 10),
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 180),
+                              curve: Curves.easeOutCubic,
+                              alignment: Alignment.bottomCenter,
+                              child: SizedBox(
+                                height: sheetHeight,
+                                child: PageView.builder(
+                                  key: pageViewKey,
+                                  controller: sheetPageController,
+                                  physics: const BouncingScrollPhysics(),
+                                  itemCount: pages.pages.length,
+                                  onPageChanged: (index) {
+                                    if (index == pages.currentIndex) return;
+                                    final nextTarget = pages.pages[index];
+                                    final nextPages =
+                                        _detailSheetPagesForTarget(nextTarget);
+                                    resetSheetPageController(
+                                      nextPages.currentIndex,
+                                    );
+                                    unawaited(moveToTarget(nextTarget));
+                                  },
+                                  itemBuilder: (context, index) {
+                                    return _buildEventDetailSheetPage(
+                                      target: pages.pages[index],
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            _buildEventDetailBottomActionRow(
+                              sheetContext: sheetContext,
+                              target: target,
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -3544,7 +3567,6 @@ class _DayViewGridState extends State<DayViewGrid> {
       },
     ).whenComplete(() {
       currentTarget.dispose();
-      completionStates.dispose();
       measuredHeights.dispose();
       sheetPageController.dispose();
     });
@@ -3563,11 +3585,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     return '${formatTime(startHour, startMinute)} – ${formatTime(endHour, endMinute)}';
-  }
-
-  DateTime _kemeticToDate(int ky, int km, int kd) {
-    final g = KemeticMath.toGregorian(ky, km, kd);
-    return DateTime(g.year, g.month, g.day);
   }
 }
 

@@ -117,7 +117,8 @@ class _JournalOverlayState extends State<JournalOverlay>
     _loadLinks();
 
     Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
+      if (mounted &&
+          widget.presentationMode == JournalPresentationMode.overlay) {
         _focusNode.requestFocus();
       }
     });
@@ -917,7 +918,14 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   Widget _buildBadgeArea(bool keyboardVisible) {
     final badges = _extractBadges();
-    final height = keyboardVisible ? 0.0 : 220.0;
+    final height = keyboardVisible
+        ? 0.0
+        : (widget.presentationMode == JournalPresentationMode.page
+              ? 252.0
+              : 220.0);
+    final badgeCountLabel = badges.isEmpty
+        ? 'No badges yet'
+        : '${badges.length} badge${badges.length == 1 ? '' : 's'}';
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
@@ -925,49 +933,101 @@ class _JournalOverlayState extends State<JournalOverlay>
       height: height,
       child: height == 0
           ? const SizedBox.shrink()
-          : ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0A0A0A),
-                  border: Border.all(color: const Color(0xFF333333), width: 1),
-                ),
-                child: badges.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No badges yet',
-                          style: TextStyle(color: Color(0xFF666666)),
-                        ),
-                      )
-                    : Scrollbar(
-                        thumbVisibility: true,
-                        controller: _badgeScrollController,
-                        child: SingleChildScrollView(
-                          controller: _badgeScrollController,
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: badges.map((token) {
-                              final expanded =
-                                  _badgeExpansion[token.id] ?? false;
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: EventBadgeWidget(
-                                  token: token,
-                                  initialExpanded: expanded,
-                                  onToggle: (next) {
-                                    setState(() {
-                                      _badgeExpansion[token.id] = next;
-                                    });
-                                  },
-                                ),
-                              );
-                            }).toList(),
-                          ),
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Badges',
+                        style: TextStyle(
+                          color: KemeticGold.base,
+                          fontSize:
+                              widget.presentationMode ==
+                                  JournalPresentationMode.page
+                              ? 16
+                              : 14,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-              ),
+                      Text(
+                        badgeCountLabel,
+                        style: const TextStyle(
+                          color: Color(0xFF888888),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0A0A0A),
+                        border: Border.all(
+                          color: const Color(0xFF333333),
+                          width: 1,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black54,
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: badges.isEmpty
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 18),
+                                child: Text(
+                                  'Event badges you add from day view will appear here.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Color(0xFF666666)),
+                                ),
+                              ),
+                            )
+                          : Scrollbar(
+                              thumbVisibility: true,
+                              controller: _badgeScrollController,
+                              child: SingleChildScrollView(
+                                controller: _badgeScrollController,
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: badges.map((token) {
+                                    final expanded =
+                                        _badgeExpansion[token.id] ?? false;
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12,
+                                      ),
+                                      child: EventBadgeWidget(
+                                        token: token,
+                                        initialExpanded: expanded,
+                                        onToggle: (next) {
+                                          setState(() {
+                                            _badgeExpansion[token.id] = next;
+                                          });
+                                        },
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+              ],
             ),
     );
   }
