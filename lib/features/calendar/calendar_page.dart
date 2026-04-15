@@ -68,6 +68,7 @@ import '../nodes/kemetic_node_list_page.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/kemetic_node_model.dart';
 import '../nodes/node_user_insights_section.dart';
+import '../rhythm/data/planner_badge_repo.dart';
 import '../rhythm/pages/todays_alignment_page.dart';
 
 typedef _QuickAddParse = ({
@@ -4167,6 +4168,9 @@ class _CalendarPageState extends State<CalendarPage>
   // Repository instances
   late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
   late final JournalRepo _journalRepo = JournalRepo(Supabase.instance.client);
+  late final PlannerBadgeRepo _plannerBadgeRepo = PlannerBadgeRepo(
+    Supabase.instance.client,
+  );
   late final DecanReflectionRepo _decanReflectionRepo = DecanReflectionRepo(
     Supabase.instance.client,
   );
@@ -15760,7 +15764,14 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Future<
-    List<({EventBadgeToken token, DateTime occurredOn, DateTime? occurredAt})>
+    List<
+      ({
+        EventBadgeToken token,
+        DateTime occurredOn,
+        DateTime? occurredAt,
+        List<String> tags,
+      })
+    >
   >
   _collectDecanBadges(DateTime decanStart, DateTime decanEnd) async {
     final entries = await _journalRepo.listRange(
@@ -15769,11 +15780,20 @@ class _CalendarPageState extends State<CalendarPage>
     );
     final badges =
         <
-          ({EventBadgeToken token, DateTime occurredOn, DateTime? occurredAt})
+          ({
+            EventBadgeToken token,
+            DateTime occurredOn,
+            DateTime? occurredAt,
+            List<String> tags,
+          })
         >[];
     final seen = <String>{};
 
-    void addBadges(List<EventBadgeToken> tokens, DateTime fallbackDay) {
+    void addBadges(
+      List<EventBadgeToken> tokens,
+      DateTime fallbackDay, {
+      List<String> tags = const <String>[],
+    }) {
       final day = _dateOnlyLocal(fallbackDay);
       for (final token in tokens) {
         if (!seen.add(token.id)) continue;
@@ -15784,6 +15804,7 @@ class _CalendarPageState extends State<CalendarPage>
           token: token,
           occurredOn: occurred,
           occurredAt: token.start,
+          tags: tags,
         ));
       }
     }
@@ -15802,6 +15823,21 @@ class _CalendarPageState extends State<CalendarPage>
         !currentDate.isAfter(_dateOnlyLocal(decanEnd));
     if (currentDoc != null && currentDate != null && withinWindow) {
       addBadges(JournalBadgeUtils.tokensFromDocument(currentDoc), currentDate);
+    }
+
+    final plannerBadges = await _plannerBadgeRepo.fetchPlannerBadges(
+      start: decanStart,
+      end: decanEnd,
+    );
+    for (final badge in plannerBadges) {
+      final token = badge.toEventBadgeToken();
+      if (!seen.add(token.id)) continue;
+      badges.add((
+        token: token,
+        occurredOn: _dateOnlyLocal(badge.occurredOn),
+        occurredAt: null,
+        tags: badge.tags,
+      ));
     }
 
     badges.sort((a, b) {
@@ -15951,7 +15987,7 @@ class _CalendarPageState extends State<CalendarPage>
             (b) => {
               'title': b.token.title,
               'details': b.token.description ?? b.token.title,
-              'tags': <String>[],
+              'tags': b.tags,
               'occurred_on': _formatDateOnlyLocal(b.occurredOn),
               if (b.occurredAt != null)
                 'occurred_at': b.occurredAt!.toUtc().toIso8601String(),

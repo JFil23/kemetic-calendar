@@ -19,6 +19,7 @@ import 'package:mobile/widgets/kemetic_day_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mobile/core/day_key.dart';
+import '../data/planner_badge_repo.dart';
 import '../data/rhythm_repo.dart';
 import '../models/rhythm_models.dart';
 import '../theme/rhythm_theme.dart';
@@ -39,6 +40,9 @@ class TodaysAlignmentPage extends StatefulWidget {
 class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   final RhythmRepo _repo = RhythmRepo(Supabase.instance.client);
   final NutritionRepo _nutritionRepo = NutritionRepo(Supabase.instance.client);
+  final PlannerBadgeRepo _plannerBadgeRepo = PlannerBadgeRepo(
+    Supabase.instance.client,
+  );
   late Future<void> _future;
   final TextEditingController _commitmentInputController =
       TextEditingController();
@@ -77,10 +81,11 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   bool _showGregorianDates = false;
   Timer? _midnightTimer;
   List<NutritionItem> _nutritionItems = [];
-  Set<String> _completedNutritionKeys = <String>{};
+  Map<String, RhythmItemState> _nutritionStatesByKey = {};
   bool _nutritionLoading = true;
   bool _nutritionMissingTable = false;
   String? _nutritionError;
+  bool _nutritionStatesLoaded = false;
   int _activeNutritionDayIndex = 0;
   bool _nutritionFormOpen = false;
 
@@ -106,7 +111,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     _future = _load();
     unawaited(_loadNotes());
     unawaited(_loadNutrition());
-    unawaited(_loadNutritionChecks());
+    unawaited(_loadNutritionStates());
     _scheduleMidnightRefresh();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(
@@ -147,6 +152,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         _alignmentItems = items.data;
       });
       _hydrateTodos(todos.data, focusDay: _todayLocal);
+      unawaited(_reconcileTodoPlannerBadges(todos.data));
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -174,6 +180,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         _nutritionItems = items;
         _nutritionLoading = false;
       });
+      if (_nutritionStatesLoaded) {
+        unawaited(_reconcileNutritionPlannerBadges());
+      }
     } on StateError catch (e) {
       final msg = e.toString().toLowerCase();
       final missing = msg.contains('nutrition_items');
@@ -328,6 +337,21 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
           ? 'To-do storage is not available in this environment yet.'
           : (result.friendlyError ?? 'Could not update task.');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      return;
+    }
+
+    var synced = false;
+    try {
+      await _plannerBadgeRepo.syncTodoState(
+        todo: updated[index],
+        date: activeDay,
+      );
+      synced = true;
+    } catch (_) {
+      synced = false;
+    }
+    if (synced) {
+      unawaited(_plannerBadgeRepo.refreshKnowledgeGraph());
     }
   }
 
@@ -365,33 +389,148 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   String _nutritionChecksPrefsKeyForUser(String? uid) =>
       'today_alignment_nutrition_checks${uid == null ? '' : '_$uid'}';
 
-  Future<Set<String>> _loadNutritionChecksFromPrefs([String? uid]) async {
+  String _nutritionBadgeMigrationPrefsKeyForUser(String? uid) =>
+      'today_alignment_nutrition_badges_migrated${uid == null ? '' : '_$uid'}';
+
+  Future<bool> _hasMigratedNutritionBadgeState([String? uid]) async {
     final prefs = await SharedPreferences.getInstance();
-    return (prefs.getStringList(
-              _nutritionChecksPrefsKeyForUser(uid ?? _currentUserId),
-            ) ??
-            const <String>[])
-        .toSet();
+    return prefs.getBool(
+          _nutritionBadgeMigrationPrefsKeyForUser(uid ?? _currentUserId),
+        ) ??
+        false;
   }
 
-  Future<void> _saveNutritionChecksToPrefs(
-    Set<String> checkedKeys, {
+  Future<void> _markNutritionBadgeStateMigrated({String? uid}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(
+      _nutritionBadgeMigrationPrefsKeyForUser(uid ?? _currentUserId),
+      true,
+    );
+  }
+
+  Future<Map<String, RhythmItemState>> _loadNutritionStatesFromPrefs([
+    String? uid,
+  ]) async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawValues =
+        prefs.getStringList(
+          _nutritionChecksPrefsKeyForUser(uid ?? _currentUserId),
+        ) ??
+        const <String>[];
+    final states = <String, RhythmItemState>{};
+    RhythmItemState? parseState(String stateName) {
+      for (final state in RhythmItemState.values) {
+        if (state.name == stateName) return state;
+      }
+      return null;
+    }
+
+    for (final raw in rawValues) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) continue;
+      final parts = trimmed.split('::');
+      if (parts.length >= 3) {
+        final key = '${parts[0]}::${parts[1]}';
+        final stateName = parts.sublist(2).join('::');
+        final state = parseState(stateName);
+        if (state != null && state != RhythmItemState.pending) {
+          states[key] = state;
+        }
+        continue;
+      }
+      if (parts.length == 2) {
+        states[trimmed] = RhythmItemState.done;
+      }
+    }
+    return states;
+  }
+
+  Future<void> _saveNutritionStatesToPrefs(
+    Map<String, RhythmItemState> states, {
     String? uid,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final values = checkedKeys.toList()..sort();
+    final values =
+        states.entries
+            .where((entry) => entry.value != RhythmItemState.pending)
+            .map((entry) => '${entry.key}::${entry.value.name}')
+            .toList()
+          ..sort();
     await prefs.setStringList(
       _nutritionChecksPrefsKeyForUser(uid ?? _currentUserId),
       values,
     );
   }
 
-  Future<void> _loadNutritionChecks() async {
-    final checkedKeys = await _loadNutritionChecksFromPrefs();
+  ({DateTime start, DateTime end}) _currentNutritionDecanRange() {
+    return (
+      start: _nutritionDateForPageIndex(0),
+      end: _nutritionDateForPageIndex(9),
+    );
+  }
+
+  bool _nutritionStateKeyInRange(
+    String key,
+    ({DateTime start, DateTime end}) range,
+  ) {
+    final parts = key.split('::');
+    if (parts.length < 2) return false;
+    final parsedDate = DateTime.tryParse(parts.first);
+    if (parsedDate == null) return false;
+    final day = _normalizeDate(parsedDate);
+    return !day.isBefore(_normalizeDate(range.start)) &&
+        !day.isAfter(_normalizeDate(range.end));
+  }
+
+  Map<String, RhythmItemState> _mergeNutritionStatesWithServerAuthority(
+    Map<String, RhythmItemState> localStates,
+    Map<String, RhythmItemState> remoteStates,
+    ({DateTime start, DateTime end}) range,
+  ) {
+    final merged = <String, RhythmItemState>{};
+    localStates.forEach((key, value) {
+      if (_nutritionStateKeyInRange(key, range)) return;
+      merged[key] = value;
+    });
+    merged.addAll(remoteStates);
+    return merged;
+  }
+
+  Future<void> _loadNutritionStates() async {
+    final localStates = await _loadNutritionStatesFromPrefs();
+    final range = _currentNutritionDecanRange();
+    final migrated = await _hasMigratedNutritionBadgeState();
+    Map<String, RhythmItemState> remoteStates = const {};
+    var remoteLoaded = false;
+    try {
+      remoteStates = await _plannerBadgeRepo.fetchNutritionStateMap(
+        start: range.start,
+        end: range.end,
+      );
+      remoteLoaded = true;
+    } catch (_) {
+      remoteStates = const {};
+      remoteLoaded = false;
+    }
+    final mergedStates = remoteLoaded && migrated
+        ? _mergeNutritionStatesWithServerAuthority(
+            localStates,
+            remoteStates,
+            range,
+          )
+        : <String, RhythmItemState>{...localStates, ...remoteStates};
+    if (remoteLoaded && !migrated) {
+      await _markNutritionBadgeStateMigrated();
+    }
+    await _saveNutritionStatesToPrefs(mergedStates);
     if (!mounted) return;
     setState(() {
-      _completedNutritionKeys = checkedKeys;
+      _nutritionStatesByKey = mergedStates;
+      _nutritionStatesLoaded = true;
     });
+    if (_nutritionItems.isNotEmpty) {
+      unawaited(_reconcileNutritionPlannerBadges());
+    }
   }
 
   int _decanDayForKemetic(KemeticDate kd) {
@@ -427,7 +566,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     return '$dateKey::$itemId';
   }
 
-  bool _isNutritionItemDone(
+  RhythmItemState _nutritionStateForItem(
     NutritionItem item, {
     int? decanDay,
     DateTime? date,
@@ -435,29 +574,57 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     final targetDate =
         date ??
         (decanDay != null ? _nutritionDateForDecanDay(decanDay) : _todayLocal);
-    return _completedNutritionKeys.contains(
-      _nutritionCompletionKey(targetDate, item.id),
+    return _nutritionStatesByKey[_nutritionCompletionKey(
+          targetDate,
+          item.id,
+        )] ??
+        RhythmItemState.pending;
+  }
+
+  Future<void> _setNutritionItemState(
+    NutritionItem item, {
+    required DateTime date,
+    required RhythmItemState state,
+  }) async {
+    final key = _nutritionCompletionKey(date, item.id);
+    final updatedStates = Map<String, RhythmItemState>.from(
+      _nutritionStatesByKey,
     );
+    if (state == RhythmItemState.pending) {
+      updatedStates.remove(key);
+    } else {
+      updatedStates[key] = state;
+    }
+    setState(() {
+      _nutritionStatesByKey = updatedStates;
+    });
+    await _saveNutritionStatesToPrefs(updatedStates);
+    var synced = false;
+    try {
+      await _plannerBadgeRepo.syncNutritionState(
+        item: item,
+        date: date,
+        state: state,
+      );
+      synced = true;
+    } catch (_) {
+      synced = false;
+    }
+    if (synced) {
+      unawaited(_plannerBadgeRepo.refreshKnowledgeGraph());
+    }
   }
 
   Future<void> _toggleNutritionItemDone(
     NutritionItem item, {
     required int decanDay,
   }) async {
-    final key = _nutritionCompletionKey(
-      _nutritionDateForDecanDay(decanDay),
-      item.id,
-    );
-    final updatedKeys = Set<String>.from(_completedNutritionKeys);
-    if (updatedKeys.contains(key)) {
-      updatedKeys.remove(key);
-    } else {
-      updatedKeys.add(key);
-    }
-    setState(() {
-      _completedNutritionKeys = updatedKeys;
-    });
-    await _saveNutritionChecksToPrefs(updatedKeys);
+    final targetDate = _nutritionDateForDecanDay(decanDay);
+    final currentState = _nutritionStateForItem(item, date: targetDate);
+    final nextState = currentState == RhythmItemState.done
+        ? RhythmItemState.pending
+        : RhythmItemState.done;
+    await _setNutritionItemState(item, date: targetDate, state: nextState);
   }
 
   /// Resolves the Kemetic day key for the nutrition pager's active decan day.
@@ -580,8 +747,51 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         _future = _load();
       });
       unawaited(_loadNutrition());
+      unawaited(_loadNutritionStates());
       _scheduleMidnightRefresh();
     });
+  }
+
+  Future<void> _reconcileTodoPlannerBadges(List<RhythmTodo> todos) async {
+    if (todos.isEmpty) return;
+    final cutoff = _todayLocal.subtract(const Duration(days: 20));
+    final futures = <Future<void>>[];
+    for (final todo in todos) {
+      final dueDay = _normalizeDate(todo.dueDate ?? _todayLocal);
+      if (dueDay.isBefore(cutoff) || dueDay.isAfter(_todayLocal)) continue;
+      futures.add(_plannerBadgeRepo.syncTodoState(todo: todo, date: dueDay));
+    }
+    if (futures.isEmpty) return;
+    try {
+      await Future.wait(futures);
+    } catch (_) {
+      return;
+    }
+    unawaited(_plannerBadgeRepo.refreshKnowledgeGraph());
+  }
+
+  Future<void> _reconcileNutritionPlannerBadges() async {
+    if (_nutritionItems.isEmpty) return;
+    final futures = <Future<void>>[];
+    for (int decanDay = 1; decanDay <= 10; decanDay++) {
+      final targetDate = _nutritionDateForDecanDay(decanDay);
+      for (final item in _itemsForDecanDay(decanDay)) {
+        futures.add(
+          _plannerBadgeRepo.syncNutritionState(
+            item: item,
+            date: targetDate,
+            state: _nutritionStateForItem(item, date: targetDate),
+          ),
+        );
+      }
+    }
+    if (futures.isEmpty) return;
+    try {
+      await Future.wait(futures);
+    } catch (_) {
+      return;
+    }
+    unawaited(_plannerBadgeRepo.refreshKnowledgeGraph());
   }
 
   String _formatKemeticDate(DateTime date, {bool short = false}) {
@@ -1841,7 +2051,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                           item.source,
                           fallback: 'Source not set',
                         );
-                        final isDone = _isNutritionItemDone(
+                        final itemState = _nutritionStateForItem(
                           item,
                           decanDay: decanDay,
                         );
@@ -1849,8 +2059,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             RhythmStateDot(
-                              state: RhythmItemState.done,
-                              isActive: isDone,
+                              state: itemState == RhythmItemState.pending
+                                  ? RhythmItemState.done
+                                  : itemState,
+                              isActive: itemState != RhythmItemState.pending,
                               onTap: () => unawaited(
                                 _toggleNutritionItemDone(
                                   item,
@@ -2915,22 +3127,35 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
   }
 
+  double _progressWeight(RhythmItemState state) {
+    switch (state) {
+      case RhythmItemState.done:
+        return 1;
+      case RhythmItemState.partial:
+        return 0.5;
+      case RhythmItemState.skipped:
+      case RhythmItemState.pending:
+        return 0;
+    }
+  }
+
   double _progress() {
     final todayTodos = _todosByDay[_todayLocal] ?? const <RhythmTodo>[];
     final todayNutrition = _todayNutritionItems();
     final totalTracked = todayTodos.length + todayNutrition.length;
 
     if (totalTracked > 0) {
-      final doneTodos = todayTodos
-          .where((t) => t.state == RhythmItemState.done)
-          .length;
-      final partialTodos = todayTodos
-          .where((t) => t.state == RhythmItemState.partial)
-          .length;
-      final doneNutrition = todayNutrition
-          .where((item) => _isNutritionItemDone(item, date: _todayLocal))
-          .length;
-      return (doneTodos + partialTodos * 0.5 + doneNutrition) / totalTracked;
+      final todoProgress = todayTodos.fold<double>(
+        0,
+        (sum, todo) => sum + _progressWeight(todo.state),
+      );
+      final nutritionProgress = todayNutrition.fold<double>(
+        0,
+        (sum, item) =>
+            sum +
+            _progressWeight(_nutritionStateForItem(item, date: _todayLocal)),
+      );
+      return (todoProgress + nutritionProgress) / totalTracked;
     }
 
     if (_alignmentItems.isEmpty) return 0;
