@@ -56,7 +56,7 @@ import 'package:share_plus/share_plus.dart';
 import '../journal/journal_event_badge.dart';
 import '../journal/journal_badge_utils.dart';
 import '../journal/journal_v2_document_model.dart';
-import '../journal/journal_swipe_layer.dart';
+import '../journal/journal_page.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
 import '../../widgets/flow_start_date_picker.dart';
@@ -4159,9 +4159,10 @@ class _CalendarPageState extends State<CalendarPage>
   (int, int)? _pinchAnchorMonth;
 
   // Journal controller and state
-  final JournalSwipeHandle _journalSwipeHandle = JournalSwipeHandle();
   late JournalController _journalController;
   bool _journalInitialized = false;
+  bool _plannerNavigationInFlight = false;
+  double _plannerSwipeAccum = 0.0;
 
   // Repository instances
   late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
@@ -9247,7 +9248,7 @@ class _CalendarPageState extends State<CalendarPage>
         icon: Icons.wb_sunny_outlined,
         gradient: goldGloss,
         label: 'Planner',
-        onSelected: () => context.push('/rhythm/today'),
+        onSelected: _openPlannerPage,
       ),
       _CalendarAction(
         icon: Icons.mail_outline,
@@ -9408,10 +9409,6 @@ class _CalendarPageState extends State<CalendarPage>
       _openProfile(context);
 
   Future<void> _openJournalFromAppBar() async {
-    final isPortrait =
-        MediaQuery.of(context).orientation == Orientation.portrait;
-    if (!isPortrait) return;
-
     if (!_journalInitialized) {
       try {
         await _journalController.init();
@@ -9422,7 +9419,33 @@ class _CalendarPageState extends State<CalendarPage>
       }
     }
 
-    _journalSwipeHandle.open(entryPoint: 'app_bar_button');
+    if (!mounted) return;
+
+    UiGuards.disableJournalSwipe();
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => JournalPage(
+            controller: _journalController,
+            entryPoint: 'app_bar_button',
+          ),
+        ),
+      );
+    } finally {
+      UiGuards.enableJournalSwipe();
+    }
+  }
+
+  Future<void> _openPlannerPage() async {
+    if (_plannerNavigationInFlight || !mounted) return;
+
+    _plannerNavigationInFlight = true;
+    try {
+      await context.push('/rhythm/today');
+    } finally {
+      _plannerNavigationInFlight = false;
+    }
   }
 
   Future<void> _openInboxFromMenu() async {
@@ -15366,27 +15389,62 @@ class _CalendarPageState extends State<CalendarPage>
       _ensurePortraitCentered();
     }
 
-    final content = JournalSwipeLayer(
-      controller: _journalController,
-      isPortrait: isPortrait,
-      handle: _journalSwipeHandle,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onScaleStart: _onScaleStart,
-        onScaleUpdate: _onScaleUpdate,
-        onScaleEnd: _onScaleEnd,
-        child: Offstage(
-          offstage: _portraitRecenterPending && isPortrait,
-          child: _buildCalendarScrollView(),
-        ),
+    final content = GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onScaleStart: _onScaleStart,
+      onScaleUpdate: _onScaleUpdate,
+      onScaleEnd: _onScaleEnd,
+      child: Offstage(
+        offstage: _portraitRecenterPending && isPortrait,
+        child: _buildCalendarScrollView(),
       ),
     );
 
     return Stack(
       children: [
         content,
+        _buildPlannerSwipeGate(),
         if (_reflectionPrompt != null) _buildReflectionBadge(),
       ],
+    );
+  }
+
+  Widget _buildPlannerSwipeGate() {
+    final edgeWidth =
+        ((MediaQuery.of(context).size.width * 0.08).clamp(36.0, 64.0) as num)
+            .toDouble();
+
+    return Positioned(
+      left: 0,
+      top: 0,
+      bottom: 0,
+      width: edgeWidth,
+      child: _HorizontalEdgeSwipePad(
+        onHorizontalDragStart: (_) {
+          _plannerSwipeAccum = 0.0;
+        },
+        onHorizontalDragUpdate: (details) {
+          if (_plannerNavigationInFlight) return;
+          _plannerSwipeAccum += details.delta.dx;
+        },
+        onHorizontalDragEnd: (details) {
+          if (_plannerNavigationInFlight) {
+            _plannerSwipeAccum = 0.0;
+            return;
+          }
+
+          final vx = details.velocity.pixelsPerSecond.dx;
+          final traveled = _plannerSwipeAccum;
+          final flingOpen = vx > 750;
+          final dragOpen = traveled > 42;
+
+          if (flingOpen || dragOpen) {
+            unawaited(_openPlannerPage());
+          }
+
+          _plannerSwipeAccum = 0.0;
+        },
+      ),
     );
   }
 
@@ -27285,6 +27343,33 @@ class _GoldDivider extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _HorizontalEdgeSwipePad extends StatelessWidget {
+  const _HorizontalEdgeSwipePad({
+    required this.onHorizontalDragStart,
+    required this.onHorizontalDragUpdate,
+    required this.onHorizontalDragEnd,
+  });
+
+  final GestureDragStartCallback? onHorizontalDragStart;
+  final GestureDragUpdateCallback? onHorizontalDragUpdate;
+  final GestureDragEndCallback? onHorizontalDragEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: null,
+        onHorizontalDragStart: onHorizontalDragStart,
+        onHorizontalDragUpdate: onHorizontalDragUpdate,
+        onHorizontalDragEnd: onHorizontalDragEnd,
+        child: const SizedBox.expand(),
       ),
     );
   }

@@ -25,16 +25,20 @@ import '../nodes/kemetic_node_library.dart';
 import '../nodes/kemetic_node_model.dart';
 import '../nodes/kemetic_node_reader_page.dart';
 
+enum JournalPresentationMode { overlay, page }
+
 class JournalOverlay extends StatefulWidget {
   final JournalController controller;
   final bool isPortrait;
   final VoidCallback onClose;
+  final JournalPresentationMode presentationMode;
 
   const JournalOverlay({
     Key? key,
     required this.controller,
     required this.isPortrait,
     required this.onClose,
+    this.presentationMode = JournalPresentationMode.overlay,
   }) : super(key: key);
 
   @override
@@ -63,11 +67,11 @@ class _JournalOverlayState extends State<JournalOverlay>
   List<InsightLink> _insightLinks = [];
   bool _linkMode = false;
   String _prevText = '';
-  
+
   // Archive state
   bool _showingArchive = false;
   bool _keyboardVisible = false;
-  
+
   // Universal undo/redo system
   late JournalUndoSystem _undoSystem;
 
@@ -88,7 +92,9 @@ class _JournalOverlayState extends State<JournalOverlay>
       curve: Curves.easeOut,
     );
 
-    _textController = TextEditingController(text: widget.controller.currentDraft);
+    _textController = TextEditingController(
+      text: widget.controller.currentDraft,
+    );
     _prevText = widget.controller.currentDraft;
     _scrollController = ScrollController();
     _badgeScrollController = ScrollController();
@@ -97,10 +103,10 @@ class _JournalOverlayState extends State<JournalOverlay>
 
     // V2 initialization
     _undoSystem = JournalUndoSystem();
-    
+
     if (FeatureFlags.isJournalV2Active) {
       _showToolbar = FeatureFlags.hasRichText;
-      
+
       if (FeatureFlags.hasRichText) {
         _richTextEditorKey = GlobalKey<RichTextEditorState>();
       }
@@ -143,9 +149,11 @@ class _JournalOverlayState extends State<JournalOverlay>
     final sourceId = _currentSourceId();
     setState(() {
       _insightLinks = links
-          .where((l) =>
-              l.sourceType == InsightSourceType.journalEntry &&
-              l.sourceId == sourceId)
+          .where(
+            (l) =>
+                l.sourceType == InsightSourceType.journalEntry &&
+                l.sourceId == sourceId,
+          )
           .toList();
     });
   }
@@ -175,9 +183,11 @@ class _JournalOverlayState extends State<JournalOverlay>
     final all = await _insightRepo.fetchLinks(userId);
     final sourceId = _currentSourceId();
     final filtered = all
-        .where((l) =>
-            !(l.sourceType == InsightSourceType.journalEntry &&
-              l.sourceId == sourceId))
+        .where(
+          (l) =>
+              !(l.sourceType == InsightSourceType.journalEntry &&
+                  l.sourceId == sourceId),
+        )
         .toList();
     filtered.addAll(_insightLinks);
     await _insightRepo.saveLinks(userId, filtered);
@@ -185,6 +195,10 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   void _close() {
     _focusNode.unfocus();
+    if (widget.presentationMode == JournalPresentationMode.page) {
+      widget.onClose();
+      return;
+    }
     _animationController.reverse().then((_) {
       if (mounted) {
         widget.onClose();
@@ -218,28 +232,30 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   void _onFormatChanged(TextAttrs attrs) {
     if (!FeatureFlags.hasRichText) return;
-    
+
     setState(() => _currentAttrs = attrs);
     _richTextEditorKey?.currentState?.applyFormat(attrs);
   }
 
   void _onUndo() {
     if (!_undoSystem.canUndo) return;
-    
+
     final doc = widget.controller.currentDocument;
     if (doc == null) return;
-    
+
     final previousDoc = _undoSystem.undo(doc);
     if (previousDoc != null) {
       // Update document
       widget.controller.updateDocument(previousDoc);
-      
+
       // Update local state
       setState(() {
         // Update text
         final paragraphBlocks = previousDoc.blocks.whereType<ParagraphBlock>();
         if (paragraphBlocks.isNotEmpty) {
-          final plainText = paragraphBlocks.first.ops.map((op) => op.insert).join();
+          final plainText = paragraphBlocks.first.ops
+              .map((op) => op.insert)
+              .join();
           _textController.text = plainText;
         }
       });
@@ -248,21 +264,23 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   void _onRedo() {
     if (!_undoSystem.canRedo) return;
-    
+
     final doc = widget.controller.currentDocument;
     if (doc == null) return;
-    
+
     final nextDoc = _undoSystem.redo(doc);
     if (nextDoc != null) {
       // Update document
       widget.controller.updateDocument(nextDoc);
-      
+
       // Update local state
       setState(() {
         // Update text
         final paragraphBlocks = nextDoc.blocks.whereType<ParagraphBlock>();
         if (paragraphBlocks.isNotEmpty) {
-          final plainText = paragraphBlocks.first.ops.map((op) => op.insert).join();
+          final plainText = paragraphBlocks.first.ops
+              .map((op) => op.insert)
+              .join();
           _textController.text = plainText;
         }
       });
@@ -286,8 +304,10 @@ class _JournalOverlayState extends State<JournalOverlay>
       });
       return;
     }
-    final selected =
-        _textController.text.substring(selection.start, selection.end);
+    final selected = _textController.text.substring(
+      selection.start,
+      selection.end,
+    );
     final node = await _pickNode();
     if (node == null) return;
     final now = DateTime.now();
@@ -330,16 +350,20 @@ class _JournalOverlayState extends State<JournalOverlay>
             builder: (context, setSheet) {
               final query = controller.text.toLowerCase();
               final filtered = nodes
-                  .where((n) =>
-                      n.title.toLowerCase().contains(query) ||
-                      n.aliases.any((a) => a.toLowerCase().contains(query)))
+                  .where(
+                    (n) =>
+                        n.title.toLowerCase().contains(query) ||
+                        n.aliases.any((a) => a.toLowerCase().contains(query)),
+                  )
                   .toList();
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                     child: TextField(
                       controller: controller,
                       autofocus: true,
@@ -359,12 +383,15 @@ class _JournalOverlayState extends State<JournalOverlay>
                       itemBuilder: (ctx, i) {
                         final node = filtered[i];
                         return ListTile(
-                          title: Text(node.title,
-                              style: const TextStyle(color: Colors.white)),
+                          title: Text(
+                            node.title,
+                            style: const TextStyle(color: Colors.white),
+                          ),
                           subtitle: node.aliases.isNotEmpty
-                              ? Text(node.aliases.join(', '),
-                                  style:
-                                      const TextStyle(color: Colors.white54))
+                              ? Text(
+                                  node.aliases.join(', '),
+                                  style: const TextStyle(color: Colors.white54),
+                                )
                               : null,
                           onTap: () => Navigator.of(ctx).pop(node),
                         );
@@ -385,44 +412,45 @@ class _JournalOverlayState extends State<JournalOverlay>
   }
 
   void _onRichTextChanged(ParagraphBlock block) {
-    if (!FeatureFlags.hasRichText || widget.controller.currentDocument == null) return;
-    
+    if (!FeatureFlags.hasRichText || widget.controller.currentDocument == null)
+      return;
+
     final doc = widget.controller.currentDocument!;
-    
+
     // Record undo action
     _undoSystem.recordAction(
       type: JournalActionType.textEdit,
       before: doc,
       after: null, // Will be set below
     );
-    
+
     final blocks = List<JournalBlock>.from(doc.blocks);
-    
+
     final paragraphIndex = blocks.indexWhere((b) => b is ParagraphBlock);
     if (paragraphIndex >= 0) {
       blocks[paragraphIndex] = block;
     } else {
       blocks.insert(0, block);
     }
-    
+
     final newDoc = JournalDocument(
       version: doc.version,
       blocks: blocks,
       meta: doc.meta,
     );
-    
+
     // Update the undo action with the new document
     _undoSystem.updateLastAction(newDoc);
-    
+
     widget.controller.updateDocument(newDoc);
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
     if (_focusNode.hasFocus || _keyboardVisible) return;
     if (_animationController.isAnimating) return;
-    
+
     final dx = details.delta.dx;
-    
+
     setState(() {
       if (widget.isPortrait) {
         _dragOffset += dx;
@@ -455,7 +483,8 @@ class _JournalOverlayState extends State<JournalOverlay>
   Widget build(BuildContext context) {
     _keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
     final isTablet = MediaQuery.of(context).size.shortestSide >= 600;
-    
+    final isFullPage = widget.presentationMode == JournalPresentationMode.page;
+
     // Show archive if requested
     if (_showingArchive) {
       return JournalArchivePage(
@@ -465,15 +494,37 @@ class _JournalOverlayState extends State<JournalOverlay>
         onClose: _closeArchive, // FIXED: Add callback to close archive
       );
     }
-    
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
         if (kDebugMode) {
-          print('[JournalOverlay] layout size=${size.width}x${size.height} portrait=${widget.isPortrait}');
+          print(
+            '[JournalOverlay] layout size=${size.width}x${size.height} portrait=${widget.isPortrait}',
+          );
         }
         if (size.width == 0 || size.height == 0) {
           return const SizedBox.shrink();
+        }
+
+        if (isFullPage) {
+          return Scaffold(
+            backgroundColor: Colors.black,
+            resizeToAvoidBottomInset: false,
+            body: SafeArea(
+              child: Container(
+                color: Colors.black,
+                child: Column(
+                  children: [
+                    _buildHeader(),
+                    if (_showToolbar && _activePane == _JournalPane.journal)
+                      _buildToolbar(),
+                    Expanded(child: _buildContent()),
+                  ],
+                ),
+              ),
+            ),
+          );
         }
 
         return SizedBox.expand(
@@ -494,14 +545,23 @@ class _JournalOverlayState extends State<JournalOverlay>
                       final slideValue = _slideAnimation.value;
                       final currentOffset = _dragOffset * (1 - slideValue);
                       if (kDebugMode) {
-                        print('[JournalOverlay] slide=$slideValue drag=$_dragOffset');
+                        print(
+                          '[JournalOverlay] slide=$slideValue drag=$_dragOffset',
+                        );
                       }
 
                       if (isTablet) return child!;
                       return Transform.translate(
                         offset: widget.isPortrait
-                            ? Offset(-(1 - slideValue) * size.width + currentOffset, 0)
-                            : Offset(0, -(1 - slideValue) * size.height * 0.3 + currentOffset),
+                            ? Offset(
+                                -(1 - slideValue) * size.width + currentOffset,
+                                0,
+                              )
+                            : Offset(
+                                0,
+                                -(1 - slideValue) * size.height * 0.3 +
+                                    currentOffset,
+                              ),
                         child: child,
                       );
                     },
@@ -523,14 +583,20 @@ class _JournalOverlayState extends State<JournalOverlay>
                             width: 1.0,
                           ),
                           borderRadius: widget.isPortrait
-                              ? const BorderRadius.horizontal(right: Radius.circular(16))
-                              : const BorderRadius.vertical(bottom: Radius.circular(16)),
+                              ? const BorderRadius.horizontal(
+                                  right: Radius.circular(16),
+                                )
+                              : const BorderRadius.vertical(
+                                  bottom: Radius.circular(16),
+                                ),
                         ),
                         child: Column(
                           children: [
                             _buildHeader(),
                             // Show the journal toolbar only in Journal mode
-                            if (_showToolbar && _activePane == _JournalPane.journal) _buildToolbar(),
+                            if (_showToolbar &&
+                                _activePane == _JournalPane.journal)
+                              _buildToolbar(),
                             Expanded(child: _buildContent()),
                           ],
                         ),
@@ -560,7 +626,12 @@ class _JournalOverlayState extends State<JournalOverlay>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Flexible(child: _buildTabButton(label: 'Journal', pane: _JournalPane.journal)),
+                Flexible(
+                  child: _buildTabButton(
+                    label: 'Journal',
+                    pane: _JournalPane.journal,
+                  ),
+                ),
               ],
             ),
           ),
@@ -651,9 +722,7 @@ class _JournalOverlayState extends State<JournalOverlay>
   Widget _buildToolbar() {
     return Container(
       decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Color(0xFF333333), width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0xFF333333), width: 1)),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -681,14 +750,15 @@ class _JournalOverlayState extends State<JournalOverlay>
         return JournalDocument.fromJson(map);
       } catch (e) {
         if (kDebugMode) {
-          debugPrint('Failed to parse journal document for ${entry.gregDate}: $e');
+          debugPrint(
+            'Failed to parse journal document for ${entry.gregDate}: $e',
+          );
         }
       }
     }
 
     return JournalDocument.fromPlainText(body);
   }
-
 
   Widget _buildEditor() {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
@@ -703,16 +773,18 @@ class _JournalOverlayState extends State<JournalOverlay>
         child: Column(
           children: [
             // Text area (take remaining space)
-            Expanded(
-              child: _buildTextLayer(),
-            ),
+            Expanded(child: _buildTextLayer()),
             if (_insightLinks.isNotEmpty) ...[
               const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Linked insights',
-                  style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -729,17 +801,26 @@ class _JournalOverlayState extends State<JournalOverlay>
                   children: [
                     RichText(
                       text: TextSpan(
-                        style: const TextStyle(color: Colors.white70, height: 1.4),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          height: 1.4,
+                        ),
                         children: InsightLinkSpanBuilder.build(
                           text: _textController.text,
                           links: _insightLinks,
-                          baseStyle: const TextStyle(color: Colors.white70, height: 1.4),
+                          baseStyle: const TextStyle(
+                            color: Colors.white70,
+                            height: 1.4,
+                          ),
                           onTap: (link) {
-                            final node = KemeticNodeLibrary.resolve(link.targetId);
+                            final node = KemeticNodeLibrary.resolve(
+                              link.targetId,
+                            );
                             if (node == null) return;
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => KemeticNodeReaderPage(node: node),
+                                builder: (_) =>
+                                    KemeticNodeReaderPage(node: node),
                               ),
                             );
                           },
@@ -762,8 +843,9 @@ class _JournalOverlayState extends State<JournalOverlay>
                               deleteIcon: const Icon(Icons.close, size: 16),
                               onDeleted: () => _removeLink(l),
                               backgroundColor: Colors.white.withOpacity(0.08),
-                              labelStyle:
-                                  const TextStyle(color: Colors.white70),
+                              labelStyle: const TextStyle(
+                                color: Colors.white70,
+                              ),
                             ),
                           )
                           .toList(),
@@ -793,7 +875,7 @@ class _JournalOverlayState extends State<JournalOverlay>
               id: 'p-${DateTime.now().millisecondsSinceEpoch}',
               ops: [TextOp(insert: '\n')],
             );
-      
+
       return RichTextEditor(
         key: _richTextEditorKey,
         initialBlock: initialBlock,
@@ -801,7 +883,7 @@ class _JournalOverlayState extends State<JournalOverlay>
         currentAttrs: _currentAttrs,
       );
     }
-    
+
     // Plain text fallback
     return TextField(
       controller: _textController,
@@ -810,11 +892,7 @@ class _JournalOverlayState extends State<JournalOverlay>
       maxLines: null,
       expands: true,
       textAlignVertical: TextAlignVertical.top,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 16,
-        height: 1.5,
-      ),
+      style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
       decoration: const InputDecoration(
         hintText: 'Write your day…',
         hintStyle: TextStyle(color: Color(0xFF666666), fontSize: 16),
@@ -871,7 +949,8 @@ class _JournalOverlayState extends State<JournalOverlay>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: badges.map((token) {
-                              final expanded = _badgeExpansion[token.id] ?? false;
+                              final expanded =
+                                  _badgeExpansion[token.id] ?? false;
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: EventBadgeWidget(

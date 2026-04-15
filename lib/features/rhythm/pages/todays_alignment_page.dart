@@ -12,7 +12,6 @@ import 'package:mobile/core/kemetic_converter.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/profile/profile_page.dart';
-import 'package:mobile/features/rhythm/rhythm_add_flow.dart';
 import 'package:mobile/features/rhythm/rhythm_telemetry.dart';
 import 'package:mobile/features/rhythm/rhythm_user_messages.dart';
 import 'package:mobile/shared/glossy_text.dart';
@@ -23,8 +22,8 @@ import 'package:mobile/core/day_key.dart';
 import '../data/rhythm_repo.dart';
 import '../models/rhythm_models.dart';
 import '../theme/rhythm_theme.dart';
-import '../widgets/alignment_item_row.dart';
 import '../widgets/rhythm_section_card.dart';
+import '../widgets/rhythm_state_button.dart';
 import '../widgets/rhythm_states.dart';
 import '../widgets/rhythm_todo_row.dart';
 
@@ -80,6 +79,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   bool _showGregorianDates = false;
   Timer? _midnightTimer;
   List<NutritionItem> _nutritionItems = [];
+  Set<String> _completedNutritionKeys = <String>{};
   bool _nutritionLoading = true;
   bool _nutritionMissingTable = false;
   String? _nutritionError;
@@ -97,6 +97,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     _future = _load();
     unawaited(_loadNotes());
     unawaited(_loadNutrition());
+    unawaited(_loadNutritionChecks());
     _scheduleMidnightRefresh();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(
@@ -200,7 +201,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     if (_nutritionMissingTable) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Nutrition storage is not available in this environment yet.'),
+          content: Text(
+            'Nutrition storage is not available in this environment yet.',
+          ),
         ),
       );
       return;
@@ -237,6 +240,24 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         const SnackBar(content: Text('Could not save nutrition item.')),
       );
     }
+  }
+
+  Future<List<NutritionItem>> _saveNutritionItemEdits(
+    List<NutritionItem> items,
+  ) async {
+    final savedItems = <NutritionItem>[];
+    for (final item in items) {
+      savedItems.add(await _nutritionRepo.upsert(item));
+    }
+    if (!mounted) return savedItems;
+
+    final savedById = {for (final item in savedItems) item.id: item};
+    setState(() {
+      _nutritionItems = [
+        for (final item in _nutritionItems) savedById[item.id] ?? item,
+      ];
+    });
+    return savedItems;
   }
 
   void _updateAlignment(int index, RhythmItemState state) {
@@ -328,11 +349,41 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   String _prefsKeyForUser(String? uid) =>
       'today_alignment_notes${uid == null ? '' : '_$uid'}';
 
-  String? get _currentUserId =>
-      Supabase.instance.client.auth.currentUser?.id;
+  String? get _currentUserId => Supabase.instance.client.auth.currentUser?.id;
 
-  DateTime get _todayLocal =>
-      DateUtils.dateOnly(DateTime.now());
+  DateTime get _todayLocal => DateUtils.dateOnly(DateTime.now());
+
+  String _nutritionChecksPrefsKeyForUser(String? uid) =>
+      'today_alignment_nutrition_checks${uid == null ? '' : '_$uid'}';
+
+  Future<Set<String>> _loadNutritionChecksFromPrefs([String? uid]) async {
+    final prefs = await SharedPreferences.getInstance();
+    return (prefs.getStringList(
+              _nutritionChecksPrefsKeyForUser(uid ?? _currentUserId),
+            ) ??
+            const <String>[])
+        .toSet();
+  }
+
+  Future<void> _saveNutritionChecksToPrefs(
+    Set<String> checkedKeys, {
+    String? uid,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final values = checkedKeys.toList()..sort();
+    await prefs.setStringList(
+      _nutritionChecksPrefsKeyForUser(uid ?? _currentUserId),
+      values,
+    );
+  }
+
+  Future<void> _loadNutritionChecks() async {
+    final checkedKeys = await _loadNutritionChecksFromPrefs();
+    if (!mounted) return;
+    setState(() {
+      _completedNutritionKeys = checkedKeys;
+    });
+  }
 
   int _decanDayForKemetic(KemeticDate kd) {
     if (kd.epagomenal) {
@@ -352,6 +403,54 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     return DecanMetadata.decanNameFor(kMonth: kd.month, kDay: kd.day);
   }
 
+  DateTime _nutritionDateForPageIndex(int index) {
+    final normalizedToday = _todayLocal;
+    final offset = index - (_currentDecanDay() - 1);
+    return _normalizeDate(normalizedToday.add(Duration(days: offset)));
+  }
+
+  DateTime _nutritionDateForDecanDay(int decanDay) {
+    return _nutritionDateForPageIndex((decanDay.clamp(1, 10)) - 1);
+  }
+
+  String _nutritionCompletionKey(DateTime date, String itemId) {
+    final dateKey = DateFormat('yyyy-MM-dd').format(_normalizeDate(date));
+    return '$dateKey::$itemId';
+  }
+
+  bool _isNutritionItemDone(
+    NutritionItem item, {
+    int? decanDay,
+    DateTime? date,
+  }) {
+    final targetDate =
+        date ??
+        (decanDay != null ? _nutritionDateForDecanDay(decanDay) : _todayLocal);
+    return _completedNutritionKeys.contains(
+      _nutritionCompletionKey(targetDate, item.id),
+    );
+  }
+
+  Future<void> _toggleNutritionItemDone(
+    NutritionItem item, {
+    required int decanDay,
+  }) async {
+    final key = _nutritionCompletionKey(
+      _nutritionDateForDecanDay(decanDay),
+      item.id,
+    );
+    final updatedKeys = Set<String>.from(_completedNutritionKeys);
+    if (updatedKeys.contains(key)) {
+      updatedKeys.remove(key);
+    } else {
+      updatedKeys.add(key);
+    }
+    setState(() {
+      _completedNutritionKeys = updatedKeys;
+    });
+    await _saveNutritionChecksToPrefs(updatedKeys);
+  }
+
   /// Resolves the Kemetic day key for the nutrition pager's active decan day.
   /// We anchor off today's decan so swiping days 1–10 lines up with the
   /// current decan block in the calendar.
@@ -359,7 +458,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     final kd = _kemeticConverter.fromGregorian(_todayLocal);
     final decanDayToday = _currentDecanDay();
     final baseDay = kd.day - (decanDayToday - 1); // day 1 of this decan
-    final targetDay = (baseDay + _activeNutritionDayIndex).clamp(1, kd.epagomenal ? 5 : 30);
+    final targetDay = (baseDay + _activeNutritionDayIndex).clamp(
+      1,
+      kd.epagomenal ? 5 : 30,
+    );
     final kMonth = kd.epagomenal ? 13 : kd.month;
     return kemeticDayKey(kMonth, targetDay);
   }
@@ -395,9 +497,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     return _todoDays[safeIndex];
   }
 
-  Map<DateTime, List<RhythmTodo>> _groupTodosByDay(
-    List<RhythmTodo> todos,
-  ) {
+  Map<DateTime, List<RhythmTodo>> _groupTodosByDay(List<RhythmTodo> todos) {
     final today = _todayLocal;
     final grouped = <DateTime, List<RhythmTodo>>{};
     for (final todo in todos) {
@@ -490,7 +590,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
   String _formatDateLabel(DateTime date, {bool short = false}) {
     if (_showGregorianDates) {
-      final fmt = short ? DateFormat('MMM d, yyyy') : DateFormat('EEEE · MMM d, yyyy');
+      final fmt = short
+          ? DateFormat('MMM d, yyyy')
+          : DateFormat('EEEE · MMM d, yyyy');
       return fmt.format(_normalizeDate(date));
     }
     return _formatKemeticDate(date, short: short);
@@ -524,6 +626,11 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     return items;
   }
 
+  List<NutritionItem> _todayNutritionItems() {
+    final kd = _kemeticConverter.fromGregorian(_todayLocal);
+    return _itemsForDecanDay(_decanDayForKemetic(kd));
+  }
+
   String _presentableText(String value, {String fallback = '—'}) {
     final trimmed = value.trim();
     return trimmed.isEmpty ? fallback : trimmed;
@@ -553,8 +660,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     final today = _todayLocal;
     final updatedMap = {..._todosByDay}..putIfAbsent(today, () => []);
     final orderedDays = _buildTodoDays(updatedMap);
-    final todayIndex =
-        orderedDays.indexWhere((d) => _sameDay(d, today)).clamp(0, orderedDays.length - 1);
+    final todayIndex = orderedDays
+        .indexWhere((d) => _sameDay(d, today))
+        .clamp(0, orderedDays.length - 1);
     setState(() {
       _todoDays = orderedDays;
       _todosByDay = updatedMap;
@@ -574,18 +682,13 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     final uid = _currentUserId;
     if (uid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sign in to view your profile.'),
-        ),
+        const SnackBar(content: Text('Sign in to view your profile.')),
       );
       return;
     }
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ProfilePage(
-          userId: uid,
-          isMyProfile: true,
-        ),
+        builder: (_) => ProfilePage(userId: uid, isMyProfile: true),
       ),
     );
   }
@@ -668,15 +771,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
               todo: todos[i],
               dueTextOverride: _formatTodoDue(todos[i], day),
               dueTextColor: _dateAccentColor(),
-              onStateChanged: (state) =>
-                  unawaited(_persistTodoState(i, state)),
+              onStateChanged: (state) => unawaited(_persistTodoState(i, state)),
             ),
             if (i != todos.length - 1)
-              const Divider(
-                height: 18,
-                thickness: 0.6,
-                color: Colors.white12,
-              ),
+              const Divider(height: 18, thickness: 0.6, color: Colors.white12),
           ],
         ],
       ),
@@ -706,7 +804,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                 id: (decoded['id'] as String?) ?? 'local_$i',
                 text: (decoded['text'] as String?) ?? '',
                 position: (decoded['position'] as num?)?.toInt() ?? i,
-                createdAt: DateTime.tryParse(decoded['createdAt'] as String? ?? '') ??
+                createdAt:
+                    DateTime.tryParse(decoded['createdAt'] as String? ?? '') ??
                     DateTime.now(),
               );
             }
@@ -724,10 +823,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     ];
   }
 
-  Future<void> _saveNotesToPrefs(
-    List<RhythmNote> notes, {
-    String? uid,
-  }) async {
+  Future<void> _saveNotesToPrefs(List<RhythmNote> notes, {String? uid}) async {
     final userKey = _prefsKeyForUser(uid ?? _currentUserId);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(
@@ -1087,8 +1183,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         ),
       );
     }
-    if (_fullscreenPageController?.hasClients == true &&
-        updated.isNotEmpty) {
+    if (_fullscreenPageController?.hasClients == true && updated.isNotEmpty) {
       _fullscreenPageController!.jumpToPage(clampedIndex);
     }
   }
@@ -1151,8 +1246,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         }
       } else if (result.friendlyError != null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(result.friendlyError!)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(result.friendlyError!)));
         return;
       } else if (mounted) {
         setState(() {
@@ -1161,8 +1257,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       }
     }
 
-    final updated = [..._notes]
-      ..[index] = original.copyWith(text: updatedText);
+    final updated = [..._notes]..[index] = original.copyWith(text: updatedText);
     await _syncNotes(updated, activeIndex: index);
   }
 
@@ -1240,14 +1335,16 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     }
 
     final reindexed = _withPositions(updated);
-    await _syncNotes(
-      reindexed,
-      activeIndex: newActive,
-      persistOrder: true,
-    );
+    await _syncNotes(reindexed, activeIndex: newActive, persistOrder: true);
   }
 
-  Widget _buildNutritionTable(List<NutritionItem> items) {
+  Widget _buildNutritionTable(
+    List<NutritionItem> items, {
+    bool editable = false,
+    Map<String, TextEditingController>? nutrientControllers,
+    Map<String, TextEditingController>? sourceControllers,
+    Map<String, TextEditingController>? purposeControllers,
+  }) {
     if (items.isEmpty) {
       return Center(
         child: Text(
@@ -1289,9 +1386,33 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                     .map(
                       (item) => DataRow(
                         cells: [
-                          DataCell(Text(_presentableText(item.nutrient))),
-                          DataCell(Text(_presentableText(item.source))),
-                          DataCell(Text(_presentableText(item.purpose))),
+                          DataCell(
+                            editable
+                                ? _buildNutritionEditableCell(
+                                    controller: nutrientControllers?[item.id],
+                                    hintText: 'Nutrient',
+                                    width: 170,
+                                  )
+                                : Text(_presentableText(item.nutrient)),
+                          ),
+                          DataCell(
+                            editable
+                                ? _buildNutritionEditableCell(
+                                    controller: sourceControllers?[item.id],
+                                    hintText: 'Source',
+                                    width: 220,
+                                  )
+                                : Text(_presentableText(item.source)),
+                          ),
+                          DataCell(
+                            editable
+                                ? _buildNutritionEditableCell(
+                                    controller: purposeControllers?[item.id],
+                                    hintText: 'Purpose',
+                                    width: 220,
+                                  )
+                                : Text(_presentableText(item.purpose)),
+                          ),
                         ],
                       ),
                     )
@@ -1304,73 +1425,327 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
   }
 
-  Future<void> _showNutritionFullscreen(int decanDay, String decanName) async {
-    final items = _itemsForDecanDay(decanDay);
-    await showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Nutrition detail',
-      barrierColor: Colors.black.withValues(alpha: 0.86),
-      transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (context, _, __) {
-        return SafeArea(
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              color: Colors.black.withValues(alpha: 0.94),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      KemeticGold.text(
-                        '$decanName · Day $decanDay',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          fontFamily: 'GentiumPlus',
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: () =>
-                            Navigator.of(context, rootNavigator: true).maybePop(),
-                        icon: const Icon(Icons.close, color: Colors.white70),
-                        tooltip: 'Close',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(child: _buildNutritionTable(items)),
-                ],
-              ),
-            ),
+  Widget _buildNutritionEditableCell({
+    required TextEditingController? controller,
+    required String hintText,
+    required double width,
+  }) {
+    if (controller == null) {
+      return SizedBox(width: width);
+    }
+
+    return SizedBox(
+      width: width,
+      child: TextField(
+        controller: controller,
+        style: RhythmTheme.subheading,
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: RhythmTheme.label.copyWith(color: Colors.white38),
+          isDense: true,
+          filled: true,
+          fillColor: Colors.white.withValues(alpha: 0.05),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 10,
           ),
-        );
-      },
-      transitionBuilder: (context, anim, __, child) {
-        final curved = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
-        return FadeTransition(
-          opacity: curved,
-          child: SlideTransition(
-            position: Tween(
-              begin: const Offset(0, 0.02),
-              end: Offset.zero,
-            ).animate(curved),
-            child: child,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
           ),
-        );
-      },
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: RhythmTheme.aurora),
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _nutritionGridPage({
-    required int index,
-    required String decanName,
-  }) {
+  Future<void> _showNutritionFullscreen(int decanDay, String decanName) async {
+    var dialogItems = _itemsForDecanDay(
+      decanDay,
+    ).map((item) => item.copyWith()).toList();
+    var isEditing = false;
+    var isSaving = false;
+    String? dialogError;
+    final nutrientControllers = <String, TextEditingController>{};
+    final sourceControllers = <String, TextEditingController>{};
+    final purposeControllers = <String, TextEditingController>{};
+
+    void syncControllers(List<NutritionItem> items) {
+      for (final item in items) {
+        nutrientControllers
+                .putIfAbsent(
+                  item.id,
+                  () => TextEditingController(text: item.nutrient),
+                )
+                .text =
+            item.nutrient;
+        sourceControllers
+                .putIfAbsent(
+                  item.id,
+                  () => TextEditingController(text: item.source),
+                )
+                .text =
+            item.source;
+        purposeControllers
+                .putIfAbsent(
+                  item.id,
+                  () => TextEditingController(text: item.purpose),
+                )
+                .text =
+            item.purpose;
+      }
+    }
+
+    void disposeControllers(Map<String, TextEditingController> controllers) {
+      for (final controller in controllers.values) {
+        controller.dispose();
+      }
+    }
+
+    List<NutritionItem> draftItems() {
+      return [
+        for (final item in dialogItems)
+          item.copyWith(
+            nutrient:
+                nutrientControllers[item.id]?.text.trim() ?? item.nutrient,
+            source: sourceControllers[item.id]?.text.trim() ?? item.source,
+            purpose: purposeControllers[item.id]?.text.trim() ?? item.purpose,
+          ),
+      ];
+    }
+
+    syncControllers(dialogItems);
+
+    try {
+      await showGeneralDialog(
+        context: context,
+        barrierDismissible: true,
+        barrierLabel: 'Nutrition detail',
+        barrierColor: Colors.black.withValues(alpha: 0.86),
+        transitionDuration: const Duration(milliseconds: 200),
+        pageBuilder: (dialogContext, animation, secondaryAnimation) {
+          return StatefulBuilder(
+            builder: (modalContext, setModalState) {
+              return SafeArea(
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.94),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: KemeticGold.text(
+                                '$decanName · Day $decanDay',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  fontFamily: 'GentiumPlus',
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (dialogItems.isNotEmpty && !isEditing)
+                              TextButton.icon(
+                                onPressed: () {
+                                  setModalState(() {
+                                    syncControllers(dialogItems);
+                                    dialogError = null;
+                                    isEditing = true;
+                                  });
+                                },
+                                icon: const Icon(Icons.edit_outlined, size: 18),
+                                label: const Text('Edit'),
+                              ),
+                            if (isEditing) ...[
+                              TextButton(
+                                onPressed: isSaving
+                                    ? null
+                                    : () {
+                                        setModalState(() {
+                                          syncControllers(dialogItems);
+                                          dialogError = null;
+                                          isEditing = false;
+                                        });
+                                      },
+                                child: const Text('Cancel'),
+                              ),
+                              const SizedBox(width: 4),
+                              FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: RhythmTheme.aurora,
+                                  foregroundColor: Colors.black,
+                                ),
+                                onPressed: isSaving
+                                    ? null
+                                    : () async {
+                                        final messenger = ScaffoldMessenger.of(
+                                          context,
+                                        );
+                                        setModalState(() {
+                                          dialogError = null;
+                                          isSaving = true;
+                                        });
+
+                                        final updatedItems = draftItems();
+                                        final hasEmptyRequiredRow = updatedItems
+                                            .any(
+                                              (item) =>
+                                                  item.nutrient
+                                                      .trim()
+                                                      .isEmpty &&
+                                                  item.source.trim().isEmpty,
+                                            );
+                                        if (hasEmptyRequiredRow) {
+                                          setModalState(() {
+                                            isSaving = false;
+                                            dialogError =
+                                                'Each row needs at least a nutrient or source.';
+                                          });
+                                          return;
+                                        }
+
+                                        try {
+                                          final savedItems =
+                                              await _saveNutritionItemEdits(
+                                                updatedItems,
+                                              );
+                                          if (!modalContext.mounted) return;
+                                          setModalState(() {
+                                            dialogItems = savedItems;
+                                            syncControllers(dialogItems);
+                                            isEditing = false;
+                                            isSaving = false;
+                                          });
+                                          messenger.showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Updated Day $decanDay nutrition table.',
+                                              ),
+                                            ),
+                                          );
+                                        } catch (_) {
+                                          if (!modalContext.mounted) return;
+                                          setModalState(() {
+                                            isSaving = false;
+                                            dialogError =
+                                                'Could not update nutrition table.';
+                                          });
+                                        }
+                                      },
+                                icon: isSaving
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.black,
+                                              ),
+                                        ),
+                                      )
+                                    : const Icon(Icons.check, size: 18),
+                                label: Text(isSaving ? 'Saving' : 'Save'),
+                              ),
+                              const SizedBox(width: 4),
+                            ],
+                            IconButton(
+                              onPressed: () => Navigator.of(
+                                dialogContext,
+                                rootNavigator: true,
+                              ).maybePop(),
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white70,
+                              ),
+                              tooltip: 'Close',
+                            ),
+                          ],
+                        ),
+                        if (dialogError != null) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.redAccent.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Text(
+                              dialogError!,
+                              style: RhythmTheme.subheading.copyWith(
+                                color: Colors.redAccent,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: _buildNutritionTable(
+                            dialogItems,
+                            editable: isEditing,
+                            nutrientControllers: nutrientControllers,
+                            sourceControllers: sourceControllers,
+                            purposeControllers: purposeControllers,
+                          ),
+                        ),
+                        if (isEditing) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            'Edit the nutrient, source, and purpose fields, then save.',
+                            style: RhythmTheme.label.copyWith(
+                              color: Colors.white54,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+        transitionBuilder: (context, anim, secondaryAnim, child) {
+          final curved = CurvedAnimation(
+            parent: anim,
+            curve: Curves.easeOutCubic,
+          );
+          return FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: Tween(
+                begin: const Offset(0, 0.02),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
+        },
+      );
+    } finally {
+      disposeControllers(nutrientControllers);
+      disposeControllers(sourceControllers);
+      disposeControllers(purposeControllers);
+    }
+  }
+
+  Widget _nutritionGridPage({required int index, required String decanName}) {
     final decanDay = index + 1;
     final items = _itemsForDecanDay(decanDay);
     return GestureDetector(
@@ -1443,7 +1818,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                   : ListView.separated(
                       physics: const BouncingScrollPhysics(),
                       itemCount: items.length,
-                      separatorBuilder: (_, __) => const Divider(
+                      separatorBuilder: (context, index) => const Divider(
                         height: 14,
                         thickness: 0.6,
                         color: Colors.white12,
@@ -1454,26 +1829,27 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                           item.source,
                           fallback: 'Source not set',
                         );
+                        final isDone = _isNutritionItemDone(
+                          item,
+                          decanDay: decanDay,
+                        );
                         return Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Container(
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                color: RhythmTheme.aurora,
-                                borderRadius: BorderRadius.circular(6),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: RhythmTheme.aurora.withValues(
-                                      alpha: 0.4,
-                                    ),
-                                    blurRadius: 12,
-                                    spreadRadius: 1,
-                                  ),
-                                ],
+                            RhythmStateDot(
+                              state: RhythmItemState.done,
+                              isActive: isDone,
+                              onTap: () => unawaited(
+                                _toggleNutritionItemDone(
+                                  item,
+                                  decanDay: decanDay,
+                                ),
                               ),
+                              padding: const EdgeInsets.all(3),
+                              iconSize: 11,
+                              borderRadius: 7,
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 source,
@@ -1516,7 +1892,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   child: Row(
                     children: [
                       Expanded(
@@ -1528,9 +1907,13 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                         ),
                       ),
                       IconButton(
-                        tooltip: _nutritionFormOpen ? 'Hide add form' : 'Show add form',
+                        tooltip: _nutritionFormOpen
+                            ? 'Hide add form'
+                            : 'Show add form',
                         icon: Icon(
-                          _nutritionFormOpen ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
+                          _nutritionFormOpen
+                              ? Icons.keyboard_arrow_down
+                              : Icons.keyboard_arrow_up,
                           color: Colors.white70,
                         ),
                         onPressed: () {
@@ -1558,8 +1941,12 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                           decoration: InputDecoration(
                             labelText: 'Source',
                             hintText: 'e.g., Apple, Supplement, Tea',
-                            labelStyle: RhythmTheme.label.copyWith(color: Colors.white70),
-                            hintStyle: RhythmTheme.label.copyWith(color: Colors.white38),
+                            labelStyle: RhythmTheme.label.copyWith(
+                              color: Colors.white70,
+                            ),
+                            hintStyle: RhythmTheme.label.copyWith(
+                              color: Colors.white38,
+                            ),
                             filled: true,
                             fillColor: Colors.white.withValues(alpha: 0.05),
                             border: OutlineInputBorder(
@@ -1578,8 +1965,12 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                           decoration: InputDecoration(
                             labelText: 'Nutrient (optional)',
                             hintText: 'e.g., Vitamin C, Magnesium',
-                            labelStyle: RhythmTheme.label.copyWith(color: Colors.white70),
-                            hintStyle: RhythmTheme.label.copyWith(color: Colors.white38),
+                            labelStyle: RhythmTheme.label.copyWith(
+                              color: Colors.white70,
+                            ),
+                            hintStyle: RhythmTheme.label.copyWith(
+                              color: Colors.white38,
+                            ),
                             filled: true,
                             fillColor: Colors.white.withValues(alpha: 0.05),
                             border: OutlineInputBorder(
@@ -1598,8 +1989,12 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                           decoration: InputDecoration(
                             labelText: 'Purpose (optional)',
                             hintText: 'e.g., Energy, Sleep, Recovery',
-                            labelStyle: RhythmTheme.label.copyWith(color: Colors.white70),
-                            hintStyle: RhythmTheme.label.copyWith(color: Colors.white38),
+                            labelStyle: RhythmTheme.label.copyWith(
+                              color: Colors.white70,
+                            ),
+                            hintStyle: RhythmTheme.label.copyWith(
+                              color: Colors.white38,
+                            ),
                             filled: true,
                             fillColor: Colors.white.withValues(alpha: 0.05),
                             border: OutlineInputBorder(
@@ -1649,7 +2044,11 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.cloud_off, color: Colors.orangeAccent, size: 18),
+                  const Icon(
+                    Icons.cloud_off,
+                    color: Colors.orangeAccent,
+                    size: 18,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -1669,11 +2068,17 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
               decoration: BoxDecoration(
                 color: Colors.redAccent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+                border: Border.all(
+                  color: Colors.redAccent.withValues(alpha: 0.4),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
+                  const Icon(
+                    Icons.error_outline,
+                    color: Colors.redAccent,
+                    size: 18,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -1899,7 +2304,11 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.cloud_off, color: Colors.orangeAccent, size: 18),
+                  const Icon(
+                    Icons.cloud_off,
+                    color: Colors.orangeAccent,
+                    size: 18,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -1954,8 +2363,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                 right: 8,
                 bottom: 8,
                 child: FloatingActionButton.small(
-                  heroTag:
-                      widget.embedded ? null : 'today_alignment_add_note',
+                  heroTag: widget.embedded ? null : 'today_alignment_add_note',
                   backgroundColor: RhythmTheme.aurora,
                   foregroundColor: Colors.black,
                   onPressed: () => unawaited(_addNote()),
@@ -2224,7 +2632,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             const SizedBox(height: 14),
             RhythmSectionCard(
               title: 'To Do',
-              subtitle: 'Add what you want to move today. Tap below to add.',
+              subtitle:
+                  'Add what you want to move today. Press return or tap Add.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -2245,6 +2654,35 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                           ),
                         ),
                       ),
+                      ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: _commitmentInputController,
+                        builder: (context, value, child) {
+                          final hasText = value.text.trim().isNotEmpty;
+                          return ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: RhythmTheme.aurora,
+                              foregroundColor: Colors.black,
+                              disabledBackgroundColor: Colors.white.withValues(
+                                alpha: 0.08,
+                              ),
+                              disabledForegroundColor: Colors.white38,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: hasText
+                                ? () => unawaited(_commitNewTodo())
+                                : null,
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('Add'),
+                          );
+                        },
+                      ),
+                      if (_sameDay(_activeTodoDay, _todayLocal))
+                        const SizedBox(width: 8),
                       if (_sameDay(_activeTodoDay, _todayLocal))
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -2272,7 +2710,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                     controller: _commitmentInputController,
                     style: RhythmTheme.subheading,
                     decoration: InputDecoration(
-                      hintText: 'Type a commitment, then press return',
+                      hintText:
+                          'Type a commitment, then press return or tap Add',
                       hintStyle: RhythmTheme.subheading.copyWith(
                         color: Colors.white38,
                       ),
@@ -2343,9 +2782,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                   Text(
                     'Swipe to revisit the last 5 days of to-dos.',
                     textAlign: TextAlign.center,
-                    style: RhythmTheme.label.copyWith(
-                      color: Colors.white54,
-                    ),
+                    style: RhythmTheme.label.copyWith(color: Colors.white54),
                   ),
                 ],
               ),
@@ -2364,28 +2801,30 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                         ),
                       ]
                     : _completed()
-                        .map(
-                          (item) => Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6.0),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.check_circle,
-                                  color: Colors.greenAccent,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    item.title,
-                                    style: RhythmTheme.subheading,
+                          .map(
+                            (item) => Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 6.0,
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.greenAccent,
+                                    size: 18,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      item.title,
+                                      style: RhythmTheme.subheading,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        )
-                        .toList(),
+                          )
+                          .toList(),
               ),
             ),
           ],
@@ -2465,19 +2904,23 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   double _progress() {
-    // Primary progress is driven by To Do list completion.
-    if (_todos.isNotEmpty) {
-      final totalTodos = _todos.length.toDouble();
-      final doneTodos = _todos
+    final todayTodos = _todosByDay[_todayLocal] ?? const <RhythmTodo>[];
+    final todayNutrition = _todayNutritionItems();
+    final totalTracked = todayTodos.length + todayNutrition.length;
+
+    if (totalTracked > 0) {
+      final doneTodos = todayTodos
           .where((t) => t.state == RhythmItemState.done)
           .length;
-      final partialTodos = _todos
+      final partialTodos = todayTodos
           .where((t) => t.state == RhythmItemState.partial)
           .length;
-      return (doneTodos + partialTodos * 0.5) / totalTodos;
+      final doneNutrition = todayNutrition
+          .where((item) => _isNutritionItemDone(item, date: _todayLocal))
+          .length;
+      return (doneTodos + partialTodos * 0.5 + doneNutrition) / totalTracked;
     }
 
-    // Fallback: use alignment items if no to-dos exist.
     if (_alignmentItems.isEmpty) return 0;
     final totalAlignment = _alignmentItems.length.toDouble();
     final doneAlignment = _alignmentItems
@@ -2508,10 +2951,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 }
 
 class _DecanInfoPage extends StatelessWidget {
-  const _DecanInfoPage({
-    required this.dayKey,
-    required this.info,
-  });
+  const _DecanInfoPage({required this.dayKey, required this.info});
 
   final String dayKey;
   final KemeticDayInfo info;
@@ -2554,10 +2994,7 @@ class _DecanInfoPage extends StatelessWidget {
                     style: RhythmTheme.label.copyWith(color: Colors.white70),
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    info.cosmicContext,
-                    style: RhythmTheme.subheading,
-                  ),
+                  Text(info.cosmicContext, style: RhythmTheme.subheading),
                   const SizedBox(height: 12),
                   Text(
                     'Medu Neter',
@@ -2566,10 +3003,7 @@ class _DecanInfoPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    info.meduNeter.glyph,
-                    style: RhythmTheme.subheading,
-                  ),
+                  Text(info.meduNeter.glyph, style: RhythmTheme.subheading),
                   const SizedBox(height: 4),
                   Text(
                     info.meduNeter.mantra,
@@ -2581,7 +3015,9 @@ class _DecanInfoPage extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               'Decan Flow',
-              style: RhythmTheme.subheading.copyWith(fontWeight: FontWeight.w700),
+              style: RhythmTheme.subheading.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 8),
             ...info.decanFlow.map(
@@ -2603,10 +3039,7 @@ class _DecanInfoPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      d.action,
-                      style: RhythmTheme.subheading,
-                    ),
+                    Text(d.action, style: RhythmTheme.subheading),
                     const SizedBox(height: 4),
                     Text(
                       d.reflection,
