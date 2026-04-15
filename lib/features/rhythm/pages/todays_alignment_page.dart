@@ -43,9 +43,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   final TextEditingController _commitmentInputController =
       TextEditingController();
   final TextEditingController _noteInputController = TextEditingController();
-  final PageController _todoPageController = PageController(
-    viewportFraction: 0.96,
-  );
+  late PageController _todoPageController;
   final PageController _notePageController = PageController(
     viewportFraction: 0.9,
   );
@@ -86,9 +84,20 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   int _activeNutritionDayIndex = 0;
   bool _nutritionFormOpen = false;
 
+  PageController _buildTodoPageController(int initialPage) {
+    return PageController(viewportFraction: 0.96, initialPage: initialPage);
+  }
+
+  void _resetTodoPageController(int initialPage) {
+    final previous = _todoPageController;
+    _todoPageController = _buildTodoPageController(initialPage);
+    previous.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    _todoPageController = _buildTodoPageController(_activeTodoDayIndex);
     _activeNutritionDayIndex = (_currentDecanDay() - 1).clamp(0, 9);
     _nutritionPageController = PageController(
       viewportFraction: 0.94,
@@ -541,7 +550,13 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       _activeTodoDayIndex = resolvedIndex;
       _todos = grouped[activeDay] ?? [];
     });
-    _requestTodoPage(resolvedIndex);
+    if (_todoPageController.hasClients) {
+      _requestTodoPage(resolvedIndex);
+      return;
+    }
+    if (_todoPageController.initialPage != resolvedIndex) {
+      _resetTodoPageController(resolvedIndex);
+    }
   }
 
   void _updateTodosForDay(DateTime day, List<RhythmTodo> updated) {
