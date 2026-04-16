@@ -32,6 +32,7 @@ import 'features/profile/profile_page.dart';
 import 'features/rhythm/pages/commitment_tracker_page.dart';
 import 'features/rhythm/pages/my_cycle_page.dart';
 import 'features/rhythm/pages/todays_alignment_page.dart';
+import 'features/settings/settings_prefs.dart';
 import 'features/reflections/decan_reflection_detail_page.dart';
 import 'widgets/kemetic_keyboard.dart';
 
@@ -547,25 +548,41 @@ class _AuthGateState extends State<AuthGate> {
         await UserEventsRepo.refreshTelemetrySettings(supabase);
         await _logAppOpenOnce(); // one-shot per cold start
         unawaited(_initNotificationsSafely());
-        if (!kIsWeb) {
-          unawaited(
-            PushNotifications.instance(supabase).registerForUser().then((ok) {
-              if (!ok && kDebugMode) {
-                debugPrint('[push] registerForUser failed');
-              }
-            }),
-          );
-        } else if (kDebugMode) {
-          debugPrint(
-            '[push] registerForUser skipped on web (manual button required)',
-          );
+        final pushEnabled = await SettingsPrefs.realTimeAlertsEnabled();
+        if (pushEnabled) {
+          if (!kIsWeb) {
+            unawaited(
+              PushNotifications.instance(supabase).registerForUser().then((ok) {
+                if (!ok && kDebugMode) {
+                  debugPrint('[push] registerForUser failed');
+                }
+              }),
+            );
+          } else if (kDebugMode) {
+            debugPrint(
+              '[push] registerForUser skipped on web (manual button required)',
+            );
+          }
+        } else {
+          unawaited(PushNotifications.instance(supabase).unregister());
+          if (kDebugMode) {
+            debugPrint(
+              '[push] registerForUser skipped (device push toggle off)',
+            );
+          }
         }
         _installPushNavigation();
         if (!_scheduledDecans) {
           _scheduledDecans = true;
           unawaited(_decanScheduler.ensureCurrentAndNextScheduled());
         }
-        unawaited(_calendarSync?.start());
+        final autoCalendarSyncEnabled =
+            await SettingsPrefs.autoCalendarSyncEnabled();
+        if (autoCalendarSyncEnabled) {
+          unawaited(_calendarSync?.start());
+        } else {
+          _calendarSync?.stop();
+        }
       }
 
       if (ev == AuthChangeEvent.signedOut) {

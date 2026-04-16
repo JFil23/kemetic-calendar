@@ -4181,10 +4181,6 @@ class _CalendarPageState extends State<CalendarPage>
   StreamSubscription<AuthState>? _authSub;
   bool _remindersLoaded = false;
   bool _remindersEnabled = false; // disable floating badges for now
-  bool _settingsCatchUp = true;
-  bool _settingsEndOfDay = true;
-  bool _settingsMissedOnOpen = true;
-  DateTime? _lastSummaryShownDay;
   late final RemindersRepo _remindersRepo = RemindersRepo(
     Supabase.instance.client,
   );
@@ -4219,17 +4215,6 @@ class _CalendarPageState extends State<CalendarPage>
   bool _reflectionInFlight = false;
   bool _archivingReflection = false;
   DateTime? _lastReflectionCheckDay;
-
-  Future<void> _loadReminderSettings() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      setState(() {
-        _settingsCatchUp = prefs.getBool('settings:catchUpReminders') ?? true;
-        _settingsEndOfDay = prefs.getBool('settings:endOfDaySummary') ?? true;
-        _settingsMissedOnOpen = prefs.getBool('settings:missedOnOpen') ?? true;
-      });
-    } catch (_) {}
-  }
 
   /* ───── ClientEventId utilities ───── */
   /// Build a canonical clientEventId using the shared EventCidUtil (URL-encoded).
@@ -4747,8 +4732,6 @@ class _CalendarPageState extends State<CalendarPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-
-    _loadReminderSettings();
     // Load local reminders cache and check any due on startup.
     _reminderService.load().then((_) {
       _remindersLoaded = true;
@@ -5128,8 +5111,6 @@ class _CalendarPageState extends State<CalendarPage>
   Future<void> _checkDueReminders() async {
     if (!_remindersEnabled) return;
     if (!_remindersLoaded || !mounted) return;
-    if (!_settingsCatchUp && !_settingsMissedOnOpen && !_settingsEndOfDay)
-      return;
     try {
       final nowUtc = DateTime.now().toUtc();
       // Use local cache only for now to avoid id mismatches causing reappearing chips
@@ -5156,192 +5137,10 @@ class _CalendarPageState extends State<CalendarPage>
         ].take(5).toList();
         _overlayActive = _floatingReminders.isNotEmpty;
       });
-
-      // End-of-day summary trigger (local only): after 9pm local, show once per day
-      await _maybeShowEndOfDaySummary(due);
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[Reminders] _checkDueReminders failed: $e');
       }
-    }
-  }
-
-  void _showReminderSheet(List<Reminder> due) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF000000),
-      builder: (_) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Reminders',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ...due.map((r) {
-                  final local = r.alertAtUtc.toLocal();
-                  final timeStr =
-                      '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      r.title,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    subtitle: Text(
-                      timeStr +
-                          (r.detail != null && r.detail!.isNotEmpty
-                              ? ' • ${r.detail}'
-                              : ''),
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                    trailing: TextButton(
-                      onPressed: () {
-                        _reminderService.markStatus(
-                          r.id,
-                          ReminderStatus.completed,
-                        );
-                        Navigator.of(context).pop();
-                      },
-                      child: KemeticGold.text(
-                        'Done',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  );
-                }),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: KemeticGold.text(
-                      'Close',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _maybeShowEndOfDaySummary(List<Reminder> dueAll) async {
-    if (!_settingsEndOfDay) return;
-    final now = DateTime.now();
-    final localDate = DateUtils.dateOnly(now);
-    if (now.hour < 21) return; // after 9pm local
-    if (_lastSummaryShownDay != null &&
-        DateUtils.isSameDay(_lastSummaryShownDay, localDate)) {
-      return;
-    }
-
-    List<Reminder> dueToday = dueAll.where((r) {
-      final local = r.alertAtUtc.toLocal();
-      return DateUtils.isSameDay(local, localDate) &&
-          r.status != ReminderStatus.completed;
-    }).toList();
-
-    if (dueToday.isEmpty) {
-      _lastSummaryShownDay = localDate;
-      return;
-    }
-
-    _lastSummaryShownDay = localDate;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF000000),
-      isScrollControlled: true,
-      builder: (_) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Today’s reminders',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ...dueToday.map((r) {
-                  final local = r.alertAtUtc.toLocal();
-                  final timeStr =
-                      '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
-                  return CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: r.status == ReminderStatus.completed,
-                    onChanged: (_) {
-                      _completeReminder(r, addToJournal: false);
-                    },
-                    title: Text(
-                      r.title,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    subtitle: Text(
-                      timeStr +
-                          (r.detail != null && r.detail!.isNotEmpty
-                              ? ' • ${r.detail}'
-                              : ''),
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                    activeColor: KemeticGold.base,
-                    checkColor: Colors.black,
-                  );
-                }),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: KemeticGold.text(
-                      'Close',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildReminderOverlays() {
-    return const SizedBox.shrink();
-  }
-
-  Future<void> _completeReminder(Reminder r, {bool addToJournal = true}) async {
-    try {
-      _reminderService.markStatus(r.id, ReminderStatus.completed);
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[Reminder] completeReminder failed: $e');
-      }
-    }
-    if (mounted) {
-      setState(() {
-        _floatingReminders.removeWhere((x) => x.id == r.id);
-        _overlayActive = _floatingReminders.isNotEmpty;
-      });
     }
   }
 
@@ -19302,26 +19101,43 @@ class _EventsTab extends StatelessWidget {
     required this.onOpenDay,
   });
 
-  Widget _chip(String text, {IconData? icon, Color? color, Color? textColor}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      margin: const EdgeInsets.only(right: 8, bottom: 6),
-      decoration: BoxDecoration(
-        color: Colors.white10,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 12, color: color ?? Colors.white70),
-            const SizedBox(width: 4),
+  Widget _chip(
+    String text, {
+    IconData? icon,
+    Color? color,
+    Color? textColor,
+    double? maxWidth,
+  }) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth ?? double.infinity),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        margin: const EdgeInsets.only(right: 8, bottom: 6),
+        decoration: BoxDecoration(
+          color: Colors.white10,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 12, color: color ?? Colors.white70),
+              const SizedBox(width: 4),
+            ],
+            Flexible(
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                style: TextStyle(
+                  color: textColor ?? Colors.white,
+                  fontSize: 12,
+                ),
+              ),
+            ),
           ],
-          Text(
-            text,
-            style: TextStyle(color: textColor ?? Colors.white, fontSize: 12),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -19343,8 +19159,8 @@ class _EventsTab extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
       itemCount: notes.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (ctx, i) {
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, i) {
         final e = notes[i];
         final g = KemeticMath.toGregorian(kYear, kMonth, e.day);
         final dateLabel = '$monthLabel ${e.day}';
@@ -19353,7 +19169,7 @@ class _EventsTab extends StatelessWidget {
 
         return Container(
           decoration: BoxDecoration(
-            color: e.color.withOpacity(0.2),
+            color: e.color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(12),
             border: Border(left: BorderSide(color: e.color, width: 3)),
           ),
@@ -19381,75 +19197,87 @@ class _EventsTab extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            dateLabel,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            e.displayTitle,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Wrap(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final chipMaxWidth = constraints.maxWidth - 8;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _chip(e.timeLabel, icon: Icons.schedule),
-                              _chip(
-                                gregLabel,
-                                icon: Icons.calendar_today_outlined,
+                              Text(
+                                dateLabel,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                              if (e.flowName != null &&
-                                  e.flowName!.trim().isNotEmpty)
-                                _chip(
-                                  e.flowName!.trim(),
-                                  icon: Icons.auto_awesome,
-                                  color: e.color,
-                                  textColor: e.color,
+                              const SizedBox(height: 4),
+                              Text(
+                                e.displayTitle,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                              if (e.note.isReminder)
-                                _chip(
-                                  'Reminder',
-                                  icon: Icons.notifications_active,
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                children: [
+                                  _chip(
+                                    e.timeLabel,
+                                    icon: Icons.schedule,
+                                    maxWidth: chipMaxWidth,
+                                  ),
+                                  _chip(
+                                    gregLabel,
+                                    icon: Icons.calendar_today_outlined,
+                                    maxWidth: chipMaxWidth,
+                                  ),
+                                  if (e.flowName != null &&
+                                      e.flowName!.trim().isNotEmpty)
+                                    _chip(
+                                      e.flowName!.trim(),
+                                      icon: Icons.auto_awesome,
+                                      color: e.color,
+                                      textColor: e.color,
+                                      maxWidth: chipMaxWidth,
+                                    ),
+                                  if (e.note.isReminder)
+                                    _chip(
+                                      'Reminder',
+                                      icon: Icons.notifications_active,
+                                      maxWidth: chipMaxWidth,
+                                    ),
+                                ],
+                              ),
+                              if ((e.location ?? '').isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  e.location!,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: Colors.white54,
+                                  ),
                                 ),
+                              ],
+                              if ((e.detail ?? '').trim().isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  e.detail!.trim(),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
                             ],
-                          ),
-                          if ((e.location ?? '').isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              e.location!,
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                decoration: TextDecoration.underline,
-                                decorationColor: Colors.white54,
-                              ),
-                            ),
-                          ],
-                          if ((e.detail ?? '').trim().isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              e.detail!.trim(),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ],
+                          );
+                        },
                       ),
                     ),
                   ],
