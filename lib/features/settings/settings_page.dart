@@ -56,8 +56,71 @@ class _SettingsPageState extends State<SettingsPage> {
     await prefs.setBool('settings:usHolidaysEnabled', _usHolidaysEnabled);
   }
 
+  Future<void> _setRealTimeAlerts(bool enabled) async {
+    final client = Supabase.instance.client;
+    final push = PushNotifications.instance(client);
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (enabled && client.auth.currentSession == null) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Sign in to enable notifications on this device.',
+          ),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _realTimeAlerts = enabled;
+      _requestingPush = enabled;
+      _pushStatus = enabled ? null : 'Notifications disabled on this device';
+    });
+    await _save();
+
+    if (!enabled) {
+      await push.unregister();
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('Notifications disabled on this device.'),
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+      return;
+    }
+
+    final token = await push.requestAndRegisterToken();
+    if (!mounted) return;
+
+    final success = token != null;
+    setState(() {
+      _requestingPush = false;
+      _realTimeAlerts = success;
+      _pushStatus = success
+          ? 'Token saved'
+          : 'Permission denied, missing Firebase config, or no token';
+    });
+    await _save();
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Notifications enabled on this device.'
+              : 'Notifications could not be enabled on this device.',
+        ),
+        backgroundColor: success ? Colors.green.shade700 : Colors.red.shade700,
+      ),
+    );
+  }
+
   Future<void> _toggleUsHolidays(bool enabled) async {
     final previous = _usHolidaysEnabled;
+    final messenger = ScaffoldMessenger.of(context);
 
     setState(() {
       _usHolidaysEnabled = enabled;
@@ -73,7 +136,7 @@ class _SettingsPageState extends State<SettingsPage> {
           await calendarState.reloadFromOutside();
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             SnackBar(
               content: Text('Loaded $added US holidays'),
               backgroundColor: Colors.green.shade700,
@@ -86,7 +149,7 @@ class _SettingsPageState extends State<SettingsPage> {
           await calendarState.reloadFromOutside();
         }
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             SnackBar(
               content: const Text('Removed US holiday notes'),
               backgroundColor: Colors.green.shade700,
@@ -100,7 +163,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _usHolidaysEnabled = previous;
         });
         await _save();
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Text(
               e is StateError ? e.message : 'Could not update holidays: $e',
@@ -209,9 +272,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_loading) {
       return const Scaffold(
         backgroundColor: Colors.black,
-        body: Center(
-          child: CircularProgressIndicator(color: KemeticGold.base),
-        ),
+        body: Center(child: CircularProgressIndicator(color: KemeticGold.base)),
       );
     }
 
@@ -234,17 +295,14 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             _sectionTitle('Notifications'),
             SwitchListTile(
-              activeColor: KemeticGold.base,
+              activeThumbColor: KemeticGold.base,
               title: const Text('Real-time alerts (PWA push where supported)'),
               subtitle: const Text(
                 'Requires installed PWA + notification permission on iOS/Android browsers.',
                 style: TextStyle(color: Colors.white60),
               ),
               value: _realTimeAlerts,
-              onChanged: (v) {
-                setState(() => _realTimeAlerts = v);
-                _save();
-              },
+              onChanged: _requestingPush ? null : (v) => _setRealTimeAlerts(v),
             ),
             const SizedBox(height: 8),
             ElevatedButton(
@@ -254,34 +312,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               onPressed: _requestingPush
                   ? null
-                  : () async {
-                      setState(() {
-                        _requestingPush = true;
-                        _pushStatus = null;
-                      });
-                      final client = Supabase.instance.client;
-                      final push = PushNotifications.instance(client);
-                      final token = await push.requestAndRegisterToken();
-                      if (!mounted) return;
-                      setState(() {
-                        _requestingPush = false;
-                        _pushStatus = token == null
-                            ? 'Permission denied or no token'
-                            : 'Token saved';
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            token == null
-                                ? 'Notifications not enabled (grant permission to receive push).'
-                                : 'Notifications enabled on this device.',
-                          ),
-                          backgroundColor: token == null
-                              ? Colors.red.shade700
-                              : Colors.green.shade700,
-                        ),
-                      );
-                    },
+                  : () => _setRealTimeAlerts(true),
               child: Text(
                 _requestingPush
                     ? 'Requesting…'
@@ -298,7 +329,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 8),
             _sectionTitle('Catch-up reminders'),
             SwitchListTile(
-              activeColor: KemeticGold.base,
+              activeThumbColor: KemeticGold.base,
               title: const Text('Show missed reminders on open'),
               subtitle: const Text(
                 'Always available, even if push is disabled.',
@@ -311,7 +342,7 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
             SwitchListTile(
-              activeColor: KemeticGold.base,
+              activeThumbColor: KemeticGold.base,
               title: const Text('End-of-day summary'),
               subtitle: const Text(
                 'Show a daily review modal for incomplete items.',
@@ -324,7 +355,7 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
             SwitchListTile(
-              activeColor: KemeticGold.base,
+              activeThumbColor: KemeticGold.base,
               title: const Text('Catch-up banners during the day'),
               value: _catchUpReminders,
               onChanged: (v) {
@@ -335,7 +366,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 12),
             _sectionTitle('Calendar'),
             SwitchListTile(
-              activeColor: KemeticGold.base,
+              activeThumbColor: KemeticGold.base,
               title: const Text('US holidays'),
               subtitle: Text(
                 _seedingHolidays

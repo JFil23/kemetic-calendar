@@ -14,6 +14,7 @@ enum NotificationType {
   reminder10min('reminder_10min'),
   dailyReview('daily_review'),
   flowStep('flow_step'),
+
   /// Flow-adjacent nudges (shared DB constraint with `flow_reminder`).
   flowReminder('flow_reminder');
 
@@ -31,13 +32,25 @@ class Notify {
   static bool _inited = false;
   static final Set<String> _schedulingInProgress = {};
 
-  /// Generate stable notification ID from clientEventId
-  /// Hash-based approach prevents ID conflicts across app restarts
-  static int _generateStableNotificationId(String clientEventId) {
+  static String _notificationIdentity(
+    String clientEventId,
+    NotificationType type,
+  ) {
+    return '${type.value}::$clientEventId';
+  }
+
+  /// Generate a stable notification ID per logical notification identity.
+  /// This must include notification type so multiple alerts for the same event
+  /// do not overwrite each other locally.
+  static int _generateStableNotificationId(
+    String clientEventId, {
+    NotificationType type = NotificationType.eventStart,
+  }) {
+    final identity = _notificationIdentity(clientEventId, type);
     // Use hashCode for deterministic ID generation
     // Modulo 1M to keep in safe range for iOS/Android
-    final hash = clientEventId.hashCode.abs() % 1000000;
-    
+    final hash = identity.hashCode.abs() % 1000000;
+
     // Ensure ID is never 0 (some platforms don't like it)
     return hash == 0 ? 1 : hash;
   }
@@ -58,47 +71,45 @@ class Notify {
 
     // 1) Timezone DB; we'll schedule in LOCAL timezone
     tzdata.initializeTimeZones();
-    
+
     // Auto-detect timezone using DateTime offset
     final nowLocal = DateTime.now();
     final offset = nowLocal.timeZoneOffset;
-    
+
     String detectedTimezone = 'America/Los_Angeles'; // Default fallback
-    
+
     try {
       final offsetHours = offset.inHours;
       final offsetMinutes = offset.inMinutes.remainder(60);
-      
+
       _log('🌍 Device timezone offset: ${offsetHours}h ${offsetMinutes}m');
-      
+
       // Map common timezones by UTC offset
       final timezoneMap = {
         // US Timezones - Fixed DST handling
-        -8: 'America/Los_Angeles',  // PST (winter)
-        -7: 'America/Los_Angeles',  // PDT (summer) ← FIXED!
-        -6: 'America/Denver',        // MDT (summer) or CST (winter)
-        -5: 'America/Chicago',       // CDT (summer) or EST (winter)
-        -4: 'America/New_York',      // EDT (summer)
-        -10: 'Pacific/Honolulu',     // HST (no DST)
-        -9: 'America/Anchorage',     // AKST/AKDT
-        
+        -8: 'America/Los_Angeles', // PST (winter)
+        -7: 'America/Los_Angeles', // PDT (summer) ← FIXED!
+        -6: 'America/Denver', // MDT (summer) or CST (winter)
+        -5: 'America/Chicago', // CDT (summer) or EST (winter)
+        -4: 'America/New_York', // EDT (summer)
+        -10: 'Pacific/Honolulu', // HST (no DST)
+        -9: 'America/Anchorage', // AKST/AKDT
         // International
-        0: 'Europe/London',          // GMT/BST
-        1: 'Europe/Paris',           // CET/CEST
-        8: 'Asia/Singapore',         // SGT
-        9: 'Asia/Tokyo',             // JST
-        10: 'Australia/Sydney',      // AEST/AEDT
+        0: 'Europe/London', // GMT/BST
+        1: 'Europe/Paris', // CET/CEST
+        8: 'Asia/Singapore', // SGT
+        9: 'Asia/Tokyo', // JST
+        10: 'Australia/Sydney', // AEST/AEDT
       };
-      
+
       detectedTimezone = timezoneMap[offsetHours] ?? 'America/Los_Angeles';
-      
+
       _log('📍 Detected timezone: $detectedTimezone (offset: ${offsetHours}h)');
-      
     } catch (e) {
       _log('⚠️ Timezone detection failed: $e');
       _log('   Using fallback: America/Los_Angeles');
     }
-    
+
     tz.setLocalLocation(tz.getLocation(detectedTimezone));
     _log('Timezones initialized (will use LOCAL timezone: $detectedTimezone)');
 
@@ -122,16 +133,19 @@ class Notify {
     _log('initialize() complete');
 
     // 4) Android 13+ notifications runtime permission
-    final androidSpecific =
-    _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final androidSpecific = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
 
-    final notifGranted = await androidSpecific?.requestNotificationsPermission();
+    final notifGranted = await androidSpecific
+        ?.requestNotificationsPermission();
     _log('requestNotificationsPermission() => $notifGranted');
 
     // 5) Android 12+ exact alarms permission (best effort)
     try {
-      final exactGranted = await androidSpecific?.requestExactAlarmsPermission();
+      final exactGranted = await androidSpecific
+          ?.requestExactAlarmsPermission();
       _log('requestExactAlarmsPermission() => $exactGranted');
     } catch (e) {
       _log('requestExactAlarmsPermission() threw: $e (safe to ignore)');
@@ -164,7 +178,10 @@ class Notify {
     );
 
     const iosDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
 
     _log('show() now => id=999000 title="Test alert"');
     await _plugin.show(
@@ -180,10 +197,7 @@ class Notify {
   }
 
   /// Show an immediate notification without persistence (used for FCM foreground).
-  static Future<void> showInstant({
-    required String title,
-    String? body,
-  }) async {
+  static Future<void> showInstant({required String title, String? body}) async {
     if (!_inited) {
       await init();
     }
@@ -202,7 +216,10 @@ class Notify {
     );
 
     const iosDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
 
     await _plugin.show(
       DateTime.now().millisecondsSinceEpoch.remainder(1000000),
@@ -238,14 +255,18 @@ class Notify {
       await init();
     }
 
+    final notificationIdentity = _notificationIdentity(clientEventId, type);
+
     // FIX #2: Prevent duplicate scheduling
-    if (_schedulingInProgress.contains(clientEventId)) {
-      _log('⚠️ Already scheduling notification for $clientEventId, skipping duplicate');
+    if (_schedulingInProgress.contains(notificationIdentity)) {
+      _log(
+        '⚠️ Already scheduling notification for $notificationIdentity, skipping duplicate',
+      );
       return;
     }
 
     try {
-      _schedulingInProgress.add(clientEventId);
+      _schedulingInProgress.add(notificationIdentity);
 
       final now = DateTime.now();
       final safeWhen = scheduledAt.isAfter(now.add(const Duration(seconds: 3)))
@@ -253,16 +274,26 @@ class Notify {
           : now.add(const Duration(seconds: 5));
 
       // Generate stable notification ID from clientEventId
-      final notificationId = _generateStableNotificationId(clientEventId);
+      final notificationId = _generateStableNotificationId(
+        clientEventId,
+        type: type,
+      );
 
       // Check if existing notification needs update
-      final existing = await _getNotificationByEventId(clientEventId);
+      final existing = await _getNotificationByEventId(
+        clientEventId,
+        type: type,
+      );
       if (existing != null) {
-        _log('Updating existing notification $notificationId for event $clientEventId');
+        _log(
+          'Updating existing notification $notificationId for event $clientEventId',
+        );
         // Cancel old notification
         await _plugin.cancel(notificationId);
       } else {
-        _log('Creating new notification $notificationId for event $clientEventId');
+        _log(
+          'Creating new notification $notificationId for event $clientEventId',
+        );
       }
 
       // Schedule the local notification
@@ -288,7 +319,7 @@ class Notify {
       // Detailed logging happens in _scheduleLocalNotification()
     } finally {
       // Always remove from set, even if error occurs
-      _schedulingInProgress.remove(clientEventId);
+      _schedulingInProgress.remove(notificationIdentity);
     }
   }
 
@@ -299,21 +330,24 @@ class Notify {
     }
 
     try {
-      final notification = await _getNotificationByEventId(clientEventId);
+      final notifications = await _getNotificationsByEventId(clientEventId);
 
-      if (notification != null) {
-        final notificationId = notification['notification_id'] as int;
-
-        // Cancel the local notification
-        await _plugin.cancel(notificationId);
-        _log('Cancelled notification $notificationId');
-
-        // Mark as inactive in database (don't delete for audit trail)
-        await _markNotificationInactive(clientEventId);
-        _log('✅ Notification cancelled for event: $clientEventId');
-      } else {
+      if (notifications.isEmpty) {
         _log('No notification found for event: $clientEventId');
+        return;
       }
+
+      for (final notification in notifications) {
+        final notificationId = notification['notification_id'] as int?;
+        if (notificationId != null) {
+          await _plugin.cancel(notificationId);
+          _log('Cancelled notification $notificationId');
+        }
+      }
+
+      // Mark as inactive in database (don't delete for audit trail)
+      await _markNotificationInactive(clientEventId);
+      _log('✅ Notification cancelled for event: $clientEventId');
     } catch (e) {
       _log('⚠️ Error cancelling notification: $e');
     }
@@ -356,18 +390,7 @@ class Notify {
     }
 
     try {
-      // Generate the notification ID that would have been used
-      final notificationId = _generateStableNotificationId(clientEventId);
-      
-      _log('Canceling notification $notificationId for event $clientEventId');
-      
-      // Cancel from device
-      await _plugin.cancel(notificationId);
-      
-      // Mark as inactive in database
-      await _markNotificationInactive(clientEventId);
-      
-      _log('✅ Canceled notification for $clientEventId');
+      await cancelNotificationForEvent(clientEventId);
     } catch (e) {
       _log('⚠️ Error canceling notification: $e');
     }
@@ -444,8 +467,9 @@ class Notify {
           .map((n) => n['client_event_id'] as String?)
           .whereType<String>()
           .toSet();
-      final existingEventIds =
-          await _existingEventIdsForNotifications(candidateIds);
+      final existingEventIds = await _existingEventIdsForNotifications(
+        candidateIds,
+      );
 
       _log('Rescheduling ${notifications.length} active notifications');
 
@@ -455,7 +479,8 @@ class Notify {
           final scheduledAt = DateTime.parse(notif['scheduled_at'] as String);
           final clientEventId = notif['client_event_id'] as String?;
           final notificationId = notif['notification_id'] as int?;
-          final shouldReschedule = clientEventId != null &&
+          final shouldReschedule =
+              clientEventId != null &&
               clientEventId.isNotEmpty &&
               existingEventIds.contains(clientEventId);
 
@@ -473,7 +498,9 @@ class Notify {
           // Only reschedule future notifications
           if (scheduledAt.isAfter(now)) {
             await _scheduleLocalNotification(
-              id: notificationId ?? _generateStableNotificationId(clientEventId),
+              id:
+                  notificationId ??
+                  _generateStableNotificationId(clientEventId),
               scheduledAt: scheduledAt,
               title: notif['title'] as String,
               body: notif['body'] as String?,
@@ -531,10 +558,10 @@ class Notify {
 
     // iOS compatible configuration - removed presentAlert for consistency
     const iosDetails = DarwinNotificationDetails();
-    
+
     const details = NotificationDetails(
-      android: androidDetails, 
-      iOS: iosDetails
+      android: androidDetails,
+      iOS: iosDetails,
     );
 
     try {
@@ -547,7 +574,7 @@ class Notify {
         payload: payload,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
-      
+
       _log('✅ Notification $id scheduled successfully');
     } catch (e) {
       _log('❌ Error scheduling notification $id: $e');
@@ -584,7 +611,7 @@ class Notify {
         'payload': payload,
         'is_active': true,
         'notification_type': type.value,
-      }, onConflict: 'user_id,client_event_id');
+      }, onConflict: 'user_id,client_event_id,notification_type');
 
       _log('Persisted notification to database: $clientEventId');
     } catch (e) {
@@ -594,27 +621,43 @@ class Notify {
   }
 
   /// **PRIVATE**: Get notification by event ID
-  static Future<Map<String, dynamic>?> _getNotificationByEventId(
-      String clientEventId) async {
+  static Future<List<Map<String, dynamic>>> _getNotificationsByEventId(
+    String clientEventId,
+  ) async {
     try {
       final client = Supabase.instance.client;
       final userId = client.auth.currentUser?.id;
 
-      if (userId == null) return null;
+      if (userId == null) return const <Map<String, dynamic>>[];
 
       final response = await client
           .from('scheduled_notifications')
           .select()
           .eq('user_id', userId)
           .eq('client_event_id', clientEventId)
-          .eq('is_active', true)
-          .maybeSingle();
+          .eq('is_active', true);
 
-      return response;
+      return (response as List)
+          .cast<Map<dynamic, dynamic>>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
     } catch (e) {
-      _log('⚠️ Error fetching notification: $e');
-      return null;
+      _log('⚠️ Error fetching notifications: $e');
+      return const <Map<String, dynamic>>[];
     }
+  }
+
+  static Future<Map<String, dynamic>?> _getNotificationByEventId(
+    String clientEventId, {
+    NotificationType type = NotificationType.eventStart,
+  }) async {
+    final notifications = await _getNotificationsByEventId(clientEventId);
+    for (final notification in notifications) {
+      if ((notification['notification_type'] as String?) == type.value) {
+        return notification;
+      }
+    }
+    return null;
   }
 
   /// **PRIVATE**: Mark notification as inactive
@@ -663,7 +706,9 @@ class Notify {
       payload: payload ?? '{}',
     );
 
-    _log('⚠️ Using deprecated scheduleAlert - consider using scheduleAlertWithPersistence');
+    _log(
+      '⚠️ Using deprecated scheduleAlert - consider using scheduleAlertWithPersistence',
+    );
   }
 
   /// Dump pending notifications for debugging
@@ -682,7 +727,9 @@ class Notify {
     if (pend.isEmpty) {
       _log('⚠️ NO PENDING NOTIFICATIONS!');
       _log('This means notifications are not being scheduled on the device.');
-      _log('Check: Battery optimization, Exact alarm permission, Notification permission');
+      _log(
+        'Check: Battery optimization, Exact alarm permission, Notification permission',
+      );
     }
     _log('========================================');
   }
@@ -694,16 +741,21 @@ class Notify {
     _log('========================================');
 
     try {
-      final androidSpecific = _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+      final androidSpecific = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
 
       if (androidSpecific != null) {
-        final canScheduleExact = await androidSpecific.canScheduleExactNotifications();
+        final canScheduleExact = await androidSpecific
+            .canScheduleExactNotifications();
         _log('✓ Can schedule exact alarms: $canScheduleExact');
 
         if (canScheduleExact == false) {
           _log('⚠️ WARNING: Exact alarms permission NOT granted!');
-          _log('   Go to: Settings → Apps → Your App → Alarms & reminders → Allow');
+          _log(
+            '   Go to: Settings → Apps → Your App → Alarms & reminders → Allow',
+          );
         }
       }
 
@@ -726,7 +778,9 @@ class Notify {
           _log('✓ Database active notifications: ${(dbNotifs as List).length}');
 
           if (pend.length != (dbNotifs as List).length) {
-            _log('⚠️ WARNING: Mismatch between device (${pend.length}) and database (${(dbNotifs as List).length})!');
+            _log(
+              '⚠️ WARNING: Mismatch between device (${pend.length}) and database (${(dbNotifs as List).length})!',
+            );
           }
         } else {
           _log('⚠️ No user logged in - cannot check database');
@@ -734,7 +788,6 @@ class Notify {
       } catch (e) {
         _log('⚠️ Error checking database: $e');
       }
-
     } catch (e) {
       _log('⚠️ Error checking permissions: $e');
     }
@@ -745,32 +798,32 @@ class Notify {
   /// **DEBUG**: Cancel all pending notifications (for debugging)
   static Future<void> debugCancelAll() async {
     if (!_inited) await init();
-    
+
     final pending = await _plugin.pendingNotificationRequests();
     for (final notif in pending) {
       await _plugin.cancel(notif.id);
     }
-    
+
     _log('🗑️ Cancelled ${pending.length} pending notifications');
-    
+
     // Also mark all as inactive in database
     try {
       final client = Supabase.instance.client;
       final userId = client.auth.currentUser?.id;
-      
+
       if (userId != null) {
         await client
             .from('scheduled_notifications')
             .update({'is_active': false})
             .eq('user_id', userId)
             .eq('is_active', true);
-        
+
         _log('✅ Marked all notifications inactive in database');
       }
     } catch (e) {
       _log('⚠️ Error updating database: $e');
     }
-    
+
     // Show final state
     final finalPending = await _plugin.pendingNotificationRequests();
     _log('Final pending notifications: ${finalPending.length}');
@@ -779,7 +832,7 @@ class Notify {
   /// **DEBUG**: Reschedule all from database (for debugging)
   static Future<void> debugRescheduleAll() async {
     if (!_inited) await init();
-    
+
     _log('🔄 Force rescheduling all notifications...');
     await rescheduleAllFromDatabase();
     // Show final state
@@ -792,24 +845,24 @@ class Notify {
     try {
       final client = Supabase.instance.client;
       final userId = client.auth.currentUser?.id;
-      
+
       if (userId == null) {
         _log('❌ No user logged in');
         return;
       }
-      
+
       final response = await client
           .from('scheduled_notifications')
           .select()
           .eq('user_id', userId)
           .order('scheduled_at', ascending: true);
-      
+
       final notifications = response as List<dynamic>;
-      
+
       _log('========================================');
       _log('DATABASE NOTIFICATIONS: ${notifications.length}');
       _log('========================================');
-      
+
       if (notifications.isEmpty) {
         _log('  (No notifications in database)');
       } else {
@@ -833,19 +886,19 @@ class Notify {
   static Future<void> debugCompareDeviceAndDatabase() async {
     _log('🔍 Starting device vs database comparison...');
     _log('');
-    
+
     // First show permissions
     await debugCheckPermissions();
     _log('');
-    
+
     // Show database contents
     await debugDumpDatabase();
     _log('');
-    
+
     // Get device notifications
     final devicePending = await _plugin.pendingNotificationRequests();
     final deviceIds = devicePending.map((n) => n.id).toSet();
-    
+
     _log('========================================');
     _log('DEVICE NOTIFICATIONS: ${devicePending.length}');
     _log('========================================');
@@ -861,7 +914,7 @@ class Notify {
     }
     _log('========================================');
     _log('');
-    
+
     // Compare IDs
     try {
       final client = Supabase.instance.client;
@@ -870,19 +923,21 @@ class Notify {
         _log('⚠️ Cannot compare - no user logged in');
         return;
       }
-      
+
       final dbNotifs = await client
           .from('scheduled_notifications')
           .select()
           .eq('user_id', userId)
           .eq('is_active', true);
-      
-      final dbIds = (dbNotifs as List).map((n) => n['notification_id'] as int).toSet();
-      
+
+      final dbIds = (dbNotifs as List)
+          .map((n) => n['notification_id'] as int)
+          .toSet();
+
       final onlyDevice = deviceIds.difference(dbIds);
       final onlyDb = dbIds.difference(deviceIds);
       final inBoth = deviceIds.intersection(dbIds);
-      
+
       _log('========================================');
       _log('SYNC COMPARISON RESULTS');
       _log('========================================');
@@ -895,27 +950,32 @@ class Notify {
       if (onlyDevice.isNotEmpty) {
         _log('   IDs: $onlyDevice');
         _log('   → These notifications exist on device but not in database');
-        _log('   → May be old notifications or from deprecated scheduleAlert()');
+        _log(
+          '   → May be old notifications or from deprecated scheduleAlert()',
+        );
       }
       _log('');
       _log('⚠️ Only in database: ${onlyDb.length}');
       if (onlyDb.isNotEmpty) {
         _log('   IDs: $onlyDb');
-        _log('   → These notifications are in database but not scheduled on device');
+        _log(
+          '   → These notifications are in database but not scheduled on device',
+        );
         _log('   → This is a sync problem - should reschedule');
       }
       _log('========================================');
-      
+
       // Provide recommendation
       if (onlyDevice.isEmpty && onlyDb.isEmpty) {
         _log('✅ SYNC STATUS: PERFECT - All notifications synced correctly!');
       } else if (onlyDb.isNotEmpty) {
         _log('⚠️ SYNC STATUS: NEEDS RESCHEDULE - Run "Reschedule All" to fix');
       } else if (onlyDevice.isNotEmpty) {
-        _log('⚠️ SYNC STATUS: ORPHANED NOTIFICATIONS - Run "Cancel All" then "Reschedule All"');
+        _log(
+          '⚠️ SYNC STATUS: ORPHANED NOTIFICATIONS - Run "Cancel All" then "Reschedule All"',
+        );
       }
       _log('========================================');
-      
     } catch (e) {
       _log('❌ Error comparing: $e');
     }
