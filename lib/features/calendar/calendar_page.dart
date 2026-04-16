@@ -23875,6 +23875,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       reminderUuid: template.reminderUuid,
     );
 
+    var importedEventCount = 0;
     for (final e in events) {
       final localStart = e.startsAtUtc.toLocal();
       final originDate = _dateOnly(localStart);
@@ -23934,9 +23935,147 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         category: e.category,
         caller: 'saved_flow_import',
       );
+      importedEventCount++;
+    }
+
+    if (importedEventCount == 0 && template.rules.isNotEmpty) {
+      importedEventCount = await _materializeSavedFlowRules(
+        flowId: newId,
+        template: template,
+        startDate: targetStart,
+        endDate: newEnd,
+      );
+    }
+
+    if (kDebugMode) {
+      debugPrint(
+        '[saved_flow_import] Imported flow $newId with $importedEventCount events',
+      );
     }
 
     return newId;
+  }
+
+  Future<int> _materializeSavedFlowRules({
+    required int flowId,
+    required _Flow template,
+    required DateTime startDate,
+    DateTime? endDate,
+  }) async {
+    final scheduleStart = DateUtils.dateOnly(startDate);
+    final scheduleEnd = DateUtils.dateOnly(
+      endDate ?? scheduleStart.add(const Duration(days: 90)),
+    );
+
+    final noteMeta = _decodeSavedFlowImportNotes(template.notes);
+    final noteTitle = template.name.isEmpty ? 'Flow Event' : template.name;
+    final detailWithMeta = _encodeDetailWithMeta(
+      noteMeta.detail,
+      alertMinutes: noteMeta.alertMinutes,
+    );
+
+    var imported = 0;
+    for (
+      var date = scheduleStart;
+      !date.isAfter(scheduleEnd);
+      date = date.add(const Duration(days: 1))
+    ) {
+      final kDate = KemeticMath.fromGregorian(date);
+
+      for (final rule in template.rules) {
+        if (!rule.matches(
+          ky: kDate.kYear,
+          km: kDate.kMonth,
+          kd: kDate.kDay,
+          g: date,
+        )) {
+          continue;
+        }
+
+        final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
+        final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
+        final startsAt = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          startHour,
+          startMinute,
+        );
+
+        DateTime? endsAt;
+        if (!rule.allDay) {
+          if (rule.end != null) {
+            endsAt = DateTime(
+              date.year,
+              date.month,
+              date.day,
+              rule.end!.hour,
+              rule.end!.minute,
+            );
+          } else {
+            endsAt = startsAt.add(const Duration(hours: 1));
+          }
+        }
+
+        final cid = EventCidUtil.buildClientEventId(
+          ky: kDate.kYear,
+          km: kDate.kMonth,
+          kd: kDate.kDay,
+          title: noteTitle,
+          startHour: startHour,
+          startMinute: startMinute,
+          allDay: rule.allDay,
+          flowId: flowId,
+        );
+
+        await _userEventsRepo.upsertByClientId(
+          clientEventId: cid,
+          title: noteTitle,
+          startsAtUtc: startsAt.toUtc(),
+          detail: detailWithMeta ?? noteMeta.detail,
+          location: noteMeta.location,
+          allDay: rule.allDay,
+          endsAtUtc: endsAt?.toUtc(),
+          flowLocalId: flowId,
+          caller: 'saved_flow_import_rules',
+        );
+        imported++;
+      }
+    }
+
+    return imported;
+  }
+
+  ({String? detail, String? location, int? alertMinutes})
+  _decodeSavedFlowImportNotes(String? rawNotes) {
+    if (rawNotes == null || rawNotes.isEmpty) {
+      return (detail: null, location: null, alertMinutes: null);
+    }
+
+    try {
+      final meta = jsonDecode(rawNotes) as Map<String, dynamic>;
+      if (meta['kind'] == 'repeating_note') {
+        return (
+          detail: (meta['detail'] as String?)?.trim(),
+          location: (meta['location'] as String?)?.trim(),
+          alertMinutes: (meta['alertMinutes'] as num?)?.toInt(),
+        );
+      }
+    } catch (_) {
+      // Fall through to legacy note decoding.
+    }
+
+    try {
+      final decoded = notesDecode(rawNotes);
+      final overview = decoded.overview.trim();
+      return (
+        detail: overview.isEmpty ? null : overview,
+        location: null,
+        alertMinutes: null,
+      );
+    } catch (_) {
+      return (detail: null, location: null, alertMinutes: null);
+    }
   }
 
   Future<void> _handleImportSaved(_Flow flow) async {
@@ -25782,28 +25921,31 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
             '${widget.fmtGregorian(f.start)} → ${widget.fmtGregorian(f.end)}';
 
         return ListTile(
-          onTap: () {
-            Navigator.of(context)
-                .push(
-                  MaterialPageRoute(
-                    builder: (_) => _FlowPreviewPage(
-                      flow: f,
-                      flowSequence: items,
-                      initialIndex: i,
-                      getDecanLabel: (km, di) =>
-                          (DecanMetadata.decanNames[km] ??
-                          const ['I', 'II', 'III'])[di],
-                      fmt: widget.fmtGregorian,
-                      onEdit: (flow) => widget.onEditFlow(flow.id),
-                      onAppendToJournal: widget.onAppendToJournal,
-                      onEndMaatFlow: (flow) {
-                        widget.onEndFlow(flow.id);
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                  ),
-                )
-                .then((_) => setState(() {}));
+          onTap: () async {
+            final importedFlowId = await Navigator.of(context).push<int?>(
+              MaterialPageRoute(
+                builder: (_) => _FlowPreviewPage(
+                  flow: f,
+                  flowSequence: items,
+                  initialIndex: i,
+                  getDecanLabel: (km, di) =>
+                      (DecanMetadata.decanNames[km] ??
+                      const ['I', 'II', 'III'])[di],
+                  fmt: widget.fmtGregorian,
+                  onEdit: (flow) => widget.onEditFlow(flow.id),
+                  onAppendToJournal: widget.onAppendToJournal,
+                  onEndMaatFlow: (flow) {
+                    widget.onEndFlow(flow.id);
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ),
+            );
+            if (!mounted) return;
+            if (importedFlowId != null) {
+              await widget.onImportFlow?.call(importedFlowId);
+            }
+            setState(() {});
           },
 
           leading: Container(

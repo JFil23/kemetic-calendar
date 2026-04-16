@@ -2341,6 +2341,9 @@ class _DayViewGridState extends State<DayViewGrid> {
       final blocks = groups[key]!;
       final top = (blocks.first.event.startMin % 60).toDouble();
       final count = blocks.length;
+      final rowHitHeight = blocks
+          .map((block) => _eventHitHeight(block.event))
+          .fold<double>(0, math.max);
 
       if (count <= 3) {
         double width;
@@ -2366,7 +2369,10 @@ class _DayViewGridState extends State<DayViewGrid> {
             Positioned(
               left: 60 + lefts[i],
               top: top,
-              child: _buildInteractiveEvent(adjusted),
+              child: _buildInteractiveEvent(
+                adjusted,
+                hitHeight: rowHitHeight,
+              ),
             ),
           );
         }
@@ -2379,9 +2385,13 @@ class _DayViewGridState extends State<DayViewGrid> {
             top: top,
             child: SizedBox(
               width: availableWidth,
+              height: rowHitHeight,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
+                dragStartBehavior: DragStartBehavior.down,
+                physics: const ClampingScrollPhysics(),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     for (int i = 0; i < blocks.length; i++) ...[
                       _buildInteractiveEvent(
@@ -2390,6 +2400,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                           leftOffset: 0,
                           width: width,
                         ),
+                        hitHeight: rowHitHeight,
                       ),
                       if (i != blocks.length - 1) SizedBox(width: gap),
                     ],
@@ -2526,15 +2537,32 @@ class _DayViewGridState extends State<DayViewGrid> {
     return draggable;
   }
 
-  Widget _buildInteractiveEvent(PositionedEventBlock block) {
+  Widget _buildInteractiveEvent(
+    PositionedEventBlock block, {
+    double? hitHeight,
+  }) {
     final event = block.event;
     final isPreview = _isPreviewBlock(block);
+    final effectiveHitHeight = math.max(
+      hitHeight ?? _eventHitHeight(event),
+      _eventHitHeight(event),
+    );
+    final effectiveHitWidth = block.width + 4;
 
     if (isPreview) {
       return IgnorePointer(child: _buildEventBlock(block, isPreview: true));
     }
 
+    Widget buildHitTarget(Widget child) {
+      return SizedBox(
+        width: effectiveHitWidth,
+        height: effectiveHitHeight,
+        child: Align(alignment: Alignment.topLeft, child: child),
+      );
+    }
+
     if (!_isEventDraggable(event)) {
+      final visual = _buildEventBlock(block, isPreview: false);
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => _showEventDetail(event),
@@ -2547,8 +2575,14 @@ class _DayViewGridState extends State<DayViewGrid> {
             ),
           );
         },
-        child: _buildEventBlock(block, isPreview: false),
+        child: buildHitTarget(visual),
       );
+    }
+
+    Widget buildVisual({double? opacity}) {
+      final visual = _buildEventBlock(block, isPreview: false);
+      if (opacity == null) return visual;
+      return Opacity(opacity: opacity, child: visual);
     }
 
     return LongPressDraggable<_DragPayload>(
@@ -2556,14 +2590,10 @@ class _DayViewGridState extends State<DayViewGrid> {
       delay: const Duration(milliseconds: 350),
       feedback: Material(
         color: Colors.transparent,
-        child: Opacity(
-          opacity: 0.8,
-          child: _buildEventBlock(block, isPreview: false),
-        ),
+        child: buildVisual(opacity: 0.8),
       ),
-      childWhenDragging: Opacity(
-        opacity: 0.35,
-        child: _buildEventBlock(block, isPreview: false),
+      childWhenDragging: buildHitTarget(
+        buildVisual(opacity: 0.35),
       ),
       onDragUpdate: (details) => _handleDragUpdate(event, details),
       onDragStarted: () {
@@ -2593,21 +2623,47 @@ class _DayViewGridState extends State<DayViewGrid> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => _showEventDetail(event),
-        child: _buildEventBlock(block, isPreview: false),
+        child: buildHitTarget(buildVisual()),
       ),
     );
   }
+
+  double _eventVisualHeight(EventItem event) {
+    final bool showTitle = event.title.trim().isNotEmpty;
+    final bool showLocation =
+        event.location != null && event.location!.trim().isNotEmpty;
+    final double textScale =
+        MediaQuery.maybeOf(context)?.textScaleFactor ?? 1.0;
+
+    int durationMinutes = event.endMin - event.startMin;
+    if (durationMinutes <= 0) {
+      durationMinutes = 15;
+    }
+    if (durationMinutes > 180) {
+      durationMinutes = 180;
+    }
+
+    final int reminderLineCount = (showTitle ? 1 : 0) + (showLocation ? 1 : 0);
+    final double reminderHeight = math.max(
+      _kMinEventBlockHeight / 2,
+      (reminderLineCount * (14.0 * textScale)) + 12,
+    );
+
+    if (event.isReminder) {
+      return reminderHeight;
+    }
+
+    final double rawHeight = durationMinutes.toDouble();
+    return rawHeight < _kMinEventBlockHeight ? _kMinEventBlockHeight : rawHeight;
+  }
+
+  double _eventHitHeight(EventItem event) => _eventVisualHeight(event) + 2;
 
   Widget _buildEventBlock(
     PositionedEventBlock block, {
     bool isPreview = false,
   }) {
     final event = block.event;
-    final bool showTitle = event.title.trim().isNotEmpty;
-    final bool showLocation =
-        event.location != null && event.location!.trim().isNotEmpty;
-    final double textScale =
-        MediaQuery.maybeOf(context)?.textScaleFactor ?? 1.0;
 
     // 🔍 DEBUG: Log block being rendered
     if (kDebugMode) {
@@ -2616,34 +2672,8 @@ class _DayViewGridState extends State<DayViewGrid> {
       );
     }
 
-    // ✅ FIX #2A: Calculate and clamp duration to prevent giant blocks
-    int durationMinutes = event.endMin - event.startMin;
-
-    // Fix garbage durations:
-    // - if negative or zero -> minimum 15 min just so it's tappable
-    if (durationMinutes <= 0) {
-      durationMinutes = 15;
-    }
-
-    // - if way too long (overnight / malformed) -> cap at 180 min (3h) visually
-    if (durationMinutes > 180) {
-      durationMinutes = 180;
-    }
-
-    // Reminders: start at half a block, but expand for extra lines / text scale to avoid overflow.
-    final int reminderLineCount = (showTitle ? 1 : 0) + (showLocation ? 1 : 0);
-    final double reminderHeight = math.max(
-      _kMinEventBlockHeight / 2,
-      (reminderLineCount * (14.0 * textScale)) + 12,
-    );
-
-    final double height = event.isReminder
-        ? reminderHeight
-        : () {
-            final double rawHeight = durationMinutes.toDouble();
-            final double minHeight = _kMinEventBlockHeight;
-            return rawHeight < minHeight ? minHeight : rawHeight;
-          }();
+    final int durationMinutes = (event.endMin - event.startMin).clamp(15, 180);
+    final double height = _eventVisualHeight(event);
 
     final fillColor = isPreview
         ? event.color.withOpacity(0.12)

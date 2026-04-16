@@ -41,47 +41,57 @@ class KemeticKeyboardController extends ChangeNotifier {
   }
 
   void attachEditable(EditableTextState? editable) {
-    if (editable != null && editable.mounted) {
-      _editable = editable;
-      _lastEditable = editable;
-    } else if (!isOpen) {
-      // Only clear when the custom keyboard is not showing; keep the last known
-      // editable while open to survive transient blur (notably on iOS PWA).
-      _editable = null;
-    }
-    notifyListeners();
+    final nextEditable = _isUsable(editable)
+        ? editable
+        : (isOpen ? _editable : null);
+    final nextLastEditable = _isUsable(editable) ? editable : _lastEditable;
+    final changed =
+        !identical(_editable, nextEditable) ||
+        !identical(_lastEditable, nextLastEditable);
+    _editable = nextEditable;
+    _lastEditable = nextLastEditable;
+    if (changed) notifyListeners();
   }
 
   void beginOpening() {
+    if (_opening) return;
     _opening = true;
-  }
-
-  void endOpening({required bool success}) {
-    _opening = false;
-    if (success && _editable != null) {
-      _mode = KeyboardMode.custom;
-    }
     notifyListeners();
   }
 
+  void endOpening({required bool success}) {
+    final target = _selectUsableEditable();
+    final nextMode =
+        success && target != null ? KeyboardMode.custom : KeyboardMode.system;
+    final changed = _opening || _mode != nextMode;
+    _opening = false;
+    _mode = nextMode;
+    if (changed) notifyListeners();
+  }
+
   void open() {
-    if (_editable == null) return;
+    if (_selectUsableEditable() == null) return;
+    if (_mode == KeyboardMode.custom && !_opening) return;
     _mode = KeyboardMode.custom;
+    _opening = false;
     notifyListeners();
   }
 
   void close() {
-    if (_mode == KeyboardMode.system) return;
+    if (_mode == KeyboardMode.system && !_opening) return;
     _mode = KeyboardMode.system;
+    _opening = false;
     notifyListeners();
   }
 
   void closeAndClearTargets() {
     final changed =
         _mode == KeyboardMode.custom ||
+        _opening ||
         _editable != null ||
         _lastEditable != null;
     _mode = KeyboardMode.system;
+    _opening = false;
     _editable = null;
     _lastEditable = null;
     if (changed) notifyListeners();
@@ -97,30 +107,48 @@ class KemeticKeyboardController extends ChangeNotifier {
     final target = _selectUsableEditable();
     if (target == null) return;
 
-    final controller = target.widget.controller;
-    final selection = controller.selection;
-    final text = controller.text;
+    final newValue = _buildInsertedValue(
+      target.widget.controller.value,
+      value,
+      mode,
+    );
 
-    final start = selection.start < 0
-        ? text.length
-        : min(selection.start, selection.end);
-    final end = selection.end < 0
-        ? text.length
-        : max(selection.start, selection.end);
+    // Route edits through EditableText so input formatters, listeners, and
+    // selection handling behave like real keyboard input.
+    target.userUpdateTextEditingValue(newValue, SelectionChangedCause.keyboard);
+    target.bringIntoView(newValue.selection.extent);
+    attachEditable(target);
+  }
+
+  TextEditingValue _buildInsertedValue(
+    TextEditingValue currentValue,
+    String value,
+    _OutputMode mode,
+  ) {
+    final text = currentValue.text;
+    final selection = currentValue.selection;
+    final start = selection.isValid
+        ? min(selection.start, selection.end)
+        : text.length;
+    final end = selection.isValid
+        ? max(selection.start, selection.end)
+        : text.length;
 
     final insertValue = mode == _OutputMode.scholarly
         ? _normalizeToUnicode(value)
         : _normalizeToAscii(value);
+    final rawNewText = text.replaceRange(start, end, insertValue);
+    final normalizedText = mode == _OutputMode.scholarly
+        ? _normalizeToUnicode(rawNewText)
+        : _normalizeToAscii(rawNewText);
+    final rawCursorText = rawNewText.substring(0, start + insertValue.length);
+    final normalizedCursorText = mode == _OutputMode.scholarly
+        ? _normalizeToUnicode(rawCursorText)
+        : _normalizeToAscii(rawCursorText);
+    final newOffset = normalizedCursorText.length.clamp(0, normalizedText.length);
 
-    var newText = text.replaceRange(start, end, insertValue);
-    newText = mode == _OutputMode.scholarly
-        ? _normalizeToUnicode(newText)
-        : _normalizeToAscii(newText);
-
-    final newOffset = start + insertValue.length;
-
-    controller.value = controller.value.copyWith(
-      text: newText,
+    return currentValue.copyWith(
+      text: normalizedText,
       selection: TextSelection.collapsed(offset: newOffset),
       composing: TextRange.empty,
     );
@@ -143,7 +171,10 @@ class KemeticKeyboardController extends ChangeNotifier {
   }
 
   bool _isUsable(EditableTextState? editable) {
-    return editable != null && editable.mounted && editable.context.mounted;
+    return editable != null &&
+        editable.mounted &&
+        editable.context.mounted &&
+        !editable.widget.readOnly;
   }
 }
 
@@ -255,10 +286,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
     _opening = true;
     _controller.beginOpening();
     _controller.ensureEditableFromFocus();
-    final target =
-        _controller.editable ??
-        _controller.lastEditable ??
-        _controller.editable;
+    final target = _controller.editable ?? _controller.lastEditable;
     if (target == null) {
       _controller.endOpening(success: false);
       _opening = false;
@@ -400,31 +428,36 @@ class _KeyboardToggleState extends State<_KeyboardToggle> {
           left: positionedOffset.dx,
           top: positionedOffset.dy,
           child: AnimatedOpacity(
+            key: const ValueKey('kemetic-toggle-opacity'),
             duration: const Duration(milliseconds: 180),
             opacity: show ? 1 : 0,
             child: IgnorePointer(
+              key: const ValueKey('kemetic-toggle-ignore-pointer'),
               ignoring: !show,
-              child: GestureDetector(
-                onPanStart: (_) => _updateSize(),
-                onPanUpdate: (details) {
-                  final next = _clampOffset(
-                    (_customOffset ?? targetOffset) + details.delta,
-                    screenSize,
-                    padding,
-                  );
-                  setState(() {
-                    _customOffset = next;
-                  });
-                },
-                child: FloatingActionButton.extended(
-                  key: _fabKey,
-                  heroTag: 'kemeticKeyboardToggle',
-                  backgroundColor: colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.95),
-                  foregroundColor: colorScheme.onSurfaceVariant,
-                  icon: const Icon(Icons.translate_outlined),
-                  label: const Text('Medu Neter'),
-                  onPressed: widget.onOpenCustom,
+              child: KeyedSubtree(
+                key: const ValueKey('kemetic-toggle-hit-target'),
+                child: GestureDetector(
+                  onPanStart: (_) => _updateSize(),
+                  onPanUpdate: (details) {
+                    final next = _clampOffset(
+                      (_customOffset ?? targetOffset) + details.delta,
+                      screenSize,
+                      padding,
+                    );
+                    setState(() {
+                      _customOffset = next;
+                    });
+                  },
+                  child: FloatingActionButton.extended(
+                    key: _fabKey,
+                    heroTag: 'kemeticKeyboardToggle',
+                    backgroundColor: colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.95),
+                    foregroundColor: colorScheme.onSurfaceVariant,
+                    icon: const Icon(Icons.translate_outlined),
+                    label: const Text('Medu Neter'),
+                    onPressed: widget.onOpenCustom,
+                  ),
                 ),
               ),
             ),
@@ -473,6 +506,7 @@ class _KeyboardPanelState extends State<_KeyboardPanel> {
           child: Padding(
             padding: EdgeInsets.fromLTRB(12, 0, 12, 12 + bottomPadding),
             child: Material(
+              key: const ValueKey('kemetic-keyboard-panel'),
               elevation: 14,
               color: colorScheme.surface.withValues(alpha: 0.98),
               borderRadius: BorderRadius.circular(18),
@@ -635,6 +669,7 @@ class _PhonogramKey extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.92),
         child: InkWell(
+          key: ValueKey('kemetic-key-$displayValue'),
           onTap: () => controller._insert(displayValue, outputMode),
           borderRadius: BorderRadius.circular(10),
           child: Center(
