@@ -7,7 +7,7 @@ import 'flow_share_snapshot.dart';
 /// Suggested schedule for shared flows
 class SuggestedSchedule {
   final String startDate;
-  final List<int> weekdays; // 0=Sunday, 1=Monday, etc.
+  final List<int> weekdays; // accepts either 0..6 (Sun..Sat) or 1..7 (Mon..Sun)
   final bool everyOtherDay;
   final int? perWeek; // null = every occurrence, 1-4 = every Nth occurrence
   final Map<String, String> timesByWeekday; // weekday -> time (e.g., "1" -> "09:00")
@@ -17,29 +17,110 @@ class SuggestedSchedule {
     required this.weekdays,
     this.everyOtherDay = false,
     this.perWeek,
-    this.timesByWeekday = const {},  // ✅ Made optional with default empty map
+    this.timesByWeekday = const {},
   });
 
   factory SuggestedSchedule.fromJson(Map<String, dynamic> json) {
+    final rawStartDate = json['start_date'] ?? json['startDate'];
     return SuggestedSchedule(
-      startDate: json['start_date'] as String,  // ✅ Changed from 'startDate' to 'start_date'
-      weekdays: List<int>.from(json['weekdays'] as List),
-      everyOtherDay: json['every_other_day'] as bool? ?? false,  // ✅ Changed from 'everyOtherDay', made nullable
-      perWeek: json['per_week'] as int?,  // ✅ Changed from 'perWeek' to 'per_week'
-      timesByWeekday: json['times_by_weekday'] != null  // ✅ Changed from 'timesByWeekday', added null check
-          ? Map<String, String>.from(json['times_by_weekday'] as Map)
-          : {},  // Return empty map if not provided
+      startDate: rawStartDate is String ? rawStartDate.trim() : '',
+      weekdays: _parseWeekdays(json['weekdays']),
+      everyOtherDay: _parseBool(
+        json['every_other_day'] ?? json['everyOtherDay'],
+      ),
+      perWeek: _parseInt(json['per_week'] ?? json['perWeek']),
+      timesByWeekday: _parseTimesByWeekday(
+        json['times_by_weekday'] ?? json['timesByWeekday'],
+      ),
     );
+  }
+
+  String? get normalizedStartDate {
+    final trimmed = startDate.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  List<String> get weekdayLabels {
+    return weekdays.map(_weekdayLabel).toList(growable: false);
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'start_date': startDate,  // ✅ Using snake_case for database compatibility
+      'start_date': startDate,
       'weekdays': weekdays,
-      'every_other_day': everyOtherDay,  // ✅ Using snake_case
-      'per_week': perWeek,  // ✅ Using snake_case
-      'times_by_weekday': timesByWeekday,  // ✅ Using snake_case
+      'every_other_day': everyOtherDay,
+      'per_week': perWeek,
+      'times_by_weekday': timesByWeekday,
     };
+  }
+
+  static bool _parseBool(Object? raw) {
+    if (raw is bool) return raw;
+    if (raw is num) return raw != 0;
+    if (raw is String) {
+      switch (raw.trim().toLowerCase()) {
+        case '1':
+        case 'true':
+        case 'yes':
+          return true;
+        default:
+          return false;
+      }
+    }
+    return false;
+  }
+
+  static int? _parseInt(Object? raw) {
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    if (raw is String) return int.tryParse(raw.trim());
+    return null;
+  }
+
+  static List<int> _parseWeekdays(Object? raw) {
+    if (raw is! List) return const [];
+
+    final parsed = <int>[];
+    final seen = <int>{};
+    for (final item in raw) {
+      final day = _parseInt(item);
+      if (day == null) continue;
+      if (!_isSupportedWeekday(day)) continue;
+      if (seen.add(day)) {
+        parsed.add(day);
+      }
+    }
+    return parsed;
+  }
+
+  static Map<String, String> _parseTimesByWeekday(Object? raw) {
+    if (raw is! Map) return const {};
+
+    final times = <String, String>{};
+    for (final entry in raw.entries) {
+      final key = entry.key.toString().trim();
+      final value = entry.value?.toString().trim() ?? '';
+      if (key.isEmpty || value.isEmpty) continue;
+      times[key] = value;
+    }
+    return times;
+  }
+
+  static bool _isSupportedWeekday(int value) {
+    return (value >= 0 && value <= 6) || (value >= 1 && value <= 7);
+  }
+
+  static String _weekdayLabel(int value) {
+    const zeroBased = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const oneBased = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    if (value >= 0 && value <= 6) {
+      return zeroBased[value];
+    }
+    if (value >= 1 && value <= 7) {
+      return oneBased[value - 1];
+    }
+    return 'Day $value';
   }
 }
 
@@ -323,7 +404,6 @@ class InboxShareItem {
     }
   }
 }
-
 
 
 

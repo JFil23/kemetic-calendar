@@ -32,6 +32,12 @@ const Color _landscapeSurface = Color(0xFF0D0D0F); // Dark surface
 const Color _landscapeDivider = Color(0xFF1A1A1A); // Divider lines
 const double kLandscapeHeaderHeight = 58.0; // Day number header height
 
+void _logLandscape(String message) {
+  if (kDebugMode) {
+    debugPrint(message);
+  }
+}
+
 class _LandscapeDragPayload {
   final EventItem event;
   final int day;
@@ -62,8 +68,14 @@ class LandscapeMonthView extends StatelessWidget {
   final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
   onEditNote;
-  final Future<void> Function(int ky, int km, int kd, EventItem evt, int newStartMin)?
-      onMoveEventTime;
+  final Future<void> Function(
+    int ky,
+    int km,
+    int kd,
+    EventItem evt,
+    int newStartMin,
+  )?
+  onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final CreateNutritionReminder? onCreateReminder;
@@ -139,8 +151,14 @@ class LandscapeMonthPager extends StatefulWidget {
   final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
   onEditNote;
-  final Future<void> Function(int ky, int km, int kd, EventItem evt, int newStartMin)?
-      onMoveEventTime;
+  final Future<void> Function(
+    int ky,
+    int km,
+    int kd,
+    EventItem evt,
+    int newStartMin,
+  )?
+  onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final CreateNutritionReminder? onCreateReminder;
@@ -337,7 +355,9 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
         _actualMonth = _fromTotalMonths(total);
       }
       if (kDebugMode && _suppressRemap) {
-        print('✓ [PAGER] Updated base during suppression: $oldBase → $newBase');
+        _logLandscape(
+          '✓ [PAGER] Updated base during suppression: $oldBase → $newBase',
+        );
       }
       return;
     }
@@ -349,9 +369,9 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     final newPage = _centerPage + newDelta;
 
     if (kDebugMode) {
-      print('🔄 [PAGER] Base changed: $oldBase → $newBase');
-      print('   Preserving absolute month: $curTotal');
-      print('   New page: $newPage');
+      _logLandscape('🔄 [PAGER] Base changed: $oldBase → $newBase');
+      _logLandscape('   Preserving absolute month: $curTotal');
+      _logLandscape('   New page: $newPage');
     }
 
     if (_pageController.hasClients && newPage != _currentPage) {
@@ -361,14 +381,14 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
       _actualMonth = _monthForPage(newPage);
 
       if (kDebugMode) {
-        print('✓ [PAGER] Remap complete');
+        _logLandscape('✓ [PAGER] Remap complete');
       }
     }
 
     // When callback becomes available, force PageView to rebuild current page
     if (oldWidget.onAddNote == null && widget.onAddNote != null) {
       if (kDebugMode) {
-        print('⚡ [PAGER] Callback just arrived! Forcing rebuild...');
+        _logLandscape('⚡ [PAGER] Callback just arrived! Forcing rebuild...');
       }
       setState(() {
         // This will cause PageView.builder to call itemBuilder again
@@ -536,7 +556,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
                 onPressed: widget.onManageFlows != null
                     ? () {
                         if (kDebugMode) {
-                          print('🔘 [LANDSCAPE] Flow Studio tapped');
+                          _logLandscape('🔘 [LANDSCAPE] Flow Studio tapped');
                         }
                         widget.onManageFlows!(null);
                       }
@@ -550,7 +570,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
                 onPressed: widget.onAddNote != null
                     ? () {
                         if (kDebugMode) {
-                          print('🔘 [LANDSCAPE] Add Note tapped');
+                          _logLandscape('🔘 [LANDSCAPE] Add Note tapped');
                         }
                         final now = DateTime.now();
                         final today = KemeticMath.fromGregorian(now);
@@ -562,10 +582,10 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
                             : 1;
 
                         if (currentMonth.kMonth == 13 && kDebugMode) {
-                          print(
+                          _logLandscape(
                             '⚠️ [LANDSCAPE] Creating note in sacred Month 13 (Heriu Renpet)',
                           );
-                          print('   Day: $kd');
+                          _logLandscape('   Day: $kd');
                         }
 
                         widget.onAddNote!(
@@ -620,7 +640,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
         // ✅ If in middle of Today jump, don't ping parent again
         if (_isJumpingToToday) {
           if (kDebugMode) {
-            print(
+            _logLandscape(
               '📄 [PAGER] Page changed to $page during Today jump - state updated, parent notification blocked',
             );
           }
@@ -629,8 +649,8 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
 
         // ✅ Normal swipe → notify parent so it sends correct data
         if (kDebugMode) {
-          print('📄 [PAGER] Page changed to: $page');
-          print('   Month: ${m.kYear}-${m.kMonth}');
+          _logLandscape('📄 [PAGER] Page changed to: $page');
+          _logLandscape('   Month: ${m.kYear}-${m.kMonth}');
         }
         widget.onMonthChanged?.call(m.kYear, m.kMonth);
       },
@@ -644,8 +664,10 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
             : null;
 
         if (kDebugMode) {
-          print('🔧 [PAGER] Creating LandscapeMonthGridBody for page $index');
-          print('   Month: ${m.kYear}-${m.kMonth}');
+          _logLandscape(
+            '🔧 [PAGER] Creating LandscapeMonthGridBody for page $index',
+          );
+          _logLandscape('   Month: ${m.kYear}-${m.kMonth}');
         }
 
         return LandscapeMonthGridBody(
@@ -693,8 +715,14 @@ class LandscapeMonthGridBody extends StatefulWidget {
   final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
   onEditNote;
-  final Future<void> Function(int ky, int km, int kd, EventItem evt, int newStartMin)?
-      onMoveEventTime;
+  final Future<void> Function(
+    int ky,
+    int km,
+    int kd,
+    EventItem evt,
+    int newStartMin,
+  )?
+  onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final CreateNutritionReminder? onCreateReminder;
@@ -762,9 +790,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     super.initState();
 
     if (kDebugMode) {
-      print('🟢 [LANDSCAPE] LandscapeMonthGridBody initState()');
-      print('   kYear: ${widget.kYear}, kMonth: ${widget.kMonth}');
-      print(
+      _logLandscape('🟢 [LANDSCAPE] LandscapeMonthGridBody initState()');
+      _logLandscape('   kYear: ${widget.kYear}, kMonth: ${widget.kMonth}');
+      _logLandscape(
         '   onAddNote callback: ${widget.onAddNote != null ? "PROVIDED" : "NULL"}',
       );
     }
@@ -833,8 +861,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   void dispose() {
     _isDisposed = true;
     if (kDebugMode) {
-      print('🔴 [LANDSCAPE] LandscapeMonthGridBody dispose()');
-      print('   Button was tapped $_buttonTapCount times before disposal');
+      _logLandscape('🔴 [LANDSCAPE] LandscapeMonthGridBody dispose()');
+      _logLandscape(
+        '   Button was tapped $_buttonTapCount times before disposal',
+      );
     }
     _hHeader.dispose();
     _hGrid.dispose();
@@ -932,10 +962,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   @override
   Widget build(BuildContext context) {
     if (kDebugMode && _buttonTapCount == 0) {
-      print('🏗️  [LANDSCAPE] build() - FIRST TIME');
-      print('   Context: $context');
-      print('   Mounted: ${mounted}');
-      print('   Disposed: $_isDisposed}');
+      _logLandscape('🏗️  [LANDSCAPE] build() - FIRST TIME');
+      _logLandscape('   Context: $context');
+      _logLandscape('   Mounted: $mounted');
+      _logLandscape('   Disposed: $_isDisposed');
     }
 
     final width = MediaQuery.of(context).size.width;
@@ -1048,45 +1078,48 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                           for (int day = 1; day <= dayCount; day++)
                             ..._buildEventsForDay(day, colW),
                         ],
-                ),
-              );
-            },
-            onWillAccept: (data) => data != null,
-            onAcceptWithDetails: (details) {
-              if (kDebugMode) {
-                debugPrint(
-                  '[Landscape] DragTarget onAcceptWithDetails day=${details.data.day}',
-                );
-              }
-              final box =
-                  _gridKey.currentContext?.findRenderObject() as RenderBox?;
-              if (box == null) {
-                if (kDebugMode) {
-                  debugPrint('[Landscape] DragTarget: box is null, skipping move');
-                }
-                return;
-              }
-              final local = box.globalToLocal(details.offset);
-              final double x = local.dx +
-                  (_hGrid.hasClients ? _hGrid.offset : 0.0);
-              final double y = local.dy +
-                  (_vGrid.hasClients ? _vGrid.offset : 0.0);
-              int day =
-                  (x / (colW + _daySepW)).floor() + 1;
-              final maxDay = _getDaysInMonth();
-              day = day.clamp(1, maxDay).toInt();
-              if (day != details.data.day) {
-                if (kDebugMode) {
-                  debugPrint(
-                    '[Landscape] drop rejected (cross-day) dropDay=$day eventDay=${details.data.day}',
-                  );
-                }
-                return;
-              }
-              int totalMin = ((y / _rowH) * 60).round();
-              totalMin = totalMin.clamp(0, 24 * 60 - 1).toInt();
-              int snapped =
-                        ((totalMin / 15).round() * 15).clamp(0, 24 * 60 - 1).toInt();
+                      ),
+                    );
+                  },
+                  onWillAccept: (data) => data != null,
+                  onAcceptWithDetails: (details) {
+                    if (kDebugMode) {
+                      debugPrint(
+                        '[Landscape] DragTarget onAcceptWithDetails day=${details.data.day}',
+                      );
+                    }
+                    final box =
+                        _gridKey.currentContext?.findRenderObject()
+                            as RenderBox?;
+                    if (box == null) {
+                      if (kDebugMode) {
+                        debugPrint(
+                          '[Landscape] DragTarget: box is null, skipping move',
+                        );
+                      }
+                      return;
+                    }
+                    final local = box.globalToLocal(details.offset);
+                    final double x =
+                        local.dx + (_hGrid.hasClients ? _hGrid.offset : 0.0);
+                    final double y =
+                        local.dy + (_vGrid.hasClients ? _vGrid.offset : 0.0);
+                    int day = (x / (colW + _daySepW)).floor() + 1;
+                    final maxDay = _getDaysInMonth();
+                    day = day.clamp(1, maxDay).toInt();
+                    if (day != details.data.day) {
+                      if (kDebugMode) {
+                        debugPrint(
+                          '[Landscape] drop rejected (cross-day) dropDay=$day eventDay=${details.data.day}',
+                        );
+                      }
+                      return;
+                    }
+                    int totalMin = ((y / _rowH) * 60).round();
+                    totalMin = totalMin.clamp(0, 24 * 60 - 1).toInt();
+                    int snapped = ((totalMin / 15).round() * 15)
+                        .clamp(0, 24 * 60 - 1)
+                        .toInt();
                     widget.onMoveEventTime?.call(
                       widget.kYear,
                       widget.kMonth,
@@ -1238,15 +1271,15 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
 
     // ✅ ADD DEBUG LOGGING
     if (kDebugMode && rawNotes.isNotEmpty) {
-      print('📅 [LANDSCAPE] Building events for day $day');
-      print('   Year: ${widget.kYear}, Month: ${widget.kMonth}');
-      print('   Raw notes: ${rawNotes.length}');
-      print('   FlowIndex keys: ${widget.flowIndex.keys.toList()}');
-      for (var note in rawNotes) {
-        print('   - Note: "${note.title}", flowId: ${note.flowId}');
+      _logLandscape('📅 [LANDSCAPE] Building events for day $day');
+      _logLandscape('   Year: ${widget.kYear}, Month: ${widget.kMonth}');
+      _logLandscape('   Raw notes: ${rawNotes.length}');
+      _logLandscape('   FlowIndex keys: ${widget.flowIndex.keys.toList()}');
+      for (final note in rawNotes) {
+        _logLandscape('   - Note: "${note.title}", flowId: ${note.flowId}');
         if (note.flowId != null) {
           final flow = widget.flowIndex[note.flowId];
-          print('     Flow color: ${flow?.color}');
+          _logLandscape('     Flow color: ${flow?.color}');
         }
       }
     }
@@ -1255,7 +1288,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     final notes = _dedupeNotesForUI(rawNotes);
 
     if (kDebugMode && rawNotes.isNotEmpty && notes.isEmpty) {
-      print('⚠️ [LANDSCAPE] All notes deduped for day $day!');
+      _logLandscape('⚠️ [LANDSCAPE] All notes deduped for day $day!');
     }
     if (notes.isEmpty) return [];
 
@@ -1263,7 +1296,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       final originalCount = rawNotes.length;
       final dedupedCount = notes.length;
       if (originalCount != dedupedCount) {
-        print(
+        _logLandscape(
           '[LandscapeMonthView] Deduplicated events for day $day: $originalCount → $dedupedCount (removed ${originalCount - dedupedCount} duplicates)',
         );
       }
@@ -1400,9 +1433,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: event.color.withOpacity(0.20),
-        border: Border(
-          left: BorderSide(color: event.color, width: 3),
-        ),
+        border: Border(left: BorderSide(color: event.color, width: 3)),
         borderRadius: BorderRadius.circular(4),
       ),
       clipBehavior: Clip.hardEdge,
@@ -1421,11 +1452,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     final tappable = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _showEventDetail(event, day),
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: card,
-      ),
+      child: SizedBox(width: width, height: height, child: card),
     );
 
     if (!_isEventDraggable(event)) {
@@ -1587,24 +1614,24 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                           horizontal: 8,
                           vertical: 4,
                         ),
-                      decoration: BoxDecoration(
-                        color: KemeticGold.base.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          KemeticGold.icon(Icons.local_drink, size: 14),
-                          const SizedBox(width: 4),
-                          KemeticGold.text(
-                            'Nutrition',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
+                        decoration: BoxDecoration(
+                          color: KemeticGold.base.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            KemeticGold.icon(Icons.local_drink, size: 14),
+                            const SizedBox(width: 4),
+                            KemeticGold.text(
+                              'Nutrition',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
                       ),
                     const Spacer(),
                     if (flow != null && widget.onEndFlow != null)

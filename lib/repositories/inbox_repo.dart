@@ -21,6 +21,12 @@ class InboxRepo {
 
   InboxRepo(this._client) : _shareRepo = ShareRepo(_client);
 
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint(message);
+    }
+  }
+
   String? get currentUserId => _client.auth.currentUser?.id;
 
   /// Watch inbox items stream (delegates to ShareRepo)
@@ -36,7 +42,7 @@ class InboxRepo {
   /// 3. After deletion: trigger clears imported_at, this returns false
   /// 4. Re-import: button reactivates because no matching flow exists
   Future<bool> isFlowCurrentlyImported(String shareId) async {
-    bool _isActiveByEndDateStr(String? endDateStr) {
+    bool isActiveByEndDateStr(String? endDateStr) {
       if (endDateStr == null) return true;
       final end = DateTime.parse(endDateStr).toUtc();
       final endDateOnly = DateTime.utc(end.year, end.month, end.day);
@@ -48,7 +54,7 @@ class InboxRepo {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) {
-        if (kDebugMode) print('[InboxRepo] No user logged in');
+        _log('[InboxRepo] No user logged in');
         return false;
       }
 
@@ -66,27 +72,25 @@ class InboxRepo {
       final exists =
           flowResponse != null &&
           (flowResponse['active'] as bool? ?? false) &&
-          _isActiveByEndDateStr(flowResponse['end_date'] as String?);
+          isActiveByEndDateStr(flowResponse['end_date'] as String?);
 
       if (kDebugMode) {
-        print('[InboxRepo] isFlowCurrentlyImported($shareId)');
-        print('[InboxRepo]   userId: $userId');
-        print('[InboxRepo]   exists: $exists');
+        _log('[InboxRepo] isFlowCurrentlyImported($shareId)');
+        _log('[InboxRepo]   userId: $userId');
+        _log('[InboxRepo]   exists: $exists');
         if (flowResponse != null) {
-          print('[InboxRepo]   flow_id: ${flowResponse['id']}');
-          print('[InboxRepo]   active: ${flowResponse['active']}');
-          print('[InboxRepo]   share_id: ${flowResponse['share_id']}');
-          print('[InboxRepo]   end_date: ${flowResponse['end_date']}');
+          _log('[InboxRepo]   flow_id: ${flowResponse['id']}');
+          _log('[InboxRepo]   active: ${flowResponse['active']}');
+          _log('[InboxRepo]   share_id: ${flowResponse['share_id']}');
+          _log('[InboxRepo]   end_date: ${flowResponse['end_date']}');
         } else {
-          print('[InboxRepo]   No flow found with share_id=$shareId');
+          _log('[InboxRepo]   No flow found with share_id=$shareId');
         }
       }
 
       return exists;
     } catch (e) {
-      if (kDebugMode) {
-        print('[InboxRepo] ❌ Error checking import status: $e');
-      }
+      _log('[InboxRepo] ❌ Error checking import status: $e');
       return false;
     }
   }
@@ -102,15 +106,11 @@ class InboxRepo {
       final table = isFlow ? 'flow_shares' : 'event_shares';
       await _client.from(table).update({'imported_at': null}).eq('id', shareId);
 
-      if (kDebugMode) {
-        print('[InboxRepo] Cleared import status for $shareId in $table');
-      }
+      _log('[InboxRepo] Cleared import status for $shareId in $table');
 
       return true;
     } catch (e) {
-      if (kDebugMode) {
-        print('[InboxRepo] Error clearing import status: $e');
-      }
+      _log('[InboxRepo] Error clearing import status: $e');
       return false;
     }
   }
@@ -131,9 +131,7 @@ class InboxRepo {
           .map((json) => InboxShareItem.fromJson(json))
           .toList();
     } catch (e) {
-      if (kDebugMode) {
-        print('[InboxRepo] Error loading shares: $e');
-      }
+      _log('[InboxRepo] Error loading shares: $e');
       return [];
     }
   }
@@ -286,8 +284,8 @@ class InboxRepo {
       final senderLabel = (displayName?.isNotEmpty ?? false)
           ? displayName!
           : (handle?.isNotEmpty ?? false)
-              ? '@$handle'
-              : 'Someone';
+          ? '@$handle'
+          : 'Someone';
       final preview = text.length > 120 ? '${text.substring(0, 120)}...' : text;
 
       await _client.functions.invoke(
@@ -298,10 +296,7 @@ class InboxRepo {
             'title': 'New message from $senderLabel',
             'body': preview,
           },
-          'data': {
-            'type': 'dm',
-            'sender_id': senderId,
-          },
+          'data': {'type': 'dm', 'sender_id': senderId},
         },
       );
     } catch (e, st) {
@@ -341,9 +336,7 @@ class InboxRepo {
     required InboxShareItem share,
     DateTime? overrideStartDate,
   }) async {
-    if (kDebugMode) {
-      print('[InboxRepo] Starting import for: ${share.title}');
-    }
+    _log('[InboxRepo] Starting import for: ${share.title}');
 
     try {
       // ✅ Make import resilient - handle null/empty payload gracefully
@@ -361,15 +354,13 @@ class InboxRepo {
         try {
           startDate = DateTime.parse(share.suggestedSchedule!.startDate);
         } catch (e) {
-          if (kDebugMode) {
-            print('[InboxRepo] Failed to parse start date: $e');
-          }
+          _log('[InboxRepo] Failed to parse start date: $e');
         }
       }
 
       if (kDebugMode) {
-        print('[InboxRepo] Flow data: name=$name, color=$color');
-        print('[InboxRepo] Rules type: ${rulesData.runtimeType}');
+        _log('[InboxRepo] Flow data: name=$name, color=$color');
+        _log('[InboxRepo] Rules type: ${rulesData.runtimeType}');
       }
 
       final originFlowId =
@@ -394,9 +385,7 @@ class InboxRepo {
         rootFlowId: originFlowId,
       );
 
-      if (kDebugMode) {
-        print('[InboxRepo] ✓ Flow created with ID: $flowId');
-      }
+      _log('[InboxRepo] ✓ Flow created with ID: $flowId');
 
       // Link the flow to the share for re-import tracking
       await userEventsRepo.updateFlowShareId(
@@ -404,9 +393,7 @@ class InboxRepo {
         shareId: share.shareId,
       );
 
-      if (kDebugMode) {
-        print('[InboxRepo] ✓ Flow linked to share: ${share.shareId}');
-      }
+      _log('[InboxRepo] ✓ Flow linked to share: ${share.shareId}');
 
       final userId = _client.auth.currentUser?.id;
       if (userId != null) {
@@ -421,9 +408,7 @@ class InboxRepo {
             },
           }, onConflict: 'user_id,flow_id');
         } catch (e) {
-          if (kDebugMode) {
-            print('[InboxRepo] flow_saves upsert failed: $e');
-          }
+          _log('[InboxRepo] flow_saves upsert failed: $e');
         }
       }
 
@@ -433,19 +418,15 @@ class InboxRepo {
         throw Exception('Failed to mark share as imported');
       }
 
-      if (kDebugMode) {
-        print('[InboxRepo] ✓ Share marked as imported');
-      }
+      _log('[InboxRepo] ✓ Share marked as imported');
 
       // Schedule the flow's notes immediately (using the selected start date)
       await _scheduleImportedFlow(flowId, share, startDate: startDate);
 
       return flowId;
     } catch (e, stackTrace) {
-      if (kDebugMode) {
-        print('[InboxRepo] ✗ Import failed: $e');
-        print('[InboxRepo] Stack trace: $stackTrace');
-      }
+      _log('[InboxRepo] ✗ Import failed: $e');
+      _log('[InboxRepo] Stack trace: $stackTrace');
       rethrow;
     }
   }
@@ -468,18 +449,16 @@ class InboxRepo {
       await repo.deleteByFlowId(flowId, fromDate: start.toUtc());
 
       if (kDebugMode) {
-        print('[InboxRepo] _scheduleImportedFlow for flowId=$flowId');
-        print('[InboxRepo] payloadJson keys: ${payloadJson.keys}');
+        _log('[InboxRepo] _scheduleImportedFlow for flowId=$flowId');
+        _log('[InboxRepo] payloadJson keys: ${payloadJson.keys}');
       }
 
       // ✅ 1. Use sender's event snapshots if present (NEW SHARES)
       final events = payloadJson['events'] as List<dynamic>?;
       if (events != null && events.isNotEmpty) {
-        if (kDebugMode) {
-          print(
-            '[InboxRepo] Importing ${events.length} snapshot events for flow $flowId',
-          );
-        }
+        _log(
+          '[InboxRepo] Importing ${events.length} snapshot events for flow $flowId',
+        );
 
         final baseDate = DateTime(start.year, start.month, start.day);
         int count = 0;
@@ -568,26 +547,20 @@ class InboxRepo {
           count++;
         }
 
-        if (kDebugMode) {
-          print(
-            '[InboxRepo] ✓ Scheduled $count events from snapshot for flow $flowId',
-          );
-        }
+        _log(
+          '[InboxRepo] ✓ Scheduled $count events from snapshot for flow $flowId',
+        );
         return; // ✅ Don't fall back to rules - we have the real data
       }
 
       // 2. Fallback for old shares with no events[]: use rules-based logic
-      if (kDebugMode) {
-        print(
-          '[InboxRepo] No events[] in payload, falling back to rules-based scheduling for flowId=$flowId',
-        );
-      }
+      _log(
+        '[InboxRepo] No events[] in payload, falling back to rules-based scheduling for flowId=$flowId',
+      );
       await _scheduleImportedFlowFromRules(flowId, item, startDate: start);
     } catch (e, stack) {
-      if (kDebugMode) {
-        print('[InboxRepo] ✗ Failed to schedule imported flow $flowId: $e');
-        print(stack);
-      }
+      _log('[InboxRepo] ✗ Failed to schedule imported flow $flowId: $e');
+      _log('$stack');
       // Don't rethrow - scheduling failure shouldn't fail the import
     }
   }
@@ -680,15 +653,11 @@ class InboxRepo {
         }
       }
 
-      if (kDebugMode) {
-        print(
-          '[InboxRepo] ✓ Scheduled $scheduledCount notes from rules for flow $flowId',
-        );
-      }
+      _log(
+        '[InboxRepo] ✓ Scheduled $scheduledCount notes from rules for flow $flowId',
+      );
     } catch (e) {
-      if (kDebugMode) {
-        print('[InboxRepo] ✗ Failed to schedule from rules: $e');
-      }
+      _log('[InboxRepo] ✗ Failed to schedule from rules: $e');
     }
   }
 }

@@ -37,12 +37,17 @@ Future<DateTime?> showGregorianDatePicker({
   int d = seed.day;
 
   final int yearStart = now.year - 200;
-  final yearCtrl =
-      FixedExtentScrollController(initialItem: (y - yearStart).clamp(0, 400));
-  final monthCtrl = FixedExtentScrollController(initialItem: (m - 1).clamp(0, 11));
-  final dayCtrl = FixedExtentScrollController(initialItem: (d - 1).clamp(0, 30));
+  final yearCtrl = FixedExtentScrollController(
+    initialItem: (y - yearStart).clamp(0, 400),
+  );
+  final monthCtrl = FixedExtentScrollController(
+    initialItem: (m - 1).clamp(0, 11),
+  );
+  final dayCtrl = FixedExtentScrollController(
+    initialItem: (d - 1).clamp(0, 30),
+  );
 
-  int _daysInGregorianMonth(int year, int month) {
+  int daysInGregorianMonth(int year, int month) {
     final leap = (year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0));
     const days = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     return (month == 2 && leap) ? 29 : days[month];
@@ -58,7 +63,7 @@ Future<DateTime?> showGregorianDatePicker({
     builder: (sheetCtx) {
       int localY = y, localM = m, localD = d;
 
-      int dayMax() => _daysInGregorianMonth(localY, localM);
+      int dayMax() => daysInGregorianMonth(localY, localM);
 
       return StatefulBuilder(
         builder: (sheetCtx, setSheetState) {
@@ -132,7 +137,7 @@ Future<DateTime?> showGregorianDatePicker({
                         ),
                       ),
                       const SizedBox(width: 6),
-                      
+
                       // Day wheel
                       Expanded(
                         flex: 3,
@@ -160,7 +165,7 @@ Future<DateTime?> showGregorianDatePicker({
                         ),
                       ),
                       const SizedBox(width: 6),
-                      
+
                       // Year wheel
                       Expanded(
                         flex: 4,
@@ -198,7 +203,7 @@ Future<DateTime?> showGregorianDatePicker({
                 ),
 
                 const SizedBox(height: 12),
-                
+
                 // Cancel / Done buttons
                 Row(
                   children: [
@@ -220,8 +225,9 @@ Future<DateTime?> showGregorianDatePicker({
                           foregroundColor: Colors.black,
                         ),
                         onPressed: () {
-                          final out =
-                              DateUtils.dateOnly(DateTime(localY, localM, localD));
+                          final out = DateUtils.dateOnly(
+                            DateTime(localY, localM, localD),
+                          );
                           Navigator.pop(sheetCtx, out);
                         },
                         child: const Text('Done'),
@@ -237,5 +243,3 @@ Future<DateTime?> showGregorianDatePicker({
     },
   );
 }
-
-

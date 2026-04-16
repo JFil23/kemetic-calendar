@@ -59,7 +59,6 @@ import '../journal/journal_page.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
 import '../../widgets/flow_start_date_picker.dart';
-import 'package:mobile/debug/push_diagnostics.dart';
 import '../inbox/inbox_page.dart';
 import '../reflections/decan_reflection_archive_page.dart';
 import '../settings/settings_page.dart';

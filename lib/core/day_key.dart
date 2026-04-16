@@ -69,7 +69,7 @@ int decanForDay(int kDay) {
 
 /// Builds the canonical day key format used in dayInfoMap.
 /// 
-/// Format: "<monthKey>_<day>_<decan>"
+/// Format: `<monthKey>_<day>_<decan>`
 /// 
 /// Examples:
 /// - kemeticDayKey(1, 15)  → "thoth_15_2"
@@ -100,7 +100,6 @@ String kemeticDayKey(int kMonth, int kDay) {
 // Legacy note: Some code may still use 'epagomenal_{day}_{year}' format.
 // Both formats may exist in the codebase for backward compatibility.
 // =============================================================================
-
 
 
 

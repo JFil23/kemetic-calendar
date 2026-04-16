@@ -111,8 +111,8 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: 'Search by @handle or display name',
-        hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-        prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.5)),
+        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+        prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.5)),
         suffixIcon: _query.isNotEmpty
             ? IconButton(
                 icon: KemeticGold.icon(Icons.close),
@@ -126,7 +126,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
         fillColor: const Color(0xFF0D0D0F),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -145,7 +145,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
         Text(
           'Search for friends by @handle or name.',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             fontSize: 15,
           ),
         ),
@@ -153,7 +153,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
         Text(
           'Tip: people must be discoverable to appear.',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
             fontSize: 13,
           ),
         ),
@@ -177,7 +177,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
         Text(
           'Try another spelling or a shorter @handle.',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             fontSize: 14,
           ),
         ),
@@ -188,8 +188,8 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
   Widget _buildResultsList() {
     return ListView.separated(
       itemCount: _results.length,
-      separatorBuilder: (_, __) => Divider(
-        color: Colors.white.withOpacity(0.05),
+      separatorBuilder: (context, index) => Divider(
+        color: Colors.white.withValues(alpha: 0.05),
         height: 1,
       ),
       itemBuilder: (context, index) {
@@ -208,7 +208,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
           contentPadding: const EdgeInsets.symmetric(vertical: 8),
           leading: CircleAvatar(
             radius: 20,
-            backgroundColor: KemeticGold.base.withOpacity(0.2),
+            backgroundColor: KemeticGold.base.withValues(alpha: 0.2),
             backgroundImage: user.avatarUrl != null
                 ? NetworkImage(user.avatarUrl!)
                 : null,
@@ -234,7 +234,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
           subtitle: subtitle != null
               ? Text(
                   subtitle,
-                  style: TextStyle(color: Colors.white.withOpacity(0.6)),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                 )
               : null,
           trailing: KemeticGold.icon(Icons.chevron_right),

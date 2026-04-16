@@ -34,30 +34,30 @@ class AiGeneratedFlow {
     final String? overviewTitle =
         json['overview_title'] as String? ?? json['overviewTitle'] as String?;
     final String? overviewSummary =
-        json['overview_summary'] as String? ?? json['overviewSummary'] as String?;
+        json['overview_summary'] as String? ??
+        json['overviewSummary'] as String?;
     final String? flowColor =
         json['flow_color'] as String? ?? json['flowColor'] as String?;
 
     // ---- 2. Aggressive "find the notes" logic ----
     dynamic notesRaw = json['notes'];
-    
-    bool _isEmpty(dynamic v) =>
-        v == null ||
-        (v is List && v.isEmpty) ||
-        (v is Map && v.isEmpty);
-    
+
+    bool isEmptyValue(dynamic v) =>
+        v == null || (v is List && v.isEmpty) || (v is Map && v.isEmpty);
+
     // Fallback to common alternate keys if notes is missing or empty
-    if (_isEmpty(notesRaw)) {
-      notesRaw = json['days'] ??
+    if (isEmptyValue(notesRaw)) {
+      notesRaw =
+          json['days'] ??
           json['day_list'] ??
           json['schedule'] ??
           json['plan'] ??
           json['entries'] ??
           json['events'];
     }
-    
+
     // As a final safety net, scan for a List of Maps that looks like note objects
-    if (_isEmpty(notesRaw)) {
+    if (isEmptyValue(notesRaw)) {
       for (final entry in json.entries) {
         final value = entry.value;
         if (value is List &&
@@ -68,19 +68,23 @@ class AiGeneratedFlow {
                 (value.first as Map).containsKey('day_index'))) {
           notesRaw = value;
           if (kDebugMode) {
-            debugPrint('🔍 [AiGeneratedFlow.fromJson] Using "${entry.key}" as notes');
+            debugPrint(
+              '🔍 [AiGeneratedFlow.fromJson] Using "${entry.key}" as notes',
+            );
           }
           break;
         }
       }
     }
-    
+
     if (kDebugMode) {
-      debugPrint('🔍 [AiGeneratedFlow.fromJson] notesRaw type: ${notesRaw.runtimeType}');
+      debugPrint(
+        '🔍 [AiGeneratedFlow.fromJson] notesRaw type: ${notesRaw.runtimeType}',
+      );
     }
-    
+
     List rawNotes;
-    
+
     if (notesRaw is List) {
       rawNotes = notesRaw;
     } else if (notesRaw is Map) {
@@ -90,17 +94,22 @@ class AiGeneratedFlow {
       rawNotes = const [];
     } else {
       if (kDebugMode) {
-        debugPrint('🔍 [AiGeneratedFlow.fromJson] ⚠️ notesRaw is ${notesRaw.runtimeType}, not List/Map');
+        debugPrint(
+          '🔍 [AiGeneratedFlow.fromJson] ⚠️ notesRaw is ${notesRaw.runtimeType}, not List/Map',
+        );
       }
       rawNotes = const [];
     }
-    
+
     if (kDebugMode) {
-      debugPrint('[AiGeneratedFlow.fromJson] rawNotes.length = ${rawNotes.length}');
+      debugPrint(
+        '[AiGeneratedFlow.fromJson] rawNotes.length = ${rawNotes.length}',
+      );
       debugPrint('[AiGeneratedFlow.fromJson] json keys = ${json.keys}');
       if (rawNotes.isEmpty) {
         debugPrint(
-            '[AiGeneratedFlow.fromJson] ⚠️ WARNING: Empty notes array in AI response after normalization');
+          '[AiGeneratedFlow.fromJson] ⚠️ WARNING: Empty notes array in AI response after normalization',
+        );
       }
     }
 
@@ -111,7 +120,9 @@ class AiGeneratedFlow {
       final raw = Map<String, dynamic>.from(rawNotes[i] as Map);
 
       if (kDebugMode && i == 0) {
-        debugPrint('[AiGeneratedFlow.fromJson] First raw note keys: ${raw.keys}');
+        debugPrint(
+          '[AiGeneratedFlow.fromJson] First raw note keys: ${raw.keys}',
+        );
         debugPrint('[AiGeneratedFlow.fromJson] First raw note value: $raw');
       }
 
@@ -121,8 +132,11 @@ class AiGeneratedFlow {
           try {
             final nd = DateTime.parse(raw['date'] as String);
             final noteDay = DateTime(nd.year, nd.month, nd.day);
-            final start =
-                DateTime(startDate.year, startDate.month, startDate.day);
+            final start = DateTime(
+              startDate.year,
+              startDate.month,
+              startDate.day,
+            );
             final idx = noteDay.difference(start).inDays;
             raw['day_index'] = idx < 0 ? 0 : idx; // clamp negatives
           } catch (_) {
@@ -165,7 +179,8 @@ class AiGeneratedFlow {
 
     if (kDebugMode) {
       debugPrint(
-          '[AiGeneratedFlow.fromJson] normalizedNotes.length = ${normalizedNotes.length}');
+        '[AiGeneratedFlow.fromJson] normalizedNotes.length = ${normalizedNotes.length}',
+      );
     }
 
     return AiGeneratedFlow(
@@ -213,7 +228,8 @@ class AiGeneratedNote {
 
   factory AiGeneratedNote.fromJson(Map<String, dynamic> json) {
     // dayIndex: support both day_index and dayIndex, ints or numbers
-    final int dayIndex = (json['day_index'] as num?)?.toInt() ??
+    final int dayIndex =
+        (json['day_index'] as num?)?.toInt() ??
         (json['dayIndex'] as num?)?.toInt() ??
         0;
 
@@ -260,4 +276,3 @@ class AiGeneratedNote {
     };
   }
 }
-

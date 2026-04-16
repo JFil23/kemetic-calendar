@@ -20,6 +20,12 @@ class ProfileRepo {
 
   ProfileRepo(this._client);
 
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint(message);
+    }
+  }
+
   /// Fetch profile by user ID
   Future<UserProfile?> getProfile(String userId) async {
     try {
@@ -32,7 +38,7 @@ class ProfileRepo {
       if (response == null) return null;
       return UserProfile.fromJson(response);
     } catch (e) {
-      print('[ProfileRepo] Error fetching profile: $e');
+      _log('[ProfileRepo] Error fetching profile: $e');
       return null;
     }
   }
@@ -70,7 +76,7 @@ class ProfileRepo {
       final flowEvents = (eventsResp as List?)?.length ?? 0;
       return (activeFlows, flowEvents);
     } catch (e) {
-      print('[ProfileRepo] Error computing counts: $e');
+      _log('[ProfileRepo] Error computing counts: $e');
       return (0, 0);
     }
   }
@@ -91,7 +97,7 @@ class ProfileRepo {
 
       return response != null;
     } catch (e) {
-      print('[ProfileRepo] Error checking follow status: $e');
+      _log('[ProfileRepo] Error checking follow status: $e');
       return false;
     }
   }
@@ -109,7 +115,7 @@ class ProfileRepo {
       });
       return true;
     } catch (e) {
-      print('[ProfileRepo] Error following user: $e');
+      _log('[ProfileRepo] Error following user: $e');
       return false;
     }
   }
@@ -128,7 +134,7 @@ class ProfileRepo {
           .eq('followee_id', targetUserId);
       return true;
     } catch (e) {
-      print('[ProfileRepo] Error unfollowing user: $e');
+      _log('[ProfileRepo] Error unfollowing user: $e');
       return false;
     }
   }
@@ -177,7 +183,7 @@ class ProfileRepo {
       }
       return results;
     } catch (e) {
-      print('[ProfileRepo] Error listing followers: $e');
+      _log('[ProfileRepo] Error listing followers: $e');
       return const [];
     }
   }
@@ -226,7 +232,7 @@ class ProfileRepo {
       }
       return results;
     } catch (e) {
-      print('[ProfileRepo] Error listing following: $e');
+      _log('[ProfileRepo] Error listing following: $e');
       return const [];
     }
   }
@@ -243,7 +249,7 @@ class ProfileRepo {
       if (response == null) return null;
       return UserProfile.fromJson(response);
     } catch (e) {
-      print('[ProfileRepo] Error fetching profile by handle: $e');
+      _log('[ProfileRepo] Error fetching profile by handle: $e');
       return null;
     }
   }
@@ -277,7 +283,7 @@ class ProfileRepo {
 
       return true;
     } catch (e) {
-      print('[ProfileRepo] Error updating profile: $e');
+      _log('[ProfileRepo] Error updating profile: $e');
       return false;
     }
   }
@@ -300,7 +306,7 @@ class ProfileRepo {
 
       return response == null;
     } catch (e) {
-      print('[ProfileRepo] Error checking handle: $e');
+      _log('[ProfileRepo] Error checking handle: $e');
       return false;
     }
   }
@@ -321,7 +327,7 @@ class ProfileRepo {
       final clean = query.startsWith('@') ? query.substring(1) : query;
       if (clean.isEmpty) return [];
 
-      print('[ProfileRepo] Searching for users matching: $clean');
+      _log('[ProfileRepo] Searching for users matching: $clean');
 
       // 1️⃣ Search by handle prefix
       final handleResponse = await _client
@@ -355,7 +361,7 @@ class ProfileRepo {
         combined[id] = row as Map<String, dynamic>;
       }
 
-      print('[ProfileRepo] Search returned ${combined.length} unique results');
+      _log('[ProfileRepo] Search returned ${combined.length} unique results');
 
       return combined.values.map((json) {
         return UserSearchResult(
@@ -367,7 +373,7 @@ class ProfileRepo {
         );
       }).toList();
     } catch (e) {
-      print('[ProfileRepo] Error searching users: $e');
+      _log('[ProfileRepo] Error searching users: $e');
       return [];
     }
   }
@@ -382,7 +388,7 @@ class ProfileRepo {
           profile.displayName != null &&
           profile.displayName!.isNotEmpty;
     } catch (e) {
-      print('[ProfileRepo] Error checking profile completion: $e');
+      _log('[ProfileRepo] Error checking profile completion: $e');
       return false;
     }
   }
@@ -401,7 +407,7 @@ class ProfileRepo {
           .map(FlowPost.fromJson)
           .toList();
     } catch (e) {
-      print('[ProfileRepo] Error fetching flow posts: $e');
+      _log('[ProfileRepo] Error fetching flow posts: $e');
       return [];
     }
   }
@@ -500,7 +506,7 @@ class ProfileRepo {
 
       return FlowPost.fromJson(inserted as Map<String, dynamic>);
     } catch (e) {
-      print('[ProfileRepo] Error creating flow post: $e');
+      _log('[ProfileRepo] Error creating flow post: $e');
       return null;
     }
   }
@@ -510,7 +516,7 @@ class ProfileRepo {
       await _client.from('flow_posts').delete().eq('id', postId);
       return true;
     } catch (e) {
-      print('[ProfileRepo] Error deleting flow post: $e');
+      _log('[ProfileRepo] Error deleting flow post: $e');
       return false;
     }
   }
@@ -586,9 +592,7 @@ class ProfileRepo {
           'metadata': {'flow_post_id': post.id, 'source_user_id': post.userId},
         }, onConflict: 'user_id,flow_id');
       } catch (e) {
-        if (kDebugMode) {
-          print('[ProfileRepo] flow_saves upsert failed: $e');
-        }
+        _log('[ProfileRepo] flow_saves upsert failed: $e');
       }
 
       await _copyFlowPostEvents(
@@ -600,7 +604,7 @@ class ProfileRepo {
 
       return newId;
     } catch (e) {
-      print('[ProfileRepo] Error saving flow post: $e');
+      _log('[ProfileRepo] Error saving flow post: $e');
       return null;
     }
   }
@@ -730,7 +734,7 @@ class ProfileRepo {
       if (_isMissingTable(e, 'flow_post_likes')) {
         throw const FlowPostEngagementUnavailable('flow_post_likes');
       }
-      print('[ProfileRepo] Error fetching flow post likes: $e');
+      _log('[ProfileRepo] Error fetching flow post likes: $e');
       return (0, false);
     }
   }
@@ -759,7 +763,7 @@ class ProfileRepo {
       if (_isMissingTable(e, 'flow_post_likes')) {
         throw const FlowPostEngagementUnavailable('flow_post_likes');
       }
-      print('[ProfileRepo] Error updating flow post like: $e');
+      _log('[ProfileRepo] Error updating flow post like: $e');
       return false;
     }
   }
@@ -782,7 +786,7 @@ class ProfileRepo {
       if (_isMissingTable(e, 'flow_post_comments')) {
         throw const FlowPostEngagementUnavailable('flow_post_comments');
       }
-      print('[ProfileRepo] Error fetching flow post comments: $e');
+      _log('[ProfileRepo] Error fetching flow post comments: $e');
       return const [];
     }
   }
@@ -812,7 +816,7 @@ class ProfileRepo {
       if (_isMissingTable(e, 'flow_post_comments')) {
         throw const FlowPostEngagementUnavailable('flow_post_comments');
       }
-      print('[ProfileRepo] Error adding flow post comment: $e');
+      _log('[ProfileRepo] Error adding flow post comment: $e');
       return null;
     }
   }
@@ -845,9 +849,7 @@ class ProfileRepo {
         },
       );
     } catch (e) {
-      if (kDebugMode) {
-        print('[ProfileRepo] sendFlowPostPush failed: $e');
-      }
+      _log('[ProfileRepo] sendFlowPostPush failed: $e');
     }
   }
 }

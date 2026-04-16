@@ -5,7 +5,6 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:functions_client/functions_client.dart';
 
 import '../models/ai_flow_generation_response.dart';
 
@@ -33,7 +32,7 @@ class AIFlowGenerationService {
     required DateTime startDate,
     required DateTime endDate,
     String? flowColor, // hex like "#4dd0e1"
-    String? timezone,  // IANA string (e.g., "America/Los_Angeles")
+    String? timezone, // IANA string (e.g., "America/Los_Angeles")
     String? sourceText,
     bool forceRefresh = false,
   }) async {
@@ -69,55 +68,46 @@ class AIFlowGenerationService {
     };
 
     // 3) Auth-retry wrapped invoke (SDK auto-attaches JWT)
-    final FunctionResponse res = await _withAuthRetry(() async {
-      try {
-        return await _sb.functions.invoke(
-          'ai_generate_flow',
-          body: payload,
+    final FunctionResponse res =
+        await _withAuthRetry(() async {
+          try {
+            return await _sb.functions.invoke(
+              'ai_generate_flow',
+              body: payload,
+            );
+          } on FunctionException catch (e) {
+            final msg = _fnErrorMessage(e);
+            return FunctionResponse(
+              data: {
+                'success': false,
+                'error': 'FunctionException',
+                'message': msg,
+              },
+              status: e.status,
+            );
+          } catch (e) {
+            return FunctionResponse(
+              data: {
+                'success': false,
+                'error': 'client_error',
+                'message': e.toString(),
+              },
+              status: 500,
+            );
+          }
+        }).timeout(
+          const Duration(minutes: 4),
+          onTimeout: () => FunctionResponse(
+            data: <String, dynamic>{
+              'success': false,
+              'error': 'timeout',
+              'message':
+                  'Generation timed out. If this was a very long 90-day run, try again—'
+                  'the server may need a second pass when traffic is high.',
+            },
+            status: 504,
+          ),
         );
-      } on FunctionException catch (e) {
-        final msg = _fnErrorMessage(e);
-        return FunctionResponse(
-          data: {
-            'success': false,
-            'error': 'FunctionException',
-            'message': msg,
-          },
-          status: e.status,
-        );
-      } catch (e) {
-        return FunctionResponse(
-          data: {
-            'success': false,
-            'error': 'client_error',
-            'message': e.toString(),
-          },
-          status: 500,
-        );
-      }
-    }).timeout(
-      const Duration(minutes: 4),
-      onTimeout: () => FunctionResponse(
-        data: <String, dynamic>{
-          'success': false,
-          'error': 'timeout',
-          'message':
-              'Generation timed out. If this was a very long 90-day run, try again—'
-              'the server may need a second pass when traffic is high.',
-        },
-        status: 504,
-      ),
-    );
-
-    // TEMPORARY DEBUG: Log response details
-    debugPrint('[AI invoke] status: ${res.status}');
-    debugPrint('[AI invoke] data: ${res.data}');
-    if (res.data is Map && (res.data as Map)['success'] == true) {
-      final dataMap = res.data as Map;
-      debugPrint('[AI invoke] OK ✅ flowId=${dataMap['flowId']} model=${dataMap['modelUsed']}');
-    } else {
-      debugPrint('[AI invoke] FAIL ❌ ${res.data}');
-    }
 
     // Fail fast on HTTP error status
     if (res.status != 200) {
@@ -134,8 +124,9 @@ class AIFlowGenerationService {
       }
       return AIFlowGenerationResponse(
         success: false,
-        errorMessage:
-            msg?.isNotEmpty == true ? msg : 'Generation failed (HTTP ${res.status}).',
+        errorMessage: msg?.isNotEmpty == true
+            ? msg
+            : 'Generation failed (HTTP ${res.status}).',
         flowId: null,
         flowName: null,
         flowColor: null,
@@ -200,7 +191,8 @@ class AIFlowGenerationService {
       final d = e.details;
       if (d is Map) {
         // Common locations for the OpenAI error payload
-        final msg = d['message'] ??
+        final msg =
+            d['message'] ??
             (d['error'] is Map ? (d['error'] as Map)['message'] : null) ??
             d['detail'];
         if (msg is String && msg.trim().isNotEmpty) return msg.trim();

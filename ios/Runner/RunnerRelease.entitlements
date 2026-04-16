@@ -4,5 +4,10 @@
 <dict>
 	<key>aps-environment</key>
 	<string>production</string>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:maat.app</string>
+		<string>applinks:www.maat.app</string>
+	</array>
 </dict>
 </plist>

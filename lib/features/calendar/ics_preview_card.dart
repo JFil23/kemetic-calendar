@@ -10,20 +10,20 @@ class IcsPreviewCard extends StatelessWidget {
   final String? location;
   final String? description;
   final VoidCallback onAdd;
-  final VoidCallback onEditAndAdd;
+  final VoidCallback? onEditAndAdd;
   final VoidCallback onCancel;
 
   const IcsPreviewCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.startTime,
     this.endTime,
     this.location,
     this.description,
     required this.onAdd,
-    required this.onEditAndAdd,
+    this.onEditAndAdd,
     required this.onCancel,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -82,10 +82,7 @@ class IcsPreviewCard extends StatelessWidget {
               // Location
               if (location != null && location!.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                _buildInfoRow(
-                  icon: Icons.location_on,
-                  text: location!,
-                ),
+                _buildInfoRow(icon: Icons.location_on, text: location!),
               ],
 
               // Description
@@ -115,28 +112,29 @@ class IcsPreviewCard extends StatelessWidget {
               // Action Buttons
               Row(
                 children: [
-                  // Edit & Add Button
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: onEditAndAdd,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: KemeticGold.base,
-                        side: const BorderSide(color: KemeticGold.base),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  if (onEditAndAdd != null) ...[
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: onEditAndAdd,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: KemeticGold.base,
+                          side: const BorderSide(color: KemeticGold.base),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                      ),
-                      child: const Text(
-                        'Edit & Add',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        child: const Text(
+                          'Edit & Add',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
+                    const SizedBox(width: 12),
+                  ],
 
                   // Add Button
                   Expanded(
@@ -171,19 +169,12 @@ class IcsPreviewCard extends StatelessWidget {
   Widget _buildInfoRow({required IconData icon, required String text}) {
     return Row(
       children: [
-        Icon(
-          icon,
-          color: Colors.white.withOpacity(0.6),
-          size: 20,
-        ),
+        Icon(icon, color: Colors.white.withOpacity(0.6), size: 20),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-            ),
+            style: const TextStyle(color: Colors.white, fontSize: 15),
           ),
         ),
       ],
@@ -199,10 +190,10 @@ class IcsPreviewCard extends StatelessWidget {
     }
 
     final endTime = _formatTime(end);
-    
+
     // Same day
-    if (start.year == end.year && 
-        start.month == end.month && 
+    if (start.year == end.year &&
+        start.month == end.month &&
         start.day == end.day) {
       return '$startDate\n$startTime - $endTime';
     }
@@ -221,8 +212,18 @@ class IcsPreviewCard extends StatelessWidget {
 
   String _monthName(int month) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return months[month - 1];
   }

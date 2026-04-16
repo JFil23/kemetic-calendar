@@ -62,7 +62,7 @@ class UserEvent {
   });
 
   factory UserEvent.fromRow(Map<String, dynamic> row) {
-    DateTime _parseTs(dynamic v) => v == null
+    DateTime parseTs(dynamic v) => v == null
         ? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true)
         : DateTime.parse(v as String);
 
@@ -73,7 +73,7 @@ class UserEvent {
       detail: row['detail'] as String?,
       location: row['location'] as String?,
       allDay: (row['all_day'] as bool?) ?? false,
-      startsAt: _parseTs(row['starts_at']).toUtc(),
+      startsAt: parseTs(row['starts_at']).toUtc(),
       endsAt: row['ends_at'] == null
           ? null
           : DateTime.parse(row['ends_at'] as String).toUtc(),
@@ -159,16 +159,6 @@ class UserEventsRepo {
     'great_fit',
   };
 
-  /// Returns true if end_date is null or today-or-later (UTC date-only).
-  bool _isActiveByEndDateStr(String? endDateStr) {
-    if (endDateStr == null) return true;
-    final end = DateTime.parse(endDateStr).toUtc();
-    final endDateOnly = DateTime.utc(end.year, end.month, end.day);
-    final now = DateTime.now().toUtc();
-    final today = DateTime.utc(now.year, now.month, now.day);
-    return !endDateOnly.isBefore(today);
-  }
-
   /// Insert (new server id returned).
   Future<UserEvent> addEvent({
     required String title,
@@ -199,7 +189,7 @@ class UserEventsRepo {
     try {
       final row = await _client.from(_kTable).insert(payload).select().single();
       _log('insert ✓ id=${row['id']}');
-      return UserEvent.fromRow(row as Map<String, dynamic>);
+      return UserEvent.fromRow(row);
     } on PostgrestException catch (e) {
       _log('insert ✗ ${e.code} ${e.message}');
       rethrow;
@@ -240,7 +230,7 @@ class UserEventsRepo {
         _log(
           'upsert blocked by tombstone client_event_id=$clientEventId caller=$callerTag',
         );
-        return UserEvent.fromRow(existing as Map<String, dynamic>);
+        return UserEvent.fromRow(existing);
       }
     } catch (e) {
       if (kDebugMode) {
@@ -273,7 +263,7 @@ class UserEventsRepo {
           .select()
           .single();
       _log('upsert ✓ id=${row['id']} caller=$callerTag');
-      return UserEvent.fromRow(row as Map<String, dynamic>);
+      return UserEvent.fromRow(row);
     } on PostgrestException catch (e) {
       _log('upsert ✗ ${e.code} ${e.message}');
       rethrow;
@@ -299,8 +289,9 @@ class UserEventsRepo {
     if (detail != null) patch['detail'] = detail;
     if (location != null) patch['location'] = location;
     if (allDay != null) patch['all_day'] = allDay;
-    if (startsAt != null)
+    if (startsAt != null) {
       patch['starts_at'] = startsAt.toUtc().toIso8601String();
+    }
     if (endsAt != null) patch['ends_at'] = endsAt.toUtc().toIso8601String();
     if (category != null) patch['category'] = category;
     if (patch.isEmpty) throw ArgumentError('Nothing to update.');
@@ -314,7 +305,7 @@ class UserEventsRepo {
           .select()
           .single();
       _log('update ✓ id=$id');
-      final updated = UserEvent.fromRow(row as Map<String, dynamic>);
+      final updated = UserEvent.fromRow(row);
       if (updated.flowLocalId != null && updated.flowLocalId! > 0) {
         unawaited(
           track(
@@ -395,9 +386,7 @@ class UserEventsRepo {
           .eq('client_event_id', clientEventId)
           .select('id, flow_local_id');
 
-      final rows = deletedRows is List
-          ? deletedRows.cast<Map<String, dynamic>>()
-          : const <Map<String, dynamic>>[];
+      final rows = deletedRows.cast<Map<String, dynamic>>();
       if (rows.isEmpty) {
         _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
         return;
@@ -516,8 +505,8 @@ class UserEventsRepo {
           .select('start_date,end_date')
           .eq('id', flowId)
           .limit(1);
-      if (rows is List && rows.isNotEmpty) {
-        final row = rows.first as Map<String, dynamic>;
+      if (rows.isNotEmpty) {
+        final row = rows.first;
         startDate = row['start_date'] == null
             ? null
             : DateTime.parse(row['start_date'] as String).toUtc();
@@ -529,11 +518,9 @@ class UserEventsRepo {
       // Build a half-open time window: [windowStart, windowEndExclusive)
       // so the entire last day is *included* even if your events are at 16:00 UTC.
       final windowStart = (fromDate ?? startDate)?.toUtc();
-      final windowEndExclusive = endDateInclusive == null
-          ? null
-          : endDateInclusive.toUtc().add(
-              const Duration(days: 1),
-            ); // next day at 00:00Z
+      final windowEndExclusive = endDateInclusive?.toUtc().add(
+        const Duration(days: 1),
+      ); // next day at 00:00Z
 
       final user = _client.auth.currentUser;
       if (user != null && (windowStart != null || windowEndExclusive != null)) {
@@ -727,11 +714,11 @@ class UserEventsRepo {
 
       final rows = await query;
       _log(
-        'getStandaloneEventsForDateRange ✓ ${rows is List ? rows.length : '?'} rows '
+        'getStandaloneEventsForDateRange ✓ ${rows.length} rows '
         '(${startUtc.toUtc().toIso8601String()} → ${endUtc.toUtc().toIso8601String()})',
       );
 
-      return (rows as List).cast<Map<String, dynamic>>().map((row) {
+      return rows.cast<Map<String, dynamic>>().map((row) {
         return (
           id: row['id'] as String?,
           clientEventId: row['client_event_id'] as String?,
@@ -1155,7 +1142,9 @@ class UserEventsRepo {
     DateTime? endUtc,
   }) async {
     try {
-      var query = _client.from('user_events').select('''
+      var query = _client
+          .from('user_events')
+          .select('''
             id,
             client_event_id,
             title,
@@ -1166,7 +1155,8 @@ class UserEventsRepo {
             ends_at,
             flow_local_id,
             category
-          ''').eq('flow_local_id', flowId);
+          ''')
+          .eq('flow_local_id', flowId);
 
       if (startUtc != null) {
         query = query.gte('starts_at', startUtc.toUtc().toIso8601String());
@@ -1652,9 +1642,7 @@ class UserEventsRepo {
           .from('flows')
           .update({'is_hidden': true, 'active': false})
           .eq('id', flowId);
-      _log(
-        'deleteFlow ✓ (soft${isSaved ? ', saved flow' : ''})',
-      );
+      _log('deleteFlow ✓ (soft${isSaved ? ', saved flow' : ''})');
     } on PostgrestException catch (e) {
       _log('deleteFlow ✗ ${e.code} ${e.message}');
       rethrow;
@@ -1673,11 +1661,13 @@ class UserEventsRepo {
           .eq('id', flowId);
 
       if (kDebugMode) {
-        print('[UserEventsRepo] Updated flow $flowId with share_id: $shareId');
+        debugPrint(
+          '[UserEventsRepo] Updated flow $flowId with share_id: $shareId',
+        );
       }
     } catch (e) {
       if (kDebugMode) {
-        print('[UserEventsRepo] Error updating flow share_id: $e');
+        debugPrint('[UserEventsRepo] Error updating flow share_id: $e');
       }
       rethrow;
     }
@@ -1727,7 +1717,7 @@ class UserEventsRepo {
       return response?['id'] as int?;
     } catch (e) {
       if (kDebugMode) {
-        print('[UserEventsRepo] Error getting flow by share_id: $e');
+        debugPrint('[UserEventsRepo] Error getting flow by share_id: $e');
       }
       return null;
     }

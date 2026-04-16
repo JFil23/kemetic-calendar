@@ -1,5 +1,5 @@
 name: mobile
-description: "A new Flutter project."
+description: "Kemetic Calendar mobile app for calendar flows, sharing, journaling, and reminders."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -56,6 +56,8 @@ dependencies:
   go_router: ^16.3.0
   share_plus: ^7.2.1
   url_launcher: ^6.2.0
+  http: ^1.5.0
+  web: ^0.5.1
   flutter_tts: ^4.0.2
   shared_preferences: ^2.5.3
   

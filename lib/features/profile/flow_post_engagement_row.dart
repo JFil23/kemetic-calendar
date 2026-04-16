@@ -114,7 +114,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
   @override
   Widget build(BuildContext context) {
     final labelStyle = TextStyle(
-      color: Colors.white.withOpacity(0.85),
+      color: Colors.white.withValues(alpha: 0.85),
       fontWeight: FontWeight.w600,
     );
 
@@ -245,6 +245,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
       return;
     }
     await _loadComments();
+    if (!mounted) return;
 
     showModalBottomSheet(
       context: context,
@@ -275,7 +276,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                           height: 4,
                           margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
@@ -286,7 +287,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                           Text(
                             'Comments',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                             ),
@@ -294,7 +295,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                           Text(
                             '${_comments.length} total',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                               fontSize: 13,
                             ),
                           ),
@@ -315,7 +316,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                                 child: Text(
                                   'No comments yet.',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.7),
+                                    color: Colors.white.withValues(alpha: 0.7),
                                   ),
                                 ),
                               )
@@ -358,7 +359,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                                                     ),
                                                     style: TextStyle(
                                                       color: Colors.white
-                                                          .withOpacity(0.55),
+                                                          .withValues(alpha: 0.55),
                                                       fontSize: 12,
                                                     ),
                                                   ),
@@ -405,11 +406,13 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               hintText: 'Add a comment (150 characters max)',
-              hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+              hintStyle: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+              ),
               filled: true,
-              fillColor: Colors.white.withOpacity(0.05),
+              fillColor: Colors.white.withValues(alpha: 0.05),
               counterStyle: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 11,
               ),
               border: OutlineInputBorder(

@@ -8,6 +8,8 @@ build/
 # Generated files
 *.lock
 *.log
+*.bak
+*.backup
 
 # IntelliJ / Android Studio
 .idea/

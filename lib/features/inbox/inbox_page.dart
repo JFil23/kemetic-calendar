@@ -7,18 +7,21 @@ import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../repositories/inbox_repo.dart';
-import '../calendar/calendar_page.dart';
-import '../../utils/event_cid_util.dart';
 import 'inbox_conversation_page.dart';
 import 'conversation_user.dart';
 import '../../data/profile_repo.dart';
 import 'dart:async';
-import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import '../profile/flow_post_detail_page.dart';
 import '../profile/profile_page.dart';
 import 'package:mobile/shared/glossy_text.dart';
+
+void _logInboxImport(String message) {
+  if (kDebugMode) {
+    debugPrint(message);
+  }
+}
 
 class InboxPage extends StatefulWidget {
   const InboxPage({Key? key}) : super(key: key);
@@ -1167,9 +1170,12 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
       builder: (context, snapshot) {
         final flowId = snapshot.data;
         final isImported = flowId != null; // Flow exists in user's flows
+        final isFlowImportable = widget.item.isFlow;
 
         return ElevatedButton(
-          onPressed: _isImporting || isImported ? null : _handleImport,
+          onPressed: _isImporting || isImported || !isFlowImportable
+              ? null
+              : _handleImport,
           style: ElevatedButton.styleFrom(
             backgroundColor: isImported
                 ? const Color(0xFF4A4A4A) // Visible medium grey
@@ -1194,9 +1200,9 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
               : Text(
                   isImported
                       ? 'Already Imported'
-                      : (widget.item.isFlow
+                      : (isFlowImportable
                             ? 'Import Flow to Calendar'
-                            : 'Import Event to Calendar'),
+                            : 'Event Import Unavailable'),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -1211,23 +1217,16 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
     setState(() => _isImporting = true);
 
     try {
-      final inboxRepo = InboxRepo(Supabase.instance.client);
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+      if (!widget.item.isFlow) {
+        throw Exception('Event import is not available in this build');
+      }
 
       int? flowId;
-      if (widget.item.isFlow) {
-        // Step 1: Import the flow and get the flowId
-        flowId = await _importFlow(widget.item);
+      flowId = await _importFlow(widget.item);
 
-        if (kDebugMode) {
-          print(
-            '[InboxPage] ✓ Successfully imported flow $flowId and linked to share ${widget.item.shareId}',
-          );
-        }
-      } else {
-        // TODO: Implement event import
-        throw Exception('Event import not yet implemented');
-      }
+      _logInboxImport(
+        '[InboxPage] ✓ Successfully imported flow $flowId and linked to share ${widget.item.shareId}',
+      );
 
       if (!mounted) return;
 
@@ -1249,9 +1248,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
       // ✅ NEW: Close inbox and return the flowId to calendar
       Navigator.pop(context, flowId);
     } catch (e) {
-      if (kDebugMode) {
-        print('[InboxPage] ✗ Import failed: $e');
-      }
+      _logInboxImport('[InboxPage] ✗ Import failed: $e');
 
       if (!mounted) return;
 
@@ -1269,217 +1266,8 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
   }
 
   Future<int> _importFlow(InboxShareItem item) async {
-    try {
-      if (kDebugMode) {
-        print('[InboxPage] Starting import for: ${item.title}');
-      }
-
-      // Step 1: Extract flow data from payloadJson
-      final payloadJson = item.payloadJson;
-      if (payloadJson == null) {
-        throw Exception('No flow data available to import');
-      }
-
-      final name = payloadJson['name'] as String;
-      final color = payloadJson['color'] as int;
-      final notes = payloadJson['notes'] as String?;
-      final rulesData = payloadJson['rules']; // This is a List
-
-      // Extract start_date from suggested_schedule if available
-      DateTime? startDate;
-      if (item.suggestedSchedule != null) {
-        try {
-          startDate = DateTime.parse(item.suggestedSchedule!.startDate);
-        } catch (e) {
-          if (kDebugMode) {
-            print('[InboxPage] Failed to parse start date: $e');
-          }
-        }
-      }
-
-      if (kDebugMode) {
-        print('[InboxPage] Flow data: name=$name, color=$color');
-        print('[InboxPage] Rules type: ${rulesData.runtimeType}');
-      }
-
-      final originFlowId =
-          (payloadJson['flow_id'] as num?)?.toInt() ??
-          int.tryParse(item.payloadId);
-
-      // Step 2: Convert rules from List to JSON String
-      final rulesString = jsonEncode(rulesData);
-
-      if (kDebugMode) {
-        print('[InboxPage] Rules JSON string: $rulesString');
-      }
-
-      // Step 3: Import the flow using UserEventsRepo
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      final flowId = await userEventsRepo.upsertFlow(
-        name: name,
-        color: color,
-        active: true,
-        startDate: startDate,
-        notes: notes,
-        rules: rulesString,
-        originType: 'share_import',
-        originShareId: item.shareId,
-        originFlowId: originFlowId,
-        rootFlowId: originFlowId,
-      );
-
-      if (kDebugMode) {
-        print('[InboxPage] ✓ Flow created with ID: $flowId');
-      }
-
-      // Step 4: Link the flow to the share for re-import tracking
-      await userEventsRepo.updateFlowShareId(
-        flowId: flowId,
-        shareId: item.shareId,
-      );
-
-      if (kDebugMode) {
-        print('[InboxPage] ✓ Flow linked to share: ${item.shareId}');
-      }
-
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId != null) {
-        try {
-          await Supabase.instance.client.from('flow_saves').upsert({
-            'user_id': userId,
-            'flow_id': flowId,
-            'saved_from': 'share',
-            'metadata': {
-              'share_id': item.shareId,
-              if (originFlowId != null) 'origin_flow_id': originFlowId,
-            },
-          }, onConflict: 'user_id,flow_id');
-        } catch (e) {
-          if (kDebugMode) {
-            print('[InboxPage] flow_saves upsert failed: $e');
-          }
-        }
-      }
-
-      // Step 5: Mark the share as imported
-      final inboxRepo = InboxRepo(Supabase.instance.client);
-      final success = await inboxRepo.markImported(item.shareId, isFlow: true);
-
-      if (!success) {
-        throw Exception('Failed to mark share as imported');
-      }
-
-      if (kDebugMode) {
-        print('[InboxPage] ✓ Share marked as imported');
-      }
-
-      // Step 6: Schedule the flow's notes immediately using the NEW flow ID
-      await _scheduleImportedFlow(flowId, item);
-
-      return flowId;
-    } catch (e, stackTrace) {
-      if (kDebugMode) {
-        print('[InboxPage] ✗ Import failed: $e');
-        print('[InboxPage] Stack trace: $stackTrace');
-      }
-      rethrow; // Let the caller handle the error
-    }
-  }
-
-  /// Schedules notes for a newly imported flow
-  Future<void> _scheduleImportedFlow(int flowId, InboxShareItem item) async {
-    try {
-      final payloadJson = item.payloadJson;
-      if (payloadJson == null) return;
-
-      final rulesData = payloadJson['rules'] as List?;
-      if (rulesData == null || rulesData.isEmpty) return;
-
-      // Parse rules using CalendarPage's static method
-      final rules = rulesData
-          .map((r) => CalendarPage.ruleFromJson(r as Map<String, dynamic>))
-          .toList();
-
-      final repo = UserEventsRepo(Supabase.instance.client);
-      final start = DateTime.now();
-      final end = start.add(const Duration(days: 90));
-
-      // Clear existing notes for this flow
-      await repo.deleteByFlowId(flowId, fromDate: start.toUtc());
-
-      int scheduledCount = 0;
-
-      for (
-        var date = start;
-        date.isBefore(end);
-        date = date.add(const Duration(days: 1))
-      ) {
-        final kDate = KemeticMath.fromGregorian(date);
-
-        for (final rule in rules) {
-          if (rule.matches(
-            ky: kDate.kYear,
-            km: kDate.kMonth,
-            kd: kDate.kDay,
-            g: date,
-          )) {
-            final noteTitle = payloadJson['name'] as String? ?? item.title;
-            final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
-            final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
-
-            final cid = EventCidUtil.buildClientEventId(
-              ky: kDate.kYear,
-              km: kDate.kMonth,
-              kd: kDate.kDay,
-              title: noteTitle,
-              startHour: startHour,
-              startMinute: startMinute,
-              allDay: rule.allDay,
-              flowId: flowId,
-            );
-
-            final startsAt = DateTime(
-              date.year,
-              date.month,
-              date.day,
-              startHour,
-              startMinute,
-            );
-            DateTime? endsAt;
-            if (!rule.allDay && rule.end != null) {
-              endsAt = DateTime(
-                date.year,
-                date.month,
-                date.day,
-                rule.end!.hour,
-                rule.end!.minute,
-              );
-            }
-
-            await repo.upsertByClientId(
-              clientEventId: cid,
-              title: noteTitle,
-              startsAtUtc: startsAt.toUtc(),
-              detail: '', // ✅ Remove the flowLocalId from detail
-              allDay: rule.allDay,
-              endsAtUtc: endsAt?.toUtc(),
-              flowLocalId: flowId, // ✅ ADD THIS - Proper parameter!
-              caller: 'inbox_page_schedule',
-            );
-
-            scheduledCount++;
-          }
-        }
-      }
-
-      if (kDebugMode) {
-        print('[InboxPage] ✓ Scheduled $scheduledCount notes for flow $flowId');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('[InboxPage] ✗ Failed to schedule: $e');
-      }
-    }
+    _logInboxImport('[InboxPage] Starting import for: ${item.title}');
+    return _inboxRepo.importSharedFlow(share: item);
   }
 }
 

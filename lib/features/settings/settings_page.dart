@@ -37,12 +37,20 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
+    String? calendarSyncStatus;
+    if (!kIsWeb) {
+      final sync = sharedCalendarSyncService(Supabase.instance.client);
+      final status = await sync.getStatus();
+      calendarSyncStatus = _describeCalendarSyncStatus(status);
+    }
+    if (!mounted) return;
     setState(() {
       _realTimeAlerts = prefs.getBool('settings:realTimeAlerts') ?? false;
       _catchUpReminders = prefs.getBool('settings:catchUpReminders') ?? true;
       _endOfDaySummary = prefs.getBool('settings:endOfDaySummary') ?? true;
       _missedOnOpen = prefs.getBool('settings:missedOnOpen') ?? true;
       _usHolidaysEnabled = prefs.getBool('settings:usHolidaysEnabled') ?? false;
+      _calendarSyncStatus = calendarSyncStatus;
       _loading = false;
     });
   }
@@ -201,30 +209,21 @@ class _SettingsPageState extends State<SettingsPage> {
 
     try {
       final sync = sharedCalendarSyncService(client);
-      await sync.sync();
+      final result = await sync.sync(interactive: true);
 
-      final calendarState = CalendarPage.globalKey.currentState;
-      if (calendarState != null) {
-        await calendarState.reloadFromOutside();
+      if (result.didSync) {
+        final calendarState = CalendarPage.globalKey.currentState;
+        if (calendarState != null) {
+          await calendarState.reloadFromOutside();
+        }
       }
 
+      final status = await sync.getStatus();
       if (mounted) {
-        final ts = _formatTimestamp(DateTime.now());
         setState(() {
-          _calendarSyncStatus =
-              'Last sync requested: $ts'
-              '${kIsWeb ? ' (PWA native calendar access may be limited)' : ''}';
+          _calendarSyncStatus = _describeCalendarSyncStatus(status);
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              kIsWeb
-                  ? 'Requested calendar sync. PWAs on iOS may not expose the native calendar.'
-                  : 'Requested calendar sync on this device.',
-            ),
-            backgroundColor: Colors.green.shade700,
-          ),
-        );
+        _showCalendarSyncResult(result);
       }
     } catch (e) {
       if (mounted) {
@@ -244,6 +243,94 @@ class _SettingsPageState extends State<SettingsPage> {
           _syncingCalendar = false;
         });
       }
+    }
+  }
+
+  String? _describeCalendarSyncStatus(CalendarSyncStatus status) {
+    final lastSync = status.lastSyncAt?.toLocal();
+    final lastDenied = status.lastPermissionDeniedAt?.toLocal();
+    final lastSyncText = lastSync == null
+        ? null
+        : 'Last sync completed: ${_formatTimestamp(lastSync)}';
+    final lastDeniedText = lastDenied == null
+        ? null
+        : 'Calendar access denied: ${_formatTimestamp(lastDenied)}';
+
+    if (lastSyncText != null && lastDeniedText != null) {
+      return '$lastSyncText • $lastDeniedText';
+    }
+    return lastSyncText ?? lastDeniedText;
+  }
+
+  void _showCalendarSyncResult(CalendarSyncRunResult result) {
+    final messenger = ScaffoldMessenger.of(context);
+    switch (result.state) {
+      case CalendarSyncRunState.synced:
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              kIsWeb
+                  ? 'Requested calendar sync. PWAs on iOS may not expose the native calendar.'
+                  : 'Calendar sync completed on this device.',
+            ),
+            backgroundColor: Colors.green.shade700,
+          ),
+        );
+        return;
+      case CalendarSyncRunState.permissionDenied:
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Calendar access is not granted on this device.',
+            ),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+        return;
+      case CalendarSyncRunState.skippedInProgress:
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text('Calendar sync is already running.'),
+            backgroundColor: Colors.orange.shade700,
+          ),
+        );
+        return;
+      case CalendarSyncRunState.skippedWeb:
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Native calendar sync is unavailable in this web context.',
+            ),
+            backgroundColor: Colors.orange.shade700,
+          ),
+        );
+        return;
+      case CalendarSyncRunState.skippedNoSession:
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text('Sign in to sync your calendar.'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+        return;
+      case CalendarSyncRunState.skippedPermissionBackoff:
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Calendar permission was denied recently. Try again after re-enabling access.',
+            ),
+            backgroundColor: Colors.orange.shade700,
+          ),
+        );
+        return;
+      case CalendarSyncRunState.failed:
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Calendar sync failed: ${result.error}'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+        return;
     }
   }
 

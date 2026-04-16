@@ -3,7 +3,7 @@
 // ============================================================================
 // FILE: lib/data/journal_repo.dart
 // PURPOSE: Repository layer for journal database operations
-// 
+//
 // STEPS TO IMPLEMENT:
 // 1. Create the file: lib/data/journal_repo.dart
 // 2. Copy and paste this ENTIRE file
@@ -91,7 +91,7 @@ class JournalRepo {
   void _log(String msg) {
     if (kDebugMode) {
       final timestamp = DateTime.now().toIso8601String();
-      print('[JournalRepo $timestamp] $msg');
+      debugPrint('[JournalRepo $timestamp] $msg');
     }
   }
 

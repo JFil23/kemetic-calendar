@@ -1,8 +1,6 @@
 // lib/data/flow_share_snapshot.dart
 // Typed models for flow share payload_json snapshots
 
-import 'package:flutter/foundation.dart';
-
 class FlowShareEventSnapshot {
   final int offsetDays;
   final String title;
@@ -65,7 +63,6 @@ class FlowSharePayload {
     );
   }
 }
-
 
 
 

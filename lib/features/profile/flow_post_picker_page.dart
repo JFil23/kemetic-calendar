@@ -165,7 +165,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
                           padding:
                               const EdgeInsets.fromLTRB(16, 12, 16, 24),
                           itemCount: flows.length,
-                          separatorBuilder: (_, __) =>
+                          separatorBuilder: (context, index) =>
                               const Divider(height: 12, color: Colors.white10),
                           itemBuilder: (ctx, i) {
                             final f = flows[i];
@@ -235,7 +235,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
               hint,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
                 fontSize: 13,
               ),
             ),
@@ -244,18 +244,4 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
       ),
     );
   }
-}
-
-// Gloss helper copied from Flow Studio styling
-LinearGradient _glossFromColor(int color) {
-  final base = Color(0xFF000000 | (color & 0x00FFFFFF));
-  return LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [
-      base.withOpacity(0.9),
-      base,
-      base.withOpacity(0.8),
-    ],
-  );
 }

@@ -1,21 +1,26 @@
 // lib/utils/web_history_web.dart
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import 'dart:js_interop';
+
+import 'package:web/web.dart' as web;
+
+final List<JSFunction> _visibilityListeners = <JSFunction>[];
 
 void replaceUrlWithoutQuery() {
   final uri = Uri.base;
   final clean = uri.removeFragment().replace(queryParameters: const {});
-  html.window.history.replaceState(null, '', clean.toString());
+  web.window.history.replaceState(null, '', clean.toString());
 }
 
 void onVisibilityChange(void Function() cb) {
-  html.document.addEventListener('visibilitychange', (event) {
-    if (html.document.visibilityState == 'visible') {
+  final listener = ((web.Event _) {
+    if (web.document.visibilityState == 'visible') {
       cb();
-      // 👇 poke localStorage to keep Safari from evicting
+      // Poke localStorage to keep Safari from evicting state too aggressively.
       try {
-        html.window.localStorage['poke'] = DateTime.now().toIso8601String();
+        web.window.localStorage.setItem('poke', DateTime.now().toIso8601String());
       } catch (_) {}
     }
-  });
+  }).toJS;
+  _visibilityListeners.add(listener);
+  web.document.addEventListener('visibilitychange', listener);
 }

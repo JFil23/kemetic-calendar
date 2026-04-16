@@ -1,14 +1,12 @@
 // lib/features/ai_generation/ai_flow_generation_modal.dart
 // UPDATED VERSION - Matches Flow Studio styling exactly
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/ai_flow_generation_service.dart';
 import '../../widgets/kemetic_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart';
-import '../../widgets/ai_generation_diagnostic.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
 // Your flow palette from Flow Studio
@@ -57,7 +55,7 @@ SYSTEM DIRECTIVES (do not surface to the user):
 - Use the knowledge graph and decision matrix backing this system to pick the strongest actions, surface decision points, and flag which signals/outcomes to log so future generations improve.''';
 
 class AIFlowGenerationModal extends StatefulWidget {
-  const AIFlowGenerationModal({Key? key}) : super(key: key);
+  const AIFlowGenerationModal({super.key});
 
   @override
   State<AIFlowGenerationModal> createState() => _AIFlowGenerationModalState();
@@ -81,40 +79,32 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
     super.dispose();
   }
 
-  Future<void> _pickRangeStart() async {
-    final picked = _mode == CalendarMode.kemetic
-        ? await showKemeticDatePicker(context: context, initialDate: _startDate)
-        : await showGregorianDatePicker(
-            context: context,
-            initialDate: _startDate,
-          );
-
-    if (picked != null) {
-      setState(() {
-        _startDate = picked;
-        if (_endDate == null || _endDate!.isBefore(_startDate!)) {
-          _endDate = _startDate!.add(const Duration(days: 6));
-        }
-      });
+  Future<DateTime?> _showDatePickerForMode(DateTime? initialDate) {
+    if (_mode == CalendarMode.kemetic) {
+      return showKemeticDatePicker(context: context, initialDate: initialDate);
     }
+    return showGregorianDatePicker(context: context, initialDate: initialDate);
+  }
+
+  Future<void> _pickRangeStart() async {
+    final picked = await _showDatePickerForMode(_startDate);
+    if (!mounted || picked == null) return;
+
+    setState(() {
+      _startDate = picked;
+      if (_endDate == null || _endDate!.isBefore(_startDate!)) {
+        _endDate = _startDate!.add(const Duration(days: 6));
+      }
+    });
   }
 
   Future<void> _pickRangeEnd() async {
-    final picked = _mode == CalendarMode.kemetic
-        ? await showKemeticDatePicker(
-            context: context,
-            initialDate: _endDate ?? _startDate,
-          )
-        : await showGregorianDatePicker(
-            context: context,
-            initialDate: _endDate ?? _startDate,
-          );
+    final picked = await _showDatePickerForMode(_endDate ?? _startDate);
+    if (!mounted || picked == null) return;
 
-    if (picked != null) {
-      setState(() {
-        _endDate = picked;
-      });
-    }
+    setState(() {
+      _endDate = picked;
+    });
   }
 
   Future<void> _generate() async {
@@ -144,7 +134,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
         _flowPalette.length - 1,
       );
       final selectedColor = _flowPalette[safeColorIndex];
-      final colorValue = selectedColor.value;
+      final colorValue = selectedColor.toARGB32();
       final hexString = colorValue
           .toRadixString(16)
           .substring(2)
@@ -156,20 +146,6 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
         throw StateError(
           'Invalid color conversion: $colorValue -> $colorAsHex',
         );
-      }
-
-      // ✅ Debug logging (keep until first successful test)
-      if (kDebugMode) {
-        print(
-          '🎨 [AI Modal] Color index: $_selectedColorIndex (safe: $safeColorIndex)',
-        );
-        print('🎨 [AI Modal] Color value (ARGB int): $colorValue');
-        print('🎨 [AI Modal] Color as hex string: $colorAsHex');
-        print('🚀 [AI Modal] Request payload:');
-        print('   Description: $enrichedDescription');
-        print('   Start Date: ${_formatDate(_startDate!)}');
-        print('   End Date: ${_formatDate(_endDate!)}');
-        print('   Flow Color: $colorAsHex'); // Should always be "#rrggbb"
       }
 
       // ✅ Get IANA timezone name (e.g., "America/Los_Angeles") instead of "PST"/"PDT"
@@ -344,10 +320,6 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -390,19 +362,6 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                     ],
                   ),
                 ),
-                if (kDebugMode)
-                  IconButton(
-                    icon: const Icon(Icons.bug_report, color: Colors.orange),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AIGenerationDiagnosticWidget(),
-                        ),
-                      );
-                    },
-                    tooltip: 'Run Diagnostics',
-                  ),
               ],
             ),
           ),
@@ -436,7 +395,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                         hintText:
                             'Paste a long plan or notes, pick your date range (e.g. 90 days), and ask to turn it into a flow…',
                         hintStyle: TextStyle(
-                          color: Colors.white.withOpacity(0.4),
+                          color: Colors.white.withValues(alpha: 0.4),
                           fontSize: 14,
                         ),
                         filled: true,
@@ -616,10 +575,10 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
+                          color: Colors.red.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: Colors.red.withOpacity(0.3),
+                            color: Colors.red.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Row(
@@ -757,7 +716,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
           Text(
             '•',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
+              color: Colors.white.withValues(alpha: 0.6),
               fontSize: 14,
             ),
           ),
@@ -766,7 +725,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
             child: Text(
               text,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
                 fontSize: 14,
               ),
             ),

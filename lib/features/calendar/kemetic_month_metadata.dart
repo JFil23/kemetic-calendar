@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 /// ═══════════════════════════════════════════════════════════════════════════
 /// KEMETIC MONTH METADATA - SINGLE SOURCE OF TRUTH
 /// ═══════════════════════════════════════════════════════════════════════════
-/// 
+///
 /// ⚠️ API STABILITY RULES:
 /// - Month IDs (1-13) are STABLE and NEVER change
 /// - Display text (labels, transliterations) MAY change for accuracy
@@ -16,7 +16,7 @@ import 'package:flutter/foundation.dart';
 /// ═══════════════════════════════════════════════════════════════════════════
 
 /// Kemetic calendar seasons
-/// 
+///
 /// ⚠️ NEVER store season.name in database - store monthId only.
 /// Season can be derived from monthId via getMonthById(id).season
 enum KemeticSeason {
@@ -62,14 +62,14 @@ class KemeticMonth {
     if (normalized.isEmpty) return false;
     return searchAliases.any((a) => normalizeForMatch(a) == normalized);
   }
-  
+
   /// Get normalized aliases for this month (cached per instance)
-  Set<String> get _normalizedAliases => 
+  Set<String> get _normalizedAliases =>
       searchAliases.map(normalizeForMatch).toSet();
 
   @override
   String toString() => 'KemeticMonth($id: $displayShort)';
-  
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) || (other is KemeticMonth && id == other.id);
@@ -83,25 +83,33 @@ class KemeticMonth {
 @visibleForTesting
 String normalizeForMatch(String s) {
   final t = s.toLowerCase().trim();
-  
+
   // Strip combining marks (U+0300-U+036F)
   final noCombining = t.replaceAll(RegExp(r'[\u0300-\u036f]'), '');
-  
+
   // Replace common Egyptological precomposed characters with ASCII
   final asciiMapped = noCombining
-      .replaceAll('ḫ', 'kh').replaceAll('Ḫ', 'kh')
-      .replaceAll('ḥ', 'h').replaceAll('Ḥ', 'h')
-      .replaceAll('ḏ', 'dj').replaceAll('Ḏ', 'dj')
-      .replaceAll('ȝ', 'a').replaceAll('Ȝ', 'a')
-      .replaceAll('ꜥ', 'a').replaceAll('Ꜥ', 'a')
-      .replaceAll('š', 's').replaceAll('Š', 's')
-      .replaceAll('ṯ', 't').replaceAll('Ṯ', 't');
-  
+      .replaceAll('ḫ', 'kh')
+      .replaceAll('Ḫ', 'kh')
+      .replaceAll('ḥ', 'h')
+      .replaceAll('Ḥ', 'h')
+      .replaceAll('ḏ', 'dj')
+      .replaceAll('Ḏ', 'dj')
+      .replaceAll('ȝ', 'a')
+      .replaceAll('Ȝ', 'a')
+      .replaceAll('ꜥ', 'a')
+      .replaceAll('Ꜥ', 'a')
+      .replaceAll('š', 's')
+      .replaceAll('Š', 's')
+      .replaceAll('ṯ', 't')
+      .replaceAll('Ṯ', 't');
+
   // Remove zero-width characters
   final noZeroWidth = asciiMapped.replaceAll(
-    RegExp(r'[\u200B-\u200D\uFEFF]'), ''
+    RegExp(r'[\u200B-\u200D\uFEFF]'),
+    '',
   );
-  
+
   // Normalize smart quotes and dashes
   final smartFold = noZeroWidth
       .replaceAll('\u2018', "'")
@@ -112,7 +120,7 @@ String normalizeForMatch(String s) {
       .replaceAll('\u2014', '-')
       .replaceAll('\u2032', "'")
       .replaceAll('\u2033', '"');
-  
+
   // Remove ALL non-alphanumeric characters (including parentheses, brackets, etc.)
   return smartFold.replaceAll(RegExp(r'[^a-z0-9]+'), '');
 }
@@ -132,7 +140,7 @@ const List<KemeticMonth> kKemeticMonths = [
     searchAliases: [],
     speechName: '',
   ),
-  
+
   // Month 1: Thoth
   KemeticMonth(
     id: 1,
@@ -144,11 +152,18 @@ const List<KemeticMonth> kKemeticMonths = [
     speechName: 'Thoth, Jehuty',
     season: KemeticSeason.akhet,
     searchAliases: [
-      'Thoth', 'Ḏḥwty', 'Djehuty', 'Tekh', 'Tḫy',
-      'Dhwty', 'Thout', 'Thōth', 'Thoth (Ḏḥwty)',
+      'Thoth',
+      'Ḏḥwty',
+      'Djehuty',
+      'Tekh',
+      'Tḫy',
+      'Dhwty',
+      'Thout',
+      'Thōth',
+      'Thoth (Ḏḥwty)',
     ],
   ),
-  
+
   // Month 2: Paopi - 🔥 THE PRIMARY FIX
   KemeticMonth(
     id: 2,
@@ -160,11 +175,15 @@ const List<KemeticMonth> kKemeticMonths = [
     speechName: 'Paopi, Menkhet',
     season: KemeticSeason.akhet,
     searchAliases: [
-      'Paopi', 'Mnḫt', 'Menkhet', 'Phaophi',
-      'Paenmekh', 'Paopi (Mnḫt)',
+      'Paopi',
+      'Mnḫt',
+      'Menkhet',
+      'Phaophi',
+      'Paenmekh',
+      'Paopi (Mnḫt)',
     ],
   ),
-  
+
   // Month 3: Hathor
   KemeticMonth(
     id: 3,
@@ -175,11 +194,9 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Athyr',
     speechName: 'Hathor, Hut-Her',
     season: KemeticSeason.akhet,
-    searchAliases: [
-      'Hathor', 'Ḥwt-Ḥr', 'Athyr', 'Hathor (Ḥwt-Ḥr)',
-    ],
+    searchAliases: ['Hathor', 'Ḥwt-Ḥr', 'Athyr', 'Hathor (Ḥwt-Ḥr)'],
   ),
-  
+
   // Month 4: Ka-ḥer-Ka
   KemeticMonth(
     id: 4,
@@ -190,11 +207,9 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Choiak',
     speechName: 'Ka-her-Ka',
     season: KemeticSeason.akhet,
-    searchAliases: [
-      'Ka-ḥer-Ka', 'Choiak', 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ)',
-    ],
+    searchAliases: ['Ka-ḥer-Ka', 'Choiak', 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ)'],
   ),
-  
+
   // Month 5: Šef-Bedet
   KemeticMonth(
     id: 5,
@@ -205,11 +220,9 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Tybi',
     speechName: 'Shef-Bedet',
     season: KemeticSeason.peret,
-    searchAliases: [
-      'Shefbedet', 'Šef-Bedet', 'Tybi', 'Šef-Bedet (Šf-bdt)',
-    ],
+    searchAliases: ['Shefbedet', 'Šef-Bedet', 'Tybi', 'Šef-Bedet (Šf-bdt)'],
   ),
-  
+
   // Month 6: Rekh-Wer
   KemeticMonth(
     id: 6,
@@ -220,11 +233,9 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Mechir',
     speechName: 'Rekh-Wer',
     season: KemeticSeason.peret,
-    searchAliases: [
-      'Rekh-Wer', 'Mechir', 'Rekh-Wer (Rḫ-wr)',
-    ],
+    searchAliases: ['Rekh-Wer', 'Mechir', 'Rekh-Wer (Rḫ-wr)'],
   ),
-  
+
   // Month 7: Rekh-Nedjes
   KemeticMonth(
     id: 7,
@@ -235,11 +246,9 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Phamenoth',
     speechName: 'Rekh-Nedjes',
     season: KemeticSeason.peret,
-    searchAliases: [
-      'Rekh-Nedjes', 'Phamenoth', 'Rekh-Nedjes (Rḫ-nḏs)',
-    ],
+    searchAliases: ['Rekh-Nedjes', 'Phamenoth', 'Rekh-Nedjes (Rḫ-nḏs)'],
   ),
-  
+
   // Month 8: Renwet
   KemeticMonth(
     id: 8,
@@ -251,11 +260,14 @@ const List<KemeticMonth> kKemeticMonths = [
     speechName: 'Renwet',
     season: KemeticSeason.peret,
     searchAliases: [
-      'Renwet', 'Rnnwt', 'Renenutet', 'Pharmuthi',
+      'Renwet',
+      'Rnnwt',
+      'Renenutet',
+      'Pharmuthi',
       'Renwet (Rnnwt)',
     ],
   ),
-  
+
   // Month 9: Hnsw
   KemeticMonth(
     id: 9,
@@ -266,11 +278,9 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Pachons',
     speechName: 'Hensu',
     season: KemeticSeason.shemu,
-    searchAliases: [
-      'Ḥnsw', 'Khonsu', 'Pachons', 'Hnsw (Ḥnsw)',
-    ],
+    searchAliases: ['Ḥnsw', 'Khonsu', 'Pachons', 'Hnsw (Ḥnsw)'],
   ),
-  
+
   // Month 10: Ḥenti-ḥet
   KemeticMonth(
     id: 10,
@@ -281,12 +291,9 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Payni',
     speechName: 'Henti-Het',
     season: KemeticSeason.shemu,
-    searchAliases: [
-      'Ḥenti-ḥet', 'Ḥnt-ḥtj', 'Payni',
-      'Ḥenti-ḥet (Ḥnt-ḥtj)',
-    ],
+    searchAliases: ['Ḥenti-ḥet', 'Ḥnt-ḥtj', 'Payni', 'Ḥenti-ḥet (Ḥnt-ḥtj)'],
   ),
-  
+
   // Month 11: Pa-Ipi
   // ⚠️ CRITICAL: Pȝ ỉp.t belongs HERE (was incorrectly in Month 2)
   KemeticMonth(
@@ -299,11 +306,17 @@ const List<KemeticMonth> kKemeticMonths = [
     speechName: 'Pa-Ipi, Ipet-Hemet',
     season: KemeticSeason.shemu,
     searchAliases: [
-      'Pa-Ipi', 'ỉpt-ḥmt', 'Ipet-hemet', 'Epiphi',
-      'Pȝ ỉp.t', 'Pa ip.t', 'ipt', 'Pa-Ipi (ỉpt-ḥmt)',
+      'Pa-Ipi',
+      'ỉpt-ḥmt',
+      'Ipet-hemet',
+      'Epiphi',
+      'Pȝ ỉp.t',
+      'Pa ip.t',
+      'ipt',
+      'Pa-Ipi (ỉpt-ḥmt)',
     ],
   ),
-  
+
   // Month 12: Mesut-Ra
   KemeticMonth(
     id: 12,
@@ -314,24 +327,26 @@ const List<KemeticMonth> kKemeticMonths = [
     hellenized: 'Mesore',
     speechName: 'Mesut-Ra',
     season: KemeticSeason.shemu,
-    searchAliases: [
-      'Mesut-Ra', 'Mswt-Rꜥ', 'Mesore', 'Mesut-Ra (Mswt-Rꜥ)',
-    ],
+    searchAliases: ['Mesut-Ra', 'Mswt-Rꜥ', 'Mesore', 'Mesut-Ra (Mswt-Rꜥ)'],
   ),
-  
+
   // Month 13: Epagomenal Days
   KemeticMonth(
     id: 13,
     key: 'epagomenal',
-    displayShort: 'Heriu Renpet',  // ✅ FIX 3: Changed from 'Epagomenal'
+    displayShort: 'Heriu Renpet', // ✅ FIX 3: Changed from 'Epagomenal'
     displayTransliteration: 'ḥr.w rnpt',
     transliterationFull: 'Heriu Renpet',
     hellenized: 'Epagomenai',
     speechName: 'Heriu Renpet',
     season: KemeticSeason.transition,
     searchAliases: [
-      'Epagomenal', 'ḥr.w rnpt', 'Heriu Renpet', 'Epagomenai',
-      'Days upon the Year', 'Heriu Renpet (ḥr.w rnpt)',
+      'Epagomenal',
+      'ḥr.w rnpt',
+      'Heriu Renpet',
+      'Epagomenai',
+      'Days upon the Year',
+      'Heriu Renpet (ḥr.w rnpt)',
     ],
   ),
 ];
@@ -340,24 +355,24 @@ const List<KemeticMonth> kKemeticMonths = [
 /// Throws in ALL build modes (not just debug) to prevent silent data loss
 Map<String, int> _buildAliasMap() {
   final tmp = <String, int>{};
-  
+
   for (final m in kKemeticMonths.skip(1)) {
     for (final alias in m.searchAliases) {
       final key = normalizeForMatch(alias);
-      
+
       if (tmp.containsKey(key)) {
         // ✅ THROWS in release too - critical data integrity
         throw StateError(
           'ALIAS COLLISION: "$alias" (normalized: "$key") '
           'maps to both Month ${tmp[key]} and Month ${m.id}. '
-          'Fix searchAliases in kemetic_month_metadata.dart'
+          'Fix searchAliases in kemetic_month_metadata.dart',
         );
       }
-      
+
       tmp[key] = m.id;
     }
   }
-  
+
   return Map.unmodifiable(tmp);
 }
 
@@ -392,11 +407,11 @@ KemeticMonth getMonthById(int id) {
 KemeticMonth? getMonthByKey(String key) {
   final normalized = normalizeForMatch(key);
   final redirected = _legacyKeyRedirects[normalized] ?? normalized;
-  
+
   try {
     return kKemeticMonths.firstWhere((m) => m.key == redirected);
   } catch (_) {
-    if (kDebugMode) print('⚠️ Unknown month key: "$key"');
+    if (kDebugMode) debugPrint('⚠️ Unknown month key: "$key"');
     return null;
   }
 }
@@ -406,7 +421,7 @@ KemeticMonth? getMonthByKey(String key) {
 int? monthIdFromAlias(String alias) {
   final id = _aliasToId[normalizeForMatch(alias)];
   if (id == null && kDebugMode) {
-    print('⚠️ Unknown month alias: "$alias"');
+    debugPrint('⚠️ Unknown month alias: "$alias"');
   }
   return id;
 }
@@ -417,42 +432,49 @@ int? monthIdFromAlias(String alias) {
 List<KemeticMonth> searchMonths(String query, {int maxResults = 5}) {
   final normalized = normalizeForMatch(query);
   if (normalized.isEmpty) return [];
-  
+
   // Tier 1: Exact match
   final exactId = _aliasToId[normalized];
   if (exactId != null) return [getMonthById(exactId)];
-  
+
   // Tier 2: Prefix matches (sorted by ID)
-  final prefixMatches = kKemeticMonths
-      .skip(1)
-      .where((m) => m._normalizedAliases.any((a) => a.startsWith(normalized)))
-      .toList()
-    ..sort((a, b) {
-      final idCmp = a.id.compareTo(b.id);
-      return idCmp != 0 ? idCmp : a.key.compareTo(b.key);
-    });
-  
+  final prefixMatches =
+      kKemeticMonths
+          .skip(1)
+          .where(
+            (m) => m._normalizedAliases.any((a) => a.startsWith(normalized)),
+          )
+          .toList()
+        ..sort((a, b) {
+          final idCmp = a.id.compareTo(b.id);
+          return idCmp != 0 ? idCmp : a.key.compareTo(b.key);
+        });
+
   if (prefixMatches.isNotEmpty) {
     return prefixMatches.take(maxResults).toList();
   }
-  
+
   // Tier 3: Contains matches (sorted by ID)
-  final containsMatches = kKemeticMonths
-      .skip(1)
-      .where((m) => m._normalizedAliases.any((a) => a.contains(normalized)))
-      .toList()
-    ..sort((a, b) {
-      final idCmp = a.id.compareTo(b.id);
-      return idCmp != 0 ? idCmp : a.key.compareTo(b.key);
-    });
-  
+  final containsMatches =
+      kKemeticMonths
+          .skip(1)
+          .where((m) => m._normalizedAliases.any((a) => a.contains(normalized)))
+          .toList()
+        ..sort((a, b) {
+          final idCmp = a.id.compareTo(b.id);
+          return idCmp != 0 ? idCmp : a.key.compareTo(b.key);
+        });
+
   return containsMatches.take(maxResults).toList();
 }
 
 /// Season helper functions - use these instead of string comparisons
-bool isAkhet(int monthId) => getMonthById(monthId).season == KemeticSeason.akhet;
-bool isPeret(int monthId) => getMonthById(monthId).season == KemeticSeason.peret;
-bool isShemu(int monthId) => getMonthById(monthId).season == KemeticSeason.shemu;
+bool isAkhet(int monthId) =>
+    getMonthById(monthId).season == KemeticSeason.akhet;
+bool isPeret(int monthId) =>
+    getMonthById(monthId).season == KemeticSeason.peret;
+bool isShemu(int monthId) =>
+    getMonthById(monthId).season == KemeticSeason.shemu;
 bool isEpagomenal(int monthId) => monthId == 13;
 
 /// Get season name for display (use this instead of accessing enum directly)

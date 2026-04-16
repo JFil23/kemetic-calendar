@@ -11,7 +11,7 @@ import '../../data/nutrition_repo.dart';
 class SchedulePickerDialog extends StatefulWidget {
   final IntakeSchedule initial;
 
-  const SchedulePickerDialog({Key? key, required this.initial}) : super(key: key);
+  const SchedulePickerDialog({super.key, required this.initial});
 
   @override
   State<SchedulePickerDialog> createState() => _SchedulePickerDialogState();
@@ -166,7 +166,7 @@ class _SchedulePickerDialogState extends State<SchedulePickerDialog> {
       value: _repeat,
       onChanged: (v) => setState(() => _repeat = v),
       title: const Text('Repeat', style: TextStyle(color: Colors.white)),
-      activeColor: Colors.white,
+      activeThumbColor: Colors.white,
     );
   }
 
@@ -191,7 +191,7 @@ class _SchedulePickerDialogState extends State<SchedulePickerDialog> {
 
   Widget _buildAlertDropdown() {
     return DropdownButtonFormField<int?>(
-      value: _alertMinutes,
+      initialValue: _alertMinutes,
       onChanged: (v) => setState(() => _alertMinutes = v),
       style: const TextStyle(color: Colors.white),
       dropdownColor: Colors.black,
@@ -221,6 +221,5 @@ class _SchedulePickerDialogState extends State<SchedulePickerDialog> {
     Navigator.of(context).pop(schedule);
   }
 }
-
 
 

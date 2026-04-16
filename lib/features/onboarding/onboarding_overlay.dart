@@ -140,7 +140,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.35),
+                    color: Colors.white.withValues(alpha: 0.35),
                     width: 1.4,
                   ),
                   boxShadow: const [
@@ -165,7 +165,7 @@ class _OnboardingOverlayState extends State<OnboardingOverlay> {
                 size: const Size(_kArrowWidth, _kArrowHeight),
                 painter: _ArrowPainter(
                   pointingDown: placement.placeAbove,
-                  color: _cardBg.withOpacity(0.95),
+                  color: _cardBg.withValues(alpha: 0.95),
                   borderColor: Colors.white12,
                 ),
               ),
@@ -267,7 +267,7 @@ class _OnboardingCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: cardBg.withOpacity(0.95),
+        color: cardBg.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white12),
         boxShadow: const [
@@ -366,7 +366,7 @@ class _SpotlightPainter extends CustomPainter {
       path.addRRect(RRect.fromRectAndRadius(padded, const Radius.circular(12)));
 
       final glowPaint = Paint()
-        ..color = Colors.white.withOpacity(0.08)
+        ..color = Colors.white.withValues(alpha: 0.08)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 24);
       canvas.drawRRect(
         RRect.fromRectAndRadius(padded, const Radius.circular(12)),
@@ -374,7 +374,10 @@ class _SpotlightPainter extends CustomPainter {
       );
     }
 
-    canvas.drawPath(path, Paint()..color = Colors.black.withOpacity(0.68));
+    canvas.drawPath(
+      path,
+      Paint()..color = Colors.black.withValues(alpha: 0.68),
+    );
   }
 
   @override

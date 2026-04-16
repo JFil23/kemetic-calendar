@@ -14,7 +14,8 @@ import '../../data/user_events_repo.dart';
 import '../../repositories/inbox_repo.dart';
 import '../../utils/detail_sanitizer.dart';
 import '../../shared/glossy_text.dart';
-import '../../features/calendar/calendar_page.dart' show CalendarPage, notesDecode, ImportFlowData;
+import '../../features/calendar/calendar_page.dart'
+    show CalendarPage, notesDecode, ImportFlowData;
 import '../../features/calendar/kemetic_month_metadata.dart' show getMonthById;
 import '../../widgets/flow_start_date_picker.dart';
 
@@ -35,7 +36,7 @@ class _FlowSpanSummary {
 
 class SharedFlowDetailsPage extends StatefulWidget {
   final InboxShareItem? share; // non-imported
-  final int? flowId;           // imported
+  final int? flowId; // imported
   final Map<String, dynamic>? payloadJson; // direct payload (e.g., flow post)
   final bool showImportFooter;
   final bool showRemoveButton;
@@ -49,9 +50,11 @@ class SharedFlowDetailsPage extends StatefulWidget {
     this.showImportFooter = true,
     this.showRemoveButton = false,
     this.onRemove,
-  })  : assert(share != null || flowId != null || payloadJson != null,
-            'Either share, flowId, or payloadJson must be provided'),
-        super(key: key);
+  }) : assert(
+         share != null || flowId != null || payloadJson != null,
+         'Either share, flowId, or payloadJson must be provided',
+       ),
+       super(key: key);
 
   @override
   State<SharedFlowDetailsPage> createState() => _SharedFlowDetailsPageState();
@@ -84,8 +87,9 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       final allDay = (e['all_day'] as bool?) ?? false;
       final start = (e['start_time'] as String? ?? '').trim().toLowerCase();
       final end = (e['end_time'] as String? ?? '').trim().toLowerCase();
-      final detail =
-          cleanFlowDetail(e['detail'] as String?).trim().toLowerCase();
+      final detail = cleanFlowDetail(
+        e['detail'] as String?,
+      ).trim().toLowerCase();
       final location = (e['location'] as String? ?? '').trim().toLowerCase();
       return [
         title,
@@ -111,19 +115,21 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   void initState() {
     super.initState();
     _userEventsRepo = UserEventsRepo(Supabase.instance.client);
-    
+
     // Mark as viewed if current user is the recipient (only for non-imported shares)
     if (widget.share != null) {
       _markAsViewedIfRecipient();
       if (!_trackedShareViewed) {
         _trackedShareViewed = true;
-        unawaited(_userEventsRepo.trackShareViewed(
-          shareId: widget.share!.shareId,
-          source: 'inbox',
-        ));
+        unawaited(
+          _userEventsRepo.trackShareViewed(
+            shareId: widget.share!.shareId,
+            source: 'inbox',
+          ),
+        );
       }
     }
-    
+
     if (widget.flowId != null) {
       _flowFuture = _loadFromDb(widget.flowId!);
       _spanFuture = _loadSpanSummary(); // ✅ Only for imported flows
@@ -159,9 +165,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
         }
       } catch (e) {
         if (kDebugMode) {
-          debugPrint(
-            '[SharedFlowDetailsPage] Failed to mark viewed: $e',
-          );
+          debugPrint('[SharedFlowDetailsPage] Failed to mark viewed: $e');
         }
       }
     }
@@ -176,7 +180,9 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
 
       if (records.isEmpty) return null;
 
-      DateTime minDate = DateUtils.dateOnly(records.first.startsAtUtc.toLocal());
+      DateTime minDate = DateUtils.dateOnly(
+        records.first.startsAtUtc.toLocal(),
+      );
       DateTime maxDate = minDate;
       final dayKeys = <String>{};
 
@@ -199,7 +205,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
     } catch (e) {
       // If RLS or anything else blocks this, just don't show the label
       if (kDebugMode) {
-        print('[SharedFlowDetailsPage] span summary error: $e');
+        debugPrint('[SharedFlowDetailsPage] span summary error: $e');
       }
       return null;
     }
@@ -231,24 +237,30 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
 
     if (payload != null) {
       // Convert typed events to JSON format for _SharedFlowData
-      final eventsJson = payload.events.map((e) => <String, dynamic>{
-        'offset_days': e.offsetDays,
-        'title': e.title,
-        'detail': e.detail,
-        'location': e.location,
-        'all_day': e.allDay,
-        'start_time': e.startTime,
-        'end_time': e.endTime,
-      }).toList();
+      final eventsJson = payload.events
+          .map(
+            (e) => <String, dynamic>{
+              'offset_days': e.offsetDays,
+              'title': e.title,
+              'detail': e.detail,
+              'location': e.location,
+              'all_day': e.allDay,
+              'start_time': e.startTime,
+              'end_time': e.endTime,
+            },
+          )
+          .toList();
 
       if (kDebugMode) {
-        debugPrint('[SharedFlowDetailsPage._fromShare] Using typed payload model');
+        debugPrint(
+          '[SharedFlowDetailsPage._fromShare] Using typed payload model',
+        );
         debugPrint('  shareId=${share.shareId}');
         debugPrint('  name=${payload.name}, events=${payload.events.length}');
         debugPrint('  rules count=${payload.rules.length}');
-    }
+      }
 
-    return _SharedFlowData(
+      return _SharedFlowData(
         name: payload.name,
         color: payload.color ?? 0xFF4DD0E1,
         notes: payload.notes ?? '',
@@ -265,18 +277,27 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
     final payloadMap = share.payloadJson ?? const <String, dynamic>{};
 
     if (kDebugMode) {
-      debugPrint('[SharedFlowDetailsPage._fromShare] Using manual parsing fallback');
+      debugPrint(
+        '[SharedFlowDetailsPage._fromShare] Using manual parsing fallback',
+      );
       debugPrint('  shareId=${share.shareId}');
       debugPrint('  payload keys=${payloadMap.keys.toList()}');
-      debugPrint('  events count=${(payloadMap['events'] as List<dynamic>?)?.length ?? 0}');
-      debugPrint('  rules count=${(payloadMap['rules'] as List<dynamic>?)?.length ?? 0}');
+      debugPrint(
+        '  events count=${(payloadMap['events'] as List<dynamic>?)?.length ?? 0}',
+      );
+      debugPrint(
+        '  rules count=${(payloadMap['rules'] as List<dynamic>?)?.length ?? 0}',
+      );
     }
 
     // ✅ Use share.title as fallback if payload['name'] is missing
     final nameFromPayload = payloadMap['name'] as String?;
-    final safeName = (nameFromPayload != null && nameFromPayload.trim().isNotEmpty)
+    final safeName =
+        (nameFromPayload != null && nameFromPayload.trim().isNotEmpty)
         ? nameFromPayload.trim()
-        : (share.title.trim().isNotEmpty ? share.title.trim() : 'Untitled Flow');
+        : (share.title.trim().isNotEmpty
+              ? share.title.trim()
+              : 'Untitled Flow');
 
     return _SharedFlowData(
       name: safeName,
@@ -302,7 +323,8 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       rulesJson: (payload['rules'] as List<dynamic>? ?? const [])
           .cast<Map<String, dynamic>>(),
       eventsJson: _dedupeEvents(eventsJson),
-      suggestedScheduleJson: payload['suggested_schedule'] as Map<String, dynamic>?,
+      suggestedScheduleJson:
+          payload['suggested_schedule'] as Map<String, dynamic>?,
       isImported: false,
       flowId: null,
       share: null,
@@ -312,9 +334,9 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   Future<void> _submitFlowFeedback() async {
     if (widget.flowId == null) return;
     if (_selectedFeedbackTags.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select at least one tag.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Select at least one tag.')));
       return;
     }
 
@@ -329,14 +351,14 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Feedback sent')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Feedback sent')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send feedback: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to send feedback: $e')));
     } finally {
       if (!mounted) return;
       setState(() => _isSubmittingFeedback = false);
@@ -365,8 +387,8 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
         final data = snapshot.data!;
         final meta = notesDecode(data.notes);
         // ✅ Show overview from notesDecode, or fallback to raw notes if overview is empty
-        final overview = meta.overview?.trim().isNotEmpty == true 
-            ? meta.overview!.trim() 
+        final overview = meta.overview?.trim().isNotEmpty == true
+            ? meta.overview!.trim()
             : (data.notes.trim().isNotEmpty ? data.notes.trim() : '');
         final kemetic = meta.kemetic;
         final split = meta.split;
@@ -383,17 +405,13 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           appBar: AppBar(
             backgroundColor: Colors.black,
             elevation: 0.5,
-            title: const Text(
-              'Flow',
-              style: TextStyle(color: Colors.white),
-            ),
+            title: const Text('Flow', style: TextStyle(color: Colors.white)),
           ),
           body: Column(
             children: [
               Expanded(
                 child: ListView(
-                  padding:
-                      const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 24.0),
+                  padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 24.0),
                   children: [
                     // Name
                     GlossyText(
@@ -418,13 +436,12 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                     const SizedBox(height: 4),
                     // ✅ Show overview if available, otherwise show raw notes, otherwise show dash
                     Text(
-                      overview.isNotEmpty 
-                          ? overview 
-                          : (data.notes.trim().isNotEmpty ? data.notes.trim() : '—'),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                      ),
+                      overview.isNotEmpty
+                          ? overview
+                          : (data.notes.trim().isNotEmpty
+                                ? data.notes.trim()
+                                : '—'),
+                      style: const TextStyle(fontSize: 14, color: Colors.white),
                     ),
                     const SizedBox(height: 16),
 
@@ -476,8 +493,18 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
 
                         String fmt(DateTime d) {
                           const months = [
-                            'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+                            'Jan',
+                            'Feb',
+                            'Mar',
+                            'Apr',
+                            'May',
+                            'Jun',
+                            'Jul',
+                            'Aug',
+                            'Sep',
+                            'Oct',
+                            'Nov',
+                            'Dec',
                           ];
                           final m = months[d.month - 1];
                           return '$m ${d.day}, ${d.year}';
@@ -505,10 +532,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                     if (rulesJson.isEmpty)
                       const Text(
                         'No schedule information.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey,
-                        ),
+                        style: TextStyle(fontSize: 13, color: Colors.grey),
                       )
                     else
                       _SharedFlowSchedulePreview(
@@ -548,8 +572,9 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                         spacing: 8,
                         runSpacing: 8,
                         children: _feedbackTagLabels.entries.map((entry) {
-                          final selected =
-                              _selectedFeedbackTags.contains(entry.key);
+                          final selected = _selectedFeedbackTags.contains(
+                            entry.key,
+                          );
                           return FilterChip(
                             label: Text(entry.value),
                             labelStyle: TextStyle(
@@ -719,20 +744,18 @@ class _SharedFlowSchedulePreview extends StatelessWidget {
   }
 
   Widget _buildDecanRuleFromJson(Map<String, dynamic> json) {
-    final months =
-        (json['months'] as List<dynamic>? ?? const []).cast<int>()..sort();
-    final decans =
-        (json['decans'] as List<dynamic>? ?? const []).cast<int>()..sort();
-    final days =
-        (json['daysInDecan'] as List<dynamic>? ?? const []).cast<int>()
-          ..sort();
+    final months = (json['months'] as List<dynamic>? ?? const []).cast<int>()
+      ..sort();
+    final decans = (json['decans'] as List<dynamic>? ?? const []).cast<int>()
+      ..sort();
+    final days = (json['daysInDecan'] as List<dynamic>? ?? const []).cast<int>()
+      ..sort();
 
     final monthLabels = months
         .map((m) => getMonthById(m).displayFull)
         .join(', ');
 
-    final decanLabels =
-        decans.map((d) => ['I', 'II', 'III'][d - 1]).join(', ');
+    final decanLabels = decans.map((d) => ['I', 'II', 'III'][d - 1]).join(', ');
 
     if (days.isNotEmpty) {
       return Column(
@@ -740,18 +763,15 @@ class _SharedFlowSchedulePreview extends StatelessWidget {
         children: [
           Text(
             'Months: $monthLabels',
-            style:
-                const TextStyle(fontSize: 13, color: Colors.white),
+            style: const TextStyle(fontSize: 13, color: Colors.white),
           ),
           Text(
             'Decans: $decanLabels',
-            style:
-                const TextStyle(fontSize: 13, color: Colors.white),
+            style: const TextStyle(fontSize: 13, color: Colors.white),
           ),
           Text(
             'Days in decan: ${days.join(', ')}',
-            style:
-                const TextStyle(fontSize: 13, color: Colors.white),
+            style: const TextStyle(fontSize: 13, color: Colors.white),
           ),
         ],
       );
@@ -761,13 +781,11 @@ class _SharedFlowSchedulePreview extends StatelessWidget {
         children: [
           Text(
             'Months: $monthLabels',
-            style:
-                const TextStyle(fontSize: 13, color: Colors.white),
+            style: const TextStyle(fontSize: 13, color: Colors.white),
           ),
           Text(
             'Decans: $decanLabels (all days)',
-            style:
-                const TextStyle(fontSize: 13, color: Colors.white),
+            style: const TextStyle(fontSize: 13, color: Colors.white),
           ),
         ],
       );
@@ -776,8 +794,7 @@ class _SharedFlowSchedulePreview extends StatelessWidget {
 
   Widget _buildWeekRuleFromJson(Map<String, dynamic> json) {
     final weekdays =
-        (json['weekdays'] as List<dynamic>? ?? const []).cast<int>()
-          ..sort();
+        (json['weekdays'] as List<dynamic>? ?? const []).cast<int>()..sort();
 
     const weekdayNames = <int, String>{
       DateTime.monday: 'Mon',
@@ -789,8 +806,7 @@ class _SharedFlowSchedulePreview extends StatelessWidget {
       DateTime.sunday: 'Sun',
     };
 
-    final labels =
-        weekdays.map((w) => weekdayNames[w] ?? 'Day $w').join(', ');
+    final labels = weekdays.map((w) => weekdayNames[w] ?? 'Day $w').join(', ');
 
     return Text(
       'Repeats on: $labels',
@@ -799,8 +815,7 @@ class _SharedFlowSchedulePreview extends StatelessWidget {
   }
 
   Widget _buildDatesRuleFromJson(Map<String, dynamic> json) {
-    final msList =
-        (json['dates'] as List<dynamic>? ?? const []).cast<int>();
+    final msList = (json['dates'] as List<dynamic>? ?? const []).cast<int>();
     if (msList.isEmpty) {
       return const Text(
         'No dates selected',
@@ -808,11 +823,14 @@ class _SharedFlowSchedulePreview extends StatelessWidget {
       );
     }
 
-    final dates = msList
-        .map((ms) =>
-            DateUtils.dateOnly(DateTime.fromMillisecondsSinceEpoch(ms)))
-        .toList()
-      ..sort();
+    final dates =
+        msList
+            .map(
+              (ms) =>
+                  DateUtils.dateOnly(DateTime.fromMillisecondsSinceEpoch(ms)),
+            )
+            .toList()
+          ..sort();
 
     String fmt(DateTime d) =>
         '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -844,10 +862,7 @@ class _SharedFlowSchedulePreview extends StatelessWidget {
 class _SharedEventTile extends StatelessWidget {
   final Map<String, dynamic> event;
 
-  const _SharedEventTile({
-    Key? key,
-    required this.event,
-  }) : super(key: key);
+  const _SharedEventTile({Key? key, required this.event}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -858,8 +873,9 @@ class _SharedEventTile extends StatelessWidget {
     final startTime = event['start_time'] as String?;
     final endTime = event['end_time'] as String?;
     final int? offsetDays = (event['offset_days'] as num?)?.toInt();
-    final int? dayNumber =
-        offsetDays != null ? (offsetDays + 1) : null; // Snapshot offsets are zero-based
+    final int? dayNumber = offsetDays != null
+        ? (offsetDays + 1)
+        : null; // Snapshot offsets are zero-based
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -871,29 +887,26 @@ class _SharedEventTile extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Title and offset
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+        children: [
+          // Title and offset
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-            ),
-            if (dayNumber != null)
-              Text(
-                'Day $dayNumber',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.white70,
+              if (dayNumber != null)
+                Text(
+                  'Day $dayNumber',
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
                 ),
-              ),
             ],
           ),
 
@@ -902,19 +915,13 @@ class _SharedEventTile extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               endTime != null ? '$startTime - $endTime' : startTime,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.white70,
-              ),
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
             ),
           ] else if (allDay) ...[
             const SizedBox(height: 4),
             const Text(
               'All day',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white70,
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.white70),
             ),
           ],
 
@@ -923,10 +930,7 @@ class _SharedEventTile extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               detail.trim(),
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.white,
-              ),
+              style: const TextStyle(fontSize: 13, color: Colors.white),
             ),
           ],
 
@@ -951,10 +955,7 @@ class _SharedEventTile extends StatelessWidget {
 class _ImportedFlowFooter extends StatelessWidget {
   final int flowId;
 
-  const _ImportedFlowFooter({
-    Key? key,
-    required this.flowId,
-  }) : super(key: key);
+  const _ImportedFlowFooter({Key? key, required this.flowId}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -965,9 +966,7 @@ class _ImportedFlowFooter extends StatelessWidget {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (_) => CalendarPage(
-                initialFlowIdToEdit: flowId,
-              ),
+              builder: (_) => CalendarPage(initialFlowIdToEdit: flowId),
             ),
           );
         },
@@ -980,10 +979,8 @@ class _ImportedFlowFooter extends StatelessWidget {
 class _SharedFlowImportFooter extends StatefulWidget {
   final _SharedFlowData flowData;
 
-  const _SharedFlowImportFooter({
-    Key? key,
-    required this.flowData,
-  }) : super(key: key);
+  const _SharedFlowImportFooter({Key? key, required this.flowData})
+    : super(key: key);
 
   @override
   State<_SharedFlowImportFooter> createState() =>
@@ -1005,8 +1002,9 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
   Widget build(BuildContext context) {
     final suggestedStr =
         widget.flowData.suggestedScheduleJson?['start_date'] as String?;
-    final DateTime? suggestedDate =
-        suggestedStr != null ? DateTime.tryParse(suggestedStr) : null;
+    final DateTime? suggestedDate = suggestedStr != null
+        ? DateTime.tryParse(suggestedStr)
+        : null;
 
     final displayDate = _selectedStart ?? suggestedDate;
 
@@ -1045,8 +1043,7 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
                     if (_selectedStart == null && suggestedDate == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content:
-                              Text('Please select a start date first.'),
+                          content: Text('Please select a start date first.'),
                         ),
                       );
                       return;
@@ -1062,7 +1059,7 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
                       }
                       final originFlowId =
                           (payload['flow_id'] as num?)?.toInt() ??
-                              int.tryParse(share.payloadId);
+                          int.tryParse(share.payloadId);
                       final scheduledStart = _selectedStart ?? suggestedDate;
                       final scheduledStartIso = scheduledStart == null
                           ? null
@@ -1087,14 +1084,19 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
 
                       if (flowId != null) {
                         final inboxRepo = InboxRepo(Supabase.instance.client);
-                        await inboxRepo.markImported(share.shareId, isFlow: true);
-                        unawaited(_userEventsRepo.trackFlowImported(
-                          flowId: flowId,
-                          shareId: share.shareId,
-                          originType: 'share_import',
-                          originFlowId: originFlowId,
-                          scheduledStartIso: scheduledStartIso,
-                        ));
+                        await inboxRepo.markImported(
+                          share.shareId,
+                          isFlow: true,
+                        );
+                        unawaited(
+                          _userEventsRepo.trackFlowImported(
+                            flowId: flowId,
+                            shareId: share.shareId,
+                            originType: 'share_import',
+                            originFlowId: originFlowId,
+                            scheduledStartIso: scheduledStartIso,
+                          ),
+                        );
                         Navigator.pop<int>(context, flowId);
                       } else {
                         setState(() => _isWorking = false);
@@ -1104,15 +1106,16 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Import failed: $e')),
                       );
-                      unawaited(_userEventsRepo.trackFlowImportFailed(
-                        shareId: widget.flowData.share?.shareId,
-                        error: e.toString(),
-                      ));
+                      unawaited(
+                        _userEventsRepo.trackFlowImportFailed(
+                          shareId: widget.flowData.share?.shareId,
+                          error: e.toString(),
+                        ),
+                      );
                       setState(() => _isWorking = false);
                     }
                   },
-            child:
-                Text(_isWorking ? 'Importing…' : 'Import Flow'),
+            child: Text(_isWorking ? 'Importing…' : 'Import Flow'),
           ),
         ),
       ],

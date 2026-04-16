@@ -1,12 +1,17 @@
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../data/share_repo.dart';
-import '../features/inbox/inbox_page.dart';
+import 'package:go_router/go_router.dart';
+import 'app_link_intent.dart';
 
 class DeepLinkHandler {
-  static final _repo = ShareRepo(Supabase.instance.client);
   static final _appLinks = AppLinks();
+
+  static void _log(String message) {
+    if (kDebugMode) {
+      debugPrint(message);
+    }
+  }
 
   /// Initialize deep link handling
   static void initialize(BuildContext context) {
@@ -19,68 +24,28 @@ class DeepLinkHandler {
   static Future<void> handleInitialLink(BuildContext context) async {
     try {
       final initialUri = await _appLinks.getInitialLink();
+      if (!context.mounted) return;
       if (initialUri != null) {
         handleDeepLink(context, initialUri);
       }
     } catch (e) {
-      print('[DeepLink] Error handling initial link: $e');
+      _log('[DeepLink] Error handling initial link: $e');
     }
   }
 
   static Future<void> handleDeepLink(BuildContext context, Uri uri) async {
-    print('[DeepLink] Handling: $uri');
-
-    // maat://flow/123?share=uuid&t=token
-    if (uri.scheme == 'maat' && uri.host == 'flow') {
-      final shareId = uri.queryParameters['share'];
-      final token = uri.queryParameters['token'];
-
-      if (shareId == null) {
-        print('[DeepLink] Missing share ID');
-        return;
-      }
-
-      try {
-        final data = await _repo.resolveShare(
-          shareId: shareId,
-          token: token,
-        );
-
-        if (data['auth_required'] == true) {
-          // Show sign-in prompt
-          // TODO: Navigate to sign-in
-          print('[DeepLink] Auth required');
-          return;
-        }
-
-        // TODO: Open Flow Preview Card with data
-        print('[DeepLink] Flow data: ${data['flow']}');
-        
-      } catch (e) {
-        print('[DeepLink] Error: $e');
-      }
+    final intent = AppLinkIntent.parse(uri);
+    if (intent == null) {
+      _log('[DeepLink] Ignored unsupported link: $uri');
+      return;
     }
 
-    // https://maat.app/f/shortid
-    else if (uri.host == 'maat.app' && uri.pathSegments.isNotEmpty) {
-      if (uri.pathSegments[0] == 'f' && uri.pathSegments.length > 1) {
-        final shortLinkId = uri.pathSegments[1];
-
-        try {
-          // TODO: Implement short link resolution
-          // Short links not yet supported by ShareRepo
-          print('[DeepLink] Short link detected (not yet supported): $shortLinkId');
-          // final data = await _repo.resolveShare(
-          //   shareId: shortLinkId,
-          // );
-
-          // TODO: Open Flow Preview Card
-          // print('[DeepLink] Flow from short link: ${data['flow']}');
-          
-        } catch (e) {
-          print('[DeepLink] Error: $e');
-        }
-      }
+    switch (intent) {
+      case AuthAppLinkIntent():
+        _log('[DeepLink] Auth callback should be handled by AuthGate: $uri');
+      case ShareAppLinkIntent():
+        if (!context.mounted) return;
+        context.go(intent.routeLocation);
     }
   }
 }

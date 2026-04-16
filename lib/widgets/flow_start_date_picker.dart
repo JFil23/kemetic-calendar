@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/shared/glossy_text.dart';
-import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/widgets/month_name_text.dart';
 
 class FlowStartDatePicker {
@@ -20,37 +19,67 @@ class FlowStartDatePicker {
 
     // ---- Gregorian seed (default = tomorrow or initialDate) ----
     final now = DateUtils.dateOnly(DateTime.now());
-    DateTime gSeed = initialDate ?? (() {
-      int y = now.year, m = now.month, d = now.day + 1;
-      final maxD = DateUtils.getDaysInMonth(y, m);
-      if (d > maxD) { d = 1; m = (m == 12) ? 1 : m + 1; if (m == 1) y++; }
-      return DateTime(y, m, d);
-    })();
+    DateTime gSeed =
+        initialDate ??
+        (() {
+          int y = now.year, m = now.month, d = now.day + 1;
+          final maxD = DateUtils.getDaysInMonth(y, m);
+          if (d > maxD) {
+            d = 1;
+            m = (m == 12) ? 1 : m + 1;
+            if (m == 1) y++;
+          }
+          return DateTime(y, m, d);
+        })();
     int gy = gSeed.year, gm = gSeed.month, gd = gSeed.day;
 
     // ---- Kemetic seed (use today's Kemetic by default) ----
-    var kSeed = KemeticMath.fromGregorian(initialDate ?? now.add(const Duration(days: 1)));
+    var kSeed = KemeticMath.fromGregorian(
+      initialDate ?? now.add(const Duration(days: 1)),
+    );
     int ky = kSeed.kYear, km = kSeed.kMonth, kd = kSeed.kDay;
 
-    int _gregDayMax(int y, int m) => DateUtils.getDaysInMonth(y, m);
-    int _kemDayMax(int year, int month) =>
+    int gregDayMax(int y, int m) => DateUtils.getDaysInMonth(y, m);
+    int kemDayMax(int year, int month) =>
         (month == 13) ? (KemeticMath.isLeapKemeticYear(year) ? 6 : 5) : 30;
 
     // Controllers
     final int gYearStart = now.year; // show future-oriented years
-    final gYearCtrl  = FixedExtentScrollController(initialItem: (gy - gYearStart).clamp(0, 399));
-    final gMonthCtrl = FixedExtentScrollController(initialItem: (gm - 1).clamp(0, 11));
-    final gDayCtrl   = FixedExtentScrollController(initialItem: (gd - 1).clamp(0, 30));
+    final gYearCtrl = FixedExtentScrollController(
+      initialItem: (gy - gYearStart).clamp(0, 399),
+    );
+    final gMonthCtrl = FixedExtentScrollController(
+      initialItem: (gm - 1).clamp(0, 11),
+    );
+    final gDayCtrl = FixedExtentScrollController(
+      initialItem: (gd - 1).clamp(0, 30),
+    );
 
     final int kYearStart = ky; // centered on current Kemetic year
-    final kYearCtrl  = FixedExtentScrollController(initialItem: (ky - kYearStart).clamp(0, 400));
-    final kMonthCtrl = FixedExtentScrollController(initialItem: (km - 1).clamp(0, 12));
-    final kDayCtrl   = FixedExtentScrollController(initialItem: (kd - 1).clamp(0, 29));
+    final kYearCtrl = FixedExtentScrollController(
+      initialItem: (ky - kYearStart).clamp(0, 400),
+    );
+    final kMonthCtrl = FixedExtentScrollController(
+      initialItem: (km - 1).clamp(0, 12),
+    );
+    final kDayCtrl = FixedExtentScrollController(
+      initialItem: (kd - 1).clamp(0, 29),
+    );
 
     // Gregorian month names
-    const _gregMonthNames = {
-      1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
-      7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec',
+    const gregMonthNames = {
+      1: 'Jan',
+      2: 'Feb',
+      3: 'Mar',
+      4: 'Apr',
+      5: 'May',
+      6: 'Jun',
+      7: 'Jul',
+      8: 'Aug',
+      9: 'Sep',
+      10: 'Oct',
+      11: 'Nov',
+      12: 'Dec',
     };
 
     return await showModalBottomSheet<DateTime>(
@@ -64,12 +93,12 @@ class FlowStartDatePicker {
         return StatefulBuilder(
           builder: (sheetCtx, setSheetState) {
             // Clamp wheels when parents change
-            final gMax = _gregDayMax(gy, gm);
+            final gMax = gregDayMax(gy, gm);
             if (gd > gMax) gd = gMax;
-            final kMax = _kemDayMax(ky, km);
+            final kMax = kemDayMax(ky, km);
             if (kd > kMax) kd = kMax;
 
-            Widget _gregWheel() => SizedBox(
+            Widget gregWheel() => SizedBox(
               height: 160,
               child: Row(
                 children: [
@@ -83,11 +112,11 @@ class FlowStartDatePicker {
                       onSelectedItemChanged: (i) {
                         setSheetState(() {
                           gm = (i % 12) + 1;
-                          final mx = _gregDayMax(gy, gm);
+                          final mx = gregDayMax(gy, gm);
                           if (gd > mx && gDayCtrl.hasClients) {
                             gd = mx;
                             WidgetsBinding.instance.addPostFrameCallback(
-                                  (_) => gDayCtrl.jumpToItem(gd - 1),
+                              (_) => gDayCtrl.jumpToItem(gd - 1),
                             );
                           }
                         });
@@ -95,7 +124,7 @@ class FlowStartDatePicker {
                       children: List.generate(12, (i) {
                         return Center(
                           child: GlossyText(
-                            text: _gregMonthNames[i + 1]!,
+                            text: gregMonthNames[i + 1]!,
                             style: const TextStyle(fontSize: 14),
                             gradient: silverGloss,
                           ),
@@ -113,11 +142,11 @@ class FlowStartDatePicker {
                       backgroundColor: const Color(0x00121214),
                       onSelectedItemChanged: (i) {
                         setSheetState(() {
-                          final mx = _gregDayMax(gy, gm);
+                          final mx = gregDayMax(gy, gm);
                           gd = (i % mx) + 1;
                         });
                       },
-                      children: List.generate(_gregDayMax(gy, gm), (i) {
+                      children: List.generate(gregDayMax(gy, gm), (i) {
                         final dd = i + 1;
                         return Center(
                           child: GlossyText(
@@ -140,11 +169,11 @@ class FlowStartDatePicker {
                       onSelectedItemChanged: (i) {
                         setSheetState(() {
                           gy = gYearStart + i;
-                          final mx = _gregDayMax(gy, gm);
+                          final mx = gregDayMax(gy, gm);
                           if (gd > mx && gDayCtrl.hasClients) {
                             gd = mx;
                             WidgetsBinding.instance.addPostFrameCallback(
-                                  (_) => gDayCtrl.jumpToItem(gd - 1),
+                              (_) => gDayCtrl.jumpToItem(gd - 1),
                             );
                           }
                         });
@@ -165,7 +194,7 @@ class FlowStartDatePicker {
               ),
             );
 
-            Widget _kemWheel() => SizedBox(
+            Widget kemWheel() => SizedBox(
               height: 160,
               child: Row(
                 children: [
@@ -179,11 +208,11 @@ class FlowStartDatePicker {
                       onSelectedItemChanged: (i) {
                         setSheetState(() {
                           km = (i % 13) + 1;
-                          final mx = _kemDayMax(ky, km);
+                          final mx = kemDayMax(ky, km);
                           if (kd > mx && kDayCtrl.hasClients) {
                             kd = mx;
                             WidgetsBinding.instance.addPostFrameCallback(
-                                  (_) => kDayCtrl.jumpToItem(kd - 1),
+                              (_) => kDayCtrl.jumpToItem(kd - 1),
                             );
                           }
                         });
@@ -209,11 +238,11 @@ class FlowStartDatePicker {
                       backgroundColor: const Color(0x00121214),
                       onSelectedItemChanged: (i) {
                         setSheetState(() {
-                          final mx = _kemDayMax(ky, km);
+                          final mx = kemDayMax(ky, km);
                           kd = (i % mx) + 1;
                         });
                       },
-                      children: List.generate(_kemDayMax(ky, km), (i) {
+                      children: List.generate(kemDayMax(ky, km), (i) {
                         final dd = i + 1;
                         return Center(
                           child: GlossyText(
@@ -236,11 +265,11 @@ class FlowStartDatePicker {
                       onSelectedItemChanged: (i) {
                         setSheetState(() {
                           ky = kYearStart + i;
-                          final mx = _kemDayMax(ky, km);
+                          final mx = kemDayMax(ky, km);
                           if (kd > mx && kDayCtrl.hasClients) {
                             kd = mx;
                             WidgetsBinding.instance.addPostFrameCallback(
-                                  (_) => kDayCtrl.jumpToItem(kd - 1),
+                              (_) => kDayCtrl.jumpToItem(kd - 1),
                             );
                           }
                         });
@@ -248,11 +277,14 @@ class FlowStartDatePicker {
                       children: List.generate(401, (i) {
                         final y = kYearStart + i;
                         // Show Gregorian year label for the chosen Kemetic month
-                        final last =
-                        (km == 13) ? (KemeticMath.isLeapKemeticYear(y) ? 6 : 5) : 30;
+                        final last = (km == 13)
+                            ? (KemeticMath.isLeapKemeticYear(y) ? 6 : 5)
+                            : 30;
                         final yStart = KemeticMath.toGregorian(y, km, 1).year;
-                        final yEnd   = KemeticMath.toGregorian(y, km, last).year;
-                        final label  = (yStart == yEnd) ? '$yStart' : '$yStart/$yEnd';
+                        final yEnd = KemeticMath.toGregorian(y, km, last).year;
+                        final label = (yStart == yEnd)
+                            ? '$yStart'
+                            : '$yStart/$yEnd';
                         return Center(
                           child: GlossyText(
                             text: label,
@@ -294,11 +326,17 @@ class FlowStartDatePicker {
                     padding: const EdgeInsets.all(2),
                     children: const {
                       true: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         child: Text('Kemetic'),
                       ),
                       false: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         child: Text('Gregorian'),
                       ),
                     },
@@ -311,12 +349,14 @@ class FlowStartDatePicker {
                           ky = k.kYear;
                           km = k.kMonth;
                           kd = k.kDay;
-                          final kMax = _kemDayMax(ky, km);
+                          final kMax = kemDayMax(ky, km);
                           if (kd > kMax) kd = kMax;
                           localKemetic = true;
 
                           WidgetsBinding.instance.addPostFrameCallback((_) {
-                            kYearCtrl.jumpToItem((ky - kYearStart).clamp(0, 400));
+                            kYearCtrl.jumpToItem(
+                              (ky - kYearStart).clamp(0, 400),
+                            );
                             kMonthCtrl.jumpToItem((km - 1).clamp(0, 12));
                             kDayCtrl.jumpToItem((kd - 1).clamp(0, 29));
                           });
@@ -326,12 +366,14 @@ class FlowStartDatePicker {
                           gy = g.year;
                           gm = g.month;
                           gd = g.day;
-                          final gMax = _gregDayMax(gy, gm);
+                          final gMax = gregDayMax(gy, gm);
                           if (gd > gMax) gd = gMax;
                           localKemetic = false;
 
                           WidgetsBinding.instance.addPostFrameCallback((_) {
-                            gYearCtrl.jumpToItem((gy - gYearStart).clamp(0, 39));
+                            gYearCtrl.jumpToItem(
+                              (gy - gYearStart).clamp(0, 39),
+                            );
                             gMonthCtrl.jumpToItem((gm - 1).clamp(0, 11));
                             gDayCtrl.jumpToItem((gd - 1).clamp(0, 30));
                           });
@@ -344,14 +386,19 @@ class FlowStartDatePicker {
 
                   // Title
                   GlossyText(
-                    text: localKemetic ? 'Start date (Kemetic)' : 'Start date (Gregorian)',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    text: localKemetic
+                        ? 'Start date (Kemetic)'
+                        : 'Start date (Gregorian)',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                     gradient: localKemetic ? goldGloss : blueGloss,
                   ),
                   const SizedBox(height: 8),
 
                   // Wheels
-                  localKemetic ? _kemWheel() : _gregWheel(),
+                  localKemetic ? kemWheel() : gregWheel(),
 
                   const SizedBox(height: 12),
                   Row(
@@ -393,4 +440,3 @@ class FlowStartDatePicker {
     );
   }
 }
-

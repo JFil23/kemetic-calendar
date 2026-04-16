@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:http/http.dart' as http;
@@ -89,7 +88,10 @@ class PushNotifications {
   final _PushTokenRepo _repo;
   bool _initialized = false;
   bool _askedPermission = false;
-  final StreamController<Map<String, dynamic>> _openedMessages = StreamController.broadcast();
+  bool _initialMessageChecked = false;
+  final StreamController<Map<String, dynamic>> _openedMessages =
+      StreamController.broadcast();
+  final Set<String> _handledOpenedMessageSignatures = <String>{};
   String? _resolvedWebVapidKey;
 
   Stream<Map<String, dynamic>> get openedMessages => _openedMessages.stream;
@@ -97,7 +99,9 @@ class PushNotifications {
   static const _webApiKey = String.fromEnvironment('FIREBASE_WEB_API_KEY');
   static const _webAppId = String.fromEnvironment('FIREBASE_WEB_APP_ID');
   static const _webSender = String.fromEnvironment('FIREBASE_WEB_SENDER_ID');
-  static const _webProjectId = String.fromEnvironment('FIREBASE_WEB_PROJECT_ID');
+  static const _webProjectId = String.fromEnvironment(
+    'FIREBASE_WEB_PROJECT_ID',
+  );
   static const _webVapidKey = String.fromEnvironment('FIREBASE_WEB_VAPID_KEY');
 
   /// Request permission, fetch token, and upsert it. Returns the token if available.
@@ -105,11 +109,15 @@ class PushNotifications {
     final currentSession = _client.auth.currentSession;
     final currentUser = _client.auth.currentUser;
     debugPrint('[push] currentSession? ${currentSession != null}');
-    debugPrint('[push] currentUser? ${currentUser != null}, id=${currentUser?.id}');
+    debugPrint(
+      '[push] currentUser? ${currentUser != null}, id=${currentUser?.id}',
+    );
     debugPrint('[push] session.expiresAt: ${currentSession?.expiresAt}');
 
     if (currentSession == null || currentUser?.id == null) {
-      debugPrint('[push] no authenticated user; aborting token upsert. Prompt user to sign in.');
+      debugPrint(
+        '[push] no authenticated user; aborting token upsert. Prompt user to sign in.',
+      );
       return null;
     }
 
@@ -137,11 +145,12 @@ class PushNotifications {
     }
 
     // Foreground presentation (iOS/macOS/web)
-    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
 
     _initialized = true;
     _attachListeners();
@@ -162,7 +171,7 @@ class PushNotifications {
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      _openedMessages.add(message.data);
+      _emitOpenedMessage(message.data, messageId: message.messageId);
     });
   }
 
@@ -182,11 +191,14 @@ class PushNotifications {
         ? '${token.substring(0, 6)}...${token.substring(token.length - 6)} (len=${token.length})'
         : token;
     debugPrint('[push] token fetched: $masked');
-    if (token == null) return false;
     final registered = await _registerToken(token);
     if (kDebugMode) {
-      final suffix = token.length > 8 ? token.substring(token.length - 8) : token;
-      debugPrint('[push] token registered=$registered len=${token.length} suffix=$suffix');
+      final suffix = token.length > 8
+          ? token.substring(token.length - 8)
+          : token;
+      debugPrint(
+        '[push] token registered=$registered len=${token.length} suffix=$suffix',
+      );
     }
     if (!registered) {
       debugPrint('[push] token registration failed');
@@ -237,7 +249,9 @@ class PushNotifications {
       if (kIsWeb) {
         final opts = await _resolveWebOptions();
         if (opts == null) {
-          debugPrint('[push] missing web Firebase config; set FIREBASE_WEB_* or web/env.json');
+          debugPrint(
+            '[push] missing web Firebase config; set FIREBASE_WEB_* or web/env.json',
+          );
           return false;
         }
         await Firebase.initializeApp(options: opts);
@@ -247,7 +261,9 @@ class PushNotifications {
       await Firebase.initializeApp();
       return true;
     } catch (e) {
-      debugPrint('[push] Firebase init failed (likely missing google-services/Info.plist): $e');
+      debugPrint(
+        '[push] Firebase init failed (likely missing google-services/Info.plist): $e',
+      );
       return false;
     }
   }
@@ -257,8 +273,8 @@ class PushNotifications {
       return await FirebaseMessaging.instance.getToken(
         vapidKey: kIsWeb
             ? (_resolvedWebVapidKey?.isNotEmpty == true
-                ? _resolvedWebVapidKey
-                : (_webVapidKey.isEmpty ? null : _webVapidKey))
+                  ? _resolvedWebVapidKey
+                  : (_webVapidKey.isEmpty ? null : _webVapidKey))
             : null,
       );
     } catch (e) {
@@ -270,7 +286,9 @@ class PushNotifications {
   Future<bool> _registerToken(String token) async {
     final deviceId = await _deviceId();
     final platform = _platformLabel();
-    debugPrint('[push] registering token for platform=$platform deviceId=$deviceId');
+    debugPrint(
+      '[push] registering token for platform=$platform deviceId=$deviceId',
+    );
     return await _repo.upsertToken(
       token: token,
       platform: platform,
@@ -279,14 +297,38 @@ class PushNotifications {
   }
 
   Future<void> emitInitialMessage() async {
+    if (_initialMessageChecked) return;
+    final ok = await _ensureFirebaseInitialized();
+    if (!ok) return;
     try {
       final initial = await FirebaseMessaging.instance.getInitialMessage();
+      _initialMessageChecked = true;
       if (initial != null) {
-        _openedMessages.add(initial.data);
+        _emitOpenedMessage(initial.data, messageId: initial.messageId);
       }
     } catch (e) {
       debugPrint('[push] emitInitialMessage error: $e');
     }
+  }
+
+  void _emitOpenedMessage(Map<String, dynamic> data, {String? messageId}) {
+    final signature = buildPushOpenedMessageSignature(
+      data,
+      messageId: messageId,
+    );
+    if (_handledOpenedMessageSignatures.contains(signature)) {
+      if (kDebugMode) {
+        debugPrint('[push] skip duplicate opened message: $signature');
+      }
+      return;
+    }
+    _handledOpenedMessageSignatures.add(signature);
+    while (_handledOpenedMessageSignatures.length > 24) {
+      _handledOpenedMessageSignatures.remove(
+        _handledOpenedMessageSignatures.first,
+      );
+    }
+    _openedMessages.add(data);
   }
 
   Future<String> _deviceId() async {
@@ -299,7 +341,10 @@ class PushNotifications {
   }
 
   FirebaseOptions? _webOptionsFromEnv() {
-    if (_webApiKey.isEmpty || _webAppId.isEmpty || _webSender.isEmpty || _webProjectId.isEmpty) {
+    if (_webApiKey.isEmpty ||
+        _webAppId.isEmpty ||
+        _webSender.isEmpty ||
+        _webProjectId.isEmpty) {
       return null;
     }
     return FirebaseOptions(
@@ -328,7 +373,10 @@ class PushNotifications {
         final senderId = (json['FIREBASE_WEB_SENDER_ID'] as String?) ?? '';
         final projectId = (json['FIREBASE_WEB_PROJECT_ID'] as String?) ?? '';
         final vapid = (json['FIREBASE_WEB_VAPID_KEY'] as String?) ?? '';
-        if (apiKey.isNotEmpty && appId.isNotEmpty && senderId.isNotEmpty && projectId.isNotEmpty) {
+        if (apiKey.isNotEmpty &&
+            appId.isNotEmpty &&
+            senderId.isNotEmpty &&
+            projectId.isNotEmpty) {
           _resolvedWebVapidKey = vapid;
           return FirebaseOptions(
             apiKey: apiKey,
@@ -338,31 +386,44 @@ class PushNotifications {
           );
         }
       }
-      debugPrint('[push] env.json missing FIREBASE_WEB_* keys (status=${resp.statusCode})');
+      debugPrint(
+        '[push] env.json missing FIREBASE_WEB_* keys (status=${resp.statusCode})',
+      );
     } catch (e) {
       debugPrint('[push] failed to load env.json for web Firebase config: $e');
     }
     return null;
   }
+}
 
-  /// Web-only: request permission explicitly and log the token for debugging.
-  Future<void> _requestWebPermissionAndLogToken() async {
-    if (!kIsWeb) return;
-    try {
-      final settings = await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-      debugPrint('[push] web permission: ${settings.authorizationStatus}');
-      final token = await FirebaseMessaging.instance.getToken(
-        vapidKey: _webVapidKey.isEmpty ? null : _webVapidKey,
-      );
-      debugPrint('[push] web token: $token');
-    } catch (e) {
-      debugPrint('[push] web permission/token failed: $e');
-    }
+@visibleForTesting
+String buildPushOpenedMessageSignature(
+  Map<String, dynamic> data, {
+  String? messageId,
+}) {
+  final normalizedId = messageId?.trim();
+  if (normalizedId != null && normalizedId.isNotEmpty) {
+    return 'id:$normalizedId';
   }
+  return 'payload:${jsonEncode(_normalizePushMessageData(data))}';
+}
+
+Object? _normalizePushMessageData(Object? value) {
+  if (value is Map) {
+    final entries = value.entries.toList()
+      ..sort((a, b) => a.key.toString().compareTo(b.key.toString()));
+    return <String, Object?>{
+      for (final entry in entries)
+        entry.key.toString(): _normalizePushMessageData(entry.value),
+    };
+  }
+  if (value is Iterable) {
+    return value.map(_normalizePushMessageData).toList(growable: false);
+  }
+  if (value == null || value is num || value is String || value is bool) {
+    return value;
+  }
+  return value.toString();
 }
 
 String _platformLabel() {

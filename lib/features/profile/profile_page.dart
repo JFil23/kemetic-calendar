@@ -19,8 +19,7 @@ class ProfilePage extends StatefulWidget {
   final String userId;
   final bool isMyProfile;
 
-  const ProfilePage({Key? key, required this.userId, this.isMyProfile = false})
-    : super(key: key);
+  const ProfilePage({super.key, required this.userId, this.isMyProfile = false});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -193,13 +192,13 @@ class _ProfilePageState extends State<ProfilePage> {
           Icon(
             Icons.person_outline,
             size: 80,
-            color: Colors.white.withOpacity(0.3),
+            color: Colors.white.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 16),
           Text(
             'Profile not found',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
               fontSize: 16,
             ),
           ),
@@ -232,7 +231,7 @@ class _ProfilePageState extends State<ProfilePage> {
             Text(
               '@${profile.handle}',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
                 fontSize: 15,
               ),
             ),
@@ -295,7 +294,8 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Image.network(
                 profile.avatarUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildDefaultAvatar(profile),
+                errorBuilder: (context, error, stackTrace) =>
+                    _buildDefaultAvatar(profile),
               ),
             )
           : _buildDefaultAvatar(profile),
@@ -368,10 +368,10 @@ class _ProfilePageState extends State<ProfilePage> {
   }) {
     final numberColor = enabled
         ? KemeticGold.base
-        : KemeticGold.base.withOpacity(0.6);
+        : KemeticGold.base.withValues(alpha: 0.6);
     final labelColor = enabled
-        ? Colors.white.withOpacity(0.6)
-        : Colors.white.withOpacity(0.35);
+        ? Colors.white.withValues(alpha: 0.6)
+        : Colors.white.withValues(alpha: 0.35);
 
     return Material(
       color: Colors.transparent,
@@ -611,7 +611,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ? 'Post a flow to share it on your profile.'
                 : 'Check back later for posted flows.',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
+              color: Colors.white.withValues(alpha: 0.6),
               fontSize: 14,
             ),
           ),
@@ -637,7 +637,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildPostCard(FlowPost post) {
-    final color = Color(0xFF000000 | (post.color & 0x00FFFFFF));
     final overview = _extractOverview(post.notes);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -645,7 +644,7 @@ class _ProfilePageState extends State<ProfilePage> {
       decoration: BoxDecoration(
         color: const Color(0xFF0D0D0F),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -685,7 +684,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.75),
+                            color: Colors.white.withValues(alpha: 0.75),
                             height: 1.3,
                           ),
                         )
@@ -695,7 +694,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.75),
+                            color: Colors.white.withValues(alpha: 0.75),
                             height: 1.3,
                           ),
                         ),
@@ -703,7 +702,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       Text(
                         'Posted ${_formatDate(post.createdAt)}',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.5),
+                          color: Colors.white.withValues(alpha: 0.5),
                           fontSize: 12,
                         ),
                       ),

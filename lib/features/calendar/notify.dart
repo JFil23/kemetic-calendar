@@ -1,6 +1,6 @@
 // lib/features/calendar/notify.dart
 import 'dart:async';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -58,7 +58,7 @@ class Notify {
   static void _log(String msg) {
     if (kDebugMode) {
       final timestamp = DateTime.now().toIso8601String();
-      print('[Notify $timestamp] $msg');
+      debugPrint('[Notify $timestamp] $msg');
     }
   }
 

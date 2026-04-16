@@ -12,9 +12,9 @@ class EditProfilePage extends StatefulWidget {
   final UserProfile initialProfile;
 
   const EditProfilePage({
-    Key? key,
+    super.key,
     required this.initialProfile,
-  }) : super(key: key);
+  });
 
   @override
   State<EditProfilePage> createState() => _EditProfilePageState();
@@ -244,7 +244,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     Text(
                       'Tap to change avatar',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                         fontSize: 13,
                       ),
                     ),
@@ -256,7 +256,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         labelText: 'Display Name',
-                        labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+                        labelStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
                         filled: true,
                         fillColor: const Color(0xFF0D0D0F),
                         border: OutlineInputBorder(
@@ -286,7 +288,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                         ),
-                        labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+                        labelStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
                         filled: true,
                         fillColor: const Color(0xFF0D0D0F),
                         border: OutlineInputBorder(
@@ -333,14 +337,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       maxLength: 160,
                       decoration: InputDecoration(
                         labelText: 'Bio',
-                        labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+                        labelStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
                         filled: true,
                         fillColor: const Color(0xFF0D0D0F),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
                         ),
-                        counterStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                        counterStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -351,7 +359,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         labelText: 'Location (optional)',
-                        labelStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
+                        labelStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
                         filled: true,
                         fillColor: const Color(0xFF0D0D0F),
                         border: OutlineInputBorder(
@@ -391,11 +401,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             subtitle: Text(
                               'Allow others to find your profile',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.6),
+                                color: Colors.white.withValues(alpha: 0.6),
                                 fontSize: 13,
                               ),
                             ),
-                            activeColor: KemeticGold.base,
+                            activeThumbColor: KemeticGold.base,
                             contentPadding: EdgeInsets.zero,
                           ),
                           const Divider(color: Color(0xFF1A1A1A)),
@@ -409,11 +419,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             subtitle: Text(
                               'Others can share flows with you',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.6),
+                                color: Colors.white.withValues(alpha: 0.6),
                                 fontSize: 13,
                               ),
                             ),
-                            activeColor: KemeticGold.base,
+                            activeThumbColor: KemeticGold.base,
                             contentPadding: EdgeInsets.zero,
                           ),
                         ],

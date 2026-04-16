@@ -22,11 +22,9 @@ class AppTheme {
     // Core colors
     scaffoldBackgroundColor: _black,
     colorScheme: ColorScheme.dark(
-      background: _black,
       surface: _surface,
       primary: _primary,
       secondary: _secondary,
-      onBackground: Colors.white,
       onSurface: Colors.white,
     ),
     
@@ -76,8 +74,8 @@ class AppTheme {
     // Navigation bar
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: _surface,
-      indicatorColor: _primary.withOpacity(0.2),
-      labelTextStyle: MaterialStateProperty.all(
+      indicatorColor: _primary.withValues(alpha: 0.2),
+      labelTextStyle: WidgetStateProperty.all(
         const TextStyle(fontSize: 12),
       ),
     ),
@@ -128,7 +126,7 @@ class AppTheme {
     
     // Divider
     dividerTheme: DividerThemeData(
-      color: Colors.white.withOpacity(0.1),
+      color: Colors.white.withValues(alpha: 0.1),
       thickness: 1,
     ),
   );

@@ -1,10 +1,11 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 
 typedef NoteJson = Map<String, dynamic>;
 typedef FlowJson = Map<String, dynamic>;
 
-String? _todToString(TimeOfDay? t) => t == null ? null : '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+String? _todToString(TimeOfDay? t) => t == null
+    ? null
+    : '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 TimeOfDay? _todFromString(String? s) {
   if (s == null || s.isEmpty) return null;
   final p = s.split(':');
@@ -73,12 +74,16 @@ abstract class FlowRule {
         return RuleDecan(
           months: Set<int>.from((j['months'] as List).map((e) => e as int)),
           decans: Set<int>.from((j['decans'] as List).map((e) => e as int)),
-          daysInDecan: Set<int>.from((j['daysInDecan'] as List).map((e) => e as int)),
+          daysInDecan: Set<int>.from(
+            (j['daysInDecan'] as List).map((e) => e as int),
+          ),
           allDay: j['allDay'] as bool? ?? true,
         );
       case 'dates':
         return RuleDates(
-          dates: (j['dates'] as List).map((e) => DateTime.parse(e as String)).toSet(),
+          dates: (j['dates'] as List)
+              .map((e) => DateTime.parse(e as String))
+              .toSet(),
         );
       default:
         return const RuleDates(dates: {});
@@ -125,7 +130,9 @@ class RuleDates extends FlowRule {
   @override
   Map<String, dynamic> toJson() => {
     'type': 'dates',
-    'dates': dates.map((d) => DateTime(d.year, d.month, d.day).toIso8601String()).toList(),
+    'dates': dates
+        .map((d) => DateTime(d.year, d.month, d.day).toIso8601String())
+        .toList(),
   };
 }
 
@@ -139,8 +146,8 @@ class Flow {
   final bool isSaved;
   final List<FlowRule> rules;
   final DateTime? start; // date-only
-  final DateTime? end;   // date-only
-  final String? notes;   // packed metadata string
+  final DateTime? end; // date-only
+  final String? notes; // packed metadata string
   final bool isReminder;
 
   const Flow({
@@ -185,7 +192,7 @@ class Flow {
   FlowJson toJson() => {
     'id': id,
     'name': name,
-    'color': color.value,
+    'color': color.toARGB32(),
     'active': active,
     'isSaved': isSaved,
     'rules': rules.map((r) => r.toJson()).toList(),
@@ -204,8 +211,12 @@ class Flow {
     rules: (j['rules'] as List? ?? const [])
         .map((e) => FlowRule.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList(),
-    start: (j['start'] as String?) == null ? null : DateTime.parse(j['start'] as String),
-    end: (j['end'] as String?) == null ? null : DateTime.parse(j['end'] as String),
+    start: (j['start'] as String?) == null
+        ? null
+        : DateTime.parse(j['start'] as String),
+    end: (j['end'] as String?) == null
+        ? null
+        : DateTime.parse(j['end'] as String),
     notes: j['notes'] as String?,
     isReminder: (j['isReminder'] as bool?) ?? false,
   );

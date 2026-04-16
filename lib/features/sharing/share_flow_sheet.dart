@@ -17,12 +17,12 @@ class ShareFlowSheet extends StatefulWidget {
   final String? eventId; // When present, call create_event_share
 
   const ShareFlowSheet({
-    Key? key,
+    super.key,
     required this.flowId,
     required this.flowTitle,
     this.noteShareText,
     this.eventId,
-  }) : super(key: key);
+  });
 
   @override
   State<ShareFlowSheet> createState() => _ShareFlowSheetState();
@@ -32,8 +32,8 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
   final _repo = ShareRepo(Supabase.instance.client);
   final _profileRepo = ProfileRepo(Supabase.instance.client);
   final _searchController = TextEditingController();
-  
-  List<ShareRecipient> _recipients = [];
+
+  final List<ShareRecipient> _recipients = [];
   // ✅ NEW: keep rich info for user recipients keyed by userId
   final Map<String, UserSearchResult> _recipientUsersById = {};
   String _searchQuery = '';
@@ -44,6 +44,14 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
 
   bool get _isNoteMode => widget.flowId == null && widget.noteShareText != null;
   bool get _isEventShare => widget.eventId != null;
+  bool get _showNoUserResults {
+    final query = _searchQuery.trim();
+    return query.length >= 2 &&
+        !_searching &&
+        _searchResults.isEmpty &&
+        !_isValidEmail(query) &&
+        !_looksLikePhoneNumber(query);
+  }
 
   @override
   void dispose() {
@@ -86,7 +94,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                       Text(
                         widget.flowTitle,
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                           fontSize: 14,
                         ),
                         maxLines: 1,
@@ -132,6 +140,15 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                   if (_searchResults.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     _buildSearchResults(),
+                  ] else if (_showNoUserResults) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'No users found for "$_searchQuery". You can still press Enter to add an email or phone number.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                   
                   const SizedBox(height: 24),
@@ -141,7 +158,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                     Text(
                       'Recipients (${_recipients.length})',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -165,17 +182,38 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: 'Search by @handle or enter email/phone (press Enter)',
-        hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-        prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.5)),
+        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+        prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.5)),
+        suffixIcon: _searching
+            ? const Padding(
+                padding: EdgeInsets.all(12),
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+                  ),
+                ),
+              )
+            : _searchQuery.isEmpty
+            ? null
+            : IconButton(
+                onPressed: _clearSearch,
+                icon: Icon(
+                  Icons.close,
+                  color: Colors.white.withValues(alpha: 0.5),
+                ),
+              ),
         filled: true,
         fillColor: const Color(0xFF0D0D0F),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -183,7 +221,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
         ),
       ),
       onChanged: _onSearchChanged,
-      onSubmitted: _handleSubmit,  // ⭐ ADD THIS LINE
+      onSubmitted: _handleSubmit,
     );
   }
 
@@ -244,9 +282,23 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     });
   }
 
-  // Add this helper method
   bool _isValidEmail(String email) {
     return RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$').hasMatch(email);
+  }
+
+  bool _looksLikePhoneNumber(String value) {
+    final cleanedPhone = value.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    return RegExp(r'^\+?\d{10,}$').hasMatch(cleanedPhone);
+  }
+
+  void _clearSearch() {
+    _searchDebounce?.cancel();
+    _searchController.clear();
+    setState(() {
+      _searchQuery = '';
+      _searchResults = [];
+      _searching = false;
+    });
   }
 
   void _handleSubmit(String query) {
@@ -261,14 +313,16 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       _addRecipient(recipient);
       _searchController.clear();
       setState(() {
+        _searchQuery = '';
         _searchResults = [];
+        _searching = false;
       });
       return;
     }
 
     // Check if it's a valid phone number
     final cleanedPhone = query.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    if (RegExp(r'^\+?\d{10,}$').hasMatch(cleanedPhone)) {
+    if (_looksLikePhoneNumber(query)) {
       final recipient = ShareRecipient(
         type: ShareRecipientType.phone,
         value: cleanedPhone,
@@ -276,7 +330,9 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       _addRecipient(recipient);
       _searchController.clear();
       setState(() {
+        _searchQuery = '';
         _searchResults = [];
+        _searching = false;
       });
       return;
     }
@@ -291,7 +347,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       decoration: BoxDecoration(
         color: Colors.grey[900],
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: KemeticGold.base.withOpacity(0.3)),
+        border: Border.all(color: KemeticGold.base.withValues(alpha: 0.3)),
       ),
       child: ListView.builder(
         shrinkWrap: true,
@@ -362,7 +418,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       decoration: BoxDecoration(
         color: const Color(0xFF0D0D0F),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
@@ -629,7 +685,6 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     }
   }
 }
-
 
 
 

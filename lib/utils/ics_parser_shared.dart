@@ -25,88 +25,69 @@ class IcsEvent {
 
 List<IcsEvent> parseIcsString(String icsContent) {
   try {
-    print('[IcsParser] Starting to parse ICS content');
     final events = <IcsEvent>[];
-
-    final lines = icsContent.split('\n').map((line) => line.trim()).toList();
-    print('[IcsParser] Total lines to process: ${lines.length}');
+    final lines = _unfoldIcsLines(icsContent);
 
     bool inEvent = false;
     Map<String, String> currentEvent = {};
 
     for (final line in lines) {
-      if (line.isEmpty) continue;
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
 
-      if (line == 'BEGIN:VEVENT') {
+      if (trimmed == 'BEGIN:VEVENT') {
         inEvent = true;
         currentEvent = {};
-        print('[IcsParser] Found VEVENT start');
-      } else if (line == 'END:VEVENT') {
+      } else if (trimmed == 'END:VEVENT') {
         inEvent = false;
-        print(
-          '[IcsParser] Found VEVENT end, parsing event data: $currentEvent',
-        );
         final event = parseIcsEventMap(currentEvent);
         if (event != null) {
           events.add(event);
-          print('[IcsParser] Successfully parsed event: ${event.title}');
         }
       } else if (inEvent) {
-        final colonIndex = line.indexOf(':');
+        final colonIndex = trimmed.indexOf(':');
         if (colonIndex > 0) {
-          final key = line.substring(0, colonIndex);
-          final value = line.substring(colonIndex + 1);
+          final key = trimmed.substring(0, colonIndex).toUpperCase();
+          final value = _decodeTextValue(trimmed.substring(colonIndex + 1));
           currentEvent[key] = value;
-          print('[IcsParser] Found property: $key = $value');
         }
       }
     }
 
-    print('[IcsParser] Parsed ${events.length} events');
     return events;
-  } catch (e) {
-    print('[IcsParser] Error parsing ICS: $e');
+  } catch (_) {
     return [];
   }
 }
 
 IcsEvent? parseIcsEventMap(Map<String, String> properties) {
   try {
-    final title = properties['SUMMARY'] ?? 'Untitled Event';
-    print('[IcsParser] Event title: $title');
+    final title = _propertyValue(properties, 'SUMMARY') ?? 'Untitled Event';
 
-    final startRaw = properties['DTSTART'];
-    if (startRaw == null) {
-      print('[IcsParser] Warning: Event missing DTSTART, skipping');
+    final startKey = _propertyKey(properties, 'DTSTART');
+    final startRaw = startKey == null ? null : properties[startKey];
+    if (startKey == null || startRaw == null) {
       return null;
     }
 
-    print('[IcsParser] DTSTART raw value: $startRaw');
-    final startTime = parseIcsDateTime(startRaw);
+    final isAllDay = _isAllDayProperty(startKey, startRaw);
+    final startTime = parseIcsDateTime(startRaw, isDateOnly: isAllDay);
     if (startTime == null) {
-      print('[IcsParser] Warning: Could not parse DTSTART: $startRaw');
       return null;
     }
-
-    print('[IcsParser] Parsed start time: $startTime');
 
     DateTime? endTime;
-    final endRaw = properties['DTEND'];
+    final endKey = _propertyKey(properties, 'DTEND');
+    final endRaw = endKey == null ? null : properties[endKey];
     if (endRaw != null) {
-      print('[IcsParser] DTEND raw value: $endRaw');
-      endTime = parseIcsDateTime(endRaw);
-      print('[IcsParser] Parsed end time: $endTime');
+      endTime = parseIcsDateTime(
+        endRaw,
+        isDateOnly: _isAllDayProperty(endKey, endRaw),
+      );
     }
 
-    final location = properties['LOCATION'];
-    if (location != null) {
-      print('[IcsParser] Location: $location');
-    }
-
-    final description = properties['DESCRIPTION'];
-    if (description != null) {
-      print('[IcsParser] Description: $description');
-    }
+    final location = _propertyValue(properties, 'LOCATION');
+    final description = _propertyValue(properties, 'DESCRIPTION');
 
     return IcsEvent(
       title: title,
@@ -114,52 +95,103 @@ IcsEvent? parseIcsEventMap(Map<String, String> properties) {
       endTime: endTime,
       location: location,
       description: description,
-      isAllDay: false,
+      isAllDay: isAllDay,
     );
-  } catch (e) {
-    print('[IcsParser] Error parsing event: $e');
+  } catch (_) {
     return null;
   }
 }
 
 /// Parse a datetime string (YYYYMMDDTHHMMSS or YYYYMMDDTHHMMSSZ)
-DateTime? parseIcsDateTime(String dtStr) {
+DateTime? parseIcsDateTime(String dtStr, {bool isDateOnly = false}) {
   try {
-    print('[IcsParser] Parsing datetime: $dtStr');
+    final cleaned = dtStr.trim();
+    final digitsOnly = cleaned.replaceAll(RegExp(r'[^0-9]'), '');
 
-    final cleaned = dtStr.replaceAll(RegExp(r'[^0-9TZ]'), '');
-    print('[IcsParser] Cleaned datetime: $cleaned');
+    if (isDateOnly || RegExp(r'^\d{8}$').hasMatch(cleaned)) {
+      if (digitsOnly.length < 8) {
+        return null;
+      }
+      final year = int.parse(digitsOnly.substring(0, 4));
+      final month = int.parse(digitsOnly.substring(4, 6));
+      final day = int.parse(digitsOnly.substring(6, 8));
+      return DateTime(year, month, day);
+    }
 
-    if (cleaned.length >= 15) {
-      final year = int.parse(cleaned.substring(0, 4));
-      final month = int.parse(cleaned.substring(4, 6));
-      final day = int.parse(cleaned.substring(6, 8));
-      final hour = int.parse(cleaned.substring(9, 11));
-      final minute = int.parse(cleaned.substring(11, 13));
-      final second = int.parse(cleaned.substring(13, 15));
+    final normalized = cleaned.replaceAll(RegExp(r'[^0-9TZ]'), '');
 
-      print(
-        '[IcsParser] Parsed components: year=$year, month=$month, day=$day, hour=$hour, minute=$minute, second=$second',
-      );
+    if (normalized.length >= 15) {
+      final year = int.parse(normalized.substring(0, 4));
+      final month = int.parse(normalized.substring(4, 6));
+      final day = int.parse(normalized.substring(6, 8));
+      final hour = int.parse(normalized.substring(9, 11));
+      final minute = int.parse(normalized.substring(11, 13));
+      final second = int.parse(normalized.substring(13, 15));
 
-      final isUtc = cleaned.endsWith('Z');
-      print('[IcsParser] Is UTC: $isUtc');
+      final isUtc = normalized.endsWith('Z');
 
       if (isUtc) {
-        final result = DateTime.utc(year, month, day, hour, minute, second);
-        print('[IcsParser] Created UTC DateTime: $result');
-        return result;
+        return DateTime.utc(year, month, day, hour, minute, second);
       } else {
-        final result = DateTime(year, month, day, hour, minute, second);
-        print('[IcsParser] Created local DateTime: $result');
-        return result;
+        return DateTime(year, month, day, hour, minute, second);
       }
     }
 
-    print('[IcsParser] Warning: DateTime string too short: $cleaned');
     return null;
-  } catch (e) {
-    print('[IcsParser] Error parsing datetime: $e');
+  } catch (_) {
     return null;
   }
+}
+
+List<String> _unfoldIcsLines(String icsContent) {
+  final rawLines = icsContent
+      .replaceAll('\r\n', '\n')
+      .replaceAll('\r', '\n')
+      .split('\n');
+  final unfolded = <String>[];
+
+  for (final rawLine in rawLines) {
+    if ((rawLine.startsWith(' ') || rawLine.startsWith('\t')) &&
+        unfolded.isNotEmpty) {
+      unfolded[unfolded.length - 1] += rawLine.substring(1);
+      continue;
+    }
+    unfolded.add(rawLine.trimRight());
+  }
+
+  return unfolded;
+}
+
+String? _propertyKey(Map<String, String> properties, String propertyName) {
+  final upperName = propertyName.toUpperCase();
+  if (properties.containsKey(upperName)) {
+    return upperName;
+  }
+  for (final key in properties.keys) {
+    if (key == upperName || key.startsWith('$upperName;')) {
+      return key;
+    }
+  }
+  return null;
+}
+
+String? _propertyValue(Map<String, String> properties, String propertyName) {
+  final key = _propertyKey(properties, propertyName);
+  return key == null ? null : properties[key];
+}
+
+bool _isAllDayProperty(String? key, String value) {
+  if (key != null && key.contains('VALUE=DATE')) {
+    return true;
+  }
+  return RegExp(r'^\d{8}$').hasMatch(value.trim());
+}
+
+String _decodeTextValue(String raw) {
+  return raw
+      .replaceAll(r'\N', '\n')
+      .replaceAll(r'\n', '\n')
+      .replaceAll(r'\,', ',')
+      .replaceAll(r'\;', ';')
+      .replaceAll(r'\\', r'\');
 }

@@ -5,8 +5,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:postgrest/postgrest.dart' show PostgrestException;
-import 'package:realtime_client/realtime_client.dart';
 import 'share_models.dart';
 
 class ShareRepo {
@@ -14,10 +12,14 @@ class ShareRepo {
 
   ShareRepo(this._client);
 
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint(message);
+    }
+  }
+
   // Activity items (likes, comments, follows) for unified inbox feed.
-  Future<List<InboxActivityItem>> getRecentActivity({
-    int limit = 50,
-  }) async {
+  Future<List<InboxActivityItem>> getRecentActivity({int limit = 50}) async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return const [];
 
@@ -117,44 +119,34 @@ class ShareRepo {
     required List<ShareRecipient> recipients,
     SuggestedSchedule? suggestedSchedule,
   }) async {
-    if (kDebugMode) {
-      print('[ShareRepo] Current user: ${_client.auth.currentUser?.id}');
-      print('[ShareRepo] Current session: ${_client.auth.currentSession?.accessToken != null}');
-    }
-    
+    _log('[ShareRepo] Current user: ${_client.auth.currentUser?.id}');
+    _log(
+      '[ShareRepo] Current session: ${_client.auth.currentSession?.accessToken != null}',
+    );
+
     try {
       final response = await _client.functions.invoke(
         'create_flow_share',
         body: {
           'flow_id': flowId,
           'recipients': recipients.map((r) => r.toJson()).toList(),
-          if (suggestedSchedule != null) 'suggested_schedule': suggestedSchedule.toJson(),
+          if (suggestedSchedule != null)
+            'suggested_schedule': suggestedSchedule.toJson(),
         },
       );
 
-      if (kDebugMode) {
-        print('[ShareRepo] create_flow_share status=${response.status}');
-        print('[ShareRepo] create_flow_share body=${response.data}');
-      }
+      _log('[ShareRepo] create_flow_share status=${response.status}');
+      _log('[ShareRepo] create_flow_share body=${response.data}');
 
       // Handle HTTP errors
       if (response.status >= 400) {
-        if (kDebugMode) {
-          print('[ShareRepo] HTTP error: ${response.status}');
-        }
-        return [
-          ShareResult(
-            status: null,
-            error: 'HTTP ${response.status}',
-          ),
-        ];
+        _log('[ShareRepo] HTTP error: ${response.status}');
+        return [ShareResult(status: null, error: 'HTTP ${response.status}')];
       }
 
       // Parse response body
       if (response.data == null) {
-        if (kDebugMode) {
-          print('[ShareRepo] ERROR: response.data is null');
-        }
+        _log('[ShareRepo] ERROR: response.data is null');
         return [
           ShareResult(
             status: null,
@@ -167,22 +159,16 @@ class ShareRepo {
           ? response.data as Map<String, dynamic>
           : (jsonDecode(response.data as String) as Map<String, dynamic>);
 
-      if (kDebugMode) {
-        print('[ShareRepo] Response data keys: ${body.keys}');
-      }
+      _log('[ShareRepo] Response data keys: ${body.keys}');
 
       // Extract shares list
       final sharesList = (body['shares'] as List<dynamic>? ?? [])
           .cast<Map<String, dynamic>>();
 
-      if (kDebugMode) {
-        print('[ShareRepo] Shares list length: ${sharesList.length}');
-      }
+      _log('[ShareRepo] Shares list length: ${sharesList.length}');
 
       if (sharesList.isEmpty) {
-        if (kDebugMode) {
-          print('[ShareRepo] WARNING: Empty shares list in response');
-        }
+        _log('[ShareRepo] WARNING: Empty shares list in response');
         return [
           ShareResult(
             status: null,
@@ -194,9 +180,7 @@ class ShareRepo {
       // Parse each share row from the database
       final results = <ShareResult>[];
       for (final row in sharesList) {
-        if (kDebugMode) {
-          print('[ShareRepo] Processing share row: $row');
-        }
+        _log('[ShareRepo] Processing share row: $row');
         results.add(ShareResult.fromJson(row));
       }
 
@@ -205,29 +189,27 @@ class ShareRepo {
           .cast<Map<String, dynamic>>();
 
       if (errorsList.isNotEmpty) {
-        if (kDebugMode) {
-          print('[ShareRepo] Errors from Edge function: $errorsList');
-        }
+        _log('[ShareRepo] Errors from Edge function: $errorsList');
         // Create ShareResult objects for errors
         for (final err in errorsList) {
-          results.add(ShareResult(
-            status: null,
-            error: err['error'] as String? ?? 'Unknown error',
-            shareId: null,
-          ));
+          results.add(
+            ShareResult(
+              status: null,
+              error: err['error'] as String? ?? 'Unknown error',
+              shareId: null,
+            ),
+          );
         }
       }
 
-      if (kDebugMode) {
-        print('[ShareRepo] Parsed ${results.length} share results (${sharesList.length} successes, ${errorsList.length} errors)');
-      }
+      _log(
+        '[ShareRepo] Parsed ${results.length} share results (${sharesList.length} successes, ${errorsList.length} errors)',
+      );
 
       return results;
     } catch (e, stackTrace) {
-      if (kDebugMode) {
-        print('[ShareRepo] Error sharing flow: $e');
-        print('[ShareRepo] Stack trace: $stackTrace');
-      }
+      _log('[ShareRepo] Error sharing flow: $e');
+      _log('[ShareRepo] Stack trace: $stackTrace');
       rethrow;
     }
   }
@@ -238,9 +220,9 @@ class ShareRepo {
     required List<ShareRecipient> recipients,
     Map<String, dynamic>? payloadJson,
   }) async {
-    if (kDebugMode) {
-      print('[ShareRepo] shareEvent: eventId=$eventId recipients=${recipients.length}');
-    }
+    _log(
+      '[ShareRepo] shareEvent: eventId=$eventId recipients=${recipients.length}',
+    );
 
     try {
       final response = await _client.functions.invoke(
@@ -252,18 +234,11 @@ class ShareRepo {
         },
       );
 
-      if (kDebugMode) {
-        print('[ShareRepo] create_event_share status=${response.status}');
-        print('[ShareRepo] create_event_share body=${response.data}');
-      }
+      _log('[ShareRepo] create_event_share status=${response.status}');
+      _log('[ShareRepo] create_event_share body=${response.data}');
 
       if (response.status >= 400) {
-        return [
-          ShareResult(
-            status: null,
-            error: 'HTTP ${response.status}',
-          ),
-        ];
+        return [ShareResult(status: null, error: 'HTTP ${response.status}')];
       }
 
       if (response.data == null) {
@@ -291,11 +266,13 @@ class ShareRepo {
           .cast<Map<String, dynamic>>();
 
       for (final err in errorsList) {
-        results.add(ShareResult(
-          status: null,
-          error: err['error'] as String? ?? 'Unknown error',
-          shareId: null,
-        ));
+        results.add(
+          ShareResult(
+            status: null,
+            error: err['error'] as String? ?? 'Unknown error',
+            shareId: null,
+          ),
+        );
       }
 
       return results;
@@ -316,10 +293,7 @@ class ShareRepo {
     try {
       final response = await _client.functions.invoke(
         'resolve_share',
-        body: {
-          'share_id': shareId,
-          if (token != null) 'token': token,
-        },
+        body: {'share_id': shareId, if (token != null) 'token': token},
       );
 
       if (response.status != 200) {
@@ -337,41 +311,34 @@ class ShareRepo {
     int limit = 50,
     int offset = 0,
   }) async {
-    print('📬 [ShareRepo] getInboxItems() called');
-    print('📬 [ShareRepo] User ID: ${_client.auth.currentUser?.id}');
-    
+    _log('📬 [ShareRepo] getInboxItems() called');
+    _log('📬 [ShareRepo] User ID: ${_client.auth.currentUser?.id}');
+
     try {
-      print('📬 [ShareRepo] Querying inbox_share_items_filtered...');
-      
+      _log('📬 [ShareRepo] Querying inbox_share_items_filtered...');
+
       final response = await _client
           .from('inbox_share_items_filtered')
           .select()
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
 
-      print('📬 [ShareRepo] Raw response type: ${response.runtimeType}');
-      print('📬 [ShareRepo] Raw response: $response');
-      
-      if (response is! List) {
-        print('❌ [ShareRepo] Response is not a List!');
-        return [];
-      }
-      
-      print('📬 [ShareRepo] Response has ${(response as List).length} items');
-      
-      final items = (response as List)
-          .map((item) {
-            print('📬 [ShareRepo] Parsing item: ${item['share_id']}');
-            return InboxShareItem.fromJson(item as Map<String, dynamic>);
-          })
-          .toList();
-      
-      print('✅ [ShareRepo] Successfully parsed ${items.length} items');
+      _log('📬 [ShareRepo] Raw response type: ${response.runtimeType}');
+      _log('📬 [ShareRepo] Raw response: $response');
+
+      final rows = response.cast<Map<String, dynamic>>();
+      _log('📬 [ShareRepo] Response has ${rows.length} items');
+
+      final items = rows.map((item) {
+        _log('📬 [ShareRepo] Parsing item: ${item['share_id']}');
+        return InboxShareItem.fromJson(item);
+      }).toList();
+
+      _log('✅ [ShareRepo] Successfully parsed ${items.length} items');
       return items;
-      
     } catch (e, stackTrace) {
-      print('❌ [ShareRepo] Error fetching inbox items: $e');
-      print('❌ [ShareRepo] Stack trace: $stackTrace');
+      _log('❌ [ShareRepo] Error fetching inbox items: $e');
+      _log('❌ [ShareRepo] Stack trace: $stackTrace');
       return [];
     }
   }
@@ -389,10 +356,9 @@ class ShareRepo {
           .filter('viewed_at', 'is', null)
           .filter('deleted_at', 'is', null);
 
-      if (resp is List) return resp.length;
-      return 0;
+      return resp.length;
     } catch (e) {
-      print('[ShareRepo] Error fetching unread count: $e');
+      _log('[ShareRepo] Error fetching unread count: $e');
       return 0;
     }
   }
@@ -408,7 +374,7 @@ class ShareRepo {
 
       return true;
     } catch (e) {
-      print('[ShareRepo] Error marking as viewed: $e');
+      _log('[ShareRepo] Error marking as viewed: $e');
       return false;
     }
   }
@@ -424,7 +390,7 @@ class ShareRepo {
 
       return true;
     } catch (e) {
-      print('[ShareRepo] Error marking as imported: $e');
+      _log('[ShareRepo] Error marking as imported: $e');
       return false;
     }
   }
@@ -473,7 +439,9 @@ class ShareRepo {
         debugPrint('$st');
         // In dev, you can distinguish error types for better debugging:
         if (e is PostgrestException) {
-          debugPrint('[ShareRepo] Postgrest error: code=${e.code}, message=${e.message}');
+          debugPrint(
+            '[ShareRepo] Postgrest error: code=${e.code}, message=${e.message}',
+          );
           if (e.code == 'PGRST116') {
             // Column doesn't exist
             debugPrint('[ShareRepo] ⚠️ deleted_at column may not exist yet');
@@ -516,7 +484,7 @@ class ShareRepo {
 
       return (response as List).cast<Map<String, dynamic>>();
     } catch (e) {
-      print('[ShareRepo] Error searching users: $e');
+      _log('[ShareRepo] Error searching users: $e');
       return [];
     }
   }
@@ -526,7 +494,9 @@ class ShareRepo {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) {
       if (kDebugMode) {
-        debugPrint('[watchInbox] No authenticated user, returning empty stream');
+        debugPrint(
+          '[watchInbox] No authenticated user, returning empty stream',
+        );
       }
       return Stream.value(const []);
     }
@@ -537,36 +507,38 @@ class ShareRepo {
         .order('created_at', ascending: false)
         .map((data) {
           final list = (data as List?) ?? const [];
-          
+
           // ✅ Explicit client-side filter: sent OR received (defensive check)
-          final filtered = list
-              .cast<Map<String, dynamic>>()
-              .where((row) {
-                final senderId = row['sender_id'] as String?;
-                final recipientId = row['recipient_id'] as String?;
-                return senderId == uid || recipientId == uid;
-              })
-              .toList();
-          
+          final filtered = list.cast<Map<String, dynamic>>().where((row) {
+            final senderId = row['sender_id'] as String?;
+            final recipientId = row['recipient_id'] as String?;
+            return senderId == uid || recipientId == uid;
+          }).toList();
+
           if (kDebugMode) {
-            debugPrint('[watchInbox] ${list.length} raw items, ${filtered.length} filtered (uid=$uid)');
+            debugPrint(
+              '[watchInbox] ${list.length} raw items, ${filtered.length} filtered (uid=$uid)',
+            );
             // ✅ Add detailed logging for first few rows (raw JSON)
             for (final row in filtered.take(3)) {
-              debugPrint('[watchInbox] share_id=${row['share_id']} '
-                  'sender=${row['sender_id']} recipient=${row['recipient_id']} '
-                  'title=${row['title']}');
+              debugPrint(
+                '[watchInbox] share_id=${row['share_id']} '
+                'sender=${row['sender_id']} recipient=${row['recipient_id']} '
+                'title=${row['title']}',
+              );
             }
           }
-          
+
           // Parse to InboxShareItem and log payload info
           final items = filtered
               .map((item) => InboxShareItem.fromJson(item))
               .toList();
-          
+
           if (kDebugMode) {
             debugPrint('[watchInbox] ${items.length} parsed items');
             for (final item in items.take(3)) {
-              final hasPayload = item.payloadJson != null && item.payloadJson!.isNotEmpty;
+              final hasPayload =
+                  item.payloadJson != null && item.payloadJson!.isNotEmpty;
               debugPrint(
                 '[watchInbox] shareId=${item.shareId} kind=${item.kind.asString} '
                 'title=${item.title} '
@@ -575,7 +547,7 @@ class ShareRepo {
               );
             }
           }
-          
+
           return items;
         });
   }
@@ -588,7 +560,7 @@ class ShareRepo {
     }
     final controller = StreamController<int>();
 
-    Future<void> _refresh() async {
+    Future<void> refreshUnreadCount() async {
       final count = await getUnreadCount();
       if (!controller.isClosed) controller.add(count);
     }
@@ -604,7 +576,7 @@ class ShareRepo {
           column: 'recipient_id',
           value: uid,
         ),
-        callback: (_) => _refresh(),
+        callback: (_) => refreshUnreadCount(),
       )
       ..onPostgresChanges(
         event: PostgresChangeEvent.all,
@@ -615,12 +587,12 @@ class ShareRepo {
           column: 'recipient_id',
           value: uid,
         ),
-        callback: (_) => _refresh(),
+        callback: (_) => refreshUnreadCount(),
       )
       ..subscribe();
 
     // Initial load
-    _refresh();
+    refreshUnreadCount();
 
     controller.onCancel = () {
       channel.unsubscribe();

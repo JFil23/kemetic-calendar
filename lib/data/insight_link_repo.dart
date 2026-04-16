@@ -20,7 +20,7 @@ class InsightLinkRepo {
           .toList();
     } catch (e) {
       if (kDebugMode) {
-        print('[InsightLinkRepo] failed to decode links: $e');
+        debugPrint('[InsightLinkRepo] failed to decode links: $e');
       }
       return [];
     }
@@ -43,7 +43,7 @@ class InsightLinkRepo {
           .toList();
     } catch (e) {
       if (kDebugMode) {
-        print('[InsightLinkRepo] failed to decode node user content: $e');
+        debugPrint('[InsightLinkRepo] failed to decode node user content: $e');
       }
       return [];
     }

@@ -122,7 +122,7 @@ class _FollowListPageState extends State<FollowListPage> {
                         ? 'Once people follow this profile, they will appear here.'
                         : 'Follow someone to see them listed here.',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 14,
                     ),
                   ),
@@ -141,8 +141,8 @@ class _FollowListPageState extends State<FollowListPage> {
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: _users.length,
-        separatorBuilder: (_, __) =>
-            Divider(color: Colors.white.withOpacity(0.05), height: 1),
+        separatorBuilder: (context, index) =>
+            Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
         itemBuilder: (context, index) {
           final user = _users[index];
           final initials =
@@ -164,7 +164,7 @@ class _FollowListPageState extends State<FollowListPage> {
             ),
             leading: CircleAvatar(
               radius: 20,
-              backgroundColor: KemeticGold.base.withOpacity(0.2),
+              backgroundColor: KemeticGold.base.withValues(alpha: 0.2),
               backgroundImage: user.avatarUrl != null
                   ? NetworkImage(user.avatarUrl!)
                   : null,
@@ -187,7 +187,7 @@ class _FollowListPageState extends State<FollowListPage> {
             subtitle: subtitle != null
                 ? Text(
                     subtitle,
-                    style: TextStyle(color: Colors.white.withOpacity(0.6)),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                   )
                 : null,
             trailing: KemeticGold.icon(Icons.chevron_right),

@@ -20,7 +20,7 @@ class PronounceIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
       valueListenable: SpeechService.instance.isSpeaking,
-      builder: (_, speaking, __) {
+      builder: (context, speaking, child) {
         return IconButton(
           tooltip: speaking ? 'Stop' : 'Play pronunciation',
           padding: EdgeInsets.zero,
@@ -32,7 +32,6 @@ class PronounceIconButton extends StatelessWidget {
             size: size,
           ),
           onPressed: () async {
-            debugPrint('TTS BUTTON: isPhonetic=$isPhonetic speakText="$speakText"');
             try {
               if (speaking) {
                 await SpeechService.instance.stop();
@@ -46,7 +45,9 @@ class PronounceIconButton extends StatelessWidget {
             } catch (_) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Speech not available on this device')),
+                  const SnackBar(
+                    content: Text('Speech not available on this device'),
+                  ),
                 );
               }
             }

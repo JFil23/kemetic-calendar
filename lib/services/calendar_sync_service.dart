@@ -8,6 +8,82 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/user_events_repo.dart';
 
 const _channelName = 'com.kemetic.calendar/sync';
+const _permissionRetryCooldown = Duration(hours: 12);
+const _autoStartSyncCooldown = Duration(minutes: 2);
+
+@visibleForTesting
+DateTime? parseCalendarSyncTimestamp(dynamic raw) {
+  if (raw is! String || raw.isEmpty) return null;
+  return DateTime.tryParse(raw);
+}
+
+@visibleForTesting
+bool shouldBackOffCalendarPermissionRequest({
+  required DateTime now,
+  DateTime? lastPermissionDeniedAt,
+  Duration cooldown = _permissionRetryCooldown,
+}) {
+  if (lastPermissionDeniedAt == null) return false;
+  return now.difference(lastPermissionDeniedAt) < cooldown;
+}
+
+@visibleForTesting
+bool shouldSkipCalendarAutoStartSync({
+  required DateTime now,
+  DateTime? lastSyncAt,
+  Duration cooldown = _autoStartSyncCooldown,
+}) {
+  if (lastSyncAt == null) return false;
+  return now.difference(lastSyncAt) < cooldown;
+}
+
+@immutable
+class CalendarSyncStatus {
+  const CalendarSyncStatus({this.lastSyncAt, this.lastPermissionDeniedAt});
+
+  final DateTime? lastSyncAt;
+  final DateTime? lastPermissionDeniedAt;
+}
+
+enum CalendarSyncRunState {
+  synced,
+  permissionDenied,
+  skippedWeb,
+  skippedNoSession,
+  skippedInProgress,
+  skippedPermissionBackoff,
+  failed,
+}
+
+@immutable
+class CalendarSyncRunResult {
+  const CalendarSyncRunResult._(this.state, {this.error});
+
+  const CalendarSyncRunResult.synced() : this._(CalendarSyncRunState.synced);
+
+  const CalendarSyncRunResult.permissionDenied()
+    : this._(CalendarSyncRunState.permissionDenied);
+
+  const CalendarSyncRunResult.skippedWeb()
+    : this._(CalendarSyncRunState.skippedWeb);
+
+  const CalendarSyncRunResult.skippedNoSession()
+    : this._(CalendarSyncRunState.skippedNoSession);
+
+  const CalendarSyncRunResult.skippedInProgress()
+    : this._(CalendarSyncRunState.skippedInProgress);
+
+  const CalendarSyncRunResult.skippedPermissionBackoff()
+    : this._(CalendarSyncRunState.skippedPermissionBackoff);
+
+  const CalendarSyncRunResult.failed(Object error)
+    : this._(CalendarSyncRunState.failed, error: error);
+
+  final CalendarSyncRunState state;
+  final Object? error;
+
+  bool get didSync => state == CalendarSyncRunState.synced;
+}
 
 bool _isLikelyHolidayTitle(String title) {
   final t = title.trim().toLowerCase();
@@ -219,7 +295,7 @@ class NativeCalendarEvent {
     Map<dynamic, dynamic> raw, {
     required String source,
   }) {
-    DateTime _parseMs(dynamic v) {
+    DateTime parseMs(dynamic v) {
       final num? n = v as num?;
       return DateTime.fromMillisecondsSinceEpoch(
         (n?.toInt() ?? 0),
@@ -236,13 +312,13 @@ class NativeCalendarEvent {
       description: desc,
       location: raw['location'] as String?,
       allDay: (raw['allDay'] as bool?) ?? false,
-      start: _parseMs(raw['start']),
-      end: raw['end'] == null ? null : _parseMs(raw['end']),
+      start: parseMs(raw['start']),
+      end: raw['end'] == null ? null : parseMs(raw['end']),
       calendarId: raw['calendarId']?.toString(),
       timeZone: raw['timeZone'] as String?,
       lastModified: raw['lastModified'] == null
           ? null
-          : _parseMs(raw['lastModified']),
+          : parseMs(raw['lastModified']),
       clientEventId: extractedCid,
       source: source,
     );
@@ -275,22 +351,6 @@ class _SyncCacheEntry {
     'nativeFingerprint': nativeFingerprint,
     'supabaseFingerprint': supabaseFingerprint,
   };
-
-  static _SyncCacheEntry? fromJson(dynamic raw) {
-    if (raw is! Map) return null;
-    return _SyncCacheEntry(
-      nativeId: raw['nativeId'] as String?,
-      nativeCalendarId: raw['nativeCalendarId'] as String?,
-      nativeModified: raw['nativeModified'] == null
-          ? null
-          : DateTime.tryParse(raw['nativeModified'] as String),
-      supabaseUpdated: raw['supabaseUpdated'] == null
-          ? null
-          : DateTime.tryParse(raw['supabaseUpdated'] as String),
-      nativeFingerprint: raw['nativeFingerprint'] as String?,
-      supabaseFingerprint: raw['supabaseFingerprint'] as String?,
-    );
-  }
 }
 
 /// Platform bridge wrapper around the method channel.
@@ -378,12 +438,17 @@ Future<void> disposeSharedCalendarSyncService() async {
 
 /// Sync engine that reconciles native calendars with the Supabase user_events table.
 class CalendarSyncService {
-  CalendarSyncService(this._client, {CalendarPlatformBridge? platform})
-    : _platform = platform ?? CalendarPlatformBridge(),
-      _eventsRepo = UserEventsRepo(_client);
+  CalendarSyncService(
+    this._client, {
+    CalendarPlatformBridge? platform,
+    DateTime Function()? now,
+  }) : _platform = platform ?? CalendarPlatformBridge(),
+       _now = now ?? DateTime.now,
+       _eventsRepo = UserEventsRepo(_client);
 
   final SupabaseClient _client;
   final CalendarPlatformBridge _platform;
+  final DateTime Function() _now;
   final UserEventsRepo _eventsRepo;
 
   static const _cacheBoxName = 'calendar_sync.cache.v1';
@@ -393,7 +458,9 @@ class CalendarSyncService {
   Box<dynamic>? _cacheBox;
   Box<dynamic>? _stateBox;
   bool _initialized = false;
+  bool _started = false;
   bool _syncing = false;
+  Future<void>? _startFuture;
   Timer? _timer;
   Set<String> _deletedCids = <String>{};
 
@@ -417,14 +484,25 @@ class CalendarSyncService {
 
   Future<void> start() async {
     if (kIsWeb) return;
-    await ensureInitialized();
-    await sync();
-    _timer ??= Timer.periodic(const Duration(minutes: 15), (_) => sync());
+    final inFlight = _startFuture;
+    if (inFlight != null) {
+      await inFlight;
+      return;
+    }
+
+    _startFuture = _startInternal();
+    try {
+      await _startFuture;
+    } finally {
+      _startFuture = null;
+    }
   }
 
   void stop() {
     _timer?.cancel();
     _timer = null;
+    _started = false;
+    _startFuture = null;
   }
 
   Future<void> dispose() async {
@@ -434,25 +512,55 @@ class CalendarSyncService {
     _initialized = false;
   }
 
-  Future<void> sync({DateTime? windowStart, DateTime? windowEnd}) async {
-    if (kIsWeb || _syncing) return;
-    if (_client.auth.currentSession == null) return;
+  Future<CalendarSyncStatus> getStatus() async {
+    if (kIsWeb) return const CalendarSyncStatus();
+    await ensureInitialized();
+    return CalendarSyncStatus(
+      lastSyncAt: parseCalendarSyncTimestamp(_stateBox?.get('lastSync')),
+      lastPermissionDeniedAt: parseCalendarSyncTimestamp(
+        _stateBox?.get('lastPermissionDenied'),
+      ),
+    );
+  }
+
+  Future<CalendarSyncRunResult> sync({
+    DateTime? windowStart,
+    DateTime? windowEnd,
+    bool interactive = false,
+  }) async {
+    if (kIsWeb) return const CalendarSyncRunResult.skippedWeb();
+    if (_syncing) return const CalendarSyncRunResult.skippedInProgress();
+    if (_client.auth.currentSession == null) {
+      return const CalendarSyncRunResult.skippedNoSession();
+    }
 
     await ensureInitialized();
-    final start =
-        windowStart ?? DateTime.now().subtract(const Duration(days: 30));
-    final end = windowEnd ?? DateTime.now().add(const Duration(days: 180));
+    final now = _now();
+    final lastPermissionDeniedAt = parseCalendarSyncTimestamp(
+      _stateBox?.get('lastPermissionDenied'),
+    );
+    if (!interactive &&
+        shouldBackOffCalendarPermissionRequest(
+          now: now,
+          lastPermissionDeniedAt: lastPermissionDeniedAt,
+        )) {
+      if (kDebugMode) {
+        debugPrint('[calendar-sync] skip permission retry (recent denial)');
+      }
+      return const CalendarSyncRunResult.skippedPermissionBackoff();
+    }
+
+    final start = windowStart ?? now.subtract(const Duration(days: 30));
+    final end = windowEnd ?? now.add(const Duration(days: 180));
 
     _syncing = true;
     try {
       final granted = await _platform.requestPermissions();
       if (!granted) {
-        _stateBox?.put(
-          'lastPermissionDenied',
-          DateTime.now().toIso8601String(),
-        );
-        return;
+        await _stateBox?.put('lastPermissionDenied', now.toIso8601String());
+        return const CalendarSyncRunResult.permissionDenied();
       }
+      await _stateBox?.delete('lastPermissionDenied');
 
       final nativeEvents = await _platform.fetchEvents(start, end);
       final supabaseEvents = await _loadSupabaseEvents(start, end);
@@ -477,29 +585,43 @@ class CalendarSyncService {
         supByCid[cid] = e;
       }
 
-      await _mergeNativeIntoSupabase(
-        nativeByCid,
-        supByCid,
-        supHolidayKeys,
-      );
-      await _mergeSupabaseIntoNative(
-        nativeByCid,
-        supByCid,
-        nativeHolidayKeys,
-      );
+      await _mergeNativeIntoSupabase(nativeByCid, supByCid, supHolidayKeys);
+      await _mergeSupabaseIntoNative(nativeByCid, supByCid, nativeHolidayKeys);
       await _removeStaleNativeEvents(
         nativeByCid,
         supByCid,
         suppressDeletes: supWindowLimitHit,
       );
 
-      _stateBox?.put('lastSync', DateTime.now().toIso8601String());
+      await _stateBox?.put('lastSync', _now().toIso8601String());
+      return const CalendarSyncRunResult.synced();
     } catch (e, st) {
       debugPrint('[calendar-sync] sync failed: $e');
       debugPrint('$st');
+      return CalendarSyncRunResult.failed(e);
     } finally {
       _syncing = false;
     }
+  }
+
+  Future<void> _startInternal() async {
+    if (_started) return;
+
+    await ensureInitialized();
+    _timer ??= Timer.periodic(const Duration(minutes: 15), (_) {
+      unawaited(sync());
+    });
+    _started = true;
+
+    final lastSyncAt = parseCalendarSyncTimestamp(_stateBox?.get('lastSync'));
+    if (shouldSkipCalendarAutoStartSync(now: _now(), lastSyncAt: lastSyncAt)) {
+      if (kDebugMode) {
+        debugPrint('[calendar-sync] skip auto-start sync (recent sync found)');
+      }
+      return;
+    }
+
+    await sync();
   }
 
   /* ───────────────────────── Merging helpers ───────────────────────── */
@@ -513,7 +635,6 @@ class CalendarSyncService {
       final cid = entry.key;
       final native = entry.value;
       final sup = supByCid[cid];
-      final cache = _readCache(cid);
 
       final nativeFingerprint = native.fingerprint;
       final nativeModified = native.lastModified ?? native.start;
@@ -611,7 +732,6 @@ class CalendarSyncService {
       final cid = entry.key;
       final sup = entry.value;
       final native = nativeByCid[cid];
-      final cache = _readCache(cid);
 
       final supFingerprint = _fingerprintFromSupabase(sup);
       final supUpdated = sup.updatedAt ?? sup.startsAt;
@@ -773,16 +893,14 @@ class CalendarSyncService {
     }
   }
 
-  _SyncCacheEntry? _readCache(String cid) =>
-      _SyncCacheEntry.fromJson(_cacheBox?.get(cid));
-
   void _writeCache(String cid, _SyncCacheEntry entry) {
     _cacheBox?.put(cid, entry.toJson());
   }
 
   String? _resolveCid(NativeCalendarEvent e) {
-    if (e.clientEventId != null && e.clientEventId!.isNotEmpty)
+    if (e.clientEventId != null && e.clientEventId!.isNotEmpty) {
       return e.clientEventId;
+    }
     final cachedById = e.nativeId == null
         ? null
         : _stateBox?.get('cid-for-native-${e.nativeId}');

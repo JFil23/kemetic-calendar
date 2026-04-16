@@ -13,25 +13,25 @@ import '../../main.dart';
 class JournalController {
   final JournalRepo _repo;
   final SupabaseClient _client;
-  
+
   Timer? _autosaveTimer;
   String _currentDraft = '';
   DateTime? _currentDate;
   bool _hasUnsavedChanges = false;
-  
+
   // V2 ADDITIONS
   JournalDocument? _currentDocument;
   bool _isDocumentMode = false;
-  
+
   // Callbacks for UI updates
   void Function()? onDraftChanged;
-  
+
   JournalController(this._client) : _repo = JournalRepo(_client);
 
   void _log(String msg) {
     if (kDebugMode) {
       final timestamp = DateTime.now().toIso8601String();
-      print('[JournalController $timestamp] $msg');
+      debugPrint('[JournalController $timestamp] $msg');
     }
   }
 
@@ -52,18 +52,21 @@ class JournalController {
   /// Initialize controller - load today's draft
   Future<void> init() async {
     _log('init: starting (V2 enabled: ${FeatureFlags.isJournalV2Active})');
-    
+
     if (FeatureFlags.isJournalV2Active) {
       await _loadDocumentForToday();
     } else {
       await _loadDraftForToday();
     }
-    
+
     await finalizeYesterdayIfNeeded();
     _log('init: complete');
   }
 
-  Future<void> _applyDocument(JournalDocument doc, {bool saveLocal = false}) async {
+  Future<void> _applyDocument(
+    JournalDocument doc, {
+    bool saveLocal = false,
+  }) async {
     final normalized = JournalBadgeUtils.normalizeDocument(doc);
     _currentDocument = normalized;
     _currentDraft = _documentToPlainText(normalized);
@@ -84,7 +87,9 @@ class JournalController {
 
     if (localDraft != null && localDraft.isNotEmpty) {
       _currentDraft = localDraft;
-      _log('_loadDraftForToday: loaded from local storage (${_currentDraft.length} chars)');
+      _log(
+        '_loadDraftForToday: loaded from local storage (${_currentDraft.length} chars)',
+      );
       onDraftChanged?.call();
       return;
     }
@@ -95,7 +100,9 @@ class JournalController {
       if (entry != null) {
         _currentDraft = entry.body;
         await _saveLocalDraft();
-        _log('_loadDraftForToday: loaded from server (${_currentDraft.length} chars)');
+        _log(
+          '_loadDraftForToday: loaded from server (${_currentDraft.length} chars)',
+        );
       } else {
         _currentDraft = '';
         _log('_loadDraftForToday: no entry found, starting fresh');
@@ -122,11 +129,15 @@ class JournalController {
       try {
         final docMap = jsonDecode(localDocJson) as Map<String, dynamic>;
         await _applyDocument(JournalDocument.fromJson(docMap), saveLocal: true);
-        _log('_loadDocumentForToday: loaded from local storage (${_currentDraft.length} chars)');
+        _log(
+          '_loadDocumentForToday: loaded from local storage (${_currentDraft.length} chars)',
+        );
         onDraftChanged?.call();
         return;
       } catch (e) {
-        _log('_loadDocumentForToday: local JSON corrupted, falling back to server');
+        _log(
+          '_loadDocumentForToday: local JSON corrupted, falling back to server',
+        );
       }
     }
 
@@ -139,13 +150,17 @@ class JournalController {
           // It's a document
           final docMap = jsonDecode(entry.body) as Map<String, dynamic>;
           await _applyDocument(JournalDocument.fromJson(docMap));
-          _log('_loadDocumentForToday: loaded document from server (${_currentDraft.length} chars)');
+          _log(
+            '_loadDocumentForToday: loaded document from server (${_currentDraft.length} chars)',
+          );
         } else {
           // It's plain text - migrate to document
           await _applyDocument(JournalDocument.fromPlainText(entry.body));
-          _log('_loadDocumentForToday: migrated plain text to document (${_currentDraft.length} chars)');
+          _log(
+            '_loadDocumentForToday: migrated plain text to document (${_currentDraft.length} chars)',
+          );
         }
-        
+
         await _saveLocalDocument();
       } else {
         // Create new empty document
@@ -188,12 +203,15 @@ class JournalController {
         );
       } else {
         // No paragraph block, create one
-        blocks.insert(0, ParagraphBlock(
-          id: 'p-${DateTime.now().millisecondsSinceEpoch}',
-          ops: [TextOp(insert: cleanedText.isEmpty ? '\n' : cleanedText)],
-        ));
+        blocks.insert(
+          0,
+          ParagraphBlock(
+            id: 'p-${DateTime.now().millisecondsSinceEpoch}',
+            ops: [TextOp(insert: cleanedText.isEmpty ? '\n' : cleanedText)],
+          ),
+        );
       }
-      
+
       return JournalDocument(
         version: _currentDocument!.version,
         blocks: blocks,
@@ -217,7 +235,7 @@ class JournalController {
 
     _currentDraft = text;
     _hasUnsavedChanges = true;
-    
+
     if (_isDocumentMode && _currentDocument != null) {
       // Update document
       _currentDocument = _plainTextToDocument(text);
@@ -241,14 +259,14 @@ class JournalController {
   Future<void> updateDocument(JournalDocument document) async {
     final normalized = JournalBadgeUtils.normalizeDocument(document);
     if (_currentDocument == normalized) return;
-    
+
     _isDocumentMode = true;
     _currentDocument = normalized;
     _currentDraft = _documentToPlainText(normalized);
     _hasUnsavedChanges = true;
-    
+
     await _saveLocalDocument();
-    
+
     // Debounce server save
     _autosaveTimer?.cancel();
     _autosaveTimer = Timer(
@@ -274,7 +292,7 @@ class JournalController {
   /// Save document to local storage (V2)
   Future<void> _saveLocalDocument() async {
     if (_currentDocument == null) return;
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final docJson = jsonEncode(_currentDocument!.toJson());
@@ -292,13 +310,13 @@ class JournalController {
 
     try {
       _log('_autosave: saving to server (${_currentDraft.length} chars)');
-      
+
       String bodyToSave;
       Map<String, dynamic> metaToSave = {
         'chars': _currentDraft.length,
         'last_autosave': DateTime.now().toUtc().toIso8601String(),
       };
-      
+
       if (_isDocumentMode && _currentDocument != null) {
         // Save as document
         bodyToSave = jsonEncode(_currentDocument!.toJson());
@@ -308,7 +326,7 @@ class JournalController {
         // Save as plain text (V1 behavior)
         bodyToSave = _currentDraft;
       }
-      
+
       await _repo.upsert(
         localDate: _currentDate ?? _today,
         body: bodyToSave,
@@ -317,7 +335,7 @@ class JournalController {
 
       _hasUnsavedChanges = false;
       _log('_autosave: ✓ saved to server');
-      
+
       // Track autosave event
       Events.trackIfAuthed('journal_autosave', {
         'chars': _currentDraft.length,
@@ -364,23 +382,25 @@ class JournalController {
     try {
       final prefs = await SharedPreferences.getInstance();
       final lastOpenDay = prefs.getString('lastOpenDay');
-      
+
       if (lastOpenDay == null || lastOpenDay == _todayKey) {
         _log('finalizeYesterdayIfNeeded: no rollover detected');
         return;
       }
 
-      _log('finalizeYesterdayIfNeeded: detected rollover from $lastOpenDay to $_todayKey');
+      _log(
+        'finalizeYesterdayIfNeeded: detected rollover from $lastOpenDay to $_todayKey',
+      );
 
       // Load yesterday's draft/document from local storage
       String? yesterdayContent;
-      
+
       if (_isDocumentMode) {
         yesterdayContent = prefs.getString('document:$lastOpenDay');
       } else {
         yesterdayContent = prefs.getString('draft:$lastOpenDay');
       }
-      
+
       if (yesterdayContent != null && yesterdayContent.isNotEmpty) {
         final parts = lastOpenDay.split('-');
         final yesterdayDate = DateTime(
@@ -406,7 +426,7 @@ class JournalController {
         } else {
           await prefs.remove('draft:$lastOpenDay');
         }
-        
+
         _log('finalizeYesterdayIfNeeded: ✓ finalized $lastOpenDay');
       }
 
@@ -429,7 +449,9 @@ class JournalController {
       _currentDocument ??= JournalDocument.fromPlainText(_currentDraft);
       _isDocumentMode = true;
       final appendedAt = await appendToDocument(content);
-      _log('appendToToday: appended ${content.length} chars at position $appendedAt');
+      _log(
+        'appendToToday: appended ${content.length} chars at position $appendedAt',
+      );
       return appendedAt;
     }
 
@@ -438,8 +460,10 @@ class JournalController {
         : '$_currentDraft\n\n$content';
 
     await updateDraft(newText);
-    
-    _log('appendToToday: appended ${content.length} chars at position $appendPosition');
+
+    _log(
+      'appendToToday: appended ${content.length} chars at position $appendPosition',
+    );
     return appendPosition;
   }
 
@@ -472,16 +496,19 @@ class JournalController {
     // Find first paragraph block or create one
     int paragraphIndex = blocks.indexWhere((b) => b is ParagraphBlock);
     if (paragraphIndex == -1) {
-      blocks.add(ParagraphBlock(
-        id: 'p-${DateTime.now().millisecondsSinceEpoch}',
-        ops: [TextOp(insert: '\n')],
-      ));
+      blocks.add(
+        ParagraphBlock(
+          id: 'p-${DateTime.now().millisecondsSinceEpoch}',
+          ops: [TextOp(insert: '\n')],
+        ),
+      );
       paragraphIndex = blocks.length - 1;
     }
 
     final paragraph = blocks[paragraphIndex] as ParagraphBlock;
     final newOps = List<TextOp>.from(paragraph.ops);
-    final needsSpacing = newOps.isNotEmpty && !newOps.last.insert.endsWith('\n');
+    final needsSpacing =
+        newOps.isNotEmpty && !newOps.last.insert.endsWith('\n');
     final insertText = needsSpacing ? '\n\n$cleanedContent' : cleanedContent;
     newOps.add(TextOp(insert: insertText));
 
@@ -503,17 +530,17 @@ class JournalController {
   Future<void> loadDate(DateTime date) async {
     try {
       _log('loadDate: loading entry for ${_formatDate(date)}');
-      
+
       // Update current date
       _currentDate = date;
       final dateKey = _formatDate(date);
-      
+
       // Try to load from server first
       final entry = await _repo.getByDate(date);
-      
+
       if (entry != null) {
         _log('loadDate: found entry with ${entry.body.length} chars');
-        
+
         // Check if it's a V2 document or plain text
         if (entry.body.startsWith('{') && entry.body.contains('"version"')) {
           // V2 document format
@@ -523,14 +550,20 @@ class JournalController {
             _isDocumentMode = true;
             _log('loadDate: loaded V2 document');
           } catch (e) {
-            _log('loadDate: failed to parse document, falling back to plain text: $e');
-            _currentDraft = JournalBadgeUtils.stripBadgesFromPlainText(entry.body);
+            _log(
+              'loadDate: failed to parse document, falling back to plain text: $e',
+            );
+            _currentDraft = JournalBadgeUtils.stripBadgesFromPlainText(
+              entry.body,
+            );
             _currentDocument = null;
             _isDocumentMode = false;
           }
         } else {
           // Plain text format (V1)
-          _currentDraft = JournalBadgeUtils.stripBadgesFromPlainText(entry.body);
+          _currentDraft = JournalBadgeUtils.stripBadgesFromPlainText(
+            entry.body,
+          );
           _currentDocument = null;
           _isDocumentMode = false;
           _log('loadDate: loaded V1 plain text');
@@ -542,14 +575,14 @@ class JournalController {
         _currentDocument = null;
         _isDocumentMode = FeatureFlags.isJournalV2Active;
       }
-      
+
       // Update local storage tracking
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('lastOpenDay', dateKey);
-      
+
       _hasUnsavedChanges = false;
       onDraftChanged?.call();
-      
+
       _log('loadDate: ✓ loaded entry for $dateKey');
     } catch (e) {
       _log('loadDate error: $e');

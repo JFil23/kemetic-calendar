@@ -7,9 +7,6 @@ import 'package:mobile/shared/glossy_text.dart';
 /* ═══════════════════════ KEMETIC MATH (FIXED) ═══════════════════════ */
 
 class KemeticMath {
-  // Epoch anchored to *local midnight*: Toth 1, Year 1 = 2025-03-20 (local).
-  static final DateTime _epoch = kKemeticEpochUtc;  // UTC epoch from constants
-
   // Repeating 4-year cycle lengths starting at Year 1: [365, 365, 366, 365]
   static const List<int> _cycle = [365, 365, 366, 365];
   static const int _cycleSum = 1461; // 365*4 + 1
@@ -115,8 +112,9 @@ class KemeticMath {
 
     // FIXED: Use integer epoch-day arithmetic
     final base = _daysBeforeYear(kYear);
-    final dayIndex =
-        (kMonth == 13) ? (360 + (kDay - 1)) : ((kMonth - 1) * 30 + (kDay - 1));
+    final dayIndex = (kMonth == 13)
+        ? (360 + (kDay - 1))
+        : ((kMonth - 1) * 30 + (kDay - 1));
     final epochDays = base + dayIndex;
     return utcFromEpochDay(epochDays);
   }
@@ -145,10 +143,12 @@ Future<DateTime?> showKemeticDatePicker({
       (month == 13) ? (KemeticMath.isLeapKemeticYear(year) ? 6 : 5) : 30;
 
   final yearStart = initK.kYear - 200;
-  final yearCtrl =
-      FixedExtentScrollController(initialItem: (ky - yearStart).clamp(0, 400));
-  final monthCtrl =
-      FixedExtentScrollController(initialItem: (km - 1).clamp(0, 12));
+  final yearCtrl = FixedExtentScrollController(
+    initialItem: (ky - yearStart).clamp(0, 400),
+  );
+  final monthCtrl = FixedExtentScrollController(
+    initialItem: (km - 1).clamp(0, 12),
+  );
   final dayCtrl = FixedExtentScrollController(initialItem: (kd - 1));
 
   return showModalBottomSheet<DateTime>(
@@ -225,7 +225,8 @@ Future<DateTime?> showKemeticDatePicker({
                                 localKd = max;
                                 if (dayCtrl.hasClients) {
                                   WidgetsBinding.instance.addPostFrameCallback(
-                                      (_) => dayCtrl.jumpToItem(localKd - 1));
+                                    (_) => dayCtrl.jumpToItem(localKd - 1),
+                                  );
                                 }
                               }
                             });
@@ -244,7 +245,7 @@ Future<DateTime?> showKemeticDatePicker({
                         ),
                       ),
                       const SizedBox(width: 6),
-                      
+
                       // Day wheel
                       Expanded(
                         flex: 3,
@@ -272,7 +273,7 @@ Future<DateTime?> showKemeticDatePicker({
                         ),
                       ),
                       const SizedBox(width: 6),
-                      
+
                       // Year wheel (with Gregorian equivalent)
                       Expanded(
                         flex: 4,
@@ -289,7 +290,8 @@ Future<DateTime?> showKemeticDatePicker({
                                 localKd = max;
                                 if (dayCtrl.hasClients) {
                                   WidgetsBinding.instance.addPostFrameCallback(
-                                      (_) => dayCtrl.jumpToItem(localKd - 1));
+                                    (_) => dayCtrl.jumpToItem(localKd - 1),
+                                  );
                                 }
                               }
                             });
@@ -312,7 +314,7 @@ Future<DateTime?> showKemeticDatePicker({
                 ),
 
                 const SizedBox(height: 12),
-                
+
                 // Cancel / Done buttons
                 Row(
                   children: [
@@ -334,12 +336,19 @@ Future<DateTime?> showKemeticDatePicker({
                           foregroundColor: Colors.white,
                         ),
                         onPressed: () {
-                          final g = KemeticMath.toGregorian(localKy, localKm, localKd);
+                          final g = KemeticMath.toGregorian(
+                            localKy,
+                            localKm,
+                            localKd,
+                          );
                           Navigator.pop(sheetCtx, DateUtils.dateOnly(g));
                         },
                         child: const GlossyText(
                           text: 'Done',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                           gradient: whiteGloss,
                         ),
                       ),
@@ -354,10 +363,3 @@ Future<DateTime?> showKemeticDatePicker({
     },
   );
 }
-
-
-
-
-
-
-

@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:characters/characters.dart';
 
 enum KeyboardMode { system, custom }
 
@@ -94,7 +93,7 @@ class KemeticKeyboardController extends ChangeNotifier {
     target?.requestKeyboard();
   }
 
-  void insert(String value, _OutputMode mode) {
+  void _insert(String value, _OutputMode mode) {
     final target = _selectUsableEditable();
     if (target == null) return;
 
@@ -420,7 +419,8 @@ class _KeyboardToggleState extends State<_KeyboardToggle> {
                 child: FloatingActionButton.extended(
                   key: _fabKey,
                   heroTag: 'kemeticKeyboardToggle',
-                  backgroundColor: colorScheme.surfaceVariant.withOpacity(0.95),
+                  backgroundColor: colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.95),
                   foregroundColor: colorScheme.onSurfaceVariant,
                   icon: const Icon(Icons.translate_outlined),
                   label: const Text('Medu Neter'),
@@ -474,7 +474,7 @@ class _KeyboardPanelState extends State<_KeyboardPanel> {
             padding: EdgeInsets.fromLTRB(12, 0, 12, 12 + bottomPadding),
             child: Material(
               elevation: 14,
-              color: colorScheme.surface.withOpacity(0.98),
+              color: colorScheme.surface.withValues(alpha: 0.98),
               borderRadius: BorderRadius.circular(18),
               child: SizedBox(
                 height: targetHeight,
@@ -633,9 +633,9 @@ class _PhonogramKey extends StatelessWidget {
       height: 52,
       child: Material(
         borderRadius: BorderRadius.circular(10),
-        color: colorScheme.surfaceVariant.withOpacity(0.92),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.92),
         child: InkWell(
-          onTap: () => controller.insert(displayValue, outputMode),
+          onTap: () => controller._insert(displayValue, outputMode),
           borderRadius: BorderRadius.circular(10),
           child: Center(
             child: Row(
@@ -750,19 +750,6 @@ const Map<String, String> _unicodeToAsciiMap = {
 };
 
 const List<String> _multiCharAliases = ['sh', 'tj', 'dj'];
-const List<String> _singleCharAliases = [
-  '3',
-  'ʿ',
-  '‘',
-  "'",
-  'H',
-  'x',
-  'X',
-  'S',
-  'T',
-  'D',
-];
-
 String _normalizeToUnicode(String input) {
   final buffer = StringBuffer();
   var i = 0;

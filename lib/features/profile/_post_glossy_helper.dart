@@ -6,9 +6,9 @@ LinearGradient glossFromColor(int color) {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      base.withOpacity(0.9),
+      base.withValues(alpha: 0.9),
       base,
-      base.withOpacity(0.8),
+      base.withValues(alpha: 0.8),
     ],
   );
 }

@@ -3,9 +3,8 @@
 
     <!-- Notifications (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Exact alarms only if you use them -->
+    <!-- Exact alarms for user-scheduled reminder delivery -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
     <!-- Additional permissions required for proper notification handling -->
     <!-- Allows the app to keep the CPU on while handling notifications -->
@@ -14,8 +13,6 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Allows the device to vibrate when a notification is delivered -->
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- REQUIRED for fullScreenIntent: true on Android 14+ (API 34+) -->
-    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <!-- Calendar access for native sync -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
@@ -49,6 +46,24 @@
                 <data
                     android:scheme="kemet.app"
                     android:host="login-callback" />
+            </intent-filter>
+
+            <!-- Public share-link entrypoints -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="maat" />
+            </intent-filter>
+
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="maat.app" android:pathPrefix="/share" />
+                <data android:scheme="https" android:host="maat.app" android:pathPrefix="/f" />
+                <data android:scheme="https" android:host="www.maat.app" android:pathPrefix="/share" />
+                <data android:scheme="https" android:host="www.maat.app" android:pathPrefix="/f" />
             </intent-filter>
 
             <!-- ICS File Import Support -->

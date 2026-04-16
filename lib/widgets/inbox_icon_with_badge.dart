@@ -8,17 +8,19 @@ import '../shared/glossy_text.dart';
 
 class InboxIconWithBadge extends StatelessWidget {
   final Color iconColor;
-  final VoidCallback? onRefreshSync; // ✅ Keep original for backward compatibility
+  final VoidCallback?
+  onRefreshSync; // ✅ Keep original for backward compatibility
   final Future<void> Function(dynamic)? onRefreshAsync; // ✅ New async version
-  final Future<void> Function(int? importedFlowId)? onImportFlow; // ✅ Import callback
+  final Future<void> Function(int? importedFlowId)?
+  onImportFlow; // ✅ Import callback
 
   const InboxIconWithBadge({
-    Key? key,
+    super.key,
     this.iconColor = KemeticGold.base,
     this.onRefreshSync,
     this.onRefreshAsync,
     this.onImportFlow,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +32,7 @@ class InboxIconWithBadge extends StatelessWidget {
         final Widget iconWidget = useGoldGradient
             ? KemeticGold.icon(Icons.mail_outline)
             : Icon(Icons.mail_outline, color: iconColor);
-        
+
         return Stack(
           clipBehavior: Clip.none,
           children: [
@@ -42,12 +44,12 @@ class InboxIconWithBadge extends StatelessWidget {
                   context,
                   MaterialPageRoute(builder: (_) => const InboxPage()),
                 );
-                
+
                 // Handle import callback first
                 if (onImportFlow != null && importedFlowId != null) {
                   await onImportFlow!(importedFlowId);
                 }
-                
+
                 // Handle both refresh callback types
                 if (onRefreshAsync != null) {
                   await onRefreshAsync!(importedFlowId);
@@ -87,6 +89,3 @@ class InboxIconWithBadge extends StatelessWidget {
     );
   }
 }
-
-
-

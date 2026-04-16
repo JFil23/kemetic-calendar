@@ -278,17 +278,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     return savedItems;
   }
 
-  void _updateAlignment(int index, RhythmItemState state) {
-    setState(() {
-      _alignmentItems = [
-        for (int i = 0; i < _alignmentItems.length; i++)
-          i == index
-              ? _alignmentItems[i].copyWith(state: state)
-              : _alignmentItems[i],
-      ];
-    });
-  }
-
   Future<void> _persistTodoState(int index, RhythmItemState state) async {
     final activeDay = _activeTodoDay;
     final dayTodos = [...(_todosByDay[activeDay] ?? _todos)];
@@ -806,7 +795,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     }
     final season = getSeasonName(kd.month);
     final buffer = StringBuffer(base);
-    if (season != null) buffer.write(' · $season');
+    buffer.write(' · $season');
     return buffer.toString();
   }
 
@@ -1457,6 +1446,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       },
     );
     if (updatedText == null) return;
+    if (!mounted) return;
     if (updatedText.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -1596,10 +1586,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             child: ConstrainedBox(
               constraints: BoxConstraints(minWidth: constraints.maxWidth),
               child: DataTable(
-                headingRowColor: MaterialStateProperty.all(
+                headingRowColor: WidgetStateProperty.all(
                   Colors.white.withValues(alpha: 0.06),
                 ),
-                dataRowColor: MaterialStateProperty.all(
+                dataRowColor: WidgetStateProperty.all(
                   Colors.white.withValues(alpha: 0.02),
                 ),
                 columnSpacing: 22,
@@ -2680,8 +2670,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   Widget _fullscreenOverlay() {
-    if (_fullscreenNote == null || _notes.isEmpty)
+    if (_fullscreenNote == null || _notes.isEmpty) {
       return const SizedBox.shrink();
+    }
     _fullscreenPageController ??= PageController(initialPage: _activeNoteIndex);
     return Positioned.fill(
       child: GestureDetector(
