@@ -148,9 +148,10 @@ class _JournalOverlayState extends State<JournalOverlay>
   }
 
   Future<void> _loadLinks() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id ?? 'local';
+    final userId = _currentUserId();
     final links = await _insightRepo.fetchLinks(userId);
     final sourceId = _currentSourceId();
+    if (!mounted) return;
     setState(() {
       _insightLinks = links
           .where(
@@ -160,6 +161,16 @@ class _JournalOverlayState extends State<JournalOverlay>
           )
           .toList();
     });
+  }
+
+  String _currentUserId() {
+    try {
+      return Supabase.instance.client.auth.currentUser?.id ?? 'local';
+    } on AssertionError {
+      return 'local';
+    } catch (_) {
+      return 'local';
+    }
   }
 
   String _currentSourceId() {
@@ -254,7 +265,7 @@ class _JournalOverlayState extends State<JournalOverlay>
     final now = DateTime.now();
     final nextLink = InsightLink(
       id: existingLink?.id ?? 'link-${now.microsecondsSinceEpoch}',
-      userId: Supabase.instance.client.auth.currentUser?.id ?? 'local',
+      userId: _currentUserId(),
       sourceType: InsightSourceType.journalEntry,
       sourceId: _currentSourceId(),
       start: selection.start,
@@ -300,7 +311,7 @@ class _JournalOverlayState extends State<JournalOverlay>
   }
 
   Future<void> _saveLinks() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id ?? 'local';
+    final userId = _currentUserId();
     final all = await _insightRepo.fetchLinks(userId);
     final sourceId = _currentSourceId();
     final filtered = all
@@ -793,23 +804,17 @@ class _JournalOverlayState extends State<JournalOverlay>
   }
 
   Widget _buildEditor() {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Text area (take remaining space)
-            Expanded(child: _buildTextLayer()),
-            const SizedBox(height: 12),
-            // Badge area (replaces drawing canvas)
-            _buildBadgeArea(),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Keep keyboard avoidance scoped to the editor itself so
+          // the badge tray stays anchored behind the keyboard.
+          Expanded(child: _buildTextLayer()),
+          const SizedBox(height: 12),
+          // Badge area (replaces drawing canvas)
+          _buildBadgeArea(),
+        ],
       ),
     );
   }
