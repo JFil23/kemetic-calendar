@@ -18799,7 +18799,6 @@ class _InfoTabState extends State<_InfoTab> {
     final node = _activeNode;
     final isNodeView = node != null;
     final libraryNode = node?.node;
-    final speakText = node?.body ?? widget.speakText;
     final title = node?.title ?? widget.title;
     final body = node?.body ?? widget.body;
     final links = node?.links ?? widget.linkMap;
@@ -18824,13 +18823,15 @@ class _InfoTabState extends State<_InfoTab> {
                   gradient: silverGloss,
                 ),
               ),
-              const SizedBox(width: 8),
-              PronounceIconButton(
-                speakText: speakText,
-                color: _gold,
-                size: 22,
-                isPhonetic: true,
-              ),
+              if (!isNodeView) ...[
+                const SizedBox(width: 8),
+                PronounceIconButton(
+                  speakText: widget.speakText,
+                  color: _gold,
+                  size: 22,
+                  isPhonetic: true,
+                ),
+              ],
             ],
           ),
           if (isNodeView) ...[
@@ -19039,6 +19040,7 @@ class _InfoTabState extends State<_InfoTab> {
     if (_history.isEmpty && _infoController.hasClients) {
       _infoOffset = _infoController.offset;
     }
+    SpeechService.instance.stop();
     setState(() {
       _history.add(entry);
     });
@@ -19064,6 +19066,7 @@ class _InfoTabState extends State<_InfoTab> {
 
   bool _popNode() {
     if (_history.isEmpty) return false;
+    SpeechService.instance.stop();
     setState(() {
       _history.removeLast();
     });
