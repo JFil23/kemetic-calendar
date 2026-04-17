@@ -29,9 +29,16 @@ import '../widgets/rhythm_states.dart';
 import '../widgets/rhythm_todo_row.dart';
 
 class TodaysAlignmentPage extends StatefulWidget {
-  const TodaysAlignmentPage({super.key, this.embedded = false});
+  const TodaysAlignmentPage({
+    super.key,
+    this.embedded = false,
+    this.openedFromCalendar = false,
+    this.openedFromCalendarSwipe = false,
+  });
 
   final bool embedded;
+  final bool openedFromCalendar;
+  final bool openedFromCalendarSwipe;
 
   @override
   State<TodaysAlignmentPage> createState() => _TodaysAlignmentPageState();
@@ -100,6 +107,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   bool _nutritionStatesLoaded = false;
   int _activeNutritionDayIndex = 0;
   bool _nutritionFormOpen = false;
+  bool _calendarRevealNavigationInFlight = false;
+  double _calendarRevealSwipeAccum = 0.0;
 
   PageController _buildTodoPageController(int initialPage) {
     return PageController(viewportFraction: 0.96, initialPage: initialPage);
@@ -3117,8 +3126,62 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
   }
 
+  Widget _buildCalendarRevealSwipeGate() {
+    final edgeWidth =
+        ((MediaQuery.of(context).size.width * 0.08).clamp(36.0, 64.0) as num)
+            .toDouble();
+
+    return Positioned(
+      top: 0,
+      right: 0,
+      bottom: 0,
+      width: edgeWidth,
+      child: _HorizontalEdgeSwipePad(
+        onHorizontalDragStart: (_) {
+          _calendarRevealSwipeAccum = 0.0;
+        },
+        onHorizontalDragUpdate: (details) {
+          if (_calendarRevealNavigationInFlight) return;
+          _calendarRevealSwipeAccum += details.delta.dx;
+        },
+        onHorizontalDragEnd: (details) {
+          if (_calendarRevealNavigationInFlight) {
+            _calendarRevealSwipeAccum = 0.0;
+            return;
+          }
+
+          final vx = details.velocity.pixelsPerSecond.dx;
+          final traveled = _calendarRevealSwipeAccum;
+          final flingClose = vx < -750;
+          final dragClose = traveled < -42;
+
+          if (flingClose || dragClose) {
+            unawaited(_returnToCalendarFromSwipe());
+          }
+
+          _calendarRevealSwipeAccum = 0.0;
+        },
+      ),
+    );
+  }
+
+  Future<void> _returnToCalendarFromSwipe() async {
+    if (_calendarRevealNavigationInFlight || !mounted) return;
+
+    final navigator = Navigator.of(context);
+    if (!navigator.canPop()) return;
+
+    _calendarRevealNavigationInFlight = true;
+    try {
+      await navigator.maybePop();
+    } finally {
+      _calendarRevealNavigationInFlight = false;
+    }
+  }
+
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
+      automaticallyImplyLeading: !widget.openedFromCalendarSwipe,
       backgroundColor: Colors.black,
       elevation: 0.5,
       centerTitle: false,
@@ -3169,10 +3232,18 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       return content;
     }
 
+    final canRevealCalendar =
+        widget.openedFromCalendar && Navigator.of(context).canPop();
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: _buildAppBar(),
-      body: content,
+      body: Stack(
+        children: [
+          content,
+          if (canRevealCalendar) _buildCalendarRevealSwipeGate(),
+        ],
+      ),
     );
   }
 
@@ -3233,6 +3304,33 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
           ),
         );
     return [...doneAlignment, ...doneTodos];
+  }
+}
+
+class _HorizontalEdgeSwipePad extends StatelessWidget {
+  const _HorizontalEdgeSwipePad({
+    required this.onHorizontalDragStart,
+    required this.onHorizontalDragUpdate,
+    required this.onHorizontalDragEnd,
+  });
+
+  final GestureDragStartCallback? onHorizontalDragStart;
+  final GestureDragUpdateCallback? onHorizontalDragUpdate;
+  final GestureDragEndCallback? onHorizontalDragEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: null,
+        onHorizontalDragStart: onHorizontalDragStart,
+        onHorizontalDragUpdate: onHorizontalDragUpdate,
+        onHorizontalDragEnd: onHorizontalDragEnd,
+        child: const SizedBox.expand(),
+      ),
+    );
   }
 }
 

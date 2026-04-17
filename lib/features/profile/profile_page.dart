@@ -1,5 +1,7 @@
 // lib/features/profile/profile_page.dart
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/profile_model.dart';
@@ -18,8 +20,16 @@ import 'package:mobile/shared/glossy_text.dart';
 class ProfilePage extends StatefulWidget {
   final String userId;
   final bool isMyProfile;
+  final bool openedFromCalendar;
+  final bool openedFromCalendarSwipe;
 
-  const ProfilePage({super.key, required this.userId, this.isMyProfile = false});
+  const ProfilePage({
+    super.key,
+    required this.userId,
+    this.isMyProfile = false,
+    this.openedFromCalendar = false,
+    this.openedFromCalendarSwipe = false,
+  });
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -33,6 +43,8 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _followUpdating = false;
   List<FlowPost> _posts = const [];
   bool _postsLoading = true;
+  bool _calendarRevealNavigationInFlight = false;
+  double _calendarRevealSwipeAccum = 0.0;
 
   bool get _isViewingOwnProfile {
     final currentId = Supabase.instance.client.auth.currentUser?.id;
@@ -140,15 +152,30 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final canRevealCalendar =
+        widget.openedFromCalendar && Navigator.of(context).canPop();
+    final body = _loading
+        ? const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+            ),
+          )
+        : _profile == null
+        ? _buildNoProfile()
+        : _buildProfile();
+
     return Scaffold(
       backgroundColor: const Color(0xFF000000), // True black
       appBar: AppBar(
         backgroundColor: const Color(0xFF000000),
         elevation: 0,
-        leading: IconButton(
-          icon: KemeticGold.icon(Icons.close), // Gold
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
+        leading: widget.openedFromCalendarSwipe
+            ? null
+            : IconButton(
+                icon: KemeticGold.icon(Icons.close), // Gold
+                onPressed: () => Navigator.pop(context),
+              ),
         title: Text(
           _profile?.handle ?? 'Profile',
           style: const TextStyle(
@@ -172,15 +199,12 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
-              ),
-            )
-          : _profile == null
-          ? _buildNoProfile()
-          : _buildProfile(),
+      body: Stack(
+        children: [
+          body,
+          if (canRevealCalendar) _buildCalendarRevealSwipeGate(),
+        ],
+      ),
     );
   }
 
@@ -399,17 +423,101 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Route<void> _profileRoute({
+    required String userId,
+    required bool isMyProfile,
+  }) {
+    if (!widget.openedFromCalendar) {
+      return MaterialPageRoute<void>(
+        builder: (_) => ProfilePage(userId: userId, isMyProfile: isMyProfile),
+      );
+    }
+
+    return PageRouteBuilder<void>(
+      pageBuilder: (_, animation, secondaryAnimation) => ProfilePage(
+        userId: userId,
+        isMyProfile: isMyProfile,
+        openedFromCalendar: true,
+      ),
+      transitionDuration: const Duration(milliseconds: 280),
+      reverseTransitionDuration: const Duration(milliseconds: 240),
+      transitionsBuilder: (_, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        final offset = Tween<Offset>(
+          begin: const Offset(1.0, 0.0),
+          end: Offset.zero,
+        ).animate(curved);
+        return SlideTransition(position: offset, child: child);
+      },
+    );
+  }
+
   Future<void> _replaceWithProfile(String userId) async {
     if (!mounted || userId == widget.userId) return;
     final myId = Supabase.instance.client.auth.currentUser?.id;
     await Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => ProfilePage(
-          userId: userId,
-          isMyProfile: myId != null && userId == myId,
-        ),
+      _profileRoute(
+        userId: userId,
+        isMyProfile: myId != null && userId == myId,
       ),
     );
+  }
+
+  Widget _buildCalendarRevealSwipeGate() {
+    final edgeWidth =
+        ((MediaQuery.of(context).size.width * 0.08).clamp(36.0, 64.0) as num)
+            .toDouble();
+
+    return Positioned(
+      top: 0,
+      left: 0,
+      bottom: 0,
+      width: edgeWidth,
+      child: _HorizontalEdgeSwipePad(
+        onHorizontalDragStart: (_) {
+          _calendarRevealSwipeAccum = 0.0;
+        },
+        onHorizontalDragUpdate: (details) {
+          if (_calendarRevealNavigationInFlight) return;
+          _calendarRevealSwipeAccum += details.delta.dx;
+        },
+        onHorizontalDragEnd: (details) {
+          if (_calendarRevealNavigationInFlight) {
+            _calendarRevealSwipeAccum = 0.0;
+            return;
+          }
+
+          final vx = details.velocity.pixelsPerSecond.dx;
+          final traveled = _calendarRevealSwipeAccum;
+          final flingClose = vx > 750;
+          final dragClose = traveled > 42;
+
+          if (flingClose || dragClose) {
+            unawaited(_returnToCalendarFromSwipe());
+          }
+
+          _calendarRevealSwipeAccum = 0.0;
+        },
+      ),
+    );
+  }
+
+  Future<void> _returnToCalendarFromSwipe() async {
+    if (_calendarRevealNavigationInFlight || !mounted) return;
+
+    final navigator = Navigator.of(context);
+    if (!navigator.canPop()) return;
+
+    _calendarRevealNavigationInFlight = true;
+    try {
+      await navigator.maybePop();
+    } finally {
+      _calendarRevealNavigationInFlight = false;
+    }
   }
 
   Future<void> _openFollowList(UserProfile profile, FollowListType type) async {
@@ -811,5 +919,32 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
     await _loadPosts();
+  }
+}
+
+class _HorizontalEdgeSwipePad extends StatelessWidget {
+  const _HorizontalEdgeSwipePad({
+    required this.onHorizontalDragStart,
+    required this.onHorizontalDragUpdate,
+    required this.onHorizontalDragEnd,
+  });
+
+  final GestureDragStartCallback? onHorizontalDragStart;
+  final GestureDragUpdateCallback? onHorizontalDragUpdate;
+  final GestureDragEndCallback? onHorizontalDragEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: null,
+        onHorizontalDragStart: onHorizontalDragStart,
+        onHorizontalDragUpdate: onHorizontalDragUpdate,
+        onHorizontalDragEnd: onHorizontalDragEnd,
+        child: const SizedBox.expand(),
+      ),
+    );
   }
 }

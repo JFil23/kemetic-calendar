@@ -4162,6 +4162,8 @@ class _CalendarPageState extends State<CalendarPage>
   bool _journalInitialized = false;
   bool _plannerNavigationInFlight = false;
   double _plannerSwipeAccum = 0.0;
+  bool _profileNavigationInFlight = false;
+  double _profileSwipeAccum = 0.0;
 
   // Repository instances
   late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
@@ -9181,7 +9183,38 @@ class _CalendarPageState extends State<CalendarPage>
   Future<void> showActionsMenuFromOutside(BuildContext context) =>
       _showActionsMenu(context);
 
-  Future<void> _openProfile(BuildContext context) async {
+  Route<void> _profileRoute({
+    required String userId,
+    bool openedFromCalendarSwipe = false,
+  }) {
+    return PageRouteBuilder<void>(
+      pageBuilder: (_, animation, secondaryAnimation) => ProfilePage(
+        userId: userId,
+        isMyProfile: true,
+        openedFromCalendar: true,
+        openedFromCalendarSwipe: openedFromCalendarSwipe,
+      ),
+      transitionDuration: const Duration(milliseconds: 280),
+      reverseTransitionDuration: const Duration(milliseconds: 240),
+      transitionsBuilder: (_, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        final offset = Tween<Offset>(
+          begin: const Offset(1.0, 0.0),
+          end: Offset.zero,
+        ).animate(curved);
+        return SlideTransition(position: offset, child: child);
+      },
+    );
+  }
+
+  Future<void> _openProfile(
+    BuildContext context, {
+    bool openedFromCalendarSwipe = false,
+  }) async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -9189,19 +9222,23 @@ class _CalendarPageState extends State<CalendarPage>
       );
       return;
     }
+    if (_profileNavigationInFlight || !mounted) return;
 
     UiGuards.disableJournalSwipe();
+    _profileNavigationInFlight = true;
     try {
       await Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => ProfilePage(userId: userId, isMyProfile: true),
+        _profileRoute(
+          userId: userId,
+          openedFromCalendarSwipe: openedFromCalendarSwipe,
         ),
       );
       if (mounted) {
         await _loadFromDisk();
       }
     } finally {
+      _profileNavigationInFlight = false;
       UiGuards.enableJournalSwipe();
     }
   }
@@ -9241,13 +9278,16 @@ class _CalendarPageState extends State<CalendarPage>
   Route<void> _plannerRoute({bool edgeSwipeTransition = false}) {
     if (!edgeSwipeTransition) {
       return MaterialPageRoute<void>(
-        builder: (_) => const TodaysAlignmentPage(),
+        builder: (_) => const TodaysAlignmentPage(openedFromCalendar: true),
       );
     }
 
     return PageRouteBuilder<void>(
       pageBuilder: (_, animation, secondaryAnimation) =>
-          const TodaysAlignmentPage(),
+          const TodaysAlignmentPage(
+            openedFromCalendar: true,
+            openedFromCalendarSwipe: true,
+          ),
       transitionDuration: const Duration(milliseconds: 260),
       reverseTransitionDuration: const Duration(milliseconds: 220),
       transitionsBuilder: (_, animation, secondaryAnimation, child) {
@@ -15238,6 +15278,7 @@ class _CalendarPageState extends State<CalendarPage>
       children: [
         content,
         _buildPlannerSwipeGate(),
+        _buildProfileSwipeGate(),
         if (_reflectionPrompt != null) _buildReflectionBadge(),
       ],
     );
@@ -15277,6 +15318,45 @@ class _CalendarPageState extends State<CalendarPage>
           }
 
           _plannerSwipeAccum = 0.0;
+        },
+      ),
+    );
+  }
+
+  Widget _buildProfileSwipeGate() {
+    final edgeWidth =
+        ((MediaQuery.of(context).size.width * 0.08).clamp(36.0, 64.0) as num)
+            .toDouble();
+
+    return Positioned(
+      top: 0,
+      right: 0,
+      bottom: 0,
+      width: edgeWidth,
+      child: _HorizontalEdgeSwipePad(
+        onHorizontalDragStart: (_) {
+          _profileSwipeAccum = 0.0;
+        },
+        onHorizontalDragUpdate: (details) {
+          if (_profileNavigationInFlight) return;
+          _profileSwipeAccum += details.delta.dx;
+        },
+        onHorizontalDragEnd: (details) {
+          if (_profileNavigationInFlight) {
+            _profileSwipeAccum = 0.0;
+            return;
+          }
+
+          final vx = details.velocity.pixelsPerSecond.dx;
+          final traveled = _profileSwipeAccum;
+          final flingOpen = vx < -750;
+          final dragOpen = traveled < -42;
+
+          if (flingOpen || dragOpen) {
+            unawaited(_openProfile(context, openedFromCalendarSwipe: true));
+          }
+
+          _profileSwipeAccum = 0.0;
         },
       ),
     );
