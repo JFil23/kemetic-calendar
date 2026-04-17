@@ -504,7 +504,7 @@ class ProfileRepo {
           .select()
           .single();
 
-      return FlowPost.fromJson(inserted as Map<String, dynamic>);
+      return FlowPost.fromJson(inserted);
     } catch (e) {
       _log('[ProfileRepo] Error creating flow post: $e');
       return null;
@@ -771,16 +771,54 @@ class ProfileRepo {
   /// List comments for a flow post (oldest first).
   Future<List<FlowPostComment>> getFlowPostComments(String postId) async {
     try {
-      final rows = await _client
-          .from('flow_post_comments')
-          .select(
-            'id, flow_post_id, user_id, body, created_at, profiles(display_name, handle, avatar_url)',
-          )
-          .eq('flow_post_id', postId)
-          .order('created_at', ascending: true);
+      final currentUserId = _client.auth.currentUser?.id;
+      final rows = await _selectFlowPostCommentsRows(postId);
 
-      return (rows as List<dynamic>)
+      final comments = (rows as List<dynamic>)
           .map((r) => FlowPostComment.fromJson(r as Map<String, dynamic>))
+          .toList();
+
+      if (comments.isEmpty) {
+        return const [];
+      }
+
+      final commentIds = comments.map((comment) => comment.id).toList();
+      List<dynamic> likeRows = const [];
+      try {
+        final fetched = await _client
+            .from('flow_post_comment_likes')
+            .select('comment_id, user_id')
+            .inFilter('comment_id', commentIds);
+        likeRows = (fetched as List<dynamic>?) ?? const [];
+      } catch (e) {
+        if (!_isMissingTable(e, 'flow_post_comment_likes')) {
+          _log('[ProfileRepo] Error fetching flow post comment likes: $e');
+        }
+      }
+
+      final likesCountByComment = <String, int>{};
+      final likedByMe = <String>{};
+      for (final raw in likeRows) {
+        final row = raw as Map<String, dynamic>;
+        final commentId = row['comment_id'] as String?;
+        if (commentId == null || commentId.isEmpty) continue;
+        likesCountByComment.update(
+          commentId,
+          (count) => count + 1,
+          ifAbsent: () => 1,
+        );
+        if (currentUserId != null && row['user_id'] == currentUserId) {
+          likedByMe.add(commentId);
+        }
+      }
+
+      return comments
+          .map(
+            (comment) => comment.copyWith(
+              likesCount: likesCountByComment[comment.id] ?? 0,
+              likedByMe: likedByMe.contains(comment.id),
+            ),
+          )
           .toList();
     } catch (e) {
       if (_isMissingTable(e, 'flow_post_comments')) {
@@ -794,8 +832,9 @@ class ProfileRepo {
   /// Add a comment to a flow post (client enforces 150 chars).
   Future<FlowPostComment?> addFlowPostComment(
     String postId,
-    String body,
-  ) async {
+    String body, {
+    String? parentCommentId,
+  }) async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return null;
@@ -803,16 +842,53 @@ class ProfileRepo {
       final trimmed = body.trim();
       if (trimmed.isEmpty || trimmed.length > 150) return null;
 
+      final payload = <String, dynamic>{
+        'flow_post_id': postId,
+        'user_id': userId,
+        'body': trimmed,
+        if (parentCommentId != null && parentCommentId.isNotEmpty)
+          'parent_comment_id': parentCommentId,
+      };
+
       final inserted = await _client
           .from('flow_post_comments')
-          .insert({'flow_post_id': postId, 'user_id': userId, 'body': trimmed})
+          .insert(payload)
           .select(
-            'id, flow_post_id, user_id, body, created_at, profiles(display_name, handle, avatar_url)',
+            'id, flow_post_id, user_id, parent_comment_id, body, created_at, profiles(display_name, handle, avatar_url)',
           )
           .single();
 
-      return FlowPostComment.fromJson(inserted as Map<String, dynamic>);
+      return FlowPostComment.fromJson(inserted);
     } catch (e) {
+      if (_isMissingColumn(e, 'parent_comment_id')) {
+        if (parentCommentId != null && parentCommentId.isNotEmpty) {
+          throw const FlowPostEngagementUnavailable(
+            'flow_post_comment_replies',
+          );
+        }
+        try {
+          final inserted = await _client
+              .from('flow_post_comments')
+              .insert({
+                'flow_post_id': postId,
+                'user_id': _client.auth.currentUser?.id,
+                'body': body.trim(),
+              })
+              .select(
+                'id, flow_post_id, user_id, body, created_at, profiles(display_name, handle, avatar_url)',
+              )
+              .single();
+          return FlowPostComment.fromJson(inserted);
+        } catch (fallbackError) {
+          if (_isMissingTable(fallbackError, 'flow_post_comments')) {
+            throw const FlowPostEngagementUnavailable('flow_post_comments');
+          }
+          _log(
+            '[ProfileRepo] Error adding flow post comment (fallback): $fallbackError',
+          );
+          return null;
+        }
+      }
       if (_isMissingTable(e, 'flow_post_comments')) {
         throw const FlowPostEngagementUnavailable('flow_post_comments');
       }
@@ -821,10 +897,83 @@ class ProfileRepo {
     }
   }
 
+  /// Like or unlike a specific flow post comment for the current user.
+  Future<bool> setFlowPostCommentLike(
+    String commentId, {
+    required bool like,
+  }) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return false;
+
+      if (like) {
+        await _client.from('flow_post_comment_likes').upsert({
+          'comment_id': commentId,
+          'user_id': userId,
+        }, onConflict: 'comment_id,user_id');
+      } else {
+        await _client
+            .from('flow_post_comment_likes')
+            .delete()
+            .eq('comment_id', commentId)
+            .eq('user_id', userId);
+      }
+
+      return true;
+    } catch (e) {
+      if (_isMissingTable(e, 'flow_post_comment_likes')) {
+        throw const FlowPostEngagementUnavailable('flow_post_comment_likes');
+      }
+      _log('[ProfileRepo] Error updating flow post comment like: $e');
+      return false;
+    }
+  }
+
   bool _isMissingTable(Object e, String table) {
-    return e is PostgrestException &&
-        e.code == 'PGRST205' &&
-        (e.message.toLowerCase().contains(table));
+    if (e is! PostgrestException) return false;
+    final message = _postgrestText(e);
+    return message.contains(table.toLowerCase()) &&
+        (e.code == 'PGRST205' ||
+            e.code == '42P01' ||
+            message.contains('table') ||
+            message.contains('relation') ||
+            message.contains('schema cache'));
+  }
+
+  bool _isMissingColumn(Object e, String column) {
+    if (e is! PostgrestException) return false;
+    final message = _postgrestText(e);
+    return message.contains(column.toLowerCase()) &&
+        (e.code == '42703' ||
+            e.code == 'PGRST204' ||
+            message.contains('column') ||
+            message.contains('schema cache'));
+  }
+
+  String _postgrestText(PostgrestException e) {
+    return '${e.code} ${e.message} ${e.details ?? ''} ${e.hint ?? ''}'
+        .toLowerCase();
+  }
+
+  Future<dynamic> _selectFlowPostCommentsRows(String postId) async {
+    try {
+      return await _client
+          .from('flow_post_comments')
+          .select(
+            'id, flow_post_id, user_id, parent_comment_id, body, created_at, profiles(display_name, handle, avatar_url)',
+          )
+          .eq('flow_post_id', postId)
+          .order('created_at', ascending: true);
+    } catch (e) {
+      if (!_isMissingColumn(e, 'parent_comment_id')) rethrow;
+      return await _client
+          .from('flow_post_comments')
+          .select(
+            'id, flow_post_id, user_id, body, created_at, profiles(display_name, handle, avatar_url)',
+          )
+          .eq('flow_post_id', postId)
+          .order('created_at', ascending: true);
+    }
   }
 
   /// Send a push notification via the edge function `send_push`.
