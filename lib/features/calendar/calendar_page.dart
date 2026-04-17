@@ -30,6 +30,7 @@ import '../../data/decan_reflection_repo.dart';
 import '../../data/decan_reflection_model.dart';
 import '../../data/journal_repo.dart';
 import '../../widgets/kemetic_day_info.dart';
+import '../../widgets/insight_link_text.dart';
 import '../../widgets/pronounce_icon_button.dart';
 import '../../services/speech/speech_service.dart';
 import 'speech_resolver.dart';
@@ -27074,10 +27075,6 @@ class _EventSearchDelegate extends SearchDelegate<void> {
       }
     }
 
-    if (trimmed.length >= 2) {
-      addTerm(trimmed);
-    }
-
     for (final term in trimmed.split(RegExp(r'\s+'))) {
       addTerm(term);
     }
@@ -27091,27 +27088,18 @@ class _EventSearchDelegate extends SearchDelegate<void> {
     final normalized = context.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (normalized.isEmpty) return null;
 
-    final lower = normalized.toLowerCase();
     final terms = _queryTerms(rawQuery);
     if (terms.isEmpty) return normalized;
+    final matches = _searchHighlightRanges(normalized, terms);
 
-    var matchStart = -1;
-    var matchLength = 0;
-
-    for (final term in terms) {
-      final idx = lower.indexOf(term);
-      if (idx == -1) continue;
-      if (matchStart == -1 || idx < matchStart) {
-        matchStart = idx;
-        matchLength = term.length;
-      }
-    }
-
-    if (matchStart == -1) {
+    if (matches.isEmpty) {
       return normalized.length <= 110
           ? normalized
           : '${normalized.substring(0, 107).trimRight()}...';
     }
+    final match = matches.first;
+    final matchStart = match.start;
+    final matchLength = match.end - match.start;
 
     var start = (matchStart - 32).clamp(0, normalized.length);
     var end = (matchStart + matchLength + 72).clamp(0, normalized.length);
@@ -27134,67 +27122,6 @@ class _EventSearchDelegate extends SearchDelegate<void> {
     return '$prefix$snippet$suffix';
   }
 
-  List<TextSpan> _buildSnippetSpans(String snippet, String rawQuery) {
-    final baseStyle = const TextStyle(
-      color: Colors.white70,
-      fontSize: 13,
-      height: 1.3,
-    );
-    final highlightStyle = baseStyle.copyWith(
-      color: _gold,
-      fontWeight: FontWeight.w700,
-    );
-
-    final terms = _queryTerms(rawQuery);
-    if (terms.isEmpty) {
-      return [TextSpan(text: snippet, style: baseStyle)];
-    }
-
-    final spans = <TextSpan>[];
-    final lower = snippet.toLowerCase();
-    var cursor = 0;
-
-    while (cursor < snippet.length) {
-      int? bestStart;
-      int? bestLength;
-
-      for (final term in terms) {
-        final idx = lower.indexOf(term, cursor);
-        if (idx == -1) continue;
-        if (bestStart == null ||
-            idx < bestStart ||
-            (idx == bestStart && term.length > (bestLength ?? 0))) {
-          bestStart = idx;
-          bestLength = term.length;
-        }
-      }
-
-      if (bestStart == null || bestLength == null) {
-        spans.add(TextSpan(text: snippet.substring(cursor), style: baseStyle));
-        break;
-      }
-
-      if (bestStart > cursor) {
-        spans.add(
-          TextSpan(
-            text: snippet.substring(cursor, bestStart),
-            style: baseStyle,
-          ),
-        );
-      }
-
-      spans.add(
-        TextSpan(
-          text: snippet.substring(bestStart, bestStart + bestLength),
-          style: highlightStyle,
-        ),
-      );
-      cursor = bestStart + bestLength;
-    }
-
-    return spans;
-  }
-
   Widget _resultsList(String q) {
     final items = _matches(q).toList()
       ..sort((a, b) {
@@ -27202,6 +27129,7 @@ class _EventSearchDelegate extends SearchDelegate<void> {
         final gb = KemeticMath.toGregorian(b.ky, b.km, b.kd);
         return ga.compareTo(gb);
       });
+    final terms = _queryTerms(q);
 
     if (items.isEmpty) {
       return const Center(
@@ -27253,11 +27181,7 @@ class _EventSearchDelegate extends SearchDelegate<void> {
               children: [
                 if (snippet != null) ...[
                   const SizedBox(height: 4),
-                  RichText(
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    text: TextSpan(children: _buildSnippetSpans(snippet, q)),
-                  ),
+                  _SearchSnippetText(snippet: snippet, terms: terms),
                   const SizedBox(height: 4),
                 ],
                 Text(
@@ -27294,6 +27218,229 @@ class _EventSearchDelegate extends SearchDelegate<void> {
     return _resultsList(query);
   }
 }
+
+class _SearchSnippetText extends StatelessWidget {
+  const _SearchSnippetText({required this.snippet, required this.terms});
+
+  final String snippet;
+  final List<String> terms;
+
+  static const _baseStyle = TextStyle(
+    color: Colors.white70,
+    fontSize: 13,
+    height: 1.3,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    if (terms.isEmpty) {
+      return Text(
+        snippet,
+        style: _baseStyle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    final matches = _searchHighlightRanges(snippet, terms);
+    if (matches.isEmpty) {
+      return Text(
+        snippet,
+        style: _baseStyle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final boxes = _computeHighlightBoxes(
+          snippet,
+          matches,
+          constraints.maxWidth,
+          Directionality.of(context),
+        );
+        return RichText(
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          text: TextSpan(children: _buildSnippetSpans(snippet, matches, boxes)),
+        );
+      },
+    );
+  }
+
+  List<InlineSpan> _buildSnippetSpans(
+    String snippet,
+    List<_SearchHighlightRange> matches,
+    Map<String, Rect> boxes,
+  ) {
+    final spans = <InlineSpan>[];
+    var cursor = 0;
+
+    for (final match in matches) {
+      if (match.start > cursor) {
+        spans.add(
+          TextSpan(
+            text: snippet.substring(cursor, match.start),
+            style: _baseStyle,
+          ),
+        );
+      }
+
+      final phrase = snippet.substring(match.start, match.end);
+      final box = boxes[_rangeKey(match)];
+      final fontSize = _baseStyle.fontSize ?? 13.0;
+      final shaderRect = box == null
+          ? null
+          : Rect.fromLTWH(
+              box.left,
+              box.top,
+              box.width < fontSize ? fontSize : box.width,
+              box.height < fontSize * 1.4 ? fontSize * 1.4 : box.height,
+            );
+      spans.add(
+        TextSpan(
+          text: phrase,
+          style: InsightLinkTextStyle.textSpanStyle(
+            _baseStyle.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+            phrase,
+            shaderRect: shaderRect,
+          ),
+        ),
+      );
+      cursor = match.end;
+    }
+
+    if (cursor < snippet.length) {
+      spans.add(TextSpan(text: snippet.substring(cursor), style: _baseStyle));
+    }
+
+    return spans;
+  }
+
+  Map<String, Rect> _computeHighlightBoxes(
+    String text,
+    List<_SearchHighlightRange> matches,
+    double maxWidth,
+    TextDirection textDirection,
+  ) {
+    if (!maxWidth.isFinite ||
+        maxWidth <= 0 ||
+        matches.isEmpty ||
+        text.isEmpty) {
+      return const {};
+    }
+
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: _baseStyle),
+      textDirection: textDirection,
+      maxLines: 2,
+      ellipsis: '…',
+      textHeightBehavior: const TextHeightBehavior(
+        applyHeightToFirstAscent: false,
+        applyHeightToLastDescent: false,
+      ),
+    )..layout(maxWidth: maxWidth);
+
+    final boxes = <String, Rect>{};
+    for (final match in matches) {
+      final start = match.start.clamp(0, text.length);
+      final end = match.end.clamp(start, text.length);
+      if (start >= end) continue;
+
+      final textBoxes = painter.getBoxesForSelection(
+        TextSelection(baseOffset: start, extentOffset: end),
+      );
+      if (textBoxes.isEmpty) continue;
+
+      var left = textBoxes.first.left;
+      var top = textBoxes.first.top;
+      var right = textBoxes.first.right;
+      var bottom = textBoxes.first.bottom;
+
+      for (final textBox in textBoxes.skip(1)) {
+        if (textBox.left < left) left = textBox.left;
+        if (textBox.top < top) top = textBox.top;
+        if (textBox.right > right) right = textBox.right;
+        if (textBox.bottom > bottom) bottom = textBox.bottom;
+      }
+
+      boxes[_rangeKey(match)] = Rect.fromLTRB(left, top, right, bottom);
+    }
+
+    return boxes;
+  }
+
+  String _rangeKey(_SearchHighlightRange range) =>
+      '${range.start}:${range.end}';
+}
+
+class _SearchHighlightRange {
+  const _SearchHighlightRange(this.start, this.end);
+
+  final int start;
+  final int end;
+}
+
+final RegExp _searchWordChar = RegExp(r'[A-Za-z0-9\u00C0-\u024F\u1E00-\u1EFF]');
+
+List<_SearchHighlightRange> _searchHighlightRanges(
+  String text,
+  List<String> terms,
+) {
+  if (text.isEmpty || terms.isEmpty) return const [];
+
+  final lower = text.toLowerCase();
+  final candidates = <_SearchHighlightRange>[];
+
+  for (final term in terms) {
+    if (term.isEmpty) continue;
+    var searchFrom = 0;
+    while (searchFrom < lower.length) {
+      final start = lower.indexOf(term, searchFrom);
+      if (start == -1) break;
+      final end = start + term.length;
+      if (_isValidSearchMatch(text, term, start, end)) {
+        candidates.add(_SearchHighlightRange(start, end));
+      }
+      searchFrom = start + 1;
+    }
+  }
+
+  candidates.sort((a, b) {
+    final byStart = a.start.compareTo(b.start);
+    if (byStart != 0) return byStart;
+    return (b.end - b.start).compareTo(a.end - a.start);
+  });
+
+  final accepted = <_SearchHighlightRange>[];
+  for (final candidate in candidates) {
+    if (accepted.isEmpty || candidate.start >= accepted.last.end) {
+      accepted.add(candidate);
+    }
+  }
+  return accepted;
+}
+
+bool _isValidSearchMatch(String text, String term, int start, int end) {
+  final needsLeadingBoundary = _isSearchWordChar(term[0]);
+  final needsTrailingBoundary = _isSearchWordChar(term[term.length - 1]);
+
+  if (needsLeadingBoundary && start > 0 && _isSearchWordChar(text[start - 1])) {
+    return false;
+  }
+  if (needsTrailingBoundary &&
+      end < text.length &&
+      _isSearchWordChar(text[end])) {
+    return false;
+  }
+  return true;
+}
+
+bool _isSearchWordChar(String char) => _searchWordChar.hasMatch(char);
 
 /* ───────────────────────── Simple Note model ───────────────────────── */
 
