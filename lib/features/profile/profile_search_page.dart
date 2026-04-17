@@ -7,7 +7,16 @@ import 'package:mobile/shared/glossy_text.dart';
 import '../../data/profile_repo.dart';
 
 class ProfileSearchPage extends StatefulWidget {
-  const ProfileSearchPage({super.key});
+  final bool returnFullResult;
+  final String titleText;
+  final String hintText;
+
+  const ProfileSearchPage({
+    super.key,
+    this.returnFullResult = false,
+    this.titleText = 'Find People',
+    this.hintText = 'Search by @handle or display name',
+  });
 
   @override
   State<ProfileSearchPage> createState() => _ProfileSearchPageState();
@@ -56,7 +65,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
   }
 
   void _selectUser(UserSearchResult user) {
-    Navigator.of(context).pop(user.userId);
+    Navigator.of(context).pop(widget.returnFullResult ? user : user.userId);
   }
 
   @override
@@ -70,8 +79,8 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
           icon: KemeticGold.icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Find People',
+        title: Text(
+          widget.titleText,
           style: TextStyle(
             color: Colors.white,
             fontSize: 17,
@@ -110,9 +119,12 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
       autofocus: true,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
-        hintText: 'Search by @handle or display name',
+        hintText: widget.hintText,
         hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-        prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.5)),
+        prefixIcon: Icon(
+          Icons.search,
+          color: Colors.white.withValues(alpha: 0.5),
+        ),
         suffixIcon: _query.isNotEmpty
             ? IconButton(
                 icon: KemeticGold.icon(Icons.close),
@@ -188,19 +200,19 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
   Widget _buildResultsList() {
     return ListView.separated(
       itemCount: _results.length,
-      separatorBuilder: (context, index) => Divider(
-        color: Colors.white.withValues(alpha: 0.05),
-        height: 1,
-      ),
+      separatorBuilder: (context, index) =>
+          Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
       itemBuilder: (context, index) {
         final user = _results[index];
-        final initials = (user.displayName?.isNotEmpty == true
-                ? user.displayName![0]
-                : user.handle?.isNotEmpty == true
+        final initials =
+            (user.displayName?.isNotEmpty == true
+                    ? user.displayName![0]
+                    : user.handle?.isNotEmpty == true
                     ? user.handle![0]
                     : '?')
-            .toUpperCase();
-        final subtitle = user.displayName != null && user.displayName!.isNotEmpty
+                .toUpperCase();
+        final subtitle =
+            user.displayName != null && user.displayName!.isNotEmpty
             ? '@${user.handle ?? 'user'}'
             : (user.handle != null ? '@${user.handle}' : null);
 

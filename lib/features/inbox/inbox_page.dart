@@ -15,6 +15,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import '../profile/flow_post_detail_page.dart';
 import '../profile/profile_page.dart';
+import '../profile/profile_search_page.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
 void _logInboxImport(String message) {
@@ -174,8 +175,51 @@ class _InboxPageState extends State<InboxPage> {
             );
           },
         ),
+        actions: [
+          IconButton(
+            tooltip: 'New message',
+            icon: KemeticGold.icon(Icons.search),
+            onPressed: _openUserSearch,
+          ),
+        ],
       ),
       body: _buildBody(),
+    );
+  }
+
+  Future<void> _openUserSearch() async {
+    final selectedUser = await Navigator.of(context).push<UserSearchResult>(
+      MaterialPageRoute(
+        builder: (_) => const ProfileSearchPage(
+          returnFullResult: true,
+          titleText: 'New Message',
+          hintText: 'Search people to message',
+        ),
+      ),
+    );
+
+    if (!mounted || selectedUser == null) return;
+
+    final currentUserId = _inboxRepo.currentUserId;
+    if (currentUserId != null && selectedUser.userId == currentUserId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You cannot message yourself')),
+      );
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InboxConversationPage(
+          otherUserId: selectedUser.userId,
+          otherProfile: ConversationUser(
+            id: selectedUser.userId,
+            displayName: selectedUser.displayName,
+            handle: selectedUser.handle,
+            avatarUrl: selectedUser.avatarUrl,
+          ),
+        ),
+      ),
     );
   }
 
