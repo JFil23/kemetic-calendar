@@ -38,6 +38,18 @@ class TodaysAlignmentPage extends StatefulWidget {
 }
 
 class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
+  static const Gradient _plannerReflectionGloss = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [
+      Color(0xFFFFF1BF),
+      Color(0xFFF2CF63),
+      Color(0xFFFFF8D9),
+      Color(0xFFF4D97A),
+    ],
+    stops: [0.0, 0.34, 0.62, 1.0],
+  );
+
   final RhythmRepo _repo = RhythmRepo(Supabase.instance.client);
   final NutritionRepo _nutritionRepo = NutritionRepo(Supabase.instance.client);
   final PlannerBadgeRepo _plannerBadgeRepo = PlannerBadgeRepo(
@@ -629,6 +641,21 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
     final kMonth = kd.epagomenal ? 13 : kd.month;
     return kemeticDayKey(kMonth, targetDay);
+  }
+
+  ({String dayKey, int kYear, String reflection})? _todayPlannerAction() {
+    final kd = _kemeticConverter.fromGregorian(_todayLocal);
+    final dayKey = kemeticDayKey(kd.epagomenal ? 13 : kd.month, kd.day);
+    final info = KemeticDayData.getInfoForDay(dayKey);
+    if (info == null) return null;
+
+    for (final flowDay in info.decanFlow) {
+      if (flowDay.day == kd.day) {
+        return (dayKey: dayKey, kYear: kd.year, reflection: flowDay.reflection);
+      }
+    }
+
+    return null;
   }
 
   Future<void> _openDecanInfo() async {
@@ -2781,6 +2808,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         }
 
         final progress = _progress();
+        final plannerAction = _todayPlannerAction();
 
         final list = ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -2848,7 +2876,27 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            if (plannerAction != null) ...[
+              const SizedBox(height: 12),
+              KemeticDayButton(
+                dayKey: plannerAction.dayKey,
+                kYear: plannerAction.kYear,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Center(
+                    child: GlossyText(
+                      text: plannerAction.reflection,
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      gradient: _plannerReflectionGloss,
+                      style: RhythmTheme.subheading.copyWith(height: 1.35),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ] else
+              const SizedBox(height: 14),
             _buildNotesSection(),
             const SizedBox(height: 14),
             _buildNutritionSection(),
