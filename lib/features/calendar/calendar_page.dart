@@ -6073,9 +6073,10 @@ class _CalendarPageState extends State<CalendarPage>
               caller: 'reminder_sync',
             );
 
+            final cleanedDetail = _cleanDetail(encodedDetail);
             final note = _Note(
               title: rule.title,
-              detail: null,
+              detail: cleanedDetail.isEmpty ? null : cleanedDetail,
               location: null,
               allDay: rule.allDay,
               start: startTod,
@@ -9366,6 +9367,7 @@ class _CalendarPageState extends State<CalendarPage>
       context: context,
       delegate: _EventSearchDelegate(
         notes: _notes,
+        flows: _flows,
         monthName: (km) => getMonthById(km).displayFull,
         gregYearLabelFor: _gregYearLabelFor,
         openDay: (ky, km, kd) {
@@ -26933,12 +26935,14 @@ class _MaatFlowTemplateDetailPageState
 class _EventSearchDelegate extends SearchDelegate<void> {
   _EventSearchDelegate({
     required this.notes,
+    required List<_Flow> flows,
     required this.monthName,
     required this.gregYearLabelFor,
     required this.openDay,
-  });
+  }) : _flowById = {for (final flow in flows) flow.id: flow};
 
   final Map<String, List<_Note>> notes;
+  final Map<int, _Flow> _flowById;
   final String Function(int kMonth) monthName;
   final String Function(int kYear, int kMonth) gregYearLabelFor;
   final void Function(int ky, int km, int kd) openDay;
@@ -26994,12 +26998,201 @@ class _EventSearchDelegate extends SearchDelegate<void> {
       final km = int.tryParse(parts[1]) ?? 0;
       final kd = int.tryParse(parts[2]) ?? 0;
       for (final n in entry.value) {
-        bool hit(String? s) => (s ?? '').toLowerCase().contains(qq);
-        if (hit(n.title) || hit(n.location) || hit(n.detail)) {
+        if (_searchableTextFor(n).contains(qq)) {
           yield (ky: ky, km: km, kd: kd, note: n);
         }
       }
     }
+  }
+
+  List<String> _contextFieldsFor(_Note note) {
+    final fields = <String>[
+      _cleanDetail(note.detail),
+      note.location ?? '',
+      note.category ?? '',
+    ];
+
+    final flowId = note.flowId;
+    if (flowId != null && flowId > 0) {
+      final flow = _flowById[flowId];
+      if (flow != null) {
+        final overview = _effectiveOverview(
+          flow.notes,
+          notesDecode(flow.notes).overview,
+        );
+        final repeatingMeta = _decodeRepeatingNoteMetadata(flow.notes);
+        fields.addAll([
+          overview,
+          repeatingMeta.detail ?? '',
+          repeatingMeta.location ?? '',
+          repeatingMeta.category ?? '',
+        ]);
+      }
+    }
+
+    final seen = <String>{};
+    final cleaned = <String>[];
+    for (final field in fields) {
+      final normalized = field.replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (normalized.isEmpty) continue;
+      if (seen.add(normalized.toLowerCase())) {
+        cleaned.add(normalized);
+      }
+    }
+    return cleaned;
+  }
+
+  String _searchableTextFor(_Note note) {
+    final fields = <String>[note.title, ..._contextFieldsFor(note)];
+
+    final flowId = note.flowId;
+    if (flowId != null && flowId > 0) {
+      final flow = _flowById[flowId];
+      if (flow != null) {
+        fields.add(flow.name);
+      }
+    }
+
+    return fields
+        .where((field) => field.trim().isNotEmpty)
+        .join('\n')
+        .toLowerCase();
+  }
+
+  List<String> _queryTerms(String rawQuery) {
+    final trimmed = rawQuery.trim().toLowerCase();
+    if (trimmed.isEmpty) return const [];
+
+    final seen = <String>{};
+    final terms = <String>[];
+
+    void addTerm(String term) {
+      final normalized = term.trim().toLowerCase();
+      if (normalized.length < 2) return;
+      if (seen.add(normalized)) {
+        terms.add(normalized);
+      }
+    }
+
+    if (trimmed.length >= 2) {
+      addTerm(trimmed);
+    }
+
+    for (final term in trimmed.split(RegExp(r'\s+'))) {
+      addTerm(term);
+    }
+
+    terms.sort((a, b) => b.length.compareTo(a.length));
+    return terms;
+  }
+
+  String? _contextSnippetFor(_Note note, String rawQuery) {
+    final context = _contextFieldsFor(note).join(' ');
+    final normalized = context.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.isEmpty) return null;
+
+    final lower = normalized.toLowerCase();
+    final terms = _queryTerms(rawQuery);
+    if (terms.isEmpty) return normalized;
+
+    var matchStart = -1;
+    var matchLength = 0;
+
+    for (final term in terms) {
+      final idx = lower.indexOf(term);
+      if (idx == -1) continue;
+      if (matchStart == -1 || idx < matchStart) {
+        matchStart = idx;
+        matchLength = term.length;
+      }
+    }
+
+    if (matchStart == -1) {
+      return normalized.length <= 110
+          ? normalized
+          : '${normalized.substring(0, 107).trimRight()}...';
+    }
+
+    var start = (matchStart - 32).clamp(0, normalized.length);
+    var end = (matchStart + matchLength + 72).clamp(0, normalized.length);
+
+    while (start > 0 && normalized[start] != ' ') {
+      start--;
+    }
+    while (end < normalized.length && normalized[end - 1] != ' ') {
+      end++;
+      if (end >= normalized.length) {
+        end = normalized.length;
+        break;
+      }
+    }
+
+    final snippet = normalized.substring(start, end).trim();
+    if (snippet.isEmpty) return null;
+    final prefix = start > 0 ? '... ' : '';
+    final suffix = end < normalized.length ? ' ...' : '';
+    return '$prefix$snippet$suffix';
+  }
+
+  List<TextSpan> _buildSnippetSpans(String snippet, String rawQuery) {
+    final baseStyle = const TextStyle(
+      color: Colors.white70,
+      fontSize: 13,
+      height: 1.3,
+    );
+    final highlightStyle = baseStyle.copyWith(
+      color: _gold,
+      fontWeight: FontWeight.w700,
+    );
+
+    final terms = _queryTerms(rawQuery);
+    if (terms.isEmpty) {
+      return [TextSpan(text: snippet, style: baseStyle)];
+    }
+
+    final spans = <TextSpan>[];
+    final lower = snippet.toLowerCase();
+    var cursor = 0;
+
+    while (cursor < snippet.length) {
+      int? bestStart;
+      int? bestLength;
+
+      for (final term in terms) {
+        final idx = lower.indexOf(term, cursor);
+        if (idx == -1) continue;
+        if (bestStart == null ||
+            idx < bestStart ||
+            (idx == bestStart && term.length > (bestLength ?? 0))) {
+          bestStart = idx;
+          bestLength = term.length;
+        }
+      }
+
+      if (bestStart == null || bestLength == null) {
+        spans.add(TextSpan(text: snippet.substring(cursor), style: baseStyle));
+        break;
+      }
+
+      if (bestStart > cursor) {
+        spans.add(
+          TextSpan(
+            text: snippet.substring(cursor, bestStart),
+            style: baseStyle,
+          ),
+        );
+      }
+
+      spans.add(
+        TextSpan(
+          text: snippet.substring(bestStart, bestStart + bestLength),
+          style: highlightStyle,
+        ),
+      );
+      cursor = bestStart + bestLength;
+    }
+
+    return spans;
   }
 
   Widget _resultsList(String q) {
@@ -27042,18 +27235,38 @@ class _EventSearchDelegate extends SearchDelegate<void> {
             it.note.location!,
         ];
         final subtitle = subBits.join(' • ');
+        final snippet = _contextSnippetFor(it.note, q);
 
         return SizedBox(
           width: double.infinity,
           child: ListTile(
             onTap: () => openDay(it.ky, it.km, it.kd),
+            isThreeLine: snippet != null,
             title: Text(
               it.note.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: Colors.white),
             ),
-            subtitle: Text(
-              subtitle,
-              style: const TextStyle(color: Colors.white70),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (snippet != null) ...[
+                  const SizedBox(height: 4),
+                  RichText(
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    text: TextSpan(children: _buildSnippetSpans(snippet, q)),
+                  ),
+                  const SizedBox(height: 4),
+                ],
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
             trailing: const Icon(Icons.chevron_right, color: _silver),
           ),
