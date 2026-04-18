@@ -14,8 +14,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
-import 'package:mobile/widgets/month_name_text.dart';
 import 'calendar_page.dart';
+import 'day_view_chrome.dart';
 import 'landscape_month_view.dart';
 import '../sharing/share_flow_sheet.dart';
 import '../../widgets/kemetic_day_info.dart';
@@ -25,21 +25,9 @@ import '../journal/journal_event_badge.dart';
 
 const double _kMinEventBlockHeight = 64.0; // was 32.0
 const Color _dayGold = KemeticGold.base;
-const Gradient _dayGoldGloss = KemeticGold.gloss;
 const TextStyle _goldHeaderStyle = TextStyle(
   fontSize: 17,
   fontWeight: FontWeight.w600,
-  fontFamily: 'GentiumPlus',
-  fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
-);
-const TextStyle _goldMonthStyle = TextStyle(
-  fontSize: 18,
-  fontWeight: FontWeight.w500,
-  fontFamily: 'GentiumPlus',
-  fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
-);
-const TextStyle _miniCalendarNumberStyle = TextStyle(
-  fontSize: 14,
   fontFamily: 'GentiumPlus',
   fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
 );
@@ -846,7 +834,73 @@ class _DayViewPageState extends State<DayViewPage> {
               return Column(
                 children: [
                   // Custom Apple-style header
-                  _buildAppleStyleHeader(),
+                  KemeticDayViewHeader(
+                    currentKy: _currentKy,
+                    currentKm: _currentKm,
+                    currentKd: _currentKd,
+                    getMonthName: widget.getMonthName,
+                    miniCalendarScrollController: _miniCalendarScrollController,
+                    onSelectDay: (day) {
+                      final currentGregorian = KemeticMath.toGregorian(
+                        _currentKy,
+                        _currentKm,
+                        _currentKd,
+                      );
+                      final targetGregorian = KemeticMath.toGregorian(
+                        _currentKy,
+                        _currentKm,
+                        day,
+                      );
+                      final offsetDays = targetGregorian
+                          .difference(currentGregorian)
+                          .inDays;
+                      if (!_pageController.hasClients) return;
+                      final basePage =
+                          _pageController.page?.round() ?? _centerPage;
+                      final targetPage = basePage + offsetDays;
+
+                      _pageController.animateToPage(
+                        targetPage,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOut,
+                      );
+                    },
+                    onClose: () => Navigator.pop(context),
+                    onJumpToToday: _jumpToToday,
+                    onShowActionsMenu: widget.onShowActionsMenu == null
+                        ? (btnCtx) async {
+                            await CalendarPage.globalKey.currentState
+                                ?.showActionsMenuFromOutside(btnCtx);
+                          }
+                        : widget.onShowActionsMenu,
+                    onOpenProfile: widget.onOpenProfile == null
+                        ? (ctx) async {
+                            await CalendarPage.globalKey.currentState
+                                ?.openProfileFromOutside(ctx);
+                          }
+                        : widget.onOpenProfile,
+                    dateButtonBuilder: (monthName, currentKd, gregorianYear) {
+                      return KemeticDayButton(
+                        dayKey: _getKemeticDayKey(
+                          _currentKy,
+                          _currentKm,
+                          _currentKd,
+                        ),
+                        kYear: _currentKy,
+                        openOnTap: true,
+                        child: Text(
+                          '${monthName.split(' ').first} $currentKd, $gregorianYear',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          softWrap: false,
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    },
+                  ),
 
                   // Existing page view with timeline
                   Expanded(
@@ -907,220 +961,6 @@ class _DayViewPageState extends State<DayViewPage> {
         );
       },
     );
-  }
-
-  Widget _buildDayHeader() {
-    final monthName = widget.getMonthName(_currentKm);
-
-    return KemeticGold.text(
-      '$monthName $_currentKy, Day $_currentKd',
-      style: _goldMonthStyle,
-    );
-  }
-
-  Widget _buildGoldMonthLabel(String text) {
-    return ShaderMask(
-      shaderCallback: (Rect bounds) => _dayGoldGloss.createShader(bounds),
-      blendMode: BlendMode.srcIn,
-      child: MonthNameText(
-        text,
-        style: _goldMonthStyle,
-        maxLines: 1,
-        softWrap: false,
-        overflow: TextOverflow.fade,
-      ),
-    );
-  }
-
-  Widget _buildAppleStyleHeader() {
-    final monthName = widget.getMonthName(_currentKm);
-    final dayCount = _currentKm == 13
-        ? (KemeticMath.isLeapKemeticYear(_currentKy) ? 6 : 5)
-        : 30;
-
-    // Get today's Kemetic date for highlighting
-    final now = DateTime.now();
-    final today = KemeticMath.fromGregorian(now);
-
-    // 🔧 FIX 1: Get Gregorian year for the current Kemetic date
-    final currentGregorian = KemeticMath.toGregorian(
-      _currentKy,
-      _currentKm,
-      _currentKd,
-    );
-    final gregorianYear = currentGregorian.year; // This is 2025
-
-    return Container(
-      color: const Color(0xFF0D0D0F), // Dark surface
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // Top row: Close button, Month name, Menu, Profile
-            Container(
-              height: 44,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                children: [
-                  // Close button
-                  IconButton(
-                    icon: KemeticGold.icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  // Month name
-                  Expanded(child: _buildGoldMonthLabel(monthName)),
-                  IconButton(
-                    tooltip: 'Today',
-                    icon: const GlossyIcon(
-                      icon: Icons.today,
-                      gradient: goldGloss,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    onPressed: _jumpToToday,
-                  ),
-                  Builder(
-                    builder: (btnCtx) => IconButton(
-                      tooltip: 'Menu',
-                      icon: const GlossyIcon(
-                        icon: Icons.apps,
-                        gradient: goldGloss,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      onPressed: () async {
-                        if (widget.onShowActionsMenu != null) {
-                          await widget.onShowActionsMenu!(btnCtx);
-                        } else {
-                          await CalendarPage.globalKey.currentState
-                              ?.showActionsMenuFromOutside(btnCtx);
-                        }
-                      },
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'My Profile',
-                    icon: const GlossyIcon(
-                      icon: Icons.person,
-                      gradient: goldGloss,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    onPressed: () async {
-                      if (widget.onOpenProfile != null) {
-                        await widget.onOpenProfile!(context);
-                      } else {
-                        await CalendarPage.globalKey.currentState
-                            ?.openProfileFromOutside(context);
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            // 🔧 FIXED: Mini calendar now uses persistent controller (smaller size, closer spacing)
-            SizedBox(
-              height: 32, // Reduced from 40
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                itemCount: dayCount,
-                // Auto-scroll to keep current day visible and centered
-                controller:
-                    _miniCalendarScrollController, // 🔧 Use persistent controller
-                itemBuilder: (context, index) {
-                  final day = index + 1;
-                  final isCurrentDay = day == _currentKd;
-                  final isToday =
-                      today.kYear == _currentKy &&
-                      today.kMonth == _currentKm &&
-                      today.kDay == day;
-
-                  return GestureDetector(
-                    onTap: () {
-                      final currentGregorian = KemeticMath.toGregorian(
-                        _currentKy,
-                        _currentKm,
-                        _currentKd,
-                      );
-                      final targetGregorian = KemeticMath.toGregorian(
-                        _currentKy,
-                        _currentKm,
-                        day,
-                      );
-                      final offsetDays = targetGregorian
-                          .difference(currentGregorian)
-                          .inDays;
-                      if (!_pageController.hasClients) return;
-                      final basePage =
-                          _pageController.page?.round() ?? _centerPage;
-                      final targetPage = basePage + offsetDays;
-
-                      _pageController.animateToPage(
-                        targetPage,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOut,
-                      );
-                    },
-                    child: Container(
-                      width: 30, // Reduced from 36
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: isCurrentDay
-                            ? Border.all(color: _dayGold, width: 1.5)
-                            : null,
-                      ),
-                      child: Center(
-                        child: Text(
-                          '$day',
-                          style: _miniCalendarNumberStyle.copyWith(
-                            color: isToday
-                                ? _dayGold
-                                : (isCurrentDay
-                                      ? const Color(0xFFAAAAAA)
-                                      : Colors.white54),
-                            fontWeight: isCurrentDay || isToday
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 8), // Reduced from 12
-            // 🔧 FIX 1: Full date with GREGORIAN year - WITH KEMETIC DAY INFO
-            Container(
-              padding: const EdgeInsets.only(bottom: 12),
-              alignment: Alignment.center,
-              child: KemeticDayButton(
-                dayKey: _getKemeticDayKey(_currentKy, _currentKm, _currentKd),
-                kYear: _currentKy,
-                child: MonthNameText(
-                  // Show: "Renwet 2, 2025" (Kemetic date + Gregorian year)
-                  '${monthName.split(' ').first} $_currentKd, $gregorianYear',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  softWrap: false,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-
-            const Divider(height: 1, color: Color(0xFF1A1A1A)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatGregorianDate(DateTime date) {
-    return '${date.month}/${date.day}/${date.year}';
   }
 
   /// Detect whether a string looks like a URL, email, or phone number.
@@ -2369,10 +2209,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             Positioned(
               left: 60 + lefts[i],
               top: top,
-              child: _buildInteractiveEvent(
-                adjusted,
-                hitHeight: rowHitHeight,
-              ),
+              child: _buildInteractiveEvent(adjusted, hitHeight: rowHitHeight),
             ),
           );
         }
@@ -2592,9 +2429,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         color: Colors.transparent,
         child: buildVisual(opacity: 0.8),
       ),
-      childWhenDragging: buildHitTarget(
-        buildVisual(opacity: 0.35),
-      ),
+      childWhenDragging: buildHitTarget(buildVisual(opacity: 0.35)),
       onDragUpdate: (details) => _handleDragUpdate(event, details),
       onDragStarted: () {
         _isDraggingEvent = true;
@@ -2654,7 +2489,9 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     final double rawHeight = durationMinutes.toDouble();
-    return rawHeight < _kMinEventBlockHeight ? _kMinEventBlockHeight : rawHeight;
+    return rawHeight < _kMinEventBlockHeight
+        ? _kMinEventBlockHeight
+        : rawHeight;
   }
 
   double _eventHitHeight(EventItem event) => _eventVisualHeight(event) + 2;

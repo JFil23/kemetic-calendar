@@ -67,6 +67,8 @@ import '../nodes/kemetic_node_list_page.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/kemetic_node_model.dart';
 import '../nodes/node_user_insights_section.dart';
+import '../onboarding/onboarding_overlay.dart';
+import '../onboarding/onboarding_storage.dart';
 import '../rhythm/data/planner_badge_repo.dart';
 import '../rhythm/pages/todays_alignment_page.dart';
 
@@ -4172,6 +4174,9 @@ class _CalendarPageState extends State<CalendarPage>
   late final PlannerBadgeRepo _plannerBadgeRepo = PlannerBadgeRepo(
     Supabase.instance.client,
   );
+  late final OnboardingStorage _onboardingStorage = OnboardingStorage(
+    Supabase.instance.client,
+  );
   late final DecanReflectionRepo _decanReflectionRepo = DecanReflectionRepo(
     Supabase.instance.client,
   );
@@ -4725,11 +4730,69 @@ class _CalendarPageState extends State<CalendarPage>
 
   // toggle: Kemetic (false) <-> Gregorian overlay (true)
   bool _showGregorian = false;
+  bool _showOnboarding = false;
+  bool _onboardingPresentationScheduled = false;
+
+  static const bool _forceShowOnboardingOnLaunch = true;
+  static const List<int> _onboardingHighlightDays = [
+    8,
+    9,
+    10,
+    18,
+    19,
+    20,
+    28,
+    29,
+    30,
+  ];
+  static const List<int> _onboardingAnchorDays = [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+  ];
 
   // for centering and for snapping to today
   final _centerKey = GlobalKey();
   final _todayMonthKey = GlobalKey(); // month card
   final _todayDayKey = GlobalKey(); // 🔑 individual day chip
+  late final Map<int, GlobalKey> _onboardingHighlightDayKeys = {
+    for (final day in _onboardingAnchorDays)
+      day: GlobalKey(debugLabel: 'onboarding_day_$day'),
+  };
+
+  Key? _onboardingHighlightKeyFor(int kYear, int kMonth, int kDay) {
+    final onboardingKy = _lastViewKy ?? _today.kYear;
+    final onboardingKm = _lastViewKm ?? _today.kMonth;
+    if (kYear != onboardingKy || kMonth != onboardingKm) return null;
+    return _onboardingHighlightDayKeys[kDay];
+  }
 
   @override
   void initState() {
@@ -4755,6 +4818,7 @@ class _CalendarPageState extends State<CalendarPage>
         _scrollToToday();
       }
     });
+    _scheduleOnboardingPresentation();
 
     // Schedule a one-time migration of clientEventIds to the unified format.
     // Using Future.microtask ensures this runs after the first frame without blocking UI.
@@ -4790,6 +4854,107 @@ class _CalendarPageState extends State<CalendarPage>
         _maybeLoadDecanReflectionPrompt();
       }
     });
+  }
+
+  List<OnboardingSlide> _buildOnboardingSlides() {
+    final todayDayKey = _getKemeticDayKey(
+      _today.kYear,
+      _today.kMonth,
+      _today.kDay,
+    );
+
+    return [
+      const OnboardingSlide(
+        title: 'Remember who you\'re becoming.',
+        description: '',
+        primaryActionLabel: 'Begin Your Journey',
+        visual: OnboardingWelcomeVisual(),
+      ),
+      OnboardingSlide(
+        title: 'Time that gives you space.',
+        description:
+            'Ten-day decans replace seven-day weeks.\nMore time to plan and grow.',
+        primaryActionLabel: 'Continue',
+        visual: OnboardingLiveCalendarHighlightVisual(
+          dayKeys: {
+            for (final day in _onboardingHighlightDays)
+              day: _onboardingHighlightDayKeys[day]!,
+          },
+        ),
+        backdropOpacity: 0.16,
+        backdropBlurSigma: 0,
+        textBackplateOpacity: 0.68,
+        textBackplateBlurSigma: 14,
+      ),
+      OnboardingSlide(
+        title: 'Wisdom that moves with you.',
+        description:
+            'Each day brings real Kemetic insight: guidance and reflection to keep you inspired and aligned.',
+        primaryActionLabel: 'Continue',
+        visual: OnboardingDayInsightVisual(
+          dayKey: todayDayKey,
+          kYear: _today.kYear,
+          kMonth: _today.kMonth,
+          kDay: _today.kDay,
+        ),
+        textBackplateOpacity: 0.56,
+        textBackplateBlurSigma: 14,
+      ),
+      const OnboardingSlide(
+        title: 'Ideas become your daily path.',
+        description:
+            'Generate Flows from any goal. Track easily. Reflect at decan\'s end. Share what you\'re building.',
+        primaryActionLabel: 'Start Building Today',
+        visual: OnboardingActionPathVisual(),
+        textBackplateOpacity: 0.60,
+        textBackplateBlurSigma: 14,
+      ),
+    ];
+  }
+
+  void _scheduleOnboardingPresentation() {
+    if (_onboardingPresentationScheduled) return;
+    _onboardingPresentationScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_maybePresentOnboarding());
+    });
+  }
+
+  Future<void> _maybePresentOnboarding() async {
+    if (!mounted || _showOnboarding) return;
+
+    if (_forceShowOnboardingOnLaunch) {
+      setState(() => _showOnboarding = true);
+      return;
+    }
+
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    final hasCompleted = await _onboardingStorage.hasCompleted(userId);
+    if (!mounted || hasCompleted) return;
+
+    setState(() => _showOnboarding = true);
+  }
+
+  Future<void> _dismissOnboarding() async {
+    if (!mounted) return;
+
+    setState(() => _showOnboarding = false);
+
+    if (_forceShowOnboardingOnLaunch) return;
+
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    await _onboardingStorage.markCompleted(userId);
+  }
+
+  void _handleOnboardingSkip() {
+    unawaited(_dismissOnboarding());
+  }
+
+  void _handleOnboardingComplete() {
+    unawaited(_dismissOnboarding());
   }
 
   /// ✅ Load persisted view state from SharedPreferences
@@ -15207,7 +15372,7 @@ class _CalendarPageState extends State<CalendarPage>
       );
     }
 
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
         backgroundColor: Colors.black,
@@ -15256,6 +15421,21 @@ class _CalendarPageState extends State<CalendarPage>
         ],
       ),
       body: _buildBodyWithJournal(),
+    );
+
+    if (!_showOnboarding) return scaffold;
+
+    return Stack(
+      children: [
+        scaffold,
+        Positioned.fill(
+          child: OnboardingOverlay(
+            slides: _buildOnboardingSlides(),
+            onSkip: _handleOnboardingSkip,
+            onComplete: _handleOnboardingComplete,
+          ),
+        ),
+      ],
     );
   }
 
@@ -16061,6 +16241,8 @@ class _CalendarPageState extends State<CalendarPage>
                   todayDay: null,
                   todayDayKey: null, // no anchor in past/future lists
                   monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
+                  dayAnchorKeyProvider: (m, d) =>
+                      _onboardingHighlightKeyFor(kYear, m, d),
                   onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
                   notesGetter: (m, d) => _getNotes(kYear, m, d),
                   flowColorsGetter: (ky, km, kd) =>
@@ -16096,6 +16278,8 @@ class _CalendarPageState extends State<CalendarPage>
               todayMonth: kToday.kMonth,
               todayDay: kToday.kDay,
               monthAnchorKeyProvider: (m) => keyForMonth(kToday.kYear, m),
+              dayAnchorKeyProvider: (m, d) =>
+                  _onboardingHighlightKeyFor(kToday.kYear, m, d),
               todayDayKey: _todayDayKey, // 🔑 pass day anchor
               onDayTap: (c, m, d) => _openDayView(c, kToday.kYear, m, d),
               notesGetter: (m, d) => _getNotes(kToday.kYear, m, d),
@@ -16131,6 +16315,8 @@ class _CalendarPageState extends State<CalendarPage>
                   todayDay: null,
                   todayDayKey: null,
                   monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
+                  dayAnchorKeyProvider: (m, d) =>
+                      _onboardingHighlightKeyFor(kYear, m, d),
                   onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
                   notesGetter: (m, d) => _getNotes(kYear, m, d),
                   flowColorsGetter: (ky, km, kd) =>
@@ -16211,6 +16397,7 @@ class _YearSection extends StatelessWidget {
     this.onEndFlow,
     this.onAppendToJournal,
     this.monthAnchorKeyProvider,
+    this.dayAnchorKeyProvider,
     this.todayDayKey,
   });
 
@@ -16239,6 +16426,7 @@ class _YearSection extends StatelessWidget {
 
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
   final Key? Function(int kMonth)? monthAnchorKeyProvider;
+  final Key? Function(int kMonth, int kDay)? dayAnchorKeyProvider;
   final Key? todayDayKey; // 🔑
 
   @override
@@ -16250,6 +16438,7 @@ class _YearSection extends StatelessWidget {
         const _SeasonHeader(title: 'Flood season (Akhet)'),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(1),
+          dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 1,
           seasonShort: 'Akhet',
@@ -16276,6 +16465,7 @@ class _YearSection extends StatelessWidget {
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(2),
+          dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 2,
           seasonShort: 'Akhet',
@@ -16302,6 +16492,7 @@ class _YearSection extends StatelessWidget {
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(3),
+          dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 3,
           seasonShort: 'Akhet',
@@ -16328,6 +16519,7 @@ class _YearSection extends StatelessWidget {
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(4),
+          dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 4,
           seasonShort: 'Akhet',
@@ -16356,6 +16548,7 @@ class _YearSection extends StatelessWidget {
         const _SeasonHeader(title: 'Emergence season (Peret)'),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(5),
+          dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 5,
           seasonShort: 'Peret',
@@ -16382,6 +16575,7 @@ class _YearSection extends StatelessWidget {
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(6),
+          dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 6,
           seasonShort: 'Peret',
@@ -16408,6 +16602,7 @@ class _YearSection extends StatelessWidget {
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(7),
+          dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 7,
           seasonShort: 'Peret',
@@ -16434,6 +16629,7 @@ class _YearSection extends StatelessWidget {
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(8),
+          dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 8,
           seasonShort: 'Peret',
@@ -16462,6 +16658,7 @@ class _YearSection extends StatelessWidget {
         const _SeasonHeader(title: 'Harvest season (Shemu)'),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(9),
+          dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 9,
           seasonShort: 'Shemu',
@@ -16488,6 +16685,7 @@ class _YearSection extends StatelessWidget {
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(10),
+          dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 10,
           seasonShort: 'Shemu',
@@ -16514,6 +16712,7 @@ class _YearSection extends StatelessWidget {
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(11),
+          dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 11,
           seasonShort: 'Shemu',
@@ -16540,6 +16739,7 @@ class _YearSection extends StatelessWidget {
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(12),
+          dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 12,
           seasonShort: 'Shemu',
@@ -16597,6 +16797,7 @@ class _YearSection extends StatelessWidget {
 
 class _MonthCard extends StatelessWidget {
   final Key? anchorKey;
+  final Key? Function(int kMonth, int kDay)? dayAnchorKeyProvider;
   final int kYear;
   final int kMonth; // 1..12
   final String seasonShort; // Akhet/Peret/Shemu
@@ -16629,6 +16830,7 @@ class _MonthCard extends StatelessWidget {
 
   const _MonthCard({
     this.anchorKey,
+    this.dayAnchorKeyProvider,
     required this.kYear,
     required this.kMonth,
     required this.seasonShort,
@@ -16907,6 +17109,7 @@ class _MonthCard extends StatelessWidget {
                     todayMonth: todayMonth,
                     todayDay: todayDay,
                     todayDayKey: isMonthToday ? todayDayKey : null,
+                    highlightDayKeyProvider: dayAnchorKeyProvider,
                     notesGetter: notesGetter,
                     flowColorsGetter: flowColorsGetter,
                     onDayTap: onDayTap,
@@ -17017,6 +17220,7 @@ class _DecanRow extends StatelessWidget {
   final int? todayMonth;
   final int? todayDay;
   final Key? todayDayKey;
+  final Key? Function(int kMonth, int kDay)? highlightDayKeyProvider;
   final bool showGregorian;
 
   final List<_Note> Function(int kMonth, int kDay) notesGetter;
@@ -17049,6 +17253,7 @@ class _DecanRow extends StatelessWidget {
     required this.onDayTap,
     required this.showGregorian,
     required this.todayDayKey,
+    this.highlightDayKeyProvider,
     this.expansionLevel = MonthExpansionLevel.compact,
     this.noteColorResolver = _defaultNoteColor,
     this.decanHeight,
@@ -17088,6 +17293,10 @@ class _DecanRow extends StatelessWidget {
                     'k:$kYear-$kMonth-$day|${showGregorian ? "G" : "K"}',
                   ), // 🔑 Unique key with mode
                   anchorKey: isToday ? todayDayKey : null, // 🔑 attach
+                  highlightAnchorKey: highlightDayKeyProvider?.call(
+                    kMonth,
+                    day,
+                  ),
                   label: label,
                   isToday: isToday,
                   notes: notes,
@@ -17129,6 +17338,7 @@ class _DayChip extends StatelessWidget {
   final List<Color> flowColors;
   final VoidCallback onTap;
   final Key? anchorKey;
+  final Key? highlightAnchorKey;
   final bool showGregorian;
   final String dayKey;
   final MonthExpansionLevel expansionLevel;
@@ -17159,6 +17369,7 @@ class _DayChip extends StatelessWidget {
     required this.onTap,
     required this.showGregorian,
     this.anchorKey,
+    this.highlightAnchorKey,
     required this.dayKey,
     required this.expansionLevel,
     required this.noteColorResolver,
@@ -17327,8 +17538,20 @@ class _DayChip extends StatelessWidget {
           width: double.infinity,
           height: chipHeight,
           child: RepaintBoundary(
-            child: isCompact
-                ? Stack(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (highlightAnchorKey != null)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: KeyedSubtree(
+                        key: highlightAnchorKey,
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+                  ),
+                if (isCompact)
+                  Stack(
                     alignment: Alignment.center,
                     children: [
                       GlossyText(
@@ -17343,7 +17566,8 @@ class _DayChip extends StatelessWidget {
                       ),
                     ],
                   )
-                : Column(
+                else
+                  Column(
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -17361,6 +17585,8 @@ class _DayChip extends StatelessWidget {
                       Expanded(child: ClipRect(child: _buildMiniBlocks())),
                     ],
                   ),
+              ],
+            ),
           ),
         ),
       ),

@@ -21828,12 +21828,14 @@ class KemeticDayButton extends StatefulWidget {
   final Widget child;
   final String dayKey;
   final int kYear;
+  final bool openOnTap;
 
   const KemeticDayButton({
     super.key,
     required this.child,
     required this.dayKey,
     required this.kYear,
+    this.openOnTap = false,
   });
 
   @override
@@ -21874,6 +21876,7 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
   Widget build(BuildContext context) {
     return GestureDetector(
       key: _buttonKey,
+      onTap: widget.openOnTap ? _showDropdown : null,
       onLongPress: _showDropdown,
       child: widget.child,
     );
