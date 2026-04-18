@@ -4888,8 +4888,7 @@ class _CalendarPageState extends State<CalendarPage>
       ),
       OnboardingSlide(
         title: 'Wisdom that moves with you.',
-        description:
-            'Each day brings real Kemetic insight: guidance and reflection to keep you inspired and aligned.',
+        description: 'Daily Kemetic insights keep you inspired and aligned.',
         primaryActionLabel: 'Continue',
         visual: OnboardingDayInsightVisual(
           dayKey: todayDayKey,

@@ -949,11 +949,7 @@ class _OnboardingDayInsightVisualState extends State<OnboardingDayInsightVisual>
                       scale: cardScale,
                       alignment: Alignment.topCenter,
                       child: Center(
-                        child: _OnboardingDayInsightCard(
-                          dayInfo: dayInfo,
-                          dayKey: widget.dayKey,
-                          kYear: widget.kYear,
-                        ),
+                        child: _OnboardingDayInsightCard(dayInfo: dayInfo),
                       ),
                     ),
                   ),
@@ -1044,15 +1040,9 @@ class _OnboardingDayInsightVisualState extends State<OnboardingDayInsightVisual>
 }
 
 class _OnboardingDayInsightCard extends StatelessWidget {
-  const _OnboardingDayInsightCard({
-    required this.dayInfo,
-    required this.dayKey,
-    required this.kYear,
-  });
+  const _OnboardingDayInsightCard({required this.dayInfo});
 
   final KemeticDayInfo? dayInfo;
-  final String dayKey;
-  final int kYear;
 
   @override
   Widget build(BuildContext context) {
@@ -1107,16 +1097,122 @@ class _OnboardingDayInsightCard extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 560),
       child: IgnorePointer(
         child: SizedBox(
-          width: 340,
-          child: KemeticDayDropdown(
-            dayInfo: dayInfo!,
-            onClose: () {},
-            dayKey: dayKey,
-            kYear: kYear,
+          width: 348,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: goldGloss,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(1),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF000000),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 14,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: KemeticGold.text(
+                            '☀️ Kemetic Date Alignment',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        Icon(Icons.close, color: KemeticGold.base, size: 30),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    height: 1,
+                    decoration: const BoxDecoration(gradient: goldGloss),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildInfoRow('Season:', dayInfo!.season),
+                        const SizedBox(height: 12),
+                        _buildInfoRow(
+                          'Ma\'at Principle:',
+                          dayInfo!.maatPrinciple,
+                        ),
+                        const SizedBox(height: 18),
+                        KemeticGold.text(
+                          '△ Cosmic Context',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _contextExcerpt(dayInfo!.cosmicContext),
+                          maxLines: 6,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFFCCCCCC),
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return RichText(
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(
+        style: const TextStyle(
+          fontSize: 14,
+          color: Color(0xFFCCCCCC),
+          height: 1.45,
+        ),
+        children: [
+          TextSpan(
+            text: '$label ',
+            style: TextStyle(
+              color: KemeticGold.base,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          TextSpan(text: value),
+        ],
+      ),
+    );
+  }
+
+  String _contextExcerpt(String value) {
+    final normalized = value.trim().replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    final firstParagraph = normalized.split(RegExp(r'\n\s*\n')).first.trim();
+    return firstParagraph.isEmpty ? normalized : firstParagraph;
   }
 }
 
