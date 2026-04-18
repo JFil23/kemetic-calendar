@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Kemetic Calendar">
-  <meta name="theme-color" content="#6B5AED">
+  <meta name="theme-color" content="#000000">
 
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
@@ -60,21 +60,43 @@
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator.standalone === true);
 
       function nudge() {
+        if (!isIOS || !isStandalone) return;
+
+        // Force a synchronous layout read before resize events.
+        document.documentElement.getBoundingClientRect();
+
         // trigger layout + two resizes
         window.scrollTo(0, 1);
         requestAnimationFrame(() => {
           window.dispatchEvent(new Event('resize'));
           setTimeout(() => window.dispatchEvent(new Event('resize')), 60);
+          setTimeout(() => window.dispatchEvent(new Event('resize')), 220);
         });
       }
 
       window.addEventListener('load', () => {
-        if (isIOS && isStandalone) { nudge(); setTimeout(nudge, 300); }
+        nudge();
+        setTimeout(nudge, 300);
       }, { once: true });
 
+      window.addEventListener('pageshow', () => {
+        nudge();
+        setTimeout(nudge, 120);
+      }, { passive: true });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          nudge();
+        }
+      }, { passive: true });
+
+      window.addEventListener('focus', () => {
+        nudge();
+      }, { passive: true });
+
       window.addEventListener('touchstart', () => {
-        if (isIOS && isStandalone) nudge();
-      }, { once: true, passive: true });
+        nudge();
+      }, { passive: true });
     })();
   </script>
 </head>
@@ -88,6 +110,7 @@
   }
 
 </script>
+<script src="install.js" defer></script>
 <script>
   // Cache-bust the bootstrap script to avoid stale service worker bundles after deploys
   (function () {

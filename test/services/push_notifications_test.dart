@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:mobile/services/push_notifications.dart';
 
 void main() {
@@ -25,6 +26,34 @@ void main() {
       });
 
       expect(first, second);
+    });
+  });
+
+  group('push helper formatting', () {
+    test('summarizePushToken keeps long tokens readable', () {
+      expect(
+        summarizePushToken('abcdefghijklmnopqrstuvwxyz012345'),
+        'abcdefgh...yz012345',
+      );
+      expect(summarizePushToken(null), 'not available');
+    });
+
+    test('describePushAuthorizationStatus maps firebase statuses', () {
+      expect(
+        describePushAuthorizationStatus(AuthorizationStatus.authorized),
+        'authorized',
+      );
+      expect(
+        describePushAuthorizationStatus(AuthorizationStatus.denied),
+        'denied',
+      );
+      expect(pushAuthorizationAllowsRegistration(null), isFalse);
+      expect(
+        pushAuthorizationAllowsRegistration(
+          AuthorizationStatus.provisional,
+        ),
+        isTrue,
+      );
     });
   });
 }

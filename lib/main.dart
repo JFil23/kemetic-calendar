@@ -94,6 +94,9 @@ Future<({String url, String anonKey})> _loadSupabaseConfig() async {
 }
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+final ValueNotifier<bool> _webAuthExchangeInProgress = ValueNotifier<bool>(
+  false,
+);
 
 void _configureLogging() {
   if (kReleaseMode || kProfileMode) {
@@ -175,9 +178,7 @@ Future<void> main() async {
     _startBackgroundWarmups();
 
     // Web/PWA boot hardening (iOS PWA friendly)
-    await _completeWebOAuthIfNeeded(); // 1) exchange ?code once
-    await _rehydrateSessionOnce(); // 2) load persisted session into memory
-    _installVisibilityRefresh(); // 3) refresh on foreground to stay "warm"
+    _startWebBootTasks();
 
     runApp(const MyApp());
   }, zoneSpecification: _releasePrintSilencer);
@@ -187,6 +188,16 @@ final supabase = Supabase.instance.client;
 
 /* ───────────────────────── Helpers for web/PWA ───────────────────────── */
 
+void _startWebBootTasks() {
+  if (!kIsWeb) return;
+  _webAuthExchangeInProgress.value = Uri.base.queryParameters.containsKey(
+    'code',
+  );
+  _installVisibilityRefresh();
+  unawaited(_completeWebOAuthIfNeeded());
+  unawaited(_rehydrateSessionOnce());
+}
+
 Future<void> _completeWebOAuthIfNeeded() async {
   if (!kIsWeb) return;
 
@@ -194,16 +205,53 @@ Future<void> _completeWebOAuthIfNeeded() async {
   final hasCode = uri.queryParameters.containsKey('code');
   if (!hasCode) return;
 
-  // Exchange PKCE code -> session (persists it)
-  await Supabase.instance.client.auth.exchangeCodeForSession(uri.toString());
+  _webAuthExchangeInProgress.value = true;
+  try {
+    // Exchange PKCE code -> session (persists it) without blocking first paint.
+    await Supabase.instance.client.auth
+        .exchangeCodeForSession(uri.toString())
+        .timeout(const Duration(seconds: 12));
 
-  // Clean URL so refreshes don't re-exchange
-  replaceUrlWithoutQuery();
+    // Clean URL so refreshes don't re-exchange.
+    replaceUrlWithoutQuery();
+
+    // Nudge the standalone webview after returning from external auth.
+    nudgeStandaloneWebView();
+
+    unawaited(Supabase.instance.client.auth.refreshSession());
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('[web-auth] exchangeCodeForSession failed: $e');
+    }
+  } finally {
+    _webAuthExchangeInProgress.value = false;
+  }
 }
 
 Future<void> _rehydrateSessionOnce() async {
   // Touching currentSession is enough; the SDK already persisted it.
   final _ = Supabase.instance.client.auth.currentSession;
+}
+
+Future<void> _waitForWebAuthExchangeToSettle() async {
+  if (!_webAuthExchangeInProgress.value) return;
+
+  final completer = Completer<void>();
+  late VoidCallback listener;
+  listener = () {
+    if (!_webAuthExchangeInProgress.value && !completer.isCompleted) {
+      _webAuthExchangeInProgress.removeListener(listener);
+      completer.complete();
+    }
+  };
+
+  _webAuthExchangeInProgress.addListener(listener);
+  listener();
+  try {
+    await completer.future.timeout(const Duration(seconds: 12));
+  } on TimeoutException {
+    _webAuthExchangeInProgress.removeListener(listener);
+  }
 }
 
 void _installVisibilityRefresh() {
@@ -212,6 +260,7 @@ void _installVisibilityRefresh() {
   onVisibilityChange(() {
     // fire-and-forget; reduces iOS PWA storage eviction issues
     unawaited(Supabase.instance.client.auth.refreshSession());
+    nudgeStandaloneWebView();
   });
 }
 
@@ -389,6 +438,7 @@ class _LaunchShellState extends State<_LaunchShell>
 
   Future<void> _dismissOverlay() async {
     await Future<void>.delayed(const Duration(milliseconds: 950));
+    await _waitForWebAuthExchangeToSettle();
     if (!mounted) return;
     await _fadeController.forward();
     if (!mounted) return;
@@ -550,17 +600,24 @@ class _AuthGateState extends State<AuthGate> {
         unawaited(_initNotificationsSafely());
         final pushEnabled = await SettingsPrefs.realTimeAlertsEnabled();
         if (pushEnabled) {
+          final push = PushNotifications.instance(supabase);
           if (!kIsWeb) {
             unawaited(
-              PushNotifications.instance(supabase).registerForUser().then((ok) {
+              push.registerForUser().then((ok) {
                 if (!ok && kDebugMode) {
                   debugPrint('[push] registerForUser failed');
                 }
               }),
             );
-          } else if (kDebugMode) {
-            debugPrint(
-              '[push] registerForUser skipped on web (manual button required)',
+          } else {
+            unawaited(
+              push.refreshRegistrationIfAuthorized().then((ok) {
+                if (!ok && kDebugMode) {
+                  debugPrint(
+                    '[push] web token refresh skipped or unavailable; waiting for manual enable/refresh',
+                  );
+                }
+              }),
             );
           }
         } else {
@@ -1004,13 +1061,22 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _signInWithGoogle() async {
-    final redirect = kIsWeb ? Uri.base.origin : 'kemet.app://login-callback';
+    final redirect = kIsWeb
+        ? Uri.base.removeFragment().replace(queryParameters: const {}).toString()
+        : 'kemet.app://login-callback';
     try {
-      await supabase.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: redirect,
-        authScreenLaunchMode: LaunchMode.externalApplication,
-      );
+      if (kIsWeb) {
+        await supabase.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: redirect,
+        );
+      } else {
+        await supabase.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: redirect,
+          authScreenLaunchMode: LaunchMode.externalApplication,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(

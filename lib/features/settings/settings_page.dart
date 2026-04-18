@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,8 +27,11 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _syncingCalendar = false;
   bool _loading = true;
   bool _requestingPush = false;
+  bool _loadingPushDiagnostics = false;
+  bool _sendingPushTest = false;
   String? _pushStatus;
   CalendarSyncStatus? _calendarSyncStatus;
+  PushRegistrationDiagnostics? _pushDiagnostics;
 
   bool get _hasSession => Supabase.instance.client.auth.currentSession != null;
   bool get _nativeCalendarSyncAvailable => !kIsWeb;
@@ -57,6 +62,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _calendarSyncStatus = calendarStatus;
       _loading = false;
     });
+    unawaited(_refreshPushDiagnostics());
   }
 
   Future<void> _save() async {
@@ -109,6 +115,7 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() {
         _requestingPush = false;
       });
+      await _refreshPushDiagnostics();
       messenger.showSnackBar(
         SnackBar(
           content: const Text('Push alerts disabled on this device.'),
@@ -130,6 +137,7 @@ class _SettingsPageState extends State<SettingsPage> {
           : 'Push permission was denied, Firebase is not configured, or the device token could not be created.';
     });
     await _save();
+    await _refreshPushDiagnostics();
 
     messenger.showSnackBar(
       SnackBar(
@@ -139,6 +147,53 @@ class _SettingsPageState extends State<SettingsPage> {
               : 'Push alerts could not be enabled on this device.',
         ),
         backgroundColor: success ? Colors.green.shade700 : Colors.red.shade700,
+      ),
+    );
+  }
+
+  Future<void> _refreshPushDiagnostics() async {
+    if (!mounted) return;
+    setState(() {
+      _loadingPushDiagnostics = true;
+    });
+
+    final diagnostics = await PushNotifications.instance(
+      Supabase.instance.client,
+    ).getDiagnostics();
+
+    if (!mounted) return;
+    setState(() {
+      _pushDiagnostics = diagnostics;
+      _loadingPushDiagnostics = false;
+    });
+  }
+
+  Future<void> _sendPushTest() async {
+    if (!_hasSession) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() {
+      _sendingPushTest = true;
+      _pushStatus = 'Dispatching a test push through send_push...';
+    });
+
+    final result = await PushNotifications.instance(
+      Supabase.instance.client,
+    ).sendSelfTestPush();
+
+    if (!mounted) return;
+    setState(() {
+      _sendingPushTest = false;
+      _pushStatus = result.message;
+    });
+    await _refreshPushDiagnostics();
+
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(result.message),
+        backgroundColor: result.ok
+            ? Colors.green.shade700
+            : Colors.red.shade700,
       ),
     );
   }
@@ -430,6 +485,9 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_requestingPush) {
       return 'Requesting notification permission...';
     }
+    if (_loadingPushDiagnostics) {
+      return 'Checking Firebase, permission, and device registration...';
+    }
     if (_realTimeAlerts) {
       return 'Push alerts are enabled for this device.';
     }
@@ -444,6 +502,53 @@ class _SettingsPageState extends State<SettingsPage> {
     return _realTimeAlerts
         ? 'Refresh push on this device'
         : 'Enable push on this device';
+  }
+
+  List<String> _pushDiagnosticLines() {
+    final diagnostics = _pushDiagnostics;
+    if (diagnostics == null) {
+      return const <String>[];
+    }
+
+    final lines = <String>[
+      diagnostics.firebaseReady
+          ? 'Firebase is ready on ${diagnostics.platform}.'
+          : 'Firebase is not ready for this build. Check the bundled Firebase config.',
+      'Permission: ${diagnostics.permissionStatus}.',
+    ];
+
+    if (kIsWeb) {
+      lines.add(
+        'For the most reliable web delivery, install the PWA and allow notifications for this site.',
+      );
+    }
+
+    if (!diagnostics.hasSession) {
+      lines.add('Sign in to link this device to your account for remote push.');
+      return lines;
+    }
+
+    if (diagnostics.databaseRegistered) {
+      final lastSeen = diagnostics.lastSeenAt?.toLocal();
+      lines.add(
+        lastSeen == null
+            ? 'Server registration: active for this device.'
+            : 'Server registration: active, last seen ${_formatTimestamp(lastSeen)}.',
+      );
+      if (diagnostics.tokenSummary != 'not available') {
+        lines.add('Registered token: ${diagnostics.tokenSummary}.');
+      }
+    } else {
+      lines.add(
+        'Server registration: this device is not currently linked in push_tokens.',
+      );
+    }
+
+    if (diagnostics.error != null && diagnostics.error!.isNotEmpty) {
+      lines.add('Diagnostics warning: ${diagnostics.error!}');
+    }
+
+    return lines;
   }
 
   String _syncButtonLabel() {
@@ -604,6 +709,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
 
     final calendarStatusLines = _calendarStatusLines();
+    final pushDiagnosticLines = _pushDiagnosticLines();
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -645,7 +751,37 @@ class _SettingsPageState extends State<SettingsPage> {
                       : () => _setRealTimeAlerts(true),
                   child: Text(_pushButtonLabel()),
                 ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFF3A3A3A)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed:
+                        _sendingPushTest ||
+                            _requestingPush ||
+                            !_hasSession ||
+                            !_realTimeAlerts
+                        ? null
+                        : _sendPushTest,
+                    child: Text(
+                      _sendingPushTest
+                          ? 'Sending test push...'
+                          : 'Send test push to this device',
+                    ),
+                  ),
+                ),
                 _statusLine(_pushStatusText()),
+                for (final line in pushDiagnosticLines) _statusLine(line),
               ],
             ),
             const SizedBox(height: 16),

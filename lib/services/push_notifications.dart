@@ -76,6 +76,45 @@ class _PushTokenRepo {
   }
 }
 
+@immutable
+class PushRegistrationDiagnostics {
+  const PushRegistrationDiagnostics({
+    required this.checkedAt,
+    required this.firebaseReady,
+    required this.permissionStatus,
+    required this.permissionGranted,
+    required this.platform,
+    required this.hasSession,
+    required this.databaseRegistered,
+    this.deviceId,
+    this.registeredToken,
+    this.lastSeenAt,
+    this.error,
+  });
+
+  final DateTime checkedAt;
+  final bool firebaseReady;
+  final String permissionStatus;
+  final bool permissionGranted;
+  final String platform;
+  final bool hasSession;
+  final bool databaseRegistered;
+  final String? deviceId;
+  final String? registeredToken;
+  final DateTime? lastSeenAt;
+  final String? error;
+
+  String get tokenSummary => summarizePushToken(registeredToken);
+}
+
+@immutable
+class PushSelfTestResult {
+  const PushSelfTestResult({required this.ok, required this.message});
+
+  final bool ok;
+  final String message;
+}
+
 class PushNotifications {
   PushNotifications._(this._client) : _repo = _PushTokenRepo(_client);
 
@@ -87,7 +126,6 @@ class PushNotifications {
   final SupabaseClient _client;
   final _PushTokenRepo _repo;
   bool _initialized = false;
-  bool _askedPermission = false;
   bool _initialMessageChecked = false;
   final StreamController<Map<String, dynamic>> _openedMessages =
       StreamController.broadcast();
@@ -127,33 +165,32 @@ class PushNotifications {
       return null;
     }
 
-    final token = await _getToken();
-    debugPrint('[push] requestAndRegisterToken token: $token');
-    if (token != null) {
-      final okReg = await _registerToken(token);
-      if (!okReg) return null;
-    }
-    return token;
+    return _registerCurrentToken();
   }
 
-  Future<void> init() async {
-    if (_initialized) return;
+  Future<bool> init() async {
+    if (_initialized) return true;
     final ok = await _ensureFirebaseInitialized();
     if (!ok) {
       debugPrint('[push] Firebase init failed; push disabled');
-      return;
+      return false;
     }
 
     // Foreground presentation (iOS/macOS/web)
-    await FirebaseMessaging.instance
-        .setForegroundNotificationPresentationOptions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
+    try {
+      await FirebaseMessaging.instance
+          .setForegroundNotificationPresentationOptions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+    } catch (e) {
+      debugPrint('[push] foreground presentation setup failed: $e');
+    }
 
     _initialized = true;
     _attachListeners();
+    return true;
   }
 
   void _attachListeners() {
@@ -182,28 +219,49 @@ class PushNotifications {
     final ok = await initAndRequestPermission();
     debugPrint('[push] permission ok: $ok');
     if (!ok) return false;
-    final token = await _getToken();
+    final token = await _registerCurrentToken();
     if (token == null) {
       debugPrint('[push] token fetched: <null>');
       return false;
     }
-    final masked = token.length > 10
-        ? '${token.substring(0, 6)}...${token.substring(token.length - 6)} (len=${token.length})'
-        : token;
-    debugPrint('[push] token fetched: $masked');
-    final registered = await _registerToken(token);
     if (kDebugMode) {
       final suffix = token.length > 8
           ? token.substring(token.length - 8)
           : token;
       debugPrint(
-        '[push] token registered=$registered len=${token.length} suffix=$suffix',
+        '[push] token registered=true len=${token.length} suffix=$suffix',
       );
     }
-    if (!registered) {
-      debugPrint('[push] token registration failed');
+    return true;
+  }
+
+  /// Re-register the current device only when permission was already granted.
+  /// On web/PWA this avoids prompting outside an explicit user gesture while
+  /// still keeping the stored token fresh after sign-in or app resume.
+  Future<bool> refreshRegistrationIfAuthorized() async {
+    final session = _client.auth.currentSession;
+    if (session == null) return false;
+    final ok = await init();
+    if (!ok) return false;
+
+    try {
+      final settings = await FirebaseMessaging.instance
+          .getNotificationSettings();
+      if (!pushAuthorizationAllowsRegistration(
+        settings.authorizationStatus,
+      )) {
+        debugPrint(
+          '[push] refreshRegistrationIfAuthorized skipped: permission=${describePushAuthorizationStatus(settings.authorizationStatus)}',
+        );
+        return false;
+      }
+    } catch (e) {
+      debugPrint('[push] refreshRegistrationIfAuthorized failed: $e');
+      return false;
     }
-    return registered;
+
+    final token = await _registerCurrentToken();
+    return token != null;
   }
 
   Future<void> unregister() async {
@@ -217,11 +275,18 @@ class PushNotifications {
   }
 
   Future<bool> initAndRequestPermission() async {
-    final ok = await _ensureFirebaseInitialized();
+    final ok = await init();
     if (!ok) return false;
-    if (_askedPermission) return true;
 
     try {
+      final currentSettings = await FirebaseMessaging.instance
+          .getNotificationSettings();
+      if (pushAuthorizationAllowsRegistration(
+        currentSettings.authorizationStatus,
+      )) {
+        return true;
+      }
+
       final settings = await FirebaseMessaging.instance.requestPermission(
         alert: true,
         announcement: false,
@@ -231,12 +296,155 @@ class PushNotifications {
         provisional: false,
         sound: true,
       );
-      _askedPermission = true;
-      return settings.authorizationStatus == AuthorizationStatus.authorized ||
-          settings.authorizationStatus == AuthorizationStatus.provisional;
+      return pushAuthorizationAllowsRegistration(
+        settings.authorizationStatus,
+      );
     } catch (e) {
       debugPrint('[push] permission request failed: $e');
       return false;
+    }
+  }
+
+  Future<PushRegistrationDiagnostics> getDiagnostics() async {
+    final checkedAt = DateTime.now();
+    final session = _client.auth.currentSession;
+    final user = _client.auth.currentUser;
+    final hasSession = session != null && user != null;
+
+    String? error;
+    String? deviceId;
+    String? registeredToken;
+    DateTime? lastSeenAt;
+    var databaseRegistered = false;
+    AuthorizationStatus? authorizationStatus;
+
+    final firebaseReady = await init();
+    if (firebaseReady) {
+      try {
+        final settings = await FirebaseMessaging.instance
+            .getNotificationSettings();
+        authorizationStatus = settings.authorizationStatus;
+      } catch (e) {
+        error = 'permission check failed: $e';
+      }
+    }
+
+    if (hasSession) {
+      deviceId = await _deviceId();
+      try {
+        final row = await _client
+            .from('push_tokens')
+            .select('token, is_active, last_seen_at, updated_at')
+            .eq('user_id', user.id)
+            .eq('device_id', deviceId)
+            .maybeSingle();
+        final data = row is Map ? Map<String, dynamic>.from(row as Map) : null;
+        databaseRegistered = data?['is_active'] == true;
+        registeredToken = data?['token'] as String?;
+        final lastSeenRaw =
+            data?['last_seen_at'] ?? data?['updated_at'];
+        if (lastSeenRaw is String && lastSeenRaw.isNotEmpty) {
+          lastSeenAt = DateTime.tryParse(lastSeenRaw);
+        }
+      } catch (e) {
+        error = error ?? 'push_tokens lookup failed: $e';
+      }
+    }
+
+    return PushRegistrationDiagnostics(
+      checkedAt: checkedAt,
+      firebaseReady: firebaseReady,
+      permissionStatus: firebaseReady
+          ? describePushAuthorizationStatus(authorizationStatus)
+          : 'firebase unavailable',
+      permissionGranted: pushAuthorizationAllowsRegistration(
+        authorizationStatus,
+      ),
+      platform: _platformLabel(),
+      hasSession: hasSession,
+      databaseRegistered: databaseRegistered,
+      deviceId: deviceId,
+      registeredToken: registeredToken,
+      lastSeenAt: lastSeenAt,
+      error: error,
+    );
+  }
+
+  Future<PushSelfTestResult> sendSelfTestPush() async {
+    final session = _client.auth.currentSession;
+    final user = _client.auth.currentUser;
+    if (session == null || user == null) {
+      return const PushSelfTestResult(
+        ok: false,
+        message: 'Sign in before sending a test push.',
+      );
+    }
+
+    final token = await requestAndRegisterToken();
+    if (token == null) {
+      return const PushSelfTestResult(
+        ok: false,
+        message:
+            'This device could not create and register a push token. Check permission and Firebase config first.',
+      );
+    }
+
+    final sentAt = DateTime.now().toUtc();
+    try {
+      final response = await _client.functions.invoke(
+        'send_push',
+        body: {
+          'userIds': [user.id],
+          'notification': {
+            'title': 'Kemetic push test',
+            'body':
+                'Push path check at ${sentAt.toLocal().toIso8601String()}',
+          },
+          'data': {
+            'type': 'push_test',
+            'kind': 'push_test',
+            'sent_at': sentAt.toIso8601String(),
+          },
+        },
+      );
+
+      final data = response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : (response.data is Map
+                ? Map<String, dynamic>.from(response.data as Map)
+                : <String, dynamic>{});
+      if (response.status >= 400) {
+        final message =
+            data['error']?.toString() ??
+            'send_push returned HTTP ${response.status}';
+        return PushSelfTestResult(ok: false, message: message);
+      }
+
+      final sent = (data['sent'] as num?)?.toInt() ?? 0;
+      final delivered = data['delivered'] == true || sent > 0;
+      if (!delivered) {
+        final failedReasons = (data['failedReasons'] as List<dynamic>? ?? const [])
+            .map((entry) => entry.toString())
+            .where((entry) => entry.isNotEmpty)
+            .toList(growable: false);
+        final reason =
+            data['reason']?.toString() ??
+            (failedReasons.isNotEmpty
+                ? failedReasons.join(', ')
+                : 'No active push token matched this device.');
+        return PushSelfTestResult(ok: false, message: reason);
+      }
+
+      return const PushSelfTestResult(
+        ok: true,
+        message:
+            'Test push dispatched. If the app is open, a foreground alert should appear; if it is backgrounded, the device or PWA notification should appear.',
+      );
+    } catch (e) {
+      return PushSelfTestResult(
+        ok: false,
+        message: 'send_push failed: $e',
+      );
     }
   }
 
@@ -281,6 +489,19 @@ class PushNotifications {
       debugPrint('[push] getToken failed: $e');
       return null;
     }
+  }
+
+  Future<String?> _registerCurrentToken() async {
+    final token = await _getToken();
+    debugPrint('[push] current token: ${summarizePushToken(token)}');
+    if (token == null) {
+      return null;
+    }
+    final okReg = await _registerToken(token);
+    if (!okReg) {
+      return null;
+    }
+    return token;
   }
 
   Future<bool> _registerToken(String token) async {
@@ -436,4 +657,34 @@ String _platformLabel() {
     default:
       return 'unknown';
   }
+}
+
+bool pushAuthorizationAllowsRegistration(AuthorizationStatus? status) {
+  return status == AuthorizationStatus.authorized ||
+      status == AuthorizationStatus.provisional;
+}
+
+String describePushAuthorizationStatus(AuthorizationStatus? status) {
+  switch (status) {
+    case AuthorizationStatus.authorized:
+      return 'authorized';
+    case AuthorizationStatus.provisional:
+      return 'provisional';
+    case AuthorizationStatus.denied:
+      return 'denied';
+    case AuthorizationStatus.notDetermined:
+      return 'not determined';
+    case null:
+      return 'unknown';
+  }
+}
+
+String summarizePushToken(String? token) {
+  if (token == null || token.isEmpty) {
+    return 'not available';
+  }
+  if (token.length <= 16) {
+    return token;
+  }
+  return '${token.substring(0, 8)}...${token.substring(token.length - 8)}';
 }

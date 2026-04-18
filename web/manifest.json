@@ -2,22 +2,24 @@
     "name": "Kemetic Calendar",
     "short_name": "Kemetic",
     "description": "Sync your flows and events.",
+    "id": "/",
     "start_url": "/",
     "scope": "/",
     "display": "standalone",
-    "theme_color": "#6B5AEE",
-    "background_color": "#F5EFFB",
+    "display_override": ["standalone", "minimal-ui", "browser"],
+    "theme_color": "#000000",
+    "background_color": "#000000",
     "icons": [
         { "src": "icons/Icon-192.png", "sizes": "192x192", "type": "image/png" },
         { "src": "icons/Icon-512.png", "sizes": "512x512", "type": "image/png" },
         {
-            "src": "icons/maskable_icon_x192.png",
+            "src": "icons/Icon-maskable-192.png",
             "sizes": "192x192",
             "type": "image/png",
             "purpose": "maskable any"
         },
         {
-            "src": "icons/maskable_icon_x512.png",
+            "src": "icons/Icon-maskable-512.png",
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable any"

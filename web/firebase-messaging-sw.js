@@ -36,14 +36,72 @@ if (self.firebaseConfig && self.firebaseConfig.apiKey && self.firebaseConfig.mes
     console.warn('[firebase-messaging-sw] Missing VAPID key; web push will fail.');
   }
 
+  function resolveTargetUrl(payload) {
+    const raw =
+      payload?.data?.link ||
+      payload?.data?.url ||
+      payload?.fcmOptions?.link ||
+      '/';
+    try {
+      return new URL(raw, self.location.origin).toString();
+    } catch (_) {
+      return new URL('/', self.location.origin).toString();
+    }
+  }
+
   messaging.onBackgroundMessage(function(payload) {
-    const notificationTitle = payload.notification?.title || 'Kemetic Calendar';
+    const notificationTitle =
+      payload.notification?.title ||
+      payload.data?.title ||
+      'Kemetic Calendar';
+    const targetUrl = resolveTargetUrl(payload);
     const notificationOptions = {
-      body: payload.notification?.body,
+      body: payload.notification?.body || payload.data?.body,
       icon: '/icons/Icon-192.png',
-      data: payload.data || {},
+      badge: '/icons/Icon-maskable-192.png',
+      tag: payload.data?.kind || payload.data?.type || 'kemetic-calendar',
+      data: {
+        ...(payload.data || {}),
+        url: targetUrl,
+      },
     };
     self.registration.showNotification(notificationTitle, notificationOptions);
+  });
+
+  self.addEventListener('notificationclick', function(event) {
+    event.notification.close();
+
+    const targetUrl =
+      event.notification?.data?.url ||
+      new URL('/', self.location.origin).toString();
+
+    event.waitUntil((async function() {
+      const clientList = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      });
+
+      for (const client of clientList) {
+        const sameOrigin = client.url.startsWith(self.location.origin);
+        if (!sameOrigin) continue;
+
+        try {
+          if ('focus' in client) {
+            await client.focus();
+          }
+          if ('navigate' in client && client.url !== targetUrl) {
+            await client.navigate(targetUrl);
+          }
+          return;
+        } catch (_) {
+          // Keep searching or fall back to openWindow below.
+        }
+      }
+
+      if (self.clients.openWindow) {
+        await self.clients.openWindow(targetUrl);
+      }
+    })());
   });
 } else {
   console.warn('[firebase-messaging-sw] Missing firebaseConfig; web push disabled.');

@@ -15779,6 +15779,7 @@ class _CalendarPageState extends State<CalendarPage>
     DateTime end,
     String decanName,
     String? decanTheme,
+    String decanContextKey,
     int kMonth,
     int kYear,
   })?
@@ -15830,6 +15831,7 @@ class _CalendarPageState extends State<CalendarPage>
       end: end,
       decanName: '$monthLabel — $decanLabel',
       decanTheme: decanLabel,
+      decanContextKey: '$kMonth-$completedDecan',
       kMonth: kMonth,
       kYear: kYear,
     );
@@ -16080,6 +16082,7 @@ class _CalendarPageState extends State<CalendarPage>
               'title': b.token.title,
               'details': b.token.description ?? b.token.title,
               'tags': b.tags,
+              'event_id': b.token.eventId,
               'occurred_on': _formatDateOnlyLocal(b.occurredOn),
               if (b.occurredAt != null)
                 'occurred_at': b.occurredAt!.toUtc().toIso8601String(),
@@ -16095,6 +16098,7 @@ class _CalendarPageState extends State<CalendarPage>
         final response = await _aiReflectionService.generateReflection(
           decanName: window.decanName,
           decanTheme: window.decanTheme,
+          decanContextKey: window.decanContextKey,
           decanStart: window.start,
           decanEnd: window.end,
           includeHistory: false, // prioritize current decan’s badges

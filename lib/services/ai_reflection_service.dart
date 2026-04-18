@@ -49,6 +49,7 @@ class AIReflectionService {
   Future<AIReflectionResponse> generateReflection({
     required String decanName,
     String? decanTheme,
+    String? decanContextKey,
     required DateTime decanStart,
     required DateTime decanEnd,
     bool includeHistory = true,
@@ -80,6 +81,7 @@ class AIReflectionService {
       'user_id': userId,
       'decan_name': decanName,
       'decan_theme': decanTheme,
+      'decan_context_key': decanContextKey,
       'decan_start': toDateOnlyLocal(decanStart),
       'decan_end': toDateOnlyLocal(decanEnd),
       'include_history': includeHistory,

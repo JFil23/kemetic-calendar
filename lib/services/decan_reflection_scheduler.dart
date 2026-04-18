@@ -1,12 +1,24 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../features/calendar/decan_metadata.dart';
+import '../features/calendar/kemetic_month_metadata.dart';
 import '../widgets/kemetic_date_picker.dart' show KemeticMath;
 
 class DecanWindow {
   final DateTime start;
   final DateTime end;
-  const DecanWindow(this.start, this.end);
+  final String decanName;
+  final String? decanTheme;
+  final String? decanContextKey;
+
+  const DecanWindow({
+    required this.start,
+    required this.end,
+    required this.decanName,
+    required this.decanTheme,
+    required this.decanContextKey,
+  });
 }
 
 class DecanReflectionScheduler {
@@ -16,13 +28,31 @@ class DecanReflectionScheduler {
   DecanWindow _windowFor(DateTime date) {
     final kem = KemeticMath.fromGregorian(date);
     final decanStartDay = ((kem.kDay - 1) ~/ 10) * 10 + 1;
+    final decanIndex = ((decanStartDay - 1) ~/ 10) + 1;
     final maxDay = (kem.kMonth == 13)
         ? (KemeticMath.isLeapKemeticYear(kem.kYear) ? 6 : 5)
         : 30;
     final decanEndDay = (decanStartDay + 9) > maxDay ? maxDay : decanStartDay + 9;
     final start = KemeticMath.toGregorian(kem.kYear, kem.kMonth, decanStartDay);
     final end = KemeticMath.toGregorian(kem.kYear, kem.kMonth, decanEndDay);
-    return DecanWindow(start, end);
+    final hasCanonicalContext = kem.kMonth >= 1 && kem.kMonth <= 12;
+    final monthLabel = hasCanonicalContext
+        ? getMonthById(kem.kMonth).displayShort
+        : 'Days Upon the Year';
+    final decanTheme = hasCanonicalContext
+        ? DecanMetadata.decanNameFor(
+            kMonth: kem.kMonth,
+            kDay: decanEndDay,
+            expanded: true,
+          )
+        : null;
+    return DecanWindow(
+      start: start,
+      end: end,
+      decanName: decanTheme == null ? monthLabel : '$monthLabel — $decanTheme',
+      decanTheme: decanTheme,
+      decanContextKey: hasCanonicalContext ? '${kem.kMonth}-$decanIndex' : null,
+    );
   }
 
   Future<void> _scheduleWindow(DecanWindow window) async {
@@ -36,6 +66,9 @@ class DecanReflectionScheduler {
           'decan_start': window.start.toIso8601String().split('T').first,
           'decan_end': window.end.toIso8601String().split('T').first,
           'send_at': sendAt.toIso8601String(),
+          'decan_name': window.decanName,
+          'decan_theme': window.decanTheme,
+          'decan_context_key': window.decanContextKey,
         },
       );
     } catch (e) {

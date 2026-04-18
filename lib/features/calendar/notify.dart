@@ -138,6 +138,15 @@ class Notify {
           AndroidFlutterLocalNotificationsPlugin
         >();
 
+    await androidSpecific?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _androidChannelId,
+        _androidChannelName,
+        description: _androidChannelDesc,
+        importance: Importance.max,
+      ),
+    );
+
     final notifGranted = await androidSpecific
         ?.requestNotificationsPermission();
     _log('requestNotificationsPermission() => $notifGranted');
