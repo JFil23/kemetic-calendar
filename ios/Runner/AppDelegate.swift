@@ -47,6 +47,8 @@ import EventKit
         } else {
           result(FlutterError(code: "bad_args", message: "Missing eventId", details: nil))
         }
+      case "purgeKemeticEvents":
+        self.handlePurgeKemeticEvents(result: result)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -143,6 +145,7 @@ import EventKit
     if let tzId = tzId, let tz = TimeZone(identifier: tzId) {
       event.timeZone = tz
     }
+    event.alarms = []
     event.notes = mergeNotes(description, cid: clientEventId)
 
     do {
@@ -164,6 +167,26 @@ import EventKit
     } else {
       result(false)
     }
+  }
+
+  private func handlePurgeKemeticEvents(result: FlutterResult) {
+    let startDate = Date(timeIntervalSince1970: 0)
+    let endDate = Date(timeIntervalSinceNow: 60 * 60 * 24 * 365 * 25)
+    let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
+    let events = eventStore.events(matching: predicate)
+    var deleted = 0
+
+    for event in events {
+      guard extractCid(from: event.notes) != nil else { continue }
+      do {
+        try eventStore.remove(event, span: .thisEvent)
+        deleted += 1
+      } catch {
+        // Keep going so one failure does not block the rest.
+      }
+    }
+
+    result(deleted)
   }
 
   private func extractCid(from notes: String?) -> String? {

@@ -63,6 +63,13 @@ class MainActivity : FlutterActivity() {
           }
           result.success(deleteEvent(eventId))
         }
+        "purgeKemeticEvents" -> {
+          if (!hasCalendarPermission()) {
+            result.success(0)
+            return@setMethodCallHandler
+          }
+          result.success(purgeKemeticEvents())
+        }
         else -> result.notImplemented()
       }
     }
@@ -175,10 +182,11 @@ class MainActivity : FlutterActivity() {
       put(CalendarContract.Events.CALENDAR_ID, calendarId)
       put(CalendarContract.Events.EVENT_TIMEZONE, timeZone)
       put(CalendarContract.Events.EVENT_END_TIMEZONE, timeZone)
+      put(CalendarContract.Events.HAS_ALARM, 0)
     }
 
     val cr = contentResolver
-    return if (existingId == null) {
+    val savedId = if (existingId == null) {
       val uri = cr.insert(CalendarContract.Events.CONTENT_URI, values)
       uri?.lastPathSegment
     } else {
@@ -186,6 +194,8 @@ class MainActivity : FlutterActivity() {
       val updated = cr.update(updateUri, values, null, null)
       if (updated > 0) existingId.toString() else null
     }
+    savedId?.toLongOrNull()?.let { clearReminders(it) }
+    return savedId
   }
 
   private fun deleteEvent(eventId: String): Boolean {
@@ -193,6 +203,44 @@ class MainActivity : FlutterActivity() {
     val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, parsed)
     val rows = contentResolver.delete(uri, null, null)
     return rows > 0
+  }
+
+  private fun purgeKemeticEvents(): Int {
+    val projection = arrayOf(CalendarContract.Events._ID)
+    val selection = "${CalendarContract.Events.DESCRIPTION} LIKE ?"
+    val args = arrayOf("%kemet_cid:%")
+    val ids = mutableListOf<Long>()
+
+    val cursor = contentResolver.query(
+      CalendarContract.Events.CONTENT_URI,
+      projection,
+      selection,
+      args,
+      null
+    )
+
+    cursor?.use {
+      val idxId = it.getColumnIndex(CalendarContract.Events._ID)
+      while (it.moveToNext()) {
+        ids.add(it.getLong(idxId))
+      }
+    }
+    cursor?.close()
+
+    var deleted = 0
+    for (id in ids) {
+      val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, id)
+      deleted += contentResolver.delete(uri, null, null)
+    }
+    return deleted
+  }
+
+  private fun clearReminders(eventId: Long) {
+    contentResolver.delete(
+      CalendarContract.Reminders.CONTENT_URI,
+      "${CalendarContract.Reminders.EVENT_ID} = ?",
+      arrayOf(eventId.toString())
+    )
   }
 
   private fun selectCalendarId(): Long? {

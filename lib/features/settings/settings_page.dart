@@ -25,6 +25,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _usHolidaysEnabled = false;
   bool _seedingHolidays = false;
   bool _syncingCalendar = false;
+  bool _unlinkingCalendar = false;
   bool _loading = true;
   bool _requestingPush = false;
   bool _loadingPushDiagnostics = false;
@@ -35,6 +36,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   bool get _hasSession => Supabase.instance.client.auth.currentSession != null;
   bool get _nativeCalendarSyncAvailable => !kIsWeb;
+  bool get _calendarBusy => _syncingCalendar || _unlinkingCalendar;
 
   @override
   void initState() {
@@ -145,9 +147,7 @@ class _SettingsPageState extends State<SettingsPage> {
     messenger.showSnackBar(
       SnackBar(
         content: Text(
-          success
-              ? 'Push alerts enabled on this device.'
-              : failureMessage,
+          success ? 'Push alerts enabled on this device.' : failureMessage,
         ),
         backgroundColor: success ? Colors.green.shade700 : Colors.red.shade700,
       ),
@@ -397,6 +397,126 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _unlinkCalendarAccounts() async {
+    final client = Supabase.instance.client;
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (!_nativeCalendarSyncAvailable) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Native calendar unlink cleanup is only available in the iOS/Android app.',
+          ),
+          backgroundColor: Colors.orange.shade700,
+        ),
+      );
+      return;
+    }
+
+    if (!_hasSession) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('Sign in before unlinking synced calendar data.'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0C0C0C),
+          title: const Text(
+            'Unlink Calendar Sync',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            'This removes imported Apple/Google calendar events from Kemetic, removes Kemetic-tagged events from the device calendar, clears sync link state, and turns automatic calendar sync off until you re-enable it.',
+            style: TextStyle(color: Colors.white70, height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+              ),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Unlink and clear'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _unlinkingCalendar = true;
+    });
+
+    try {
+      final sync = sharedCalendarSyncService(client);
+      final result = await sync.unlinkAndPurge(
+        interactive: true,
+        markResetCompleted: true,
+      );
+
+      final calendarState = CalendarPage.globalKey.currentState;
+      if (calendarState != null) {
+        await calendarState.reloadFromOutside();
+      }
+
+      await _refreshCalendarStatus();
+      final autoSync = await SettingsPrefs.autoCalendarSyncEnabled();
+      if (!mounted) return;
+
+      setState(() {
+        _autoCalendarSync = autoSync;
+      });
+
+      final parts = <String>[
+        if (result.removedImportedEvents > 0)
+          'removed ${result.removedImportedEvents} imported device-calendar events from Kemetic',
+        if (result.removedNativeEvents > 0)
+          'removed ${result.removedNativeEvents} Kemetic events from the device calendar',
+      ];
+      final summary = parts.isEmpty
+          ? 'Calendar sync links were cleared and automatic sync was turned off.'
+          : '${parts.join('; ')}. Automatic sync is now off.';
+      final suffix = result.permissionGranted
+          ? ''
+          : ' Grant calendar access and run this again if device-calendar events still remain.';
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('$summary$suffix'),
+          backgroundColor: result.permissionGranted
+              ? Colors.green.shade700
+              : Colors.orange.shade700,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Could not unlink synced calendar data: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _unlinkingCalendar = false;
+        });
+      }
+    }
+  }
+
   void _showCalendarSyncResult(CalendarSyncRunResult result) {
     final messenger = ScaffoldMessenger.of(context);
     switch (result.state) {
@@ -405,6 +525,16 @@ class _SettingsPageState extends State<SettingsPage> {
           SnackBar(
             content: const Text('Calendar sync completed on this device.'),
             backgroundColor: Colors.green.shade700,
+          ),
+        );
+        return;
+      case CalendarSyncRunState.unlinked:
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Synced calendar data was cleared. Re-enable sync only when you want to link calendars again.',
+            ),
+            backgroundColor: Colors.orange.shade700,
           ),
         );
         return;
@@ -585,6 +715,11 @@ class _SettingsPageState extends State<SettingsPage> {
     final lastDenied = _calendarSyncStatus?.lastPermissionDeniedAt?.toLocal();
     if (lastDenied != null) {
       lines.add('Calendar access last denied: ${_formatTimestamp(lastDenied)}');
+    }
+
+    final lastReset = _calendarSyncStatus?.lastResetAt?.toLocal();
+    if (lastReset != null) {
+      lines.add('Last unlink cleanup: ${_formatTimestamp(lastReset)}');
     }
 
     if (!_hasSession) {
@@ -791,7 +926,7 @@ class _SettingsPageState extends State<SettingsPage> {
             _sectionCard(
               title: 'Calendar Sync',
               description:
-                  'Device calendar sync imports external events and pushes app-owned calendar items back out when the platform supports it.',
+                  'Device calendar sync can import external events and push app-owned calendar items back out. Use the unlink cleanup if you need to clear both directions without removing the feature.',
               children: [
                 _settingSwitch(
                   title: 'Keep device calendar synced automatically',
@@ -799,7 +934,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ? 'Runs after sign-in and keeps trying in the background.'
                       : 'Native calendar sync is not available in web builds.',
                   value: _autoCalendarSync,
-                  onChanged: !_nativeCalendarSyncAvailable || _syncingCalendar
+                  onChanged: !_nativeCalendarSyncAvailable || _calendarBusy
                       ? null
                       : _setAutoCalendarSync,
                 ),
@@ -807,7 +942,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 _primaryButton(
                   onPressed:
                       !_nativeCalendarSyncAvailable ||
-                          _syncingCalendar ||
+                          _calendarBusy ||
                           !_hasSession
                       ? null
                       : _syncCalendarNow,
@@ -833,6 +968,34 @@ class _SettingsPageState extends State<SettingsPage> {
                       ],
                       Text(_syncButtonLabel()),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade200,
+                      side: BorderSide(color: Colors.red.shade300),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed:
+                        !_nativeCalendarSyncAvailable ||
+                            _calendarBusy ||
+                            !_hasSession
+                        ? null
+                        : _unlinkCalendarAccounts,
+                    child: Text(
+                      _unlinkingCalendar
+                          ? 'Unlinking calendars...'
+                          : 'Unlink and clear synced calendar data',
+                    ),
                   ),
                 ),
                 for (final line in calendarStatusLines) _statusLine(line),

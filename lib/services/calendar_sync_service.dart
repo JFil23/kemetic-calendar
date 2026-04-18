@@ -6,10 +6,12 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/user_events_repo.dart';
+import '../features/settings/settings_prefs.dart';
 
 const _channelName = 'com.kemetic.calendar/sync';
 const _permissionRetryCooldown = Duration(hours: 12);
 const _autoStartSyncCooldown = Duration(minutes: 2);
+const _rollingNativeExportWindow = Duration(days: 7);
 
 @visibleForTesting
 DateTime? parseCalendarSyncTimestamp(dynamic raw) {
@@ -39,14 +41,20 @@ bool shouldSkipCalendarAutoStartSync({
 
 @immutable
 class CalendarSyncStatus {
-  const CalendarSyncStatus({this.lastSyncAt, this.lastPermissionDeniedAt});
+  const CalendarSyncStatus({
+    this.lastSyncAt,
+    this.lastPermissionDeniedAt,
+    this.lastResetAt,
+  });
 
   final DateTime? lastSyncAt;
   final DateTime? lastPermissionDeniedAt;
+  final DateTime? lastResetAt;
 }
 
 enum CalendarSyncRunState {
   synced,
+  unlinked,
   permissionDenied,
   skippedWeb,
   skippedNoSession,
@@ -60,6 +68,9 @@ class CalendarSyncRunResult {
   const CalendarSyncRunResult._(this.state, {this.error});
 
   const CalendarSyncRunResult.synced() : this._(CalendarSyncRunState.synced);
+
+  const CalendarSyncRunResult.unlinked()
+    : this._(CalendarSyncRunState.unlinked);
 
   const CalendarSyncRunResult.permissionDenied()
     : this._(CalendarSyncRunState.permissionDenied);
@@ -83,6 +94,24 @@ class CalendarSyncRunResult {
   final Object? error;
 
   bool get didSync => state == CalendarSyncRunState.synced;
+}
+
+@immutable
+class CalendarSyncResetResult {
+  const CalendarSyncResetResult({
+    required this.removedImportedEvents,
+    required this.removedNativeEvents,
+    required this.permissionGranted,
+    required this.completed,
+  });
+
+  final int removedImportedEvents;
+  final int removedNativeEvents;
+  final bool permissionGranted;
+  final bool completed;
+
+  bool get changedAnything =>
+      removedImportedEvents > 0 || removedNativeEvents > 0;
 }
 
 bool _isLikelyHolidayTitle(String title) {
@@ -146,6 +175,13 @@ bool _isAppOwnedCid(String cid) {
       c.startsWith('ky=');
 }
 
+bool _isReminderLikeCid(String cid) {
+  final c = cid.trim().toLowerCase();
+  return c.startsWith('reminder:') ||
+      c.startsWith('nutrition:') ||
+      c.startsWith('holiday:');
+}
+
 bool _hasAppOwnedMarker(NativeCalendarEvent native) {
   final desc = native.description?.toLowerCase() ?? '';
   return desc.contains('kemet_cid:');
@@ -170,6 +206,16 @@ DateTime _localDay(DateTime dt) {
 String _holidayKey(DateTime date, String title) {
   final day = _localDay(date);
   return '${day.toIso8601String()}|${_slugifyTitle(title)}';
+}
+
+DateTime _startOfLocalDay(DateTime dt) {
+  final local = dt.toLocal();
+  return DateTime(local.year, local.month, local.day);
+}
+
+DateTime _endOfRollingExportWindow(DateTime now) {
+  final startOfToday = _startOfLocalDay(now);
+  return startOfToday.add(_rollingNativeExportWindow);
 }
 
 bool _isHolidayLikeNative(NativeCalendarEvent native) {
@@ -418,6 +464,17 @@ class CalendarPlatformBridge {
       return false;
     }
   }
+
+  Future<int> purgeKemeticEvents() async {
+    if (kIsWeb) return 0;
+    try {
+      final deleted = await _channel.invokeMethod<int>('purgeKemeticEvents');
+      return deleted ?? 0;
+    } catch (e) {
+      debugPrint('[calendar-sync] purgeKemeticEvents error: $e');
+      return 0;
+    }
+  }
 }
 
 // Shared instance helper so multiple screens reuse the same sync engine/timer.
@@ -454,6 +511,8 @@ class CalendarSyncService {
   static const _cacheBoxName = 'calendar_sync.cache.v1';
   static const _stateBoxName = 'calendar_sync.state.v1';
   static const _deletedCidsKey = 'deleted_cids';
+  static const _lastResetKey = 'lastReset';
+  static const _legacyUnlinkResetVersion = 1;
 
   Box<dynamic>? _cacheBox;
   Box<dynamic>? _stateBox;
@@ -520,6 +579,7 @@ class CalendarSyncService {
       lastPermissionDeniedAt: parseCalendarSyncTimestamp(
         _stateBox?.get('lastPermissionDenied'),
       ),
+      lastResetAt: parseCalendarSyncTimestamp(_stateBox?.get(_lastResetKey)),
     );
   }
 
@@ -535,6 +595,13 @@ class CalendarSyncService {
     }
 
     await ensureInitialized();
+    final resetResult = await _maybeRunLegacyUnlinkResetIfNeeded(
+      interactive: interactive,
+    );
+    if (resetResult != null) {
+      return const CalendarSyncRunResult.unlinked();
+    }
+
     final now = _now();
     final lastPermissionDeniedAt = parseCalendarSyncTimestamp(
       _stateBox?.get('lastPermissionDenied'),
@@ -585,11 +652,18 @@ class CalendarSyncService {
         supByCid[cid] = e;
       }
 
+      final exportSupByCid = _exportableSupabaseEvents(supByCid, now);
+
       await _mergeNativeIntoSupabase(nativeByCid, supByCid, supHolidayKeys);
-      await _mergeSupabaseIntoNative(nativeByCid, supByCid, nativeHolidayKeys);
+      await _removeStaleSupabaseNativeImports(nativeByCid, supByCid);
+      await _mergeSupabaseIntoNative(
+        nativeByCid,
+        exportSupByCid,
+        nativeHolidayKeys,
+      );
       await _removeStaleNativeEvents(
         nativeByCid,
-        supByCid,
+        exportSupByCid,
         suppressDeletes: supWindowLimitHit,
       );
 
@@ -608,6 +682,12 @@ class CalendarSyncService {
     if (_started) return;
 
     await ensureInitialized();
+    final resetResult = await _maybeRunLegacyUnlinkResetIfNeeded(
+      interactive: false,
+    );
+    if (resetResult != null) {
+      return;
+    }
     _timer ??= Timer.periodic(const Duration(minutes: 15), (_) {
       unawaited(sync());
     });
@@ -739,6 +819,13 @@ class CalendarSyncService {
           ? _holidayKey(sup.startsAt, sup.title)
           : null;
 
+      if (cid.startsWith('native:') || (sup.category ?? '') == 'native_sync') {
+        debugPrint(
+          '[calendar-sync] skip re-export of imported native event cid=$cid title=${sup.title}',
+        );
+        continue;
+      }
+
       if (native == null) {
         if (supHolidayKey != null &&
             nativeHolidayKeys.contains(supHolidayKey)) {
@@ -818,7 +905,255 @@ class CalendarSyncService {
     }
   }
 
+  Map<String, UserEvent> _exportableSupabaseEvents(
+    Map<String, UserEvent> supByCid,
+    DateTime now,
+  ) {
+    final exportable = <String, UserEvent>{};
+    final exportWindowEnd = _endOfRollingExportWindow(now);
+    final seenHolidayKeys = <String>{};
+
+    for (final entry in supByCid.entries) {
+      final cid = entry.key;
+      final event = entry.value;
+      if (!_shouldExportSupabaseEvent(event, cid, exportWindowEnd)) {
+        continue;
+      }
+
+      final holidayKey = _holidayKeyForSupEvent(event, cid);
+      if (holidayKey != null) {
+        if (seenHolidayKeys.contains(holidayKey)) {
+          debugPrint(
+            '[calendar-sync] skip duplicate Kemetic holiday export cid=$cid title=${event.title}',
+          );
+          continue;
+        }
+        seenHolidayKeys.add(holidayKey);
+      }
+
+      exportable[cid] = event;
+    }
+
+    return exportable;
+  }
+
+  String? _holidayKeyForSupEvent(UserEvent event, String cid) {
+    if (!_isHolidayLikeSup(event) && !cid.startsWith('holiday:')) {
+      return null;
+    }
+    return _holidayKey(event.startsAt, event.title);
+  }
+
+  bool _shouldExportSupabaseEvent(
+    UserEvent event,
+    String cid,
+    DateTime exportWindowEnd,
+  ) {
+    if (cid.startsWith('native:') || (event.category ?? '') == 'native_sync') {
+      return false;
+    }
+
+    final isRollingWindowEvent =
+        event.flowLocalId != null ||
+        _isReminderLikeCid(cid) ||
+        _isHolidayLikeSup(event);
+    if (!isRollingWindowEvent) {
+      return true;
+    }
+
+    final localStart = event.startsAt.toLocal();
+    return localStart.isBefore(exportWindowEnd);
+  }
+
   /* ───────────────────────── Utilities ───────────────────────── */
+
+  Future<CalendarSyncResetResult?> _maybeRunLegacyUnlinkResetIfNeeded({
+    required bool interactive,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return null;
+
+    final resetKey = _resetKeyForUser(user.id);
+    final alreadyCompleted = (_stateBox?.get(resetKey) as bool?) ?? false;
+    if (alreadyCompleted) return null;
+
+    final hasLinkedData = await _hasLegacyLinkedData();
+    if (!hasLinkedData) {
+      await _stateBox?.put(resetKey, true);
+      return null;
+    }
+
+    return unlinkAndPurge(interactive: interactive, markResetCompleted: true);
+  }
+
+  String _resetKeyForUser(String userId) =>
+      'legacy_unlink_reset_v${_legacyUnlinkResetVersion}:$userId';
+
+  Future<bool> _hasLegacyLinkedData() async {
+    if ((_cacheBox?.isNotEmpty ?? false)) return true;
+
+    final user = _client.auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      final rowsByCid = await _client
+          .from('user_events')
+          .select('id')
+          .eq('user_id', user.id)
+          .like('client_event_id', 'native:%')
+          .limit(1);
+      if ((rowsByCid as List).isNotEmpty) return true;
+    } catch (e) {
+      debugPrint('[calendar-sync] linked-data native prefix check failed: $e');
+    }
+
+    try {
+      final rowsByCategory = await _client
+          .from('user_events')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('category', 'native_sync')
+          .limit(1);
+      if ((rowsByCategory as List).isNotEmpty) return true;
+    } catch (e) {
+      debugPrint(
+        '[calendar-sync] linked-data native category check failed: $e',
+      );
+    }
+
+    return false;
+  }
+
+  Future<CalendarSyncResetResult> unlinkAndPurge({
+    bool interactive = true,
+    bool markResetCompleted = false,
+  }) async {
+    if (kIsWeb) {
+      return const CalendarSyncResetResult(
+        removedImportedEvents: 0,
+        removedNativeEvents: 0,
+        permissionGranted: false,
+        completed: false,
+      );
+    }
+
+    await ensureInitialized();
+    stop();
+
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      return const CalendarSyncResetResult(
+        removedImportedEvents: 0,
+        removedNativeEvents: 0,
+        permissionGranted: false,
+        completed: false,
+      );
+    }
+
+    int removedImported = 0;
+    int removedNative = 0;
+    bool permissionGranted = false;
+
+    removedImported = await _purgeImportedNativeEventsFromSupabase();
+    permissionGranted = await _platform.requestPermissions();
+    if (permissionGranted) {
+      removedNative = await _platform.purgeKemeticEvents();
+    }
+
+    await _clearSyncState();
+    await SettingsPrefs.setAutoCalendarSyncEnabled(false);
+
+    if (removedImported > 0 || removedNative > 0 || permissionGranted) {
+      await _stateBox?.put(_lastResetKey, _now().toIso8601String());
+    }
+
+    final completed = permissionGranted;
+    if (markResetCompleted && completed) {
+      await _stateBox?.put(_resetKeyForUser(user.id), true);
+    }
+
+    return CalendarSyncResetResult(
+      removedImportedEvents: removedImported,
+      removedNativeEvents: removedNative,
+      permissionGranted: permissionGranted,
+      completed: completed,
+    );
+  }
+
+  Future<int> _purgeImportedNativeEventsFromSupabase() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return 0;
+
+    var deleted = 0;
+    try {
+      final rowsByCid = await _client
+          .from('user_events')
+          .delete()
+          .eq('user_id', user.id)
+          .like('client_event_id', 'native:%')
+          .select('id');
+      deleted += (rowsByCid as List).length;
+    } catch (e) {
+      debugPrint(
+        '[calendar-sync] purge imported native rows by cid failed: $e',
+      );
+    }
+
+    try {
+      final rowsByCategory = await _client
+          .from('user_events')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('category', 'native_sync')
+          .select('id');
+      deleted += (rowsByCategory as List).length;
+    } catch (e) {
+      debugPrint(
+        '[calendar-sync] purge imported native rows by category failed: $e',
+      );
+    }
+
+    return deleted;
+  }
+
+  Future<void> _clearSyncState() async {
+    await _cacheBox?.clear();
+    _deletedCids = <String>{};
+
+    final keys = (_stateBox?.keys ?? const <dynamic>[])
+        .map((key) => key.toString())
+        .toList();
+    for (final key in keys) {
+      if (key == _deletedCidsKey ||
+          key == 'lastSync' ||
+          key.startsWith('cid-for-native-')) {
+        await _stateBox?.delete(key);
+      }
+    }
+  }
+
+  Future<void> _removeStaleSupabaseNativeImports(
+    Map<String, NativeCalendarEvent> nativeByCid,
+    Map<String, UserEvent> supByCid,
+  ) async {
+    for (final entry in supByCid.entries) {
+      final cid = entry.key;
+      final sup = entry.value;
+      final isImportedNative =
+          cid.startsWith('native:') || (sup.category ?? '') == 'native_sync';
+      if (!isImportedNative) continue;
+      if (nativeByCid.containsKey(cid)) continue;
+
+      try {
+        await _eventsRepo.deleteByClientId(cid);
+        debugPrint('[calendar-sync] deleted stale imported event cid=$cid');
+      } catch (e) {
+        debugPrint(
+          '[calendar-sync] delete stale imported event failed cid=$cid err=$e',
+        );
+      }
+    }
+  }
 
   Future<void> _removeStaleNativeEvents(
     Map<String, NativeCalendarEvent> nativeByCid,

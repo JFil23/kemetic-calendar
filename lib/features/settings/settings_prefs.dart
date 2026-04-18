@@ -33,6 +33,14 @@ class SettingsPrefs {
     return autoCalendarSyncEnabledFrom(prefs);
   }
 
+  static Future<void> setAutoCalendarSyncEnabled(
+    bool enabled, [
+    SharedPreferences? prefs,
+  ]) async {
+    final store = prefs ?? await SharedPreferences.getInstance();
+    await store.setBool(autoCalendarSyncKey, enabled);
+  }
+
   static Future<void> clearLegacyReminderPrefs([
     SharedPreferences? prefs,
   ]) async {
