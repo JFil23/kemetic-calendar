@@ -8,7 +8,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
-import '../features/calendar/notify.dart';
+import 'push_foreground_alert.dart'
+    if (dart.library.html) 'push_foreground_alert_web.dart';
+import 'push_web_subscription.dart'
+    if (dart.library.html) 'push_web_subscription_web.dart';
+import 'push_web_context.dart'
+    if (dart.library.html) 'push_web_context_web.dart';
 
 // ---- Firebase background handler (must be a top-level function) ----
 @pragma('vm:entry-point')
@@ -32,7 +37,7 @@ class _PushTokenRepo {
   const _PushTokenRepo(this._client);
   final SupabaseClient _client;
 
-  Future<bool> upsertToken({
+  Future<String?> upsertToken({
     required String token,
     required String platform,
     required String deviceId,
@@ -41,7 +46,7 @@ class _PushTokenRepo {
     final uid = user?.id;
     if (uid == null) {
       debugPrint('[push] upsert skipped: no user');
-      return false;
+      return 'Sign in before enabling push alerts on this device.';
     }
     final nowIso = DateTime.now().toUtc().toIso8601String();
     final payload = {
@@ -60,10 +65,10 @@ class _PushTokenRepo {
           .upsert(payload, onConflict: 'device_id')
           .select();
       debugPrint('[push] token upsert succeeded');
-      return true;
+      return null;
     } catch (e) {
       debugPrint('[push] token upsert failed: $e');
-      return false;
+      return _formatPushTokenSaveError(e);
     }
   }
 
@@ -130,20 +135,55 @@ class PushNotifications {
   final StreamController<Map<String, dynamic>> _openedMessages =
       StreamController.broadcast();
   final Set<String> _handledOpenedMessageSignatures = <String>{};
-  String? _resolvedWebVapidKey;
+  String? _resolvedWebPushPublicKey;
+  String? _lastRegistrationError;
 
   Stream<Map<String, dynamic>> get openedMessages => _openedMessages.stream;
+  String? get lastRegistrationError => _lastRegistrationError;
 
-  static const _webApiKey = String.fromEnvironment('FIREBASE_WEB_API_KEY');
-  static const _webAppId = String.fromEnvironment('FIREBASE_WEB_APP_ID');
-  static const _webSender = String.fromEnvironment('FIREBASE_WEB_SENDER_ID');
-  static const _webProjectId = String.fromEnvironment(
-    'FIREBASE_WEB_PROJECT_ID',
-  );
-  static const _webVapidKey = String.fromEnvironment('FIREBASE_WEB_VAPID_KEY');
+  static const _webPushPublicKey = String.fromEnvironment('WEB_PUSH_PUBLIC_KEY');
+  static const _defaultWebPushPublicKey =
+      'BLF5usfirDkmfJaEDDUzIVLzQOuF5XMdTEIscpYZxMpm26KvEuQ716kN2a2W6_gbVUAj7-xU7WEUWCi2ZLoUlYA';
+
+  void _setRegistrationError(String? message) {
+    _lastRegistrationError = message?.trim();
+    if (_lastRegistrationError != null && _lastRegistrationError!.isNotEmpty) {
+      debugPrint('[push] $_lastRegistrationError');
+    }
+  }
+
+  String? get _effectiveWebPushPublicKey {
+    if (_resolvedWebPushPublicKey?.isNotEmpty == true) {
+      return _resolvedWebPushPublicKey;
+    }
+    if (_webPushPublicKey.isNotEmpty) {
+      return _webPushPublicKey;
+    }
+    return _defaultWebPushPublicKey;
+  }
+
+  Future<String?> _preflightWebPush() async {
+    if (!kIsWeb) return null;
+
+    final context = await inspectWebPushContext();
+    final blocker = context.blockerMessage;
+    if (blocker != null) {
+      return blocker;
+    }
+
+    final publicKey = _effectiveWebPushPublicKey;
+    if (publicKey == null ||
+        publicKey.isEmpty ||
+        publicKey == 'REPLACE_ME_WEB_PUSH_PUBLIC_KEY') {
+      return 'The web push public key is missing from this build.';
+    }
+
+    return null;
+  }
 
   /// Request permission, fetch token, and upsert it. Returns the token if available.
   Future<String?> requestAndRegisterToken() async {
+    _setRegistrationError(null);
     final currentSession = _client.auth.currentSession;
     final currentUser = _client.auth.currentUser;
     debugPrint('[push] currentSession? ${currentSession != null}');
@@ -153,6 +193,9 @@ class PushNotifications {
     debugPrint('[push] session.expiresAt: ${currentSession?.expiresAt}');
 
     if (currentSession == null || currentUser?.id == null) {
+      _setRegistrationError(
+        'Sign in before enabling push alerts on this device.',
+      );
       debugPrint(
         '[push] no authenticated user; aborting token upsert. Prompt user to sign in.',
       );
@@ -172,20 +215,39 @@ class PushNotifications {
     if (_initialized) return true;
     final ok = await _ensureFirebaseInitialized();
     if (!ok) {
-      debugPrint('[push] Firebase init failed; push disabled');
+      if (_lastRegistrationError == null) {
+        _setRegistrationError(
+          kIsWeb
+              ? 'Web push is not configured for this build.'
+              : 'Firebase is not configured for this device build.',
+        );
+      }
+      debugPrint('[push] push init failed');
       return false;
     }
 
-    // Foreground presentation (iOS/macOS/web)
-    try {
-      await FirebaseMessaging.instance
-          .setForegroundNotificationPresentationOptions(
-            alert: true,
-            badge: true,
-            sound: true,
-          );
-    } catch (e) {
-      debugPrint('[push] foreground presentation setup failed: $e');
+    if (kIsWeb) {
+      await ensureWebPushServiceWorkerReady();
+    }
+
+    final webPreflight = await _preflightWebPush();
+    if (webPreflight != null) {
+      _setRegistrationError(webPreflight);
+      return false;
+    }
+
+    if (!kIsWeb) {
+      // Foreground presentation (iOS/macOS)
+      try {
+        await FirebaseMessaging.instance
+            .setForegroundNotificationPresentationOptions(
+              alert: true,
+              badge: true,
+              sound: true,
+            );
+      } catch (e) {
+        debugPrint('[push] foreground presentation setup failed: $e');
+      }
     }
 
     _initialized = true;
@@ -194,10 +256,14 @@ class PushNotifications {
   }
 
   void _attachListeners() {
+    if (kIsWeb) {
+      return;
+    }
+
     FirebaseMessaging.onMessage.listen((message) async {
       final notif = message.notification;
       if (notif == null) return;
-      await Notify.showInstant(
+      await showForegroundPushAlert(
         title: notif.title ?? 'Kemetic Calendar',
         body: notif.body,
       );
@@ -244,20 +310,42 @@ class PushNotifications {
     final ok = await init();
     if (!ok) return false;
 
-    try {
-      final settings = await FirebaseMessaging.instance
-          .getNotificationSettings();
-      if (!pushAuthorizationAllowsRegistration(
-        settings.authorizationStatus,
-      )) {
-        debugPrint(
-          '[push] refreshRegistrationIfAuthorized skipped: permission=${describePushAuthorizationStatus(settings.authorizationStatus)}',
-        );
+    if (kIsWeb) {
+      try {
+        final permission = await browserNotificationPermissionStatus();
+        if (permission != 'granted') {
+          debugPrint(
+            '[push] refreshRegistrationIfAuthorized skipped: permission=$permission',
+          );
+          return false;
+        }
+        final existing = await getExistingBrowserPushSubscriptionJson();
+        if (existing == null) {
+          debugPrint(
+            '[push] refreshRegistrationIfAuthorized skipped: no existing browser push subscription',
+          );
+          return false;
+        }
+      } catch (e) {
+        debugPrint('[push] refreshRegistrationIfAuthorized failed: $e');
         return false;
       }
-    } catch (e) {
-      debugPrint('[push] refreshRegistrationIfAuthorized failed: $e');
-      return false;
+    } else {
+      try {
+        final settings = await FirebaseMessaging.instance
+            .getNotificationSettings();
+        if (!pushAuthorizationAllowsRegistration(
+          settings.authorizationStatus,
+        )) {
+          debugPrint(
+            '[push] refreshRegistrationIfAuthorized skipped: permission=${describePushAuthorizationStatus(settings.authorizationStatus)}',
+          );
+          return false;
+        }
+      } catch (e) {
+        debugPrint('[push] refreshRegistrationIfAuthorized failed: $e');
+        return false;
+      }
     }
 
     final token = await _registerCurrentToken();
@@ -267,16 +355,46 @@ class PushNotifications {
   Future<void> unregister() async {
     final deviceId = await _deviceId();
     await _repo.deleteToken(deviceId: deviceId);
-    try {
-      await FirebaseMessaging.instance.deleteToken();
-    } catch (e) {
-      debugPrint('[push] deleteToken error: $e');
+    if (kIsWeb) {
+      try {
+        await unsubscribeBrowserPush();
+      } catch (e) {
+        debugPrint('[push] browser unsubscribe error: $e');
+      }
+    } else {
+      try {
+        await FirebaseMessaging.instance.deleteToken();
+      } catch (e) {
+        debugPrint('[push] deleteToken error: $e');
+      }
     }
   }
 
   Future<bool> initAndRequestPermission() async {
+    _setRegistrationError(null);
     final ok = await init();
     if (!ok) return false;
+
+    if (kIsWeb) {
+      try {
+        final currentStatus = await browserNotificationPermissionStatus();
+        if (currentStatus == 'granted') {
+          return true;
+        }
+        final status = await requestBrowserNotificationPermission();
+        final granted = status == 'granted';
+        if (!granted) {
+          _setRegistrationError(
+            'Notification permission is $status for this device.',
+          );
+        }
+        return granted;
+      } catch (e) {
+        _setRegistrationError('Notification permission request failed: $e');
+        debugPrint('[push] permission request failed: $e');
+        return false;
+      }
+    }
 
     try {
       final currentSettings = await FirebaseMessaging.instance
@@ -296,10 +414,17 @@ class PushNotifications {
         provisional: false,
         sound: true,
       );
-      return pushAuthorizationAllowsRegistration(
+      final granted = pushAuthorizationAllowsRegistration(
         settings.authorizationStatus,
       );
+      if (!granted) {
+        _setRegistrationError(
+          'Notification permission is ${describePushAuthorizationStatus(settings.authorizationStatus)} for this device.',
+        );
+      }
+      return granted;
     } catch (e) {
+      _setRegistrationError('Notification permission request failed: $e');
       debugPrint('[push] permission request failed: $e');
       return false;
     }
@@ -317,15 +442,33 @@ class PushNotifications {
     DateTime? lastSeenAt;
     var databaseRegistered = false;
     AuthorizationStatus? authorizationStatus;
+    String? webPermissionStatus;
 
     final firebaseReady = await init();
     if (firebaseReady) {
+      if (kIsWeb) {
+        try {
+          webPermissionStatus = await browserNotificationPermissionStatus();
+        } catch (e) {
+          error = 'permission check failed: $e';
+        }
+      } else {
+        try {
+          final settings = await FirebaseMessaging.instance
+              .getNotificationSettings();
+          authorizationStatus = settings.authorizationStatus;
+        } catch (e) {
+          error = 'permission check failed: $e';
+        }
+      }
+    }
+
+    if (kIsWeb) {
       try {
-        final settings = await FirebaseMessaging.instance
-            .getNotificationSettings();
-        authorizationStatus = settings.authorizationStatus;
+        final context = await inspectWebPushContext();
+        error = error ?? context.blockerMessage;
       } catch (e) {
-        error = 'permission check failed: $e';
+        error = error ?? 'web push environment check failed: $e';
       }
     }
 
@@ -351,15 +494,19 @@ class PushNotifications {
       }
     }
 
+    error = error ?? _lastRegistrationError;
+
     return PushRegistrationDiagnostics(
       checkedAt: checkedAt,
       firebaseReady: firebaseReady,
       permissionStatus: firebaseReady
-          ? describePushAuthorizationStatus(authorizationStatus)
-          : 'firebase unavailable',
-      permissionGranted: pushAuthorizationAllowsRegistration(
-        authorizationStatus,
-      ),
+          ? (kIsWeb
+                ? (webPermissionStatus ?? 'unknown')
+                : describePushAuthorizationStatus(authorizationStatus))
+          : (kIsWeb ? 'web push unavailable' : 'firebase unavailable'),
+      permissionGranted: kIsWeb
+          ? webPermissionStatus == 'granted'
+          : pushAuthorizationAllowsRegistration(authorizationStatus),
       platform: _platformLabel(),
       hasSession: hasSession,
       databaseRegistered: databaseRegistered,
@@ -382,12 +529,16 @@ class PushNotifications {
 
     final token = await requestAndRegisterToken();
     if (token == null) {
-      return const PushSelfTestResult(
+      return PushSelfTestResult(
         ok: false,
         message:
-            'This device could not create and register a push token. Check permission and Firebase config first.',
+            lastRegistrationError ??
+            (kIsWeb
+                ? 'This browser could not create and register a web push subscription. Check notification permission and installed-PWA status first.'
+                : 'This device could not create and register a push token. Check permission and Firebase config first.'),
       );
     }
+    final deviceId = await _deviceId();
 
     final sentAt = DateTime.now().toUtc();
     try {
@@ -395,6 +546,7 @@ class PushNotifications {
         'send_push',
         body: {
           'userIds': [user.id],
+          'deviceIds': [deviceId],
           'notification': {
             'title': 'Kemetic push test',
             'body':
@@ -438,7 +590,7 @@ class PushNotifications {
       return const PushSelfTestResult(
         ok: true,
         message:
-            'Test push dispatched. If the app is open, a foreground alert should appear; if it is backgrounded, the device or PWA notification should appear.',
+            'Test push dispatched to this device. Background the app to check for the iPhone or PWA notification.',
       );
     } catch (e) {
       return PushSelfTestResult(
@@ -451,24 +603,24 @@ class PushNotifications {
   /* ───────────────────────── helpers ───────────────────────── */
 
   Future<bool> _ensureFirebaseInitialized() async {
+    if (kIsWeb) {
+      final publicKey = await _resolveWebPushPublicKey();
+      if (publicKey == null) {
+        _setRegistrationError(
+          'The web push public key is missing from this build.',
+        );
+        return false;
+      }
+      _resolvedWebPushPublicKey = publicKey;
+      return true;
+    }
+
     try {
       if (Firebase.apps.isNotEmpty) return true;
-
-      if (kIsWeb) {
-        final opts = await _resolveWebOptions();
-        if (opts == null) {
-          debugPrint(
-            '[push] missing web Firebase config; set FIREBASE_WEB_* or web/env.json',
-          );
-          return false;
-        }
-        await Firebase.initializeApp(options: opts);
-        return true;
-      }
-
       await Firebase.initializeApp();
       return true;
     } catch (e) {
+      _setRegistrationError('Firebase initialization failed: $e');
       debugPrint(
         '[push] Firebase init failed (likely missing google-services/Info.plist): $e',
       );
@@ -477,15 +629,43 @@ class PushNotifications {
   }
 
   Future<String?> _getToken() async {
+    if (kIsWeb) {
+      final publicKey = _effectiveWebPushPublicKey;
+      if (publicKey == null || publicKey.isEmpty) {
+        _setRegistrationError(
+          'The web push public key is missing from this build.',
+        );
+        return null;
+      }
+
+      try {
+        final existing = await getExistingBrowserPushSubscriptionJson();
+        if (existing != null && existing.isNotEmpty) {
+          return existing;
+        }
+        final subscription = await subscribeBrowserPush(publicKey);
+        if (subscription == null || subscription.isEmpty) {
+          _setRegistrationError(
+            'The browser did not create a web push subscription.',
+          );
+          return null;
+        }
+        return subscription;
+      } catch (e) {
+        _setRegistrationError('Browser push subscription failed: $e');
+        debugPrint('[push] browser subscribe failed: $e');
+        return null;
+      }
+    }
+
+    Future<String?> requestToken() async {
+      return await FirebaseMessaging.instance.getToken();
+    }
+
     try {
-      return await FirebaseMessaging.instance.getToken(
-        vapidKey: kIsWeb
-            ? (_resolvedWebVapidKey?.isNotEmpty == true
-                  ? _resolvedWebVapidKey
-                  : (_webVapidKey.isEmpty ? null : _webVapidKey))
-            : null,
-      );
+      return await requestToken();
     } catch (e) {
+      _setRegistrationError('Push token creation failed: $e');
       debugPrint('[push] getToken failed: $e');
       return null;
     }
@@ -495,10 +675,18 @@ class PushNotifications {
     final token = await _getToken();
     debugPrint('[push] current token: ${summarizePushToken(token)}');
     if (token == null) {
+      _setRegistrationError(
+        _lastRegistrationError ??
+            'The device did not return a push token.',
+      );
       return null;
     }
     final okReg = await _registerToken(token);
     if (!okReg) {
+      _setRegistrationError(
+        _lastRegistrationError ??
+            'The device created a push token, but the app could not save it to push_tokens.',
+      );
       return null;
     }
     return token;
@@ -510,15 +698,24 @@ class PushNotifications {
     debugPrint(
       '[push] registering token for platform=$platform deviceId=$deviceId',
     );
-    return await _repo.upsertToken(
+    final saveError = await _repo.upsertToken(
       token: token,
       platform: platform,
       deviceId: deviceId,
     );
+    if (saveError != null) {
+      _setRegistrationError(saveError);
+      return false;
+    }
+    return true;
   }
 
   Future<void> emitInitialMessage() async {
     if (_initialMessageChecked) return;
+    if (kIsWeb) {
+      _initialMessageChecked = true;
+      return;
+    }
     final ok = await _ensureFirebaseInitialized();
     if (!ok) return;
     try {
@@ -561,59 +758,37 @@ class PushNotifications {
     return id;
   }
 
-  FirebaseOptions? _webOptionsFromEnv() {
-    if (_webApiKey.isEmpty ||
-        _webAppId.isEmpty ||
-        _webSender.isEmpty ||
-        _webProjectId.isEmpty) {
-      return null;
-    }
-    return FirebaseOptions(
-      apiKey: _webApiKey,
-      appId: _webAppId,
-      messagingSenderId: _webSender,
-      projectId: _webProjectId,
-    );
-  }
-
-  Future<FirebaseOptions?> _resolveWebOptions() async {
-    final fromEnv = _webOptionsFromEnv();
-    if (fromEnv != null) {
-      _resolvedWebVapidKey = _webVapidKey;
-      return fromEnv;
+  Future<String?> _resolveWebPushPublicKey() async {
+    final fromDefine = _normalizedString(_webPushPublicKey);
+    if (fromDefine != null) {
+      return fromDefine;
     }
 
-    // Fallback: try to load web/env.json for hosted builds that rely on that file.
     try {
       final uri = Uri.base.resolve('env.json');
       final resp = await http.get(uri);
       if (resp.statusCode == 200) {
         final json = jsonDecode(resp.body) as Map<String, dynamic>;
-        final apiKey = (json['FIREBASE_WEB_API_KEY'] as String?) ?? '';
-        final appId = (json['FIREBASE_WEB_APP_ID'] as String?) ?? '';
-        final senderId = (json['FIREBASE_WEB_SENDER_ID'] as String?) ?? '';
-        final projectId = (json['FIREBASE_WEB_PROJECT_ID'] as String?) ?? '';
-        final vapid = (json['FIREBASE_WEB_VAPID_KEY'] as String?) ?? '';
-        if (apiKey.isNotEmpty &&
-            appId.isNotEmpty &&
-            senderId.isNotEmpty &&
-            projectId.isNotEmpty) {
-          _resolvedWebVapidKey = vapid;
-          return FirebaseOptions(
-            apiKey: apiKey,
-            appId: appId,
-            messagingSenderId: senderId,
-            projectId: projectId,
-          );
+        final publicKey = _normalizedString(
+          json['WEB_PUSH_PUBLIC_KEY'] as String?,
+        );
+        if (publicKey != null) {
+          return publicKey;
         }
       }
-      debugPrint(
-        '[push] env.json missing FIREBASE_WEB_* keys (status=${resp.statusCode})',
-      );
     } catch (e) {
-      debugPrint('[push] failed to load env.json for web Firebase config: $e');
+      debugPrint('[push] failed to load env.json for web push key: $e');
     }
-    return null;
+
+    return _defaultWebPushPublicKey;
+  }
+
+  String? _normalizedString(String? value) {
+    final normalized = value?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return null;
+    }
+    return normalized;
   }
 }
 
@@ -648,7 +823,7 @@ Object? _normalizePushMessageData(Object? value) {
 }
 
 String _platformLabel() {
-  if (kIsWeb) return 'web';
+  if (kIsWeb) return 'web_push';
   switch (defaultTargetPlatform) {
     case TargetPlatform.iOS:
       return 'ios';
@@ -683,8 +858,43 @@ String summarizePushToken(String? token) {
   if (token == null || token.isEmpty) {
     return 'not available';
   }
+  if (token.startsWith('{')) {
+    try {
+      final json = jsonDecode(token);
+      if (json is Map<String, dynamic>) {
+        final endpoint = json['endpoint']?.toString();
+        if (endpoint != null && endpoint.isNotEmpty) {
+          final uri = Uri.tryParse(endpoint);
+          final tail = uri?.pathSegments.isNotEmpty == true
+              ? uri!.pathSegments.last
+              : endpoint;
+          return 'webpush:${tail.length > 16 ? tail.substring(tail.length - 16) : tail}';
+        }
+      }
+    } catch (_) {
+      // Fall back to the generic summary below.
+    }
+  }
   if (token.length <= 16) {
     return token;
   }
   return '${token.substring(0, 8)}...${token.substring(token.length - 8)}';
+}
+
+String _formatPushTokenSaveError(Object error) {
+  final message = error.toString().trim();
+  final lowered = message.toLowerCase();
+
+  if (lowered.contains('new row violates row-level security policy') ||
+      lowered.contains('row-level security')) {
+    return 'The app created a push subscription, but Supabase blocked saving it to push_tokens. The project RLS policies need to allow the signed-in user to upsert their own device row.';
+  }
+  if (lowered.contains('duplicate key') && lowered.contains('device_id')) {
+    return 'This device already has a conflicting push_tokens row. Remove the stale row or let the app retry after refresh.';
+  }
+
+  if (message.isEmpty) {
+    return 'The app created a push subscription, but the server rejected saving it to push_tokens.';
+  }
+  return 'The app created a push subscription, but saving it to push_tokens failed: $message';
 }

@@ -574,6 +574,7 @@ class _AuthGateState extends State<AuthGate> {
   final DecanReflectionScheduler _decanScheduler = DecanReflectionScheduler(
     supabase,
   );
+  final Set<String> _handledPushNavigationKeys = <String>{};
   bool _scheduledDecans = false;
 
   // One-shot guards
@@ -629,6 +630,7 @@ class _AuthGateState extends State<AuthGate> {
           }
         }
         _installPushNavigation();
+        _consumePendingWebPushIntent();
         if (!_scheduledDecans) {
           _scheduledDecans = true;
           unawaited(_decanScheduler.ensureCurrentAndNextScheduled());
@@ -1162,16 +1164,61 @@ class _AuthGateState extends State<AuthGate> {
     unawaited(push.emitInitialMessage());
   }
 
+  void _consumePendingWebPushIntent() {
+    if (!kIsWeb) return;
+    final params = Uri.base.queryParameters;
+    final kind = params['push_kind'] ?? params['pushKind'];
+    if (kind == null || kind.isEmpty) return;
+
+    final data = <String, dynamic>{
+      'kind': kind,
+      if ((params['reflection_id'] ?? params['reflectionId']) != null)
+        'reflection_id': params['reflection_id'] ?? params['reflectionId'],
+      if ((params['sender_id'] ?? params['senderId']) != null)
+        'sender_id': params['sender_id'] ?? params['senderId'],
+      if ((params['client_event_id'] ?? params['clientEventId']) != null)
+        'client_event_id':
+            params['client_event_id'] ?? params['clientEventId'],
+    };
+
+    replaceUrlWithoutQuery();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _handlePushNavigation(data);
+    });
+  }
+
+  String _pushNavigationKey(Map<String, dynamic> data) {
+    final kind = (data['kind'] ?? data['type'] ?? 'unknown').toString();
+    final detail =
+        data['reflectionId'] ??
+        data['reflection_id'] ??
+        data['sender_id'] ??
+        data['client_event_id'] ??
+        '';
+    return '$kind:$detail';
+  }
+
   void _handlePushNavigation(Map<String, dynamic> data) {
     final kind = data['kind'] ?? data['type'];
+    final navigationKey = _pushNavigationKey(data);
+    if (_handledPushNavigationKeys.contains(navigationKey)) {
+      return;
+    }
+    _handledPushNavigationKeys.add(navigationKey);
+    while (_handledPushNavigationKeys.length > 24) {
+      _handledPushNavigationKeys.remove(_handledPushNavigationKeys.first);
+    }
+
     final reflectionId = data['reflectionId'] ?? data['reflection_id'];
+    final nav = _rootNavigatorKey.currentState;
+    if (nav == null) return;
+
     if (kind == 'decan_reflection' &&
         reflectionId is String &&
         reflectionId.isNotEmpty) {
       final uid = supabase.auth.currentUser?.id;
       if (uid == null) return;
-      final nav = _rootNavigatorKey.currentState;
-      if (nav == null) return;
       nav.push(
         MaterialPageRoute(
           builder: (_) => ProfilePage(userId: uid, isMyProfile: true),
@@ -1182,6 +1229,11 @@ class _AuthGateState extends State<AuthGate> {
           builder: (_) => DecanReflectionDetailPage(reflectionId: reflectionId),
         ),
       );
+      return;
+    }
+
+    if (kind == 'dm') {
+      nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
     }
   }
 }

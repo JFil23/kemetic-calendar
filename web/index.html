@@ -54,6 +54,69 @@
   </style>
 
   <script>
+    (function () {
+      if (!('serviceWorker' in navigator) || !('caches' in window)) {
+        window.__kemeticPwaBootstrapReady = Promise.resolve(false);
+        return;
+      }
+
+      const reloadKey = 'kemetic.pwa.rootSwReset.v1';
+      const flutterCacheNames = [
+        'flutter-app-manifest',
+        'flutter-temp-cache',
+        'flutter-app-cache',
+      ];
+
+      async function clearStaleFlutterCaching() {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          let removedRootFlutterWorker = false;
+
+          for (const registration of registrations) {
+            const scriptUrls = [
+              registration.active?.scriptURL,
+              registration.waiting?.scriptURL,
+              registration.installing?.scriptURL,
+            ].filter(Boolean);
+
+            const isFlutterAppShellWorker = scriptUrls.some((url) =>
+              url.includes('/flutter_service_worker.js'),
+            );
+            if (!isFlutterAppShellWorker) {
+              continue;
+            }
+
+            await registration.unregister();
+            removedRootFlutterWorker = true;
+          }
+
+          await Promise.all(
+            flutterCacheNames.map((name) => caches.delete(name).catch(() => false)),
+          );
+
+          if (
+            removedRootFlutterWorker &&
+            sessionStorage.getItem(reloadKey) !== '1'
+          ) {
+            sessionStorage.setItem(reloadKey, '1');
+            const nextUrl = new URL(window.location.href);
+            nextUrl.searchParams.set('_sw_reset', Date.now().toString());
+            window.location.replace(nextUrl.toString());
+            return true;
+          }
+
+          sessionStorage.removeItem(reloadKey);
+          return false;
+        } catch (error) {
+          console.warn('[pwa] stale flutter service worker cleanup failed', error);
+          return false;
+        }
+      }
+
+      window.__kemeticPwaBootstrapReady = clearStaleFlutterCaching();
+    })();
+  </script>
+  <script>
     // iOS PWA: gently "nudge" layout like a fake rotate to ensure correct glass-pane metrics
     (function () {
       const isIOS = /iphone|ipod|ipad/i.test(navigator.userAgent);
@@ -99,6 +162,24 @@
       }, { passive: true });
     })();
   </script>
+  <script>
+    (function () {
+      if (!('serviceWorker' in navigator)) return;
+
+      function registerFirebaseMessagingWorker() {
+        const workerUrl = new URL('firebase-messaging-sw.js', document.baseURI).toString();
+        const scopePath = new URL('firebase-cloud-messaging-push-scope', document.baseURI).pathname;
+
+        navigator.serviceWorker
+          .register(workerUrl, { scope: scopePath })
+          .catch((error) => {
+            console.warn('[push] firebase-messaging-sw registration failed', error);
+          });
+      }
+
+      window.addEventListener('load', registerFirebaseMessagingWorker, { once: true });
+    })();
+  </script>
 </head>
 <body>
 <script>
@@ -113,7 +194,16 @@
 <script src="install.js" defer></script>
 <script>
   // Cache-bust the bootstrap script to avoid stale service worker bundles after deploys
-  (function () {
+  (async function () {
+    try {
+      const redirectedForCleanup = await (window.__kemeticPwaBootstrapReady || Promise.resolve(false));
+      if (redirectedForCleanup) {
+        return;
+      }
+    } catch (_) {
+      // Best effort only; continue with app bootstrap.
+    }
+
     const cacheBuster = Date.now().toString();
     const s = document.createElement('script');
     s.src = 'flutter_bootstrap.js?v=' + cacheBuster;

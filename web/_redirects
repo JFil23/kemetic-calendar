@@ -1,0 +1,16 @@
+/assets/* /assets/:splat 200
+/canvaskit/* /canvaskit/:splat 200
+/icons/* /icons/:splat 200
+/.well-known/* /.well-known/:splat 200
+/env.json /env.json 200
+/env.example.json /env.example.json 200
+/favicon.png /favicon.png 200
+/flutter.js /flutter.js 200
+/flutter_bootstrap.js /flutter_bootstrap.js 200
+/flutter_service_worker.js /flutter_service_worker.js 200
+/firebase-messaging-sw.js /firebase-messaging-sw.js 200
+/install.js /install.js 200
+/main.dart.js /main.dart.js 200
+/manifest.json /manifest.json 200
+/version.json /version.json 200
+/* /index.html 200

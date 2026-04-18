@@ -107,9 +107,9 @@ class _SettingsPageState extends State<SettingsPage> {
           ? 'Requesting permission and linking this device for push alerts...'
           : 'Push alerts are off on this device.';
     });
-    await _save();
 
     if (!enabled) {
+      await _save();
       await push.unregister();
       if (!mounted) return;
       setState(() {
@@ -129,12 +129,15 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
 
     final success = token != null;
+    final failureMessage =
+        push.lastRegistrationError ??
+        'Push permission was denied, Firebase is not configured, or the device token could not be created.';
     setState(() {
       _requestingPush = false;
       _realTimeAlerts = success;
       _pushStatus = success
           ? 'Push alerts are enabled for this device.'
-          : 'Push permission was denied, Firebase is not configured, or the device token could not be created.';
+          : failureMessage;
     });
     await _save();
     await _refreshPushDiagnostics();
@@ -144,7 +147,7 @@ class _SettingsPageState extends State<SettingsPage> {
         content: Text(
           success
               ? 'Push alerts enabled on this device.'
-              : 'Push alerts could not be enabled on this device.',
+              : failureMessage,
         ),
         backgroundColor: success ? Colors.green.shade700 : Colors.red.shade700,
       ),

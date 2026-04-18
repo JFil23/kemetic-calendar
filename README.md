@@ -32,6 +32,13 @@ scripts/verify_env.sh
 scripts/verify_env.sh env/prod.json
 ```
 
+For web/Cloudflare builds, `scripts/build_web_release.sh` will accept either:
+
+- `SUPABASE_URL` and `SUPABASE_ANON_KEY` from the shell/CI environment, or
+- a JSON env file passed as the first argument, such as `env/prod.json`
+
+It also writes the final runtime `env.json`, `_headers`, `_redirects`, and `.well-known` files into `build/web`.
+
 Validate release identity and Firebase/deep-link alignment before submission:
 
 ```bash
@@ -55,6 +62,7 @@ Use the shared dart-define files so mobile builds receive the expected Supabase 
 cd mobile
 flutter build apk --release --dart-define-from-file=env/prod.json
 flutter build ipa --dart-define-from-file=env/prod.json
+scripts/build_web_release.sh env/prod.json
 ```
 
 The iOS helper script wraps the same production defines:
@@ -88,4 +96,7 @@ The `storeFile` value in `android/key.properties` should point to your local upl
 
 - Keep `kemet.app://login-callback` allowlisted in Supabase auth redirects.
 - Keep `maat.app/.well-known/assetlinks.json` and `maat.app/.well-known/apple-app-site-association` live for Android App Links and iOS Universal Links.
+- `scripts/deploy_cloudflare_pages.sh` can direct-upload `build/web` to Cloudflare Pages with `CLOUDFLARE_PAGES_PROJECT=<project>`.
+- Cloudflare Pages builds need `SUPABASE_URL` and `SUPABASE_ANON_KEY` configured in the build environment if you are not providing an env JSON file locally.
+- Android `assetlinks.json` still depends on the final Android `applicationId` and release keystore SHA-256 fingerprint, so that file cannot be generated correctly while `com.example.mobile` is still in use.
 - Commit example env files only; keep real env JSON files and production secrets out of git.

@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "LMKLY8MR2X.com.jaralephillips.hawcalendar",
+        "paths": [
+          "/share/*",
+          "/f/*"
+        ]
+      }
+    ]
+  }
+}
