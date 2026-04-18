@@ -17,7 +17,6 @@ import '../utils/event_cid_util.dart';
 class InboxRepo {
   final SupabaseClient _client;
   final ShareRepo _shareRepo;
-  int? _cachedDmPlaceholderFlowId;
 
   InboxRepo(this._client) : _shareRepo = ShareRepo(_client);
 
@@ -188,26 +187,18 @@ class InboxRepo {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return null;
 
-    final dmFlowId = await _ensureDmPlaceholderFlow(senderId);
-
-    final payload = {
-      'type': 'message',
-      'text': trimmed,
-      'name': trimmed, // keeps inbox title consistent
-    };
-
     try {
-      // We don't need to parse the insert response; the realtime stream will deliver the inbox view.
-      await _client.from('flow_shares').insert({
-        'flow_id': dmFlowId,
-        'sender_id': senderId,
-        'recipient_id': recipientId,
-        'channel': 'in_app',
-        'status': 'sent',
-        'payload_json': payload,
-      });
-      // Fire-and-forget push notification for DM
-      unawaited(_sendDmPush(recipientId, trimmed));
+      final response = await _client.functions.invoke(
+        'send_dm_message',
+        body: {'recipientId': recipientId, 'text': trimmed},
+      );
+      if (response.status >= 400) {
+        final body = response.data;
+        final message = body is Map<String, dynamic>
+            ? (body['error'] ?? body['message'])?.toString()
+            : body?.toString();
+        throw Exception(message ?? 'HTTP ${response.status}');
+      }
       return null;
     } catch (e, st) {
       if (kDebugMode) {
@@ -215,95 +206,6 @@ class InboxRepo {
         debugPrint('$st');
       }
       rethrow;
-    }
-  }
-
-  Future<int> _ensureDmPlaceholderFlow(String userId) async {
-    if (_cachedDmPlaceholderFlowId != null) {
-      return _cachedDmPlaceholderFlowId!;
-    }
-
-    try {
-      final existing = await _client
-          .from('flows')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('notes', '__dm_placeholder__')
-          .limit(1)
-          .maybeSingle();
-
-      final existingId = (existing?['id'] as num?)?.toInt();
-      if (existingId != null) {
-        _cachedDmPlaceholderFlowId = existingId;
-        return existingId;
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[InboxRepo] lookup dm placeholder failed: $e');
-      }
-    }
-
-    final inserted = await _client
-        .from('flows')
-        .insert({
-          'user_id': userId,
-          'name': 'DM Messages',
-          'color': 0,
-          'active': false,
-          'rules': [],
-          'notes': '__dm_placeholder__',
-          'ai_metadata': {'dm_placeholder': true},
-        })
-        .select('id')
-        .single();
-
-    final id = (inserted['id'] as num).toInt();
-    _cachedDmPlaceholderFlowId = id;
-    return id;
-  }
-
-  Future<void> _sendDmPush(String recipientId, String text) async {
-    final senderId = currentUserId;
-    if (senderId == null || senderId == recipientId) return;
-
-    try {
-      if (kDebugMode) {
-        debugPrint(
-          '[push][dm] invoking send_push via shared Supabase client; sender=$senderId recipient=$recipientId',
-        );
-      }
-
-      final profile = await _client
-          .from('profiles')
-          .select('display_name, handle')
-          .eq('id', senderId)
-          .maybeSingle();
-
-      final displayName = (profile?['display_name'] as String?)?.trim();
-      final handle = (profile?['handle'] as String?)?.trim();
-      final senderLabel = (displayName?.isNotEmpty ?? false)
-          ? displayName!
-          : (handle?.isNotEmpty ?? false)
-          ? '@$handle'
-          : 'Someone';
-      final preview = text.length > 120 ? '${text.substring(0, 120)}...' : text;
-
-      await _client.functions.invoke(
-        'send_push',
-        body: {
-          'userIds': [recipientId],
-          'notification': {
-            'title': 'New message from $senderLabel',
-            'body': preview,
-          },
-          'data': {'type': 'dm', 'sender_id': senderId},
-        },
-      );
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('[InboxRepo] _sendDmPush failed: $e');
-        debugPrint('$st');
-      }
     }
   }
 

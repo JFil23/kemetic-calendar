@@ -29,7 +29,7 @@ function normalizeKemeticWebPushPayload(payload) {
   const data = payload.data || {};
   return {
     title: notification.title || data.title || 'Kemetic Calendar',
-    body: notification.body || data.body || '',
+    body: notification.body || data.body || 'Tap to open in Kemetic.',
     tag: data.kind || data.type || 'kemetic-calendar',
     url: resolveTargetUrl({ data }),
     data,

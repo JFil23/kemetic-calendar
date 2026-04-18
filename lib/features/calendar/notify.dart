@@ -62,6 +62,120 @@ class Notify {
     }
   }
 
+  static String _stripMetadataPrefixes(String raw) {
+    var text = raw.trim();
+    final colorOrAlertPrefix = RegExp(
+      r'^(?:color=[0-9a-fA-FxX]+;|alert=[-+]?\d+;)',
+    );
+    while (text.isNotEmpty) {
+      if (text.startsWith('flowLocalId=')) {
+        final semi = text.indexOf(';');
+        text = (semi >= 0 && semi < text.length - 1)
+            ? text.substring(semi + 1).trimLeft()
+            : '';
+        continue;
+      }
+      if (text.startsWith('repeat=')) {
+        final semi = text.indexOf(';');
+        text = (semi >= 0 && semi < text.length - 1)
+            ? text.substring(semi + 1).trimLeft()
+            : '';
+        continue;
+      }
+      final match = colorOrAlertPrefix.firstMatch(text);
+      if (match == null) break;
+      text = text.substring(match.end).trimLeft();
+    }
+    return text.trim();
+  }
+
+  static String? _sanitizeNotificationBody(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+
+    final cidRegex = RegExp(
+      r'^(kemet_cid:)?ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
+      caseSensitive: false,
+    );
+    final kept = <String>[];
+
+    for (final line in raw.split(RegExp(r'\r?\n'))) {
+      final cleaned = _stripMetadataPrefixes(line);
+      if (cleaned.isEmpty) continue;
+
+      final lowered = cleaned.toLowerCase();
+      final collapsed = cleaned.replaceAll(RegExp(r'\s+'), '');
+      if (lowered.startsWith('kemet_cid:') ||
+          lowered.startsWith('kemetic_cid:') ||
+          lowered.startsWith('reminder:') ||
+          cidRegex.hasMatch(collapsed.toLowerCase())) {
+        continue;
+      }
+
+      kept.add(cleaned);
+    }
+
+    if (kept.isEmpty) return null;
+    final result = kept.join('\n').trim();
+    return result.isEmpty ? null : result;
+  }
+
+  static String _sanitizeNotificationTitle(String raw) {
+    final sanitized = _sanitizeNotificationBody(raw);
+    if (sanitized == null || sanitized.isEmpty) {
+      return raw.trim();
+    }
+    return sanitized.replaceAll(RegExp(r'\s*\n\s*'), ' ').trim();
+  }
+
+  static String _fallbackNotificationBody() => 'Tap to open in Kemetic.';
+
+  static Future<String?> _lookupEventTitle(String clientEventId) async {
+    if (clientEventId.isEmpty) return null;
+    try {
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+      if (userId == null) return null;
+
+      final row = await client
+          .from('user_events')
+          .select('title')
+          .eq('user_id', userId)
+          .eq('client_event_id', clientEventId)
+          .maybeSingle();
+      final title = (row?['title'] as String?)?.trim();
+      if (title == null || title.isEmpty) return null;
+      final sanitized = _sanitizeNotificationTitle(title);
+      return sanitized.isEmpty ? title : sanitized;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<String> _resolveNotificationTitle({
+    required String clientEventId,
+    String? preferredTitle,
+    String? fallbackTitle,
+  }) async {
+    final preferred = _sanitizeNotificationTitle(preferredTitle ?? '');
+    if (preferred.isNotEmpty) return preferred;
+
+    final fallback = _sanitizeNotificationTitle(fallbackTitle ?? '');
+    if (fallback.isNotEmpty) return fallback;
+
+    final lookedUp = await _lookupEventTitle(clientEventId);
+    if (lookedUp != null && lookedUp.isNotEmpty) return lookedUp;
+
+    return 'Reminder';
+  }
+
+  static String _resolveNotificationBody({String? preferredBody}) {
+    final sanitized = _sanitizeNotificationBody(preferredBody);
+    if (sanitized != null && sanitized.isNotEmpty) {
+      return sanitized;
+    }
+    return _fallbackNotificationBody();
+  }
+
   /// Call once at app startup (e.g., from main()).
   static Future<void> init() async {
     if (_inited) {
@@ -293,6 +407,12 @@ class Notify {
         clientEventId,
         type: type,
       );
+      final sanitizedTitle = await _resolveNotificationTitle(
+        clientEventId: clientEventId,
+        preferredTitle: title,
+        fallbackTitle: existing?['title'] as String?,
+      );
+      final sanitizedBody = _resolveNotificationBody(preferredBody: body);
       if (existing != null) {
         _log(
           'Updating existing notification $notificationId for event $clientEventId',
@@ -309,8 +429,8 @@ class Notify {
       await _scheduleLocalNotification(
         id: notificationId,
         scheduledAt: safeWhen,
-        title: title,
-        body: body,
+        title: sanitizedTitle,
+        body: sanitizedBody,
         payload: payload ?? '{}',
       );
 
@@ -319,8 +439,8 @@ class Notify {
         clientEventId: clientEventId,
         notificationId: notificationId,
         scheduledAt: safeWhen,
-        title: title,
-        body: body,
+        title: sanitizedTitle,
+        body: sanitizedBody,
         payload: payload ?? '{}',
         type: type,
       );
@@ -506,13 +626,19 @@ class Notify {
 
           // Only reschedule future notifications
           if (scheduledAt.isAfter(now)) {
+            final resolvedTitle = await _resolveNotificationTitle(
+              clientEventId: clientEventId,
+              preferredTitle: notif['title'] as String?,
+            );
             await _scheduleLocalNotification(
               id:
                   notificationId ??
                   _generateStableNotificationId(clientEventId),
               scheduledAt: scheduledAt,
-              title: notif['title'] as String,
-              body: notif['body'] as String?,
+              title: resolvedTitle,
+              body: _resolveNotificationBody(
+                preferredBody: notif['body'] as String?,
+              ),
               payload: notif['payload'] as String? ?? '{}',
             );
             rescheduled++;

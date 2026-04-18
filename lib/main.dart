@@ -17,6 +17,8 @@ import 'features/calendar/ics_preview_card.dart';
 import 'utils/ics_parser.dart';
 import 'features/sharing/share_preview_page.dart';
 import 'features/inbox/inbox_page.dart';
+import 'features/inbox/inbox_conversation_page.dart';
+import 'features/inbox/conversation_user.dart';
 import 'utils/event_cid_util.dart';
 import 'telemetry/telemetry.dart';
 import 'shared/glossy_text.dart';
@@ -1064,7 +1066,10 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<void> _signInWithGoogle() async {
     final redirect = kIsWeb
-        ? Uri.base.removeFragment().replace(queryParameters: const {}).toString()
+        ? Uri.base
+              .removeFragment()
+              .replace(queryParameters: const {})
+              .toString()
         : 'kemet.app://login-callback';
     try {
       if (kIsWeb) {
@@ -1177,8 +1182,7 @@ class _AuthGateState extends State<AuthGate> {
       if ((params['sender_id'] ?? params['senderId']) != null)
         'sender_id': params['sender_id'] ?? params['senderId'],
       if ((params['client_event_id'] ?? params['clientEventId']) != null)
-        'client_event_id':
-            params['client_event_id'] ?? params['clientEventId'],
+        'client_event_id': params['client_event_id'] ?? params['clientEventId'],
     };
 
     replaceUrlWithoutQuery();
@@ -1233,6 +1237,39 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (kind == 'dm') {
+      final senderId = (data['sender_id'] ?? data['senderId'])?.toString();
+      if (senderId != null && senderId.isNotEmpty) {
+        unawaited(_openDmConversation(nav, senderId));
+        return;
+      }
+      nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+    }
+  }
+
+  Future<void> _openDmConversation(NavigatorState nav, String senderId) async {
+    try {
+      final profile = await supabase
+          .from('profiles')
+          .select('id, display_name, handle, avatar_url')
+          .eq('id', senderId)
+          .maybeSingle();
+
+      final otherProfile = ConversationUser(
+        id: senderId,
+        displayName: (profile?['display_name'] as String?)?.trim(),
+        handle: (profile?['handle'] as String?)?.trim(),
+        avatarUrl: (profile?['avatar_url'] as String?)?.trim(),
+      );
+
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => InboxConversationPage(
+            otherUserId: senderId,
+            otherProfile: otherProfile,
+          ),
+        ),
+      );
+    } catch (_) {
       nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
     }
   }

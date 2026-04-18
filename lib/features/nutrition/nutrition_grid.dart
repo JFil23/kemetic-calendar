@@ -140,7 +140,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     });
   }
 
-  // Utility to compare schedules for equality (mode + days + time)
+  // Utility to compare schedules for equality (mode + days + time + alert)
   bool _schedulesMatch(IntakeSchedule a, IntakeSchedule b) {
     if (a.mode != b.mode) return false;
     final sameDays = a.mode == IntakeMode.weekday
@@ -148,7 +148,8 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
         : setEquals(a.decanDays, b.decanDays);
     final sameTime =
         a.time.hour == b.time.hour && a.time.minute == b.time.minute;
-    return sameDays && sameTime;
+    final sameAlert = a.alertOffset?.inMinutes == b.alertOffset?.inMinutes;
+    return sameDays && sameTime && sameAlert;
   }
 
   NutritionReminderIntent _buildReminderIntent(
@@ -182,6 +183,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       decanDays: isWeekday ? <int>{} : Set<int>.from(schedule.decanDays),
       timeOfDay: schedule.time,
       repeat: schedule.repeat,
+      alertOffsetMinutes: schedule.alertOffset?.inMinutes ?? -1,
     );
   }
 

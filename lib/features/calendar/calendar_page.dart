@@ -2766,6 +2766,7 @@ class NutritionReminderIntent {
   final Set<int> decanDays; // 1-10 for decan days
   final TimeOfDay timeOfDay;
   final bool repeat;
+  final int alertOffsetMinutes;
 
   const NutritionReminderIntent({
     required this.itemId,
@@ -2776,6 +2777,7 @@ class NutritionReminderIntent {
     required this.decanDays,
     required this.timeOfDay,
     required this.repeat,
+    this.alertOffsetMinutes = _alertNoneMinutes,
   });
 }
 
@@ -5571,6 +5573,7 @@ class _CalendarPageState extends State<CalendarPage>
       category: 'nutrition',
       active: true,
       repeat: repeat,
+      alertOffsetMinutes: intent.alertOffsetMinutes,
     );
 
     await _upsertReminderRule(rule, refresh: true);
@@ -6357,7 +6360,7 @@ class _CalendarPageState extends State<CalendarPage>
     String? category = existing?.category;
     ReminderRepeat repeat = existing?.repeat ?? const ReminderRepeat();
     bool active = existing?.active ?? true;
-    int alertMinutesBefore = existing?.alertOffsetMinutes ?? 0;
+    int alertMinutesBefore = existing?.alertOffsetMinutes ?? _alertNoneMinutes;
 
     if (!mounted) {
       return false;
@@ -8353,7 +8356,7 @@ class _CalendarPageState extends State<CalendarPage>
         reminderNote = _Note(
           id: updated.id?.trim(),
           clientEventId: updated.clientEventId?.trim(),
-          title: updated.title,
+          title: updated.title.trim().isNotEmpty ? updated.title : evt.title,
           detail: cleanedDetail,
           location: updated.location,
           allDay: updated.allDay,
@@ -8426,11 +8429,16 @@ class _CalendarPageState extends State<CalendarPage>
       if (updated.clientEventId != null && updated.clientEventId!.isNotEmpty) {
         await Notify.cancelNotificationForEvent(updated.clientEventId!);
         if (alertLocal != null) {
+          final bodyLines = <String>[
+            if ((updated.location ?? '').trim().isNotEmpty)
+              updated.location!.trim(),
+            if (cleanedDetail.isNotEmpty) cleanedDetail,
+          ];
           await Notify.scheduleAlertWithPersistence(
             clientEventId: updated.clientEventId!,
             scheduledAt: alertLocal,
-            title: updated.title,
-            body: updated.detail ?? '',
+            title: reminderNote.title,
+            body: bodyLines.isEmpty ? null : bodyLines.join('\n'),
             payload: '{}',
           );
         }
@@ -13832,9 +13840,10 @@ class _CalendarPageState extends State<CalendarPage>
     final effectiveMinutes = _effectiveAlertMinutes(note.alertOffsetMinutes);
     if (alertAtLocal == null || effectiveMinutes == null) return;
 
+    final cleanedDetail = _cleanDetail(note.detail);
     final bodyLines = <String>[
       if ((note.location ?? '').trim().isNotEmpty) note.location!.trim(),
-      if ((note.detail ?? '').trim().isNotEmpty) note.detail!.trim(),
+      if (cleanedDetail.isNotEmpty) cleanedDetail,
     ];
     final body = bodyLines.isEmpty ? null : bodyLines.join('\n');
 
@@ -13852,7 +13861,7 @@ class _CalendarPageState extends State<CalendarPage>
         id: reminderId,
         eventId: eventId,
         title: note.title,
-        detail: note.detail,
+        detail: cleanedDetail.isEmpty ? null : cleanedDetail,
         alertAtUtc: alertAtLocal.toUtc(),
         flowId: note.flowId?.toString(),
         createdAt: DateTime.now().toUtc(),
@@ -17698,8 +17707,17 @@ class _DayChip extends StatelessWidget {
 
   String _cleanDetail(String? raw) {
     if (raw == null || raw.isEmpty) return '';
-    var detail = raw;
+    final decoded = _decodeDetailMetadata(raw);
+    var detail = decoded.detail ?? '';
     if (detail.startsWith('flowLocalId=')) {
+      final semi = detail.indexOf(';');
+      if (semi > 0 && semi < detail.length - 1) {
+        detail = detail.substring(semi + 1).trim();
+      } else {
+        return '';
+      }
+    }
+    if (detail.startsWith('repeat=')) {
       final semi = detail.indexOf(';');
       if (semi > 0 && semi < detail.length - 1) {
         detail = detail.substring(semi + 1).trim();
