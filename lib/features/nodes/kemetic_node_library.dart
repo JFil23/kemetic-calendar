@@ -936,14 +936,30 @@ Its repetition on stelae shows how memory and sustenance are joined in Maʿat.''
   KemeticNode(
     id: 'shemu',
     title: 'Shemu',
-    glyph: '𓇯',
+    glyph: '𓇓',
+    aliases: ['Season of Completion'],
     body: '''
-Shemu is the dry season of harvest and transport.
-Work shifts to gathering, preserving, and carrying what inundation and growth provided.
-The season teaches balance under heat and the discipline of circulation.''',
+Shemu is the season of completion.
+
+Water is gone. Growth has matured.
+
+Crops are cut, gathered, and stored.
+
+What began in Akhet and grew in Peret is now taken.
+
+Nothing is left in the field indefinitely.
+
+Completion requires removal.
+
+Shemu defines a continuous condition:
+• what grows must be harvested
+• what is harvested must be collected
+• what is collected sustains what comes next
+
+Where this is maintained, continuity is secured. Where it is not, loss occurs.''',
     linkMap: const [
-      KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
-      KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
+      KemeticNodeLink(phrase: 'Akhet', targetId: 'akhet'),
+      KemeticNodeLink(phrase: 'Peret', targetId: 'peret'),
     ],
   ),
   KemeticNode(
@@ -1136,6 +1152,358 @@ Customized papyri show personal engagement with Maʿat and the Duat.''',
       KemeticNodeLink(phrase: 'Coffin Texts', targetId: 'coffin_texts'),
       KemeticNodeLink(phrase: 'Pyramid Texts', targetId: 'pyramid_texts'),
       KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
+    ],
+  ),
+  KemeticNode(
+    id: 'palermo_stone',
+    title: 'Palermo Stone',
+    glyph: '𓏏𓏤𓏤𓏤 𓂋𓈖𓏏',
+    aliases: ['Royal Annals'],
+    body: '''
+Unlike the Wadi el-Jarf Papyri, the Palermo Stone records time as a sequence of contained years.
+
+Each register is divided into compartments, each compartment holding what occurred within a single year.
+
+The divisions are not narrative—they are structural. Each year is treated as a complete unit.
+
+Vertical markers separate one year from the next. Events are placed inside these boundaries:
+
+* kingship actions
+* rituals
+* foundations
+* measurements of the Nile
+
+At the base of each year, the height of the inundation is recorded.
+
+Time is not described. It is measured, bounded, and preserved.
+
+In some entries, a single Regnal Year is divided between two rulers:
+
+months and days are assigned
+the total does not exceed the year
+
+What is recorded does not spill over. Each year remains complete.
+
+The Nile rises once per compartment. The cycle does not repeat inside the same boundary.
+
+Time is treated as fixed, divisible, and repeatable.
+
+The Palermo Stone defines a continuous condition:
+• what occurs must be placed within its year
+• what is placed must remain contained
+• what is contained becomes record
+
+Where this is maintained, continuity can be preserved. Where it is not, sequence breaks.''',
+    linkMap: const [
+      KemeticNodeLink(
+        phrase: 'Wadi el-Jarf Papyri',
+        targetId: 'wadi_el_jarf_papyri',
+      ),
+      KemeticNodeLink(phrase: 'Nile', targetId: 'nile'),
+      KemeticNodeLink(phrase: 'Regnal Year', targetId: 'regnal_year'),
+    ],
+  ),
+  KemeticNode(
+    id: 'wadi_el_jarf_papyri',
+    title: 'Wadi el-Jarf Papyri (Diary of Merer)',
+    glyph: '𓏞 𓂋𓐍𓏤𓂋𓏏 𓏛',
+    aliases: ['Wadi el-Jarf Papyri', 'Diary of Merer'],
+    body: '''
+Unlike the Palermo Stone, the papyri record time as it is lived.
+
+Each entry marks a day:
+
+movement of stone
+travel by boat
+loading and unloading
+arrival and departure
+
+Dates are written in sequence under the Regnal Year:
+
+year
+season
+month
+day
+
+Work does not exist outside of time. It is organized within it.
+
+Entries follow one another without interruption. Days accumulate into months. Months into seasons such as Akhet, Peret, and Shemu.
+
+The cycle appears through repetition:
+
+ten-day groupings
+movement aligned to Nile water levels
+labor structured by return and departure
+
+Nothing here is theoretical. Time is used.
+
+“Hauled stone for Akhet-Khufu.”
+
+The name of the project appears inside the record of the day.
+
+The papyri define a continuous condition:
+• what is done must be dated
+• what is dated must follow sequence
+• what follows sequence becomes accountable
+
+Where this is maintained, work aligns with order. Where it is not, activity loses structure.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Palermo Stone', targetId: 'palermo_stone'),
+      KemeticNodeLink(phrase: 'Regnal Year', targetId: 'regnal_year'),
+      KemeticNodeLink(phrase: 'Akhet', targetId: 'akhet'),
+      KemeticNodeLink(phrase: 'Peret', targetId: 'peret'),
+      KemeticNodeLink(phrase: 'Shemu', targetId: 'shemu'),
+      KemeticNodeLink(phrase: 'Nile', targetId: 'nile'),
+    ],
+  ),
+  KemeticNode(
+    id: 'false_door',
+    title: 'False Door',
+    glyph: '𓉐𓊹',
+    body: '''
+The false door is placed in the tomb as a fixed point of passage.
+
+It does not open physically. It marks where exchange occurs.
+
+Offerings are presented before it:
+
+bread
+beer
+meat
+incense
+
+The name of the deceased is written above and around it.
+
+“An offering which the king gives…”
+
+The Offering Formula is repeated. It does not change.
+
+The Ka does not move outward. Offerings are directed inward.
+
+The door is not crossed. It is addressed.
+
+Time enters through repetition:
+
+festival days
+monthly rites
+seasonal returns
+
+What is given is received through this point.
+
+The false door defines a continuous condition:
+• what is offered must be directed
+• what is directed must be named
+• what is named can receive
+
+Where this is maintained, sustenance continues. Where it is not, provision stops.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'name', targetId: 'ren'),
+      KemeticNodeLink(phrase: 'Offering Formula', targetId: 'offering_formula'),
+      KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
+    ],
+  ),
+  KemeticNode(
+    id: 'architrave',
+    title: 'Architrave',
+    glyph: '𓉐𓇯',
+    body: '''
+The architrave carries inscription across the entrance.
+
+Like the False Door, it marks transition from outside to inside.
+
+Names, titles, and offering formulas are placed above the threshold.
+
+They are read before passage occurs.
+
+What is written here is not hidden. It is encountered directly.
+
+The placement fixes identity at the point of entry.
+
+Nothing passes without recognition.
+
+The architrave defines a continuous condition:
+• what is entered must be marked
+• what is marked must be read
+• what is read establishes presence
+
+Where this is maintained, identity holds at the boundary. Where it is not, passage loses definition.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'False Door', targetId: 'false_door'),
+      KemeticNodeLink(phrase: 'Names', targetId: 'ren'),
+      KemeticNodeLink(
+        phrase: 'offering formulas',
+        targetId: 'offering_formula',
+      ),
+    ],
+  ),
+  KemeticNode(
+    id: 'wp_rnpt',
+    title: 'wp rnpt (Opening of the Year)',
+    glyph: '𓅱𓊪 𓂋𓈖𓏏',
+    aliases: ['wp rnpt', 'Opening of the Year', 'Wp Rnpt'],
+    body: '''
+wp rnpt marks the beginning.
+
+It is not the first moment of time—it is the moment time is recognized again.
+
+After the Epagomenal Days, the year does not start arbitrarily. It is aligned with return:
+
+the rising of Sopdet
+the coming of the Nile flood in Akhet
+
+Feasts are tied to this point.
+
+Offerings are renewed. Cycles are re-established.
+
+What has passed is not erased. It is reset into sequence.
+
+wp rnpt defines a continuous condition:
+• what returns must be recognized
+• what is recognized must be marked
+• what is marked begins again
+
+Where this is maintained, cycles restart in alignment. Where it is not, time loses its beginning.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Epagomenal Days', targetId: 'epagomenal_days'),
+      KemeticNodeLink(phrase: 'Sopdet', targetId: 'sopdet'),
+      KemeticNodeLink(phrase: 'Nile', targetId: 'nile'),
+      KemeticNodeLink(phrase: 'Akhet', targetId: 'akhet'),
+    ],
+  ),
+  KemeticNode(
+    id: 'akhet',
+    title: 'Akhet',
+    glyph: '𓇉',
+    aliases: ['Season of Inundation'],
+    body: '''
+Akhet is the season of inundation.
+
+Water rises. Fields disappear. Boundaries are covered.
+
+The land cannot be worked. It must receive.
+
+The Nile flood does not ask. It arrives.
+
+Everything depends on its height.
+
+Akhet is not growth. It is preparation.
+
+wp rnpt marks this return.
+
+What is submerged is not lost. It is being set.
+
+Peret follows when the water withdraws.
+
+Akhet defines a continuous condition:
+• what sustains must arrive
+• what arrives must cover
+• what is covered prepares what follows
+
+Where this is maintained, growth becomes possible. Where it is not, nothing begins.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Nile', targetId: 'nile'),
+      KemeticNodeLink(phrase: 'wp rnpt', targetId: 'wp_rnpt'),
+      KemeticNodeLink(phrase: 'Peret', targetId: 'peret'),
+    ],
+  ),
+  KemeticNode(
+    id: 'peret',
+    title: 'Peret',
+    glyph: '𓇾',
+    aliases: ['Season of Emergence'],
+    body: '''
+Peret follows the withdrawal.
+
+Water recedes. Land emerges.
+
+Fields are visible again. Work begins.
+
+Seeds are placed into what Akhet prepared.
+
+Growth does not occur without prior inundation from the Nile.
+
+What was hidden becomes usable.
+
+Shemu follows when that growth reaches completion.
+
+Peret defines a continuous condition:
+• what emerges must be worked
+• what is worked must be planted
+• what is planted begins to grow
+
+Where this is maintained, development proceeds. Where it is not, potential remains unused.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Akhet', targetId: 'akhet'),
+      KemeticNodeLink(phrase: 'Nile', targetId: 'nile'),
+      KemeticNodeLink(phrase: 'Shemu', targetId: 'shemu'),
+    ],
+  ),
+  KemeticNode(
+    id: 'epagomenal_days',
+    title: 'Epagomenal Days',
+    glyph: '𓇋𓏏𓊖 𓏤𓏤𓏤𓏤𓏤',
+    aliases: ['Five Days Outside the Year'],
+    body: '''
+Five days stand outside the twelve months.
+
+They are added at the end of the year.
+
+They do not belong to any month. They are placed after completion.
+
+These days mark transition.
+
+Later tradition associates them with births of netjeru.
+
+They exist between cycles, after Shemu and before Akhet begins again.
+
+The year is complete, but wp rnpt has not begun.
+
+The epagomenal days define a continuous condition:
+• what is complete must be closed
+• what is closed must transition
+• what transitions prepares the next cycle
+
+Where this is maintained, time moves cleanly forward. Where it is not, sequence blurs.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Shemu', targetId: 'shemu'),
+      KemeticNodeLink(phrase: 'Akhet', targetId: 'akhet'),
+      KemeticNodeLink(phrase: 'wp rnpt', targetId: 'wp_rnpt'),
+    ],
+  ),
+  KemeticNode(
+    id: 'regnal_year',
+    title: 'Regnal Year',
+    glyph: '𓂋𓈖𓏏',
+    aliases: ['Regnal Count'],
+    body: '''
+Time is counted through the reign of the king.
+
+Each year is numbered from accession.
+
+Year 1
+Year 2
+Year 3
+
+Events are placed within this count.
+
+The king anchors time.
+
+In records such as the Palermo Stone and the Wadi el-Jarf Papyri, work, taxation, ritual, and record align to this structure.
+
+The count continues until it ends. Then it resets.
+
+The regnal year defines a continuous condition:
+• what occurs must be counted
+• what is counted must be placed
+• what is placed defines sequence
+
+Where this is maintained, history holds. Where it is not, events lose position.''',
+    linkMap: const [
+      KemeticNodeLink(phrase: 'Palermo Stone', targetId: 'palermo_stone'),
+      KemeticNodeLink(
+        phrase: 'Wadi el-Jarf Papyri',
+        targetId: 'wadi_el_jarf_papyri',
+      ),
     ],
   ),
 ];
