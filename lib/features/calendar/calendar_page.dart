@@ -19843,7 +19843,7 @@ String _alertLabelFor(int? minutes) {
   return match.label;
 }
 
-Future<int?> _pickAlertMinutes(BuildContext context, int current) {
+Future<int?> _pickAlertMinutes(BuildContext context, int? current) {
   return showCupertinoModalPopup<int>(
     context: context,
     builder: (sheetCtx) {
@@ -19892,11 +19892,15 @@ class _NoteDraft {
   String? category;
   int alertMinutesBefore =
       _alertNoneMinutes; // -1 = none, null = legacy default
+  bool usesFlowAlertDefault = true;
 
-  _Note toNote() {
+  _Note toNote({required int flowAlertMinutesBefore}) {
     final t = titleCtrl.text.trim();
     final loc = locationCtrl.text.trim();
     final det = detailCtrl.text.trim();
+    final effectiveAlert = usesFlowAlertDefault
+        ? flowAlertMinutesBefore
+        : alertMinutesBefore;
     return _Note(
       title: t,
       location: loc.isEmpty ? null : loc,
@@ -19905,7 +19909,7 @@ class _NoteDraft {
       start: allDay ? null : start,
       end: allDay ? null : end,
       category: category,
-      alertOffsetMinutes: alertMinutesBefore,
+      alertOffsetMinutes: effectiveAlert,
     );
   }
 
@@ -19925,6 +19929,7 @@ class _DraftNoteData {
   final int? endMinutes; // null when all-day
   final String? category;
   final int alertMinutesBefore;
+  final bool usesFlowAlertDefault;
 
   const _DraftNoteData({
     required this.title,
@@ -19935,6 +19940,7 @@ class _DraftNoteData {
     required this.endMinutes,
     required this.category,
     required this.alertMinutesBefore,
+    required this.usesFlowAlertDefault,
   });
 
   factory _DraftNoteData.fromDraft(_NoteDraft draft) {
@@ -19951,6 +19957,7 @@ class _DraftNoteData {
           : draft.end!.hour * 60 + draft.end!.minute,
       category: draft.category,
       alertMinutesBefore: draft.alertMinutesBefore,
+      usesFlowAlertDefault: draft.usesFlowAlertDefault,
     );
   }
 
@@ -19975,6 +19982,7 @@ class _DraftNoteData {
     }
     d.category = category;
     d.alertMinutesBefore = alertMinutesBefore;
+    d.usesFlowAlertDefault = usesFlowAlertDefault;
     return d;
   }
 }
@@ -19997,6 +20005,8 @@ class _FlowStudioDraft {
   final Map<String, _DraftNoteData> draftsByPattern;
   final String overview;
   final bool isAIGeneratedFlow;
+  final int flowAlertMinutesBefore;
+  final bool flowAlertMixed;
 
   const _FlowStudioDraft({
     required this.editingFlowId,
@@ -20016,6 +20026,8 @@ class _FlowStudioDraft {
     required this.draftsByPattern,
     required this.overview,
     required this.isAIGeneratedFlow,
+    required this.flowAlertMinutesBefore,
+    required this.flowAlertMixed,
   });
 }
 
@@ -20171,6 +20183,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   final Map<String, _NoteDraft> _draftsByPattern =
       {}; // key: "DD-n" or "WD-wd" (repeat mode)
   final GlobalKey _editorsAnchorKey = GlobalKey();
+  int _flowAlertMinutesBefore = _alertNoneMinutes;
+  bool _flowAlertMixed = false;
 
   // analytics
   int _originalEventCount = 0; // Store count of AI-generated events
@@ -20225,6 +20239,65 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     final month = getMonthById(k.kMonth).displayFull;
     final y = _gregYearLabelFor(k.kYear, k.kMonth);
     return '$month ${k.kDay} • $y';
+  }
+
+  Iterable<_NoteDraft> _allDrafts() sync* {
+    for (final dayList in _draftsByDay.values) {
+      for (final draft in dayList) {
+        yield draft;
+      }
+    }
+    yield* _draftsByPattern.values;
+  }
+
+  _NoteDraft _newDraftUsingFlowAlertDefault() {
+    final draft = _NoteDraft();
+    draft.alertMinutesBefore = _flowAlertMinutesBefore;
+    draft.usesFlowAlertDefault = true;
+    return draft;
+  }
+
+  int _effectiveDraftAlertMinutes(_NoteDraft draft) {
+    return draft.usesFlowAlertDefault
+        ? _flowAlertMinutesBefore
+        : draft.alertMinutesBefore;
+  }
+
+  void _refreshFlowAlertMixedState() {
+    final drafts = _allDrafts().toList();
+    if (drafts.isEmpty) {
+      _flowAlertMixed = false;
+      return;
+    }
+    _flowAlertMixed = drafts.any(
+      (draft) => _effectiveDraftAlertMinutes(draft) != _flowAlertMinutesBefore,
+    );
+  }
+
+  void _initializeFlowAlertStateFromDrafts() {
+    final drafts = _allDrafts().toList();
+    if (drafts.isEmpty) {
+      _flowAlertMinutesBefore = _alertNoneMinutes;
+      _flowAlertMixed = false;
+      return;
+    }
+
+    final alertValues = drafts.map((draft) => draft.alertMinutesBefore).toSet();
+    if (alertValues.length == 1) {
+      _flowAlertMinutesBefore = alertValues.first;
+      _flowAlertMixed = false;
+      for (final draft in drafts) {
+        draft.usesFlowAlertDefault = true;
+        draft.alertMinutesBefore = _flowAlertMinutesBefore;
+      }
+      return;
+    }
+
+    _flowAlertMinutesBefore = drafts.first.alertMinutesBefore;
+    _flowAlertMixed = true;
+    for (final draft in drafts) {
+      draft.usesFlowAlertDefault = false;
+    }
   }
 
   int _daysInGregorianMonth(int year, int month) {
@@ -20305,6 +20378,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       draftsByPattern: cloneDraftsByPattern,
       overview: _overviewCtrl.text,
       isAIGeneratedFlow: _isAIGeneratedFlow,
+      flowAlertMinutesBefore: _flowAlertMinutesBefore,
+      flowAlertMixed: _flowAlertMixed,
     );
   }
 
@@ -20379,6 +20454,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
       _overviewCtrl.text = draft.overview;
       _isAIGeneratedFlow = draft.isAIGeneratedFlow;
+      _flowAlertMinutesBefore = draft.flowAlertMinutesBefore;
+      _flowAlertMixed = draft.flowAlertMixed;
 
       _syncReady = true;
       _rebuildSpans();
@@ -20593,8 +20670,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
               (_draftsByDay[k]?.isEmpty ?? true)) {
             _draftsByDay.putIfAbsent(
               k,
-              () =>
-                  _splitByPeriod ? <_NoteDraft>[_NoteDraft()] : <_NoteDraft>[],
+              () => _splitByPeriod
+                  ? <_NoteDraft>[_newDraftUsingFlowAlertDefault()]
+                  : <_NoteDraft>[],
             );
           }
         }
@@ -20617,7 +20695,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       }
     }
     for (final k in wantPatKeys) {
-      _draftsByPattern.putIfAbsent(k, () => _NoteDraft());
+      _draftsByPattern.putIfAbsent(k, _newDraftUsingFlowAlertDefault);
     }
 
     setState(() {}); // Trigger UI update
@@ -21341,10 +21419,19 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       onTap: () async {
         final picked = await _pickAlertMinutes(
           context,
-          draft.alertMinutesBefore,
+          _effectiveDraftAlertMinutes(draft),
         );
         if (picked != null) {
-          setState(() => draft.alertMinutesBefore = picked);
+          setState(() {
+            if (picked == _flowAlertMinutesBefore) {
+              draft.usesFlowAlertDefault = true;
+              draft.alertMinutesBefore = picked;
+            } else {
+              draft.usesFlowAlertDefault = false;
+              draft.alertMinutesBefore = picked;
+            }
+            _refreshFlowAlertMixedState();
+          });
         }
       },
       child: Container(
@@ -21360,7 +21447,57 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             Row(
               children: [
                 GlossyText(
-                  text: _alertLabelFor(draft.alertMinutesBefore),
+                  text: _alertLabelFor(_effectiveDraftAlertMinutes(draft)),
+                  gradient: goldGloss,
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: Colors.white54,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _flowAlertPicker() {
+    return InkWell(
+      onTap: () async {
+        final picked = await _pickAlertMinutes(
+          context,
+          _flowAlertMixed ? null : _flowAlertMinutesBefore,
+        );
+        if (picked == null) return;
+        setState(() {
+          _flowAlertMinutesBefore = picked;
+          _flowAlertMixed = false;
+          for (final draft in _allDrafts()) {
+            draft.usesFlowAlertDefault = true;
+            draft.alertMinutesBefore = picked;
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const GlossyText(
+              text: 'Alert for all events',
+              style: TextStyle(fontSize: 14),
+              gradient: silverGloss,
+            ),
+            Row(
+              children: [
+                GlossyText(
+                  text: _flowAlertMixed
+                      ? 'Mixed'
+                      : _alertLabelFor(_flowAlertMinutesBefore),
                   gradient: goldGloss,
                   style: const TextStyle(fontSize: 14),
                 ),
@@ -21394,6 +21531,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 16),
+        _flowAlertPicker(),
+        const SizedBox(height: 8),
         const GlossyText(
           text: 'Notes for selection',
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -21661,7 +21800,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         for (final draft in drafts) {
           if (draft.titleCtrl.text.trim().isEmpty) continue;
 
-          final noteWithFlowId = draft.toNote();
+          final noteWithFlowId = draft.toNote(
+            flowAlertMinutesBefore: _flowAlertMinutesBefore,
+          );
           final linkedNote = _Note(
             title: noteWithFlowId.title,
             detail: noteWithFlowId.detail,
@@ -21685,7 +21826,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         if (draft == null) continue;
         if (draft.titleCtrl.text.trim().isEmpty) continue;
 
-        final noteWithFlowId = draft.toNote();
+        final noteWithFlowId = draft.toNote(
+          flowAlertMinutesBefore: _flowAlertMinutesBefore,
+        );
         final linkedNote = _Note(
           title: noteWithFlowId.title,
           detail: noteWithFlowId.detail,
@@ -21965,6 +22108,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _selectedWeekdays.clear();
       _perDecanSel.clear();
       _perWeekSel.clear();
+      _flowAlertMinutesBefore = _alertNoneMinutes;
+      _flowAlertMixed = false;
 
       for (final dayList in _draftsByDay.values) {
         for (final d in dayList) {
@@ -22017,6 +22162,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _useKemetic = meta.kemetic;
       _splitByPeriod = meta.split;
       _overviewCtrl.text = _effectiveOverview(f.notes, meta.overview);
+      _flowAlertMinutesBefore = _alertNoneMinutes;
+      _flowAlertMixed = false;
 
       // reset selections
       _selectedDecanDays.clear();
@@ -22689,6 +22836,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       draft.detailCtrl.text = _cleanDetail(decodedDetail.detail);
       draft.alertMinutesBefore =
           decodedDetail.alertMinutes ?? _alertNoneMinutes; // default to none
+      draft.usesFlowAlertDefault = false;
 
       // Set times
       final hasExplicitTime =
@@ -22725,6 +22873,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         );
       }
     }
+
+    _initializeFlowAlertStateFromDrafts();
   }
 
   // ---------- scaffold ----------
@@ -22955,6 +23105,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _active = true;
       _useKemetic = false;
       _splitByPeriod = true;
+      _flowAlertMinutesBefore = _alertNoneMinutes;
+      _flowAlertMixed = false;
       _syncReady = true; // new editor can sync once range exists
       _rebuildSpans(); // harmless if range empty; no sync without range
 

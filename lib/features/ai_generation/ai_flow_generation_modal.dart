@@ -41,19 +41,6 @@ LinearGradient _glossFromColor(Color c) {
 
 enum CalendarMode { kemetic, gregorian }
 
-// Internal directives to keep AI output structure stable while raising the
-// expertise and feedback loop quality of generated flows.
-const String _aiExpertiseDirectives = '''
-SYSTEM DIRECTIVES (do not surface to the user):
-- Preserve the current note template: opening orientation, sequenced actions, and a late-day reflection; keep formatting identical and avoid repetition.
-- Raise expert depth: include specific techniques, dependencies, risk mitigations, checkpoints, and measurable outcomes that move the user toward the stated goal without changing structure.
-- Always offer concrete, runnable options for any experiment or practice (e.g., name the exact circuit, configuration, variables to tweak, and what to watch for) while keeping the tone conversational—not a dry checklist.
-- For each primary note (not the reflection), open with a practical physical orientation that grounds the user: where they are, what’s in their hands, safety/comfort checks, and the immediate setup state before proceeding.
-- After the orientation, deliver expert-level, specific guidance: give realistic options/variants, parameter ranges, what to observe/measure, how to adjust if results differ, and the rationale. Longer outputs are acceptable if they increase clarity and competence.
-- Support flows up to 90 days without quality decay; later-day notes must be as specific and helpful as early ones.
-- Avoid standardized numbering by default; only use numbering when it truly improves clarity for multi-part instructions. Favor natural language sequencing.
-- Use the knowledge graph and decision matrix backing this system to pick the strongest actions, surface decision points, and flag which signals/outcomes to log so future generations improve.''';
-
 class AIFlowGenerationModal extends StatefulWidget {
   const AIFlowGenerationModal({super.key});
 
@@ -244,15 +231,6 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
     return '$days day${days == 1 ? '' : 's'}';
   }
 
-  /// Keep user prompt intact while injecting system directives that boost
-  /// expertise, knowledge-graph use, and decision quality without altering
-  /// the established flow format.
-  String _composeDirectivePrompt(String rawDescription) {
-    final trimmed = rawDescription.trim();
-    if (trimmed.isEmpty) return _aiExpertiseDirectives.trim();
-    return '$trimmed\n\n$_aiExpertiseDirectives'.trim();
-  }
-
   bool _looksLikeTelemetryBlock(String block) {
     final compact = block.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (compact.isEmpty) return false;
@@ -306,21 +284,31 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
     return summary.length > 1800 ? '${summary.substring(0, 1800)}…' : summary;
   }
 
+  bool _shouldSendAsSourceMaterial(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.length > 2200) return true;
+    final blocks = trimmed
+        .split(RegExp(r'\n\s*\n'))
+        .map((b) => b.trim())
+        .where((b) => b.isNotEmpty)
+        .toList();
+    return blocks.length >= 4;
+  }
+
   /// Long pastes go to `source_text` on the edge function so the model treats
   /// them as authoritative material while keeping DICTATION heuristics off.
   ({String description, String? sourceText}) _splitForFlowApi(String raw) {
     final trimmed = raw.trim();
-    final directives = _aiExpertiseDirectives.trim();
     if (trimmed.isEmpty) {
-      return (description: _composeDirectivePrompt(''), sourceText: null);
+      return (description: '', sourceText: null);
     }
-    if (trimmed.length <= 2800) {
-      return (description: _composeDirectivePrompt(trimmed), sourceText: null);
+    if (!_shouldSendAsSourceMaterial(trimmed)) {
+      return (description: trimmed, sourceText: null);
     }
     final intent = _extractLongPasteIntent(trimmed);
     return (
       description:
-          '$directives\n\nUSER_INTENT_SUMMARY:\n$intent\n\nTransform SOURCE_TEXT into a staged flow for the selected date range. Preserve concrete initiatives, constraints, milestones, numbers, and sequence from SOURCE_TEXT instead of collapsing it into generic advice.',
+          'USER_INTENT_SUMMARY:\n$intent\n\nTransform SOURCE_TEXT into a flow for the selected date range. Preserve concrete initiatives, constraints, milestones, numbers, sequence, and voice from SOURCE_TEXT. Organize it into a clear progression instead of generic summaries.',
       sourceText: trimmed,
     );
   }
