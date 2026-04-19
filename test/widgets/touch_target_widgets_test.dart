@@ -8,11 +8,19 @@ import 'package:mobile/features/rhythm/models/rhythm_models.dart';
 import 'package:mobile/features/rhythm/widgets/rhythm_state_button.dart';
 
 Future<void> _pumpTouchWidget(WidgetTester tester, Widget child) async {
+  await _pumpTouchWidgetWithSize(tester, child, const Size(390, 844));
+}
+
+Future<void> _pumpTouchWidgetWithSize(
+  WidgetTester tester,
+  Widget child,
+  Size size,
+) async {
   await tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.dark,
       home: MediaQuery(
-        data: const MediaQueryData(size: Size(390, 844)),
+        data: MediaQueryData(size: size),
         child: Scaffold(body: Center(child: child)),
       ),
     ),
@@ -39,6 +47,28 @@ void main() {
     );
     expect(size.width, greaterThanOrEqualTo(kMinInteractiveDimension));
     expect(size.height, greaterThanOrEqualTo(kMinInteractiveDimension));
+  });
+
+  testWidgets('Rhythm state button groups stay on one horizontal row', (
+    tester,
+  ) async {
+    await _pumpTouchWidgetWithSize(
+      tester,
+      const SizedBox(
+        width: 120,
+        child: RhythmStateButtonGroup(current: RhythmItemState.done),
+      ),
+      const Size(320, 844),
+    );
+
+    final doneY = tester.getCenter(find.byIcon(Icons.check_circle_rounded)).dy;
+    final partialY = tester.getCenter(find.byIcon(Icons.adjust_rounded)).dy;
+    final skippedY = tester
+        .getCenter(find.byIcon(Icons.remove_circle_outline_rounded))
+        .dy;
+
+    expect(partialY, closeTo(doneY, 0.1));
+    expect(skippedY, closeTo(doneY, 0.1));
   });
 
   testWidgets('Glyph back button keeps a full touch target on phones', (

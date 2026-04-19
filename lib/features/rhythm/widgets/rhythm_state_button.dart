@@ -22,17 +22,23 @@ class RhythmStateButtonGroup extends StatelessWidget {
       (RhythmItemState.skipped, Icons.remove_circle_outline_rounded),
     ];
 
-    return Wrap(
-      spacing: 8,
-      children: [
-        for (final option in options)
-          RhythmStateDot(
-            state: option.$1,
-            isActive: current == option.$1,
-            icon: option.$2,
-            onTap: onChanged != null ? () => onChanged!(option.$1) : null,
-          ),
-      ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const ClampingScrollPhysics(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (int i = 0; i < options.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            RhythmStateDot(
+              state: options[i].$1,
+              isActive: current == options[i].$1,
+              icon: options[i].$2,
+              onTap: onChanged != null ? () => onChanged!(options[i].$1) : null,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

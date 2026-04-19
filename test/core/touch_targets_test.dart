@@ -92,25 +92,26 @@ void main() {
     );
   });
 
-  testWidgets('edge swipe gesture width stays narrow on touch layouts', (
-    tester,
-  ) async {
-    double? edgeWidth;
+  testWidgets(
+    'edge swipe gesture width stays moderately wide on touch layouts',
+    (tester) async {
+      double? edgeWidth;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: MediaQuery(
-          data: const MediaQueryData(size: Size(390, 844)),
-          child: Builder(
-            builder: (context) {
-              edgeWidth = edgeSwipeGestureWidth(context);
-              return const SizedBox.shrink();
-            },
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(390, 844)),
+            child: Builder(
+              builder: (context) {
+                edgeWidth = edgeSwipeGestureWidth(context);
+                return const SizedBox.shrink();
+              },
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(edgeWidth, 18);
-  });
+      expect(edgeWidth, 24);
+    },
+  );
 }

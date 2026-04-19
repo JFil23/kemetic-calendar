@@ -369,20 +369,29 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     ];
 
-    return Wrap(
-      spacing: 24,
-      runSpacing: 16,
-      alignment: WrapAlignment.center,
-      children: stats
-          .map(
-            (stat) => _buildStatItem(
-              label: stat.label,
-              value: stat.value,
-              onTap: stat.onTap,
-              enabled: stat.enabled,
-            ),
-          )
-          .toList(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 360;
+        final spacing = compact ? 8.0 : 16.0;
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (int i = 0; i < stats.length; i++) ...[
+              if (i > 0) SizedBox(width: spacing),
+              Expanded(
+                child: _buildStatItem(
+                  label: stats[i].label,
+                  value: stats[i].value,
+                  onTap: stats[i].onTap,
+                  enabled: stats[i].enabled,
+                  compact: compact,
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 
@@ -391,6 +400,7 @@ class _ProfilePageState extends State<ProfilePage> {
     required String value,
     VoidCallback? onTap,
     bool enabled = true,
+    bool compact = false,
   }) {
     final numberColor = enabled
         ? KemeticGold.base
@@ -407,19 +417,42 @@ class _ProfilePageState extends State<ProfilePage> {
         child: withMinimumTouchTarget(
           context,
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 0 : 4,
+              vertical: 4,
+            ),
             child: Column(
               children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: numberColor,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                SizedBox(
+                  width: double.infinity,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        color: numberColor,
+                        fontSize: compact ? 22 : 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(label, style: TextStyle(color: labelColor, fontSize: 13)),
+                SizedBox(
+                  width: double.infinity,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: labelColor,
+                        fontSize: compact ? 12 : 13,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

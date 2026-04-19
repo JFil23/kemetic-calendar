@@ -461,7 +461,9 @@ class _LaunchShellState extends State<_LaunchShell>
         widget.child,
         if (!_dismissed)
           IgnorePointer(
-            ignoring: _fadeController.isAnimating,
+            // The launch shell is decorative; don't block early taps during
+            // standalone web auth/bootstrap.
+            ignoring: true,
             child: FadeTransition(
               opacity: _fadeOut,
               child: const ColoredBox(

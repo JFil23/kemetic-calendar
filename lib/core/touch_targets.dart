@@ -50,7 +50,7 @@ double expandedTouchTargetMinDimension(
 
 double edgeSwipeGestureWidth(
   BuildContext context, {
-  double touchWidth = 18,
+  double touchWidth = 24,
   double minWidth = 28,
   double maxWidth = 56,
   double viewportFraction = 0.06,
