@@ -1,6 +1,7 @@
 // lib/features/profile/flow_post_engagement_row.dart
 
 import 'package:flutter/material.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -110,6 +111,9 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
       color: Colors.white.withValues(alpha: 0.85),
       fontWeight: FontWeight.w600,
     );
+    final actionMinHeight = useExpandedTouchTargets(context)
+        ? kMinInteractiveDimension
+        : 0.0;
 
     return Padding(
       padding: const EdgeInsets.only(top: 10, bottom: 6),
@@ -119,36 +123,39 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
             child: InkWell(
               onTap: _likeButtonEnabled ? _toggleLike : null,
               borderRadius: BorderRadius.circular(10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _likeUpdating
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              KemeticGold.base,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: actionMinHeight),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _likeUpdating
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                KemeticGold.base,
+                              ),
                             ),
-                          ),
-                        )
-                      : (_likedByMe
-                            ? const Icon(
-                                Icons.favorite,
-                                color: Colors.redAccent,
-                              )
-                            : KemeticGold.icon(Icons.favorite_border)),
-                  const SizedBox(width: 6),
-                  Text(
-                    _engagementUnavailable
-                        ? 'Unavailable'
-                        : _likesLoading
-                        ? 'Like'
-                        : '$_likesCount Likes',
-                    style: labelStyle,
-                  ),
-                ],
+                          )
+                        : (_likedByMe
+                              ? const Icon(
+                                  Icons.favorite,
+                                  color: Colors.redAccent,
+                                )
+                              : KemeticGold.icon(Icons.favorite_border)),
+                    const SizedBox(width: 6),
+                    Text(
+                      _engagementUnavailable
+                          ? 'Unavailable'
+                          : _likesLoading
+                          ? 'Like'
+                          : '$_likesCount Likes',
+                      style: labelStyle,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -158,20 +165,23 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                   ? _showMigrationNeeded
                   : _openCommentsSheet,
               borderRadius: BorderRadius.circular(10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  KemeticGold.icon(Icons.chat_bubble_outline),
-                  const SizedBox(width: 6),
-                  Text(
-                    _engagementUnavailable
-                        ? 'Unavailable'
-                        : _commentsLoading
-                        ? 'Comments'
-                        : '${_comments.length} Comments',
-                    style: labelStyle,
-                  ),
-                ],
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: actionMinHeight),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    KemeticGold.icon(Icons.chat_bubble_outline),
+                    const SizedBox(width: 6),
+                    Text(
+                      _engagementUnavailable
+                          ? 'Unavailable'
+                          : _commentsLoading
+                          ? 'Comments'
+                          : '${_comments.length} Comments',
+                      style: labelStyle,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -731,6 +741,10 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
     final updatingLike = _commentLikeUpdatingIds.contains(comment.id);
     final deleting = _commentDeleteUpdatingIds.contains(comment.id);
     final canDelete = comment.userId == _currentUserId;
+    final compactActionPadding = useExpandedTouchTargets(context)
+        ? const EdgeInsets.symmetric(horizontal: 8, vertical: 8)
+        : const EdgeInsets.symmetric(horizontal: 2, vertical: 2);
+    final compactActionMinHeight = expandedTouchTargetMinDimension(context);
     final indent = depth == 0
         ? 0.0
         : (18.0 + ((depth - 1) * 14.0)).clamp(0.0, 42.0).toDouble();
@@ -798,70 +812,74 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
                           ? null
                           : () => _toggleCommentLike(comment),
                       borderRadius: BorderRadius.circular(999),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 2,
-                          vertical: 2,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: compactActionMinHeight,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (updatingLike)
-                              const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 1.8,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    KemeticGold.base,
+                        child: Padding(
+                          padding: compactActionPadding,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (updatingLike)
+                                const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.8,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      KemeticGold.base,
+                                    ),
                                   ),
+                                )
+                              else
+                                Icon(
+                                  comment.likedByMe
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  size: 15,
+                                  color: comment.likedByMe
+                                      ? Colors.redAccent
+                                      : KemeticGold.base,
                                 ),
-                              )
-                            else
-                              Icon(
-                                comment.likedByMe
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                size: 15,
-                                color: comment.likedByMe
-                                    ? Colors.redAccent
-                                    : KemeticGold.base,
+                              const SizedBox(width: 5),
+                              Text(
+                                comment.likesCount > 0
+                                    ? '${comment.likesCount}'
+                                    : 'Like',
+                                style: TextStyle(
+                                  color: comment.likedByMe
+                                      ? Colors.redAccent
+                                      : Colors.white.withValues(alpha: 0.72),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            const SizedBox(width: 5),
-                            Text(
-                              comment.likesCount > 0
-                                  ? '${comment.likesCount}'
-                                  : 'Like',
-                              style: TextStyle(
-                                color: comment.likedByMe
-                                    ? Colors.redAccent
-                                    : Colors.white.withValues(alpha: 0.72),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                     InkWell(
                       onTap: deleting ? null : () => _beginReplyTo(comment),
                       borderRadius: BorderRadius.circular(999),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 2,
-                          vertical: 2,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: compactActionMinHeight,
                         ),
-                        child: Text(
-                          _replyingToCommentId == comment.id
-                              ? 'Replying'
-                              : 'Reply',
-                          style: TextStyle(
-                            color: _replyingToCommentId == comment.id
-                                ? KemeticGold.base
-                                : Colors.white.withValues(alpha: 0.72),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                        child: Padding(
+                          padding: compactActionPadding,
+                          child: Text(
+                            _replyingToCommentId == comment.id
+                                ? 'Replying'
+                                : 'Reply',
+                            style: TextStyle(
+                              color: _replyingToCommentId == comment.id
+                                  ? KemeticGold.base
+                                  : Colors.white.withValues(alpha: 0.72),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
@@ -872,19 +890,21 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
                             ? null
                             : () => _confirmDeleteComment(comment),
                         borderRadius: BorderRadius.circular(999),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 2,
-                            vertical: 2,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: compactActionMinHeight,
                           ),
-                          child: Text(
-                            deleting ? 'Deleting…' : 'Delete',
-                            style: TextStyle(
-                              color: Colors.redAccent.withValues(
-                                alpha: deleting ? 0.75 : 1,
+                          child: Padding(
+                            padding: compactActionPadding,
+                            child: Text(
+                              deleting ? 'Deleting…' : 'Delete',
+                              style: TextStyle(
+                                color: Colors.redAccent.withValues(
+                                  alpha: deleting ? 0.75 : 1,
+                                ),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
                               ),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -927,7 +947,10 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
                   ),
                 ),
                 IconButton(
-                  visualDensity: VisualDensity.compact,
+                  visualDensity: expandedVisualDensity(
+                    context,
+                    fallback: VisualDensity.compact,
+                  ),
                   onPressed: _clearReplyTarget,
                   icon: const Icon(
                     Icons.close,

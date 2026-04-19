@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../calendar/calendar_page.dart' show KemeticMath;
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
@@ -69,7 +70,7 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
       default:
         return;
     }
-    
+
     setState(() => _currentAttrs = newAttrs);
     widget.onFormatChanged(newAttrs);
   }
@@ -80,6 +81,10 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
     final dateLabel = _showKemetic
         ? _formatKemetic(now)
         : _formatGregorian(now);
+    final dateToggleMinHeight = expandedTouchTargetMinDimension(
+      context,
+      fallback: 0,
+    );
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -89,29 +94,33 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
         children: [
           // Current day tracker (toggle Kemetic/Gregorian on tap)
           GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: () {
               setState(() => _showKemetic = !_showKemetic);
             },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    dateLabel,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Color(0xFFC8CCD2), // silver like decan labels
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: dateToggleMinHeight),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      dateLabel,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFFC8CCD2), // silver like decan labels
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-          
+
           // Format buttons row
           const SizedBox(height: 8),
           Row(
@@ -119,14 +128,29 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
             children: [
               _buildFormatButton('B', 'bold', _currentAttrs.bold, bold: true),
               const SizedBox(width: 4),
-              _buildFormatButton('I', 'italic', _currentAttrs.italic, italic: true),
+              _buildFormatButton(
+                'I',
+                'italic',
+                _currentAttrs.italic,
+                italic: true,
+              ),
               const SizedBox(width: 4),
-              _buildFormatButton('U', 'underline', _currentAttrs.underline, underline: true),
+              _buildFormatButton(
+                'U',
+                'underline',
+                _currentAttrs.underline,
+                underline: true,
+              ),
               const SizedBox(width: 4),
-              _buildFormatButton('S', 'strikethrough', _currentAttrs.strikethrough, strikethrough: true),
+              _buildFormatButton(
+                'S',
+                'strikethrough',
+                _currentAttrs.strikethrough,
+                strikethrough: true,
+              ),
             ],
           ),
-          
+
           // Status bar with undo/redo
           const SizedBox(height: 8),
           _buildStatusBar(),
@@ -143,8 +167,18 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
 
   String _formatGregorian(DateTime g) {
     const months = [
-      'January','February','March','April','May','June',
-      'July','August','September','October','November','December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     final month = months[g.month - 1];
     return '$month ${g.day}';
@@ -152,7 +186,7 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
 
   Widget _buildModeButton(JournalV2Mode mode, IconData icon, String label) {
     final isActive = _currentMode == mode;
-    
+
     return const SizedBox.shrink(); // mode button no longer shown
   }
 
@@ -165,11 +199,14 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
     bool underline = false,
     bool strikethrough = false,
   }) {
+    final buttonSize = expandedTouchTargetMinDimension(context, fallback: 40);
+
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => _toggleFormat(format),
       child: Container(
-        width: 40,
-        height: 40,
+        width: buttonSize,
+        height: buttonSize,
         decoration: BoxDecoration(
           color: isActive ? const Color(0xFF333333) : Colors.transparent,
           border: Border.all(
@@ -189,9 +226,11 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
               decoration: underline
                   ? TextDecoration.underline
                   : strikethrough
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-              decorationColor: isActive ? KemeticGold.base : const Color(0xFF999999),
+                  ? TextDecoration.lineThrough
+                  : TextDecoration.none,
+              decorationColor: isActive
+                  ? KemeticGold.base
+                  : const Color(0xFF999999),
             ),
           ),
         ),
@@ -201,10 +240,12 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
 
   Widget _buildStatusBar() {
     final now = DateTime.now();
-    final hour = now.hour > 12 ? now.hour - 12 : (now.hour == 0 ? 12 : now.hour);
+    final hour = now.hour > 12
+        ? now.hour - 12
+        : (now.hour == 0 ? 12 : now.hour);
     final minute = now.minute.toString().padLeft(2, '0');
     final period = now.hour >= 12 ? 'PM' : 'AM';
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       decoration: BoxDecoration(
@@ -215,18 +256,11 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Saved indicator
-          const Icon(
-            Icons.check_circle,
-            color: Color(0xFF4CAF50),
-            size: 14,
-          ),
+          const Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 14),
           const SizedBox(width: 6),
           Text(
             'Saved • $hour:$minute $period',
-            style: const TextStyle(
-              color: Color(0xFF999999),
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Color(0xFF999999), fontSize: 12),
           ),
           const SizedBox(width: 24),
           // Undo/Redo buttons - now more prominent
@@ -237,13 +271,19 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
   }
 
   Widget _buildUndoRedoButtons() {
+    final buttonPadding = useExpandedTouchTargets(context)
+        ? const EdgeInsets.all(12)
+        : const EdgeInsets.all(6);
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           decoration: BoxDecoration(
             border: Border.all(
-              color: widget.canUndo ? KemeticGold.base : const Color(0xFF444444),
+              color: widget.canUndo
+                  ? KemeticGold.base
+                  : const Color(0xFF444444),
               width: 1.5,
             ),
             borderRadius: BorderRadius.circular(6),
@@ -253,12 +293,17 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
             child: InkWell(
               onTap: widget.canUndo ? widget.onUndo : null,
               borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Icon(
-                  Icons.undo,
-                  color: widget.canUndo ? KemeticGold.base : const Color(0xFF666666),
-                  size: 18,
+              child: withMinimumTouchTarget(
+                context,
+                Padding(
+                  padding: buttonPadding,
+                  child: Icon(
+                    Icons.undo,
+                    color: widget.canUndo
+                        ? KemeticGold.base
+                        : const Color(0xFF666666),
+                    size: 18,
+                  ),
                 ),
               ),
             ),
@@ -268,7 +313,9 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
         Container(
           decoration: BoxDecoration(
             border: Border.all(
-              color: widget.canRedo ? KemeticGold.base : const Color(0xFF444444),
+              color: widget.canRedo
+                  ? KemeticGold.base
+                  : const Color(0xFF444444),
               width: 1.5,
             ),
             borderRadius: BorderRadius.circular(6),
@@ -278,12 +325,17 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
             child: InkWell(
               onTap: widget.canRedo ? widget.onRedo : null,
               borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Icon(
-                  Icons.redo,
-                  color: widget.canRedo ? KemeticGold.base : const Color(0xFF666666),
-                  size: 18,
+              child: withMinimumTouchTarget(
+                context,
+                Padding(
+                  padding: buttonPadding,
+                  child: Icon(
+                    Icons.redo,
+                    color: widget.canRedo
+                        ? KemeticGold.base
+                        : const Color(0xFF666666),
+                    size: 18,
+                  ),
                 ),
               ),
             ),

@@ -3126,9 +3126,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   Widget _buildCalendarRevealSwipeGate() {
-    final edgeWidth =
-        ((MediaQuery.of(context).size.width * 0.08).clamp(36.0, 64.0) as num)
-            .toDouble();
+    final edgeWidth = edgeSwipeGestureWidth(context);
 
     return Positioned(
       top: 0,

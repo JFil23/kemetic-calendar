@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -206,22 +207,26 @@ class _ScopeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected
-              ? RhythmTheme.aurora.withValues(alpha: 0.16)
-              : Colors.white12,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? RhythmTheme.aurora : Colors.white24,
+      child: withMinimumTouchTarget(
+        context,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected
+                ? RhythmTheme.aurora.withValues(alpha: 0.16)
+                : Colors.white12,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? RhythmTheme.aurora : Colors.white24,
+            ),
           ),
-        ),
-        child: Text(
-          label,
-          style: RhythmTheme.label.copyWith(
-            color: selected ? RhythmTheme.aurora : Colors.white70,
+          child: Text(
+            label,
+            style: RhythmTheme.label.copyWith(
+              color: selected ? RhythmTheme.aurora : Colors.white70,
+            ),
           ),
         ),
       ),

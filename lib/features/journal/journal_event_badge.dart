@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:mobile/core/touch_targets.dart';
 
 /// Snapshot of an event when it was added to the journal.
 /// Stored as plain-text token and rendered inline via WidgetSpan.
@@ -153,14 +154,8 @@ class _EventBadgeWidgetState extends State<EventBadgeWidget>
         maxWidth: maxWidth.clamp(120.0, double.infinity),
       ),
       child: _expanded
-          ? _ExpandedEventBadge(
-              token: widget.token,
-              onTap: _toggle,
-            )
-          : _CollapsedEventBadge(
-              token: widget.token,
-              onTap: _toggle,
-            ),
+          ? _ExpandedEventBadge(token: widget.token, onTap: _toggle)
+          : _CollapsedEventBadge(token: widget.token, onTap: _toggle),
     );
   }
 }
@@ -175,46 +170,51 @@ class _CollapsedEventBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = token.color;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.14),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: color.withOpacity(0.9), width: 1),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_circle, size: 14, color: color.withOpacity(0.95)),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                token.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(fontWeight: FontWeight.w500),
+      child: ConstrainedBox(
+        constraints: minimumTouchTargetConstraints(context),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.14),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: color.withOpacity(0.9), width: 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.check_circle,
+                size: 14,
+                color: color.withOpacity(0.95),
               ),
-            ),
-            if (token.start != null) ...[
               const SizedBox(width: 6),
-              Text(
-                _shortTime(token.start!),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontSize: 10,
-                      color: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.color
-                          ?.withOpacity(0.7),
-                    ),
+              Flexible(
+                child: Text(
+                  token.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+                ),
               ),
+              if (token.start != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  _shortTime(token.start!),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontSize: 10,
+                    color: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.color?.withOpacity(0.7),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -231,78 +231,85 @@ class _ExpandedEventBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = token.color;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.9), width: 1),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Container(
-                  width: 4,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(9),
-                      bottomLeft: Radius.circular(9),
+      child: ConstrainedBox(
+        constraints: minimumTouchTargetConstraints(context),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withOpacity(0.9), width: 1),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    width: 4,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(9),
+                        bottomLeft: Radius.circular(9),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.check_circle, size: 14, color: color.withOpacity(0.95)),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              token.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(fontWeight: FontWeight.w600),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.check_circle,
+                              size: 14,
+                              color: color.withOpacity(0.95),
                             ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                token.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        if (token.start != null)
+                          Text(
+                            _formatRange(token.start, token.end),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  fontSize: 11,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.color
+                                      ?.withOpacity(0.75),
+                                ),
+                          ),
+                        if (token.description != null &&
+                            token.description!.trim().isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            token.description!,
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 4),
-                      if (token.start != null)
-                        Text(
-                          _formatRange(token.start, token.end),
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                fontSize: 11,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.color
-                                    ?.withOpacity(0.75),
-                              ),
-                        ),
-                      if (token.description != null &&
-                          token.description!.trim().isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text(
-                          token.description!,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

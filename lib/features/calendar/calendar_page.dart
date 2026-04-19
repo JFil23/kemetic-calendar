@@ -18,7 +18,6 @@ import '../profile/profile_page.dart';
 import '../journal/journal_controller.dart';
 import '../../core/ui_guards.dart';
 import '../../main.dart' show routeObserver, Events;
-import '../../data/share_repo.dart';
 import '../sharing/share_flow_sheet.dart';
 import '../../data/share_models.dart';
 import '../../widgets/inbox_icon_with_badge.dart';
@@ -54,7 +53,6 @@ import '../../data/reminders_repo.dart';
 import '../../utils/event_cid_util.dart';
 import '../../utils/detail_sanitizer.dart';
 import 'package:mobile/core/touch_targets.dart';
-import 'package:share_plus/share_plus.dart';
 import '../journal/journal_event_badge.dart';
 import '../journal/journal_badge_utils.dart';
 import '../journal/journal_v2_document_model.dart';
@@ -70,6 +68,7 @@ import '../nodes/kemetic_node_list_page.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/kemetic_node_model.dart';
 import '../nodes/node_user_insights_section.dart';
+import '../invites/pending_event_invite_overlay.dart';
 import '../onboarding/onboarding_overlay.dart';
 import '../onboarding/onboarding_storage.dart';
 import '../rhythm/data/planner_badge_repo.dart';
@@ -7025,16 +7024,19 @@ class _CalendarPageState extends State<CalendarPage>
                             final color = _flowPalette[i];
                             return InkWell(
                               onTap: () => setModalState(() => colorIndex = i),
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                margin: const EdgeInsets.only(right: 8),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: _glossFromColor(color),
-                                  border: Border.all(
-                                    color: selected ? _gold : Colors.white24,
-                                    width: selected ? 2 : 1,
+                              child: withMinimumTouchTarget(
+                                context,
+                                Container(
+                                  width: 30,
+                                  height: 30,
+                                  margin: const EdgeInsets.only(right: 8),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: _glossFromColor(color),
+                                    border: Border.all(
+                                      color: selected ? _gold : Colors.white24,
+                                      width: selected ? 2 : 1,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -8125,37 +8127,29 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _shareNoteSimple(EventItem evt) async {
-    String _fmtTime(int mins) {
-      final h = mins ~/ 60;
-      final m = mins % 60;
-      final period = h >= 12 ? 'PM' : 'AM';
-      final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-      return '$hour12:${m.toString().padLeft(2, '0')} $period';
+    final eventId = evt.id;
+    if (eventId == null || eventId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Save this event first, then invite people.'),
+        ),
+      );
+      return;
     }
+    await _openEventInviteSheet(eventId: eventId, title: evt.title);
+  }
 
-    final buffer = StringBuffer();
-    buffer.writeln(evt.title);
-    buffer.writeln('${_fmtTime(evt.startMin)} – ${_fmtTime(evt.endMin)}');
-    if (evt.detail != null && evt.detail!.trim().isNotEmpty) {
-      buffer.writeln();
-      buffer.writeln(evt.detail!.trim());
-    }
-    if (evt.location != null && evt.location!.trim().isNotEmpty) {
-      buffer.writeln();
-      buffer.writeln('Location: ${evt.location!.trim()}');
-    }
-
-    // Open the same sharing UI as flows, but in note mode.
+  Future<void> _openEventInviteSheet({
+    required String eventId,
+    required String title,
+  }) async {
     await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => ShareFlowSheet(
-        flowId: null,
-        flowTitle: evt.title,
-        noteShareText: buffer.toString().trim(),
-        eventId: evt.id,
-      ),
+      builder: (ctx) =>
+          ShareFlowSheet(flowId: null, flowTitle: title, eventId: eventId),
     );
   }
 
@@ -11049,6 +11043,13 @@ class _CalendarPageState extends State<CalendarPage>
 
               final dayNotes = _getNotes(selYear, selMonth, selDay);
               final dayFlows = _getFlowOccurrences(selYear, selMonth, selDay);
+              final editingBucketKey = _kKey(selYear, selMonth, selDay);
+              final editingNote =
+                  editingIndex != null &&
+                      _notes[editingBucketKey] != null &&
+                      editingIndex! < _notes[editingBucketKey]!.length
+                  ? _notes[editingBucketKey]![editingIndex!]
+                  : null;
 
               Future<void> pickStart() async {
                 final t = await showTimePicker(
@@ -12014,6 +12015,67 @@ class _CalendarPageState extends State<CalendarPage>
 
                             const SizedBox(height: 8),
 
+                            InkWell(
+                              onTap: () async {
+                                final title = controllerTitle.text.trim();
+                                final editingEventId = editingNote?.id;
+                                if (editingEventId == null ||
+                                    editingEventId.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Save this event first, then invite people inside the app.',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                await _openEventInviteSheet(
+                                  eventId: editingEventId,
+                                  title: title.isEmpty ? 'Event' : title,
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const GlossyText(
+                                      text: 'Invitees',
+                                      gradient: silverGloss,
+                                      style: TextStyle(fontSize: 14),
+                                    ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          editingNote?.id == null
+                                              ? 'Save first'
+                                              : 'Invite people',
+                                          style: const TextStyle(
+                                            color: _gold,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                          Icons.chevron_right,
+                                          size: 18,
+                                          color: Colors.white54,
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 8),
+
                             // Repeat row
                             InkWell(
                               onTap: () async {
@@ -12483,25 +12545,58 @@ class _CalendarPageState extends State<CalendarPage>
                                   try {
                                     ({String clientEventId, String eventId})?
                                     saveResult;
+                                    var updatedExistingStandalone = false;
 
                                     if (!isRepeating) {
-                                      // Single note
-                                      saveResult = await _saveSingleNoteOnly(
-                                        selYear: selYear,
-                                        selMonth: selMonth,
-                                        selDay: selDay,
-                                        title: t,
-                                        detail: detailForSave.isEmpty
-                                            ? null
-                                            : detailForSave,
-                                        location: loc.isEmpty ? null : loc,
-                                        allDay: allDay,
-                                        startTime: startTime,
-                                        endTime: endTime,
-                                        color: selectedColor,
-                                        category: selectedCategory,
-                                        alertMinutesBefore: alertMinutesBefore,
-                                      );
+                                      final canUpdateExisting =
+                                          existingNote?.id != null &&
+                                          ((existingNote?.flowId == null) ||
+                                              existingNote?.flowId == -1);
+                                      if (canUpdateExisting) {
+                                        updatedExistingStandalone = true;
+                                        saveResult =
+                                            await _updateSingleNoteOnly(
+                                              existingEventId:
+                                                  existingNote!.id!,
+                                              previousClientEventId:
+                                                  existingClientEventId,
+                                              selYear: selYear,
+                                              selMonth: selMonth,
+                                              selDay: selDay,
+                                              title: t,
+                                              detail: detailForSave.isEmpty
+                                                  ? null
+                                                  : detailForSave,
+                                              location: loc.isEmpty
+                                                  ? null
+                                                  : loc,
+                                              allDay: allDay,
+                                              startTime: startTime,
+                                              endTime: endTime,
+                                              color: selectedColor,
+                                              category: selectedCategory,
+                                              alertMinutesBefore:
+                                                  alertMinutesBefore,
+                                            );
+                                      } else {
+                                        saveResult = await _saveSingleNoteOnly(
+                                          selYear: selYear,
+                                          selMonth: selMonth,
+                                          selDay: selDay,
+                                          title: t,
+                                          detail: detailForSave.isEmpty
+                                              ? null
+                                              : detailForSave,
+                                          location: loc.isEmpty ? null : loc,
+                                          allDay: allDay,
+                                          startTime: startTime,
+                                          endTime: endTime,
+                                          color: selectedColor,
+                                          category: selectedCategory,
+                                          alertMinutesBefore:
+                                              alertMinutesBefore,
+                                        );
+                                      }
                                     } else {
                                       // Repeating note - create hidden flow
                                       await _saveRepeatingNoteAsHiddenFlow(
@@ -12530,13 +12625,7 @@ class _CalendarPageState extends State<CalendarPage>
 
                                     if (editingIndex != null &&
                                         existingNote != null) {
-                                      final cidMatches =
-                                          !isRepeating &&
-                                          existingClientEventId != null &&
-                                          saveResult != null &&
-                                          existingClientEventId ==
-                                              saveResult.clientEventId;
-                                      if (cidMatches) {
+                                      if (updatedExistingStandalone) {
                                         _removeLocalNoteOnly(
                                           selYear,
                                           selMonth,
@@ -12544,12 +12633,27 @@ class _CalendarPageState extends State<CalendarPage>
                                           editingIndex!,
                                         );
                                       } else {
-                                        await _deleteNote(
-                                          selYear,
-                                          selMonth,
-                                          selDay,
-                                          editingIndex!,
-                                        );
+                                        final cidMatches =
+                                            !isRepeating &&
+                                            existingClientEventId != null &&
+                                            saveResult != null &&
+                                            existingClientEventId ==
+                                                saveResult.clientEventId;
+                                        if (cidMatches) {
+                                          _removeLocalNoteOnly(
+                                            selYear,
+                                            selMonth,
+                                            selDay,
+                                            editingIndex!,
+                                          );
+                                        } else {
+                                          await _deleteNote(
+                                            selYear,
+                                            selMonth,
+                                            selDay,
+                                            editingIndex!,
+                                          );
+                                        }
                                       }
                                     }
                                   } catch (e, stackTrace) {
@@ -14437,6 +14541,127 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
+  Future<({String clientEventId, String eventId})> _updateSingleNoteOnly({
+    required String existingEventId,
+    required String? previousClientEventId,
+    required int selYear,
+    required int selMonth,
+    required int selDay,
+    required String title,
+    String? detail,
+    String? location,
+    required bool allDay,
+    TimeOfDay? startTime,
+    TimeOfDay? endTime,
+    Color? color,
+    String? category,
+    int alertMinutesBefore = _alertNoneMinutes,
+  }) async {
+    final gDay = KemeticMath.toGregorian(selYear, selMonth, selDay);
+    final startLocal = allDay
+        ? DateTime(gDay.year, gDay.month, gDay.day, 9, 0)
+        : DateTime(
+            gDay.year,
+            gDay.month,
+            gDay.day,
+            startTime!.hour,
+            startTime.minute,
+          );
+    final note = _Note(
+      id: existingEventId,
+      clientEventId: previousClientEventId,
+      title: title,
+      detail: detail,
+      location: location,
+      allDay: allDay,
+      start: startTime,
+      end: endTime,
+      flowId: -1,
+      manualColor: color,
+      category: category,
+      alertOffsetMinutes: alertMinutesBefore,
+    );
+
+    final unifiedCid = _buildCid(
+      ky: selYear,
+      km: selMonth,
+      kd: selDay,
+      title: title,
+      startHour: (allDay || startTime == null) ? null : startTime.hour,
+      startMinute: (allDay || startTime == null) ? null : startTime.minute,
+      allDay: allDay,
+      flowId: -1,
+    );
+
+    await _ensureManualDeleteTombstonesLoaded();
+    await _clearManualTombstone(unifiedCid);
+
+    final encodedDetail = _encodeDetailWithMeta(
+      detail,
+      color: color,
+      alertMinutes: alertMinutesBefore,
+    );
+
+    final repo = UserEventsRepo(Supabase.instance.client);
+    final endsAtUtc = (allDay || endTime == null)
+        ? null
+        : DateTime(
+            gDay.year,
+            gDay.month,
+            gDay.day,
+            endTime.hour,
+            endTime.minute,
+          ).toUtc();
+
+    final updated = await repo.replace(
+      id: existingEventId,
+      clientEventId: unifiedCid,
+      title: title,
+      detail: encodedDetail,
+      location: location,
+      allDay: allDay,
+      startsAt: startLocal,
+      endsAt: endsAtUtc,
+      category: category,
+    );
+
+    final savedClientEventId = updated.clientEventId ?? unifiedCid;
+    if (previousClientEventId != null &&
+        previousClientEventId != savedClientEventId) {
+      try {
+        await Notify.cancelNotificationForEvent(previousClientEventId);
+      } catch (_) {}
+    }
+
+    _addNote(
+      selYear,
+      selMonth,
+      selDay,
+      title,
+      detail,
+      id: updated.id,
+      clientEventId: savedClientEventId,
+      location: location,
+      allDay: allDay,
+      start: startTime,
+      end: endTime,
+      manualColor: color,
+      category: category,
+      alertOffsetMinutes: alertMinutesBefore,
+    );
+
+    await _scheduleAlertForEvent(
+      note: note.copyWith(id: updated.id, clientEventId: savedClientEventId),
+      ky: selYear,
+      km: selMonth,
+      kd: selDay,
+      clientEventId: savedClientEventId,
+      eventId: updated.id,
+    );
+
+    return (clientEventId: savedClientEventId, eventId: updated.id);
+  }
+
   // Save a repeating note as a hidden micro-flow
   Future<void> _saveRepeatingNoteAsHiddenFlow({
     required int selYear,
@@ -15509,35 +15734,39 @@ class _CalendarPageState extends State<CalendarPage>
   Widget _buildBodyWithJournal() {
     final isPortrait =
         MediaQuery.of(context).orientation == Orientation.portrait;
+    final allowGlobalScaleGestures = useGlobalScaleGestures(context);
     if (_portraitRecenterPending && isPortrait) {
       _ensurePortraitCentered();
     }
 
-    final content = GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onScaleStart: _onScaleStart,
-      onScaleUpdate: _onScaleUpdate,
-      onScaleEnd: _onScaleEnd,
-      child: Offstage(
-        offstage: _portraitRecenterPending && isPortrait,
-        child: _buildCalendarScrollView(),
-      ),
+    final scrollView = Offstage(
+      offstage: _portraitRecenterPending && isPortrait,
+      child: _buildCalendarScrollView(),
     );
+
+    final content = allowGlobalScaleGestures
+        ? GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onScaleStart: _onScaleStart,
+            onScaleUpdate: _onScaleUpdate,
+            onScaleEnd: _onScaleEnd,
+            child: scrollView,
+          )
+        : scrollView;
 
     return Stack(
       children: [
         content,
         _buildPlannerSwipeGate(),
         _buildProfileSwipeGate(),
+        const PendingEventInviteOverlay(),
         if (_reflectionPrompt != null) _buildReflectionBadge(),
       ],
     );
   }
 
   Widget _buildPlannerSwipeGate() {
-    final edgeWidth =
-        ((MediaQuery.of(context).size.width * 0.08).clamp(36.0, 64.0) as num)
-            .toDouble();
+    final edgeWidth = edgeSwipeGestureWidth(context);
 
     return Positioned(
       left: 0,
@@ -15574,9 +15803,7 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Widget _buildProfileSwipeGate() {
-    final edgeWidth =
-        ((MediaQuery.of(context).size.width * 0.08).clamp(36.0, 64.0) as num)
-            .toDouble();
+    final edgeWidth = edgeSwipeGestureWidth(context);
 
     return Positioned(
       top: 0,
@@ -18121,7 +18348,7 @@ class _DayChip extends StatelessWidget {
                                 KemeticGold.icon(Icons.share),
                                 const SizedBox(width: 12),
                                 const Text(
-                                  'Share Reminder',
+                                  'Invite People',
                                   style: TextStyle(color: Colors.white),
                                 ),
                               ],
@@ -18153,7 +18380,7 @@ class _DayChip extends StatelessWidget {
                                 KemeticGold.icon(Icons.share),
                                 const SizedBox(width: 12),
                                 const Text(
-                                  'Share Note',
+                                  'Invite People',
                                   style: TextStyle(color: Colors.white),
                                 ),
                               ],
@@ -27966,7 +28193,9 @@ class _CustomRepeatPageState extends State<_CustomRepeatPage> {
           style: TextStyle(fontSize: 18),
         ),
         trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
+          padding: useExpandedTouchTargets(context)
+              ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+              : EdgeInsets.zero,
           onPressed: () {
             Navigator.pop<Map<String, dynamic>>(context, {
               'frequency': _freq,

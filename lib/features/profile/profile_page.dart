@@ -3,6 +3,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
@@ -403,21 +404,24 @@ class _ProfilePageState extends State<ProfilePage> {
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          child: Column(
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  color: numberColor,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+        child: withMinimumTouchTarget(
+          context,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            child: Column(
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: numberColor,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(label, style: TextStyle(color: labelColor, fontSize: 13)),
-            ],
+                const SizedBox(height: 4),
+                Text(label, style: TextStyle(color: labelColor, fontSize: 13)),
+              ],
+            ),
           ),
         ),
       ),
@@ -469,9 +473,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildCalendarRevealSwipeGate() {
-    final edgeWidth =
-        ((MediaQuery.of(context).size.width * 0.08).clamp(36.0, 64.0) as num)
-            .toDouble();
+    final edgeWidth = edgeSwipeGestureWidth(context);
 
     return Positioned(
       top: 0,

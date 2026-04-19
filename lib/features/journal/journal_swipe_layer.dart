@@ -1,6 +1,6 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'journal_controller.dart';
 import 'journal_overlay.dart';
 import 'journal_constants.dart';
@@ -12,7 +12,8 @@ class JournalSwipeHandle {
   void Function({String entryPoint})? _open;
   VoidCallback? _close;
 
-  void open({String entryPoint = 'external'}) => _open?.call(entryPoint: entryPoint);
+  void open({String entryPoint = 'external'}) =>
+      _open?.call(entryPoint: entryPoint);
   void close() => _close?.call();
 
   void _bind({
@@ -52,20 +53,23 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
   OverlayEntry? _overlayEntry;
 
   // Gesture accumulators
-  double _dragAccumOpen = 0.0;   // left-edge -> right drag to open
-  double _dragAccumClose = 0.0;  // right-edge -> left drag to close
+  double _dragAccumOpen = 0.0; // left-edge -> right drag to open
+  double _dragAccumClose = 0.0; // right-edge -> left drag to close
 
   // Tunables
-  static const double _edgeMin = 28;   // min px edge width
-  static const double _edgeMax = 56;   // max px edge width
-  static const double _openDistance = 42;     // px to open via slow drag
-  static const double _closeDistance = 42;    // px to close via slow drag
-  static const double _openVelocity = 750;    // fling right to open
-  static const double _closeVelocity = -750;  // fling left to close
+  static const double _edgeMin = 28; // min px edge width
+  static const double _edgeMax = 56; // max px edge width
+  static const double _openDistance = 42; // px to open via slow drag
+  static const double _closeDistance = 42; // px to close via slow drag
+  static const double _openVelocity = 750; // fling right to open
+  static const double _closeVelocity = -750; // fling left to close
 
   double _edgeWidth(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
-    return math.max(_edgeMin, math.min(_edgeMax, w * 0.06));
+    return edgeSwipeGestureWidth(
+      context,
+      minWidth: _edgeMin,
+      maxWidth: _edgeMax,
+    );
   }
 
   bool get _active => widget.isPortrait && mounted;
@@ -94,7 +98,8 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
 
   void _bindHandle() {
     widget.handle?._bind(
-      open: ({String entryPoint = 'external'}) => _openJournal(entryPoint: entryPoint),
+      open: ({String entryPoint = 'external'}) =>
+          _openJournal(entryPoint: entryPoint),
       close: _closeJournal,
     );
   }
@@ -104,7 +109,9 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
     if (_isJournalOpen) return;
     if (!UiGuards.canOpenJournalSwipe) return;
     if (kDebugMode) {
-      print('[JournalSwipeLayer] open entryPoint=$entryPoint portrait=${widget.isPortrait}');
+      print(
+        '[JournalSwipeLayer] open entryPoint=$entryPoint portrait=${widget.isPortrait}',
+      );
     }
 
     setState(() => _isJournalOpen = true);
@@ -122,7 +129,6 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
 
     // analytics
     _trackJournalOpened(entryPoint);
-    
   }
 
   void _closeJournal() {
@@ -196,7 +202,9 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
         // ===== Right-edge CLOSE (drag left) — only when open =====
         if (_isJournalOpen)
           Positioned(
-            right: rightSide == null ? 0 : null, // LTR -> right:0 ; RTL -> left:0
+            right: rightSide == null
+                ? 0
+                : null, // LTR -> right:0 ; RTL -> left:0
             left: rightSide,
             top: safeTop,
             bottom: 0,
@@ -209,8 +217,9 @@ class _JournalSwipeLayerState extends State<JournalSwipeLayer> {
               onHorizontalDragEnd: (d) {
                 final vx = d.velocity.pixelsPerSecond.dx;
                 final traveled = _dragAccumClose;
-                final flingClose = vx < _closeVelocity;        // strong left fling
-                final dragClose = traveled < -_closeDistance;  // enough left drag
+                final flingClose = vx < _closeVelocity; // strong left fling
+                final dragClose =
+                    traveled < -_closeDistance; // enough left drag
                 if ((flingClose || dragClose) && _isJournalOpen) {
                   _closeJournal();
                 }

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mobile/core/touch_targets.dart';
 
 enum KeyboardMode { system, custom }
 
@@ -61,8 +62,9 @@ class KemeticKeyboardController extends ChangeNotifier {
 
   void endOpening({required bool success}) {
     final target = _selectUsableEditable();
-    final nextMode =
-        success && target != null ? KeyboardMode.custom : KeyboardMode.system;
+    final nextMode = success && target != null
+        ? KeyboardMode.custom
+        : KeyboardMode.system;
     final changed = _opening || _mode != nextMode;
     _opening = false;
     _mode = nextMode;
@@ -145,7 +147,10 @@ class KemeticKeyboardController extends ChangeNotifier {
     final normalizedCursorText = mode == _OutputMode.scholarly
         ? _normalizeToUnicode(rawCursorText)
         : _normalizeToAscii(rawCursorText);
-    final newOffset = normalizedCursorText.length.clamp(0, normalizedText.length);
+    final newOffset = normalizedCursorText.length.clamp(
+      0,
+      normalizedText.length,
+    );
 
     return currentValue.copyWith(
       text: normalizedText,
@@ -532,8 +537,12 @@ class _KeyboardPanelState extends State<_KeyboardPanel> {
                             ),
                           ),
                           SegmentedButton<_OutputMode>(
-                            style: const ButtonStyle(
-                              visualDensity: VisualDensity.compact,
+                            style: ButtonStyle(
+                              visualDensity: expandedVisualDensity(
+                                context,
+                                fallback: VisualDensity.compact,
+                              ),
+                              tapTargetSize: expandedTapTargetSize(context),
                             ),
                             segments: const [
                               ButtonSegment(

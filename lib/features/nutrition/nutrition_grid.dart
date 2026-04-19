@@ -980,45 +980,49 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
         ? (minHeight ?? _expandedRowHeight(context))
         : (minHeight ?? _rowHeight);
     final tip = _schedulePreviewText(context, item.schedule);
+    final expandTouchTargets = useExpandedTouchTargets(context);
+    final buttonSize = expandTouchTargets ? kMinInteractiveDimension : 28.0;
+    final scheduleButton = SizedBox.square(
+      dimension: buttonSize,
+      child: IconButton(
+        tooltip: tip,
+        icon: const Icon(
+          Icons.event_note_rounded,
+          size: _whenIconSize,
+          color: Colors.white,
+        ),
+        padding: expandedIconButtonPadding(
+          context,
+          iconSize: _whenIconSize,
+          fallback: EdgeInsets.zero,
+        ),
+        constraints: expandedIconButtonConstraints(context),
+        visualDensity: expandedVisualDensity(context),
+        splashRadius: math.max(18, buttonSize / 2),
+        onPressed: () async {
+          FocusScope.of(context).unfocus();
+          final updated = await _openSchedulePicker(context, item);
+          if (updated != null) {
+            setState(() {
+              item.schedule = updated;
+              item.enabled =
+                  (updated.mode == IntakeMode.weekday &&
+                      updated.daysOfWeek.isNotEmpty) ||
+                  (updated.mode == IntakeMode.decan &&
+                      updated.decanDays.isNotEmpty);
+              _scheduleChanged[item.id] = true;
+            });
+            _saveDebounced(item, resync: true);
+          }
+        },
+      ),
+    );
 
     return _cellShell(
       Center(
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: SizedBox(
-            width: 28,
-            height: 28,
-            child: IconButton(
-              tooltip: tip,
-              icon: const Icon(
-                Icons.event_note_rounded,
-                size: _whenIconSize,
-                color: Colors.white,
-              ),
-              padding: EdgeInsets.zero, // Remove default padding
-              constraints:
-                  const BoxConstraints(), // Remove default 48x48 constraint
-              splashRadius:
-                  18, // slightly larger than icon for better touch feedback
-              onPressed: () async {
-                FocusScope.of(context).unfocus();
-                final updated = await _openSchedulePicker(context, item);
-                if (updated != null) {
-                  setState(() {
-                    item.schedule = updated;
-                    item.enabled =
-                        (updated.mode == IntakeMode.weekday &&
-                            updated.daysOfWeek.isNotEmpty) ||
-                        (updated.mode == IntakeMode.decan &&
-                            updated.decanDays.isNotEmpty);
-                    _scheduleChanged[item.id] = true;
-                  });
-                  _saveDebounced(item, resync: true);
-                }
-              },
-            ),
-          ),
-        ),
+        child: expandTouchTargets
+            ? scheduleButton
+            : FittedBox(fit: BoxFit.scaleDown, child: scheduleButton),
       ),
       width: width,
       minHeight: h,

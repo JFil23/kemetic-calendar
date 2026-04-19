@@ -12,6 +12,7 @@ import '../../data/share_repo.dart';
 import '../../repositories/inbox_repo.dart';
 import 'shared_flow_details_entry.dart';
 import 'conversation_user.dart';
+import '../invites/event_invite_details_page.dart';
 import '../profile/profile_page.dart';
 
 class InboxConversationPage extends StatefulWidget {
@@ -347,6 +348,9 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                       final share = items[index];
                       final isMine = share.senderId == currentUserId;
                       final isText = share.isTextMessage;
+                      final itemLabel = isText
+                          ? 'Message'
+                          : (share.isEvent ? 'Invite' : 'Flow');
 
                       return Align(
                         alignment: isMine
@@ -362,6 +366,17 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                       'shareId=${share.shareId} kind=${share.kind.asString} '
                                       'title=${share.title}',
                                     );
+                                  }
+                                  if (share.isEvent) {
+                                    await Navigator.push<void>(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => EventInviteDetailsPage(
+                                          share: share,
+                                        ),
+                                      ),
+                                    );
+                                    return;
                                   }
                                   final importedFlowId =
                                       await Navigator.push<int>(
@@ -404,8 +419,8 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                       ),
                                       title: Text(
                                         isMine
-                                            ? 'Unsend ${isText ? 'Message' : 'Flow'}'
-                                            : 'Delete ${isText ? 'Message' : 'Flow'}',
+                                            ? 'Unsend $itemLabel'
+                                            : 'Delete $itemLabel',
                                         style: const TextStyle(
                                           color: Colors.red,
                                         ),
@@ -421,8 +436,8 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                             ),
                                             title: Text(
                                               isMine
-                                                  ? 'Unsend this ${isText ? 'message' : 'flow'}?'
-                                                  : 'Delete this ${isText ? 'message' : 'flow'}?',
+                                                  ? 'Unsend this ${itemLabel.toLowerCase()}?'
+                                                  : 'Delete this ${itemLabel.toLowerCase()}?',
                                               style: const TextStyle(
                                                 color: Colors.white,
                                               ),
@@ -500,8 +515,8 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                             SnackBar(
                                               content: Text(
                                                 isMine
-                                                    ? '${isText ? 'Message' : 'Flow'} unsent'
-                                                    : '${isText ? 'Message' : 'Flow'} deleted',
+                                                    ? '$itemLabel unsent'
+                                                    : '$itemLabel deleted',
                                               ),
                                               duration: const Duration(
                                                 seconds: 1,
@@ -530,12 +545,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                   likeUpdating: _messageLikeUpdatingIds
                                       .contains(share.shareId),
                                 )
-                              : _FlowBubble(
-                                  title: share.title,
-                                  createdAt: share.createdAt,
-                                  isMine: isMine,
-                                  isImported: share.importedAt != null,
-                                ),
+                              : _FlowBubble(share: share, isMine: isMine),
                         ),
                       );
                     },
@@ -612,20 +622,21 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
 }
 
 class _FlowBubble extends StatelessWidget {
-  final String title;
-  final DateTime createdAt;
+  final InboxShareItem share;
   final bool isMine;
-  final bool isImported;
 
-  const _FlowBubble({
-    required this.title,
-    required this.createdAt,
-    required this.isMine,
-    required this.isImported,
-  });
+  const _FlowBubble({required this.share, required this.isMine});
 
   @override
   Widget build(BuildContext context) {
+    final isEvent = share.isEvent;
+    final payload = share.eventPayload;
+    final title = payload?.title ?? share.title;
+    final label = isEvent ? 'Invite' : 'Flow';
+    final icon = isEvent ? Icons.event_available_outlined : Icons.view_timeline;
+    final statusLabel = _statusLabel(share);
+    final statusColor = _statusColor(share);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -649,20 +660,20 @@ class _FlowBubble extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.view_timeline,
+                icon,
                 size: 16,
                 color: isMine ? KemeticGold.base : Colors.white70,
               ),
               const SizedBox(width: 6),
               Text(
-                'Flow',
+                label,
                 style: TextStyle(
                   color: isMine ? KemeticGold.base : Colors.white70,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              if (isImported) ...[
+              if (!isEvent && share.importedAt != null) ...[
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -677,6 +688,27 @@ class _FlowBubble extends StatelessWidget {
                     'Imported',
                     style: TextStyle(
                       color: Colors.green,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+              if (isEvent && statusLabel != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: TextStyle(
+                      color: statusColor,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -698,7 +730,7 @@ class _FlowBubble extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            _formatTime(createdAt),
+            _detailLine(payload),
             style: TextStyle(
               color: (isMine ? Colors.white : Colors.white70).withOpacity(0.6),
               fontSize: 11,
@@ -707,6 +739,29 @@ class _FlowBubble extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _detailLine(EventSharePayload? payload) {
+    if (share.isEvent) {
+      final startsAt = payload?.startsAt ?? share.eventDate;
+      if (startsAt == null) return _formatTime(share.createdAt);
+      return _formatEventTime(startsAt, payload?.allDay ?? false);
+    }
+    return _formatTime(share.createdAt);
+  }
+
+  String _formatEventTime(DateTime date, bool allDay) {
+    final localDate = date.toLocal();
+    final month = localDate.month.toString().padLeft(2, '0');
+    final day = localDate.day.toString().padLeft(2, '0');
+    if (allDay) {
+      return '$month/$day • All day';
+    }
+    final minute = localDate.minute.toString().padLeft(2, '0');
+    final hour24 = localDate.hour;
+    final period = hour24 >= 12 ? 'PM' : 'AM';
+    final hour12 = hour24 == 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
+    return '$month/$day • $hour12:$minute $period';
   }
 
   String _formatTime(DateTime date) {
@@ -722,6 +777,33 @@ class _FlowBubble extends StatelessWidget {
       return '${diff.inDays}d ago';
     } else {
       return '${localDate.month}/${localDate.day}/${localDate.year}';
+    }
+  }
+
+  String? _statusLabel(InboxShareItem share) {
+    switch (share.responseStatus) {
+      case EventInviteResponseStatus.accepted:
+        return 'Yes';
+      case EventInviteResponseStatus.declined:
+        return 'No';
+      case EventInviteResponseStatus.maybe:
+        return 'Maybe';
+      case EventInviteResponseStatus.noResponse:
+        if (share.viewedAt != null) return 'Opened';
+        return isMine ? 'Pending' : null;
+    }
+  }
+
+  Color _statusColor(InboxShareItem share) {
+    switch (share.responseStatus) {
+      case EventInviteResponseStatus.accepted:
+        return Colors.greenAccent;
+      case EventInviteResponseStatus.declined:
+        return Colors.redAccent;
+      case EventInviteResponseStatus.maybe:
+        return Colors.orangeAccent;
+      case EventInviteResponseStatus.noResponse:
+        return Colors.white70;
     }
   }
 }

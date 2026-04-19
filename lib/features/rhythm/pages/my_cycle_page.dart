@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -273,17 +274,21 @@ class _ShortcutChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: RhythmTheme.frostSurface(),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: RhythmTheme.aurora),
-            const SizedBox(width: 10),
-            Text(label, style: RhythmTheme.label),
-          ],
+      child: withMinimumTouchTarget(
+        context,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: RhythmTheme.frostSurface(),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: RhythmTheme.aurora),
+              const SizedBox(width: 10),
+              Text(label, style: RhythmTheme.label),
+            ],
+          ),
         ),
       ),
     );

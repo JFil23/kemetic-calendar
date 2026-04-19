@@ -1,17 +1,68 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-const double _tabletBreakpoint = 600;
+bool _isTouchFirstPlatform(TargetPlatform platform) {
+  switch (platform) {
+    case TargetPlatform.android:
+    case TargetPlatform.iOS:
+    case TargetPlatform.fuchsia:
+      return true;
+    case TargetPlatform.linux:
+    case TargetPlatform.macOS:
+    case TargetPlatform.windows:
+      return false;
+  }
+}
 
 bool shouldUseExpandedTouchTargets({
   required MediaQueryData mediaQuery,
   bool isWeb = kIsWeb,
+  TargetPlatform? platform,
 }) {
-  return isWeb && mediaQuery.size.shortestSide >= _tabletBreakpoint;
+  final resolvedPlatform = platform ?? defaultTargetPlatform;
+  return _isTouchFirstPlatform(resolvedPlatform);
 }
 
 bool useExpandedTouchTargets(BuildContext context) {
   return shouldUseExpandedTouchTargets(mediaQuery: MediaQuery.of(context));
+}
+
+bool shouldEnableGlobalScaleGestures({
+  required MediaQueryData mediaQuery,
+  bool isWeb = kIsWeb,
+  TargetPlatform? platform,
+}) {
+  final resolvedPlatform = platform ?? defaultTargetPlatform;
+  return !_isTouchFirstPlatform(resolvedPlatform);
+}
+
+bool useGlobalScaleGestures(BuildContext context) {
+  return shouldEnableGlobalScaleGestures(mediaQuery: MediaQuery.of(context));
+}
+
+double expandedTouchTargetMinDimension(
+  BuildContext context, {
+  double fallback = 0,
+  double minSize = kMinInteractiveDimension,
+}) {
+  return useExpandedTouchTargets(context) ? minSize : fallback;
+}
+
+double edgeSwipeGestureWidth(
+  BuildContext context, {
+  double touchWidth = 18,
+  double minWidth = 28,
+  double maxWidth = 56,
+  double viewportFraction = 0.06,
+}) {
+  if (useExpandedTouchTargets(context)) {
+    return touchWidth;
+  }
+
+  final viewportWidth = MediaQuery.of(context).size.width;
+  return (viewportWidth * viewportFraction)
+      .clamp(minWidth, maxWidth)
+      .toDouble();
 }
 
 ButtonStyle withExpandedTouchTargets(
@@ -30,6 +81,35 @@ ButtonStyle withExpandedTouchTargets(
     minimumSize: WidgetStatePropertyAll<Size>(minimumSize),
     tapTargetSize: MaterialTapTargetSize.padded,
     visualDensity: VisualDensity.standard,
+  );
+}
+
+BoxConstraints minimumTouchTargetConstraints(
+  BuildContext context, {
+  double minSize = kMinInteractiveDimension,
+  BoxConstraints fallback = const BoxConstraints(),
+}) {
+  if (!useExpandedTouchTargets(context)) {
+    return fallback;
+  }
+
+  return BoxConstraints(minWidth: minSize, minHeight: minSize);
+}
+
+Widget withMinimumTouchTarget(
+  BuildContext context,
+  Widget child, {
+  double minSize = kMinInteractiveDimension,
+  Alignment alignment = Alignment.center,
+  BoxConstraints fallback = const BoxConstraints(),
+}) {
+  return ConstrainedBox(
+    constraints: minimumTouchTargetConstraints(
+      context,
+      minSize: minSize,
+      fallback: fallback,
+    ),
+    child: Align(alignment: alignment, child: child),
   );
 }
 

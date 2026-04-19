@@ -2974,7 +2974,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 KemeticGold.icon(Icons.share),
                 const SizedBox(width: 12),
                 const Text(
-                  'Share Reminder',
+                  'Invite People',
                   style: TextStyle(color: Colors.white),
                 ),
               ],
@@ -2998,7 +2998,10 @@ class _DayViewGridState extends State<DayViewGrid> {
               children: [
                 KemeticGold.icon(Icons.share),
                 const SizedBox(width: 12),
-                const Text('Share Note', style: TextStyle(color: Colors.white)),
+                const Text(
+                  'Invite People',
+                  style: TextStyle(color: Colors.white),
+                ),
               ],
             ),
           ),

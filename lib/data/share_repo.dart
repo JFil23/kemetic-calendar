@@ -285,6 +285,57 @@ class ShareRepo {
     }
   }
 
+  Future<List<EventInviteeStatus>> getEventInvitees({
+    required String eventId,
+  }) async {
+    try {
+      final response = await _client
+          .from('event_shares')
+          .select(
+            'id, recipient_id, viewed_at, responded_at, response_status, '
+            'recipient:profiles!event_shares_recipient_id_fkey(handle, display_name, avatar_url)',
+          )
+          .eq('event_id', eventId)
+          .filter('deleted_at', 'is', null)
+          .order('created_at', ascending: true);
+
+      return (response as List)
+          .cast<Map<String, dynamic>>()
+          .map(EventInviteeStatus.fromJson)
+          .toList(growable: false);
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[ShareRepo] Error loading event invitees: $e');
+        debugPrint('$st');
+      }
+      return const [];
+    }
+  }
+
+  Future<bool> respondToEventInvite({
+    required String shareId,
+    required EventInviteResponseStatus responseStatus,
+  }) async {
+    try {
+      final now = DateTime.now().toUtc().toIso8601String();
+      await _client
+          .from('event_shares')
+          .update({
+            'response_status': responseStatus.dbValue,
+            'responded_at': now,
+            'viewed_at': now,
+          })
+          .eq('id', shareId);
+      return true;
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[ShareRepo] Error responding to invite: $e');
+        debugPrint('$st');
+      }
+      return false;
+    }
+  }
+
   /// Resolve a share link and get flow details for preview
   Future<Map<String, dynamic>> resolveShare({
     required String shareId,
@@ -550,6 +601,20 @@ class ShareRepo {
 
           return items;
         });
+  }
+
+  Stream<List<InboxShareItem>> watchPendingEventInvites() {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) {
+      return Stream.value(const []);
+    }
+
+    return watchInbox().map((items) {
+      final invites = items.where((item) {
+        return item.isPendingEventInvite && item.recipientId == uid;
+      }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return invites;
+    });
   }
 
   /// Watch unread count for real-time updates

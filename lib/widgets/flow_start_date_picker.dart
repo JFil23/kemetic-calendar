@@ -4,6 +4,7 @@
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/shared/glossy_text.dart';
@@ -92,6 +93,12 @@ class FlowStartDatePicker {
       builder: (sheetCtx) {
         return StatefulBuilder(
           builder: (sheetCtx, setSheetState) {
+            final segmentPadding = useExpandedTouchTargets(sheetCtx)
+                ? const EdgeInsets.all(6)
+                : const EdgeInsets.all(2);
+            final segmentLabelPadding = useExpandedTouchTargets(sheetCtx)
+                ? const EdgeInsets.symmetric(horizontal: 14, vertical: 10)
+                : const EdgeInsets.symmetric(horizontal: 10, vertical: 6);
             // Clamp wheels when parents change
             final gMax = gregDayMax(gy, gm);
             if (gd > gMax) gd = gMax;
@@ -323,20 +330,14 @@ class FlowStartDatePicker {
                   // Mode toggle
                   CupertinoSegmentedControl<bool>(
                     groupValue: localKemetic,
-                    padding: const EdgeInsets.all(2),
-                    children: const {
+                    padding: segmentPadding,
+                    children: {
                       true: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
+                        padding: segmentLabelPadding,
                         child: Text('Kemetic'),
                       ),
                       false: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
+                        padding: segmentLabelPadding,
                         child: Text('Gregorian'),
                       ),
                     },

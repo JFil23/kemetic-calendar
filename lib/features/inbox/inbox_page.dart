@@ -398,7 +398,7 @@ class _InboxPageState extends State<InboxPage> {
         subtitle: Text(
           lastItem.isTextMessage
               ? (lastItem.messageText ?? 'Message')
-              : lastItem.title,
+              : _conversationPreviewText(lastItem),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
@@ -457,6 +457,15 @@ class _InboxPageState extends State<InboxPage> {
         }
       }
     }
+  }
+
+  String _conversationPreviewText(InboxShareItem item) {
+    if (!item.isEvent) return item.title;
+    final status = item.responseStatus;
+    if (status == EventInviteResponseStatus.noResponse) {
+      return item.title;
+    }
+    return '${item.title} • ${status.label}';
   }
 
   void _openProfile(String userId) {

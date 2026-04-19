@@ -36,21 +36,42 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
   final List<ShareRecipient> _recipients = [];
   // ✅ NEW: keep rich info for user recipients keyed by userId
   final Map<String, UserSearchResult> _recipientUsersById = {};
+  List<EventInviteeStatus> _existingInvitees = const [];
   String _searchQuery = '';
   List<UserSearchResult> _searchResults = [];
   bool _searching = false;
   bool _sending = false;
+  bool _loadingInvitees = false;
   Timer? _searchDebounce;
 
-  bool get _isNoteMode => widget.flowId == null && widget.noteShareText != null;
   bool get _isEventShare => widget.eventId != null;
+  bool get _isTextShare =>
+      widget.flowId == null && widget.noteShareText != null && !_isEventShare;
+  bool get _isFlowShare => widget.flowId != null;
+  bool get _supportsExternalRecipients => !_isEventShare;
+  String get _sheetTitle {
+    if (_isEventShare) return 'Invite People';
+    if (_isTextShare) return 'Share Note';
+    return 'Share Flow';
+  }
+
+  String get _sendLabel => _isEventShare ? 'Invite' : 'Send';
+
   bool get _showNoUserResults {
     final query = _searchQuery.trim();
     return query.length >= 2 &&
         !_searching &&
         _searchResults.isEmpty &&
-        !_isValidEmail(query) &&
-        !_looksLikePhoneNumber(query);
+        (_isEventShare ||
+            (!_isValidEmail(query) && !_looksLikePhoneNumber(query)));
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEventShare) {
+      _loadExistingInvitees();
+    }
   }
 
   @override
@@ -84,7 +105,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _isNoteMode ? 'Share Note' : 'Share Flow',
+                        _sheetTitle,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -104,7 +125,12 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: (_recipients.isEmpty && !_isNoteMode) || _sending ? null : _sendShares,
+                  onPressed:
+                      ((_isFlowShare || _isEventShare) &&
+                              _recipients.isEmpty) ||
+                          _sending
+                      ? null
+                      : _sendShares,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: KemeticGold.base,
                     foregroundColor: Colors.black,
@@ -117,46 +143,61 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.black,
+                            ),
                           ),
                         )
-                      : const Text('Send'),
+                      : Text(_sendLabel),
                 ),
               ],
             ),
           ),
-          
+
           const Divider(color: Color(0xFF1A1A1A), height: 1),
-          
+
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (_isEventShare) ...[
+                    _buildEventModeInfo(),
+                    const SizedBox(height: 16),
+                  ],
                   // Search field
                   _buildSearchField(),
-                  
+
                   if (_searchResults.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     _buildSearchResults(),
                   ] else if (_showNoUserResults) ...[
                     const SizedBox(height: 16),
                     Text(
-                      'No users found for "$_searchQuery". You can still press Enter to add an email or phone number.',
+                      _isEventShare
+                          ? 'No in-app users found for "$_searchQuery".'
+                          : 'No users found for "$_searchQuery". You can still press Enter to add an email or phone number.',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 13,
                       ),
                     ),
                   ],
-                  
+
                   const SizedBox(height: 24),
-                  
+
+                  if (_isEventShare) ...[
+                    _buildExistingInviteesSection(),
+                    const SizedBox(height: 24),
+                  ],
+
                   // Selected recipients
                   if (_recipients.isNotEmpty) ...[
                     Text(
-                      'Recipients (${_recipients.length})',
+                      _isEventShare
+                          ? 'New Invitees (${_recipients.length})'
+                          : 'Recipients (${_recipients.length})',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 14,
@@ -181,9 +222,14 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       controller: _searchController,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
-        hintText: 'Search by @handle or enter email/phone (press Enter)',
+        hintText: _isEventShare
+            ? 'Search by @handle'
+            : 'Search by @handle or enter email/phone (press Enter)',
         hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-        prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.5)),
+        prefixIcon: Icon(
+          Icons.search,
+          color: Colors.white.withValues(alpha: 0.5),
+        ),
         suffixIcon: _searching
             ? const Padding(
                 padding: EdgeInsets.all(12),
@@ -225,9 +271,149 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     );
   }
 
+  Widget _buildEventModeInfo() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0D0F),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.notifications_active_outlined,
+            color: KemeticGold.base,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Invite people inside the app. They will see this event with Yes, No, and Maybe actions instead of receiving an email.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.78),
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExistingInviteesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Invite Status',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.7),
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (_loadingInvitees)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+              ),
+            ),
+          )
+        else if (_existingInvitees.isEmpty)
+          Text(
+            'No invitees yet.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.56),
+              fontSize: 13,
+            ),
+          )
+        else
+          ..._existingInvitees.map(_buildExistingInviteeRow),
+      ],
+    );
+  }
+
+  Widget _buildExistingInviteeRow(EventInviteeStatus invitee) {
+    Color statusColor;
+    switch (invitee.responseStatus) {
+      case EventInviteResponseStatus.accepted:
+        statusColor = Colors.greenAccent;
+        break;
+      case EventInviteResponseStatus.declined:
+        statusColor = Colors.redAccent;
+        break;
+      case EventInviteResponseStatus.maybe:
+        statusColor = Colors.orangeAccent;
+        break;
+      case EventInviteResponseStatus.noResponse:
+        statusColor = Colors.white70;
+        break;
+    }
+
+    final displayName = invitee.displayName?.trim().isNotEmpty == true
+        ? invitee.displayName!.trim()
+        : (invitee.handle?.trim().isNotEmpty == true
+              ? '@${invitee.handle!.trim()}'
+              : 'User');
+
+    final meta = invitee.responseStatus.isPending
+        ? (invitee.viewedAt != null ? 'Opened' : 'Waiting')
+        : invitee.responseStatus.label;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0D0F),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: statusColor.withValues(alpha: 0.18),
+            child: Text(
+              displayName.characters.take(1).toString().toUpperCase(),
+              style: TextStyle(color: statusColor, fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              displayName,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: statusColor.withValues(alpha: 0.28)),
+            ),
+            child: Text(
+              meta,
+              style: TextStyle(
+                color: statusColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _onSearchChanged(String query) async {
     final trimmedQuery = query.trim();
-    
+
     // Cancel previous search
     _searchDebounce?.cancel();
 
@@ -242,7 +428,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     }
 
     // 1️⃣ If it looks like an email, don't hit user search — wait for user to press Enter
-    if (_isValidEmail(trimmedQuery)) {
+    if (_supportsExternalRecipients && _isValidEmail(trimmedQuery)) {
       debugPrint('[ShareFlowSheet] Detected email: $trimmedQuery');
       setState(() {
         _searchQuery = trimmedQuery;
@@ -256,7 +442,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     setState(() {
       _searchQuery = trimmedQuery;
     });
-    
+
     _searchDebounce = Timer(const Duration(milliseconds: 250), () async {
       setState(() {
         _searching = true;
@@ -265,7 +451,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       try {
         final results = await _profileRepo.searchUsers(trimmedQuery);
         if (!mounted) return;
-        
+
         setState(() {
           _searchResults = results;
           _searching = false;
@@ -273,7 +459,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       } catch (e) {
         debugPrint('[ShareFlowSheet] Search error: $e');
         if (!mounted) return;
-        
+
         setState(() {
           _searchResults = [];
           _searching = false;
@@ -303,6 +489,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
 
   void _handleSubmit(String query) {
     if (query.isEmpty) return;
+    if (!_supportsExternalRecipients) return;
 
     // Check if it's a valid email
     if (query.contains('@') && _isValidEmail(query)) {
@@ -355,16 +542,17 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
         itemCount: _searchResults.length,
         itemBuilder: (context, index) {
           final user = _searchResults[index];
-          final displayChar = (user.displayName?.isNotEmpty == true 
-                  ? user.displayName![0] 
-                  : user.handle?.isNotEmpty == true 
-                      ? user.handle![0] 
+          final displayChar =
+              (user.displayName?.isNotEmpty == true
+                      ? user.displayName![0]
+                      : user.handle?.isNotEmpty == true
+                      ? user.handle![0]
                       : '?')
-              .toUpperCase();
-          final displayText = user.handle != null 
-              ? '@${user.handle}' 
+                  .toUpperCase();
+          final displayText = user.handle != null
+              ? '@${user.handle}'
               : user.displayName ?? 'User';
-          
+
           return ListTile(
             leading: CircleAvatar(
               backgroundColor: KemeticGold.base,
@@ -399,13 +587,13 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     if (recipient.type == ShareRecipientType.user) {
       // ✅ Use stored map instead of search results
       final user = _recipientUsersById[recipient.value];
-      
+
       if (user != null) {
         displayText = user.displayName?.trim().isNotEmpty == true
             ? user.displayName!
             : (user.handle != null && user.handle!.isNotEmpty
-                ? '@${user.handle}'
-                : 'User');
+                  ? '@${user.handle}'
+                  : 'User');
       } else {
         // Fallback if somehow missing
         displayText = 'User';
@@ -426,8 +614,8 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
             recipient.type == ShareRecipientType.user
                 ? Icons.person
                 : recipient.type == ShareRecipientType.email
-                    ? Icons.email
-                    : Icons.phone,
+                ? Icons.email
+                : Icons.phone,
             color: KemeticGold.base,
             size: 20,
           ),
@@ -455,9 +643,21 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
 
   void _addUserToRecipients(UserSearchResult user) {
     // Check if already added
-    if (_recipients.any((r) => r.type == ShareRecipientType.user && r.value == user.userId)) {
+    if (_recipients.any(
+      (r) => r.type == ShareRecipientType.user && r.value == user.userId,
+    )) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${user.name} already added')));
+      return;
+    }
+
+    if (_isEventShare &&
+        _existingInvitees.any(
+          (invitee) => invitee.recipientId == user.userId,
+        )) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${user.name} already added')),
+        SnackBar(content: Text('${user.name} is already invited')),
       );
       return;
     }
@@ -494,11 +694,89 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     return null;
   }
 
+  Future<void> _loadExistingInvitees() async {
+    if (!_isEventShare || widget.eventId == null) return;
+    setState(() => _loadingInvitees = true);
+    final invitees = await _repo.getEventInvitees(eventId: widget.eventId!);
+    if (!mounted) return;
+    setState(() {
+      _existingInvitees = invitees;
+      _loadingInvitees = false;
+    });
+  }
+
   Future<void> _sendShares() async {
     debugPrint('[ShareFlowSheet] _sendShares() called');
     debugPrint('[ShareFlowSheet] Recipients: ${_recipients.length}');
 
-    if (_isNoteMode) {
+    if (_isEventShare) {
+      final userRecipients = _recipients
+          .where((recipient) => recipient.type == ShareRecipientType.user)
+          .toList(growable: false);
+      if (userRecipients.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please add at least one person'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      setState(() => _sending = true);
+      try {
+        final results = await _repo.shareEvent(
+          eventId: widget.eventId!,
+          recipients: userRecipients,
+          payloadJson: null,
+        );
+        if (!mounted) return;
+
+        final successCount = results.where((r) => r.isSuccess).length;
+        final failCount = results.length - successCount;
+
+        if (successCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                failCount == 0
+                    ? 'Invites sent inside the app'
+                    : 'Sent $successCount invite${successCount == 1 ? '' : 's'}, $failCount failed',
+              ),
+              backgroundColor: failCount == 0
+                  ? KemeticGold.base
+                  : Colors.orange,
+            ),
+          );
+        } else {
+          final errorMessages = results
+              .where((r) => r.error != null)
+              .map((r) => r.error!)
+              .toSet()
+              .join(', ');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                errorMessages.isEmpty
+                    ? 'Could not send invites'
+                    : 'Could not send invites: $errorMessages',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        Navigator.pop(context, failCount == 0);
+      } finally {
+        if (mounted) {
+          setState(() => _sending = false);
+        }
+      }
+      return;
+    }
+
+    if (_isTextShare) {
       final text = widget.noteShareText?.trim() ?? '';
       if (text.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -509,33 +787,9 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
         );
         return;
       }
-      if (_isEventShare) {
-        if (_recipients.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please add at least one recipient'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-        setState(() => _sending = true);
-        final results = await _repo.shareEvent(
-          eventId: widget.eventId!,
-          recipients: _recipients,
-          payloadJson: null,
-        );
-        _sending = false;
-        final fail = results.where((r) => r.error != null || r.status == null).length;
-        if (mounted) {
-          Navigator.pop(context, fail == 0);
-        }
-        return;
-      } else {
-        await Share.share(text);
-        if (mounted) Navigator.pop(context, true);
-        return;
-      }
+      await Share.share(text);
+      if (mounted) Navigator.pop(context, true);
+      return;
     }
 
     if (_recipients.isEmpty) {
@@ -551,10 +805,13 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       final results = await _repo.shareFlow(
         flowId: widget.flowId!,
         recipients: _recipients,
-        suggestedSchedule: null,  // No schedule suggestion - Ma'at flows have their own
+        suggestedSchedule:
+            null, // No schedule suggestion - Ma'at flows have their own
       );
 
-      debugPrint('[ShareFlowSheet] shareFlow returned ${results.length} results');
+      debugPrint(
+        '[ShareFlowSheet] shareFlow returned ${results.length} results',
+      );
       debugPrint('[ShareFlowSheet] Results: $results');
 
       if (!mounted) {
@@ -563,18 +820,25 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       }
 
       // Count successes based on status and error
-      final successCount = results.where(
-        (r) => (r.status == 'sent' || r.status == 'viewed' || r.status == 'imported') 
-            && r.error == null,
-      ).length;
-      final failCount = results.where(
-        (r) => r.error != null || r.status == null,
-      ).length;
-      
+      final successCount = results
+          .where(
+            (r) =>
+                (r.status == 'sent' ||
+                    r.status == 'viewed' ||
+                    r.status == 'imported') &&
+                r.error == null,
+          )
+          .length;
+      final failCount = results
+          .where((r) => r.error != null || r.status == null)
+          .length;
+
       if (kDebugMode) {
         debugPrint('[ShareFlowSheet] Results breakdown:');
         for (final r in results) {
-          debugPrint('[ShareFlowSheet]   - shareId=${r.shareId}, status=${r.status}, error=${r.error}');
+          debugPrint(
+            '[ShareFlowSheet]   - shareId=${r.shareId}, status=${r.status}, error=${r.error}',
+          );
         }
         debugPrint('[ShareFlowSheet] Success count: $successCount');
         debugPrint('[ShareFlowSheet] Fail count: $failCount');
@@ -584,7 +848,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
         if (kDebugMode) {
           debugPrint('[ShareFlowSheet] ✅ All shares succeeded');
         }
-        
+
         // Show success snackbar
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -594,14 +858,14 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
             ),
           );
         }
-        
+
         // ✅ NEW: Try to navigate straight into the DM thread
         final firstUserRecipient = _firstUserRecipientOrNull();
-        
+
         if (firstUserRecipient != null) {
           final userId = firstUserRecipient.value;
           final user = _recipientUsersById[userId];
-          
+
           if (user != null && mounted) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
@@ -619,7 +883,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
             return; // 🔑 Don't also pop the sheet
           }
         }
-        
+
         // Fallback: close sheet like before if no user recipient or profile not found
         if (mounted) {
           Navigator.pop(context, true);
@@ -627,7 +891,9 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
         return; // Exit early on full success
       } else if (successCount > 0 && failCount > 0) {
         if (kDebugMode) {
-          debugPrint('[ShareFlowSheet] ⚠️ Partial success: $successCount succeeded, $failCount failed');
+          debugPrint(
+            '[ShareFlowSheet] ⚠️ Partial success: $successCount succeeded, $failCount failed',
+          );
         }
         // Show partial success snackbar with error details
         final errorMessages = results
@@ -638,7 +904,9 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Shared with $successCount, failed for $failCount${errorMessages.isNotEmpty ? ': $errorMessages' : ''}'),
+              content: Text(
+                'Shared with $successCount, failed for $failCount${errorMessages.isNotEmpty ? ': $errorMessages' : ''}',
+              ),
               backgroundColor: Colors.orange,
               duration: const Duration(seconds: 4),
             ),
@@ -658,7 +926,9 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Unable to share flow${errorMessages.isNotEmpty ? ': $errorMessages' : ' — please try again.'}'),
+              content: Text(
+                'Unable to share flow${errorMessages.isNotEmpty ? ': $errorMessages' : ' — please try again.'}',
+              ),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 4),
             ),
@@ -668,7 +938,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     } catch (e, stackTrace) {
       debugPrint('[ShareFlowSheet] ❌ ERROR: $e');
       debugPrint('[ShareFlowSheet] Stack trace: $stackTrace');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -685,7 +955,3 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     }
   }
 }
-
-
-
-

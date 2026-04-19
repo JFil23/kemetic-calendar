@@ -276,6 +276,7 @@ class UserEventsRepo {
   /// Update by row id (owner-scoped by RLS).
   Future<UserEvent> update({
     required String id,
+    String? clientEventId,
     String? title,
     String? detail,
     String? location,
@@ -285,6 +286,7 @@ class UserEventsRepo {
     String? category,
   }) async {
     final patch = <String, dynamic>{};
+    if (clientEventId != null) patch['client_event_id'] = clientEventId;
     if (title != null) patch['title'] = title;
     if (detail != null) patch['detail'] = detail;
     if (location != null) patch['location'] = location;
@@ -324,6 +326,49 @@ class UserEventsRepo {
       rethrow;
     } catch (e) {
       _log('update ✗ $e');
+      rethrow;
+    }
+  }
+
+  /// Replace the editable event fields for an existing row.
+  /// Unlike [update], nullable fields are written through and can be cleared.
+  Future<UserEvent> replace({
+    required String id,
+    required String clientEventId,
+    required String title,
+    String? detail,
+    String? location,
+    required bool allDay,
+    required DateTime startsAt,
+    DateTime? endsAt,
+    String? category,
+  }) async {
+    final patch = <String, dynamic>{
+      'client_event_id': clientEventId,
+      'title': title,
+      'detail': detail,
+      'location': location,
+      'all_day': allDay,
+      'starts_at': startsAt.toUtc().toIso8601String(),
+      'ends_at': endsAt?.toUtc().toIso8601String(),
+      'category': category,
+    };
+
+    _log('replace($id) → $patch');
+    try {
+      final row = await _client
+          .from(_kTable)
+          .update(patch)
+          .eq('id', id)
+          .select()
+          .single();
+      _log('replace ✓ id=$id');
+      return UserEvent.fromRow(row);
+    } on PostgrestException catch (e) {
+      _log('replace ✗ ${e.code} ${e.message}');
+      rethrow;
+    } catch (e) {
+      _log('replace ✗ $e');
       rethrow;
     }
   }

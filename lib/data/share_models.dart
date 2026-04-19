@@ -10,7 +10,8 @@ class SuggestedSchedule {
   final List<int> weekdays; // accepts either 0..6 (Sun..Sat) or 1..7 (Mon..Sun)
   final bool everyOtherDay;
   final int? perWeek; // null = every occurrence, 1-4 = every Nth occurrence
-  final Map<String, String> timesByWeekday; // weekday -> time (e.g., "1" -> "09:00")
+  final Map<String, String>
+  timesByWeekday; // weekday -> time (e.g., "1" -> "09:00")
 
   SuggestedSchedule({
     required this.startDate,
@@ -136,10 +137,7 @@ class ShareRecipient {
   final ShareRecipientType type;
   final String value; // handle, email, or phone number
 
-  ShareRecipient({
-    required this.type,
-    required this.value,
-  });
+  ShareRecipient({required this.type, required this.value});
 
   factory ShareRecipient.fromJson(Map<String, dynamic> json) {
     return ShareRecipient(
@@ -152,10 +150,7 @@ class ShareRecipient {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'type': type.name,
-      'value': value,
-    };
+    return {'type': type.name, 'value': value};
   }
 }
 
@@ -177,9 +172,11 @@ class ShareResult {
 
   factory ShareResult.fromJson(Map<String, dynamic> json) {
     return ShareResult(
-      recipient: null, // Edge function doesn't return recipient in the share row
+      recipient:
+          null, // Edge function doesn't return recipient in the share row
       status: json['status'] as String?,
-      shareId: json['id'] as String?, // Edge returns 'id' from flow_shares table
+      shareId:
+          json['id'] as String?, // Edge returns 'id' from flow_shares table
       shareUrl: json['share_url'] as String?,
       error: null, // Errors are handled at the response level
     );
@@ -195,7 +192,9 @@ class ShareResult {
     };
   }
 
-  bool get isSuccess => error == null && (status == 'sent' || status == 'viewed' || status == 'imported');
+  bool get isSuccess =>
+      error == null &&
+      (status == 'sent' || status == 'viewed' || status == 'imported');
   bool get isError => error != null;
 }
 
@@ -238,14 +237,157 @@ enum InboxShareKind {
   }
 }
 
+enum EventInviteResponseStatus {
+  noResponse,
+  accepted,
+  declined,
+  maybe;
+
+  static EventInviteResponseStatus fromDbValue(String? raw) {
+    switch ((raw ?? '').trim().toLowerCase()) {
+      case 'accepted':
+        return EventInviteResponseStatus.accepted;
+      case 'declined':
+        return EventInviteResponseStatus.declined;
+      case 'maybe':
+        return EventInviteResponseStatus.maybe;
+      case 'no_response':
+      default:
+        return EventInviteResponseStatus.noResponse;
+    }
+  }
+
+  String get dbValue {
+    switch (this) {
+      case EventInviteResponseStatus.noResponse:
+        return 'no_response';
+      case EventInviteResponseStatus.accepted:
+        return 'accepted';
+      case EventInviteResponseStatus.declined:
+        return 'declined';
+      case EventInviteResponseStatus.maybe:
+        return 'maybe';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case EventInviteResponseStatus.noResponse:
+        return 'Pending';
+      case EventInviteResponseStatus.accepted:
+        return 'Yes';
+      case EventInviteResponseStatus.declined:
+        return 'No';
+      case EventInviteResponseStatus.maybe:
+        return 'Maybe';
+    }
+  }
+
+  bool get isPending => this == EventInviteResponseStatus.noResponse;
+}
+
+class EventSharePayload {
+  final String? eventId;
+  final String title;
+  final String? detail;
+  final String? location;
+  final DateTime? startsAt;
+  final DateTime? endsAt;
+  final bool allDay;
+
+  const EventSharePayload({
+    required this.eventId,
+    required this.title,
+    this.detail,
+    this.location,
+    this.startsAt,
+    this.endsAt,
+    required this.allDay,
+  });
+
+  factory EventSharePayload.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDateTime(Object? raw) {
+      if (raw is! String || raw.trim().isEmpty) return null;
+      return DateTime.tryParse(raw.trim());
+    }
+
+    return EventSharePayload(
+      eventId: (json['event_id'] as String?)?.trim(),
+      title: (json['title'] as String?)?.trim().isNotEmpty == true
+          ? (json['title'] as String).trim()
+          : ((json['name'] as String?)?.trim().isNotEmpty == true
+                ? (json['name'] as String).trim()
+                : 'Event Invite'),
+      detail: (json['detail'] as String?)?.trim(),
+      location: (json['location'] as String?)?.trim(),
+      startsAt: parseDateTime(json['starts_at']),
+      endsAt: parseDateTime(json['ends_at']),
+      allDay: json['all_day'] as bool? ?? false,
+    );
+  }
+}
+
+class EventInviteeStatus {
+  final String shareId;
+  final String recipientId;
+  final String? handle;
+  final String? displayName;
+  final String? avatarUrl;
+  final EventInviteResponseStatus responseStatus;
+  final DateTime? viewedAt;
+  final DateTime? respondedAt;
+
+  const EventInviteeStatus({
+    required this.shareId,
+    required this.recipientId,
+    required this.handle,
+    required this.displayName,
+    required this.avatarUrl,
+    required this.responseStatus,
+    required this.viewedAt,
+    required this.respondedAt,
+  });
+
+  factory EventInviteeStatus.fromJson(Map<String, dynamic> json) {
+    final profile = json['recipient'] is Map
+        ? Map<String, dynamic>.from(json['recipient'] as Map)
+        : const <String, dynamic>{};
+    return EventInviteeStatus(
+      shareId: json['id'] as String,
+      recipientId: json['recipient_id'] as String,
+      handle: profile['handle'] as String?,
+      displayName: profile['display_name'] as String?,
+      avatarUrl: profile['avatar_url'] as String?,
+      responseStatus: EventInviteResponseStatus.fromDbValue(
+        json['response_status'] as String?,
+      ),
+      viewedAt: json['viewed_at'] != null
+          ? DateTime.tryParse(json['viewed_at'] as String)
+          : null,
+      respondedAt: json['responded_at'] != null
+          ? DateTime.tryParse(json['responded_at'] as String)
+          : null,
+    );
+  }
+
+  String get displayLabel {
+    final name = (displayName?.trim().isNotEmpty ?? false)
+        ? displayName!.trim()
+        : ((handle?.trim().isNotEmpty ?? false)
+              ? '@${handle!.trim()}'
+              : 'User');
+    return '$name • ${responseStatus.label}';
+  }
+}
+
 /// Unified inbox item for shared flows and events
 class InboxShareItem {
   final String shareId;
   final InboxShareKind kind;
   final String recipientId;
   final String senderId;
-  final String? senderHandle;  // ✅ NULLABLE
-  final String? senderName;    // ✅ NULLABLE
+  final String? senderHandle; // ✅ NULLABLE
+  final String? senderName; // ✅ NULLABLE
   final String? senderAvatar;
   final String payloadId; // flow_id or event_id
   final String title;
@@ -256,7 +398,9 @@ class InboxShareItem {
   final SuggestedSchedule? suggestedSchedule;
   final DateTime? eventDate; // For event shares
   final Map<String, dynamic>? payloadJson; // ✅ NULLABLE
-  
+  final EventInviteResponseStatus responseStatus;
+  final DateTime? respondedAt;
+
   // Future-friendly recipient profile (currently null until backend adds)
   final String? recipientHandle;
   final String? recipientDisplayName;
@@ -267,18 +411,20 @@ class InboxShareItem {
     required this.kind,
     required this.recipientId,
     required this.senderId,
-    this.senderHandle,      // ✅ NOT REQUIRED
-    this.senderName,        // ✅ NOT REQUIRED
+    this.senderHandle, // ✅ NOT REQUIRED
+    this.senderName, // ✅ NOT REQUIRED
     this.senderAvatar,
     required this.payloadId,
     required this.title,
     required this.createdAt,
     this.viewedAt,
     this.importedAt,
-    this.deletedAt,         // ✅ new
+    this.deletedAt, // ✅ new
     this.suggestedSchedule,
     this.eventDate,
-    this.payloadJson,       // ✅ NOT REQUIRED
+    this.payloadJson, // ✅ NOT REQUIRED
+    this.responseStatus = EventInviteResponseStatus.noResponse,
+    this.respondedAt,
     this.recipientHandle,
     this.recipientDisplayName,
     this.recipientAvatarUrl,
@@ -286,52 +432,70 @@ class InboxShareItem {
 
   factory InboxShareItem.fromJson(Map<String, dynamic> json) {
     if (kDebugMode) {
-      debugPrint('[InboxItem] Parsing: shareId=${json['share_id']}, kind=${json['kind']}');
+      debugPrint(
+        '[InboxItem] Parsing: shareId=${json['share_id']}, kind=${json['kind']}',
+      );
     }
-    
+
+    final payload = json['payload_json'] is Map
+        ? Map<String, dynamic>.from(json['payload_json'] as Map)
+        : null;
+
     final result = InboxShareItem(
       shareId: json['share_id'] as String,
       kind: InboxShareKind.fromString(json['kind'] as String? ?? 'flow'),
       recipientId: json['recipient_id'] as String,
       senderId: json['sender_id'] as String,
-      
+
       // ✅ CRITICAL FIX: Handle NULL values with fallbacks
       senderHandle: json['sender_handle'] as String? ?? 'unknown',
       senderName: json['sender_name'] as String? ?? 'Unknown User',
-      
+
       senderAvatar: json['sender_avatar'] as String?,
       payloadId: json['payload_id'] as String,
       title: json['title'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
-      viewedAt: json['viewed_at'] != null 
-          ? DateTime.parse(json['viewed_at'] as String) 
+      viewedAt: json['viewed_at'] != null
+          ? DateTime.parse(json['viewed_at'] as String)
           : null,
-      importedAt: json['imported_at'] != null 
-          ? DateTime.parse(json['imported_at'] as String) 
+      importedAt: json['imported_at'] != null
+          ? DateTime.parse(json['imported_at'] as String)
           : null,
-      deletedAt: json['deleted_at'] != null      // ✅ new
+      deletedAt:
+          json['deleted_at'] !=
+              null // ✅ new
           ? DateTime.parse(json['deleted_at'] as String)
           : null,
       suggestedSchedule: json['suggested_schedule'] != null
-          ? SuggestedSchedule.fromJson(json['suggested_schedule'] as Map<String, dynamic>)
+          ? SuggestedSchedule.fromJson(
+              json['suggested_schedule'] as Map<String, dynamic>,
+            )
           : null,
-      eventDate: json['event_date'] != null 
-          ? DateTime.parse(json['event_date'] as String) 
+      eventDate: json['event_date'] != null
+          ? DateTime.parse(json['event_date'] as String)
           : null,
-      
+
       // ✅ CRITICAL FIX: Keep payloadJson nullable (don't convert null to empty map)
-      payloadJson: json['payload_json'] as Map<String, dynamic>?,
-      
+      payloadJson: payload,
+      responseStatus: EventInviteResponseStatus.fromDbValue(
+        json['response_status'] as String?,
+      ),
+      respondedAt: json['responded_at'] != null
+          ? DateTime.tryParse(json['responded_at'] as String)
+          : null,
+
       // Future-friendly recipient profile fields (will be null until backend adds)
       recipientHandle: json['recipient_handle'] as String?,
       recipientDisplayName: json['recipient_display_name'] as String?,
       recipientAvatarUrl: json['recipient_avatar_url'] as String?,
     );
-    
+
     if (kDebugMode) {
-      debugPrint('[InboxItem] Created: shareId=${result.shareId}, kind=${result.kind.asString}, isFlow=${result.isFlow}');
+      debugPrint(
+        '[InboxItem] Created: shareId=${result.shareId}, kind=${result.kind.asString}, isFlow=${result.isFlow}',
+      );
     }
-    
+
     return result;
   }
 
@@ -353,6 +517,8 @@ class InboxShareItem {
       'suggested_schedule': suggestedSchedule?.toJson(),
       'event_date': eventDate?.toIso8601String(),
       'payload_json': payloadJson,
+      'response_status': responseStatus.dbValue,
+      'responded_at': respondedAt?.toIso8601String(),
       'recipient_handle': recipientHandle,
       'recipient_display_name': recipientDisplayName,
       'recipient_avatar_url': recipientAvatarUrl,
@@ -364,8 +530,9 @@ class InboxShareItem {
   bool get isEvent => kind == InboxShareKind.event;
   bool get isTextMessage =>
       kind == InboxShareKind.message ||
-      (payloadJson?['type'] == 'message' ||
-          payloadJson?['kind'] == 'message');
+      (payloadJson?['type'] == 'message' || payloadJson?['kind'] == 'message');
+  bool get isPendingEventInvite =>
+      isEvent && !isDeleted && responseStatus.isPending;
   bool get isDeleted => deletedAt != null;
   bool get isUnread => viewedAt == null && !isDeleted;
   bool get isImported => importedAt != null && !isDeleted;
@@ -398,14 +565,23 @@ class InboxShareItem {
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[InboxShareItem] ⚠️ Failed to parse flow payload: $e');
-        debugPrint('[InboxShareItem] payloadJson keys: ${payloadJson!.keys.toList()}');
+        debugPrint(
+          '[InboxShareItem] payloadJson keys: ${payloadJson!.keys.toList()}',
+        );
+      }
+      return null;
+    }
+  }
+
+  EventSharePayload? get eventPayload {
+    if (!isEvent || payloadJson == null) return null;
+    try {
+      return EventSharePayload.fromJson(payloadJson!);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[InboxShareItem] ⚠️ Failed to parse event payload: $e');
       }
       return null;
     }
   }
 }
-
-
-
-
-

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 import 'package:mobile/widgets/month_name_text.dart';
@@ -48,6 +49,16 @@ class KemeticDayViewHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final headerHeight = expandedTouchTargetMinDimension(context, fallback: 44);
+    final miniCalendarHeight = expandedTouchTargetMinDimension(
+      context,
+      fallback: 32,
+    );
+    final miniCalendarDaySize = expandedTouchTargetMinDimension(
+      context,
+      fallback: 30,
+      minSize: 44,
+    );
     final monthName = getMonthName(currentKm);
     final dayCount = currentKm == 13
         ? (KemeticMath.isLeapKemeticYear(currentKy) ? 6 : 5)
@@ -69,7 +80,7 @@ class KemeticDayViewHeader extends StatelessWidget {
         child: Column(
           children: [
             Container(
-              height: 44,
+              height: headerHeight,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 children: [
@@ -119,7 +130,7 @@ class KemeticDayViewHeader extends StatelessWidget {
               ),
             ),
             SizedBox(
-              height: 32,
+              height: miniCalendarHeight,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -134,28 +145,34 @@ class KemeticDayViewHeader extends StatelessWidget {
                       today.kDay == day;
 
                   return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: onSelectDay == null ? null : () => onSelectDay!(day),
                     child: Container(
-                      width: 30,
+                      width: miniCalendarDaySize,
                       margin: const EdgeInsets.symmetric(horizontal: 2),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: isCurrentDay
-                            ? Border.all(color: _dayViewGold, width: 1.5)
-                            : null,
-                      ),
-                      child: Center(
-                        child: Text(
-                          '$day',
-                          style: _dayViewMiniCalendarNumberStyle.copyWith(
-                            color: isToday
-                                ? _dayViewGold
-                                : (isCurrentDay
-                                      ? const Color(0xFFAAAAAA)
-                                      : Colors.white54),
-                            fontWeight: isCurrentDay || isToday
-                                ? FontWeight.w600
-                                : FontWeight.normal,
+                      alignment: Alignment.center,
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: isCurrentDay
+                              ? Border.all(color: _dayViewGold, width: 1.5)
+                              : null,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '$day',
+                            style: _dayViewMiniCalendarNumberStyle.copyWith(
+                              color: isToday
+                                  ? _dayViewGold
+                                  : (isCurrentDay
+                                        ? const Color(0xFFAAAAAA)
+                                        : Colors.white54),
+                              fontWeight: isCurrentDay || isToday
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
                           ),
                         ),
                       ),

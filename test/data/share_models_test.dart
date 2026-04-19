@@ -44,10 +44,7 @@ void main() {
 
       expect(schedule.normalizedStartDate, '2026-04-21');
       expect(schedule.weekdays, [1, 0, 7]);
-      expect(schedule.timesByWeekday, {
-        '1': '09:00',
-        '0': '06:30',
-      });
+      expect(schedule.timesByWeekday, {'1': '09:00', '0': '06:30'});
       expect(schedule.weekdayLabels, ['Mon', 'Sun', 'Sun']);
     });
   });
@@ -92,10 +89,7 @@ void main() {
         'payload_id': 'message-1',
         'title': 'Shared Note',
         'created_at': '2026-04-15T00:00:00Z',
-        'payload_json': {
-          'kind': 'message',
-          'text': 'Bring water and fruit',
-        },
+        'payload_json': {'kind': 'message', 'text': 'Bring water and fruit'},
         'viewed_at': '2026-04-15T01:00:00Z',
       });
 
@@ -120,6 +114,16 @@ void main() {
         'imported_at': '2026-04-15T02:00:00Z',
         'deleted_at': '2026-04-15T03:00:00Z',
         'event_date': '2026-04-20T18:30:00Z',
+        'response_status': 'maybe',
+        'responded_at': '2026-04-15T02:30:00Z',
+        'payload_json': {
+          'event_id': 'event-1',
+          'title': 'Temple Gathering',
+          'detail': 'Bring incense',
+          'location': 'South Hall',
+          'starts_at': '2026-04-20T18:30:00Z',
+          'all_day': false,
+        },
       });
 
       expect(item.isEvent, isTrue);
@@ -127,7 +131,35 @@ void main() {
       expect(item.isDeleted, isTrue);
       expect(item.isUnread, isFalse);
       expect(item.eventDate, DateTime.parse('2026-04-20T18:30:00Z'));
+      expect(item.responseStatus, EventInviteResponseStatus.maybe);
+      expect(item.respondedAt, DateTime.parse('2026-04-15T02:30:00Z'));
+      expect(item.eventPayload?.location, 'South Hall');
       expect(item.subtitle, 'Event shared by @ritualhost');
+    });
+
+    test('flags pending event invites from inbox rows', () {
+      final item = InboxShareItem.fromJson({
+        'share_id': 'share-5',
+        'kind': 'event',
+        'recipient_id': 'recipient-1',
+        'sender_id': 'sender-5',
+        'sender_handle': 'host',
+        'sender_name': 'Host',
+        'payload_id': 'event-share-1',
+        'title': 'New Moon Gathering',
+        'created_at': '2026-04-16T00:00:00Z',
+        'response_status': 'no_response',
+        'payload_json': {
+          'event_id': 'event-5',
+          'title': 'New Moon Gathering',
+          'starts_at': '2026-04-21T19:00:00Z',
+          'all_day': false,
+        },
+      });
+
+      expect(item.isPendingEventInvite, isTrue);
+      expect(item.eventPayload?.eventId, 'event-5');
+      expect(item.eventPayload?.title, 'New Moon Gathering');
     });
 
     test('defaults unknown share kinds to flow behavior', () {

@@ -4,12 +4,17 @@
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=Edge">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta
+    id="app-viewport"
+    name="viewport"
+    content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="description" content="Kemetic Calendar">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta
+    id="app-status-bar-style"
+    name="apple-mobile-web-app-status-bar-style"
+    content="black">
   <meta name="apple-mobile-web-app-title" content="Kemetic Calendar">
   <meta name="theme-color" content="#000000">
 
@@ -19,7 +24,48 @@
 
   <title>Kemetic Calendar</title>
 
+  <script>
+    (function () {
+      const ua = navigator.userAgent || '';
+      const isAppleMobile = /iphone|ipod|ipad/i.test(ua);
+      const isTouchMac = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+      const isIOSFamily = isAppleMobile || isTouchMac;
+      const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
+      const shortSide = Math.min(window.screen.width, window.screen.height);
+      const isTabletLike = shortSide >= 768;
+      const viewportMeta = document.getElementById('app-viewport');
+      const statusBarMeta = document.getElementById('app-status-bar-style');
+
+      if (isIOSFamily) {
+        document.documentElement.classList.add('ios-family');
+      }
+      if (isIOSFamily && isStandalone) {
+        document.documentElement.classList.add('ios-standalone');
+      }
+      if (isIOSFamily && isStandalone && isTabletLike) {
+        document.documentElement.classList.add('ios-standalone-tablet');
+        viewportMeta?.setAttribute(
+          'content',
+          'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover',
+        );
+        statusBarMeta?.setAttribute('content', 'black-translucent');
+      }
+      if (isIOSFamily && isStandalone && !isTabletLike) {
+        document.documentElement.classList.add('ios-standalone-phone');
+      }
+    })();
+  </script>
+
   <style>
+    :root {
+      --kemetic-standalone-top: 0px;
+      --kemetic-standalone-left: 0px;
+      --kemetic-standalone-width: 100vw;
+      --kemetic-standalone-height: 100vh;
+    }
+
     /* Keep it minimal and safe */
     html, body {
       margin: 0;
@@ -29,14 +75,39 @@
       touch-action: manipulation;
     }
 
-    /* Pin Flutter surface to the viewport; let the engine size it (avoids iPad hit-test drift). */
-    #flt-glass-pane, .flt-glass-pane, canvas {
+    /*
+      Only pin the Flutter surface for standalone iPads.
+      Applying this to iPhones can distort hit-testing in PWAs.
+    */
+    .ios-standalone-tablet #flt-glass-pane,
+    .ios-standalone-tablet .flt-glass-pane,
+    .ios-standalone-tablet #flt-glass-pane canvas,
+    .ios-standalone-tablet .flt-glass-pane canvas {
       position: fixed;
       inset: 0;
       width: 100vw;
       height: 100vh;
       height: 100svh;
       height: 100dvh;
+      touch-action: manipulation;
+      pointer-events: auto;
+      z-index: 1;
+    }
+
+    /*
+      Installed iPhones stay on a conservative shell, but we still bind the
+      Flutter surface to the visual viewport to avoid standalone hit-test drift.
+    */
+    .ios-standalone-phone #flt-glass-pane,
+    .ios-standalone-phone .flt-glass-pane,
+    .ios-standalone-phone #flt-glass-pane canvas,
+    .ios-standalone-phone .flt-glass-pane canvas {
+      position: fixed;
+      inset: auto;
+      top: var(--kemetic-standalone-top);
+      left: var(--kemetic-standalone-left);
+      width: var(--kemetic-standalone-width);
+      height: var(--kemetic-standalone-height);
       touch-action: manipulation;
       pointer-events: auto;
       z-index: 1;
@@ -117,23 +188,23 @@
     })();
   </script>
   <script>
-    // iOS PWA: gently "nudge" layout like a fake rotate to ensure correct glass-pane metrics
+    // iPad standalone only: gently nudge layout to recover glass-pane metrics.
     (function () {
-      const isIOS = /iphone|ipod|ipad/i.test(navigator.userAgent);
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator.standalone === true);
+      const isTabletPwa = document.documentElement.classList.contains(
+        'ios-standalone-tablet',
+      );
 
       function nudge() {
-        if (!isIOS || !isStandalone) return;
+        if (!isTabletPwa) return;
 
         // Force a synchronous layout read before resize events.
         document.documentElement.getBoundingClientRect();
 
-        // trigger layout + two resizes
+        // Trigger one extra layout pass plus a delayed follow-up.
         window.scrollTo(0, 1);
         requestAnimationFrame(() => {
           window.dispatchEvent(new Event('resize'));
           setTimeout(() => window.dispatchEvent(new Event('resize')), 60);
-          setTimeout(() => window.dispatchEvent(new Event('resize')), 220);
         });
       }
 
@@ -147,24 +218,114 @@
         setTimeout(nudge, 120);
       }, { passive: true });
 
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-          nudge();
-        }
-      }, { passive: true });
-
-      window.addEventListener('focus', () => {
-        nudge();
-      }, { passive: true });
-
       window.addEventListener('orientationchange', () => {
         nudge();
         setTimeout(nudge, 220);
       }, { passive: true });
+    })();
+  </script>
+  <script>
+    // Installed iPhones: keep the Flutter surface aligned with the visual viewport.
+    (function () {
+      const root = document.documentElement;
+      const isPhonePwa = root.classList.contains('ios-standalone-phone');
+      if (!isPhonePwa) return;
+
+      let framePending = false;
+      let resizeQueued = false;
+      let forceResizeOnNextSync = false;
+      let lastBox = '';
+
+      function roundToDevicePixels(value) {
+        return Math.round(value * 100) / 100;
+      }
+
+      function readViewportBox() {
+        const vv = window.visualViewport;
+        return {
+          top: roundToDevicePixels(vv ? vv.offsetTop : 0),
+          left: roundToDevicePixels(vv ? vv.offsetLeft : 0),
+          width: roundToDevicePixels(vv ? vv.width : window.innerWidth),
+          height: roundToDevicePixels(vv ? vv.height : window.innerHeight),
+        };
+      }
+
+      function queueResizeEvent() {
+        if (resizeQueued) return;
+        resizeQueued = true;
+        requestAnimationFrame(() => {
+          resizeQueued = false;
+          window.dispatchEvent(new Event('resize'));
+        });
+      }
+
+      function syncViewportBox() {
+        const box = readViewportBox();
+        const nextBox = `${box.top}:${box.left}:${box.width}:${box.height}`;
+        const changed = nextBox !== lastBox;
+
+        if (changed) {
+          lastBox = nextBox;
+          root.style.setProperty('--kemetic-standalone-top', `${box.top}px`);
+          root.style.setProperty('--kemetic-standalone-left', `${box.left}px`);
+          root.style.setProperty('--kemetic-standalone-width', `${box.width}px`);
+          root.style.setProperty('--kemetic-standalone-height', `${box.height}px`);
+        }
+
+        if (changed || forceResizeOnNextSync) {
+          forceResizeOnNextSync = false;
+          queueResizeEvent();
+        }
+      }
+
+      function scheduleSync(forceResize) {
+        forceResizeOnNextSync = forceResizeOnNextSync || forceResize;
+        if (framePending) return;
+
+        framePending = true;
+        requestAnimationFrame(() => {
+          framePending = false;
+          syncViewportBox();
+        });
+      }
+
+      scheduleSync(true);
+
+      window.addEventListener('load', () => {
+        scheduleSync(true);
+        setTimeout(() => scheduleSync(true), 180);
+      }, { once: true });
+
+      window.addEventListener('pageshow', () => {
+        scheduleSync(true);
+        setTimeout(() => scheduleSync(true), 90);
+      }, { passive: true });
+
+      window.addEventListener('resize', () => {
+        scheduleSync(false);
+      }, { passive: true });
+
+      window.addEventListener('orientationchange', () => {
+        scheduleSync(true);
+        setTimeout(() => scheduleSync(true), 220);
+      }, { passive: true });
+
+      window.addEventListener('focus', () => {
+        scheduleSync(true);
+      }, { passive: true });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        scheduleSync(true);
+        setTimeout(() => scheduleSync(true), 60);
+      }, { passive: true });
 
       if (window.visualViewport) {
         window.visualViewport.addEventListener('resize', () => {
-          nudge();
+          scheduleSync(true);
+        }, { passive: true });
+        window.visualViewport.addEventListener('scroll', () => {
+          scheduleSync(false);
         }, { passive: true });
       }
     })();

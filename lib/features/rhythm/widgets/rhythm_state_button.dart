@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/core/touch_targets.dart';
 
 import '../models/rhythm_models.dart';
 import '../theme/rhythm_theme.dart';
@@ -82,19 +83,32 @@ class RhythmStateDot extends StatelessWidget {
           RhythmItemState.pending => Icons.radio_button_unchecked_rounded,
         };
 
+    final minTouchSize = useExpandedTouchTargets(context)
+        ? kMinInteractiveDimension
+        : 0.0;
+
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: padding,
-        decoration: BoxDecoration(
-          color: isActive ? background : Colors.transparent,
-          borderRadius: BorderRadius.circular(borderRadius),
-          border: Border.all(
-            color: isActive ? color.withValues(alpha: 0.6) : Colors.white12,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minWidth: minTouchSize,
+          minHeight: minTouchSize,
+        ),
+        child: Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: padding,
+            decoration: BoxDecoration(
+              color: isActive ? background : Colors.transparent,
+              borderRadius: BorderRadius.circular(borderRadius),
+              border: Border.all(
+                color: isActive ? color.withValues(alpha: 0.6) : Colors.white12,
+              ),
+            ),
+            child: Icon(resolvedIcon, size: iconSize, color: color),
           ),
         ),
-        child: Icon(resolvedIcon, size: iconSize, color: color),
       ),
     );
   }
