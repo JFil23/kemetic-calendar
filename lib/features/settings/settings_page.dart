@@ -654,6 +654,11 @@ class _SettingsPageState extends State<SettingsPage> {
       lines.add(
         'For the most reliable web delivery, install the PWA and allow notifications for this site.',
       );
+      lines.add(
+        diagnostics.browserSubscriptionPresent
+            ? 'Browser subscription: present (${diagnostics.browserSubscriptionSummary}).'
+            : 'Browser subscription: missing on this device.',
+      );
     }
 
     if (!diagnostics.hasSession) {

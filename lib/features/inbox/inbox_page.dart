@@ -43,6 +43,7 @@ class _InboxPageState extends State<InboxPage> {
   StreamSubscription<Map<String, List<InboxShareItem>>>? _convSub;
   Map<String, List<InboxShareItem>> _latestThreads = const {};
   List<_UnifiedInboxItem> _unified = const [];
+  final Set<String> _optimisticReadShareIds = <String>{};
   bool _loading = true;
   InboxActivityItem? _latestFollow;
   InboxActivityItem? _latestEngagement;
@@ -57,7 +58,12 @@ class _InboxPageState extends State<InboxPage> {
     _inboxRepo = InboxRepo(client);
     _convSub = _inboxRepo.watchConversations().listen((threads) {
       _latestThreads = threads;
-      _refreshUnified();
+      _reconcileOptimisticReadState();
+      if (mounted) {
+        setState(() {
+          _unified = _buildUnifiedItems();
+        });
+      }
     });
     _refreshUnified();
   }
@@ -84,37 +90,11 @@ class _InboxPageState extends State<InboxPage> {
           a.type == InboxActivityType.comment,
     );
 
-    // Build message threads (use latest item in each thread)
-    final messageItems = <_UnifiedInboxItem>[];
-    _latestThreads.forEach((otherId, items) {
-      if (items.isEmpty) return;
-      final last = items.last;
-      final currentUserId = _inboxRepo.currentUserId;
-      if (currentUserId == null) return;
-      final otherProfile = _resolveOtherProfile(last, currentUserId);
-      final hasUnread = items.any(
-        (i) => i.recipientId == currentUserId && i.isUnread,
-      );
-      messageItems.add(
-        _UnifiedInboxItem.message(
-          createdAt: last.createdAt,
-          otherUserId: otherId,
-          otherProfile: otherProfile,
-          items: items,
-          hasUnread: hasUnread,
-        ),
-      );
-    });
-
-    // Only messages appear in the feed; activity stays behind summary buttons.
-    final merged = [...messageItems]
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
     await _markAllUnreadViewed();
 
     if (!mounted) return;
     setState(() {
-      _unified = merged;
+      _unified = _buildUnifiedItems();
       _loading = false;
     });
   }
@@ -290,6 +270,95 @@ class _InboxPageState extends State<InboxPage> {
     }
   }
 
+  List<_UnifiedInboxItem> _buildUnifiedItems() {
+    final currentUserId = _inboxRepo.currentUserId;
+    if (currentUserId == null) return const [];
+
+    final messageItems = <_UnifiedInboxItem>[];
+    _latestThreads.forEach((otherId, items) {
+      if (items.isEmpty) return;
+      final last = items.last;
+      final otherProfile = _resolveOtherProfile(last, currentUserId);
+      final hasUnread = items.any(
+        (item) =>
+            item.recipientId == currentUserId &&
+            item.isUnread &&
+            !_optimisticReadShareIds.contains(item.shareId),
+      );
+      messageItems.add(
+        _UnifiedInboxItem.message(
+          createdAt: last.createdAt,
+          otherUserId: otherId,
+          otherProfile: otherProfile,
+          items: items,
+          hasUnread: hasUnread,
+        ),
+      );
+    });
+
+    return [...messageItems]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  void _reconcileOptimisticReadState() {
+    final currentUserId = _inboxRepo.currentUserId;
+    if (currentUserId == null || _optimisticReadShareIds.isEmpty) return;
+
+    final stillPending = <String>{};
+    for (final thread in _latestThreads.values) {
+      for (final item in thread) {
+        final isIncomingUnread =
+            item.recipientId == currentUserId && item.isUnread;
+        if (isIncomingUnread) {
+          stillPending.add(item.shareId);
+        }
+      }
+    }
+    _optimisticReadShareIds.retainAll(stillPending);
+  }
+
+  Future<void> _markItemsViewed(Iterable<InboxShareItem> items) async {
+    final currentUserId = _inboxRepo.currentUserId;
+    if (currentUserId == null) return;
+
+    final unreadItems = items.where((item) {
+      final isIncoming = item.recipientId == currentUserId;
+      return isIncoming &&
+          item.viewedAt == null &&
+          !_optimisticReadShareIds.contains(item.shareId);
+    }).toList();
+    if (unreadItems.isEmpty) return;
+
+    final optimisticIds = unreadItems.map((item) => item.shareId).toSet();
+    if (mounted) {
+      setState(() {
+        _optimisticReadShareIds.addAll(optimisticIds);
+        _unified = _buildUnifiedItems();
+      });
+    } else {
+      _optimisticReadShareIds.addAll(optimisticIds);
+    }
+
+    final results = await Future.wait(
+      unreadItems.map(
+        (item) => _shareRepo.markViewed(item.shareId, isFlow: item.isFlow),
+      ),
+    );
+
+    final failedIds = <String>{};
+    for (var i = 0; i < unreadItems.length; i++) {
+      if (!results[i]) {
+        failedIds.add(unreadItems[i].shareId);
+      }
+    }
+
+    if (failedIds.isEmpty || !mounted) return;
+    setState(() {
+      _optimisticReadShareIds.removeAll(failedIds);
+      _unified = _buildUnifiedItems();
+    });
+  }
+
   Widget _buildConversationBar({
     required BuildContext context,
     required String otherUserId,
@@ -442,21 +511,7 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Future<void> _markConversationRead(List<InboxShareItem> items) async {
-    final currentUserId = _inboxRepo.currentUserId;
-    if (currentUserId == null) return;
-
-    final shareRepo = ShareRepo(Supabase.instance.client);
-
-    for (final item in items) {
-      final isIncoming = item.recipientId == currentUserId;
-      if (isIncoming && item.viewedAt == null) {
-        try {
-          await shareRepo.markViewed(item.shareId, isFlow: item.isFlow);
-        } catch (_) {
-          // swallow errors; badge will refresh on next stream update
-        }
-      }
-    }
+    await _markItemsViewed(items);
   }
 
   String _conversationPreviewText(InboxShareItem item) {
@@ -521,22 +576,9 @@ class _InboxPageState extends State<InboxPage> {
 
   Future<void> _markAllUnreadViewed() async {
     if (_marking) return;
-    final currentUserId = _inboxRepo.currentUserId;
-    if (currentUserId == null) return;
     _marking = true;
-    final tasks = <Future<bool>>[];
-    for (final thread in _latestThreads.values) {
-      for (final item in thread) {
-        final isIncoming = item.recipientId == currentUserId;
-        if (isIncoming && item.viewedAt == null) {
-          tasks.add(_shareRepo.markViewed(item.shareId, isFlow: item.isFlow));
-        }
-      }
-    }
     try {
-      if (tasks.isNotEmpty) {
-        await Future.wait(tasks);
-      }
+      await _markItemsViewed(_latestThreads.values.expand((items) => items));
     } finally {
       _marking = false;
     }

@@ -49,11 +49,58 @@ void main() {
       );
       expect(pushAuthorizationAllowsRegistration(null), isFalse);
       expect(
-        pushAuthorizationAllowsRegistration(
-          AuthorizationStatus.provisional,
+        pushAuthorizationAllowsRegistration(AuthorizationStatus.provisional),
+        isTrue,
+      );
+    });
+
+    test('retries legacy web push platform constraint failures as unknown', () {
+      expect(
+        shouldRetryWebPushPlatformAsUnknown(
+          'new row for relation "push_tokens" violates check constraint "push_tokens_platform_check"',
         ),
         isTrue,
       );
+      expect(
+        shouldRetryWebPushPlatformAsUnknown(
+          'Check constraint failed for platform value web_push',
+        ),
+        isTrue,
+      );
+      expect(
+        shouldRetryWebPushPlatformAsUnknown(
+          'new row violates row-level security policy',
+        ),
+        isFalse,
+      );
+    });
+
+    test('resets browser subscription only when the web push key changed', () {
+      expect(
+        shouldResetWebPushSubscriptionForKeyChange(null, 'new-public-key'),
+        isFalse,
+      );
+      expect(
+        shouldResetWebPushSubscriptionForKeyChange(
+          'same-public-key',
+          'same-public-key',
+        ),
+        isFalse,
+      );
+      expect(
+        shouldResetWebPushSubscriptionForKeyChange(
+          'old-public-key',
+          'new-public-key',
+        ),
+        isTrue,
+      );
+    });
+
+    test('auto-recovery only runs when browser permission is granted', () {
+      expect(shouldAttemptWebPushAutoRecovery('granted'), isTrue);
+      expect(shouldAttemptWebPushAutoRecovery('default'), isFalse);
+      expect(shouldAttemptWebPushAutoRecovery('denied'), isFalse);
+      expect(shouldAttemptWebPushAutoRecovery(null), isFalse);
     });
   });
 }

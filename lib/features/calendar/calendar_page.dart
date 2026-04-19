@@ -20,6 +20,7 @@ import '../../core/ui_guards.dart';
 import '../../main.dart' show routeObserver, Events;
 import '../sharing/share_flow_sheet.dart';
 import '../../data/share_models.dart';
+import '../../data/share_repo.dart';
 import '../../widgets/inbox_icon_with_badge.dart';
 import '../ai_generation/ai_flow_generation_modal.dart';
 import '../ai_generation/ai_flow_import_payload.dart';
@@ -2680,14 +2681,54 @@ class _CalendarAction {
   final IconData icon;
   final Gradient gradient;
   final String label;
+  final bool showNotificationDot;
   final FutureOr<void> Function() onSelected;
 
   const _CalendarAction({
     required this.icon,
     required this.gradient,
     required this.label,
+    this.showNotificationDot = false,
     required this.onSelected,
   });
+}
+
+class _NotificationDotOverlay extends StatelessWidget {
+  final Widget child;
+  final bool show;
+  final double top;
+  final double right;
+
+  const _NotificationDotOverlay({
+    required this.child,
+    required this.show,
+    this.top = -2,
+    this.right = -2,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        if (show)
+          Positioned(
+            top: top,
+            right: right,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: Colors.redAccent,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.black, width: 1.5),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 class _CalendarActionsGrid extends StatelessWidget {
@@ -2742,7 +2783,15 @@ class _CalendarActionsGrid extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _GlossyIcon(action.icon, gradient: action.gradient),
+                    _NotificationDotOverlay(
+                      show: action.showNotificationDot,
+                      top: -4,
+                      right: -6,
+                      child: _GlossyIcon(
+                        action.icon,
+                        gradient: action.gradient,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       action.label,
@@ -9448,8 +9497,9 @@ class _CalendarPageState extends State<CalendarPage>
 
   List<_CalendarAction> _calendarActions(
     BuildContext context,
-    Rect anchorRect,
-  ) {
+    Rect anchorRect, {
+    bool hasUnreadInbox = false,
+  }) {
     return [
       _CalendarAction(
         icon: Icons.menu_book_outlined,
@@ -9467,6 +9517,7 @@ class _CalendarPageState extends State<CalendarPage>
         icon: Icons.mail_outline,
         gradient: goldGloss,
         label: 'Inbox',
+        showNotificationDot: hasUnreadInbox,
         onSelected: _openInboxFromMenu,
       ),
       _CalendarAction(
@@ -9531,9 +9582,9 @@ class _CalendarPageState extends State<CalendarPage>
       buttonBox.size.height,
     );
 
-    final actions = _calendarActions(context, anchorRect);
+    final baseActions = _calendarActions(context, anchorRect);
     final rows =
-        (actions.length + _kActionGridColumns - 1) ~/ _kActionGridColumns;
+        (baseActions.length + _kActionGridColumns - 1) ~/ _kActionGridColumns;
     final double menuWidth =
         _kActionGridHPadding * 2 +
         _kActionGridColumns * _kActionTileWidth +
@@ -9574,10 +9625,22 @@ class _CalendarPageState extends State<CalendarPage>
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.white12),
             ),
-            child: _CalendarActionsGrid(
-              actions: actions,
-              onSelected: (action) {
-                Navigator.of(context).pop(action);
+            child: StreamBuilder<int>(
+              stream: ShareRepo(Supabase.instance.client).watchUnreadCount(),
+              builder: (context, snapshot) {
+                final hasUnreadInbox = (snapshot.data ?? 0) > 0;
+                final actions = _calendarActions(
+                  context,
+                  anchorRect,
+                  hasUnreadInbox: hasUnreadInbox,
+                );
+
+                return _CalendarActionsGrid(
+                  actions: actions,
+                  onSelected: (action) {
+                    Navigator.of(context).pop(action);
+                  },
+                );
               },
             ),
           ),
@@ -15889,10 +15952,19 @@ class _CalendarPageState extends State<CalendarPage>
             onPressed: _scrollToToday,
           ),
           Builder(
-            builder: (ctx) => IconButton(
-              tooltip: 'Menu',
-              icon: const _GlossyIcon(Icons.apps, gradient: goldGloss),
-              onPressed: () => _showActionsMenu(ctx),
+            builder: (ctx) => StreamBuilder<int>(
+              stream: ShareRepo(Supabase.instance.client).watchUnreadCount(),
+              builder: (context, snapshot) {
+                final hasUnreadInbox = (snapshot.data ?? 0) > 0;
+                return IconButton(
+                  tooltip: 'Menu',
+                  icon: _NotificationDotOverlay(
+                    show: hasUnreadInbox,
+                    child: const _GlossyIcon(Icons.apps, gradient: goldGloss),
+                  ),
+                  onPressed: () => _showActionsMenu(ctx),
+                );
+              },
             ),
           ),
           // My Profile button

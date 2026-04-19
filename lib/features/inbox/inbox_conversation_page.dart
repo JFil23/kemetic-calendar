@@ -31,10 +31,12 @@ class InboxConversationPage extends StatefulWidget {
 
 class _InboxConversationPageState extends State<InboxConversationPage> {
   final Set<String> _locallyDeleted = <String>{};
+  final Set<String> _locallyViewedShareIds = <String>{};
   final Set<String> _messageLikeUpdatingIds = <String>{};
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late final InboxRepo _inboxRepo;
+  late final ShareRepo _shareRepo;
   bool _sendingMessage = false;
   int _lastItemCount = 0;
   Map<String, int> _messageLikeCounts = const {};
@@ -46,6 +48,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
   void initState() {
     super.initState();
     _inboxRepo = InboxRepo(Supabase.instance.client);
+    _shareRepo = ShareRepo(Supabase.instance.client);
   }
 
   @override
@@ -91,6 +94,40 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
         setState(() => _sendingMessage = false);
       }
     }
+  }
+
+  Future<void> _markIncomingUnreadViewed(List<InboxShareItem> items) async {
+    final currentUserId = _inboxRepo.currentUserId;
+    if (currentUserId == null) return;
+
+    final unreadItems = items.where((item) {
+      final isIncoming = item.recipientId == currentUserId;
+      return isIncoming &&
+          item.viewedAt == null &&
+          !_locallyViewedShareIds.contains(item.shareId);
+    }).toList();
+    if (unreadItems.isEmpty) return;
+
+    final shareIds = unreadItems.map((item) => item.shareId).toSet();
+    _locallyViewedShareIds.addAll(shareIds);
+
+    final results = await Future.wait(
+      unreadItems.map(
+        (item) => _shareRepo.markViewed(item.shareId, isFlow: item.isFlow),
+      ),
+    );
+
+    final failedIds = <String>{};
+    for (var i = 0; i < unreadItems.length; i++) {
+      if (!results[i]) {
+        failedIds.add(unreadItems[i].shareId);
+      }
+    }
+
+    if (failedIds.isEmpty || !mounted) return;
+    setState(() {
+      _locallyViewedShareIds.removeAll(failedIds);
+    });
   }
 
   Future<void> _syncMessageLikeState(List<InboxShareItem> items) async {
@@ -323,6 +360,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                       .where((item) => !_locallyDeleted.contains(item.shareId))
                       .toList();
                   WidgetsBinding.instance.addPostFrameCallback((_) {
+                    unawaited(_markIncomingUnreadViewed(items));
                     unawaited(_syncMessageLikeState(items));
                   });
 

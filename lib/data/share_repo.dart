@@ -926,11 +926,12 @@ class ShareRepo {
     // Initial load
     refreshUnreadCount();
 
-    controller.onCancel = () {
-      channel.unsubscribe();
+    controller.onCancel = () async {
+      await channel.unsubscribe();
+      await controller.close();
     };
 
-    return controller.stream;
+    return controller.stream.distinct();
   }
 }
 

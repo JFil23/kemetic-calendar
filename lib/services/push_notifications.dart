@@ -59,14 +59,36 @@ class _PushTokenRepo {
       'updated_at': nowIso,
     };
     debugPrint('[push] upsert payload: $payload');
+
+    Future<void> saveWithPlatform(String platformValue) async {
+      await _client.from('push_tokens').upsert({
+        ...payload,
+        'platform': platformValue,
+      }, onConflict: 'device_id').select();
+    }
+
     try {
-      await _client
-          .from('push_tokens')
-          .upsert(payload, onConflict: 'device_id')
-          .select();
+      await saveWithPlatform(platform);
       debugPrint('[push] token upsert succeeded');
       return null;
     } catch (e) {
+      if (platform == 'web_push' && shouldRetryWebPushPlatformAsUnknown(e)) {
+        debugPrint(
+          '[push] token upsert failed for platform=web_push; retrying with legacy platform label',
+        );
+        try {
+          await saveWithPlatform('unknown');
+          debugPrint(
+            '[push] token upsert succeeded with legacy platform=unknown fallback',
+          );
+          return null;
+        } catch (fallbackError) {
+          debugPrint(
+            '[push] legacy web push token upsert failed: $fallbackError',
+          );
+          return _formatPushTokenSaveError(fallbackError);
+        }
+      }
       debugPrint('[push] token upsert failed: $e');
       return _formatPushTokenSaveError(e);
     }
@@ -91,8 +113,10 @@ class PushRegistrationDiagnostics {
     required this.platform,
     required this.hasSession,
     required this.databaseRegistered,
+    required this.browserSubscriptionPresent,
     this.deviceId,
     this.registeredToken,
+    this.browserSubscriptionToken,
     this.lastSeenAt,
     this.error,
   });
@@ -104,12 +128,16 @@ class PushRegistrationDiagnostics {
   final String platform;
   final bool hasSession;
   final bool databaseRegistered;
+  final bool browserSubscriptionPresent;
   final String? deviceId;
   final String? registeredToken;
+  final String? browserSubscriptionToken;
   final DateTime? lastSeenAt;
   final String? error;
 
   String get tokenSummary => summarizePushToken(registeredToken);
+  String get browserSubscriptionSummary =>
+      summarizePushToken(browserSubscriptionToken);
 }
 
 @immutable
@@ -141,9 +169,12 @@ class PushNotifications {
   Stream<Map<String, dynamic>> get openedMessages => _openedMessages.stream;
   String? get lastRegistrationError => _lastRegistrationError;
 
-  static const _webPushPublicKey = String.fromEnvironment('WEB_PUSH_PUBLIC_KEY');
+  static const _webPushPublicKey = String.fromEnvironment(
+    'WEB_PUSH_PUBLIC_KEY',
+  );
   static const _defaultWebPushPublicKey =
       'BLF5usfirDkmfJaEDDUzIVLzQOuF5XMdTEIscpYZxMpm26KvEuQ716kN2a2W6_gbVUAj7-xU7WEUWCi2ZLoUlYA';
+  static const _webPushPublicKeyPref = 'push.webPushPublicKey';
 
   void _setRegistrationError(String? message) {
     _lastRegistrationError = message?.trim();
@@ -303,7 +334,8 @@ class PushNotifications {
 
   /// Re-register the current device only when permission was already granted.
   /// On web/PWA this avoids prompting outside an explicit user gesture while
-  /// still keeping the stored token fresh after sign-in or app resume.
+  /// still keeping the stored token fresh after sign-in or app resume, and it
+  /// can recreate a missing browser subscription when permission remains granted.
   Future<bool> refreshRegistrationIfAuthorized() async {
     final session = _client.auth.currentSession;
     if (session == null) return false;
@@ -313,16 +345,9 @@ class PushNotifications {
     if (kIsWeb) {
       try {
         final permission = await browserNotificationPermissionStatus();
-        if (permission != 'granted') {
+        if (!shouldAttemptWebPushAutoRecovery(permission)) {
           debugPrint(
             '[push] refreshRegistrationIfAuthorized skipped: permission=$permission',
-          );
-          return false;
-        }
-        final existing = await getExistingBrowserPushSubscriptionJson();
-        if (existing == null) {
-          debugPrint(
-            '[push] refreshRegistrationIfAuthorized skipped: no existing browser push subscription',
           );
           return false;
         }
@@ -360,6 +385,8 @@ class PushNotifications {
         await unsubscribeBrowserPush();
       } catch (e) {
         debugPrint('[push] browser unsubscribe error: $e');
+      } finally {
+        await _clearRememberedWebPushPublicKey();
       }
     } else {
       try {
@@ -439,6 +466,7 @@ class PushNotifications {
     String? error;
     String? deviceId;
     String? registeredToken;
+    String? browserSubscriptionToken;
     DateTime? lastSeenAt;
     var databaseRegistered = false;
     AuthorizationStatus? authorizationStatus;
@@ -467,6 +495,8 @@ class PushNotifications {
       try {
         final context = await inspectWebPushContext();
         error = error ?? context.blockerMessage;
+        browserSubscriptionToken =
+            await getExistingBrowserPushSubscriptionJson();
       } catch (e) {
         error = error ?? 'web push environment check failed: $e';
       }
@@ -484,8 +514,7 @@ class PushNotifications {
         final data = row is Map ? Map<String, dynamic>.from(row as Map) : null;
         databaseRegistered = data?['is_active'] == true;
         registeredToken = data?['token'] as String?;
-        final lastSeenRaw =
-            data?['last_seen_at'] ?? data?['updated_at'];
+        final lastSeenRaw = data?['last_seen_at'] ?? data?['updated_at'];
         if (lastSeenRaw is String && lastSeenRaw.isNotEmpty) {
           lastSeenAt = DateTime.tryParse(lastSeenRaw);
         }
@@ -510,8 +539,12 @@ class PushNotifications {
       platform: _platformLabel(),
       hasSession: hasSession,
       databaseRegistered: databaseRegistered,
+      browserSubscriptionPresent:
+          browserSubscriptionToken != null &&
+          browserSubscriptionToken.isNotEmpty,
       deviceId: deviceId,
       registeredToken: registeredToken,
+      browserSubscriptionToken: browserSubscriptionToken,
       lastSeenAt: lastSeenAt,
       error: error,
     );
@@ -549,8 +582,7 @@ class PushNotifications {
           'deviceIds': [deviceId],
           'notification': {
             'title': 'Kemetic push test',
-            'body':
-                'Push path check at ${sentAt.toLocal().toIso8601String()}',
+            'body': 'Push path check at ${sentAt.toLocal().toIso8601String()}',
           },
           'data': {
             'type': 'push_test',
@@ -575,10 +607,11 @@ class PushNotifications {
       final sent = (data['sent'] as num?)?.toInt() ?? 0;
       final delivered = data['delivered'] == true || sent > 0;
       if (!delivered) {
-        final failedReasons = (data['failedReasons'] as List<dynamic>? ?? const [])
-            .map((entry) => entry.toString())
-            .where((entry) => entry.isNotEmpty)
-            .toList(growable: false);
+        final failedReasons =
+            (data['failedReasons'] as List<dynamic>? ?? const [])
+                .map((entry) => entry.toString())
+                .where((entry) => entry.isNotEmpty)
+                .toList(growable: false);
         final reason =
             data['reason']?.toString() ??
             (failedReasons.isNotEmpty
@@ -593,10 +626,7 @@ class PushNotifications {
             'Test push dispatched to this device. Background the app to check for the iPhone or PWA notification.',
       );
     } catch (e) {
-      return PushSelfTestResult(
-        ok: false,
-        message: 'send_push failed: $e',
-      );
+      return PushSelfTestResult(ok: false, message: 'send_push failed: $e');
     }
   }
 
@@ -639,6 +669,7 @@ class PushNotifications {
       }
 
       try {
+        await _resetWebPushSubscriptionIfKeyChanged(publicKey);
         final existing = await getExistingBrowserPushSubscriptionJson();
         if (existing != null && existing.isNotEmpty) {
           return existing;
@@ -676,8 +707,7 @@ class PushNotifications {
     debugPrint('[push] current token: ${summarizePushToken(token)}');
     if (token == null) {
       _setRegistrationError(
-        _lastRegistrationError ??
-            'The device did not return a push token.',
+        _lastRegistrationError ?? 'The device did not return a push token.',
       );
       return null;
     }
@@ -688,6 +718,9 @@ class PushNotifications {
             'The device created a push token, but the app could not save it to push_tokens.',
       );
       return null;
+    }
+    if (kIsWeb) {
+      await _rememberWebPushPublicKey(_effectiveWebPushPublicKey);
     }
     return token;
   }
@@ -790,6 +823,41 @@ class PushNotifications {
     }
     return normalized;
   }
+
+  Future<void> _resetWebPushSubscriptionIfKeyChanged(
+    String currentPublicKey,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final previousPublicKey = prefs.getString(_webPushPublicKeyPref);
+    if (!shouldResetWebPushSubscriptionForKeyChange(
+      previousPublicKey,
+      currentPublicKey,
+    )) {
+      return;
+    }
+    debugPrint(
+      '[push] web push public key changed; clearing stale browser subscription',
+    );
+    try {
+      await unsubscribeBrowserPush();
+    } catch (e) {
+      debugPrint(
+        '[push] failed to clear stale browser push subscription after key change: $e',
+      );
+    }
+  }
+
+  Future<void> _rememberWebPushPublicKey(String? publicKey) async {
+    final normalized = _normalizedString(publicKey);
+    if (normalized == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_webPushPublicKeyPref, normalized);
+  }
+
+  Future<void> _clearRememberedWebPushPublicKey() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_webPushPublicKeyPref);
+  }
 }
 
 @visibleForTesting
@@ -879,6 +947,34 @@ String summarizePushToken(String? token) {
     return token;
   }
   return '${token.substring(0, 8)}...${token.substring(token.length - 8)}';
+}
+
+@visibleForTesting
+bool shouldRetryWebPushPlatformAsUnknown(Object error) {
+  final lowered = error.toString().toLowerCase();
+  return lowered.contains('push_tokens_platform_check') ||
+      (lowered.contains('check constraint') && lowered.contains('platform'));
+}
+
+@visibleForTesting
+bool shouldResetWebPushSubscriptionForKeyChange(
+  String? previousPublicKey,
+  String? currentPublicKey,
+) {
+  final previous = previousPublicKey?.trim();
+  final current = currentPublicKey?.trim();
+  if (previous == null ||
+      previous.isEmpty ||
+      current == null ||
+      current.isEmpty) {
+    return false;
+  }
+  return previous != current;
+}
+
+@visibleForTesting
+bool shouldAttemptWebPushAutoRecovery(String? permissionStatus) {
+  return permissionStatus?.trim() == 'granted';
 }
 
 String _formatPushTokenSaveError(Object error) {

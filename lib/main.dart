@@ -625,13 +625,8 @@ class _AuthGateState extends State<AuthGate> {
               }),
             );
           }
-        } else {
-          unawaited(PushNotifications.instance(supabase).unregister());
-          if (kDebugMode) {
-            debugPrint(
-              '[push] registerForUser skipped (device push toggle off)',
-            );
-          }
+        } else if (kDebugMode) {
+          debugPrint('[push] registerForUser skipped (device push toggle off)');
         }
         _installPushNavigation();
         _consumePendingWebPushIntent();
