@@ -330,6 +330,29 @@ class UserEventsRepo {
     }
   }
 
+  Future<UserEvent?> getEventByClientEventId(String clientEventId) async {
+    final user = _client.auth.currentUser;
+    final trimmed = clientEventId.trim();
+    if (user == null || trimmed.isEmpty) return null;
+
+    try {
+      final row = await _client
+          .from(_kTable)
+          .select()
+          .eq('user_id', user.id)
+          .eq('client_event_id', trimmed)
+          .maybeSingle();
+      if (row == null) return null;
+      return UserEvent.fromRow((row as Map).cast<String, dynamic>());
+    } on PostgrestException catch (e) {
+      _log('getEventByClientEventId ✗ ${e.code} ${e.message}');
+      return null;
+    } catch (e) {
+      _log('getEventByClientEventId ✗ $e');
+      return null;
+    }
+  }
+
   /// Replace the editable event fields for an existing row.
   /// Unlike [update], nullable fields are written through and can be cleared.
   Future<UserEvent> replace({

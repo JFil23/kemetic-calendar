@@ -176,7 +176,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
                     const SizedBox(height: 16),
                     Text(
                       _isEventShare
-                          ? 'No in-app users found for "$_searchQuery".'
+                          ? 'No app users found for "$_searchQuery".'
                           : 'No users found for "$_searchQuery". You can still press Enter to add an email or phone number.',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.6),
@@ -223,7 +223,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: _isEventShare
-            ? 'Search by @handle'
+            ? 'Search app users by @handle or name'
             : 'Search by @handle or enter email/phone (press Enter)',
         hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
         prefixIcon: Icon(
@@ -289,7 +289,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Invite people inside the app. They will see this event with Yes, No, and Maybe actions instead of receiving an email.',
+              'Invite people inside the app. Search by handle or display name, then they will see this event with Yes, No, and Maybe actions instead of receiving an email.',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.78),
                 fontSize: 13,

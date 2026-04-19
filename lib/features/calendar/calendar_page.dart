@@ -6091,6 +6091,9 @@ class _CalendarPageState extends State<CalendarPage>
   }) {
     for (final day in occurrences) {
       final k = KemeticMath.fromGregorian(day);
+      final cidDate =
+          '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+      final clientEventId = 'reminder:${rule.id}:$cidDate';
       final startTime = rule.allDay
           ? null
           : TimeOfDay(
@@ -6130,6 +6133,7 @@ class _CalendarPageState extends State<CalendarPage>
         k.kDay,
         rule.title,
         null,
+        clientEventId: clientEventId,
         allDay: rule.allDay,
         start: startTime,
         end: endTime,
@@ -8046,6 +8050,122 @@ class _CalendarPageState extends State<CalendarPage>
     });
   }
 
+  _Note? _findLatestNoteByIdOrClientId({
+    String? eventId,
+    String? clientEventId,
+  }) {
+    final trimmedEventId = eventId?.trim();
+    final trimmedClientId = clientEventId?.trim();
+    if ((trimmedEventId == null || trimmedEventId.isEmpty) &&
+        (trimmedClientId == null || trimmedClientId.isEmpty)) {
+      return null;
+    }
+
+    _Note? bestClientIdMatch;
+
+    for (final bucket in _notes.values) {
+      for (final note in bucket) {
+        final noteId = note.id?.trim() ?? '';
+        final noteCid = note.clientEventId?.trim() ?? '';
+        if (trimmedEventId != null &&
+            trimmedEventId.isNotEmpty &&
+            noteId == trimmedEventId) {
+          return note;
+        }
+        if (trimmedClientId != null &&
+            trimmedClientId.isNotEmpty &&
+            noteCid == trimmedClientId) {
+          if (bestClientIdMatch == null) {
+            bestClientIdMatch = note;
+            continue;
+          }
+          final bestHasId = bestClientIdMatch.id?.trim().isNotEmpty ?? false;
+          final noteHasId = noteId.isNotEmpty;
+          if (!bestHasId && noteHasId) {
+            bestClientIdMatch = note;
+          }
+        }
+      }
+    }
+
+    return bestClientIdMatch;
+  }
+
+  _Note? _findBestReminderNoteForInvite(EventItem evt) {
+    final reminderId = evt.reminderId?.trim();
+    if (!evt.isReminder || reminderId == null || reminderId.isEmpty) {
+      return null;
+    }
+
+    final evtTitle = evt.title.trim().toLowerCase();
+    final evtLocation = (evt.location ?? '').trim().toLowerCase();
+    final evtDetail = (evt.detail ?? '').trim().toLowerCase();
+    final evtStartHour = evt.startMin ~/ 60;
+    final evtStartMinute = evt.startMin % 60;
+    final evtEndHour = evt.endMin ~/ 60;
+    final evtEndMinute = evt.endMin % 60;
+
+    int score(_Note note) {
+      var value = 0;
+      if (note.id?.trim().isNotEmpty ?? false) value += 4;
+      if (note.clientEventId?.trim().isNotEmpty ?? false) value += 2;
+      if ((note.location ?? '').trim().toLowerCase() == evtLocation) value += 1;
+      if ((note.detail ?? '').trim().toLowerCase() == evtDetail) value += 1;
+      return value;
+    }
+
+    _Note? best;
+    for (final bucket in _notes.values) {
+      for (final note in bucket) {
+        if (!note.isReminder) continue;
+        if ((note.reminderId?.trim() ?? '') != reminderId) continue;
+        if (note.title.trim().toLowerCase() != evtTitle) continue;
+        if (note.allDay != evt.allDay) continue;
+        if (!evt.allDay) {
+          if (note.start == null ||
+              note.start!.hour != evtStartHour ||
+              note.start!.minute != evtStartMinute) {
+            continue;
+          }
+          if (note.end != null &&
+              (note.end!.hour != evtEndHour ||
+                  note.end!.minute != evtEndMinute)) {
+            continue;
+          }
+        }
+
+        if (best == null || score(note) > score(best)) {
+          best = note;
+        }
+      }
+    }
+
+    return best;
+  }
+
+  void _attachPersistedEventIdentity({
+    required String eventId,
+    required String clientEventId,
+  }) {
+    if (!mounted) return;
+
+    var changed = false;
+    for (final bucket in _notes.values) {
+      for (var i = 0; i < bucket.length; i++) {
+        final note = bucket[i];
+        if ((note.clientEventId?.trim() ?? '') != clientEventId) continue;
+        if (note.id?.trim().isNotEmpty ?? false) continue;
+        bucket[i] = note.copyWith(id: eventId, clientEventId: clientEventId);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      setState(() {});
+      _notifyDayViewDataChanged();
+    }
+  }
+
   int? _findNoteIndexByEvent(int ky, int km, int kd, EventItem evt) {
     final key = _kKey(ky, km, kd);
     final list = _notes[key];
@@ -8063,6 +8183,7 @@ class _CalendarPageState extends State<CalendarPage>
     int startMinute = evt.startMin % 60;
     int endHour = evt.endMin ~/ 60;
     int endMinute = evt.endMin % 60;
+    int? metadataOnlyMatch;
 
     for (int i = 0; i < list.length; i++) {
       final n = list[i];
@@ -8072,11 +8193,13 @@ class _CalendarPageState extends State<CalendarPage>
       if (!evt.allDay) {
         if (n.start == null ||
             n.start!.hour != startHour ||
-            n.start!.minute != startMinute)
+            n.start!.minute != startMinute) {
           continue;
+        }
         if (n.end != null &&
-            (n.end!.hour != endHour || n.end!.minute != endMinute))
+            (n.end!.hour != endHour || n.end!.minute != endMinute)) {
           continue;
+        }
       }
       final titlesMatch =
           n.title.trim().toLowerCase() == evt.title.trim().toLowerCase();
@@ -8087,10 +8210,34 @@ class _CalendarPageState extends State<CalendarPage>
           (n.detail ?? '').trim().toLowerCase() ==
           (evt.detail ?? '').trim().toLowerCase();
       if (titlesMatch && locMatch && detMatch) {
+        if ((n.start == null && !evt.allDay) ||
+            (n.end == null && !evt.allDay)) {
+          if (metadataOnlyMatch != null) return null;
+          metadataOnlyMatch = i;
+          continue;
+        }
         return i;
       }
     }
-    return null;
+
+    for (int i = 0; i < list.length; i++) {
+      final n = list[i];
+      if (evt.flowId != null && (n.flowId ?? -1) != evt.flowId) continue;
+      if (n.allDay != evt.allDay) continue;
+      final titlesMatch =
+          n.title.trim().toLowerCase() == evt.title.trim().toLowerCase();
+      final locMatch =
+          (n.location ?? '').trim().toLowerCase() ==
+          (evt.location ?? '').trim().toLowerCase();
+      final detMatch =
+          (n.detail ?? '').trim().toLowerCase() ==
+          (evt.detail ?? '').trim().toLowerCase();
+      if (!titlesMatch || !locMatch || !detMatch) continue;
+      if (metadataOnlyMatch != null) return null;
+      metadataOnlyMatch = i;
+    }
+
+    return metadataOnlyMatch;
   }
 
   Future<void> _deleteNoteByEvent(int ky, int km, int kd, EventItem evt) async {
@@ -8127,7 +8274,47 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _shareNoteSimple(EventItem evt) async {
-    final eventId = evt.id;
+    _Note? latest =
+        _findLatestNoteByIdOrClientId(
+          eventId: evt.id,
+          clientEventId: evt.clientEventId,
+        ) ??
+        _findBestReminderNoteForInvite(evt);
+
+    var eventId = (latest?.id ?? evt.id)?.trim();
+    var lookupClientId = (latest?.clientEventId ?? evt.clientEventId)?.trim();
+
+    if ((eventId == null || eventId.isEmpty) &&
+        (lookupClientId == null || lookupClientId.isEmpty) &&
+        evt.isReminder) {
+      await _loadFromDisk();
+      if (!mounted) return;
+
+      latest =
+          _findLatestNoteByIdOrClientId(
+            eventId: evt.id,
+            clientEventId: evt.clientEventId,
+          ) ??
+          _findBestReminderNoteForInvite(evt);
+      eventId = (latest?.id ?? evt.id)?.trim();
+      lookupClientId = (latest?.clientEventId ?? evt.clientEventId)?.trim();
+    }
+
+    if ((eventId == null || eventId.isEmpty) &&
+        lookupClientId != null &&
+        lookupClientId.isNotEmpty) {
+      final persisted = await UserEventsRepo(
+        Supabase.instance.client,
+      ).getEventByClientEventId(lookupClientId);
+      if (persisted != null) {
+        eventId = persisted.id.trim();
+        _attachPersistedEventIdentity(
+          eventId: persisted.id,
+          clientEventId: persisted.clientEventId ?? lookupClientId,
+        );
+      }
+    }
+
     if (eventId == null || eventId.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -8137,7 +8324,11 @@ class _CalendarPageState extends State<CalendarPage>
       );
       return;
     }
-    await _openEventInviteSheet(eventId: eventId, title: evt.title);
+    if (!mounted) return;
+    await _openEventInviteSheet(
+      eventId: eventId,
+      title: latest?.title ?? evt.title,
+    );
   }
 
   Future<void> _openEventInviteSheet({
@@ -18217,26 +18408,12 @@ class _DayChip extends StatelessWidget {
                             onManageFlows != null) {
                           Navigator.pop(ctx);
                           onManageFlows!(note.flowId);
-                        } else if (value == 'share_flow' &&
-                            note.flowId != null) {
+                        } else if (value == 'invite_people') {
                           Navigator.pop(ctx);
-                          final result = await showModalBottomSheet<bool>(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (context) => ShareFlowSheet(
-                              flowId: note.flowId!,
-                              flowTitle: flowName ?? '',
-                            ),
-                          );
-                          if (result == true && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Flow shared successfully!'),
-                                backgroundColor: KemeticGold.base,
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
+                          if (note.isReminder && onShareReminder != null) {
+                            await onShareReminder!(event);
+                          } else if (onShareNote != null) {
+                            await onShareNote!(event);
                           }
                         } else if (value == 'save_flow' &&
                             note.flowId != null) {
@@ -18248,23 +18425,12 @@ class _DayChip extends StatelessWidget {
                             onEditReminder != null) {
                           Navigator.pop(ctx);
                           await onEditReminder!(event.reminderId!);
-                        } else if (value == 'share_reminder' &&
-                            note.isReminder &&
-                            onShareReminder != null) {
-                          Navigator.pop(ctx);
-                          await onShareReminder!(event);
                         } else if (value == 'edit_note' &&
                             !note.isReminder &&
                             note.flowId == null &&
                             onEditNote != null) {
                           Navigator.pop(ctx);
                           await onEditNote!(kYear, kMonth, kDay, event);
-                        } else if (value == 'share_note' &&
-                            !note.isReminder &&
-                            note.flowId == null &&
-                            onShareNote != null) {
-                          Navigator.pop(ctx);
-                          await onShareNote!(event);
                         }
                       },
                       itemBuilder: (context) => [
@@ -18296,15 +18462,17 @@ class _DayChip extends StatelessWidget {
                               ],
                             ),
                           ),
-                        if (note.flowId != null && !note.isReminder)
+                        if (note.flowId != null &&
+                            !note.isReminder &&
+                            onShareNote != null)
                           PopupMenuItem(
-                            value: 'share_flow',
+                            value: 'invite_people',
                             child: Row(
                               children: [
-                                KemeticGold.icon(Icons.share),
+                                KemeticGold.icon(Icons.person_add_alt_1),
                                 const SizedBox(width: 12),
                                 const Text(
-                                  'Share Flow',
+                                  'Invite People',
                                   style: TextStyle(color: Colors.white),
                                 ),
                               ],
@@ -18342,10 +18510,10 @@ class _DayChip extends StatelessWidget {
                           ),
                         if (note.isReminder && onShareReminder != null)
                           PopupMenuItem(
-                            value: 'share_reminder',
+                            value: 'invite_people',
                             child: Row(
                               children: [
-                                KemeticGold.icon(Icons.share),
+                                KemeticGold.icon(Icons.person_add_alt_1),
                                 const SizedBox(width: 12),
                                 const Text(
                                   'Invite People',
@@ -18374,10 +18542,10 @@ class _DayChip extends StatelessWidget {
                             note.flowId == null &&
                             onShareNote != null)
                           PopupMenuItem(
-                            value: 'share_note',
+                            value: 'invite_people',
                             child: Row(
                               children: [
-                                KemeticGold.icon(Icons.share),
+                                KemeticGold.icon(Icons.person_add_alt_1),
                                 const SizedBox(width: 12),
                                 const Text(
                                   'Invite People',

@@ -13,7 +13,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart'
     show KemeticMath, CreateNutritionReminder, DeleteNutritionReminder;
-import '../sharing/share_flow_sheet.dart';
 import '../journal/journal_event_badge.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'dart:math' as math;
@@ -1685,27 +1684,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                         } else if (value == 'edit' && flow != null) {
                           Navigator.pop(context);
                           widget.onManageFlows?.call(flow.id);
-                        } else if (value == 'share' && flow != null) {
+                        } else if (value == 'invite_people' &&
+                            widget.onShareNote != null) {
                           Navigator.pop(context);
-                          final result = await showModalBottomSheet<bool>(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (context) => ShareFlowSheet(
-                              flowId: flow.id,
-                              flowTitle: flow.name,
-                            ),
-                          );
-
-                          if (result == true && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Flow shared successfully!'),
-                                backgroundColor: KemeticGold.base,
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          }
+                          await widget.onShareNote!(event);
                         } else if (value == 'edit_note' &&
                             flow == null &&
                             widget.onEditNote != null) {
@@ -1716,7 +1698,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                             day,
                             event,
                           );
-                        } else if (value == 'share_note' &&
+                        } else if (value == 'invite_people' &&
                             flow == null &&
                             widget.onShareNote != null) {
                           Navigator.pop(context);
@@ -1751,15 +1733,15 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                               ],
                             ),
                           ),
-                        if (flow != null)
+                        if (flow != null && widget.onShareNote != null)
                           PopupMenuItem(
-                            value: 'share',
+                            value: 'invite_people',
                             child: Row(
                               children: [
-                                KemeticGold.icon(Icons.share),
+                                KemeticGold.icon(Icons.person_add_alt_1),
                                 const SizedBox(width: 12),
                                 const Text(
-                                  'Share Flow',
+                                  'Invite People',
                                   style: TextStyle(color: Colors.white),
                                 ),
                               ],
@@ -1781,13 +1763,13 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                           ),
                         if (flow == null && widget.onShareNote != null)
                           PopupMenuItem(
-                            value: 'share_note',
+                            value: 'invite_people',
                             child: Row(
                               children: [
-                                KemeticGold.icon(Icons.share),
+                                KemeticGold.icon(Icons.person_add_alt_1),
                                 const SizedBox(width: 12),
                                 const Text(
-                                  'Share Note',
+                                  'Invite People',
                                   style: TextStyle(color: Colors.white),
                                 ),
                               ],

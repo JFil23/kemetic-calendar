@@ -276,13 +276,280 @@ class ShareRepo {
       }
 
       return results;
+    } on FunctionException catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[ShareRepo] Error sharing event: $e');
+        debugPrint('$st');
+      }
+
+      if (e.status == 404) {
+        _log(
+          '[ShareRepo] create_event_share missing on backend; falling back to direct event_shares writes',
+        );
+        try {
+          return await _shareEventDirect(
+            eventId: eventId,
+            recipients: recipients,
+            payloadJson: payloadJson,
+          );
+        } catch (fallbackError, fallbackStackTrace) {
+          if (kDebugMode) {
+            debugPrint(
+              '[ShareRepo] Direct event share fallback failed: $fallbackError',
+            );
+            debugPrint('$fallbackStackTrace');
+          }
+          return [
+            ShareResult(
+              status: null,
+              error: _inviteErrorMessage(fallbackError, missingFunction: true),
+            ),
+          ];
+        }
+      }
+
+      return [ShareResult(status: null, error: _inviteErrorMessage(e))];
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[ShareRepo] Error sharing event: $e');
         debugPrint('$st');
       }
-      rethrow;
+      return [ShareResult(status: null, error: _inviteErrorMessage(e))];
     }
+  }
+
+  Future<List<ShareResult>> _shareEventDirect({
+    required String eventId,
+    required List<ShareRecipient> recipients,
+    Map<String, dynamic>? payloadJson,
+  }) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) {
+      return [
+        ShareResult(status: null, error: 'Please sign in to send invites'),
+      ];
+    }
+
+    final rawEvent = await _client
+        .from('user_events')
+        .select(
+          'id, user_id, title, detail, location, starts_at, ends_at, all_day',
+        )
+        .eq('id', eventId)
+        .maybeSingle();
+
+    final eventRow = rawEvent is Map<String, dynamic> ? rawEvent : null;
+    if (eventRow == null) {
+      return [ShareResult(status: null, error: 'Event not found')];
+    }
+
+    if ((eventRow['user_id'] as String?) != userId) {
+      return [
+        ShareResult(
+          status: null,
+          error: 'You can only invite people to your own events',
+        ),
+      ];
+    }
+
+    final eventPayload = <String, dynamic>{
+      'event_id': eventId,
+      'title': eventRow['title'],
+      'detail': eventRow['detail'],
+      'location': eventRow['location'],
+      'starts_at': eventRow['starts_at'],
+      'ends_at': eventRow['ends_at'],
+      'all_day': eventRow['all_day'],
+      if (payloadJson != null) ...payloadJson,
+    };
+
+    final results = <ShareResult>[];
+    for (final recipient in recipients) {
+      if (recipient.type != ShareRecipientType.user) {
+        results.add(ShareResult(status: null, error: 'IN_APP_USER_REQUIRED'));
+        continue;
+      }
+
+      final recipientId = await _resolveRecipientUserId(recipient.value);
+      if (recipientId == null || recipientId.isEmpty) {
+        results.add(ShareResult(status: null, error: 'USER_NOT_FOUND'));
+        continue;
+      }
+
+      if (recipientId == userId) {
+        results.add(ShareResult(status: null, error: 'CANNOT_INVITE_SELF'));
+        continue;
+      }
+
+      final rawExisting = await _client
+          .from('event_shares')
+          .select('id')
+          .eq('event_id', eventId)
+          .eq('sender_id', userId)
+          .eq('recipient_id', recipientId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      final existingRow = rawExisting is Map<String, dynamic>
+          ? rawExisting
+          : null;
+      final existingId = (existingRow?['id'] as String?)?.trim();
+
+      final basePatch = <String, dynamic>{
+        'channel': 'in_app',
+        'payload_json': eventPayload,
+        'status': 'sent',
+        'viewed_at': null,
+        'imported_at': null,
+        'deleted_at': null,
+        'response_status': 'no_response',
+        'responded_at': null,
+      };
+
+      try {
+        final row = existingId != null && existingId.isNotEmpty
+            ? await _updateEventShareRow(existingId, basePatch)
+            : await _insertEventShareRow(
+                eventId: eventId,
+                senderId: userId,
+                recipientId: recipientId,
+                values: basePatch,
+              );
+        results.add(ShareResult.fromJson(row));
+      } catch (e) {
+        results.add(ShareResult(status: null, error: _inviteErrorMessage(e)));
+      }
+    }
+
+    return results;
+  }
+
+  Future<String?> _resolveRecipientUserId(String rawValue) async {
+    final byId = await _client
+        .from('profiles')
+        .select('id')
+        .eq('id', rawValue)
+        .maybeSingle();
+    final idRow = byId is Map<String, dynamic> ? byId : null;
+    final id = (idRow?['id'] as String?)?.trim();
+    if (id != null && id.isNotEmpty) {
+      return id;
+    }
+
+    final byHandle = await _client
+        .from('profiles')
+        .select('id')
+        .eq('handle', rawValue)
+        .maybeSingle();
+    final handleRow = byHandle is Map<String, dynamic> ? byHandle : null;
+    return (handleRow?['id'] as String?)?.trim();
+  }
+
+  Future<Map<String, dynamic>> _insertEventShareRow({
+    required String eventId,
+    required String senderId,
+    required String recipientId,
+    required Map<String, dynamic> values,
+  }) async {
+    final insertValues = <String, dynamic>{
+      'event_id': eventId,
+      'sender_id': senderId,
+      'recipient_id': recipientId,
+      ...values,
+    };
+    return await _writeEventShareRow(
+      action: () => _client
+          .from('event_shares')
+          .insert(insertValues)
+          .select('id, status, response_status')
+          .single(),
+      legacyAction: () => _client
+          .from('event_shares')
+          .insert(
+            {...insertValues, 'response_status': null, 'responded_at': null}
+              ..remove('response_status')
+              ..remove('responded_at'),
+          )
+          .select('id, status')
+          .single(),
+    );
+  }
+
+  Future<Map<String, dynamic>> _updateEventShareRow(
+    String shareId,
+    Map<String, dynamic> values,
+  ) async {
+    return await _writeEventShareRow(
+      action: () => _client
+          .from('event_shares')
+          .update(values)
+          .eq('id', shareId)
+          .select('id, status, response_status')
+          .single(),
+      legacyAction: () => _client
+          .from('event_shares')
+          .update(
+            {...values}
+              ..remove('response_status')
+              ..remove('responded_at'),
+          )
+          .eq('id', shareId)
+          .select('id, status')
+          .single(),
+    );
+  }
+
+  Future<Map<String, dynamic>> _writeEventShareRow({
+    required Future<dynamic> Function() action,
+    required Future<dynamic> Function() legacyAction,
+  }) async {
+    try {
+      final raw = await action();
+      return (raw as Map).cast<String, dynamic>();
+    } catch (e) {
+      if (!_looksLikeInviteSchemaMismatch(e)) rethrow;
+      final raw = await legacyAction();
+      return (raw as Map).cast<String, dynamic>();
+    }
+  }
+
+  bool _looksLikeInviteSchemaMismatch(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('response_status') ||
+        message.contains('responded_at') ||
+        message.contains('column');
+  }
+
+  String _inviteErrorMessage(Object error, {bool missingFunction = false}) {
+    final message = error.toString();
+
+    if (missingFunction) {
+      if (_looksLikeInviteSchemaMismatch(error)) {
+        return 'Invite backend is not fully deployed yet. Push the latest database migration.';
+      }
+      return 'Invite backend is not deployed yet. Deploy the create_event_share function.';
+    }
+
+    if (_looksLikeInviteSchemaMismatch(error)) {
+      return 'Invite database changes are not deployed yet.';
+    }
+
+    if (error is FunctionException && error.status == 404) {
+      return 'Invite backend is not deployed yet. Deploy the create_event_share function.';
+    }
+
+    if (message.contains('CANNOT_INVITE_SELF')) {
+      return 'You cannot invite yourself';
+    }
+    if (message.contains('USER_NOT_FOUND')) {
+      return 'User not found';
+    }
+    if (message.contains('IN_APP_USER_REQUIRED')) {
+      return 'Event invites only support in-app users';
+    }
+
+    return 'Could not send invites';
   }
 
   Future<List<EventInviteeStatus>> getEventInvitees({

@@ -17,7 +17,6 @@ import 'package:mobile/core/touch_targets.dart';
 import 'calendar_page.dart';
 import 'day_view_chrome.dart';
 import 'landscape_month_view.dart';
-import '../sharing/share_flow_sheet.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
 import '../../data/user_events_repo.dart';
@@ -305,6 +304,34 @@ String _eventIdentityKey(EventItem event) {
     event.allDay,
     event.isReminder,
   ].join('|');
+}
+
+bool _eventsShareStableIdentity(EventItem a, EventItem b) {
+  final aId = a.id?.trim();
+  final bId = b.id?.trim();
+  if (aId != null && aId.isNotEmpty && bId != null && bId.isNotEmpty) {
+    return aId == bId;
+  }
+
+  final aClientId = a.clientEventId?.trim();
+  final bClientId = b.clientEventId?.trim();
+  if (aClientId != null &&
+      aClientId.isNotEmpty &&
+      bClientId != null &&
+      bClientId.isNotEmpty) {
+    return aClientId == bClientId;
+  }
+
+  final aReminderId = a.reminderId?.trim();
+  final bReminderId = b.reminderId?.trim();
+  if (aReminderId != null &&
+      aReminderId.isNotEmpty &&
+      bReminderId != null &&
+      bReminderId.isNotEmpty) {
+    return aReminderId == bReminderId;
+  }
+
+  return _eventIdentityKey(a) == _eventIdentityKey(b);
 }
 
 int _compareEventItemsBySchedule(EventItem a, EventItem b) {
@@ -696,9 +723,8 @@ class _DayViewPageState extends State<DayViewPage> {
     required bool forward,
   }) {
     final currentEvents = _eventsForKemeticDay(ky, km, kd);
-    final identity = _eventIdentityKey(event);
     final currentIndex = currentEvents.indexWhere(
-      (candidate) => _eventIdentityKey(candidate) == identity,
+      (candidate) => _eventsShareStableIdentity(candidate, event),
     );
 
     if (currentIndex >= 0) {
@@ -735,6 +761,25 @@ class _DayViewPageState extends State<DayViewPage> {
     }
 
     return null;
+  }
+
+  DayViewSheetEventTarget _resolveCurrentEventTarget(
+    DayViewSheetEventTarget target,
+  ) {
+    final currentEvents = _eventsForKemeticDay(target.ky, target.km, target.kd);
+    if (currentEvents.isEmpty) return target;
+
+    for (final candidate in currentEvents) {
+      if (!_eventsShareStableIdentity(candidate, target.event)) continue;
+      return DayViewSheetEventTarget(
+        ky: target.ky,
+        km: target.km,
+        kd: target.kd,
+        event: candidate,
+      );
+    }
+
+    return target;
   }
 
   Future<void> _animateToKemeticDate(int ky, int km, int kd) async {
@@ -922,6 +967,7 @@ class _DayViewPageState extends State<DayViewPage> {
                             kDate.kMonth,
                             kDate.kDay,
                           ),
+                          dataVersion: widget.dataVersion,
                           showGregorian: widget.showGregorian,
                           flowIndex: flowIndex,
                           initialScrollOffset: _savedScrollOffset, // 🔧 NEW
@@ -949,6 +995,7 @@ class _DayViewPageState extends State<DayViewPage> {
                               widget.loadCompletedClientEventIds,
                           onRecordCompletion: widget.onRecordCompletion,
                           onUnrecordCompletion: widget.onUnrecordCompletion,
+                          resolveCurrentEventTarget: _resolveCurrentEventTarget,
                           resolveAdjacentEvent: _resolveAdjacentEventTarget,
                           onNavigateToDay: _animateToKemeticDate,
                         );
@@ -992,6 +1039,7 @@ class DayViewGrid extends StatefulWidget {
   final int km;
   final int kd;
   final List<NoteData> notes;
+  final ValueListenable<int>? dataVersion;
   final bool showGregorian;
   final Map<int, FlowData> flowIndex;
   final double? initialScrollOffset; // 🔧 NEW
@@ -1050,6 +1098,8 @@ class DayViewGrid extends StatefulWidget {
   })?
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final DayViewSheetEventTarget Function(DayViewSheetEventTarget target)?
+  resolveCurrentEventTarget;
   final DayViewSheetEventTarget? Function({
     required int ky,
     required int km,
@@ -1066,6 +1116,7 @@ class DayViewGrid extends StatefulWidget {
     required this.km,
     required this.kd,
     required this.notes,
+    this.dataVersion,
     required this.showGregorian,
     required this.flowIndex,
     this.initialScrollOffset, // 🔧 NEW
@@ -1090,6 +1141,7 @@ class DayViewGrid extends StatefulWidget {
     this.loadCompletedClientEventIds,
     this.onRecordCompletion,
     this.onUnrecordCompletion,
+    this.resolveCurrentEventTarget,
     this.resolveAdjacentEvent,
     this.onNavigateToDay,
   });
@@ -1437,19 +1489,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   bool _eventsMatch(EventItem a, EventItem b) {
-    final idMatch =
-        (a.id != null &&
-        a.id!.isNotEmpty &&
-        b.id != null &&
-        b.id!.isNotEmpty &&
-        a.id == b.id);
-    final cidMatch =
-        (a.clientEventId != null &&
-        a.clientEventId!.isNotEmpty &&
-        b.clientEventId != null &&
-        b.clientEventId!.isNotEmpty &&
-        a.clientEventId == b.clientEventId);
-    return idMatch || cidMatch || identical(a, b);
+    return _eventsShareStableIdentity(a, b) || identical(a, b);
   }
 
   List<PositionedEventBlock> _buildDisplayBlocks(
@@ -2828,24 +2868,12 @@ class _DayViewGridState extends State<DayViewGrid> {
         } else if (value == 'edit' && flow != null) {
           Navigator.pop(sheetContext);
           widget.onManageFlows?.call(flow.id);
-        } else if (value == 'share' && flow != null) {
+        } else if (value == 'invite_people') {
           Navigator.pop(sheetContext);
-          final result = await showModalBottomSheet<bool>(
-            context: rootContext,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (context) =>
-                ShareFlowSheet(flowId: flow.id, flowTitle: flow.name),
-          );
-
-          if (result == true && rootContext.mounted) {
-            ScaffoldMessenger.of(rootContext).showSnackBar(
-              const SnackBar(
-                content: Text('Flow shared successfully!'),
-                backgroundColor: KemeticGold.base,
-                duration: Duration(seconds: 2),
-              ),
-            );
+          if (isReminder && widget.onShareReminder != null) {
+            await widget.onShareReminder!(currentEvent);
+          } else if (widget.onShareNote != null) {
+            await widget.onShareNote!(currentEvent);
           }
         } else if (value == 'save' && flow != null) {
           Navigator.pop(sheetContext);
@@ -2878,11 +2906,6 @@ class _DayViewGridState extends State<DayViewGrid> {
             currentEvent.reminderId != null) {
           Navigator.pop(sheetContext);
           await widget.onEditReminder!(currentEvent.reminderId!);
-        } else if (value == 'share_reminder' &&
-            isReminder &&
-            widget.onShareReminder != null) {
-          Navigator.pop(sheetContext);
-          await widget.onShareReminder!(currentEvent);
         } else if (value == 'edit_note' &&
             flow == null &&
             !isReminder &&
@@ -2894,12 +2917,6 @@ class _DayViewGridState extends State<DayViewGrid> {
             target.kd,
             currentEvent,
           );
-        } else if (value == 'share_note' &&
-            flow == null &&
-            !isReminder &&
-            widget.onShareNote != null) {
-          Navigator.pop(sheetContext);
-          await widget.onShareNote!(currentEvent);
         }
       },
       itemBuilder: (context) => [
@@ -2928,14 +2945,17 @@ class _DayViewGridState extends State<DayViewGrid> {
               ],
             ),
           ),
-        if (flow != null && !isReminder)
+        if (flow != null && !isReminder && widget.onShareNote != null)
           PopupMenuItem(
-            value: 'share',
+            value: 'invite_people',
             child: Row(
               children: [
-                KemeticGold.icon(Icons.share),
+                KemeticGold.icon(Icons.person_add_alt_1),
                 const SizedBox(width: 12),
-                const Text('Share Flow', style: TextStyle(color: Colors.white)),
+                const Text(
+                  'Invite People',
+                  style: TextStyle(color: Colors.white),
+                ),
               ],
             ),
           ),
@@ -2968,10 +2988,10 @@ class _DayViewGridState extends State<DayViewGrid> {
           ),
         if (isReminder && widget.onShareReminder != null)
           PopupMenuItem(
-            value: 'share_reminder',
+            value: 'invite_people',
             child: Row(
               children: [
-                KemeticGold.icon(Icons.share),
+                KemeticGold.icon(Icons.person_add_alt_1),
                 const SizedBox(width: 12),
                 const Text(
                   'Invite People',
@@ -2993,10 +3013,10 @@ class _DayViewGridState extends State<DayViewGrid> {
           ),
         if (flow == null && !isReminder && widget.onShareNote != null)
           PopupMenuItem(
-            value: 'share_note',
+            value: 'invite_people',
             child: Row(
               children: [
-                KemeticGold.icon(Icons.share),
+                KemeticGold.icon(Icons.person_add_alt_1),
                 const SizedBox(width: 12),
                 const Text(
                   'Invite People',
@@ -3034,6 +3054,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   // Show event detail sheet
   void _showEventDetail(EventItem event) {
     final rootContext = context;
+    final sheetDataListenable = widget.dataVersion ?? _kZeroListenable;
     final currentTarget = ValueNotifier<DayViewSheetEventTarget>(
       DayViewSheetEventTarget(
         ky: widget.ky,
@@ -3097,103 +3118,115 @@ class _DayViewGridState extends State<DayViewGrid> {
       backgroundColor: const Color(0xFF000000),
       isScrollControlled: true,
       builder: (sheetContext) {
-        return ValueListenableBuilder<DayViewSheetEventTarget>(
-          valueListenable: currentTarget,
-          builder: (context, target, _) {
-            final pages = _detailSheetPagesForTarget(target);
-            final currentKey = _detailSheetTargetKey(target);
-            final pageViewKey = ValueKey<String>(
-              '$currentKey:${pages.currentIndex}:${pages.pages.length}',
-            );
-
-            return ValueListenableBuilder<Map<String, double>>(
-              valueListenable: measuredHeights,
-              builder: (context, heights, __) {
-                final maxSheetHeight = math.min(
-                  MediaQuery.sizeOf(context).height * 0.72,
-                  560.0,
+        return ValueListenableBuilder<int>(
+          valueListenable: sheetDataListenable,
+          builder: (context, _, child) {
+            return ValueListenableBuilder<DayViewSheetEventTarget>(
+              valueListenable: currentTarget,
+              builder: (context, rawTarget, _) {
+                final target =
+                    widget.resolveCurrentEventTarget?.call(rawTarget) ??
+                    rawTarget;
+                final pages = _detailSheetPagesForTarget(target);
+                final currentKey = _detailSheetTargetKey(target);
+                final pageViewKey = ValueKey<String>(
+                  '$currentKey:${pages.currentIndex}:${pages.pages.length}',
                 );
-                final sheetHeight = (heights[currentKey] ?? 200.0)
-                    .clamp(0.0, math.max(180.0, maxSheetHeight - 112.0))
-                    .toDouble();
 
-                return SafeArea(
-                  top: false,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Offstage(
-                        child: Column(
-                          children: [
-                            for (final pageTarget in pages.pages)
-                              _MeasureSize(
-                                onChange: (size) {
-                                  updateMeasuredHeight(
-                                    _detailSheetTargetKey(pageTarget),
-                                    size.height,
-                                  );
-                                },
-                                child: SizedBox(
-                                  width: MediaQuery.sizeOf(context).width,
-                                  child: _buildEventDetailSheetPage(
-                                    target: pageTarget,
-                                    scrollable: false,
+                return ValueListenableBuilder<Map<String, double>>(
+                  valueListenable: measuredHeights,
+                  builder: (context, heights, child) {
+                    final maxSheetHeight = math.min(
+                      MediaQuery.sizeOf(context).height * 0.72,
+                      560.0,
+                    );
+                    final sheetHeight = (heights[currentKey] ?? 200.0)
+                        .clamp(0.0, math.max(180.0, maxSheetHeight - 112.0))
+                        .toDouble();
+
+                    return SafeArea(
+                      top: false,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Offstage(
+                            child: Column(
+                              children: [
+                                for (final pageTarget in pages.pages)
+                                  _MeasureSize(
+                                    onChange: (size) {
+                                      updateMeasuredHeight(
+                                        _detailSheetTargetKey(pageTarget),
+                                        size.height,
+                                      );
+                                    },
+                                    child: SizedBox(
+                                      width: MediaQuery.sizeOf(context).width,
+                                      child: _buildEventDetailSheetPage(
+                                        target: pageTarget,
+                                        scrollable: false,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildEventDetailTopActionRow(
+                                  rootContext: rootContext,
+                                  sheetContext: sheetContext,
+                                  target: target,
+                                ),
+                                const SizedBox(height: 10),
+                                AnimatedSize(
+                                  duration: const Duration(milliseconds: 180),
+                                  curve: Curves.easeOutCubic,
+                                  alignment: Alignment.bottomCenter,
+                                  child: SizedBox(
+                                    height: sheetHeight,
+                                    child: PageView.builder(
+                                      key: pageViewKey,
+                                      controller: sheetPageController,
+                                      physics: const BouncingScrollPhysics(),
+                                      itemCount: pages.pages.length,
+                                      onPageChanged: (index) {
+                                        if (index == pages.currentIndex) {
+                                          return;
+                                        }
+                                        final nextTarget = pages.pages[index];
+                                        final nextPages =
+                                            _detailSheetPagesForTarget(
+                                              nextTarget,
+                                            );
+                                        resetSheetPageController(
+                                          nextPages.currentIndex,
+                                        );
+                                        unawaited(moveToTarget(nextTarget));
+                                      },
+                                      itemBuilder: (context, index) {
+                                        return _buildEventDetailSheetPage(
+                                          target: pages.pages[index],
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildEventDetailTopActionRow(
-                              rootContext: rootContext,
-                              sheetContext: sheetContext,
-                              target: target,
-                            ),
-                            const SizedBox(height: 10),
-                            AnimatedSize(
-                              duration: const Duration(milliseconds: 180),
-                              curve: Curves.easeOutCubic,
-                              alignment: Alignment.bottomCenter,
-                              child: SizedBox(
-                                height: sheetHeight,
-                                child: PageView.builder(
-                                  key: pageViewKey,
-                                  controller: sheetPageController,
-                                  physics: const BouncingScrollPhysics(),
-                                  itemCount: pages.pages.length,
-                                  onPageChanged: (index) {
-                                    if (index == pages.currentIndex) return;
-                                    final nextTarget = pages.pages[index];
-                                    final nextPages =
-                                        _detailSheetPagesForTarget(nextTarget);
-                                    resetSheetPageController(
-                                      nextPages.currentIndex,
-                                    );
-                                    unawaited(moveToTarget(nextTarget));
-                                  },
-                                  itemBuilder: (context, index) {
-                                    return _buildEventDetailSheetPage(
-                                      target: pages.pages[index],
-                                    );
-                                  },
+                                const SizedBox(height: 10),
+                                _buildEventDetailBottomActionRow(
+                                  sheetContext: sheetContext,
+                                  target: target,
                                 ),
-                              ),
+                              ],
                             ),
-                            const SizedBox(height: 10),
-                            _buildEventDetailBottomActionRow(
-                              sheetContext: sheetContext,
-                              target: target,
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 );
               },
             );
