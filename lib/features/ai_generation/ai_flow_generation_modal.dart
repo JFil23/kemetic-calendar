@@ -195,7 +195,12 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       }
 
       // Success! Close modal and return the result
-      Navigator.of(context).pop(response);
+      Navigator.of(context).pop(
+        response.copyWith(
+          requestedStartDate: _startDate,
+          requestedEndDate: _endDate,
+        ),
+      );
 
       // Show success message
       final flowName = response.flowName ?? 'Flow';

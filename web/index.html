@@ -157,9 +157,16 @@
         nudge();
       }, { passive: true });
 
-      window.addEventListener('touchstart', () => {
+      window.addEventListener('orientationchange', () => {
         nudge();
+        setTimeout(nudge, 220);
       }, { passive: true });
+
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+          nudge();
+        }, { passive: true });
+      }
     })();
   </script>
   <script>

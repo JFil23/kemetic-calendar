@@ -23,6 +23,7 @@ import '../sharing/share_flow_sheet.dart';
 import '../../data/share_models.dart';
 import '../../widgets/inbox_icon_with_badge.dart';
 import '../ai_generation/ai_flow_generation_modal.dart';
+import '../ai_generation/ai_flow_import_payload.dart';
 import '../../services/ai_flow_generation_service.dart';
 import '../../models/ai_flow_generation_response.dart';
 import '../../services/ai_reflection_service.dart';
@@ -43,7 +44,6 @@ import 'package:mobile/widgets/month_name_text.dart';
 import 'package:mobile/core/day_key.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/core/kemetic_converter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import '../reminders/reminder_service.dart';
 import '../reminders/reminder_model.dart';
@@ -52,6 +52,7 @@ import '../reminders/reminder_rule_store.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/reminders_repo.dart';
 import '../../utils/event_cid_util.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'package:share_plus/share_plus.dart';
 import '../journal/journal_event_badge.dart';
 import '../journal/journal_badge_utils.dart';
@@ -60,6 +61,7 @@ import '../journal/journal_page.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
 import '../../widgets/flow_start_date_picker.dart';
+import '../../utils/external_link_utils.dart';
 import '../inbox/inbox_page.dart';
 import '../reflections/decan_reflection_archive_page.dart';
 import '../settings/settings_page.dart';
@@ -167,6 +169,54 @@ double _miniHeightFor(MonthExpansionLevel level) {
     case MonthExpansionLevel.details:
       return 105.0;
   }
+}
+
+List<TextSpan> _buildExternalLinkSpans(String text) {
+  final spans = <TextSpan>[];
+  final regex = externalLinkPattern;
+  int start = 0;
+
+  for (final match in regex.allMatches(text)) {
+    if (match.start > start) {
+      spans.add(TextSpan(text: text.substring(start, match.start)));
+    }
+    final raw = match.group(0)!;
+    final url = normalizeExternalLinkToken(raw);
+    if (url.isEmpty) {
+      start = match.end;
+      continue;
+    }
+
+    spans.add(
+      TextSpan(
+        text: url,
+        style: const TextStyle(
+          decoration: TextDecoration.underline,
+          color: _blue,
+        ),
+        recognizer: TapGestureRecognizer()
+          ..onTap = () async {
+            await launchExternalTarget(url, fallbackToMaps: false);
+          },
+      ),
+    );
+
+    if (raw.length > url.length) {
+      spans.add(TextSpan(text: raw.substring(url.length)));
+    }
+
+    start = match.end;
+  }
+
+  if (start < text.length) {
+    spans.add(TextSpan(text: text.substring(start)));
+  }
+
+  return spans;
+}
+
+Future<void> _launchExternalPreviewTarget(String raw) async {
+  await launchExternalTarget(raw);
 }
 
 /* Gregorian month names (1-based) */
@@ -11249,9 +11299,17 @@ class _CalendarPageState extends State<CalendarPage>
                                       onPressed: () {
                                         Navigator.of(sheetCtx).maybePop();
                                       },
-                                      visualDensity: VisualDensity.compact,
-                                      padding: const EdgeInsets.all(4),
-                                      constraints: const BoxConstraints(),
+                                      visualDensity: expandedVisualDensity(
+                                        sheetCtx,
+                                      ),
+                                      padding: expandedIconButtonPadding(
+                                        sheetCtx,
+                                        fallback: const EdgeInsets.all(4),
+                                      ),
+                                      constraints:
+                                          expandedIconButtonConstraints(
+                                            sheetCtx,
+                                          ),
                                       icon: const Icon(
                                         Icons.close,
                                         color: Colors.white70,
@@ -17728,21 +17786,24 @@ class _DayChip extends StatelessWidget {
     return _stripCidLines(detail).trim();
   }
 
-  ButtonStyle _endButtonStyle() {
-    return OutlinedButton.styleFrom(
-      side: const BorderSide(color: Color(0xFFFFC145)),
-      foregroundColor: const Color(0xFFFFC145),
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      minimumSize: const Size(0, 35),
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+  ButtonStyle _endButtonStyle(BuildContext context) {
+    return withExpandedTouchTargets(
+      context,
+      OutlinedButton.styleFrom(
+        side: const BorderSide(color: Color(0xFFFFC145)),
+        foregroundColor: const Color(0xFFFFC145),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        minimumSize: const Size(0, 35),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+      ),
     );
   }
 
   Widget _buildEndFlowButton(BuildContext ctx, int? flowId) {
     final enabled = onEndFlow != null && flowId != null;
     return OutlinedButton.icon(
-      style: _endButtonStyle(),
+      style: _endButtonStyle(ctx),
       onPressed: enabled
           ? () {
               Navigator.pop(ctx);
@@ -17759,7 +17820,7 @@ class _DayChip extends StatelessWidget {
   Widget _buildEndNoteButton(BuildContext ctx, EventItem event) {
     final enabled = onDeleteNote != null;
     return OutlinedButton.icon(
-      style: _endButtonStyle(),
+      style: _endButtonStyle(ctx),
       onPressed: enabled
           ? () async {
               Navigator.pop(ctx);
@@ -17774,7 +17835,7 @@ class _DayChip extends StatelessWidget {
   Widget _buildEndReminderButton(BuildContext ctx, EventItem event) {
     final enabled = onEndReminder != null && event.reminderId != null;
     return OutlinedButton.icon(
-      style: _endButtonStyle(),
+      style: _endButtonStyle(ctx),
       onPressed: enabled
           ? () async {
               Navigator.pop(ctx);
@@ -18124,34 +18185,40 @@ class _DayChip extends StatelessWidget {
                 if (event.location != null &&
                     event.location!.trim().isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        size: 14,
-                        color: Colors.white54,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          event.location!.trim(),
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            decoration: TextDecoration.underline,
+                  InkWell(
+                    onTap: () =>
+                        _launchExternalPreviewTarget(event.location!.trim()),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on,
+                          size: 14,
+                          color: Colors.white54,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            event.location!.trim(),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              decoration: TextDecoration.underline,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
                 if (detail.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  Text(
-                    detail,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      height: 1.3,
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        height: 1.3,
+                      ),
+                      children: _buildExternalLinkSpans(detail),
                     ),
                   ),
                 ],
@@ -19585,26 +19652,36 @@ class _EventsTab extends StatelessWidget {
                               ),
                               if ((e.location ?? '').isNotEmpty) ...[
                                 const SizedBox(height: 6),
-                                Text(
-                                  e.location!,
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.7),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    decoration: TextDecoration.underline,
-                                    decorationColor: Colors.white54,
+                                InkWell(
+                                  onTap: () =>
+                                      _launchExternalPreviewTarget(e.location!),
+                                  child: Text(
+                                    e.location!,
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: Colors.white54,
+                                    ),
                                   ),
                                 ),
                               ],
                               if ((e.detail ?? '').trim().isNotEmpty) ...[
                                 const SizedBox(height: 4),
-                                Text(
-                                  e.detail!.trim(),
+                                RichText(
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 13,
+                                  text: TextSpan(
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                    ),
+                                    children: _buildExternalLinkSpans(
+                                      e.detail!.trim(),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -19972,6 +20049,7 @@ class ImportFlowData {
   final String? notes;
   final List<dynamic> rules;
   final DateTime? suggestedStartDate;
+  final DateTime? suggestedEndDate;
   final String? overview;
   final String? generationId;
   final int? originFlowId;
@@ -19984,6 +20062,7 @@ class ImportFlowData {
     this.notes,
     required this.rules,
     this.suggestedStartDate,
+    this.suggestedEndDate,
     this.overview,
     this.generationId,
     this.originFlowId,
@@ -21450,7 +21529,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       );
     } else {
       // Fallback: seed Flow Studio directly from AI response (no DB flowId)
-      final baseStart = _startDate ?? DateTime.now();
+      final baseStart =
+          result.requestedStartDate ?? _startDate ?? DateTime.now();
       final importData = _aiImportDataFromResponse(result, baseStart);
       if (importData == null) return;
 
@@ -22482,45 +22562,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     DateTime baseStart,
   ) {
     try {
-      // Parse notes: accept already-decoded list or JSON string
-      List<dynamic> notesList;
-      if (resp.notes is List) {
-        notesList = resp.notes as List;
-      } else if (resp.notes is String) {
-        final raw = resp.notes as String;
-        final decoded = jsonDecode(raw);
-        notesList = decoded is List ? decoded : [];
-      } else {
-        notesList = const [];
-      }
-      if (notesList.isEmpty) return null;
-
-      // Build events expected by _initializeFromImport
-      final events = <Map<String, dynamic>>[];
-      for (final n in notesList) {
-        if (n is Map<String, dynamic>) {
-          final dayIdx = (n['day_index'] as num?)?.toInt() ?? 0;
-          final title = (n['title'] as String?) ?? 'Note ${dayIdx + 1}';
-          final detail = (n['details'] as String?) ?? '';
-          final allDay = n['all_day'] as bool? ?? n['allDay'] as bool? ?? false;
-          final st =
-              n['start_time'] as String? ??
-              n['startTime'] as String? ??
-              n['startsAt'] as String?;
-          final et =
-              n['end_time'] as String? ??
-              n['endTime'] as String? ??
-              n['endsAt'] as String?;
-          events.add({
-            'offset_days': dayIdx,
-            'title': title,
-            'detail': detail,
-            'all_day': allDay,
-            'start_time': st ?? '00:00',
-            'end_time': et ?? (allDay ? '00:00' : '01:00'),
-          });
-        }
-      }
+      final events = buildAiFlowImportEvents(resp);
       if (events.isEmpty) return null;
 
       // Build dummy share item (local-only)
@@ -22550,6 +22592,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             : jsonEncode(resp.notes),
         rules: const [],
         suggestedStartDate: baseStart,
+        suggestedEndDate: resp.requestedEndDate,
         overview: resp.overviewSummary ?? resp.overviewTitle ?? '',
         generationId: resp.generationId,
         originType: 'ai',
@@ -22700,6 +22743,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _startDate = data.suggestedStartDate != null
           ? _dateOnly(data.suggestedStartDate!)
           : _dateOnly(DateTime.now());
+      final requestedEndDate = data.suggestedEndDate != null
+          ? _dateOnly(data.suggestedEndDate!)
+          : null;
 
       // For AI imports (payloadId == 'ai-local'), force Gregorian/simple mode
       final isAiImport = data.share.payloadId == 'ai-local';
@@ -22783,9 +22829,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           final allDates =
               userEvents.map((ev) => _dateOnly(ev.startsAt.toLocal())).toList()
                 ..sort();
-          _endDate = allDates.last;
+          _endDate = requestedEndDate ?? allDates.last;
         } else {
-          _endDate = _startDate;
+          _endDate = requestedEndDate ?? _startDate;
         }
 
         _syncReady = false;
@@ -22829,7 +22875,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           _syncReady = true;
         }
       } else {
-        _endDate = _startDate;
+        _endDate = requestedEndDate ?? _startDate;
         _syncReady = true;
         _rebuildSpans();
       }
@@ -24715,18 +24761,21 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         actions: [
           if (isMaatInstance && widget.onEndMaatFlow != null)
             OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _gold,
-                side: const BorderSide(color: _gold, width: 1.2),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 7,
-                ),
-                minimumSize: const Size(0, 35),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: const VisualDensity(
-                  horizontal: -1,
-                  vertical: -1,
+              style: withExpandedTouchTargets(
+                context,
+                OutlinedButton.styleFrom(
+                  foregroundColor: _gold,
+                  side: const BorderSide(color: _gold, width: 1.2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 7,
+                  ),
+                  minimumSize: const Size(0, 35),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: const VisualDensity(
+                    horizontal: -1,
+                    vertical: -1,
+                  ),
                 ),
               ),
               onPressed: () => widget.onEndMaatFlow?.call(currentFlow),
@@ -24983,7 +25032,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
             RichText(
               text: TextSpan(
                 style: const TextStyle(fontSize: 13, color: Colors.white),
-                children: _buildDetailSpans(detailText),
+                children: _buildExternalLinkSpans(detailText),
               ),
             ),
           ],
@@ -24991,7 +25040,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           if (hasLocation) ...[
             const SizedBox(height: 8),
             GestureDetector(
-              onTap: () => _launchLocationFromPreview(e.location!.trim()),
+              onTap: () => _launchExternalPreviewTarget(e.location!.trim()),
               child: Text(
                 e.location!.trim(),
                 style: const TextStyle(
@@ -25098,14 +25147,14 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
             RichText(
               text: TextSpan(
                 style: const TextStyle(fontSize: 13, color: Colors.white),
-                children: _buildDetailSpans(detail),
+                children: _buildExternalLinkSpans(detail),
               ),
             ),
           ],
           if (location.isNotEmpty) ...[
             const SizedBox(height: 8),
             GestureDetector(
-              onTap: () => _launchLocationFromPreview(location),
+              onTap: () => _launchExternalPreviewTarget(location),
               child: Text(
                 location,
                 style: const TextStyle(
@@ -25146,146 +25195,6 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     }
 
     return '${widget.fmt(start)} $startTimeStr → ${widget.fmt(end)} $endTimeStr';
-  }
-
-  List<TextSpan> _buildDetailSpans(String text) {
-    final spans = <TextSpan>[];
-    final regex = RegExp(r'(https?://\S+)', multiLine: true);
-    int start = 0;
-
-    for (final match in regex.allMatches(text)) {
-      if (match.start > start) {
-        spans.add(TextSpan(text: text.substring(start, match.start)));
-      }
-      final url = match.group(0)!;
-      spans.add(
-        TextSpan(
-          text: url,
-          style: const TextStyle(
-            decoration: TextDecoration.underline,
-            color: Color(0xFF4DA3FF),
-          ),
-          recognizer: TapGestureRecognizer()
-            ..onTap = () async {
-              final uri = Uri.parse(url);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            },
-        ),
-      );
-      start = match.end;
-    }
-
-    if (start < text.length) {
-      spans.add(TextSpan(text: text.substring(start)));
-    }
-
-    return spans;
-  }
-
-  bool _isLikelyUrl(String text) {
-    final lower = text.toLowerCase().trim();
-
-    // Already has protocol
-    if (lower.startsWith('http://') || lower.startsWith('https://')) {
-      return true;
-    }
-
-    // Email pattern (check early - most specific)
-    if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
-      return true;
-    }
-
-    // Phone number pattern (check for phone-like formatting)
-    final phonePattern = RegExp(
-      r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$',
-    );
-    final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
-    if (phonePattern.hasMatch(lower) ||
-        (digitsOnly.length >= 10 &&
-            digitsOnly.length <= 15 &&
-            RegExp(r'^\+?[0-9]+$').hasMatch(digitsOnly))) {
-      return true;
-    }
-
-    // Known service domains (most reliable)
-    final knownServices = [
-      r'zoom\.us',
-      r'meet\.google\.com',
-      r'youtube\.com',
-      r'youtu\.be',
-      r'facebook\.com',
-      r'instagram\.com',
-      r'twitter\.com',
-      r'linkedin\.com',
-      r'tiktok\.com',
-      r'discord\.gg',
-      r'slack\.com',
-      r'teams\.microsoft\.com',
-    ];
-
-    for (final service in knownServices) {
-      if (RegExp(service).hasMatch(lower)) {
-        return true;
-      }
-    }
-
-    // Generic domain pattern (but require at least one dot and TLD, no spaces)
-    if (RegExp(
-          r'^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}(/.*)?$',
-        ).hasMatch(lower) &&
-        lower.contains('.') &&
-        !lower.contains(' ')) {
-      // No spaces = likely URL, not address
-      return true;
-    }
-
-    // www. prefix
-    if (lower.startsWith('www\.')) {
-      return true;
-    }
-
-    return false;
-  }
-
-  Future<void> _launchLocationFromPreview(String raw) async {
-    final loc = raw.trim();
-    if (loc.isEmpty) return;
-
-    Uri uri;
-
-    if (_isLikelyUrl(loc)) {
-      final lower = loc.toLowerCase();
-
-      // Already a full URL
-      if (lower.startsWith('http://') || lower.startsWith('https://')) {
-        uri = Uri.parse(loc);
-      }
-      // Email
-      else if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
-        uri = Uri.parse('mailto:$loc');
-      }
-      // Phone
-      else {
-        final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
-        final phonePattern = RegExp(r'^\+?[0-9]{7,15}$');
-        if (phonePattern.hasMatch(digitsOnly)) {
-          uri = Uri.parse('tel:$loc');
-        } else {
-          // Bare domain or known service → assume https
-          uri = Uri.parse('https://$loc');
-        }
-      }
-    } else {
-      // Not URL/email/phone → treat as address (Maps)
-      final q = Uri.encodeComponent(loc);
-      uri = Uri.parse('https://maps.google.com/?q=$q');
-    }
-
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
   }
 
   static Future<void> _openShareSheet(BuildContext context, _Flow flow) async {

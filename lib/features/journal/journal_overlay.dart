@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'journal_controller.dart';
 import 'journal_constants.dart';
@@ -705,15 +706,17 @@ class _JournalOverlayState extends State<JournalOverlay>
                 icon: KemeticGold.icon(Icons.history),
                 onPressed: _openArchive,
                 tooltip: 'View archive',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                padding: expandedIconButtonPadding(context),
+                constraints: expandedIconButtonConstraints(context),
+                visualDensity: expandedVisualDensity(context),
               ),
               IconButton(
                 icon: KemeticGold.icon(Icons.link),
                 onPressed: _startLinkFlow,
                 tooltip: 'Link Insight',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                padding: expandedIconButtonPadding(context),
+                constraints: expandedIconButtonConstraints(context),
+                visualDensity: expandedVisualDensity(context),
               ),
               IconButton(
                 icon: KemeticGold.icon(Icons.delete_outline),
@@ -730,14 +733,16 @@ class _JournalOverlayState extends State<JournalOverlay>
                   }
                 },
                 tooltip: 'Clear today',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                padding: expandedIconButtonPadding(context),
+                constraints: expandedIconButtonConstraints(context),
+                visualDensity: expandedVisualDensity(context),
               ),
               IconButton(
                 icon: KemeticGold.icon(Icons.close),
                 onPressed: _close,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                padding: expandedIconButtonPadding(context),
+                constraints: expandedIconButtonConstraints(context),
+                visualDensity: expandedVisualDensity(context),
               ),
             ],
           ),
@@ -758,10 +763,13 @@ class _JournalOverlayState extends State<JournalOverlay>
           Future.microtask(() => _focusNode.requestFocus());
         }
       },
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      style: withExpandedTouchTargets(
+        context,
+        TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
       ),
       child: Text(
         label,

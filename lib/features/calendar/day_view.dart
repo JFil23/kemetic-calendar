@@ -10,10 +10,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'calendar_page.dart';
 import 'day_view_chrome.dart';
 import 'landscape_month_view.dart';
@@ -22,6 +22,7 @@ import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
 import '../../data/user_events_repo.dart';
 import '../journal/journal_event_badge.dart';
+import '../../utils/external_link_utils.dart';
 
 const double _kMinEventBlockHeight = 64.0; // was 32.0
 const Color _dayGold = KemeticGold.base;
@@ -963,149 +964,6 @@ class _DayViewPageState extends State<DayViewPage> {
     );
   }
 
-  /// Detect whether a string looks like a URL, email, or phone number.
-  bool _isLikelyUrl(String text) {
-    final lower = text.toLowerCase().trim();
-
-    // Already has protocol
-    if (lower.startsWith('http://') || lower.startsWith('https://')) {
-      return true;
-    }
-
-    // Email pattern (check early - most specific)
-    if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
-      return true;
-    }
-
-    // Phone number pattern (check for phone-like formatting)
-    final phonePattern = RegExp(
-      r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$',
-    );
-    final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
-    if (phonePattern.hasMatch(lower) ||
-        (digitsOnly.length >= 10 &&
-            digitsOnly.length <= 15 &&
-            RegExp(r'^\+?[0-9]+$').hasMatch(digitsOnly))) {
-      return true;
-    }
-
-    // Known service domains (most reliable)
-    final knownServices = [
-      r'zoom\.us',
-      r'meet\.google\.com',
-      r'youtube\.com',
-      r'youtu\.be',
-      r'facebook\.com',
-      r'instagram\.com',
-      r'twitter\.com',
-      r'linkedin\.com',
-      r'tiktok\.com',
-      r'discord\.gg',
-      r'slack\.com',
-      r'teams\.microsoft\.com',
-    ];
-
-    for (final service in knownServices) {
-      if (RegExp(service).hasMatch(lower)) {
-        return true;
-      }
-    }
-
-    // Generic domain pattern (but require at least one dot and TLD, no spaces)
-    if (RegExp(
-          r'^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}(/.*)?$',
-        ).hasMatch(lower) &&
-        lower.contains('.') &&
-        !lower.contains(' ')) {
-      // No spaces = likely URL, not address
-      return true;
-    }
-
-    // www. prefix
-    if (lower.startsWith('www\.')) {
-      return true;
-    }
-
-    return false;
-  }
-
-  /// Launch URL/email/phone, or treat as address and open in Maps.
-  Future<void> _launchLocation(String raw) async {
-    final loc = raw.trim();
-    if (loc.isEmpty) return;
-
-    Uri uri;
-
-    if (_isLikelyUrl(loc)) {
-      final lower = loc.toLowerCase();
-
-      // Already a full URL
-      if (lower.startsWith('http://') || lower.startsWith('https://')) {
-        uri = Uri.parse(loc);
-      }
-      // Email
-      else if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
-        uri = Uri.parse('mailto:$loc');
-      }
-      // Phone
-      else {
-        final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
-        final phonePattern = RegExp(r'^\+?[0-9]{7,15}$');
-        if (phonePattern.hasMatch(digitsOnly)) {
-          uri = Uri.parse('tel:$loc');
-        } else {
-          // Bare domain or known service → assume https
-          uri = Uri.parse('https://$loc');
-        }
-      }
-    } else {
-      // Not URL/email/phone → treat as address (Maps)
-      final q = Uri.encodeComponent(loc);
-      uri = Uri.parse('https://maps.google.com/?q=$q');
-    }
-
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  /// Turn a block of text into TextSpans with clickable URLs.
-  List<TextSpan> _buildTextSpans(String text) {
-    final spans = <TextSpan>[];
-    final regex = RegExp(r'(https?://\S+)', multiLine: true);
-    int start = 0;
-
-    for (final match in regex.allMatches(text)) {
-      if (match.start > start) {
-        spans.add(TextSpan(text: text.substring(start, match.start)));
-      }
-      final url = match.group(0)!;
-      spans.add(
-        TextSpan(
-          text: url,
-          style: const TextStyle(
-            decoration: TextDecoration.underline,
-            color: Color(0xFF4DA3FF),
-          ),
-          recognizer: TapGestureRecognizer()
-            ..onTap = () async {
-              final uri = Uri.parse(url);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            },
-        ),
-      );
-      start = match.end;
-    }
-
-    if (start < text.length) {
-      spans.add(TextSpan(text: text.substring(start)));
-    }
-
-    return spans;
-  }
-
   String _getGregorianMonthName(int month) {
     const months = [
       'January',
@@ -1261,22 +1119,25 @@ class _DayViewGridState extends State<DayViewGrid> {
   int? get _focusFlowId => widget.focusFlowId;
   String? get _focusTitle => widget.focusTitle;
 
-  ButtonStyle _endButtonStyle() {
+  ButtonStyle _endButtonStyle(BuildContext context) {
     // Slightly smaller footprint (~12% shorter) to avoid pushing other controls.
-    return OutlinedButton.styleFrom(
-      side: const BorderSide(color: _dayGold),
-      foregroundColor: _dayGold,
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      minimumSize: const Size(0, 35),
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+    return withExpandedTouchTargets(
+      context,
+      OutlinedButton.styleFrom(
+        side: const BorderSide(color: _dayGold),
+        foregroundColor: _dayGold,
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        minimumSize: const Size(0, 35),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+      ),
     );
   }
 
   Widget _buildEndFlowButton(int? flowId) {
     final enabled = widget.onEndFlow != null && flowId != null;
     return OutlinedButton.icon(
-      style: _endButtonStyle(),
+      style: _endButtonStyle(context),
       onPressed: enabled
           ? () {
               Navigator.pop(context);
@@ -1300,7 +1161,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }) {
     final enabled = widget.onDeleteNote != null;
     return OutlinedButton.icon(
-      style: _endButtonStyle(),
+      style: _endButtonStyle(context),
       onPressed: enabled
           ? () async {
               Navigator.pop(closeContext ?? context);
@@ -1318,7 +1179,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }) {
     final enabled = widget.onEndReminder != null && event.reminderId != null;
     return OutlinedButton.icon(
-      style: _endButtonStyle(),
+      style: _endButtonStyle(context),
       onPressed: enabled
           ? () async {
               Navigator.pop(closeContext ?? context);
@@ -1479,123 +1340,27 @@ class _DayViewGridState extends State<DayViewGrid> {
     return false;
   }
 
-  /// Detect whether a string looks like a URL, email, or phone number.
-  bool _isLikelyUrl(String text) {
-    final lower = text.toLowerCase().trim();
-
-    // Already has protocol
-    if (lower.startsWith('http://') || lower.startsWith('https://')) {
-      return true;
-    }
-
-    // Email pattern (check early - most specific)
-    if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
-      return true;
-    }
-
-    // Phone number pattern (check for phone-like formatting)
-    final phonePattern = RegExp(
-      r'^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$',
-    );
-    final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
-    if (phonePattern.hasMatch(lower) ||
-        (digitsOnly.length >= 10 &&
-            digitsOnly.length <= 15 &&
-            RegExp(r'^\+?[0-9]+$').hasMatch(digitsOnly))) {
-      return true;
-    }
-
-    // Known service domains (most reliable)
-    final knownServices = [
-      r'zoom\.us',
-      r'meet\.google\.com',
-      r'youtube\.com',
-      r'youtu\.be',
-      r'facebook\.com',
-      r'instagram\.com',
-      r'twitter\.com',
-      r'linkedin\.com',
-      r'tiktok\.com',
-      r'discord\.gg',
-      r'slack\.com',
-      r'teams\.microsoft\.com',
-    ];
-
-    for (final service in knownServices) {
-      if (RegExp(service).hasMatch(lower)) {
-        return true;
-      }
-    }
-
-    // Generic domain pattern (but require at least one dot and TLD, no spaces)
-    if (RegExp(
-          r'^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}(/.*)?$',
-        ).hasMatch(lower) &&
-        lower.contains('.') &&
-        !lower.contains(' ')) {
-      // No spaces = likely URL, not address
-      return true;
-    }
-
-    // www. prefix
-    if (lower.startsWith('www\.')) {
-      return true;
-    }
-
-    return false;
-  }
-
   /// Launch URL/email/phone, or treat as address and open in Maps.
   Future<void> _launchLocation(String raw) async {
-    final loc = raw.trim();
-    if (loc.isEmpty) return;
-
-    Uri uri;
-
-    if (_isLikelyUrl(loc)) {
-      final lower = loc.toLowerCase();
-
-      // Already a full URL
-      if (lower.startsWith('http://') || lower.startsWith('https://')) {
-        uri = Uri.parse(loc);
-      }
-      // Email
-      else if (RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(lower)) {
-        uri = Uri.parse('mailto:$loc');
-      }
-      // Phone
-      else {
-        final digitsOnly = lower.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
-        final phonePattern = RegExp(r'^\+?[0-9]{7,15}$');
-        if (phonePattern.hasMatch(digitsOnly)) {
-          uri = Uri.parse('tel:$loc');
-        } else {
-          // Bare domain or known service → assume https
-          uri = Uri.parse('https://$loc');
-        }
-      }
-    } else {
-      // Not URL/email/phone → treat as address (Maps)
-      final q = Uri.encodeComponent(loc);
-      uri = Uri.parse('https://maps.google.com/?q=$q');
-    }
-
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+    await launchExternalTarget(raw);
   }
 
   /// Turn a block of text into TextSpans with clickable URLs.
   List<TextSpan> _buildTextSpans(String text) {
     final spans = <TextSpan>[];
-    final regex = RegExp(r'(https?://\S+)', multiLine: true);
+    final regex = externalLinkPattern;
     int start = 0;
 
     for (final match in regex.allMatches(text)) {
       if (match.start > start) {
         spans.add(TextSpan(text: text.substring(start, match.start)));
       }
-      final url = match.group(0)!;
+      final raw = match.group(0)!;
+      final url = normalizeExternalLinkToken(raw);
+      if (url.isEmpty) {
+        start = match.end;
+        continue;
+      }
       spans.add(
         TextSpan(
           text: url,
@@ -1605,13 +1370,13 @@ class _DayViewGridState extends State<DayViewGrid> {
           ),
           recognizer: TapGestureRecognizer()
             ..onTap = () async {
-              final uri = Uri.parse(url);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
+              await launchExternalTarget(url, fallbackToMaps: false);
             },
         ),
       );
+      if (raw.length > url.length) {
+        spans.add(TextSpan(text: raw.substring(url.length)));
+      }
       start = match.end;
     }
 

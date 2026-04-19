@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // LogicalKeyboardKey
 import 'package:flutter/foundation.dart'; // setEquals
 import 'package:uuid/uuid.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
 import '../../core/kemetic_converter.dart';
@@ -1042,8 +1043,8 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
           activeColor: Colors.white,
           checkColor: Colors.black,
           side: const BorderSide(color: Colors.white54, width: 1),
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: expandedTapTargetSize(context),
+          visualDensity: expandedVisualDensity(context),
         ),
       ),
       width: width,
@@ -1324,8 +1325,8 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
         backgroundColor: const Color(0xFF111111),
         checkmarkColor: Colors.black,
         side: const BorderSide(color: Colors.white24),
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: expandedTapTargetSize(context),
+        visualDensity: expandedVisualDensity(context),
       );
     }
 

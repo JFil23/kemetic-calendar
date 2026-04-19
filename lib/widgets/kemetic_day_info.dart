@@ -14,6 +14,7 @@
  */
 
 import 'package:flutter/material.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
@@ -21363,8 +21364,9 @@ class KemeticDayDropdown extends StatelessWidget {
                               SpeechService.instance.stop();
                               onClose();
                             },
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
+                            padding: expandedIconButtonPadding(context),
+                            constraints: expandedIconButtonConstraints(context),
+                            visualDensity: expandedVisualDensity(context),
                           ),
                         ],
                       ),

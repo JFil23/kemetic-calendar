@@ -25,6 +25,56 @@ class DecanReflectionScheduler {
   final SupabaseClient _client;
   DecanReflectionScheduler(this._client);
 
+  String _detectTimeZone() {
+    final zoneName = DateTime.now().timeZoneName.toUpperCase();
+    const zoneNameMap = {
+      'HST': 'Pacific/Honolulu',
+      'AKST': 'America/Anchorage',
+      'AKDT': 'America/Anchorage',
+      'PST': 'America/Los_Angeles',
+      'PDT': 'America/Los_Angeles',
+      'MST': 'America/Denver',
+      'MDT': 'America/Denver',
+      'CST': 'America/Chicago',
+      'CDT': 'America/Chicago',
+      'EST': 'America/New_York',
+      'EDT': 'America/New_York',
+      'GMT': 'Europe/London',
+      'BST': 'Europe/London',
+      'CET': 'Europe/Paris',
+      'CEST': 'Europe/Paris',
+      'SGT': 'Asia/Singapore',
+      'JST': 'Asia/Tokyo',
+      'AEST': 'Australia/Sydney',
+      'AEDT': 'Australia/Sydney',
+    };
+    final mappedByName = zoneNameMap[zoneName];
+    if (mappedByName != null) {
+      return mappedByName;
+    }
+    if (zoneName.contains('PACIFIC')) return 'America/Los_Angeles';
+    if (zoneName.contains('MOUNTAIN')) return 'America/Denver';
+    if (zoneName.contains('CENTRAL')) return 'America/Chicago';
+    if (zoneName.contains('EASTERN')) return 'America/New_York';
+
+    final offsetHours = DateTime.now().timeZoneOffset.inHours;
+    const timezoneMap = {
+      -10: 'Pacific/Honolulu',
+      -9: 'America/Anchorage',
+      -8: 'America/Los_Angeles',
+      -7: 'America/Los_Angeles',
+      -6: 'America/Chicago',
+      -5: 'America/New_York',
+      -4: 'America/New_York',
+      0: 'Europe/London',
+      1: 'Europe/Paris',
+      8: 'Asia/Singapore',
+      9: 'Asia/Tokyo',
+      10: 'Australia/Sydney',
+    };
+    return timezoneMap[offsetHours] ?? 'America/Los_Angeles';
+  }
+
   DecanWindow _windowFor(DateTime date) {
     final kem = KemeticMath.fromGregorian(date);
     final decanStartDay = ((kem.kDay - 1) ~/ 10) * 10 + 1;
@@ -32,7 +82,9 @@ class DecanReflectionScheduler {
     final maxDay = (kem.kMonth == 13)
         ? (KemeticMath.isLeapKemeticYear(kem.kYear) ? 6 : 5)
         : 30;
-    final decanEndDay = (decanStartDay + 9) > maxDay ? maxDay : decanStartDay + 9;
+    final decanEndDay = (decanStartDay + 9) > maxDay
+        ? maxDay
+        : decanStartDay + 9;
     final start = KemeticMath.toGregorian(kem.kYear, kem.kMonth, decanStartDay);
     final end = KemeticMath.toGregorian(kem.kYear, kem.kMonth, decanEndDay);
     final hasCanonicalContext = kem.kMonth >= 1 && kem.kMonth <= 12;
@@ -56,19 +108,19 @@ class DecanReflectionScheduler {
   }
 
   Future<void> _scheduleWindow(DecanWindow window) async {
-    // Day 10 of the decan at 20:30 UTC to satisfy backend validation (day 10 check is UTC-based).
-    final day10 = window.start.add(const Duration(days: 9));
-    final sendAt = DateTime.utc(day10.year, day10.month, day10.day, 20, 30);
+    if (window.decanContextKey == null) {
+      return;
+    }
     try {
       await _client.functions.invoke(
         'schedule_decan_reflection',
         body: {
           'decan_start': window.start.toIso8601String().split('T').first,
           'decan_end': window.end.toIso8601String().split('T').first,
-          'send_at': sendAt.toIso8601String(),
           'decan_name': window.decanName,
           'decan_theme': window.decanTheme,
           'decan_context_key': window.decanContextKey,
+          'timezone': _detectTimeZone(),
         },
       );
     } catch (e) {

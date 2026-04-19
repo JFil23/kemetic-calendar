@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mobile/data/nutrition_repo.dart';
@@ -2935,19 +2936,21 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                         builder: (context, value, child) {
                           final hasText = value.text.trim().isNotEmpty;
                           return ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: RhythmTheme.aurora,
-                              foregroundColor: Colors.black,
-                              disabledBackgroundColor: Colors.white.withValues(
-                                alpha: 0.08,
+                            style: withExpandedTouchTargets(
+                              context,
+                              ElevatedButton.styleFrom(
+                                backgroundColor: RhythmTheme.aurora,
+                                foregroundColor: Colors.black,
+                                disabledBackgroundColor: Colors.white
+                                    .withValues(alpha: 0.08),
+                                disabledForegroundColor: Colors.white38,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
-                              disabledForegroundColor: Colors.white38,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              visualDensity: VisualDensity.compact,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
                             onPressed: hasText
                                 ? () => unawaited(_commitNewTodo())

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/services/speech/speech_service.dart';
 
 /// Compact icon button for playing/stopping pronunciations.
@@ -23,9 +24,13 @@ class PronounceIconButton extends StatelessWidget {
       builder: (context, speaking, child) {
         return IconButton(
           tooltip: speaking ? 'Stop' : 'Play pronunciation',
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-          visualDensity: VisualDensity.compact,
+          padding: expandedIconButtonPadding(
+            context,
+            iconSize: size,
+            fallback: EdgeInsets.zero,
+          ),
+          constraints: expandedIconButtonConstraints(context),
+          visualDensity: expandedVisualDensity(context),
           icon: Icon(
             speaking ? Icons.stop_circle_outlined : Icons.volume_up_rounded,
             color: color,
