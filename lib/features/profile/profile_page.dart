@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../../data/flow_post_model.dart';
+import '../../utils/detail_sanitizer.dart';
 import 'edit_profile_page.dart';
 import 'profile_search_page.dart';
 import 'flow_post_picker_page.dart';
@@ -745,7 +746,8 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildPostCard(FlowPost post) {
-    final overview = _extractOverview(post.notes);
+    final title = cleanFlowTitle(post.name);
+    final overview = cleanFlowOverview(post.notes);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -778,7 +780,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        post.name,
+                        title.isEmpty ? 'Untitled Flow' : title,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
@@ -786,19 +788,9 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      if (overview != null && overview.isNotEmpty)
+                      if (overview.isNotEmpty)
                         Text(
                           overview,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.75),
-                            height: 1.3,
-                          ),
-                        )
-                      else if (post.notes != null && post.notes!.isNotEmpty)
-                        Text(
-                          post.notes!,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -857,22 +849,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   String _formatDate(DateTime date) {
     return '${date.month}/${date.day}/${date.year}';
-  }
-
-  String? _extractOverview(String? notes) {
-    if (notes == null || notes.isEmpty) return null;
-    final parts = notes.split(';');
-    for (final p in parts) {
-      if (p.startsWith('ov=')) {
-        final raw = p.substring(3);
-        try {
-          return Uri.decodeComponent(raw);
-        } catch (_) {
-          return raw;
-        }
-      }
-    }
-    return null;
   }
 
   Future<void> _openPostDetails(FlowPost post) async {

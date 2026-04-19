@@ -10,6 +10,7 @@ import '../../repositories/inbox_repo.dart';
 import 'inbox_conversation_page.dart';
 import 'conversation_user.dart';
 import '../../data/profile_repo.dart';
+import '../../utils/detail_sanitizer.dart';
 import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
@@ -1364,15 +1365,22 @@ class InboxFlowDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final payload = item.payloadJson ?? <String, dynamic>{};
-    final name = (payload['name'] as String?) ?? item.title;
-    final overview = (payload['overview'] as String?) ?? '';
+    final rawName = (payload['name'] as String?) ?? item.title;
+    final name = cleanFlowTitle(rawName);
+    final overview = cleanFlowOverview(
+      (payload['notes'] as String?) ?? (payload['overview'] as String?),
+      decodedOverview: payload['overview'] as String?,
+    );
     final active = (payload['active'] as bool?) ?? true;
     final colorInt = (payload['color'] as int?) ?? 0xFFD4AF37;
     final color = Color(colorInt);
 
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
-      appBar: AppBar(backgroundColor: Colors.black, title: Text(name)),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: Text(name.isEmpty ? 'Flow' : name),
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [

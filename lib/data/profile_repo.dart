@@ -897,6 +897,28 @@ class ProfileRepo {
     }
   }
 
+  /// Delete one of the current user's flow post comments.
+  Future<bool> deleteFlowPostComment(String commentId) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return false;
+
+      await _client
+          .from('flow_post_comments')
+          .delete()
+          .eq('id', commentId)
+          .eq('user_id', userId);
+
+      return true;
+    } catch (e) {
+      if (_isMissingTable(e, 'flow_post_comments')) {
+        throw const FlowPostEngagementUnavailable('flow_post_comments');
+      }
+      _log('[ProfileRepo] Error deleting flow post comment: $e');
+      return false;
+    }
+  }
+
   /// Like or unlike a specific flow post comment for the current user.
   Future<bool> setFlowPostCommentLike(
     String commentId, {

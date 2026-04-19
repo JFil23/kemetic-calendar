@@ -87,3 +87,24 @@ class FlowPostComment {
     );
   }
 }
+
+Set<String> collectFlowPostThreadIds(
+  List<FlowPostComment> comments,
+  String rootCommentId,
+) {
+  final ids = <String>{};
+  final pending = <String>[rootCommentId];
+
+  while (pending.isNotEmpty) {
+    final commentId = pending.removeLast();
+    if (!ids.add(commentId)) continue;
+
+    for (final comment in comments) {
+      if (comment.parentCommentId == commentId) {
+        pending.add(comment.id);
+      }
+    }
+  }
+
+  return ids;
+}

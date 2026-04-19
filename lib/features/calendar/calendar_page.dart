@@ -52,6 +52,7 @@ import '../reminders/reminder_rule_store.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/reminders_repo.dart';
 import '../../utils/event_cid_util.dart';
+import '../../utils/detail_sanitizer.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:share_plus/share_plus.dart';
 import '../journal/journal_event_badge.dart';
@@ -25499,7 +25500,7 @@ String _reminderRepeatLabel(ReminderRule rule) {
 }
 
 String _effectiveOverview(String? notes, String decodedOverview) {
-  final trimmed = decodedOverview.trim();
+  final trimmed = cleanFlowDetail(decodedOverview);
   if (trimmed.isNotEmpty) return trimmed;
 
   final reminderRule = _tryParseReminderRuleFromNotes(notes);
@@ -25519,7 +25520,7 @@ String _effectiveOverview(String? notes, String decodedOverview) {
     return repMeta.detail!.trim();
   }
 
-  return raw;
+  return cleanFlowOverview(raw);
 }
 
 // Helper: encode detail and location for repeating notes in flow.notes

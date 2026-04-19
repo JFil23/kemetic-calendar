@@ -82,7 +82,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
     final seen = <String, Map<String, dynamic>>{};
 
     String keyFor(Map<String, dynamic> e) {
-      final title = (e['title'] as String? ?? '').trim().toLowerCase();
+      final title = cleanFlowTitle(e['title'] as String?).trim().toLowerCase();
       final offset = (e['offset_days'] as num?)?.toInt() ?? 0;
       final allDay = (e['all_day'] as bool?) ?? false;
       final start = (e['start_time'] as String? ?? '').trim().toLowerCase();
@@ -386,10 +386,11 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
 
         final data = snapshot.data!;
         final meta = notesDecode(data.notes);
-        // ✅ Show overview from notesDecode, or fallback to raw notes if overview is empty
-        final overview = meta.overview?.trim().isNotEmpty == true
-            ? meta.overview!.trim()
-            : (data.notes.trim().isNotEmpty ? data.notes.trim() : '');
+        final flowName = cleanFlowTitle(data.name);
+        final overview = cleanFlowOverview(
+          data.notes,
+          decodedOverview: meta.overview,
+        );
         final kemetic = meta.kemetic;
         final split = meta.split;
 
@@ -415,7 +416,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                   children: [
                     // Name
                     GlossyText(
-                      text: data.name,
+                      text: flowName.isEmpty ? 'Flow' : flowName,
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w600,
@@ -434,13 +435,9 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                       gradient: goldGloss,
                     ),
                     const SizedBox(height: 4),
-                    // ✅ Show overview if available, otherwise show raw notes, otherwise show dash
+                    // Show only human-readable overview text; suppress metadata/code blobs.
                     Text(
-                      overview.isNotEmpty
-                          ? overview
-                          : (data.notes.trim().isNotEmpty
-                                ? data.notes.trim()
-                                : '—'),
+                      overview.isNotEmpty ? overview : '—',
                       style: const TextStyle(fontSize: 14, color: Colors.white),
                     ),
                     const SizedBox(height: 16),
@@ -866,7 +863,7 @@ class _SharedEventTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = (event['title'] as String?) ?? 'Untitled Event';
+    final title = cleanFlowTitle(event['title'] as String?);
     final detail = cleanFlowDetail(event['detail'] as String?);
     final location = event['location'] as String?;
     final allDay = event['all_day'] as bool? ?? false;
@@ -894,7 +891,7 @@ class _SharedEventTile extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  title,
+                  title.isEmpty ? 'Untitled Event' : title,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,

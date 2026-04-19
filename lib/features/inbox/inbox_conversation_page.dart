@@ -1,6 +1,8 @@
 // lib/features/inbox/inbox_conversation_page.dart
 // Conversation view showing sent/received flows as chat bubbles
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -28,11 +30,16 @@ class InboxConversationPage extends StatefulWidget {
 
 class _InboxConversationPageState extends State<InboxConversationPage> {
   final Set<String> _locallyDeleted = <String>{};
+  final Set<String> _messageLikeUpdatingIds = <String>{};
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late final InboxRepo _inboxRepo;
   bool _sendingMessage = false;
   int _lastItemCount = 0;
+  Map<String, int> _messageLikeCounts = const {};
+  Set<String> _messageLikedByMeIds = const <String>{};
+  bool _messageLikesUnavailable = false;
+  String _messageLikeSignature = '';
 
   @override
   void initState() {
@@ -85,6 +92,123 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
     }
   }
 
+  Future<void> _syncMessageLikeState(List<InboxShareItem> items) async {
+    final shareIds =
+        items
+            .where((item) => item.isTextMessage)
+            .map((item) => item.shareId)
+            .toSet()
+            .toList()
+          ..sort();
+    final signature = shareIds.join('|');
+    if (signature == _messageLikeSignature) return;
+    _messageLikeSignature = signature;
+
+    if (shareIds.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _messageLikeCounts = const {};
+        _messageLikedByMeIds = const <String>{};
+        _messageLikesUnavailable = false;
+      });
+      return;
+    }
+
+    try {
+      final states = await _inboxRepo.getMessageLikeStates(shareIds);
+      if (!mounted || _messageLikeSignature != signature) return;
+
+      final counts = <String, int>{};
+      final likedByMe = <String>{};
+      for (final shareId in shareIds) {
+        final state = states[shareId];
+        counts[shareId] = state?.count ?? 0;
+        if (state?.likedByMe == true) {
+          likedByMe.add(shareId);
+        }
+      }
+
+      setState(() {
+        _messageLikeCounts = counts;
+        _messageLikedByMeIds = likedByMe;
+        _messageLikesUnavailable = false;
+      });
+    } on InboxMessageLikesUnavailable {
+      if (!mounted || _messageLikeSignature != signature) return;
+      setState(() {
+        _messageLikeCounts = const {};
+        _messageLikedByMeIds = const <String>{};
+        _messageLikesUnavailable = true;
+      });
+    }
+  }
+
+  Future<void> _toggleMessageLike(InboxShareItem share) async {
+    if (!share.isTextMessage) return;
+    if (_messageLikesUnavailable) {
+      _showMessageLikeUnavailable();
+      return;
+    }
+    final userId = _inboxRepo.currentUserId;
+    if (userId == null) {
+      _showError('Please sign in to like messages.');
+      return;
+    }
+    if (_messageLikeUpdatingIds.contains(share.shareId)) return;
+
+    final target = !_messageLikedByMeIds.contains(share.shareId);
+    setState(() => _messageLikeUpdatingIds.add(share.shareId));
+
+    try {
+      final ok = await _inboxRepo.setMessageLike(share.shareId, like: target);
+      if (!mounted) return;
+
+      setState(() {
+        _messageLikeUpdatingIds.remove(share.shareId);
+        if (!ok) return;
+
+        final nextCounts = Map<String, int>.from(_messageLikeCounts);
+        final currentCount = nextCounts[share.shareId] ?? 0;
+        nextCounts[share.shareId] = target
+            ? currentCount + 1
+            : (currentCount - 1).clamp(0, 1 << 30).toInt();
+        _messageLikeCounts = nextCounts;
+
+        final nextLiked = Set<String>.from(_messageLikedByMeIds);
+        if (target) {
+          nextLiked.add(share.shareId);
+        } else {
+          nextLiked.remove(share.shareId);
+        }
+        _messageLikedByMeIds = nextLiked;
+      });
+
+      if (!ok) {
+        _showError('Could not update message like. Please try again.');
+      }
+    } on InboxMessageLikesUnavailable {
+      if (!mounted) return;
+      setState(() {
+        _messageLikeUpdatingIds.remove(share.shareId);
+        _messageLikesUnavailable = true;
+      });
+      _showMessageLikeUnavailable();
+    }
+  }
+
+  void _showMessageLikeUnavailable() {
+    _showError(
+      'Message likes need the latest update. Please apply the new Supabase migration.',
+    );
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUserId = _inboxRepo.currentUserId;
@@ -108,7 +232,9 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                   : null,
               child: widget.otherProfile.avatarUrl == null
                   ? Text(
-                      (widget.otherProfile.displayName ?? widget.otherProfile.handle ?? '?')
+                      (widget.otherProfile.displayName ??
+                              widget.otherProfile.handle ??
+                              '?')
                           .characters
                           .take(2)
                           .toString()
@@ -123,7 +249,9 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
             ),
             const SizedBox(width: 8),
             Text(
-              widget.otherProfile.displayName ?? widget.otherProfile.handle ?? 'User',
+              widget.otherProfile.displayName ??
+                  widget.otherProfile.handle ??
+                  'User',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 17,
@@ -158,7 +286,11 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                          const Icon(
+                            Icons.error_outline,
+                            color: Colors.red,
+                            size: 48,
+                          ),
                           const SizedBox(height: 16),
                           Text(
                             'Error: ${snapshot.error}',
@@ -172,7 +304,9 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                   if (!snapshot.hasData) {
                     return const Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          KemeticGold.base,
+                        ),
                       ),
                     );
                   }
@@ -187,6 +321,9 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                   items = items
                       .where((item) => !_locallyDeleted.contains(item.shareId))
                       .toList();
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    unawaited(_syncMessageLikeState(items));
+                  });
 
                   if (items.length != _lastItemCount) {
                     _lastItemCount = items.length;
@@ -212,32 +349,46 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                       final isText = share.isTextMessage;
 
                       return Align(
-                        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: isMine
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: GestureDetector(
-                          onTap: () async {
-                            if (isText) return;
-                            if (kDebugMode) {
-                              debugPrint('[InboxConversationPage] tapped share '
-                                  'shareId=${share.shareId} kind=${share.kind.asString} '
-                                  'title=${share.title}');
-                            }
-                            final importedFlowId = await Navigator.push<int>(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => SharedFlowDetailsEntry(share: share),
-                              ),
-                            );
+                          onTap: isText
+                              ? null
+                              : () async {
+                                  if (kDebugMode) {
+                                    debugPrint(
+                                      '[InboxConversationPage] tapped share '
+                                      'shareId=${share.shareId} kind=${share.kind.asString} '
+                                      'title=${share.title}',
+                                    );
+                                  }
+                                  final importedFlowId =
+                                      await Navigator.push<int>(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              SharedFlowDetailsEntry(
+                                                share: share,
+                                              ),
+                                        ),
+                                      );
 
-                            if (importedFlowId != null && mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Flow imported successfully! Open Flow Studio to edit.'),
-                                  backgroundColor: KemeticGold.base,
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          },
+                                  if (importedFlowId != null && mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Flow imported successfully! Open Flow Studio to edit.',
+                                        ),
+                                        backgroundColor: KemeticGold.base,
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                },
+                          onDoubleTap: isText
+                              ? () => _toggleMessageLike(share)
+                              : null,
                           onLongPress: () {
                             showModalBottomSheet(
                               context: context,
@@ -255,7 +406,9 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                         isMine
                                             ? 'Unsend ${isText ? 'Message' : 'Flow'}'
                                             : 'Delete ${isText ? 'Message' : 'Flow'}',
-                                        style: const TextStyle(color: Colors.red),
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                        ),
                                       ),
                                       onTap: () async {
                                         Navigator.pop(context);
@@ -263,31 +416,45 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                         final confirmed = await showDialog<bool>(
                                           context: context,
                                           builder: (context) => AlertDialog(
-                                            backgroundColor: const Color(0xFF0D0D0F),
+                                            backgroundColor: const Color(
+                                              0xFF0D0D0F,
+                                            ),
                                             title: Text(
                                               isMine
                                                   ? 'Unsend this ${isText ? 'message' : 'flow'}?'
                                                   : 'Delete this ${isText ? 'message' : 'flow'}?',
-                                              style: const TextStyle(color: Colors.white),
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                              ),
                                             ),
                                             content: Text(
                                               isMine
                                                   ? 'This will remove it from the conversation for both you and the recipient. They may have already seen it.'
                                                   : 'This will hide it from your inbox and conversation. '
-                                                    'It may still be visible to the sender until they delete or unsend it.',
-                                              style: const TextStyle(color: Colors.white70),
+                                                        'It may still be visible to the sender until they delete or unsend it.',
+                                              style: const TextStyle(
+                                                color: Colors.white70,
+                                              ),
                                             ),
                                             actions: [
                                               TextButton(
-                                                onPressed: () => Navigator.pop(context, false),
+                                                onPressed: () => Navigator.pop(
+                                                  context,
+                                                  false,
+                                                ),
                                                 child: const Text('Cancel'),
                                               ),
                                               TextButton(
-                                                onPressed: () => Navigator.pop(context, true),
+                                                onPressed: () => Navigator.pop(
+                                                  context,
+                                                  true,
+                                                ),
                                                 style: TextButton.styleFrom(
                                                   foregroundColor: Colors.red,
                                                 ),
-                                                child: Text(isMine ? 'Unsend' : 'Delete'),
+                                                child: Text(
+                                                  isMine ? 'Unsend' : 'Delete',
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -295,7 +462,9 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
 
                                         if (confirmed != true) return;
 
-                                        final shareRepo = ShareRepo(Supabase.instance.client);
+                                        final shareRepo = ShareRepo(
+                                          Supabase.instance.client,
+                                        );
 
                                         final bool ok = isMine
                                             ? await shareRepo.unsendShare(
@@ -308,7 +477,9 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                               );
 
                                         if (!ok && context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             SnackBar(
                                               content: Text(
                                                 isMine
@@ -323,14 +494,18 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                             _locallyDeleted.add(share.shareId);
                                           });
 
-                                          ScaffoldMessenger.of(context).showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             SnackBar(
                                               content: Text(
                                                 isMine
                                                     ? '${isText ? 'Message' : 'Flow'} unsent'
                                                     : '${isText ? 'Message' : 'Flow'} deleted',
                                               ),
-                                              duration: const Duration(seconds: 1),
+                                              duration: const Duration(
+                                                seconds: 1,
+                                              ),
                                               backgroundColor: Colors.green,
                                             ),
                                           );
@@ -347,6 +522,13 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                   text: share.messageText ?? share.title,
                                   createdAt: share.createdAt,
                                   isMine: isMine,
+                                  likesCount:
+                                      _messageLikeCounts[share.shareId] ?? 0,
+                                  likedByMe: _messageLikedByMeIds.contains(
+                                    share.shareId,
+                                  ),
+                                  likeUpdating: _messageLikeUpdatingIds
+                                      .contains(share.shareId),
                                 )
                               : _FlowBubble(
                                   title: share.title,
@@ -483,7 +665,10 @@ class _FlowBubble extends StatelessWidget {
               if (isImported) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(4),
@@ -545,11 +730,17 @@ class _MessageBubble extends StatelessWidget {
   final String text;
   final DateTime createdAt;
   final bool isMine;
+  final int likesCount;
+  final bool likedByMe;
+  final bool likeUpdating;
 
   const _MessageBubble({
     required this.text,
     required this.createdAt,
     required this.isMine,
+    required this.likesCount,
+    required this.likedByMe,
+    required this.likeUpdating,
   });
 
   @override
@@ -581,12 +772,48 @@ class _MessageBubble extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            _formatTime(createdAt),
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.45),
-              fontSize: 11,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _formatTime(createdAt),
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.45),
+                  fontSize: 11,
+                ),
+              ),
+              if (likeUpdating) ...[
+                const SizedBox(width: 8),
+                const SizedBox(
+                  width: 11,
+                  height: 11,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.redAccent),
+                  ),
+                ),
+              ] else if (likesCount > 0) ...[
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.favorite,
+                  size: 12,
+                  color: likedByMe
+                      ? Colors.redAccent
+                      : Colors.redAccent.withOpacity(0.75),
+                ),
+                if (likesCount > 1) ...[
+                  const SizedBox(width: 3),
+                  Text(
+                    '$likesCount',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.55),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ],
           ),
         ],
       ),

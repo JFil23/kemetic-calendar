@@ -292,6 +292,7 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
   final Set<String> _commentLikeUpdatingIds = <String>{};
+  final Set<String> _commentDeleteUpdatingIds = <String>{};
 
   bool _commentsLoading = true;
   bool _commentSubmitting = false;
@@ -315,6 +316,7 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
   }
 
   FlowPostComment? get _replyTarget => _findCommentById(_replyingToCommentId);
+  String? get _currentUserId => Supabase.instance.client.auth.currentUser?.id;
 
   List<FlowPostComment> get _rootComments =>
       _comments.where((comment) => comment.parentCommentId == null).toList()
@@ -523,6 +525,97 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
     }
   }
 
+  Future<void> _confirmDeleteComment(FlowPostComment comment) async {
+    if (_commentDeleteUpdatingIds.contains(comment.id)) return;
+
+    final threadIds = collectFlowPostThreadIds(_comments, comment.id);
+    final replyCount = threadIds.length - 1;
+    final replyLabel = replyCount == 1 ? '1 reply' : '$replyCount replies';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0D0D0F),
+        title: Text(
+          replyCount > 0 ? 'Delete comment thread?' : 'Delete comment?',
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          replyCount > 0
+              ? 'This will also remove $replyLabel in this thread. This cannot be undone.'
+              : 'This comment will be removed. This cannot be undone.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    await _deleteComment(comment, threadIds);
+  }
+
+  Future<void> _deleteComment(
+    FlowPostComment comment,
+    Set<String> threadIds,
+  ) async {
+    if (_engagementUnavailable) {
+      _showMigrationNeeded();
+      return;
+    }
+
+    final userId = _currentUserId;
+    if (userId == null) {
+      _showAuthError();
+      return;
+    }
+    if (comment.userId != userId) return;
+
+    setState(() => _commentDeleteUpdatingIds.add(comment.id));
+
+    try {
+      final ok = await widget.repo.deleteFlowPostComment(comment.id);
+      if (!mounted) return;
+
+      setState(() {
+        _commentDeleteUpdatingIds.remove(comment.id);
+        if (!ok) return;
+        _commentLikeUpdatingIds.removeWhere(threadIds.contains);
+        _commentDeleteUpdatingIds.removeWhere(threadIds.contains);
+        _comments = _comments
+            .where((entry) => !threadIds.contains(entry.id))
+            .toList();
+        if (_replyingToCommentId != null &&
+            threadIds.contains(_replyingToCommentId)) {
+          _replyingToCommentId = null;
+        }
+      });
+
+      if (!ok) {
+        _showComposerError('Could not delete comment. Please try again.');
+        return;
+      }
+
+      await _refreshComments(showSpinner: false);
+    } on FlowPostEngagementUnavailable {
+      if (!mounted) return;
+      setState(() {
+        _commentDeleteUpdatingIds.remove(comment.id);
+        _engagementUnavailable = true;
+      });
+      _showMigrationNeeded();
+    }
+  }
+
   void _beginReplyTo(FlowPostComment comment) {
     setState(() {
       _replyingToCommentId = comment.id;
@@ -636,6 +729,8 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
   Widget _buildCommentCard(FlowPostComment comment, {required int depth}) {
     final parent = _findCommentById(comment.parentCommentId);
     final updatingLike = _commentLikeUpdatingIds.contains(comment.id);
+    final deleting = _commentDeleteUpdatingIds.contains(comment.id);
+    final canDelete = comment.userId == _currentUserId;
     final indent = depth == 0
         ? 0.0
         : (18.0 + ((depth - 1) * 14.0)).clamp(0.0, 42.0).toDouble();
@@ -699,7 +794,7 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
                   runSpacing: 8,
                   children: [
                     InkWell(
-                      onTap: updatingLike
+                      onTap: updatingLike || deleting
                           ? null
                           : () => _toggleCommentLike(comment),
                       borderRadius: BorderRadius.circular(999),
@@ -750,7 +845,7 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
                       ),
                     ),
                     InkWell(
-                      onTap: () => _beginReplyTo(comment),
+                      onTap: deleting ? null : () => _beginReplyTo(comment),
                       borderRadius: BorderRadius.circular(999),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -771,6 +866,29 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
                         ),
                       ),
                     ),
+                    if (canDelete)
+                      InkWell(
+                        onTap: deleting
+                            ? null
+                            : () => _confirmDeleteComment(comment),
+                        borderRadius: BorderRadius.circular(999),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 2,
+                            vertical: 2,
+                          ),
+                          child: Text(
+                            deleting ? 'Deleting…' : 'Delete',
+                            style: TextStyle(
+                              color: Colors.redAccent.withValues(
+                                alpha: deleting ? 0.75 : 1,
+                              ),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ],

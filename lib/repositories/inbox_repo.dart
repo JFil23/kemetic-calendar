@@ -14,6 +14,35 @@ import '../data/user_events_repo.dart';
 import '../features/calendar/calendar_page.dart' show CalendarPage, KemeticMath;
 import '../utils/event_cid_util.dart';
 
+Map<String, ({int count, bool likedByMe})> aggregateDmMessageLikeStates(
+  Iterable<String> shareIds,
+  Iterable<Map<String, dynamic>> rows,
+  String? currentUserId,
+) {
+  final ids = shareIds
+      .map((id) => id.trim())
+      .where((id) => id.isNotEmpty)
+      .toSet()
+      .toList();
+  final states = <String, ({int count, bool likedByMe})>{
+    for (final id in ids) id: (count: 0, likedByMe: false),
+  };
+
+  if (ids.isEmpty) return states;
+
+  for (final row in rows) {
+    final shareId = row['message_share_id'] as String?;
+    if (shareId == null || shareId.isEmpty) continue;
+    final previous = states[shareId] ?? (count: 0, likedByMe: false);
+    states[shareId] = (
+      count: previous.count + 1,
+      likedByMe: previous.likedByMe || row['user_id'] == currentUserId,
+    );
+  }
+
+  return states;
+}
+
 class InboxRepo {
   final SupabaseClient _client;
   final ShareRepo _shareRepo;
@@ -223,6 +252,64 @@ class InboxRepo {
 
       return conv;
     });
+  }
+
+  Future<Map<String, ({int count, bool likedByMe})>> getMessageLikeStates(
+    Iterable<String> shareIds,
+  ) async {
+    final userId = currentUserId;
+    final ids = shareIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+    if (userId == null || ids.isEmpty) return const {};
+
+    try {
+      final rows = await _client
+          .from('dm_message_likes')
+          .select('message_share_id, user_id')
+          .inFilter('message_share_id', ids);
+      return aggregateDmMessageLikeStates(
+        ids,
+        (rows as List<dynamic>? ?? const []).cast<Map<String, dynamic>>(),
+        userId,
+      );
+    } catch (e) {
+      if (_isMissingTable(e, 'dm_message_likes')) {
+        throw const InboxMessageLikesUnavailable('dm_message_likes');
+      }
+      _log('[InboxRepo] Error fetching message likes: $e');
+      return {for (final id in ids) id: (count: 0, likedByMe: false)};
+    }
+  }
+
+  Future<bool> setMessageLike(String shareId, {required bool like}) async {
+    final userId = currentUserId;
+    if (userId == null) return false;
+
+    try {
+      if (like) {
+        await _client.from('dm_message_likes').upsert({
+          'message_share_id': shareId,
+          'user_id': userId,
+        }, onConflict: 'message_share_id,user_id');
+      } else {
+        await _client
+            .from('dm_message_likes')
+            .delete()
+            .eq('message_share_id', shareId)
+            .eq('user_id', userId);
+      }
+
+      return true;
+    } catch (e) {
+      if (_isMissingTable(e, 'dm_message_likes')) {
+        throw const InboxMessageLikesUnavailable('dm_message_likes');
+      }
+      _log('[InboxRepo] Error updating message like: $e');
+      return false;
+    }
   }
 
   /// Get the "other" user ID from a share item
@@ -562,4 +649,28 @@ class InboxRepo {
       _log('[InboxRepo] ✗ Failed to schedule from rules: $e');
     }
   }
+
+  bool _isMissingTable(Object error, String table) {
+    if (error is! PostgrestException) return false;
+    final message = _postgrestText(error);
+    return message.contains(table.toLowerCase()) &&
+        (error.code == 'PGRST205' ||
+            error.code == '42P01' ||
+            message.contains('table') ||
+            message.contains('relation') ||
+            message.contains('schema cache'));
+  }
+
+  String _postgrestText(PostgrestException error) {
+    return '${error.code} ${error.message} ${error.details ?? ''} ${error.hint ?? ''}'
+        .toLowerCase();
+  }
+}
+
+class InboxMessageLikesUnavailable implements Exception {
+  final String table;
+  const InboxMessageLikesUnavailable(this.table);
+
+  @override
+  String toString() => 'Inbox message likes table missing: $table';
 }
