@@ -710,9 +710,11 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     debugPrint('[ShareFlowSheet] Recipients: ${_recipients.length}');
 
     if (_isEventShare) {
-      final userRecipients = _recipients
-          .where((recipient) => recipient.type == ShareRecipientType.user)
-          .toList(growable: false);
+      final userRecipients = dedupeShareRecipients(
+        _recipients.where(
+          (recipient) => recipient.type == ShareRecipientType.user,
+        ),
+      );
       if (userRecipients.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -734,24 +736,61 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
 
         final successCount = results.where((r) => r.isSuccess).length;
         final failCount = results.length - successCount;
+        final successfulRecipientKeys = results
+            .where((r) => r.isSuccess && r.recipient != null)
+            .map((r) => shareRecipientKey(r.recipient!))
+            .toSet();
 
-        if (successCount > 0) {
+        if (successCount > 0 && failCount == 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invites sent inside the app'),
+              backgroundColor: KemeticGold.base,
+            ),
+          );
+          Navigator.pop(context, true);
+          return;
+        }
+
+        if (successCount > 0 && failCount > 0) {
+          setState(() {
+            _recipients.removeWhere(
+              (recipient) => successfulRecipientKeys.contains(
+                shareRecipientKey(recipient),
+              ),
+            );
+            _recipientUsersById.removeWhere(
+              (userId, _) => successfulRecipientKeys.contains(
+                shareRecipientKey(
+                  ShareRecipient(type: ShareRecipientType.user, value: userId),
+                ),
+              ),
+            );
+          });
+          await _loadExistingInvitees();
+          if (!mounted) return;
+
+          final errorMessages = results
+              .where((r) => r.error != null)
+              .map((r) => _friendlyInviteError(r.error!))
+              .toSet()
+              .join(', ');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                failCount == 0
-                    ? 'Invites sent inside the app'
-                    : 'Sent $successCount invite${successCount == 1 ? '' : 's'}, $failCount failed',
+                'Sent $successCount invite${successCount == 1 ? '' : 's'}. $failCount could not be sent${errorMessages.isNotEmpty ? ': $errorMessages' : '.'}',
               ),
-              backgroundColor: failCount == 0
-                  ? KemeticGold.base
-                  : Colors.orange,
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 4),
             ),
           );
-        } else {
+          return;
+        }
+
+        if (successCount == 0) {
           final errorMessages = results
               .where((r) => r.error != null)
-              .map((r) => r.error!)
+              .map((r) => _friendlyInviteError(r.error!))
               .toSet()
               .join(', ');
           ScaffoldMessenger.of(context).showSnackBar(
@@ -766,8 +805,6 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
           );
           return;
         }
-
-        Navigator.pop(context, failCount == 0);
       } finally {
         if (mounted) {
           setState(() => _sending = false);
@@ -952,6 +989,27 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
         debugPrint('[ShareFlowSheet] Setting _sending = false');
         setState(() => _sending = false);
       }
+    }
+  }
+
+  String _friendlyInviteError(String raw) {
+    switch (raw) {
+      case 'CANNOT_INVITE_SELF':
+        return 'You cannot invite yourself';
+      case 'USER_NOT_FOUND':
+        return 'One or more users could not be found';
+      case 'IN_APP_USER_REQUIRED':
+        return 'Invites only support in-app users';
+      case 'INVALID_RECIPIENT':
+        return 'One of the selected recipients was invalid';
+      case 'LOOKUP_FAILED':
+        return 'Could not check one of the invitees';
+      case 'UPDATE_FAILED':
+      case 'INSERT_FAILED':
+      case 'EXCEPTION':
+        return 'A few invites could not be saved';
+      default:
+        return raw;
     }
   }
 }

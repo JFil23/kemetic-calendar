@@ -2,6 +2,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/share_models.dart';
 
 void main() {
+  group('share recipient helpers', () {
+    test('dedupeShareRecipients preserves first occurrence order', () {
+      final deduped = dedupeShareRecipients([
+        ShareRecipient(type: ShareRecipientType.user, value: 'user-1'),
+        ShareRecipient(type: ShareRecipientType.user, value: 'user-2'),
+        ShareRecipient(type: ShareRecipientType.user, value: 'user-1'),
+        ShareRecipient(
+          type: ShareRecipientType.email,
+          value: ' Test@Email.com ',
+        ),
+        ShareRecipient(type: ShareRecipientType.email, value: 'test@email.com'),
+      ]);
+
+      expect(deduped.map(shareRecipientKey).toList(), [
+        'user:user-1',
+        'user:user-2',
+        'email:test@email.com',
+      ]);
+    });
+  });
+
   group('SuggestedSchedule.fromJson', () {
     test('accepts camelCase fields and string values', () {
       final schedule = SuggestedSchedule.fromJson({
@@ -162,6 +183,33 @@ void main() {
       expect(item.eventPayload?.title, 'New Moon Gathering');
     });
 
+    test(
+      'parses bool-like event payload fields without dropping the invite',
+      () {
+        final item = InboxShareItem.fromJson({
+          'share_id': 'share-6',
+          'kind': 'event',
+          'recipient_id': 'recipient-1',
+          'sender_id': 'sender-6',
+          'sender_handle': 'host',
+          'sender_name': 'Host',
+          'payload_id': 'event-share-6',
+          'title': 'Equinox Circle',
+          'created_at': '2026-04-16T00:00:00Z',
+          'payload_json': {
+            'event_id': 'event-6',
+            'title': 'Equinox Circle',
+            'starts_at': '2026-04-21T19:00:00Z',
+            'all_day': '1',
+          },
+        });
+
+        expect(item.eventPayload, isNotNull);
+        expect(item.eventPayload?.allDay, isTrue);
+        expect(item.eventPayload?.title, 'Equinox Circle');
+      },
+    );
+
     test('defaults unknown share kinds to flow behavior', () {
       final item = InboxShareItem.fromJson({
         'share_id': 'share-4',
@@ -178,6 +226,31 @@ void main() {
       expect(item.kind, InboxShareKind.flow);
       expect(item.isFlow, isTrue);
       expect(item.subtitle, 'Flow shared by @initiate');
+    });
+  });
+
+  group('ShareResult.fromJson', () {
+    test('parses recipient metadata returned by event invite sends', () {
+      final result = ShareResult.fromJson({
+        'id': 'share-1',
+        'status': 'sent',
+        'recipient': {'type': 'user', 'value': 'user-1'},
+      });
+
+      expect(result.isSuccess, isTrue);
+      expect(result.recipient?.type, ShareRecipientType.user);
+      expect(result.recipient?.value, 'user-1');
+    });
+
+    test('falls back to recipient_id when recipient metadata is absent', () {
+      final result = ShareResult.fromJson({
+        'id': 'share-2',
+        'status': 'sent',
+        'recipient_id': 'user-2',
+      });
+
+      expect(result.recipient?.value, 'user-2');
+      expect(result.recipient?.type, ShareRecipientType.user);
     });
   });
 }

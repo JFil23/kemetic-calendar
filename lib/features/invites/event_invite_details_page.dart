@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
+import '../../utils/detail_sanitizer.dart';
+import '../calendar/calendar_page.dart';
 import '../inbox/conversation_user.dart';
 import '../inbox/inbox_conversation_page.dart';
 import 'event_invite_action_row.dart';
@@ -18,16 +22,53 @@ class EventInviteDetailsPage extends StatefulWidget {
 
 class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
   late final ShareRepo _repo = ShareRepo(Supabase.instance.client);
+  late InboxShareItem _share = widget.share;
   late EventInviteResponseStatus _responseStatus = widget.share.responseStatus;
+  StreamSubscription<List<InboxShareItem>>? _shareSubscription;
   bool _submitting = false;
+
+  String? get _currentUserId => Supabase.instance.client.auth.currentUser?.id;
+  bool get _isRecipient => _share.recipientId == _currentUserId;
 
   @override
   void initState() {
     super.initState();
+    _shareSubscription = _repo.watchInbox().listen(_syncShareFromInbox);
+    unawaited(_markViewedIfRecipient());
+  }
+
+  @override
+  void dispose() {
+    _shareSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _syncShareFromInbox(List<InboxShareItem> items) {
+    for (final item in items) {
+      if (item.shareId != _share.shareId) continue;
+      if (!mounted) return;
+      setState(() {
+        _share = item;
+        if (!_submitting) {
+          _responseStatus = item.responseStatus;
+        }
+      });
+      return;
+    }
+  }
+
+  Future<void> _markViewedIfRecipient() async {
+    final currentUserId = _currentUserId;
+    if (currentUserId == null ||
+        _share.recipientId != currentUserId ||
+        _share.viewedAt != null) {
+      return;
+    }
+    await _repo.markViewed(_share.shareId, isFlow: false);
   }
 
   Future<void> _respond(EventInviteResponseStatus nextStatus) async {
-    if (_submitting) return;
+    if (_submitting || !_isRecipient) return;
 
     setState(() {
       _submitting = true;
@@ -35,7 +76,7 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
     });
 
     final ok = await _repo.respondToEventInvite(
-      shareId: widget.share.shareId,
+      shareId: _share.shareId,
       responseStatus: nextStatus,
     );
 
@@ -44,7 +85,7 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
     setState(() {
       _submitting = false;
       if (!ok) {
-        _responseStatus = widget.share.responseStatus;
+        _responseStatus = _share.responseStatus;
       }
     });
 
@@ -58,6 +99,7 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
       return;
     }
 
+    unawaited(CalendarPage.globalKey.currentState?.reloadFromOutside());
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Response saved: ${nextStatus.label}'),
@@ -67,15 +109,25 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
   }
 
   void _openConversation() {
+    final openingSentInvite = _currentUserId == _share.senderId;
+    final otherUserId = openingSentInvite
+        ? _share.recipientId
+        : _share.senderId;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => InboxConversationPage(
-          otherUserId: widget.share.senderId,
+          otherUserId: otherUserId,
           otherProfile: ConversationUser(
-            id: widget.share.senderId,
-            displayName: widget.share.senderName,
-            handle: widget.share.senderHandle,
-            avatarUrl: widget.share.senderAvatar,
+            id: otherUserId,
+            displayName: openingSentInvite
+                ? _share.recipientDisplayName
+                : _share.senderName,
+            handle: openingSentInvite
+                ? _share.recipientHandle
+                : _share.senderHandle,
+            avatarUrl: openingSentInvite
+                ? _share.recipientAvatarUrl
+                : _share.senderAvatar,
           ),
         ),
       ),
@@ -84,14 +136,15 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final payload = widget.share.eventPayload;
-    final title = payload?.title ?? widget.share.title;
-    final senderName = widget.share.senderName?.trim().isNotEmpty == true
-        ? widget.share.senderName!.trim()
-        : (widget.share.senderHandle?.trim().isNotEmpty == true
-              ? '@${widget.share.senderHandle!.trim()}'
+    final payload = _share.eventPayload;
+    final title = payload?.title ?? _share.title;
+    final senderName = _share.senderName?.trim().isNotEmpty == true
+        ? _share.senderName!.trim()
+        : (_share.senderHandle?.trim().isNotEmpty == true
+              ? '@${_share.senderHandle!.trim()}'
               : 'Someone');
     final whenText = _formatWhen(payload);
+    final detail = cleanFlowDetail(payload?.detail);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -111,7 +164,7 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
               decoration: BoxDecoration(
                 color: const Color(0xFF0D0D0F),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,13 +175,13 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.05),
+                      color: Colors.white.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
                       'From $senderName',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.74),
+                        color: Colors.white.withValues(alpha: 0.74),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -154,12 +207,12 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
                       text: payload!.location!,
                     ),
                   ],
-                  if ((payload?.detail?.isNotEmpty ?? false)) ...[
+                  if (detail.isNotEmpty) ...[
                     const SizedBox(height: 14),
                     Text(
-                      payload!.detail!,
+                      detail,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.82),
+                        color: Colors.white.withValues(alpha: 0.82),
                         height: 1.4,
                         fontSize: 14,
                       ),
@@ -170,19 +223,22 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
             ),
             const SizedBox(height: 18),
             Text(
-              'Your response',
+              _isRecipient ? 'Your response' : 'Invite response',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.78),
+                color: Colors.white.withValues(alpha: 0.78),
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 10),
-            EventInviteActionRow(
-              currentStatus: _responseStatus,
-              busy: _submitting,
-              onSelected: _respond,
-            ),
+            if (_isRecipient)
+              EventInviteActionRow(
+                currentStatus: _responseStatus,
+                busy: _submitting,
+                onSelected: _respond,
+              )
+            else
+              _ResponseSummary(status: _responseStatus),
             const SizedBox(height: 18),
             TextButton.icon(
               onPressed: _openConversation,
@@ -199,7 +255,7 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
   }
 
   String _formatWhen(EventSharePayload? payload) {
-    final startsAt = payload?.startsAt ?? widget.share.eventDate;
+    final startsAt = payload?.startsAt ?? _share.eventDate;
     if (startsAt == null) return '';
 
     final local = startsAt.toLocal();
@@ -231,6 +287,45 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
   }
 }
 
+class _ResponseSummary extends StatelessWidget {
+  const _ResponseSummary({required this.status});
+
+  final EventInviteResponseStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = switch (status) {
+      EventInviteResponseStatus.accepted => ('Yes', Colors.greenAccent),
+      EventInviteResponseStatus.declined => ('No', Colors.redAccent),
+      EventInviteResponseStatus.maybe => ('Maybe', Colors.orangeAccent),
+      EventInviteResponseStatus.noResponse => (
+        'Awaiting response',
+        Colors.white70,
+      ),
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: status.isPending ? 0.08 : 0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: color.withValues(alpha: status.isPending ? 0.18 : 0.3),
+        ),
+      ),
+      child: Text(
+        status.isPending ? label : 'Current response: $label',
+        style: TextStyle(
+          color: color,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
 class _MetaRow extends StatelessWidget {
   const _MetaRow({required this.icon, required this.text});
 
@@ -248,7 +343,7 @@ class _MetaRow extends StatelessWidget {
           child: Text(
             text,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.84),
+              color: Colors.white.withValues(alpha: 0.84),
               fontSize: 14,
               height: 1.35,
             ),

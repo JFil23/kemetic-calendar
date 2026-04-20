@@ -10,10 +10,12 @@ import '../../data/profile_repo.dart';
 
 class EditProfilePage extends StatefulWidget {
   final UserProfile initialProfile;
+  final bool requireCompletion;
 
   const EditProfilePage({
     super.key,
     required this.initialProfile,
+    this.requireCompletion = false,
   });
 
   @override
@@ -23,12 +25,12 @@ class EditProfilePage extends StatefulWidget {
 class _EditProfilePageState extends State<EditProfilePage> {
   final _repo = ProfileRepo(Supabase.instance.client);
   final _formKey = GlobalKey<FormState>();
-  
+
   late TextEditingController _handleController;
   late TextEditingController _displayNameController;
   late TextEditingController _bioController;
   late TextEditingController _locationController;
-  
+
   String? _avatarUrl;
   bool _isDiscoverable = true;
   bool _allowIncomingShares = true;
@@ -36,17 +38,29 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _isCheckingHandle = false;
   String? _handleError;
 
+  bool get _isCreatingProfile {
+    final handle = widget.initialProfile.handle?.trim() ?? '';
+    final displayName = widget.initialProfile.displayName?.trim() ?? '';
+    return handle.isEmpty || displayName.isEmpty;
+  }
+
   @override
   void initState() {
     super.initState();
-    _handleController = TextEditingController(text: widget.initialProfile.handle);
-    _displayNameController = TextEditingController(text: widget.initialProfile.displayName);
+    _handleController = TextEditingController(
+      text: widget.initialProfile.handle,
+    );
+    _displayNameController = TextEditingController(
+      text: widget.initialProfile.displayName,
+    );
     _bioController = TextEditingController(text: widget.initialProfile.bio);
-    _locationController = TextEditingController(text: widget.initialProfile.location);
+    _locationController = TextEditingController(
+      text: widget.initialProfile.location,
+    );
     _avatarUrl = widget.initialProfile.avatarUrl;
     _isDiscoverable = widget.initialProfile.isDiscoverable;
     _allowIncomingShares = widget.initialProfile.allowIncomingShares;
-    
+
     // Debounce handle checking
     _handleController.addListener(_checkHandleAvailability);
   }
@@ -76,7 +90,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
 
     final isAvailable = await _repo.isHandleAvailable(handle);
-    
+
     if (mounted) {
       setState(() {
         _isCheckingHandle = false;
@@ -88,7 +102,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _pickAvatar() async {
     final picker = ImagePicker();
     final image = await picker.pickImage(source: ImageSource.gallery);
-    
+
     if (image == null) return;
 
     setState(() => _isLoading = true);
@@ -97,7 +111,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final bytes = await image.readAsBytes();
       final fileExt = image.path.split('.').last;
       final fileName = '${DateTime.now().millisecondsSinceEpoch}.$fileExt';
-      final filePath = '${Supabase.instance.client.auth.currentUser!.id}/$fileName';
+      final filePath =
+          '${Supabase.instance.client.auth.currentUser!.id}/$fileName';
 
       await Supabase.instance.client.storage
           .from('avatars')
@@ -154,10 +169,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -169,270 +181,323 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF000000),
-      appBar: AppBar(
+    final pageTitle = _isCreatingProfile ? 'Create Profile' : 'Edit Profile';
+    final saveLabel = _isCreatingProfile ? 'Create' : 'Save';
+
+    return PopScope(
+      canPop: !widget.requireCompletion,
+      child: Scaffold(
         backgroundColor: const Color(0xFF000000),
-        elevation: 0,
-        leading: IconButton(
-          icon: KemeticGold.icon(Icons.close),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Edit Profile',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF000000),
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          leading: widget.requireCompletion
+              ? null
+              : IconButton(
+                  icon: KemeticGold.icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+          title: Text(
+            pageTitle,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+            ),
           ),
+          actions: [
+            if (!_isLoading)
+              TextButton(
+                onPressed: _saveProfile,
+                child: KemeticGold.text(
+                  saveLabel,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
         ),
-        actions: [
-          if (!_isLoading)
-            TextButton(
-              onPressed: _saveProfile,
-              child: KemeticGold.text(
-                'Save',
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
+        body: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
                 ),
-              ),
-            ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
-              ),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    // Avatar
-                    GestureDetector(
-                      onTap: _pickAvatar,
-                      child: Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFF0D0D0F),
-                          border: Border.all(
-                            color: KemeticGold.base,
-                            width: 2,
+              )
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      if (_isCreatingProfile) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0D0D0F),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: KemeticGold.base.withValues(alpha: 0.28),
+                            ),
                           ),
-                        ),
-                        child: _avatarUrl != null
-                            ? ClipOval(
-                                child: Image.network(
-                                  _avatarUrl!,
-                                  fit: BoxFit.cover,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Choose how you appear to other people.',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                              )
-                            : const Icon(
-                                Icons.camera_alt,
-                                color: KemeticGold.base,
-                                size: 40,
                               ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Tap to change avatar',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Display Name
-                    TextFormField(
-                      controller: _displayNameController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Display Name',
-                        labelStyle: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFF0D0D0F),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Display name is required';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Handle
-                    TextFormField(
-                      controller: _handleController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Handle',
-                        prefix: Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: KemeticGold.text(
-                            '@',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                              const SizedBox(height: 6),
+                              Text(
+                                widget.requireCompletion
+                                    ? 'Create your display name and username to finish setup. You can adjust the rest later.'
+                                    : 'Add a display name and username so your profile can be found and shared.',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.72),
+                                  fontSize: 13,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        labelStyle: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFF0D0D0F),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        suffixIcon: _isCheckingHandle
-                            ? const Padding(
-                                padding: EdgeInsets.all(12),
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
-                                  ),
-                                ),
-                              )
-                            : _handleError != null
-                                ? const Icon(Icons.error, color: Colors.red)
-                                : null,
-                        errorText: _handleError,
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Handle is required';
-                        }
-                        if (value.length < 3 || value.length > 20) {
-                          return 'Handle must be 3-20 characters';
-                        }
-                        if (!RegExp(r'^[a-z0-9_]+$').hasMatch(value)) {
-                          return 'Only lowercase letters, numbers, and underscores';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Bio
-                    TextFormField(
-                      controller: _bioController,
-                      style: const TextStyle(color: Colors.white),
-                      maxLines: 3,
-                      maxLength: 160,
-                      decoration: InputDecoration(
-                        labelText: 'Bio',
-                        labelStyle: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFF0D0D0F),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        counterStyle: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Location
-                    TextFormField(
-                      controller: _locationController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Location (optional)',
-                        labelStyle: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFF0D0D0F),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Privacy Toggles
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0D0D0F),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Privacy',
-                            style: TextStyle(
+                        const SizedBox(height: 24),
+                      ],
+                      // Avatar
+                      GestureDetector(
+                        onTap: _pickAvatar,
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF0D0D0F),
+                            border: Border.all(
                               color: KemeticGold.base,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              width: 2,
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          SwitchListTile(
-                            value: _isDiscoverable,
-                            onChanged: (value) => setState(() => _isDiscoverable = value),
-                            title: const Text(
-                              'Profile discoverable',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            subtitle: Text(
-                              'Allow others to find your profile',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 13,
-                              ),
-                            ),
-                            activeThumbColor: KemeticGold.base,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          const Divider(color: Color(0xFF1A1A1A)),
-                          SwitchListTile(
-                            value: _allowIncomingShares,
-                            onChanged: (value) => setState(() => _allowIncomingShares = value),
-                            title: const Text(
-                              'Allow receiving flows',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            subtitle: Text(
-                              'Others can share flows with you',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 13,
-                              ),
-                            ),
-                            activeThumbColor: KemeticGold.base,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ],
+                          child: _avatarUrl != null
+                              ? ClipOval(
+                                  child: Image.network(
+                                    _avatarUrl!,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.camera_alt,
+                                  color: KemeticGold.base,
+                                  size: 40,
+                                ),
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Text(
+                        'Tap to change avatar',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.5),
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Display Name
+                      TextFormField(
+                        controller: _displayNameController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Display Name',
+                          labelStyle: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFF0D0D0F),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Display name is required';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Handle
+                      TextFormField(
+                        controller: _handleController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Handle',
+                          prefix: Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: KemeticGold.text(
+                              '@',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          labelStyle: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFF0D0D0F),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          suffixIcon: _isCheckingHandle
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        KemeticGold.base,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : _handleError != null
+                              ? const Icon(Icons.error, color: Colors.red)
+                              : null,
+                          errorText: _handleError,
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Handle is required';
+                          }
+                          if (value.length < 3 || value.length > 20) {
+                            return 'Handle must be 3-20 characters';
+                          }
+                          if (!RegExp(r'^[a-z0-9_]+$').hasMatch(value)) {
+                            return 'Only lowercase letters, numbers, and underscores';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Bio
+                      TextFormField(
+                        controller: _bioController,
+                        style: const TextStyle(color: Colors.white),
+                        maxLines: 3,
+                        maxLength: 160,
+                        decoration: InputDecoration(
+                          labelText: 'Bio',
+                          labelStyle: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFF0D0D0F),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          counterStyle: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Location
+                      TextFormField(
+                        controller: _locationController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Location (optional)',
+                          labelStyle: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFF0D0D0F),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Privacy Toggles
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0D0D0F),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Privacy',
+                              style: TextStyle(
+                                color: KemeticGold.base,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SwitchListTile(
+                              value: _isDiscoverable,
+                              onChanged: (value) =>
+                                  setState(() => _isDiscoverable = value),
+                              title: const Text(
+                                'Profile discoverable',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              subtitle: Text(
+                                'Allow others to find your profile',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                  fontSize: 13,
+                                ),
+                              ),
+                              activeThumbColor: KemeticGold.base,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            const Divider(color: Color(0xFF1A1A1A)),
+                            SwitchListTile(
+                              value: _allowIncomingShares,
+                              onChanged: (value) =>
+                                  setState(() => _allowIncomingShares = value),
+                              title: const Text(
+                                'Allow receiving flows',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              subtitle: Text(
+                                'Others can share flows with you',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                  fontSize: 13,
+                                ),
+                              ),
+                              activeThumbColor: KemeticGold.base,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
+      ),
     );
   }
 }

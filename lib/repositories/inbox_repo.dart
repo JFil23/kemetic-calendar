@@ -174,7 +174,7 @@ class InboxRepo {
 
       for (final item in items) {
         // ✅ Skip deleted items
-        if (item.isDeleted) continue;
+        if (item.isDeleted || item.isEvent) continue;
 
         final otherId = _getOtherUserId(item, uid);
         if (otherId == null) continue;

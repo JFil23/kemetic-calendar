@@ -145,13 +145,38 @@ class ShareRecipient {
         (e) => e.name == json['type'],
         orElse: () => ShareRecipientType.user,
       ),
-      value: json['value'] as String,
+      value: (json['value'] as String).trim(),
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'type': type.name, 'value': value};
+    return {'type': type.name, 'value': value.trim()};
   }
+}
+
+String shareRecipientKey(ShareRecipient recipient) {
+  final trimmed = recipient.value.trim();
+  final normalized = recipient.type == ShareRecipientType.user
+      ? trimmed
+      : trimmed.toLowerCase();
+  return '${recipient.type.name}:$normalized';
+}
+
+List<ShareRecipient> dedupeShareRecipients(
+  Iterable<ShareRecipient> recipients,
+) {
+  final deduped = <ShareRecipient>[];
+  final seen = <String>{};
+  for (final recipient in recipients) {
+    final normalized = ShareRecipient(
+      type: recipient.type,
+      value: recipient.value.trim(),
+    );
+    final key = shareRecipientKey(normalized);
+    if (!seen.add(key)) continue;
+    deduped.add(normalized);
+  }
+  return deduped;
 }
 
 /// Result of a share operation
@@ -171,9 +196,22 @@ class ShareResult {
   });
 
   factory ShareResult.fromJson(Map<String, dynamic> json) {
+    ShareRecipient? recipient;
+    final rawRecipient = json['recipient'];
+    if (rawRecipient is Map) {
+      recipient = ShareRecipient.fromJson(rawRecipient.cast<String, dynamic>());
+    } else {
+      final recipientId = (json['recipient_id'] as String?)?.trim();
+      if (recipientId != null && recipientId.isNotEmpty) {
+        recipient = ShareRecipient(
+          type: ShareRecipientType.user,
+          value: recipientId,
+        );
+      }
+    }
+
     return ShareResult(
-      recipient:
-          null, // Edge function doesn't return recipient in the share row
+      recipient: recipient,
       status: json['status'] as String?,
       shareId:
           json['id'] as String?, // Edge returns 'id' from flow_shares table
@@ -307,8 +345,31 @@ class EventSharePayload {
 
   factory EventSharePayload.fromJson(Map<String, dynamic> json) {
     DateTime? parseDateTime(Object? raw) {
+      if (raw is DateTime) return raw;
       if (raw is! String || raw.trim().isEmpty) return null;
       return DateTime.tryParse(raw.trim());
+    }
+
+    bool parseBoolish(Object? raw) {
+      if (raw is bool) return raw;
+      if (raw is num) return raw != 0;
+      if (raw is! String) return false;
+      switch (raw.trim().toLowerCase()) {
+        case '1':
+        case 'true':
+        case 't':
+        case 'yes':
+        case 'y':
+          return true;
+        case '0':
+        case 'false':
+        case 'f':
+        case 'no':
+        case 'n':
+          return false;
+        default:
+          return false;
+      }
     }
 
     return EventSharePayload(
@@ -322,7 +383,7 @@ class EventSharePayload {
       location: (json['location'] as String?)?.trim(),
       startsAt: parseDateTime(json['starts_at']),
       endsAt: parseDateTime(json['ends_at']),
-      allDay: json['all_day'] as bool? ?? false,
+      allDay: parseBoolish(json['all_day'] ?? json['allDay']),
     );
   }
 }

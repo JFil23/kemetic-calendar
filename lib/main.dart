@@ -19,6 +19,8 @@ import 'features/sharing/share_preview_page.dart';
 import 'features/inbox/inbox_page.dart';
 import 'features/inbox/inbox_conversation_page.dart';
 import 'features/inbox/conversation_user.dart';
+import 'features/invites/event_invite_details_page.dart';
+import 'data/share_models.dart';
 import 'utils/event_cid_util.dart';
 import 'telemetry/telemetry.dart';
 import 'shared/glossy_text.dart';
@@ -1178,6 +1180,8 @@ class _AuthGateState extends State<AuthGate> {
         'reflection_id': params['reflection_id'] ?? params['reflectionId'],
       if ((params['sender_id'] ?? params['senderId']) != null)
         'sender_id': params['sender_id'] ?? params['senderId'],
+      if ((params['share_id'] ?? params['shareId']) != null)
+        'share_id': params['share_id'] ?? params['shareId'],
       if ((params['client_event_id'] ?? params['clientEventId']) != null)
         'client_event_id': params['client_event_id'] ?? params['clientEventId'],
     };
@@ -1194,6 +1198,7 @@ class _AuthGateState extends State<AuthGate> {
     final detail =
         data['reflectionId'] ??
         data['reflection_id'] ??
+        data['share_id'] ??
         data['sender_id'] ??
         data['client_event_id'] ??
         '';
@@ -1240,6 +1245,21 @@ class _AuthGateState extends State<AuthGate> {
         return;
       }
       nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+      return;
+    }
+
+    if (kind == 'event_invite') {
+      final shareId = (data['share_id'] ?? data['shareId'])?.toString();
+      final senderId = (data['sender_id'] ?? data['senderId'])?.toString();
+      if (shareId != null && shareId.isNotEmpty) {
+        unawaited(_openEventInvite(nav, shareId, senderId: senderId));
+        return;
+      }
+      if (senderId != null && senderId.isNotEmpty) {
+        unawaited(_openDmConversation(nav, senderId));
+        return;
+      }
+      nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
     }
   }
 
@@ -1269,5 +1289,36 @@ class _AuthGateState extends State<AuthGate> {
     } catch (_) {
       nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
     }
+  }
+
+  Future<void> _openEventInvite(
+    NavigatorState nav,
+    String shareId, {
+    String? senderId,
+  }) async {
+    try {
+      final row = await supabase
+          .from('inbox_share_items_filtered')
+          .select()
+          .eq('share_id', shareId)
+          .maybeSingle();
+      if (row != null) {
+        final share = InboxShareItem.fromJson(row);
+        nav.push(
+          MaterialPageRoute(
+            builder: (_) => EventInviteDetailsPage(share: share),
+          ),
+        );
+        return;
+      }
+    } catch (_) {
+      // Fall back below.
+    }
+
+    if (senderId != null && senderId.isNotEmpty) {
+      await _openDmConversation(nav, senderId);
+      return;
+    }
+    nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
   }
 }

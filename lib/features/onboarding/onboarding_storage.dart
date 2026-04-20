@@ -5,24 +5,26 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class OnboardingStorage {
   OnboardingStorage(this._client);
 
-  static const String localKey = 'onboarding_v1_completed';
+  static const String _localKeyPrefix = 'onboarding_v1_completed';
 
   final SupabaseClient _client;
 
-  Future<bool> isCompletedLocally() async {
+  String _localKeyForUser(String userId) => '$_localKeyPrefix:$userId';
+
+  Future<bool> isCompletedLocally(String userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool(localKey) ?? false;
+      return prefs.getBool(_localKeyForUser(userId)) ?? false;
     } catch (e) {
       debugPrint('[OnboardingStorage] Failed to read local flag: $e');
       return false;
     }
   }
 
-  Future<void> setCompletedLocally() async {
+  Future<void> setCompletedLocally(String userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(localKey, true);
+      await prefs.setBool(_localKeyForUser(userId), true);
     } catch (e) {
       debugPrint('[OnboardingStorage] Failed to set local flag: $e');
     }
@@ -46,11 +48,11 @@ class OnboardingStorage {
   }
 
   Future<bool> hasCompleted(String userId) async {
-    if (await isCompletedLocally()) return true;
+    if (await isCompletedLocally(userId)) return true;
 
     final remoteCompleted = await fetchRemoteCompletion(userId);
     if (remoteCompleted) {
-      await setCompletedLocally();
+      await setCompletedLocally(userId);
       return true;
     }
     return false;
@@ -67,6 +69,6 @@ class OnboardingStorage {
       debugPrint('[OnboardingStorage] Failed to persist remote flag: $e');
     }
 
-    await setCompletedLocally();
+    await setCompletedLocally(userId);
   }
 }

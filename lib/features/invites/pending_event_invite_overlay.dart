@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
+import '../calendar/calendar_page.dart';
 import 'event_invite_action_row.dart';
 import 'event_invite_details_page.dart';
 
@@ -17,19 +20,31 @@ class PendingEventInviteOverlay extends StatefulWidget {
 class _PendingEventInviteOverlayState extends State<PendingEventInviteOverlay> {
   late final ShareRepo _repo = ShareRepo(Supabase.instance.client);
   String? _respondingShareId;
+  final Map<String, EventInviteResponseStatus> _optimisticStatuses = {};
 
   Future<void> _respond(
     InboxShareItem invite,
     EventInviteResponseStatus nextStatus,
   ) async {
     if (_respondingShareId != null) return;
-    setState(() => _respondingShareId = invite.shareId);
+    setState(() {
+      _respondingShareId = invite.shareId;
+      _optimisticStatuses[invite.shareId] = nextStatus;
+    });
     final ok = await _repo.respondToEventInvite(
       shareId: invite.shareId,
       responseStatus: nextStatus,
     );
     if (!mounted) return;
-    setState(() => _respondingShareId = null);
+    setState(() {
+      _respondingShareId = null;
+      if (!ok) {
+        _optimisticStatuses.remove(invite.shareId);
+      }
+    });
+    if (ok) {
+      unawaited(CalendarPage.globalKey.currentState?.reloadFromOutside());
+    }
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -56,6 +71,8 @@ class _PendingEventInviteOverlayState extends State<PendingEventInviteOverlay> {
 
         final invite = invites.first;
         final payload = invite.eventPayload;
+        final displayStatus =
+            _optimisticStatuses[invite.shareId] ?? invite.responseStatus;
         final media = MediaQuery.of(context);
         final moreCount = invites.length - 1;
         final sender = invite.senderName?.trim().isNotEmpty == true
@@ -76,9 +93,11 @@ class _PendingEventInviteOverlayState extends State<PendingEventInviteOverlay> {
               child: Container(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.94),
+                  color: Colors.black.withValues(alpha: 0.94),
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
                   boxShadow: const [
                     BoxShadow(
                       color: Colors.black54,
@@ -130,14 +149,14 @@ class _PendingEventInviteOverlayState extends State<PendingEventInviteOverlay> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.74),
+                        color: Colors.white.withValues(alpha: 0.74),
                         fontSize: 13,
                         height: 1.35,
                       ),
                     ),
                     const SizedBox(height: 12),
                     EventInviteActionRow(
-                      currentStatus: invite.responseStatus,
+                      currentStatus: displayStatus,
                       busy: _respondingShareId == invite.shareId,
                       compact: true,
                       onSelected: (status) => _respond(invite, status),
