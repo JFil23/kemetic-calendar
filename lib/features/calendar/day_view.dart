@@ -1186,17 +1186,19 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
-  Widget _buildEndFlowButton(int? flowId) {
-    final enabled = widget.onEndFlow != null && flowId != null;
+  Widget _buildEndFlowButton(
+    int? flowId, {
+    required BuildContext actionContext,
+  }) {
+    final onEndFlow = widget.onEndFlow;
+    final id = flowId;
+    final enabled = onEndFlow != null && id != null;
     return OutlinedButton.icon(
-      style: _endButtonStyle(context),
+      style: _endButtonStyle(actionContext),
       onPressed: enabled
           ? () {
-              Navigator.pop(context);
-              final id = flowId;
-              if (id != null) {
-                widget.onEndFlow?.call(id);
-              }
+              Navigator.pop(actionContext);
+              onEndFlow(id);
             }
           : null,
       icon: const Icon(Icons.stop_circle),
@@ -1209,14 +1211,15 @@ class _DayViewGridState extends State<DayViewGrid> {
     required int ky,
     required int km,
     required int kd,
+    required BuildContext actionContext,
     BuildContext? closeContext,
   }) {
     final enabled = widget.onDeleteNote != null;
     return OutlinedButton.icon(
-      style: _endButtonStyle(context),
+      style: _endButtonStyle(actionContext),
       onPressed: enabled
           ? () async {
-              Navigator.pop(closeContext ?? context);
+              Navigator.pop(closeContext ?? actionContext);
               await widget.onDeleteNote!(ky, km, kd, event);
             }
           : null,
@@ -1227,14 +1230,15 @@ class _DayViewGridState extends State<DayViewGrid> {
 
   Widget _buildEndReminderButton(
     EventItem event, {
+    required BuildContext actionContext,
     BuildContext? closeContext,
   }) {
     final enabled = widget.onEndReminder != null && event.reminderId != null;
     return OutlinedButton.icon(
-      style: _endButtonStyle(context),
+      style: _endButtonStyle(actionContext),
       onPressed: enabled
           ? () async {
-              Navigator.pop(closeContext ?? context);
+              Navigator.pop(closeContext ?? actionContext);
               final reminderId = event.reminderId;
               if (reminderId != null) {
                 await widget.onEndReminder?.call(reminderId);
@@ -2737,15 +2741,20 @@ class _DayViewGridState extends State<DayViewGrid> {
       children: [
         const Spacer(),
         if (flow != null)
-          _buildEndFlowButton(flow.id)
+          _buildEndFlowButton(flow.id, actionContext: sheetContext)
         else if (isReminder)
-          _buildEndReminderButton(currentEvent, closeContext: sheetContext)
+          _buildEndReminderButton(
+            currentEvent,
+            actionContext: sheetContext,
+            closeContext: sheetContext,
+          )
         else if (widget.onDeleteNote != null)
           _buildEndNoteButton(
             currentEvent,
             ky: target.ky,
             km: target.km,
             kd: target.kd,
+            actionContext: sheetContext,
             closeContext: sheetContext,
           ),
         const SizedBox(width: 8),

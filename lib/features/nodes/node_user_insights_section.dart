@@ -57,7 +57,13 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
     }
     setState(() {
       _allContent = content;
-      _links = links.where((l) => l.sourceType == InsightSourceType.nodeUserText && l.sourceId == current.id).toList();
+      _links = links
+          .where(
+            (l) =>
+                l.sourceType == InsightSourceType.nodeUserText &&
+                l.sourceId == current.id,
+          )
+          .toList();
       _textCtrl.text = current.text;
       _prevText = current.text;
       _loading = false;
@@ -111,8 +117,11 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
     final userId = Supabase.instance.client.auth.currentUser?.id ?? 'local';
     final existing = await _repo.fetchLinks(userId);
     final filtered = existing
-        .where((l) => !(l.sourceType == InsightSourceType.nodeUserText &&
-            l.sourceId == 'node-${widget.node.id}'))
+        .where(
+          (l) =>
+              !(l.sourceType == InsightSourceType.nodeUserText &&
+                  l.sourceId == 'node-${widget.node.id}'),
+        )
         .toList();
     filtered.addAll(_links);
     await _repo.saveLinks(userId, filtered);
@@ -128,8 +137,9 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
   Future<void> _startLinkToEntry(InsightTargetType target) async {
     final selection = _textCtrl.selection;
     if (!selection.isValid || selection.isCollapsed) return;
-    final selected =
-        _textCtrl.text.substring(selection.start, selection.end).trim();
+    final selected = _textCtrl.text
+        .substring(selection.start, selection.end)
+        .trim();
     if (selected.isEmpty) return;
     final targetChoice = await _pickTarget(target);
     if (targetChoice == null) return;
@@ -157,6 +167,7 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
     if (target == InsightTargetType.journalEntry) {
       final repo = JournalRepo(Supabase.instance.client);
       final entries = await repo.listRecent(days: 60);
+      if (!mounted) return null;
       if (entries.isEmpty) return null;
       return showModalBottomSheet<_PickerResult>(
         context: context,
@@ -233,8 +244,11 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
       final repo = DecanReflectionRepo(Supabase.instance.client);
       final latest = await repo.getLatest();
       if (latest == null) return null;
-      return _PickerResult(latest.id, latest.decanName,
-          subtitle: latest.decanTheme ?? '');
+      return _PickerResult(
+        latest.id,
+        latest.decanName,
+        subtitle: latest.decanTheme ?? '',
+      );
     }
     return null;
   }
@@ -244,9 +258,7 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
       final node = KemeticNodeLibrary.resolve(link.targetId);
       if (node == null) return;
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => KemeticNodeReaderPage(node: node),
-        ),
+        MaterialPageRoute(builder: (_) => KemeticNodeReaderPage(node: node)),
       );
       return;
     }
@@ -259,7 +271,8 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
     } else {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => DecanReflectionDetailPage(reflectionId: link.targetId),
+          builder: (_) =>
+              DecanReflectionDetailPage(reflectionId: link.targetId),
         ),
       );
     }
@@ -291,8 +304,11 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
             const Spacer(),
             TextButton.icon(
               onPressed: () => setState(() => _editing = !_editing),
-              icon: Icon(_editing ? Icons.check : Icons.edit,
-                  color: KemeticGold.base, size: 18),
+              icon: Icon(
+                _editing ? Icons.check : Icons.edit,
+                color: KemeticGold.base,
+                size: 18,
+              ),
               label: Text(
                 _editing ? 'Done' : 'Edit',
                 style: const TextStyle(color: Colors.white),
@@ -336,17 +352,17 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
                                 l.selectedText.isNotEmpty
                                     ? l.selectedText
                                     : (l.targetType ==
-                                            InsightTargetType.journalEntry
-                                        ? 'Journal link'
-                                        : 'Reflection link'),
+                                              InsightTargetType.journalEntry
+                                          ? 'Journal link'
+                                          : 'Reflection link'),
                                 overflow: TextOverflow.ellipsis,
                               ),
                               deleteIcon: const Icon(Icons.close, size: 16),
                               onDeleted: () => _removeLink(l),
-                              backgroundColor:
-                                  Colors.white.withOpacity(0.08),
-                              labelStyle:
-                                  const TextStyle(color: Colors.white70),
+                              backgroundColor: Colors.white.withOpacity(0.08),
+                              labelStyle: const TextStyle(
+                                color: Colors.white70,
+                              ),
                             ),
                           )
                           .toList(),
@@ -360,18 +376,26 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
                   alignment: WrapAlignment.spaceBetween,
                   children: [
                     TextButton.icon(
-                      onPressed: () => _startLinkToEntry(
-                          InsightTargetType.journalEntry),
-                      icon: const Icon(Icons.book, color: Colors.white70, size: 18),
+                      onPressed: () =>
+                          _startLinkToEntry(InsightTargetType.journalEntry),
+                      icon: const Icon(
+                        Icons.book,
+                        color: Colors.white70,
+                        size: 18,
+                      ),
                       label: const Text(
                         'Link to Journal',
                         style: TextStyle(color: Colors.white),
                       ),
                     ),
                     TextButton.icon(
-                      onPressed: () => _startLinkToEntry(
-                          InsightTargetType.reflectionEntry),
-                      icon: const Icon(Icons.auto_awesome, color: Colors.white70, size: 18),
+                      onPressed: () =>
+                          _startLinkToEntry(InsightTargetType.reflectionEntry),
+                      icon: const Icon(
+                        Icons.auto_awesome,
+                        color: Colors.white70,
+                        size: 18,
+                      ),
                       label: const Text(
                         'Link to Reflection',
                         style: TextStyle(color: Colors.white),
@@ -402,10 +426,7 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
                 children: InsightLinkSpanBuilder.build(
                   text: _textCtrl.text,
                   links: _links,
-                  baseStyle: const TextStyle(
-                    color: Colors.white,
-                    height: 1.4,
-                  ),
+                  baseStyle: const TextStyle(color: Colors.white, height: 1.4),
                   onTap: _handleLinkTap,
                 ),
               ),

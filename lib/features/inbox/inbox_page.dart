@@ -1209,6 +1209,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
           height: 48,
           child: ElevatedButton(
             onPressed: () async {
+              final messenger = ScaffoldMessenger.maybeOf(context);
               final flowId = await Navigator.of(context).push<int>(
                 MaterialPageRoute(
                   builder: (_) => InboxFlowDetailsPage(item: widget.item),
@@ -1217,9 +1218,10 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
               if (!context.mounted) return;
               if (flowId != null) {
                 await _handleRefresh();
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('Flow imported')));
+                if (!mounted) return;
+                messenger?.showSnackBar(
+                  const SnackBar(content: Text('Flow imported')),
+                );
               }
             },
             style: ElevatedButton.styleFrom(

@@ -12185,6 +12185,7 @@ class _CalendarPageState extends State<CalendarPage>
                                             );
 
                                             // Close the current sheet if it is open (no reopen to avoid stale context crash)
+                                            if (!sheetCtx.mounted) return;
                                             if (Navigator.canPop(sheetCtx)) {
                                               Navigator.pop(sheetCtx);
                                             }
@@ -13055,6 +13056,7 @@ class _CalendarPageState extends State<CalendarPage>
                                     return; // Don't close sheet on error
                                   }
 
+                                  if (!sheetCtx.mounted) return;
                                   Navigator.pop(sheetCtx);
                                 },
                                 child: const Text('Save'),
@@ -13391,19 +13393,14 @@ class _CalendarPageState extends State<CalendarPage>
                                     color: null,
                                     alertMinutesBefore: _alertNoneMinutes,
                                   );
-                                  if (mounted) {
-                                    Navigator.pop(context);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Added "${parsed.title}"',
-                                        ),
-                                        backgroundColor: const Color(
-                                          0xFF1E1E1E,
-                                        ),
-                                      ),
-                                    );
-                                  }
+                                  if (!context.mounted) return;
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Added "${parsed.title}"'),
+                                      backgroundColor: const Color(0xFF1E1E1E),
+                                    ),
+                                  );
                                 } catch (e, st) {
                                   if (kDebugMode) {
                                     debugPrint(
@@ -13411,16 +13408,13 @@ class _CalendarPageState extends State<CalendarPage>
                                     );
                                     debugPrint('$st');
                                   }
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Failed to save note: $e',
-                                        ),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  }
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to save note: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
                                 }
                               },
                               child: const Text('Quick add'),
@@ -14183,7 +14177,7 @@ class _CalendarPageState extends State<CalendarPage>
               if (kDebugMode && kDebugStandaloneHydration) {
                 debugPrint(
                   '[_loadFromDisk] added standalone id=${evt.id} cid=${note.clientEventId ?? ''} '
-                  'key=$key start=${note.start?.format(context) ?? 'all-day'}',
+                  'key=$key start=${note.start == null ? 'all-day' : _formatTimeOfDay(note.start!)}',
                 );
               }
             }
@@ -16871,24 +16865,22 @@ class _CalendarPageState extends State<CalendarPage>
 
       await _markReflectionSeen(prompt.decanStart);
 
-      if (mounted) {
-        setState(() => _reflectionPrompt = null);
-        if (ctx != null && Navigator.of(ctx).canPop()) {
-          Navigator.of(ctx).pop();
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Reflection archived to your profile'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+      if (!mounted) return;
+      setState(() => _reflectionPrompt = null);
+      if (ctx != null && ctx.mounted && Navigator.of(ctx).canPop()) {
+        Navigator.of(ctx).pop();
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reflection archived to your profile'),
+          duration: Duration(seconds: 2),
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not archive reflection: $e')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not archive reflection: $e')),
+      );
     } finally {
       if (mounted) {
         setState(() => _archivingReflection = false);
@@ -18476,6 +18468,7 @@ class _DayChip extends StatelessWidget {
       await UserEventsRepo(
         Supabase.instance.client,
       ).setFlowSaved(flowId: flowId, isSaved: true);
+      if (!ctx.mounted) return;
       ScaffoldMessenger.of(ctx).showSnackBar(
         const SnackBar(
           content: Text('Saved to Saved Flows'),
@@ -18483,6 +18476,7 @@ class _DayChip extends StatelessWidget {
         ),
       );
     } catch (e) {
+      if (!ctx.mounted) return;
       ScaffoldMessenger.of(
         ctx,
       ).showSnackBar(SnackBar(content: Text('Unable to save flow: $e')));

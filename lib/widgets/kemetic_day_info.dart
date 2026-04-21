@@ -81,13 +81,15 @@ class KemeticDayData {
   static ({int kMonth, int kDay, int decan})? _parseDayKeyForDecan(
     String dayKey,
   ) {
+    final parsed = _parseDayKey(dayKey);
+    if (parsed == null || parsed.month == 13) return null;
+
     final parts = dayKey.split('_');
-    if (parts.length < 3) return null;
-    final month = getMonthByKey(parts[0])?.id;
-    final kDay = int.tryParse(parts[1]);
-    final decan = int.tryParse(parts[2]);
-    if (month == null || kDay == null || decan == null) return null;
-    return (kMonth: month, kDay: kDay, decan: decan);
+    final explicitDecan = parts.length >= 3 ? int.tryParse(parts[2]) : null;
+    final decan = explicitDecan ?? (((parsed.day - 1) ~/ 10) + 1);
+    if (decan < 1 || decan > 3) return null;
+
+    return (kMonth: parsed.month, kDay: parsed.day, decan: decan);
   }
 
   static String? resolveDecanNameFromKey(
@@ -21198,6 +21200,7 @@ class KemeticDayDropdown extends StatelessWidget {
   final String dayKey;
   final int kYear;
   static const List<String> _meduFontFallback = ['GentiumPlus'];
+  static const double _infoLineHeight = 1.35;
 
   const KemeticDayDropdown({
     super.key,
@@ -21213,6 +21216,7 @@ class KemeticDayDropdown extends StatelessWidget {
     final bool isEpagomenal =
         parsedKey?.month == 13 || dayKey.startsWith('epagomenal_');
     final int? epagomenalDay = isEpagomenal ? parsedKey?.day : null;
+    final parsedDecan = KemeticDayData._parseDayKeyForDecan(dayKey);
 
     final String monthLine = isEpagomenal
         ? (dayInfo.month.isNotEmpty
@@ -21221,9 +21225,12 @@ class KemeticDayDropdown extends StatelessWidget {
         : dayInfo.month;
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = screenWidth > 600 ? 500.0 : screenWidth * 0.85;
-    final resolvedDecanName =
-        KemeticDayData.resolveDecanNameFromKey(dayKey, expanded: true) ??
-        dayInfo.decanName;
+    final canonicalDecanName = KemeticDayData._canonicalDecanName(
+      dayKey,
+    ).trim();
+    final resolvedDecanName = canonicalDecanName.isNotEmpty
+        ? canonicalDecanName
+        : dayInfo.decanName.trim();
 
     final String decanLine = isEpagomenal
         ? (dayInfo.decanName.isNotEmpty
@@ -21238,7 +21245,6 @@ class KemeticDayDropdown extends StatelessWidget {
     );
 
     // Build speech lines (prefer curated speechName overrides when available)
-    final parsedDecan = KemeticDayData._parseDayKeyForDecan(dayKey);
     final monthId = parsedDecan?.kMonth;
     final KemeticMonth? monthMeta =
         (monthId != null && monthId >= 1 && monthId <= 13)
@@ -21481,10 +21487,12 @@ class KemeticDayDropdown extends StatelessWidget {
   TextStyle _goldTextStyle({
     double fontSize = 14,
     FontWeight fontWeight = FontWeight.bold,
+    double? height,
   }) {
     return TextStyle(
       fontSize: fontSize,
       fontWeight: fontWeight,
+      height: height,
       fontFamilyFallback: _meduFontFallback,
     );
   }
@@ -21493,13 +21501,18 @@ class KemeticDayDropdown extends StatelessWidget {
     String text, {
     double fontSize = 14,
     FontWeight fontWeight = FontWeight.bold,
+    double? height,
   }) {
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
       child: KemeticGold.text(
         text,
-        style: _goldTextStyle(fontSize: fontSize, fontWeight: fontWeight),
+        style: _goldTextStyle(
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          height: height,
+        ),
       ),
     );
   }
@@ -21508,14 +21521,20 @@ class KemeticDayDropdown extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: RichText(
+        strutStyle: const StrutStyle(
+          fontSize: 14,
+          height: _infoLineHeight,
+          forceStrutHeight: true,
+        ),
         text: TextSpan(
           style: const TextStyle(
             fontSize: 14,
             color: Color(0xFFCCCCCC),
+            height: _infoLineHeight,
             fontFamilyFallback: _meduFontFallback,
           ),
           children: [
-            _goldLabelSpan('$label '),
+            _goldLabelSpan('$label ', height: _infoLineHeight),
             TextSpan(text: value),
           ],
         ),
@@ -21546,23 +21565,27 @@ class KemeticDayDropdown extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: RichText(
+              strutStyle: const StrutStyle(
+                fontSize: 14,
+                height: _infoLineHeight,
+                forceStrutHeight: true,
+              ),
               text: TextSpan(
                 style: const TextStyle(
                   fontSize: 14,
                   color: Color(0xFFCCCCCC),
+                  height: _infoLineHeight,
                   fontFamilyFallback: _meduFontFallback,
                 ),
                 children: [
-                  _goldLabelSpan('$label '),
+                  _goldLabelSpan('$label ', height: _infoLineHeight),
                   TextSpan(text: value),
                 ],
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(width: 8),

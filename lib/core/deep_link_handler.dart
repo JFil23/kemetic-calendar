@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:app_links/app_links.dart';
@@ -16,7 +18,8 @@ class DeepLinkHandler {
   /// Initialize deep link handling
   static void initialize(BuildContext context) {
     _appLinks.uriLinkStream.listen((Uri uri) {
-      handleDeepLink(context, uri);
+      if (!context.mounted) return;
+      unawaited(handleDeepLink(context, uri));
     });
   }
 
@@ -26,7 +29,7 @@ class DeepLinkHandler {
       final initialUri = await _appLinks.getInitialLink();
       if (!context.mounted) return;
       if (initialUri != null) {
-        handleDeepLink(context, initialUri);
+        unawaited(handleDeepLink(context, initialUri));
       }
     } catch (e) {
       _log('[DeepLink] Error handling initial link: $e');

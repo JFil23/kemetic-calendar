@@ -26,6 +26,7 @@ import 'telemetry/telemetry.dart';
 import 'shared/glossy_text.dart';
 
 import 'utils/hive_local_storage_web.dart';
+import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
 import 'core/shared_file_intent.dart';
 import 'core/theme/app_theme.dart';
@@ -295,8 +296,15 @@ class Events {
       debugPrint('[events] skipped "$event" (no session)');
       return;
     }
-    await _repo.track(event: event, properties: props);
-    debugPrint('[events] inserted "$event" as ${s.user.id}');
+    try {
+      await _repo.track(event: event, properties: props);
+      debugPrint('[events] inserted "$event" as ${s.user.id}');
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[events] failed "$event": $e');
+        debugPrint('$st');
+      }
+    }
   }
 }
 
@@ -310,7 +318,7 @@ const Color _launchBackdrop = Color(0xFF171518);
 class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
   void _send(PageRoute<dynamic>? route) {
     final name = route?.settings.name ?? '/';
-    Events.trackIfAuthed('screen_view', {'route': name});
+    unawaited(Events.trackIfAuthed('screen_view', {'route': name}));
   }
 
   @override
@@ -575,6 +583,12 @@ class _AuthGateState extends State<AuthGate> {
     }
   }
 
+  void _logAuthGateError(String scope, Object error, StackTrace stackTrace) {
+    if (!kDebugMode) return;
+    debugPrint('[AuthGate] $scope failed: $error');
+    debugPrint('$stackTrace');
+  }
+
   CalendarSyncService? _calendarSync;
   StreamSubscription<Map<String, dynamic>>? _pushNavSub;
   final DecanReflectionScheduler _decanScheduler = DecanReflectionScheduler(
@@ -594,62 +608,20 @@ class _AuthGateState extends State<AuthGate> {
     _calendarSync = sharedCalendarSyncService(supabase);
 
     // React to auth changes (includes initialSession)
-    _authSub = supabase.auth.onAuthStateChange.listen((data) async {
-      if (mounted) setState(() {});
-      final ev = data.event;
-
-      if (ev == AuthChangeEvent.initialSession ||
-          ev == AuthChangeEvent.signedIn) {
-        Events.debugAuthBanner('onAuthStateChange:$ev');
-        await _ensureProfile(); // keep profiles hydrated with email
-        await UserEventsRepo.refreshTelemetrySettings(supabase);
-        await _logAppOpenOnce(); // one-shot per cold start
-        unawaited(_initNotificationsSafely());
-        final pushEnabled = await SettingsPrefs.realTimeAlertsEnabled();
-        if (pushEnabled) {
-          final push = PushNotifications.instance(supabase);
-          if (!kIsWeb) {
-            unawaited(
-              push.registerForUser().then((ok) {
-                if (!ok && kDebugMode) {
-                  debugPrint('[push] registerForUser failed');
-                }
-              }),
-            );
-          } else {
-            unawaited(
-              push.refreshRegistrationIfAuthorized().then((ok) {
-                if (!ok && kDebugMode) {
-                  debugPrint(
-                    '[push] web token refresh skipped or unavailable; waiting for manual enable/refresh',
-                  );
-                }
-              }),
-            );
-          }
-        } else if (kDebugMode) {
-          debugPrint('[push] registerForUser skipped (device push toggle off)');
-        }
-        _installPushNavigation();
-        _consumePendingWebPushIntent();
-        if (!_scheduledDecans) {
-          _scheduledDecans = true;
-          unawaited(_decanScheduler.ensureCurrentAndNextScheduled());
-        }
-        final autoCalendarSyncEnabled =
-            await SettingsPrefs.autoCalendarSyncEnabled();
-        if (autoCalendarSyncEnabled) {
-          unawaited(_calendarSync?.start());
-        } else {
-          _calendarSync?.stop();
-        }
-      }
-
-      if (ev == AuthChangeEvent.signedOut) {
-        _calendarSync?.stop();
-        unawaited(PushNotifications.instance(supabase).unregister());
-      }
-    });
+    _authSub = supabase.auth.onAuthStateChange.listen(
+      (data) {
+        unawaited(
+          runGuardedAsync(
+            'auth state change',
+            () => _handleAuthStateChange(data),
+            onError: _logAuthGateError,
+          ),
+        );
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _logAuthGateError('auth state stream', error, stackTrace);
+      },
+    );
 
     _initDeepLinksMobile(); // custom scheme for Android/iOS native builds
     _initSharingIntent(); // Initialize ICS file sharing
@@ -674,6 +646,83 @@ class _AuthGateState extends State<AuthGate> {
       'email': u.email,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }, onConflict: 'id');
+  }
+
+  Future<void> _handleAuthStateChange(AuthState data) async {
+    if (mounted) setState(() {});
+    final ev = data.event;
+
+    if (ev == AuthChangeEvent.initialSession ||
+        ev == AuthChangeEvent.signedIn) {
+      Events.debugAuthBanner('onAuthStateChange:$ev');
+      await _ensureProfile(); // keep profiles hydrated with email
+      await UserEventsRepo.refreshTelemetrySettings(supabase);
+      await _logAppOpenOnce(); // one-shot per cold start
+      fireAndForgetGuarded(
+        'notify init',
+        _initNotificationsSafely(),
+        onError: _logAuthGateError,
+      );
+      final pushEnabled = await SettingsPrefs.realTimeAlertsEnabled();
+      if (pushEnabled) {
+        final push = PushNotifications.instance(supabase);
+        if (!kIsWeb) {
+          fireAndForgetGuarded(
+            'push register',
+            push.registerForUser().then((ok) {
+              if (!ok && kDebugMode) {
+                debugPrint('[push] registerForUser failed');
+              }
+            }),
+            onError: _logAuthGateError,
+          );
+        } else {
+          fireAndForgetGuarded(
+            'push web refresh',
+            push.refreshRegistrationIfAuthorized().then((ok) {
+              if (!ok && kDebugMode) {
+                debugPrint(
+                  '[push] web token refresh skipped or unavailable; waiting for manual enable/refresh',
+                );
+              }
+            }),
+            onError: _logAuthGateError,
+          );
+        }
+      } else if (kDebugMode) {
+        debugPrint('[push] registerForUser skipped (device push toggle off)');
+      }
+      _installPushNavigation();
+      _consumePendingWebPushIntent();
+      if (!_scheduledDecans) {
+        _scheduledDecans = true;
+        fireAndForgetGuarded(
+          'decan schedule',
+          _decanScheduler.ensureCurrentAndNextScheduled(),
+          onError: _logAuthGateError,
+        );
+      }
+      final autoCalendarSyncEnabled =
+          await SettingsPrefs.autoCalendarSyncEnabled();
+      if (autoCalendarSyncEnabled) {
+        fireAndForgetGuarded(
+          'calendar sync start',
+          _calendarSync?.start(),
+          onError: _logAuthGateError,
+        );
+      } else {
+        _calendarSync?.stop();
+      }
+    }
+
+    if (ev == AuthChangeEvent.signedOut) {
+      _calendarSync?.stop();
+      fireAndForgetGuarded(
+        'push unregister',
+        PushNotifications.instance(supabase).unregister(),
+        onError: _logAuthGateError,
+      );
+    }
   }
 
   // -- Log app_open once per cold start after auth is present
@@ -738,14 +787,31 @@ class _AuthGateState extends State<AuthGate> {
         }
       }
       if (initialUri != null) {
-        await _handleIncomingAppLink(initialUri);
+        await runGuardedAsync(
+          'initial app link',
+          () => _handleIncomingAppLink(initialUri!),
+          onError: _logAuthGateError,
+        );
       }
-    } catch (_) {}
+    } catch (e, st) {
+      _logAuthGateError('initial app link setup', e, st);
+    }
 
     // While running
-    _linkSub = _appLinks!.uriLinkStream.listen((uri) async {
-      await _handleIncomingAppLink(uri);
-    }, onError: (_) {});
+    _linkSub = _appLinks!.uriLinkStream.listen(
+      (uri) {
+        unawaited(
+          runGuardedAsync(
+            'incoming app link',
+            () => _handleIncomingAppLink(uri),
+            onError: _logAuthGateError,
+          ),
+        );
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _logAuthGateError('app link stream', error, stackTrace);
+      },
+    );
   }
 
   Future<void> _handleIncomingAppLink(Uri uri) async {
@@ -815,22 +881,36 @@ class _AuthGateState extends State<AuthGate> {
     // Handle files shared while app is closed
     ReceiveSharingIntent.instance
         .getInitialMedia()
-        .then((List<SharedMediaFile> value) async {
-          await _handleIncomingSharedMedia(value, source: 'initial');
+        .then((List<SharedMediaFile> value) {
+          unawaited(
+            runGuardedAsync(
+              'initial shared media',
+              () => _handleIncomingSharedMedia(value, source: 'initial'),
+              onError: _logAuthGateError,
+            ),
+          );
         })
-        .catchError((error) {
+        .catchError((Object error, StackTrace stackTrace) {
           _logIcs('Error getting initial media: $error');
+          _logAuthGateError('initial shared media fetch', error, stackTrace);
         });
 
     // Handle files shared while app is open
     _intentDataStreamSubscription = ReceiveSharingIntent.instance
         .getMediaStream()
         .listen(
-          (List<SharedMediaFile> value) async {
-            await _handleIncomingSharedMedia(value, source: 'stream');
+          (List<SharedMediaFile> value) {
+            unawaited(
+              runGuardedAsync(
+                'stream shared media',
+                () => _handleIncomingSharedMedia(value, source: 'stream'),
+                onError: _logAuthGateError,
+              ),
+            );
           },
-          onError: (error) {
+          onError: (Object error, StackTrace stackTrace) {
             _logIcs('Error in media stream: $error');
+            _logAuthGateError('shared media stream', error, stackTrace);
           },
         );
   }
@@ -1164,8 +1244,23 @@ class _AuthGateState extends State<AuthGate> {
 
   void _installPushNavigation() {
     final push = PushNotifications.instance(supabase);
-    _pushNavSub ??= push.openedMessages.listen(_handlePushNavigation);
-    unawaited(push.emitInitialMessage());
+    _pushNavSub ??= push.openedMessages.listen(
+      (data) {
+        runGuardedSync(
+          'push navigation',
+          () => _handlePushNavigation(data),
+          onError: _logAuthGateError,
+        );
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _logAuthGateError('push navigation stream', error, stackTrace);
+      },
+    );
+    fireAndForgetGuarded(
+      'initial push message',
+      push.emitInitialMessage(),
+      onError: _logAuthGateError,
+    );
   }
 
   void _consumePendingWebPushIntent() {
@@ -1189,7 +1284,11 @@ class _AuthGateState extends State<AuthGate> {
     replaceUrlWithoutQuery();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _handlePushNavigation(data);
+      runGuardedSync(
+        'pending web push intent',
+        () => _handlePushNavigation(data),
+        onError: _logAuthGateError,
+      );
     });
   }
 

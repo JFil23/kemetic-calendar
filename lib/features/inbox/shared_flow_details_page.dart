@@ -1094,12 +1094,13 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
                             scheduledStartIso: scheduledStartIso,
                           ),
                         );
+                        if (!context.mounted) return;
                         Navigator.pop<int>(context, flowId);
                       } else {
                         setState(() => _isWorking = false);
                       }
                     } catch (e) {
-                      if (!mounted) return;
+                      if (!mounted || !context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Import failed: $e')),
                       );

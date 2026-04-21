@@ -427,7 +427,9 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                         ),
                                       );
 
-                                  if (importedFlowId != null && mounted) {
+                                  if (importedFlowId != null &&
+                                      mounted &&
+                                      context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
@@ -542,7 +544,9 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                               backgroundColor: Colors.red,
                                             ),
                                           );
-                                        } else if (ok && mounted) {
+                                        } else if (ok &&
+                                            mounted &&
+                                            context.mounted) {
                                           setState(() {
                                             _locallyDeleted.add(share.shareId);
                                           });

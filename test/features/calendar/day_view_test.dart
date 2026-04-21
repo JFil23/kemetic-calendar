@@ -173,6 +173,45 @@ void main() {
         expect(sharedEvent!.endMin, 14 * 60);
       },
     );
+
+    testWidgets(
+      'detail sheet survives source grid disposal and notifier rebuilds',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        final showGrid = ValueNotifier<bool>(true);
+        final dataVersion = ValueNotifier<int>(0);
+
+        addTearDown(() {
+          showGrid.dispose();
+          dataVersion.dispose();
+        });
+
+        await tester.pumpWidget(
+          _SheetPersistenceHarness(
+            showGrid: showGrid,
+            dataVersion: dataVersion,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Flow Block'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('End Flow'), findsOneWidget);
+
+        showGrid.value = false;
+        await tester.pump();
+
+        dataVersion.value++;
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.text('End Flow'), findsOneWidget);
+      },
+    );
   });
 }
 
@@ -292,6 +331,59 @@ class _MutableDayViewHarness extends StatelessWidget {
                 }
                 return target;
               },
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetPersistenceHarness extends StatelessWidget {
+  const _SheetPersistenceHarness({
+    required this.showGrid,
+    required this.dataVersion,
+  });
+
+  final ValueNotifier<bool> showGrid;
+  final ValueNotifier<int> dataVersion;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: ValueListenableBuilder<bool>(
+          valueListenable: showGrid,
+          builder: (context, isVisible, _) {
+            if (!isVisible) {
+              return const SizedBox.expand();
+            }
+
+            return DayViewGrid(
+              ky: 1,
+              km: 1,
+              kd: 1,
+              notes: [
+                _timedNote(
+                  title: 'Flow Block',
+                  startHour: 10,
+                  startMinute: 0,
+                  endHour: 11,
+                  endMinute: 0,
+                  flowId: 1,
+                ),
+              ],
+              dataVersion: dataVersion,
+              showGregorian: false,
+              flowIndex: const {
+                1: FlowData(
+                  id: 1,
+                  name: 'Practice',
+                  color: Colors.green,
+                  active: true,
+                ),
+              },
+              initialScrollOffset: 9 * 60,
             );
           },
         ),
