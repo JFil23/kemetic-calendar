@@ -9,12 +9,16 @@ import 'flow_post_engagement_row.dart';
 
 class FlowPostDetailPage extends StatefulWidget {
   final FlowPost post;
+  final List<FlowPost>? posts;
+  final int initialIndex;
   final bool isOwner;
   final bool openCommentsOnLoad;
 
   const FlowPostDetailPage({
     super.key,
     required this.post,
+    this.posts,
+    this.initialIndex = 0,
     required this.isOwner,
     this.openCommentsOnLoad = false,
   });
@@ -24,25 +28,52 @@ class FlowPostDetailPage extends StatefulWidget {
 }
 
 class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
-  static const double _footerReservedHeight = 164;
+  static const double _baseFooterReservedHeight = 164;
 
   final _repo = ProfileRepo(Supabase.instance.client);
+  late final List<FlowPost> _posts;
+  late final PageController _pageController;
+  late int _activeIndex;
   bool _saving = false;
   bool _removing = false;
 
+  FlowPost get _activePost => _posts[_activeIndex];
+  bool get _showsPager => _posts.length > 1;
+  double get _footerReservedHeight =>
+      _baseFooterReservedHeight + (_showsPager ? 34 : 0);
+
+  @override
+  void initState() {
+    super.initState();
+    _posts = widget.posts != null && widget.posts!.isNotEmpty
+        ? List<FlowPost>.unmodifiable(widget.posts!)
+        : <FlowPost>[widget.post];
+    _activeIndex = widget.initialIndex.clamp(0, _posts.length - 1);
+    _pageController = PageController(initialPage: _activeIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Map<String, dynamic> _payloadFor(FlowPost post) {
+    return post.payloadJson ??
+        {
+          'name': post.name,
+          'color': post.color,
+          'notes': post.notes,
+          'rules': post.rules,
+          'events': <dynamic>[],
+          'start_date': post.startDate?.toIso8601String(),
+          'end_date': post.endDate?.toIso8601String(),
+        };
+  }
+
   @override
   Widget build(BuildContext context) {
-    final payload =
-        widget.post.payloadJson ??
-        {
-          'name': widget.post.name,
-          'color': widget.post.color,
-          'notes': widget.post.notes,
-          'rules': widget.post.rules,
-          'events': <dynamic>[],
-          'start_date': widget.post.startDate?.toIso8601String(),
-          'end_date': widget.post.endDate?.toIso8601String(),
-        };
+    final post = _activePost;
 
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
@@ -50,10 +81,26 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
         children: [
           Positioned.fill(
             bottom: _footerReservedHeight,
-            child: SharedFlowDetailsPage(
-              payloadJson: payload,
-              showImportFooter: false,
-            ),
+            child: _showsPager
+                ? PageView.builder(
+                    controller: _pageController,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: _posts.length,
+                    onPageChanged: (index) {
+                      setState(() => _activeIndex = index);
+                    },
+                    itemBuilder: (context, index) {
+                      return SharedFlowDetailsPage(
+                        key: ValueKey(_posts[index].id),
+                        payloadJson: _payloadFor(_posts[index]),
+                        showImportFooter: false,
+                      );
+                    },
+                  )
+                : SharedFlowDetailsPage(
+                    payloadJson: _payloadFor(post),
+                    showImportFooter: false,
+                  ),
           ),
           SafeArea(
             minimum: const EdgeInsets.all(16),
@@ -62,6 +109,27 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (_showsPager) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        for (int i = 0; i < _posts.length; i++)
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            height: 8,
+                            width: _activeIndex == i ? 18 : 8,
+                            decoration: BoxDecoration(
+                              color: _activeIndex == i
+                                  ? KemeticGold.base
+                                  : Colors.white.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
@@ -76,7 +144,8 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
                       ),
                     ),
                     child: FlowPostEngagementRow(
-                      post: widget.post,
+                      key: ValueKey('detail_${post.id}'),
+                      post: post,
                       autoOpenComments: widget.openCommentsOnLoad,
                     ),
                   ),
@@ -141,7 +210,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    final flowId = await _repo.saveFlowPostToMyFlows(widget.post);
+    final flowId = await _repo.saveFlowPostToMyFlows(_activePost);
     if (!mounted) return;
     setState(() => _saving = false);
     if (flowId == null) {
@@ -163,7 +232,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
 
   Future<void> _remove() async {
     setState(() => _removing = true);
-    final ok = await _repo.deleteFlowPost(widget.post.id);
+    final ok = await _repo.deleteFlowPost(_activePost.id);
     if (!mounted) return;
     setState(() => _removing = false);
     if (!ok) {

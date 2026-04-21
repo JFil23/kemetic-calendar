@@ -3,6 +3,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/profile_model.dart';
@@ -39,12 +40,14 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final _repo = ProfileRepo(Supabase.instance.client);
+  late final PageController _postPageController;
   UserProfile? _profile;
   bool _loading = true;
   bool _isFollowing = false;
   bool _followUpdating = false;
   List<FlowPost> _posts = const [];
   bool _postsLoading = true;
+  int _activePostIndex = 0;
   bool _calendarRevealNavigationInFlight = false;
   double _calendarRevealSwipeAccum = 0.0;
 
@@ -57,7 +60,14 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
+    _postPageController = PageController(viewportFraction: 0.96);
     _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    _postPageController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadProfile({bool showSpinner = true}) async {
@@ -95,10 +105,28 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _postsLoading = true);
     final posts = await _repo.getFlowPosts(widget.userId);
     if (!mounted) return;
+    final activeIndex = _clampPostIndex(posts.length);
     setState(() {
       _posts = posts;
       _postsLoading = false;
+      _activePostIndex = activeIndex;
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || posts.isEmpty || !_postPageController.hasClients) return;
+      final currentPage = (_postPageController.page ?? activeIndex.toDouble())
+          .round();
+      if (currentPage != activeIndex) {
+        _postPageController.jumpToPage(activeIndex);
+      }
+    });
+  }
+
+  int _clampPostIndex(int length, [int? desired]) {
+    if (length == 0) return 0;
+    final target = desired ?? _activePostIndex;
+    if (target < 0) return 0;
+    if (target >= length) return length - 1;
+    return target;
   }
 
   void _showError(String message) {
@@ -130,13 +158,27 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _openCalendarMenu(BuildContext context) async {
     final calendarState = CalendarPage.globalKey.currentState;
     if (calendarState != null) {
-      await calendarState.showActionsMenuFromOutside(context);
+      await calendarState.showActionsMenuFromOutside(
+        context,
+        includeNewNote: false,
+      );
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Calendar actions are unavailable right now.'),
       ),
+    );
+  }
+
+  Future<void> _openCalendarQuickAdd() async {
+    final calendarState = CalendarPage.globalKey.currentState;
+    if (calendarState != null) {
+      await calendarState.openQuickAddFromOutside();
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('New note is unavailable right now.')),
     );
   }
 
@@ -150,6 +192,24 @@ class _ProfilePageState extends State<ProfilePage> {
     if (_isViewingOwnProfile) return;
 
     await _replaceWithProfile(userId);
+  }
+
+  void _goToCalendarToday() {
+    final calendarState = CalendarPage.globalKey.currentState;
+    if (calendarState != null) {
+      calendarState.jumpToTodayFromOutside();
+    }
+
+    final navigator = Navigator.of(context);
+    if (widget.openedFromCalendar && navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+
+    context.go('/');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      CalendarPage.globalKey.currentState?.jumpToTodayFromOutside();
+    });
   }
 
   @override
@@ -187,6 +247,18 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: 'New note',
+            icon: const GlossyIcon(icon: Icons.add, gradient: goldGloss),
+            onPressed: () {
+              unawaited(_openCalendarQuickAdd());
+            },
+          ),
+          IconButton(
+            tooltip: 'Today',
+            icon: const GlossyIcon(icon: Icons.today, gradient: goldGloss),
+            onPressed: _goToCalendarToday,
+          ),
           Builder(
             builder: (btnCtx) => IconButton(
               tooltip: 'Menu',
@@ -194,11 +266,12 @@ class _ProfilePageState extends State<ProfilePage> {
               onPressed: () => _openCalendarMenu(btnCtx),
             ),
           ),
-          IconButton(
-            tooltip: 'My Profile',
-            icon: const GlossyIcon(icon: Icons.person, gradient: goldGloss),
-            onPressed: _openMyProfileAction,
-          ),
+          if (!_isViewingOwnProfile)
+            IconButton(
+              tooltip: 'My Profile',
+              icon: const GlossyIcon(icon: Icons.person, gradient: goldGloss),
+              onPressed: _openMyProfileAction,
+            ),
         ],
       ),
       body: Stack(
@@ -763,134 +836,323 @@ class _ProfilePageState extends State<ProfilePage> {
       );
     }
 
+    final hasMultiplePosts = _posts.length > 1;
+    final pagerHeight = _postPagerHeight(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Posted Flows',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
+        Row(
+          children: [
+            const Text(
+              'Posted Flows',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const Spacer(),
+            if (hasMultiplePosts)
+              Text(
+                '${_activePostIndex + 1} / ${_posts.length}',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 12),
-        ..._posts.map(_buildPostCard),
+        if (!hasMultiplePosts)
+          _buildPostCard(_posts.first, onTap: () => _openPostDetails(0))
+        else ...[
+          SizedBox(
+            height: pagerHeight,
+            child: PageView.builder(
+              controller: _postPageController,
+              physics: const BouncingScrollPhysics(),
+              itemCount: _posts.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _activePostIndex = index;
+                });
+              },
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: _buildPostCard(
+                    _posts[index],
+                    onTap: () => _openPostDetails(index),
+                    inPager: true,
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (int i = 0; i < _posts.length; i++)
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 8,
+                  width: _activePostIndex == i ? 18 : 8,
+                  decoration: BoxDecoration(
+                    color: _activePostIndex == i
+                        ? KemeticGold.base
+                        : Colors.white.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Swipe left or right to browse posted flows.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.54),
+              fontSize: 12,
+            ),
+          ),
+        ],
       ],
     );
   }
 
-  Widget _buildPostCard(FlowPost post) {
+  double _postPagerHeight(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+
+    double height;
+    if (width < 360) {
+      height = 336;
+    } else if (width < 390) {
+      height = 320;
+    } else if (width < 430) {
+      height = 304;
+    } else {
+      height = 286;
+    }
+
+    if (textScale > 1.05) height += 18;
+    if (textScale > 1.15) height += 18;
+    return height;
+  }
+
+  Widget _buildPostCard(
+    FlowPost post, {
+    required VoidCallback onTap,
+    bool inPager = false,
+  }) {
     final title = cleanFlowTitle(post.name);
     final overview = cleanFlowOverview(post.notes);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+    final accent = Color(0xFF000000 | (post.color & 0x00FFFFFF));
+    final headerContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: accent.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: glossFromColor(post.color),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Posted Flow',
+                style: TextStyle(
+                  color: accent.withValues(alpha: 0.95),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        KemeticGold.text(
+          title.isEmpty ? 'Untitled Flow' : title,
+          maxLines: inPager ? 4 : 3,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            height: 1.12,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Icon(
+              Icons.schedule_outlined,
+              size: 16,
+              color: Colors.white.withValues(alpha: 0.42),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Posted ${_formatDate(post.createdAt)}',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.54),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        if (overview.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text(
+            overview,
+            maxLines: inPager ? 4 : 3,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.88),
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              height: 1.22,
+            ),
+          ),
+        ],
+      ],
+    );
+
+    final fixedActions = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 2, 18, 0),
+          child: FlowPostEngagementRow(post: post),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (_isViewingOwnProfile)
+                TextButton.icon(
+                  onPressed: () => _removePost(post.id),
+                  icon: const Icon(
+                    Icons.remove_circle_outline,
+                    color: Colors.redAccent,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Remove',
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                )
+              else
+                TextButton.icon(
+                  onPressed: () => _savePost(post),
+                  icon: KemeticGold.icon(Icons.bookmark_add_outlined),
+                  label: KemeticGold.text(
+                    'Save Flow',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              TextButton(
+                onPressed: onTap,
+                child: KemeticGold.text(
+                  'Open',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    final card = Container(
+      margin: EdgeInsets.only(bottom: inPager ? 0 : 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D0D0F),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: KemeticGold.base.withValues(alpha: 0.42)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 18,
+            spreadRadius: 1,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _openPostDetails(post),
+      child: Material(
+        color: Colors.transparent,
         child: Column(
+          mainAxisSize: inPager ? MainAxisSize.max : MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 14,
-                  height: 14,
-                  margin: const EdgeInsets.only(top: 4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: glossFromColor(post.color),
+            if (inPager)
+              Expanded(
+                child: InkWell(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(18),
+                  ),
+                  onTap: onTap,
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                    child: headerContent,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title.isEmpty ? 'Untitled Flow' : title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      if (overview.isNotEmpty)
-                        Text(
-                          overview,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.75),
-                            height: 1.3,
-                          ),
-                        ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Posted ${_formatDate(post.createdAt)}',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
+              )
+            else
+              InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: onTap,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                  child: headerContent,
                 ),
-                const Icon(Icons.chevron_right, color: Color(0xFFB0B0B0)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            FlowPostEngagementRow(post: post),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                if (_isViewingOwnProfile)
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.redAccent),
-                        foregroundColor: Colors.redAccent,
-                      ),
-                      onPressed: () => _removePost(post.id),
-                      child: const Text('Remove'),
-                    ),
-                  )
-                else
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: KemeticGold.base,
-                        foregroundColor: Colors.black,
-                      ),
-                      onPressed: () => _savePost(post),
-                      child: const Text('Save Flow'),
-                    ),
-                  ),
-              ],
-            ),
+              ),
+            fixedActions,
           ],
         ),
       ),
     );
+    if (!inPager) return card;
+    return SizedBox.expand(child: card);
   }
 
   String _formatDate(DateTime date) {
     return '${date.month}/${date.day}/${date.year}';
   }
 
-  Future<void> _openPostDetails(FlowPost post) async {
+  Future<void> _openPostDetails(int initialIndex) async {
+    final post = _posts[initialIndex];
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) =>
-            FlowPostDetailPage(post: post, isOwner: _isViewingOwnProfile),
+        builder: (_) => FlowPostDetailPage(
+          post: post,
+          posts: _posts,
+          initialIndex: initialIndex,
+          isOwner: _isViewingOwnProfile,
+        ),
       ),
     );
     if (changed == true) {

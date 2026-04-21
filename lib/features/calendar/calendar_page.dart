@@ -10003,6 +10003,9 @@ class _CalendarPageState extends State<CalendarPage>
 
   Future<void> openQuickAddFromOutside() => _openQuickAddSheet();
 
+  void jumpToTodayFromOutside({bool animate = true}) =>
+      _scrollToToday(animate: animate);
+
   Future<void> _openJournalFromAppBar() async {
     if (!_journalInitialized) {
       try {

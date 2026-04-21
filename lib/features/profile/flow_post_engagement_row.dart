@@ -41,6 +41,21 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
     _loadEngagement();
   }
 
+  @override
+  void didUpdateWidget(covariant FlowPostEngagementRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.post.id == widget.post.id) return;
+    _didAutoOpenComments = false;
+    _engagementUnavailable = false;
+    _likesLoading = true;
+    _likeUpdating = false;
+    _likesCount = 0;
+    _likedByMe = false;
+    _commentsLoading = true;
+    _comments = const [];
+    _loadEngagement();
+  }
+
   Future<void> _loadEngagement() async {
     try {
       await Future.wait([_loadLikes(), _loadComments()]);
