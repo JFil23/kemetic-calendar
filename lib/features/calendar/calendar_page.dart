@@ -56,6 +56,7 @@ import 'package:uuid/uuid.dart';
 import '../../data/reminders_repo.dart';
 import '../../utils/event_cid_util.dart';
 import '../../utils/detail_sanitizer.dart';
+import 'package:mobile/core/pinch_gesture_surface.dart';
 import 'package:mobile/core/touch_targets.dart';
 import '../journal/journal_event_badge.dart';
 import '../journal/journal_badge_utils.dart';
@@ -4265,6 +4266,7 @@ class _CalendarPageState extends State<CalendarPage>
   static const Duration _pinchUpdateThrottle = Duration(milliseconds: 16);
   Offset? _pinchAnchorPoint;
   (int, int)? _pinchAnchorMonth;
+  MonthExpansionLevel? _pinchStartLevel;
 
   // Journal controller and state
   late JournalController _journalController;
@@ -9503,8 +9505,7 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   void _maintainAnchorPoint() {
-    if (!_isPinching || _pinchAnchorMonth == null || _pinchAnchorPoint == null)
-      return;
+    if (_pinchAnchorMonth == null || _pinchAnchorPoint == null) return;
     if (!_scrollCtrl.hasClients) return;
 
     final (anchorKy, anchorKm) = _pinchAnchorMonth!;
@@ -9554,13 +9555,13 @@ class _CalendarPageState extends State<CalendarPage>
     });
   }
 
-  (int, int)? _findMonthAtPoint(Offset screenPoint) {
+  (int, int)? _findMonthAtPoint(Offset globalPoint) {
     if (!_scrollCtrl.hasClients) return null;
 
     final box = context.findRenderObject() as RenderBox?;
     if (box == null) return null;
 
-    final localPoint = box.globalToLocal(screenPoint);
+    final localPoint = box.globalToLocal(globalPoint);
 
     final baseKy = _lastViewKy ?? _today.kYear;
     final baseKm = _lastViewKm ?? _today.kMonth;
@@ -9598,18 +9599,21 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   void _onScaleStart(ScaleStartDetails details) {
+    if (details.pointerCount < 2) return;
     _scaleGestureAnchor = 1.0;
     _isPinching = true;
+    _lastPinchUpdate = null;
+    _pinchStartLevel = _monthExpansion;
     _pinchExpansionValue = _monthExpansion.index.toDouble();
     if (_scrollCtrl.hasClients) {
       _scrollOffsetBeforePinch = _scrollCtrl.position.pixels;
     }
-    _pinchAnchorPoint = details.localFocalPoint;
-    _pinchAnchorMonth = _findMonthAtPoint(details.localFocalPoint);
+    _pinchAnchorPoint = details.focalPoint;
+    _pinchAnchorMonth = _findMonthAtPoint(details.focalPoint);
   }
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
-    if (_scaleGestureAnchor == null) return;
+    if (_scaleGestureAnchor == null || details.pointerCount < 2) return;
 
     final now = DateTime.now();
     if (_lastPinchUpdate != null &&
@@ -9636,13 +9640,16 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   void _onScaleEnd(ScaleEndDetails details) {
-    _isPinching = false;
-    _scaleGestureAnchor = null;
+    if (_scaleGestureAnchor == null && !_isPinching) return;
 
+    final startLevel = _pinchStartLevel ?? _monthExpansion;
     final nearestLevel = _pinchExpansionValue.round().clamp(0, 2);
     final targetLevel = MonthExpansionLevel.values[nearestLevel];
     _setExpansionLevelSmooth(targetLevel, entryPoint: 'pinch');
     _pinchExpansionValue = targetLevel.index.toDouble();
+    _lastPinchUpdate = null;
+    _isPinching = false;
+    _scaleGestureAnchor = null;
 
     if (_pinchAnchorMonth != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -9651,13 +9658,19 @@ class _CalendarPageState extends State<CalendarPage>
         _pinchAnchorMonth = null;
         _scrollOffsetBeforePinch = null;
       });
+    } else {
+      _scrollOffsetBeforePinch = null;
     }
 
-    _persistExpansionLevel(targetLevel);
-    Events.trackIfAuthed('calendar_expansion_changed', {
-      'level': _expansionToString(targetLevel),
-      'entry_point': 'pinch',
-    });
+    if (targetLevel != startLevel) {
+      _persistExpansionLevel(targetLevel);
+      Events.trackIfAuthed('calendar_expansion_changed', {
+        'level': _expansionToString(targetLevel),
+        'entry_point': 'pinch',
+      });
+    }
+
+    _pinchStartLevel = null;
   }
 
   Color _noteColor(_Note note) {
@@ -16121,6 +16134,7 @@ class _CalendarPageState extends State<CalendarPage>
   Widget _buildBodyWithJournal() {
     final isPortrait =
         MediaQuery.of(context).orientation == Orientation.portrait;
+    final allowTouchPinchGestures = useExpandedTouchTargets(context);
     final allowGlobalScaleGestures = useGlobalScaleGestures(context);
     if (_portraitRecenterPending && isPortrait) {
       _ensurePortraitCentered();
@@ -16131,15 +16145,14 @@ class _CalendarPageState extends State<CalendarPage>
       child: _buildCalendarScrollView(),
     );
 
-    final content = allowGlobalScaleGestures
-        ? GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onScaleStart: _onScaleStart,
-            onScaleUpdate: _onScaleUpdate,
-            onScaleEnd: _onScaleEnd,
-            child: scrollView,
-          )
-        : scrollView;
+    final content = PinchGestureSurface(
+      enableTouchPinch: allowTouchPinchGestures,
+      enableGlobalScaleGestures: allowGlobalScaleGestures,
+      onScaleStart: _onScaleStart,
+      onScaleUpdate: _onScaleUpdate,
+      onScaleEnd: _onScaleEnd,
+      child: scrollView,
+    );
 
     return Stack(
       children: [
