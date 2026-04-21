@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/day_view.dart';
@@ -101,6 +102,31 @@ void main() {
         );
 
         expect(ancestorBoxes.any((box) => box.height == 182), isTrue);
+      },
+    );
+
+    testWidgets(
+      'new event preview stays single while crossing into the next hour',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        await tester.pumpWidget(const _DayViewHarness(notes: []));
+        await tester.pumpAndSettle();
+
+        final gesture = await tester.startGesture(const Offset(200, 450));
+        await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+
+        expect(find.text('New Event'), findsOneWidget);
+        expect(find.text('4:30 PM'), findsOneWidget);
+
+        await gesture.moveBy(const Offset(0, 45));
+        await tester.pump();
+
+        expect(find.text('New Event'), findsOneWidget);
+        expect(find.text('5:15 PM'), findsOneWidget);
+
+        await gesture.up();
+        await tester.pumpAndSettle();
       },
     );
   });

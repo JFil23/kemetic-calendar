@@ -25,6 +25,7 @@ import '../../utils/external_link_utils.dart';
 
 const double _kMinEventBlockHeight = 64.0; // was 32.0
 const Color _dayGold = KemeticGold.base;
+const String _kNewEventPreviewClientEventId = '__day_view_new_event_preview__';
 const TextStyle _goldHeaderStyle = TextStyle(
   fontSize: 17,
   fontWeight: FontWeight.w600,
@@ -1162,7 +1163,6 @@ class _DayViewGridState extends State<DayViewGrid> {
   List<PositionedEventBlock> _displayBlocks = const [];
   bool _hasScrolledToInitial = false; // Added for scroll persistence
   int? _tempDragStartMin; // minutes since midnight
-  int? _pressStartMin; // start minute when long press began
   bool _isDraggingEvent = false;
   int? _dragPreviewStartMin;
   EventItem? _dragPreviewEvent;
@@ -1499,44 +1499,77 @@ class _DayViewGridState extends State<DayViewGrid> {
   List<PositionedEventBlock> _buildDisplayBlocks(
     List<PositionedEventBlock> base,
   ) {
+    final preview = _buildCreationPreviewEvent();
     if (_dragPreviewEvent == null || _dragPreviewStartMin == null) {
-      return base;
+      if (preview == null) return base;
+      return [
+        ...base,
+        PositionedEventBlock(event: preview, leftOffset: 0, width: 0),
+      ];
     }
-    final preview = _dragPreviewEvent!;
+    final dragPreview = _dragPreviewEvent!;
     final int startMin = _dragPreviewStartMin!.clamp(0, 24 * 60 - 1).toInt();
-    final int duration = (preview.endMin - preview.startMin)
+    final int duration = (dragPreview.endMin - dragPreview.startMin)
         .clamp(15, 12 * 60)
         .toInt();
     final int endMin = (startMin + duration).clamp(0, 24 * 60 - 1).toInt();
 
     final filtered = base
-        .where((b) => !_eventsMatch(b.event, preview))
+        .where((b) => !_eventsMatch(b.event, dragPreview))
         .toList();
 
-    final ghostEvent = EventItem(
-      id: preview.id,
-      clientEventId: preview.clientEventId,
-      title: preview.title,
-      detail: preview.detail,
-      location: preview.location,
-      startMin: startMin,
-      endMin: endMin,
-      flowId: preview.flowId,
-      color: preview.color,
-      manualColor: preview.manualColor,
-      allDay: preview.allDay,
-      category: preview.category,
-      isReminder: preview.isReminder,
-      reminderId: preview.reminderId,
-    );
-
     filtered.add(
-      PositionedEventBlock(event: ghostEvent, leftOffset: 0, width: 0),
+      PositionedEventBlock(
+        event: EventItem(
+          id: dragPreview.id,
+          clientEventId: dragPreview.clientEventId,
+          title: dragPreview.title,
+          detail: dragPreview.detail,
+          location: dragPreview.location,
+          startMin: startMin,
+          endMin: endMin,
+          flowId: dragPreview.flowId,
+          color: dragPreview.color,
+          manualColor: dragPreview.manualColor,
+          allDay: dragPreview.allDay,
+          category: dragPreview.category,
+          isReminder: dragPreview.isReminder,
+          reminderId: dragPreview.reminderId,
+        ),
+        leftOffset: 0,
+        width: 0,
+      ),
     );
+    if (preview != null) {
+      filtered.add(
+        PositionedEventBlock(event: preview, leftOffset: 0, width: 0),
+      );
+    }
     return filtered;
   }
 
+  EventItem? _buildCreationPreviewEvent() {
+    final startMin = _tempDragStartMin;
+    if (startMin == null) return null;
+    return EventItem(
+      clientEventId: _kNewEventPreviewClientEventId,
+      title: 'New Event',
+      detail: null,
+      location: null,
+      startMin: startMin,
+      endMin: (startMin + 60).clamp(0, 24 * 60),
+      flowId: null,
+      color: _dayGold,
+      manualColor: null,
+      allDay: false,
+      category: null,
+    );
+  }
+
   bool _isPreviewBlock(PositionedEventBlock block) {
+    if (block.event.clientEventId == _kNewEventPreviewClientEventId) {
+      return true;
+    }
     if (_dragPreviewEvent == null || _dragPreviewStartMin == null) {
       return false;
     }
@@ -1553,10 +1586,10 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   List<Widget> _buildPreviewTimeChipForHour(int hour) {
-    if (_dragPreviewStartMin == null || _dragPreviewEvent == null) {
-      return const [];
-    }
-    final start = _dragPreviewStartMin!;
+    final start =
+        _tempDragStartMin ??
+        (_dragPreviewEvent != null ? _dragPreviewStartMin : null);
+    if (start == null) return const [];
     if (start < hour * 60 || start >= (hour + 1) * 60) return const [];
     final top = (start - hour * 60).clamp(0, 59).toDouble();
     return [
@@ -1878,15 +1911,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                     _scrollController.position.isScrollingNotifier.value) {
                   return;
                 }
-                // Small delay to avoid triggering during slight drags
-                Future.delayed(const Duration(milliseconds: 450), () {
-                  if (!mounted) return;
-                  if (_scrollController.hasClients &&
-                      _scrollController.position.isScrollingNotifier.value) {
-                    return;
-                  }
-                  _handleLongPressStart(hour, details.localPosition);
-                });
+                _handleLongPressStart(details);
               },
               onLongPressMoveUpdate: (details) {
                 if (_isDraggingEvent) return;
@@ -1961,9 +1986,6 @@ class _DayViewGridState extends State<DayViewGrid> {
 
           // Drag preview time chip (if active)
           ..._buildPreviewTimeChipForHour(hour),
-
-          // Temp drag block rendered above everything
-          ..._buildTempDragBlockForHour(hour),
         ],
       ),
     );
@@ -2062,36 +2084,64 @@ class _DayViewGridState extends State<DayViewGrid> {
     return widgets;
   }
 
-  void _handleLongPressStart(int hour, Offset localPosition) {
+  void _handleLongPressStart(LongPressStartDetails details) {
     if (_isDraggingEvent) return;
+    final snappedMinutes = _snappedMinuteFromGlobalOffset(
+      details.globalPosition,
+    );
+    if (snappedMinutes == null) return;
     HapticFeedback.mediumImpact();
-
-    final minutesIntoHour = (localPosition.dy / 60.0 * 60).round().clamp(0, 59);
-    final totalMinutes = (hour * 60) + minutesIntoHour;
-    final snappedMinutes = (totalMinutes / 15).round() * 15;
-
-    _pressStartMin = snappedMinutes.clamp(0, 24 * 60 - 1);
-    _tempDragStartMin = _pressStartMin;
-
-    setState(() {});
+    _tempDragStartMin = snappedMinutes;
+    if (mounted) setState(() {});
   }
 
   void _handleLongPressMove(LongPressMoveUpdateDetails details) {
     if (_isDraggingEvent) return;
-    if (_pressStartMin == null) return;
-    final deltaMinutes = (details.localOffsetFromOrigin.dy / 60.0 * 60).round();
-    final newStart = (_pressStartMin! + deltaMinutes).clamp(0, (24 * 60) - 1);
-    final snapped = (newStart / 15).round() * 15;
-    _tempDragStartMin = snapped;
-    setState(() {});
+    if (_tempDragStartMin == null) return;
+    final box = _findTimelineBox();
+    if (box == null) return;
+
+    bool shouldSetState = false;
+    final snapped = _snappedMinuteFromGlobalOffset(
+      details.globalPosition,
+      box: box,
+    );
+    if (snapped != null && snapped != _tempDragStartMin) {
+      _tempDragStartMin = snapped;
+      HapticFeedback.selectionClick();
+      shouldSetState = true;
+    }
+
+    final local = box.globalToLocal(details.globalPosition);
+    final scrolled = _maybeAutoScroll(box, local.dy);
+    if (scrolled) {
+      final rescanned = _snappedMinuteFromGlobalOffset(
+        details.globalPosition,
+        box: box,
+      );
+      if (rescanned != null && rescanned != _tempDragStartMin) {
+        _tempDragStartMin = rescanned;
+        HapticFeedback.selectionClick();
+      }
+      shouldSetState = true;
+    }
+
+    if (shouldSetState && mounted) {
+      setState(() {});
+    }
   }
 
   void _handleLongPressEnd() {
     if (_isDraggingEvent) return;
     final startMin = _tempDragStartMin;
-    _pressStartMin = null;
-    _tempDragStartMin = null;
     if (startMin == null) return;
+    if (mounted) {
+      setState(() {
+        _tempDragStartMin = null;
+      });
+    } else {
+      _tempDragStartMin = null;
+    }
 
     final endMin = (startMin + 60).clamp(0, 24 * 60);
     final startHour = (startMin ~/ 60) % 24;
@@ -2124,53 +2174,6 @@ class _DayViewGridState extends State<DayViewGrid> {
         allDay: false,
       );
     }
-  }
-
-  List<Widget> _buildTempDragBlockForHour(int hour) {
-    if (_tempDragStartMin == null) return const [];
-    final startMin = _tempDragStartMin!;
-    final endMin = (startMin + 60).clamp(0, 24 * 60);
-
-    // overlap with this hour
-    final hourStart = hour * 60;
-    final hourEnd = hourStart + 60;
-    final overlapStart = startMin.clamp(hourStart, hourEnd);
-    final overlapEnd = endMin.clamp(hourStart, hourEnd);
-    if (overlapEnd <= overlapStart) return const [];
-
-    final minutesIntoHour = overlapStart - hourStart;
-    final durationMinutes = (overlapEnd - overlapStart).clamp(5, 180);
-
-    return [
-      Positioned(
-        left: 60,
-        top: minutesIntoHour.toDouble(),
-        child: Container(
-          width: (MediaQuery.of(context).size.width - 100) / 3,
-          height: durationMinutes.toDouble().clamp(
-            _kMinEventBlockHeight,
-            180.0,
-          ),
-          margin: const EdgeInsets.only(right: 4, bottom: 2),
-          decoration: BoxDecoration(
-            color: _dayGold.withOpacity(0.2),
-            border: const Border(left: BorderSide(color: _dayGold, width: 3)),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          padding: const EdgeInsets.all(4),
-          child: const Text(
-            'New Event',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ),
-    ];
   }
 
   bool _isEventDraggable(EventItem event) {
