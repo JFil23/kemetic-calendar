@@ -12,10 +12,7 @@ void main() {
       final changes = <String>[];
 
       await tester.pumpWidget(
-        _KeyboardHarness(
-          controller: controller,
-          onChanged: changes.add,
-        ),
+        _KeyboardHarness(controller: controller, onChanged: changes.add),
       );
 
       await _openCustomKeyboard(tester);
@@ -40,10 +37,7 @@ void main() {
       });
 
       await tester.pumpWidget(
-        _KeyboardHarness(
-          controller: controller,
-          inputFormatters: [formatter],
-        ),
+        _KeyboardHarness(controller: controller, inputFormatters: [formatter]),
       );
 
       await _openCustomKeyboard(tester);
@@ -62,7 +56,10 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('kemetic-input')));
       await tester.pumpAndSettle();
 
-      controller.selection = const TextSelection(baseOffset: 1, extentOffset: 4);
+      controller.selection = const TextSelection(
+        baseOffset: 1,
+        extentOffset: 4,
+      );
       await tester.pump();
 
       await _pressToggle(tester);
@@ -73,25 +70,26 @@ void main() {
       expect(controller.selection, const TextSelection.collapsed(offset: 2));
     });
 
-    testWidgets('keeps the cursor offset aligned after scholarly normalization', (
-      tester,
-    ) async {
-      final controller = TextEditingController(text: 'sh');
+    testWidgets(
+      'keeps the cursor offset aligned after scholarly normalization',
+      (tester) async {
+        final controller = TextEditingController(text: 'sh');
 
-      await tester.pumpWidget(_KeyboardHarness(controller: controller));
-      await tester.tap(find.byKey(const ValueKey('kemetic-input')));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(_KeyboardHarness(controller: controller));
+        await tester.tap(find.byKey(const ValueKey('kemetic-input')));
+        await tester.pumpAndSettle();
 
-      controller.selection = const TextSelection.collapsed(offset: 2);
-      await tester.pump();
+        controller.selection = const TextSelection.collapsed(offset: 2);
+        await tester.pump();
 
-      await _pressToggle(tester);
-      await tester.pumpAndSettle();
-      await _tapKeyboardKey(tester, 'ꜣ');
+        await _pressToggle(tester);
+        await tester.pumpAndSettle();
+        await _tapKeyboardKey(tester, 'ꜣ');
 
-      expect(controller.text, 'šꜣ');
-      expect(controller.selection, const TextSelection.collapsed(offset: 2));
-    });
+        expect(controller.text, 'šꜣ');
+        expect(controller.selection, const TextSelection.collapsed(offset: 2));
+      },
+    );
 
     testWidgets('does not offer the custom keyboard for read only fields', (
       tester,
@@ -114,7 +112,79 @@ void main() {
 
       expect(opacity.opacity, 0);
       expect(ignorePointer.ignoring, isTrue);
-      expect(find.byKey(const ValueKey('kemetic-keyboard-panel')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('kemetic-keyboard-panel')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('moves the cursor left and right from the custom keyboard', (
+      tester,
+    ) async {
+      final controller = TextEditingController(text: 'maat');
+
+      await tester.pumpWidget(_KeyboardHarness(controller: controller));
+      await _openCustomKeyboard(tester);
+
+      controller.selection = const TextSelection.collapsed(offset: 4);
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('kemetic-action-left')));
+      await tester.pumpAndSettle();
+      expect(controller.selection, const TextSelection.collapsed(offset: 3));
+
+      await tester.tap(find.byKey(const ValueKey('kemetic-action-right')));
+      await tester.pumpAndSettle();
+      expect(controller.selection, const TextSelection.collapsed(offset: 4));
+    });
+
+    testWidgets('moves the cursor to the start and end of the field', (
+      tester,
+    ) async {
+      final controller = TextEditingController(text: 'maat');
+
+      await tester.pumpWidget(_KeyboardHarness(controller: controller));
+      await _openCustomKeyboard(tester);
+
+      controller.selection = const TextSelection.collapsed(offset: 2);
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('kemetic-action-start')));
+      await tester.pumpAndSettle();
+      expect(controller.selection, const TextSelection.collapsed(offset: 0));
+
+      await tester.tap(find.byKey(const ValueKey('kemetic-action-end')));
+      await tester.pumpAndSettle();
+      expect(controller.selection, const TextSelection.collapsed(offset: 4));
+    });
+
+    testWidgets('collapses expanded selections when navigating', (
+      tester,
+    ) async {
+      final controller = TextEditingController(text: 'maat');
+
+      await tester.pumpWidget(_KeyboardHarness(controller: controller));
+      await _openCustomKeyboard(tester);
+
+      controller.selection = const TextSelection(
+        baseOffset: 1,
+        extentOffset: 4,
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('kemetic-action-left')));
+      await tester.pumpAndSettle();
+      expect(controller.selection, const TextSelection.collapsed(offset: 1));
+
+      controller.selection = const TextSelection(
+        baseOffset: 1,
+        extentOffset: 4,
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('kemetic-action-right')));
+      await tester.pumpAndSettle();
+      expect(controller.selection, const TextSelection.collapsed(offset: 4));
     });
   });
 }

@@ -115,6 +115,55 @@ class KemeticKeyboardController extends ChangeNotifier {
       mode,
     );
 
+    _applyEditingValue(target, newValue);
+  }
+
+  void moveCaretHorizontally(int delta) {
+    final target = _selectUsableEditable();
+    if (target == null || delta == 0) return;
+
+    final currentValue = target.widget.controller.value;
+    final selection = currentValue.selection;
+    final textLength = currentValue.text.length;
+
+    final int targetOffset;
+    if (!selection.isValid) {
+      targetOffset = delta < 0 ? 0 : textLength;
+    } else if (!selection.isCollapsed) {
+      targetOffset = delta < 0
+          ? min(selection.start, selection.end)
+          : max(selection.start, selection.end);
+    } else {
+      targetOffset = (selection.extentOffset + delta)
+          .clamp(0, textLength)
+          .toInt();
+    }
+
+    _applyEditingValue(
+      target,
+      currentValue.copyWith(
+        selection: TextSelection.collapsed(offset: targetOffset),
+        composing: TextRange.empty,
+      ),
+    );
+  }
+
+  void moveCaretToBoundary({required bool toStart}) {
+    final target = _selectUsableEditable();
+    if (target == null) return;
+
+    final currentValue = target.widget.controller.value;
+    final targetOffset = toStart ? 0 : currentValue.text.length;
+    _applyEditingValue(
+      target,
+      currentValue.copyWith(
+        selection: TextSelection.collapsed(offset: targetOffset),
+        composing: TextRange.empty,
+      ),
+    );
+  }
+
+  void _applyEditingValue(EditableTextState target, TextEditingValue newValue) {
     // Route edits through EditableText so input formatters, listeners, and
     // selection handling behave like real keyboard input.
     target.userUpdateTextEditingValue(newValue, SelectionChangedCause.keyboard);
@@ -567,6 +616,46 @@ class _KeyboardPanelState extends State<_KeyboardPanel> {
                         ],
                       ),
                       const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const ClampingScrollPhysics(),
+                        child: Row(
+                          children: [
+                            _KeyboardActionButton(
+                              key: const ValueKey('kemetic-action-start'),
+                              icon: Icons.first_page_rounded,
+                              tooltip: 'Move cursor to start',
+                              onPressed: () => widget.controller
+                                  .moveCaretToBoundary(toStart: true),
+                            ),
+                            const SizedBox(width: 8),
+                            _KeyboardActionButton(
+                              key: const ValueKey('kemetic-action-left'),
+                              icon: Icons.arrow_left_rounded,
+                              tooltip: 'Move cursor left',
+                              onPressed: () =>
+                                  widget.controller.moveCaretHorizontally(-1),
+                            ),
+                            const SizedBox(width: 8),
+                            _KeyboardActionButton(
+                              key: const ValueKey('kemetic-action-right'),
+                              icon: Icons.arrow_right_rounded,
+                              tooltip: 'Move cursor right',
+                              onPressed: () =>
+                                  widget.controller.moveCaretHorizontally(1),
+                            ),
+                            const SizedBox(width: 8),
+                            _KeyboardActionButton(
+                              key: const ValueKey('kemetic-action-end'),
+                              icon: Icons.last_page_rounded,
+                              tooltip: 'Move cursor to end',
+                              onPressed: () => widget.controller
+                                  .moveCaretToBoundary(toStart: false),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       Expanded(
                         child: _UniliteralLayout(
                           key: const ValueKey('uniliteral'),
@@ -695,6 +784,36 @@ class _PhonogramKey extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _KeyboardActionButton extends StatelessWidget {
+  const _KeyboardActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    super.key,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(10),
+          child: SizedBox(width: 44, height: 40, child: Icon(icon, size: 20)),
         ),
       ),
     );

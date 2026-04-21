@@ -855,15 +855,28 @@ class RichTextEditorState extends State<RichTextEditor> {
     final showReadOnly = widget.readOnly || _badgeExpanded;
 
     if (!showReadOnly) {
+      final savedSelection = _savedSelection;
+      final savedTextScrollOffset = _savedTextScrollOffset;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_savedSelection != null &&
-            _controller.selection != _savedSelection) {
-          _controller.selection = _savedSelection!;
+        if (!mounted) return;
+        if (savedSelection != null) {
+          final textLength = _controller.text.length;
+          final restoredSelection = TextSelection(
+            baseOffset: savedSelection.baseOffset.clamp(0, textLength).toInt(),
+            extentOffset: savedSelection.extentOffset
+                .clamp(0, textLength)
+                .toInt(),
+            affinity: savedSelection.affinity,
+            isDirectional: savedSelection.isDirectional,
+          );
+          if (_controller.selection != restoredSelection) {
+            _controller.selection = restoredSelection;
+          }
+          _savedSelection = null;
         }
-        if (_savedTextScrollOffset != null &&
-            _textScrollController.hasClients) {
+        if (savedTextScrollOffset != null && _textScrollController.hasClients) {
           final max = _textScrollController.position.maxScrollExtent;
-          final target = _savedTextScrollOffset!.clamp(0, max).toDouble();
+          final target = savedTextScrollOffset.clamp(0, max).toDouble();
           _textScrollController.jumpTo(target);
           _savedTextScrollOffset = null;
         }
