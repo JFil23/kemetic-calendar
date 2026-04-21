@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -17060,6 +17061,239 @@ class _CalendarPageState extends State<CalendarPage>
     return index;
   }
 
+  FlowData? _flowDataForId(int? flowId) {
+    if (flowId == null) return null;
+    for (final flow in _flows) {
+      if (flow.id != flowId) continue;
+      return FlowData(
+        id: flow.id,
+        name: flow.name,
+        color: flow.color,
+        active: flow.active,
+      );
+    }
+    return null;
+  }
+
+  EventItem _calendarSheetEventItemFromNote(_Note note) {
+    final startMin = note.allDay
+        ? 9 * 60
+        : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
+    final endMin = note.allDay
+        ? 17 * 60
+        : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
+
+    return EventItem(
+      id: note.id,
+      clientEventId: note.clientEventId,
+      title: note.title,
+      detail: note.detail,
+      location: note.location,
+      startMin: startMin,
+      endMin: endMin,
+      flowId: note.flowId,
+      color: _noteColor(note),
+      manualColor: note.manualColor,
+      allDay: note.allDay,
+      category: note.category,
+      isReminder: note.isReminder,
+      reminderId: note.reminderId,
+    );
+  }
+
+  List<_Note> _dedupeCalendarSheetNotes(List<_Note> notes) {
+    if (notes.isEmpty) return notes;
+
+    final seen = <String, _Note>{};
+
+    for (final note in notes) {
+      final flowKey = note.flowId?.toString() ?? 'NO_FLOW';
+
+      String startKey;
+      String endKey;
+
+      if (note.allDay) {
+        startKey = 'ALLDAY';
+        endKey = 'ALLDAY';
+      } else if (note.start != null && note.end != null) {
+        startKey = '${note.start!.hour * 60 + note.start!.minute}';
+        endKey = '${note.end!.hour * 60 + note.end!.minute}';
+      } else {
+        startKey = 'NO_START';
+        endKey = 'NO_END';
+      }
+
+      final titleKey = note.title.trim().toLowerCase();
+      final key = '$flowKey|$startKey|$endKey|$titleKey';
+
+      if (!seen.containsKey(key)) {
+        seen[key] = note;
+        continue;
+      }
+
+      final existing = seen[key]!;
+      bool hasIdentity(_Note candidate) =>
+          (candidate.id != null && candidate.id!.trim().isNotEmpty) ||
+          (candidate.clientEventId != null &&
+              candidate.clientEventId!.trim().isNotEmpty);
+
+      if (!hasIdentity(existing) && hasIdentity(note)) {
+        seen[key] = note;
+      }
+    }
+
+    return seen.values.toList();
+  }
+
+  String _calendarSheetEventIdentityKey(EventItem event) {
+    final id = event.id?.trim();
+    if (id != null && id.isNotEmpty) return 'id:$id';
+
+    final clientEventId = event.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      return 'cid:$clientEventId';
+    }
+
+    final reminderId = event.reminderId?.trim();
+    if (reminderId != null && reminderId.isNotEmpty) {
+      return 'rid:$reminderId';
+    }
+
+    return [
+      event.title.trim().toLowerCase(),
+      event.startMin,
+      event.endMin,
+      event.flowId ?? '',
+      event.location?.trim().toLowerCase() ?? '',
+      event.detail?.trim().toLowerCase() ?? '',
+      event.allDay,
+      event.isReminder,
+    ].join('|');
+  }
+
+  bool _calendarSheetEventsShareStableIdentity(EventItem a, EventItem b) {
+    final aId = a.id?.trim();
+    final bId = b.id?.trim();
+    if (aId != null && aId.isNotEmpty && bId != null && bId.isNotEmpty) {
+      return aId == bId;
+    }
+
+    final aClientId = a.clientEventId?.trim();
+    final bClientId = b.clientEventId?.trim();
+    if (aClientId != null &&
+        aClientId.isNotEmpty &&
+        bClientId != null &&
+        bClientId.isNotEmpty) {
+      return aClientId == bClientId;
+    }
+
+    final aReminderId = a.reminderId?.trim();
+    final bReminderId = b.reminderId?.trim();
+    if (aReminderId != null &&
+        aReminderId.isNotEmpty &&
+        bReminderId != null &&
+        bReminderId.isNotEmpty) {
+      return aReminderId == bReminderId;
+    }
+
+    return _calendarSheetEventIdentityKey(a) ==
+        _calendarSheetEventIdentityKey(b);
+  }
+
+  int _compareCalendarSheetEventItems(EventItem a, EventItem b) {
+    final startCmp = a.startMin.compareTo(b.startMin);
+    if (startCmp != 0) return startCmp;
+
+    final endCmp = a.endMin.compareTo(b.endMin);
+    if (endCmp != 0) return endCmp;
+
+    return _calendarSheetEventIdentityKey(
+      a,
+    ).compareTo(_calendarSheetEventIdentityKey(b));
+  }
+
+  List<EventItem> _calendarSheetEventsForDay(int ky, int km, int kd) {
+    final notes = _dedupeCalendarSheetNotes(_getNotes(ky, km, kd));
+    final events = [
+      for (final note in notes) _calendarSheetEventItemFromNote(note),
+    ];
+    events.sort(_compareCalendarSheetEventItems);
+    return events;
+  }
+
+  DayViewSheetEventTarget? _resolveCalendarAdjacentEventTarget({
+    required int ky,
+    required int km,
+    required int kd,
+    required EventItem event,
+    required bool forward,
+  }) {
+    final currentEvents = _calendarSheetEventsForDay(ky, km, kd);
+    final currentIndex = currentEvents.indexWhere(
+      (candidate) => _calendarSheetEventsShareStableIdentity(candidate, event),
+    );
+
+    if (currentIndex >= 0) {
+      final sameDayIndex = forward ? currentIndex + 1 : currentIndex - 1;
+      if (sameDayIndex >= 0 && sameDayIndex < currentEvents.length) {
+        return DayViewSheetEventTarget(
+          ky: ky,
+          km: km,
+          kd: kd,
+          event: currentEvents[sameDayIndex],
+        );
+      }
+    }
+
+    final currentGregorian = KemeticMath.toGregorian(ky, km, kd);
+    final direction = forward ? 1 : -1;
+    for (int offset = 1; offset <= 366; offset++) {
+      final nextGregorian = currentGregorian.add(
+        Duration(days: direction * offset),
+      );
+      final nextKemetic = KemeticMath.fromGregorian(nextGregorian);
+      final nextDayEvents = _calendarSheetEventsForDay(
+        nextKemetic.kYear,
+        nextKemetic.kMonth,
+        nextKemetic.kDay,
+      );
+      if (nextDayEvents.isEmpty) continue;
+      return DayViewSheetEventTarget(
+        ky: nextKemetic.kYear,
+        km: nextKemetic.kMonth,
+        kd: nextKemetic.kDay,
+        event: forward ? nextDayEvents.first : nextDayEvents.last,
+      );
+    }
+
+    return null;
+  }
+
+  DayViewSheetEventTarget _resolveCalendarCurrentEventTarget(
+    DayViewSheetEventTarget target,
+  ) {
+    final currentEvents = _calendarSheetEventsForDay(
+      target.ky,
+      target.km,
+      target.kd,
+    );
+    if (currentEvents.isEmpty) return target;
+
+    for (final candidate in currentEvents) {
+      if (!_calendarSheetEventsShareStableIdentity(candidate, target.event)) {
+        continue;
+      }
+      return DayViewSheetEventTarget(
+        ky: target.ky,
+        km: target.km,
+        kd: target.kd,
+        event: candidate,
+      );
+    }
+
+    return target;
+  }
+
   @visibleForTesting
   int filteredNoteCountForDay(int kYear, int kMonth, int kDay) {
     // Unified logic: all views read from _notes (which is the canonical source).
@@ -18375,18 +18609,193 @@ class _DayChip extends StatelessWidget {
     );
   }
 
-  String _formatTimeRange(TimeOfDay start, TimeOfDay? end, bool allDay) {
-    if (allDay) return 'All day';
-    String fmt(TimeOfDay t) {
-      final h = t.hour;
-      final m = t.minute;
-      final period = h >= 12 ? 'PM' : 'AM';
-      final h12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-      return '$h12:${m.toString().padLeft(2, '0')} $period';
+  void _showEventDetailFromNote(BuildContext context, _Note note) {
+    final state = CalendarPage.globalKey.currentState;
+    final initialTarget = DayViewSheetEventTarget(
+      ky: kYear,
+      km: kMonth,
+      kd: kDay,
+      event: _noteToEventItem(note),
+    );
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF000000),
+      isScrollControlled: true,
+      builder: (_) => _MainCalendarEventDetailSheet(
+        hostContext: context,
+        initialTarget: initialTarget,
+        flowResolver: state?._flowDataForId,
+        resolveCurrentEventTarget: state?._resolveCalendarCurrentEventTarget,
+        resolveAdjacentEventTarget: state?._resolveCalendarAdjacentEventTarget,
+        onManageFlows: onManageFlows,
+        onEditNote: onEditNote,
+        onDeleteNote: onDeleteNote,
+        onShareNote: onShareNote,
+        onEditReminder: onEditReminder,
+        onEndReminder: onEndReminder,
+        onShareReminder: onShareReminder,
+        onEndFlow: onEndFlow,
+        onAppendToJournal: onAppendToJournal,
+      ),
+    );
+  }
+}
+
+class _MainCalendarEventDetailSheet extends StatefulWidget {
+  const _MainCalendarEventDetailSheet({
+    required this.hostContext,
+    required this.initialTarget,
+    this.flowResolver,
+    this.resolveCurrentEventTarget,
+    this.resolveAdjacentEventTarget,
+    this.onManageFlows,
+    this.onEditNote,
+    this.onDeleteNote,
+    this.onShareNote,
+    this.onEditReminder,
+    this.onEndReminder,
+    this.onShareReminder,
+    this.onEndFlow,
+    this.onAppendToJournal,
+  });
+
+  final BuildContext hostContext;
+  final DayViewSheetEventTarget initialTarget;
+  final FlowData? Function(int? flowId)? flowResolver;
+  final DayViewSheetEventTarget Function(DayViewSheetEventTarget target)?
+  resolveCurrentEventTarget;
+  final DayViewSheetEventTarget? Function({
+    required int ky,
+    required int km,
+    required int kd,
+    required EventItem event,
+    required bool forward,
+  })?
+  resolveAdjacentEventTarget;
+  final void Function(int?)? onManageFlows;
+  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
+  onEditNote;
+  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
+  onDeleteNote;
+  final Future<void> Function(EventItem event)? onShareNote;
+  final Future<void> Function(String reminderId)? onEditReminder;
+  final Future<void> Function(String reminderId)? onEndReminder;
+  final Future<void> Function(EventItem event)? onShareReminder;
+  final void Function(int flowId)? onEndFlow;
+  final Future<void> Function(String text)? onAppendToJournal;
+
+  @override
+  State<_MainCalendarEventDetailSheet> createState() =>
+      _MainCalendarEventDetailSheetState();
+}
+
+class _MainCalendarEventDetailSheetState
+    extends State<_MainCalendarEventDetailSheet> {
+  static const TextStyle _actionTextStyle = TextStyle(
+    fontSize: 17,
+    fontWeight: FontWeight.w600,
+    fontFamily: 'GentiumPlus',
+    fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+  );
+
+  late DayViewSheetEventTarget _currentTarget;
+  late PageController _pageController;
+  Map<String, double> _measuredHeights = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _currentTarget =
+        widget.resolveCurrentEventTarget?.call(widget.initialTarget) ??
+        widget.initialTarget;
+    final initialPages = _detailSheetPagesForTarget(_currentTarget);
+    _pageController = PageController(initialPage: initialPages.currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  String _sheetEventIdentityKey(EventItem event) {
+    final id = event.id?.trim();
+    if (id != null && id.isNotEmpty) return 'id:$id';
+
+    final clientEventId = event.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      return 'cid:$clientEventId';
     }
 
-    if (end == null) return fmt(start);
-    return '${fmt(start)} – ${fmt(end)}';
+    final reminderId = event.reminderId?.trim();
+    if (reminderId != null && reminderId.isNotEmpty) {
+      return 'rid:$reminderId';
+    }
+
+    return [
+      event.title.trim().toLowerCase(),
+      event.startMin,
+      event.endMin,
+      event.flowId ?? '',
+      event.location?.trim().toLowerCase() ?? '',
+      event.detail?.trim().toLowerCase() ?? '',
+      event.allDay,
+      event.isReminder,
+    ].join('|');
+  }
+
+  String _detailSheetTargetKey(DayViewSheetEventTarget target) =>
+      '${target.ky}:${target.km}:${target.kd}:${_sheetEventIdentityKey(target.event)}';
+
+  ({List<DayViewSheetEventTarget> pages, int currentIndex})
+  _detailSheetPagesForTarget(DayViewSheetEventTarget target) {
+    final previous = widget.resolveAdjacentEventTarget?.call(
+      ky: target.ky,
+      km: target.km,
+      kd: target.kd,
+      event: target.event,
+      forward: false,
+    );
+    final next = widget.resolveAdjacentEventTarget?.call(
+      ky: target.ky,
+      km: target.km,
+      kd: target.kd,
+      event: target.event,
+      forward: true,
+    );
+
+    final pages = <DayViewSheetEventTarget>[
+      if (previous != null) previous,
+      target,
+      if (next != null) next,
+    ];
+    return (pages: pages, currentIndex: previous != null ? 1 : 0);
+  }
+
+  void _updateMeasuredHeight(String key, double height) {
+    final normalized = height.ceilToDouble();
+    if (normalized <= 0) return;
+    final previous = _measuredHeights[key];
+    if (previous != null && (previous - normalized).abs() < 1) return;
+    setState(() {
+      _measuredHeights = Map<String, double>.from(_measuredHeights)
+        ..[key] = normalized;
+    });
+  }
+
+  void _resetPageController(int initialPage) {
+    final previous = _pageController;
+    _pageController = PageController(initialPage: initialPage);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      previous.dispose();
+    });
+  }
+
+  void _moveToTarget(DayViewSheetEventTarget nextTarget) {
+    setState(() {
+      _currentTarget = nextTarget;
+    });
   }
 
   String _cleanDetail(String? raw) {
@@ -18412,7 +18821,24 @@ class _DayChip extends StatelessWidget {
     return _stripCidLines(detail).trim();
   }
 
-  ButtonStyle _endButtonStyle(BuildContext context) {
+  String _formatTimeRange(int startMin, int endMin, {bool allDay = false}) {
+    if (allDay) return 'All day';
+    final startHour = startMin ~/ 60;
+    final startMinute = startMin % 60;
+    final endHour = endMin ~/ 60;
+    final endMinute = endMin % 60;
+
+    String formatTime(int hour, int minute) {
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+      return '$hour12:${minute.toString().padLeft(2, '0')} $period';
+    }
+
+    if (startMin == endMin) return formatTime(startHour, startMinute);
+    return '${formatTime(startHour, startMinute)} – ${formatTime(endHour, endMinute)}';
+  }
+
+  ButtonStyle _endActionStyle(BuildContext context) {
     return withExpandedTouchTargets(
       context,
       OutlinedButton.styleFrom(
@@ -18426,31 +18852,223 @@ class _DayChip extends StatelessWidget {
     );
   }
 
-  Widget _buildEndFlowButton(BuildContext ctx, int? flowId) {
-    final enabled = onEndFlow != null && flowId != null;
+  Future<void> _saveFlow(int flowId) async {
+    final messenger = ScaffoldMessenger.maybeOf(widget.hostContext);
+    try {
+      await UserEventsRepo(
+        Supabase.instance.client,
+      ).setFlowSaved(flowId: flowId, isSaved: true);
+      if (!mounted) return;
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('Saved to Saved Flows'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger?.showSnackBar(
+        SnackBar(content: Text('Unable to save flow: $e')),
+      );
+    }
+  }
+
+  Future<void> _handleAddToJournal(
+    EventItem event, {
+    required BuildContext sheetContext,
+  }) async {
+    final cb = widget.onAppendToJournal;
+    if (cb == null) return;
+    Navigator.pop(sheetContext);
+    final detail = _cleanDetail(event.detail);
+    final text = '${event.title}${detail.isNotEmpty ? '\n\n$detail' : ''}';
+    await cb(text);
+  }
+
+  Widget _buildEventDetailSheetPage({
+    required DayViewSheetEventTarget target,
+    bool scrollable = true,
+  }) {
+    final currentEvent = target.event;
+    final flow = widget.flowResolver?.call(currentEvent.flowId);
+    final isReminder = currentEvent.isReminder;
+    final detail = _cleanDetail(currentEvent.detail);
+    final isNutrition = detail.contains('Source:');
+
+    Widget? metaChip;
+    if (flow != null) {
+      metaChip = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: flow.color.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          flow.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12,
+            color: flow.color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    } else if (isReminder) {
+      metaChip = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: KemeticGold.base.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: KemeticGold.text(
+          'Reminder',
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      );
+    } else if (isNutrition) {
+      metaChip = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: KemeticGold.base.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            KemeticGold.icon(Icons.local_drink, size: 14),
+            const SizedBox(width: 4),
+            KemeticGold.text(
+              'Nutrition',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final body = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (metaChip != null) metaChip,
+        if (metaChip != null) const SizedBox(height: 12),
+        KemeticGold.text(
+          currentEvent.title,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            const Icon(Icons.access_time, size: 16, color: Color(0xFF808080)),
+            const SizedBox(width: 8),
+            Text(
+              _formatTimeRange(
+                currentEvent.startMin,
+                currentEvent.endMin,
+                allDay: currentEvent.allDay,
+              ),
+              style: const TextStyle(color: Color(0xFF808080)),
+            ),
+          ],
+        ),
+        if (currentEvent.location != null &&
+            currentEvent.location!.trim().isNotEmpty) ...[
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () =>
+                _launchExternalPreviewTarget(currentEvent.location!.trim()),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.location_on,
+                  size: 16,
+                  color: Color(0xFF808080),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    currentEvent.location!.trim(),
+                    style: const TextStyle(
+                      color: Color(0xFF808080),
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (detail.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 14, color: Colors.white),
+              children: _buildExternalLinkSpans(detail),
+            ),
+          ),
+        ],
+      ],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: _gold.withOpacity(0.4)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.45),
+              blurRadius: 18,
+              spreadRadius: 1,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: scrollable
+            ? SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: body,
+              )
+            : body,
+      ),
+    );
+  }
+
+  Widget _buildEndFlowButton(BuildContext context, int flowId) {
     return OutlinedButton.icon(
-      style: _endButtonStyle(ctx),
-      onPressed: enabled
-          ? () {
-              Navigator.pop(ctx);
-              if (flowId != null) {
-                onEndFlow?.call(flowId);
-              }
-            }
-          : null,
+      style: _endActionStyle(context),
+      onPressed: () {
+        Navigator.pop(context);
+        widget.onEndFlow?.call(flowId);
+      },
       icon: const Icon(Icons.stop_circle),
       label: const Text('End Flow'),
     );
   }
 
-  Widget _buildEndNoteButton(BuildContext ctx, EventItem event) {
-    final enabled = onDeleteNote != null;
+  Widget _buildEndNoteButton(
+    BuildContext context,
+    DayViewSheetEventTarget target,
+  ) {
+    final enabled = widget.onDeleteNote != null;
     return OutlinedButton.icon(
-      style: _endButtonStyle(ctx),
+      style: _endActionStyle(context),
       onPressed: enabled
           ? () async {
-              Navigator.pop(ctx);
-              await onDeleteNote!(kYear, kMonth, kDay, event);
+              Navigator.pop(context);
+              await widget.onDeleteNote!(
+                target.ky,
+                target.km,
+                target.kd,
+                target.event,
+              );
             }
           : null,
       icon: const Icon(Icons.delete_outline),
@@ -18458,17 +19076,15 @@ class _DayChip extends StatelessWidget {
     );
   }
 
-  Widget _buildEndReminderButton(BuildContext ctx, EventItem event) {
-    final enabled = onEndReminder != null && event.reminderId != null;
+  Widget _buildEndReminderButton(BuildContext context, EventItem event) {
+    final reminderId = event.reminderId;
+    final enabled = widget.onEndReminder != null && reminderId != null;
     return OutlinedButton.icon(
-      style: _endButtonStyle(ctx),
+      style: _endActionStyle(context),
       onPressed: enabled
           ? () async {
-              Navigator.pop(ctx);
-              final reminderId = event.reminderId;
-              if (reminderId != null) {
-                await onEndReminder?.call(reminderId);
-              }
+              Navigator.pop(context);
+              await widget.onEndReminder!(reminderId!);
             }
           : null,
       icon: const Icon(Icons.stop_circle),
@@ -18476,398 +19092,430 @@ class _DayChip extends StatelessWidget {
     );
   }
 
-  Future<void> _saveFlow(BuildContext ctx, int flowId) async {
-    try {
-      await UserEventsRepo(
-        Supabase.instance.client,
-      ).setFlowSaved(flowId: flowId, isSaved: true);
-      if (!ctx.mounted) return;
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(
-          content: Text('Saved to Saved Flows'),
-          duration: Duration(seconds: 2),
+  Widget _buildEventDetailTopActionRow({
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    final currentEvent = target.event;
+    final flowId = currentEvent.flowId;
+    final isReminder = currentEvent.isReminder;
+
+    return Row(
+      children: [
+        const Spacer(),
+        if (flowId != null)
+          _buildEndFlowButton(sheetContext, flowId)
+        else if (isReminder)
+          _buildEndReminderButton(sheetContext, currentEvent)
+        else if (widget.onDeleteNote != null)
+          _buildEndNoteButton(sheetContext, target),
+        const SizedBox(width: 8),
+        _buildEventDetailOverflowButton(
+          sheetContext: sheetContext,
+          target: target,
         ),
-      );
-    } catch (e) {
-      if (!ctx.mounted) return;
-      ScaffoldMessenger.of(
-        ctx,
-      ).showSnackBar(SnackBar(content: Text('Unable to save flow: $e')));
-    }
+      ],
+    );
   }
 
-  void _showEventDetailFromNote(BuildContext context, _Note note) {
-    final event = _noteToEventItem(note);
-    final flowName = flowNameGetter?.call(note);
-    final flowColor = noteColorResolver(note);
-    final detail = _cleanDetail(note.detail);
+  Widget _buildEventDetailPrimaryAction({
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    final currentEvent = target.event;
+    final flowId = currentEvent.flowId;
+    final isReminder = currentEvent.isReminder;
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.black,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+    if (flowId != null) {
+      final enabled = widget.onManageFlows != null;
+      return TextButton.icon(
+        onPressed: enabled
+            ? () {
+                Navigator.pop(sheetContext);
+                widget.onManageFlows!(flowId);
+              }
+            : null,
+        icon: enabled
+            ? KemeticGold.icon(Icons.view_timeline)
+            : const Icon(Icons.view_timeline, color: Color(0xFF404040)),
+        label: enabled
+            ? KemeticGold.text(
+                'Manage Flows',
+                style: _actionTextStyle.copyWith(fontSize: 15),
+              )
+            : const Text(
+                'Manage Flows',
+                style: TextStyle(color: Color(0xFF404040)),
+              ),
+      );
+    }
+
+    if (isReminder) {
+      final enabled =
+          widget.onEditReminder != null && currentEvent.reminderId != null;
+      return TextButton.icon(
+        onPressed: enabled
+            ? () async {
+                Navigator.pop(sheetContext);
+                await widget.onEditReminder!(currentEvent.reminderId!);
+              }
+            : null,
+        icon: enabled
+            ? KemeticGold.icon(Icons.notifications_active_outlined)
+            : const Icon(
+                Icons.notifications_active_outlined,
+                color: Color(0xFF404040),
+              ),
+        label: enabled
+            ? KemeticGold.text(
+                'Reminder',
+                style: _actionTextStyle.copyWith(fontSize: 15),
+              )
+            : const Text(
+                'Reminder',
+                style: TextStyle(color: Color(0xFF404040)),
+              ),
+      );
+    }
+
+    final enabled = widget.onEditNote != null;
+    return TextButton.icon(
+      onPressed: enabled
+          ? () async {
+              Navigator.pop(sheetContext);
+              await widget.onEditNote!(
+                target.ky,
+                target.km,
+                target.kd,
+                currentEvent,
+              );
+            }
+          : null,
+      icon: enabled
+          ? KemeticGold.icon(Icons.note_alt_outlined)
+          : const Icon(Icons.note_alt_outlined, color: Color(0xFF404040)),
+      label: enabled
+          ? KemeticGold.text(
+              'Note',
+              style: _actionTextStyle.copyWith(fontSize: 15),
+            )
+          : const Text('Note', style: TextStyle(color: Color(0xFF404040))),
+    );
+  }
+
+  Widget _buildEventDetailOverflowButton({
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    final currentEvent = target.event;
+    final flowId = currentEvent.flowId;
+    final isReminder = currentEvent.isReminder;
+    final hasFlow = flowId != null;
+
+    return PopupMenuButton<String>(
+      icon: KemeticGold.icon(Icons.more_vert),
+      tooltip: 'Event options',
+      color: const Color(0xFF000000),
+      onSelected: (value) async {
+        if (value == 'journal') {
+          await _handleAddToJournal(currentEvent, sheetContext: sheetContext);
+        } else if (value == 'edit' &&
+            flowId != null &&
+            widget.onManageFlows != null) {
+          Navigator.pop(sheetContext);
+          widget.onManageFlows!(flowId);
+        } else if (value == 'invite_people') {
+          Navigator.pop(sheetContext);
+          if (isReminder && widget.onShareReminder != null) {
+            await widget.onShareReminder!(currentEvent);
+          } else if (widget.onShareNote != null) {
+            await widget.onShareNote!(currentEvent);
+          }
+        } else if (value == 'save' && flowId != null) {
+          Navigator.pop(sheetContext);
+          await _saveFlow(flowId);
+        } else if (value == 'edit_reminder' &&
+            isReminder &&
+            currentEvent.reminderId != null &&
+            widget.onEditReminder != null) {
+          Navigator.pop(sheetContext);
+          await widget.onEditReminder!(currentEvent.reminderId!);
+        } else if (value == 'edit_note' &&
+            !hasFlow &&
+            !isReminder &&
+            widget.onEditNote != null) {
+          Navigator.pop(sheetContext);
+          await widget.onEditNote!(
+            target.ky,
+            target.km,
+            target.kd,
+            currentEvent,
+          );
+        }
+      },
+      itemBuilder: (context) => [
+        if (widget.onAppendToJournal != null)
+          PopupMenuItem(
+            value: 'journal',
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    if (flowName != null && flowName.isNotEmpty)
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: flowColor.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            flowName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            softWrap: false,
-                            style: TextStyle(
-                              color: flowColor,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      )
-                    else if (note.isReminder)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: KemeticGold.base.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          'Reminder',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: KemeticGold.base,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      )
-                    else if (detail.contains('Source:'))
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: KemeticGold.base.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.local_drink,
-                              size: 14,
-                              color: KemeticGold.base,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Nutrition',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: KemeticGold.base,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    const Spacer(),
-                    if (flowName != null &&
-                        flowName.isNotEmpty &&
-                        note.flowId != null)
-                      _buildEndFlowButton(ctx, note.flowId)
-                    else if (note.isReminder)
-                      _buildEndReminderButton(ctx, event)
-                    else if (onDeleteNote != null)
-                      _buildEndNoteButton(ctx, event),
-                    const SizedBox(width: 8),
-                    PopupMenuButton<String>(
-                      icon: const Icon(
-                        Icons.more_vert,
-                        color: KemeticGold.base,
-                      ),
-                      tooltip: 'Event options',
-                      color: Colors.black,
-                      onSelected: (value) async {
-                        if (value == 'journal' && onAppendToJournal != null) {
-                          Navigator.pop(ctx);
-                          final text =
-                              '${event.title}${detail.isNotEmpty ? '\n\n$detail' : ''}';
-                          await onAppendToJournal!(text);
-                        } else if (value == 'edit_flow' &&
-                            note.flowId != null &&
-                            onManageFlows != null) {
-                          Navigator.pop(ctx);
-                          onManageFlows!(note.flowId);
-                        } else if (value == 'invite_people') {
-                          Navigator.pop(ctx);
-                          if (note.isReminder && onShareReminder != null) {
-                            await onShareReminder!(event);
-                          } else if (onShareNote != null) {
-                            await onShareNote!(event);
-                          }
-                        } else if (value == 'save_flow' &&
-                            note.flowId != null) {
-                          Navigator.pop(ctx);
-                          await _saveFlow(context, note.flowId!);
-                        } else if (value == 'edit_reminder' &&
-                            note.isReminder &&
-                            event.reminderId != null &&
-                            onEditReminder != null) {
-                          Navigator.pop(ctx);
-                          await onEditReminder!(event.reminderId!);
-                        } else if (value == 'edit_note' &&
-                            !note.isReminder &&
-                            note.flowId == null &&
-                            onEditNote != null) {
-                          Navigator.pop(ctx);
-                          await onEditNote!(kYear, kMonth, kDay, event);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        if (onAppendToJournal != null)
-                          PopupMenuItem(
-                            value: 'journal',
-                            child: Row(
-                              children: [
-                                KemeticGold.icon(Icons.check_circle),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Done / Add to journal',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (note.flowId != null && !note.isReminder)
-                          PopupMenuItem(
-                            value: 'edit_flow',
-                            child: Row(
-                              children: [
-                                KemeticGold.icon(Icons.edit),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Edit Flow',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (note.flowId != null &&
-                            !note.isReminder &&
-                            onShareNote != null)
-                          PopupMenuItem(
-                            value: 'invite_people',
-                            child: Row(
-                              children: [
-                                KemeticGold.icon(Icons.person_add_alt_1),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Invite People',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (note.flowId != null && !note.isReminder)
-                          PopupMenuItem(
-                            value: 'save_flow',
-                            child: Row(
-                              children: [
-                                KemeticGold.icon(Icons.bookmark_add),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Save Flow',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (note.isReminder &&
-                            onEditReminder != null &&
-                            event.reminderId != null)
-                          PopupMenuItem(
-                            value: 'edit_reminder',
-                            child: Row(
-                              children: [
-                                KemeticGold.icon(Icons.edit),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Edit Reminder',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (note.isReminder && onShareReminder != null)
-                          PopupMenuItem(
-                            value: 'invite_people',
-                            child: Row(
-                              children: [
-                                KemeticGold.icon(Icons.person_add_alt_1),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Invite People',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (!note.isReminder &&
-                            note.flowId == null &&
-                            onEditNote != null)
-                          PopupMenuItem(
-                            value: 'edit_note',
-                            child: Row(
-                              children: [
-                                KemeticGold.icon(Icons.edit),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Edit Note',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (!note.isReminder &&
-                            note.flowId == null &&
-                            onShareNote != null)
-                          PopupMenuItem(
-                            value: 'invite_people',
-                            child: Row(
-                              children: [
-                                KemeticGold.icon(Icons.person_add_alt_1),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Invite People',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  event.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _formatTimeRange(
-                    note.start ?? const TimeOfDay(hour: 9, minute: 0),
-                    note.end,
-                    note.allDay,
-                  ),
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-                if (event.location != null &&
-                    event.location!.trim().isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () =>
-                        _launchExternalPreviewTarget(event.location!.trim()),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.location_on,
-                          size: 14,
-                          color: Colors.white54,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            event.location!.trim(),
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                if (detail.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        height: 1.3,
-                      ),
-                      children: _buildExternalLinkSpans(detail),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton.icon(
-                      onPressed: onManageFlows == null
-                          ? null
-                          : () {
-                              Navigator.pop(ctx);
-                              onManageFlows!(null);
-                            },
-                      icon: Icon(
-                        Icons.view_timeline,
-                        color: onManageFlows == null
-                            ? const Color(0xFF404040)
-                            : const Color(0xFFFFC145),
-                      ),
-                      label: Text(
-                        'Manage Flows',
-                        style: TextStyle(
-                          color: onManageFlows == null
-                              ? const Color(0xFF404040)
-                              : const Color(0xFFFFC145),
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text(
-                        'Close',
-                        style: TextStyle(color: Color(0xFFFFC145)),
-                      ),
-                    ),
-                  ],
+                KemeticGold.icon(Icons.library_add_check),
+                const SizedBox(width: 12),
+                const Text(
+                  'Add to journal',
+                  style: TextStyle(color: Colors.white),
                 ),
               ],
             ),
           ),
-        );
-      },
+        if (hasFlow && !isReminder && widget.onManageFlows != null)
+          PopupMenuItem(
+            value: 'edit',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text('Edit Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (hasFlow && !isReminder && widget.onShareNote != null)
+          PopupMenuItem(
+            value: 'invite_people',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.person_add_alt_1),
+                const SizedBox(width: 12),
+                const Text(
+                  'Invite People',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (hasFlow && !isReminder)
+          PopupMenuItem(
+            value: 'save',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.bookmark_add),
+                const SizedBox(width: 12),
+                const Text('Save Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (isReminder &&
+            widget.onEditReminder != null &&
+            currentEvent.reminderId != null)
+          PopupMenuItem(
+            value: 'edit_reminder',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text(
+                  'Edit Reminder',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (isReminder && widget.onShareReminder != null)
+          PopupMenuItem(
+            value: 'invite_people',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.person_add_alt_1),
+                const SizedBox(width: 12),
+                const Text(
+                  'Invite People',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (!hasFlow && !isReminder && widget.onEditNote != null)
+          PopupMenuItem(
+            value: 'edit_note',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text('Edit Note', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (!hasFlow && !isReminder && widget.onShareNote != null)
+          PopupMenuItem(
+            value: 'invite_people',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.person_add_alt_1),
+                const SizedBox(width: 12),
+                const Text(
+                  'Invite People',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
+  }
+
+  Widget _buildEventDetailBottomActionRow({
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildEventDetailPrimaryAction(
+          sheetContext: sheetContext,
+          target: target,
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(sheetContext),
+          child: KemeticGold.text(
+            'Close',
+            style: _actionTextStyle.copyWith(fontSize: 15),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final target =
+        widget.resolveCurrentEventTarget?.call(_currentTarget) ??
+        _currentTarget;
+    final pages = _detailSheetPagesForTarget(target);
+    final currentKey = _detailSheetTargetKey(target);
+    final pageViewKey = ValueKey<String>(
+      '$currentKey:${pages.currentIndex}:${pages.pages.length}',
+    );
+    final maxSheetHeight = math.min(
+      MediaQuery.sizeOf(context).height * 0.72,
+      560.0,
+    );
+    final sheetHeight = (_measuredHeights[currentKey] ?? 200.0)
+        .clamp(0.0, math.max(180.0, maxSheetHeight - 112.0))
+        .toDouble();
+
+    return SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Offstage(
+            child: Column(
+              children: [
+                for (final pageTarget in pages.pages)
+                  _MeasureSize(
+                    onChange: (size) {
+                      _updateMeasuredHeight(
+                        _detailSheetTargetKey(pageTarget),
+                        size.height,
+                      );
+                    },
+                    child: SizedBox(
+                      width: MediaQuery.sizeOf(context).width,
+                      child: _buildEventDetailSheetPage(
+                        target: pageTarget,
+                        scrollable: false,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildEventDetailTopActionRow(
+                  sheetContext: context,
+                  target: target,
+                ),
+                const SizedBox(height: 10),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.bottomCenter,
+                  child: SizedBox(
+                    height: sheetHeight,
+                    child: PageView.builder(
+                      key: pageViewKey,
+                      controller: _pageController,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: pages.pages.length,
+                      onPageChanged: (index) {
+                        if (index == pages.currentIndex) return;
+                        final nextTarget = pages.pages[index];
+                        final nextPages = _detailSheetPagesForTarget(
+                          nextTarget,
+                        );
+                        _resetPageController(nextPages.currentIndex);
+                        _moveToTarget(nextTarget);
+                      },
+                      itemBuilder: (context, index) {
+                        return _buildEventDetailSheetPage(
+                          target: pages.pages[index],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _buildEventDetailBottomActionRow(
+                  sheetContext: context,
+                  target: target,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MeasureSize extends SingleChildRenderObjectWidget {
+  const _MeasureSize({required this.onChange, required super.child});
+
+  final ValueChanged<Size> onChange;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _MeasureSizeRenderObject(onChange);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _MeasureSizeRenderObject renderObject,
+  ) {
+    renderObject.onChange = onChange;
+  }
+}
+
+class _MeasureSizeRenderObject extends RenderProxyBox {
+  _MeasureSizeRenderObject(this.onChange);
+
+  ValueChanged<Size> onChange;
+  Size? _oldSize;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final newSize = child?.size;
+    if (newSize == null || newSize == _oldSize) return;
+    _oldSize = newSize;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      onChange(newSize);
+    });
   }
 }
 
