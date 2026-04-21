@@ -30,6 +30,7 @@ class KemeticDayViewHeader extends StatelessWidget {
     this.onSelectDay,
     this.onClose,
     this.onJumpToToday,
+    this.onOpenQuickAdd,
     this.onShowActionsMenu,
     this.onOpenProfile,
   });
@@ -44,6 +45,7 @@ class KemeticDayViewHeader extends StatelessWidget {
   final ValueChanged<int>? onSelectDay;
   final VoidCallback? onClose;
   final VoidCallback? onJumpToToday;
+  final Future<void> Function(BuildContext context)? onOpenQuickAdd;
   final Future<void> Function(BuildContext context)? onShowActionsMenu;
   final Future<void> Function(BuildContext context)? onOpenProfile;
 
@@ -89,6 +91,20 @@ class KemeticDayViewHeader extends StatelessWidget {
                     onPressed: onClose ?? () {},
                   ),
                   Expanded(child: _DayViewMonthLabel(monthName: monthName)),
+                  if (onOpenQuickAdd != null)
+                    Builder(
+                      builder: (btnCtx) => IconButton(
+                        tooltip: 'New note',
+                        icon: const GlossyIcon(
+                          icon: Icons.add,
+                          gradient: goldGloss,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        onPressed: () async {
+                          await onOpenQuickAdd!(btnCtx);
+                        },
+                      ),
+                    ),
                   IconButton(
                     tooltip: 'Today',
                     icon: const GlossyIcon(

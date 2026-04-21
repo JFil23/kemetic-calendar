@@ -924,13 +924,29 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   Future<void> _openCalendarMenu(BuildContext context) async {
     final calendarState = CalendarPage.globalKey.currentState;
     if (calendarState != null) {
-      await calendarState.showActionsMenuFromOutside(context);
+      await calendarState.showActionsMenuFromOutside(
+        context,
+        includeNewNote: false,
+      );
       return;
     }
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Menu is unavailable right now.')),
+    );
+  }
+
+  Future<void> _openCalendarQuickAdd() async {
+    final calendarState = CalendarPage.globalKey.currentState;
+    if (calendarState != null) {
+      await calendarState.openQuickAddFromOutside();
+      return;
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('New note is unavailable right now.')),
     );
   }
 
@@ -3200,6 +3216,13 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         ),
       ),
       actions: [
+        IconButton(
+          tooltip: 'New note',
+          icon: const GlossyIcon(icon: Icons.add, gradient: goldGloss),
+          onPressed: () {
+            unawaited(_openCalendarQuickAdd());
+          },
+        ),
         IconButton(
           tooltip: 'Today',
           icon: const GlossyIcon(icon: Icons.today, gradient: goldGloss),

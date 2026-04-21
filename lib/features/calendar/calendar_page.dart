@@ -9769,6 +9769,7 @@ class _CalendarPageState extends State<CalendarPage>
     BuildContext context,
     Rect anchorRect, {
     bool hasUnreadInbox = false,
+    bool includeNewNote = true,
   }) {
     return [
       _CalendarAction(
@@ -9826,16 +9827,20 @@ class _CalendarPageState extends State<CalendarPage>
         label: 'Flow Studio',
         onSelected: () => _getFlowStudioCallback()(null),
       ),
-      _CalendarAction(
-        icon: Icons.add,
-        gradient: goldGloss,
-        label: 'New note',
-        onSelected: _openQuickAddSheet,
-      ),
+      if (includeNewNote)
+        _CalendarAction(
+          icon: Icons.add,
+          gradient: goldGloss,
+          label: 'New note',
+          onSelected: _openQuickAddSheet,
+        ),
     ];
   }
 
-  Future<void> _showActionsMenu(BuildContext context) async {
+  Future<void> _showActionsMenu(
+    BuildContext context, {
+    bool includeNewNote = true,
+  }) async {
     final buttonBox = context.findRenderObject() as RenderBox?;
     final overlay =
         Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
@@ -9852,7 +9857,11 @@ class _CalendarPageState extends State<CalendarPage>
       buttonBox.size.height,
     );
 
-    final baseActions = _calendarActions(context, anchorRect);
+    final baseActions = _calendarActions(
+      context,
+      anchorRect,
+      includeNewNote: includeNewNote,
+    );
     final rows =
         (baseActions.length + _kActionGridColumns - 1) ~/ _kActionGridColumns;
     final double menuWidth =
@@ -9903,6 +9912,7 @@ class _CalendarPageState extends State<CalendarPage>
                   context,
                   anchorRect,
                   hasUnreadInbox: hasUnreadInbox,
+                  includeNewNote: includeNewNote,
                 );
 
                 return _CalendarActionsGrid(
@@ -9923,8 +9933,10 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<void> showActionsMenuFromOutside(BuildContext context) =>
-      _showActionsMenu(context);
+  Future<void> showActionsMenuFromOutside(
+    BuildContext context, {
+    bool includeNewNote = true,
+  }) => _showActionsMenu(context, includeNewNote: includeNewNote);
 
   Route<void> _profileRoute({
     required String userId,
@@ -9988,6 +10000,8 @@ class _CalendarPageState extends State<CalendarPage>
 
   Future<void> openProfileFromOutside(BuildContext context) =>
       _openProfile(context);
+
+  Future<void> openQuickAddFromOutside() => _openQuickAddSheet();
 
   Future<void> _openJournalFromAppBar() async {
     if (!_journalInitialized) {
@@ -11034,7 +11048,9 @@ class _CalendarPageState extends State<CalendarPage>
           focusFlowId: focusEvent?.flowId,
           focusTitle: focusEvent?.title,
           onManageFlows: (flowId) => _getMyFlowsCallback()(flowId),
-          onShowActionsMenu: (ctx) => _showActionsMenu(ctx),
+          onShowActionsMenu: (ctx) =>
+              _showActionsMenu(ctx, includeNewNote: false),
+          onOpenQuickAdd: (_) => _openQuickAddSheet(),
           onOpenProfile: (ctx) => _openProfile(ctx),
           onDeleteNote: (ky, km, kd, evt) async {
             await _deleteNoteByEvent(ky, km, kd, evt);
@@ -16085,6 +16101,11 @@ class _CalendarPageState extends State<CalendarPage>
         ),
         actions: [
           IconButton(
+            tooltip: 'New note',
+            icon: const _GlossyIcon(Icons.add, gradient: goldGloss),
+            onPressed: _openQuickAddSheet,
+          ),
+          IconButton(
             tooltip: 'Today',
             icon: const _GlossyIcon(Icons.today, gradient: goldGloss),
             onPressed: _scrollToToday,
@@ -16100,7 +16121,7 @@ class _CalendarPageState extends State<CalendarPage>
                     show: hasUnreadInbox,
                     child: const _GlossyIcon(Icons.apps, gradient: goldGloss),
                   ),
-                  onPressed: () => _showActionsMenu(ctx),
+                  onPressed: () => _showActionsMenu(ctx, includeNewNote: false),
                 );
               },
             ),

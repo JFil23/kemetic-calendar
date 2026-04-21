@@ -548,6 +548,7 @@ class DayViewPage extends StatefulWidget {
   final String? focusTitle; // highlight by title when flow id missing
   final void Function(int?)? onManageFlows; // NEW: Callback to open My Flows
   final Future<void> Function(BuildContext context)? onShowActionsMenu;
+  final Future<void> Function(BuildContext context)? onOpenQuickAdd;
   final Future<void> Function(BuildContext context)? onOpenProfile;
   final void Function(int ky, int km, int kd)? onAddNote;
   final Future<void> Function(int ky, int km, int kd, EventItem event)?
@@ -621,6 +622,7 @@ class DayViewPage extends StatefulWidget {
     this.focusTitle,
     this.onManageFlows, // NEW
     this.onShowActionsMenu,
+    this.onOpenQuickAdd,
     this.onOpenProfile,
     this.onAddNote, // 🔧 NEW
     this.onDeleteNote,
@@ -1048,18 +1050,38 @@ class _DayViewPageState extends State<DayViewPage> {
                     },
                     onClose: () => Navigator.pop(context),
                     onJumpToToday: _jumpToToday,
-                    onShowActionsMenu: widget.onShowActionsMenu == null
-                        ? (btnCtx) async {
-                            await CalendarPage.globalKey.currentState
-                                ?.showActionsMenuFromOutside(btnCtx);
+                    onOpenQuickAdd:
+                        widget.onOpenQuickAdd ??
+                        (btnCtx) async {
+                          final state = CalendarPage.globalKey.currentState;
+                          if (state != null) {
+                            await state.openQuickAddFromOutside();
+                            return;
                           }
-                        : widget.onShowActionsMenu,
-                    onOpenProfile: widget.onOpenProfile == null
-                        ? (ctx) async {
-                            await CalendarPage.globalKey.currentState
-                                ?.openProfileFromOutside(ctx);
-                          }
-                        : widget.onOpenProfile,
+                          if (!btnCtx.mounted) return;
+                          ScaffoldMessenger.of(btnCtx).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'New note is unavailable right now.',
+                              ),
+                            ),
+                          );
+                        },
+                    onShowActionsMenu:
+                        widget.onShowActionsMenu ??
+                        (btnCtx) async {
+                          await CalendarPage.globalKey.currentState
+                              ?.showActionsMenuFromOutside(
+                                btnCtx,
+                                includeNewNote: false,
+                              );
+                        },
+                    onOpenProfile:
+                        widget.onOpenProfile ??
+                        (ctx) async {
+                          await CalendarPage.globalKey.currentState
+                              ?.openProfileFromOutside(ctx);
+                        },
                     dateButtonBuilder: (monthName, currentKd, gregorianYear) {
                       return KemeticDayButton(
                         dayKey: _getKemeticDayKey(
