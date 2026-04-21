@@ -24,6 +24,10 @@ import '../journal/journal_event_badge.dart';
 import '../../utils/external_link_utils.dart';
 
 const double _kMinEventBlockHeight = 64.0; // was 32.0
+const double _kTimelineLabelWidth = 60.0;
+const double _kTimelineRightPadding = 16.0;
+const double _kEventColumnGap = 4.0;
+const double _kSingleEventWidthFactor = 0.8;
 const Color _dayGold = KemeticGold.base;
 const String _kNewEventPreviewClientEventId = '__day_view_new_event_preview__';
 const TextStyle _goldHeaderStyle = TextStyle(
@@ -41,8 +45,9 @@ class EventLayoutEngine {
   static List<PositionedEventBlock> layoutEventsForDay({
     required List<NoteData> notes,
     required Map<int, FlowData> flowIndex,
-    required double columnWidth,
+    required double availableWidth,
     required double columnGap,
+    required double textScale,
     required int day, // For debug logging
   }) {
     if (kDebugMode) {
@@ -51,48 +56,138 @@ class EventLayoutEngine {
 
     final events = _sortedEventsForDay(notes: notes, flowIndex: flowIndex);
 
+    return layoutEventItems(
+      events: events,
+      availableWidth: availableWidth,
+      columnGap: columnGap,
+      textScale: textScale,
+      day: day,
+    );
+  }
+
+  static List<PositionedEventBlock> layoutEventItems({
+    required List<EventItem> events,
+    required double availableWidth,
+    required double columnGap,
+    required double textScale,
+    required int day,
+  }) {
     if (events.isEmpty) return [];
 
-    // Assign columns to avoid overlaps
-    final columnAssignments = _assignColumns(events);
-
-    // Create positioned blocks
+    final sortedEvents = [...events]..sort(_compareEventItemsBySchedule);
+    final overlapGroups = _buildOverlapGroups(
+      sortedEvents,
+      textScale: textScale,
+    );
     final blocks = <PositionedEventBlock>[];
-    for (int i = 0; i < events.length; i++) {
-      final event = events[i];
-      final column = columnAssignments[event] ?? 0;
-      final leftOffset = column * (columnWidth + columnGap);
 
-      blocks.add(
-        PositionedEventBlock(
-          event: event,
-          leftOffset: leftOffset,
-          width: columnWidth,
-        ),
+    for (final group in overlapGroups) {
+      final columnAssignments = _assignColumns(group, textScale: textScale);
+      final highestColumn = columnAssignments.values.fold<int>(0, math.max);
+      final totalColumns = highestColumn + 1;
+      final columnWidth = _columnWidthForGroup(
+        availableWidth: availableWidth,
+        columnGap: columnGap,
+        totalColumns: totalColumns,
       );
+
+      for (final event in group) {
+        final column = columnAssignments[event] ?? 0;
+        final leftOffset = column * (columnWidth + columnGap);
+        blocks.add(
+          PositionedEventBlock(
+            event: event,
+            leftOffset: leftOffset,
+            width: columnWidth,
+          ),
+        );
+      }
     }
 
+    blocks.sort((a, b) {
+      final scheduleCmp = _compareEventItemsBySchedule(a.event, b.event);
+      if (scheduleCmp != 0) return scheduleCmp;
+
+      final leftCmp = a.leftOffset.compareTo(b.leftOffset);
+      if (leftCmp != 0) return leftCmp;
+
+      return a.width.compareTo(b.width);
+    });
+
     if (kDebugMode) {
-      print('[EventLayoutEngine] Generated ${blocks.length} positioned blocks');
+      print(
+        '[EventLayoutEngine] Generated ${blocks.length} positioned blocks for day $day',
+      );
     }
 
     return blocks;
   }
 
-  static Map<EventItem, int> _assignColumns(List<EventItem> events) {
+  static List<List<EventItem>> _buildOverlapGroups(
+    List<EventItem> events, {
+    required double textScale,
+  }) {
+    final groups = <List<EventItem>>[];
+    var currentGroup = <EventItem>[];
+    var currentGroupMaxBottom = -1.0;
+
+    for (final event in events) {
+      if (currentGroup.isEmpty) {
+        currentGroup = [event];
+        currentGroupMaxBottom = _eventVisualEndMin(event, textScale: textScale);
+        continue;
+      }
+
+      if (event.startMin < currentGroupMaxBottom) {
+        currentGroup.add(event);
+        currentGroupMaxBottom = math.max(
+          currentGroupMaxBottom,
+          _eventVisualEndMin(event, textScale: textScale),
+        );
+        continue;
+      }
+
+      groups.add(currentGroup);
+      currentGroup = [event];
+      currentGroupMaxBottom = _eventVisualEndMin(event, textScale: textScale);
+    }
+
+    if (currentGroup.isNotEmpty) {
+      groups.add(currentGroup);
+    }
+
+    return groups;
+  }
+
+  static double _columnWidthForGroup({
+    required double availableWidth,
+    required double columnGap,
+    required int totalColumns,
+  }) {
+    if (totalColumns <= 1) {
+      return availableWidth * _kSingleEventWidthFactor;
+    }
+    final totalGap = columnGap * (totalColumns - 1);
+    return math.max((availableWidth - totalGap) / totalColumns, 0.0);
+  }
+
+  static Map<EventItem, int> _assignColumns(
+    List<EventItem> events, {
+    required double textScale,
+  }) {
     final assignments = <EventItem, int>{};
-    final columnEndTimes = <int, int>{}; // column -> end time
+    final columnBottoms = <int, double>{}; // column -> rendered visual bottom
 
     for (final event in events) {
       // Find first available column
       int column = 0;
-      while (columnEndTimes.containsKey(column) &&
-          columnEndTimes[column]! > event.startMin) {
+      while (columnBottoms.containsKey(column) &&
+          columnBottoms[column]! > event.startMin) {
         column++;
       }
 
       assignments[event] = column;
-      columnEndTimes[column] = event.endMin;
+      columnBottoms[column] = _eventVisualEndMin(event, textScale: textScale);
     }
 
     return assignments;
@@ -333,6 +428,45 @@ bool _eventsShareStableIdentity(EventItem a, EventItem b) {
   }
 
   return _eventIdentityKey(a) == _eventIdentityKey(b);
+}
+
+bool _eventsOverlap(EventItem a, EventItem b, {double textScale = 1.0}) {
+  return _eventVisualTop(a) < _eventVisualEndMin(b, textScale: textScale) &&
+      _eventVisualTop(b) < _eventVisualEndMin(a, textScale: textScale);
+}
+
+double _eventVisualTop(EventItem event) => event.startMin.toDouble();
+
+double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
+  final bool showTitle = event.title.trim().isNotEmpty;
+  final bool showLocation =
+      event.location != null && event.location!.trim().isNotEmpty;
+
+  int durationMinutes = event.endMin - event.startMin;
+  if (durationMinutes <= 0) {
+    durationMinutes = 15;
+  }
+  if (durationMinutes > 180) {
+    durationMinutes = 180;
+  }
+
+  final int reminderLineCount = (showTitle ? 1 : 0) + (showLocation ? 1 : 0);
+  final double reminderHeight = math.max(
+    _kMinEventBlockHeight / 2,
+    (reminderLineCount * (14.0 * textScale)) + 12,
+  );
+
+  if (event.isReminder) {
+    return reminderHeight;
+  }
+
+  final double rawHeight = durationMinutes.toDouble();
+  return rawHeight < _kMinEventBlockHeight ? _kMinEventBlockHeight : rawHeight;
+}
+
+double _eventVisualEndMin(EventItem event, {double textScale = 1.0}) {
+  return _eventVisualTop(event) +
+      _eventVisualHeightForLayout(event, textScale: textScale);
 }
 
 int _compareEventItemsBySchedule(EventItem a, EventItem b) {
@@ -1380,8 +1514,8 @@ class _DayViewGridState extends State<DayViewGrid> {
   ) {
     for (final block in hourBlocks) {
       final top = (block.event.startMin % 60).toDouble();
-      final duration = (block.event.endMin - block.event.startMin).toDouble();
-      final heightInRow = math.min(60.0 - top, duration);
+      final visualHeight = _eventVisualHeight(block.event);
+      final heightInRow = math.min(60.0 - top, visualHeight);
       if (heightInRow <= 0) continue;
       final rect = Rect.fromLTWH(
         block.leftOffset,
@@ -1500,27 +1634,25 @@ class _DayViewGridState extends State<DayViewGrid> {
     List<PositionedEventBlock> base,
   ) {
     final preview = _buildCreationPreviewEvent();
-    if (_dragPreviewEvent == null || _dragPreviewStartMin == null) {
-      if (preview == null) return base;
-      return [
-        ...base,
-        PositionedEventBlock(event: preview, leftOffset: 0, width: 0),
-      ];
+    final needsDragRelayout =
+        _dragPreviewEvent != null && _dragPreviewStartMin != null;
+    if (!needsDragRelayout && preview == null) {
+      return base;
     }
-    final dragPreview = _dragPreviewEvent!;
-    final int startMin = _dragPreviewStartMin!.clamp(0, 24 * 60 - 1).toInt();
-    final int duration = (dragPreview.endMin - dragPreview.startMin)
-        .clamp(15, 12 * 60)
-        .toInt();
-    final int endMin = (startMin + duration).clamp(0, 24 * 60 - 1).toInt();
 
-    final filtered = base
-        .where((b) => !_eventsMatch(b.event, dragPreview))
-        .toList();
+    final displayEvents = <EventItem>[for (final block in base) block.event];
 
-    filtered.add(
-      PositionedEventBlock(
-        event: EventItem(
+    if (needsDragRelayout) {
+      final dragPreview = _dragPreviewEvent!;
+      final int startMin = _dragPreviewStartMin!.clamp(0, 24 * 60 - 1).toInt();
+      final int duration = (dragPreview.endMin - dragPreview.startMin)
+          .clamp(15, 12 * 60)
+          .toInt();
+      final int endMin = (startMin + duration).clamp(0, 24 * 60 - 1).toInt();
+
+      displayEvents.removeWhere((event) => _eventsMatch(event, dragPreview));
+      displayEvents.add(
+        EventItem(
           id: dragPreview.id,
           clientEventId: dragPreview.clientEventId,
           title: dragPreview.title,
@@ -1536,16 +1668,20 @@ class _DayViewGridState extends State<DayViewGrid> {
           isReminder: dragPreview.isReminder,
           reminderId: dragPreview.reminderId,
         ),
-        leftOffset: 0,
-        width: 0,
-      ),
-    );
-    if (preview != null) {
-      filtered.add(
-        PositionedEventBlock(event: preview, leftOffset: 0, width: 0),
       );
     }
-    return filtered;
+
+    if (preview != null) {
+      displayEvents.add(preview);
+    }
+
+    return EventLayoutEngine.layoutEventItems(
+      events: displayEvents,
+      availableWidth: _timelineAvailableWidth(context),
+      columnGap: _kEventColumnGap,
+      textScale: _layoutTextScale(context),
+      day: widget.kd,
+    );
   }
 
   EventItem? _buildCreationPreviewEvent() {
@@ -1684,6 +1820,36 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
+  double _timelineAvailableWidth(BuildContext context) {
+    return math.max(
+      MediaQuery.of(context).size.width -
+          _kTimelineLabelWidth -
+          _kTimelineRightPadding,
+      0.0,
+    );
+  }
+
+  double _layoutTextScale(BuildContext context) {
+    final textScaler = MediaQuery.maybeTextScalerOf(context);
+    if (textScaler == null) return 1.0;
+    return textScaler.scale(14.0) / 14.0;
+  }
+
+  double _overlapHitHeightForBlock(PositionedEventBlock block) {
+    final baseHeight = _eventHitHeight(block.event);
+    final textScale = _layoutTextScale(context);
+    return _displayBlocks
+        .where(
+          (candidate) => _eventsOverlap(
+            candidate.event,
+            block.event,
+            textScale: textScale,
+          ),
+        )
+        .map((candidate) => _eventHitHeight(candidate.event))
+        .fold<double>(baseHeight, math.max);
+  }
+
   @override
   Widget build(BuildContext context) {
     // ✅ NEW: Dedupe notes before rendering to handle legacy duplicates
@@ -1695,9 +1861,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     if (_cachedBlocks == null ||
         _cachedNotesHash != notesHash ||
         _cachedFlowHash != flowHash) {
-      final screenWidth = MediaQuery.of(context).size.width;
-      final columnWidth = (screenWidth - 100) / 3; // 3 columns max
-
       if (kDebugMode) {
         final originalCount = widget.notes.length;
         final dedupedCount = dedupedNotes.length;
@@ -1711,8 +1874,9 @@ class _DayViewGridState extends State<DayViewGrid> {
       _cachedBlocks = EventLayoutEngine.layoutEventsForDay(
         notes: dedupedNotes, // ✅ Use deduped notes
         flowIndex: widget.flowIndex,
-        columnWidth: columnWidth,
-        columnGap: 4.0,
+        availableWidth: _timelineAvailableWidth(context),
+        columnGap: _kEventColumnGap,
+        textScale: _layoutTextScale(context),
         day: widget.kd,
       );
       _cachedNotesHash = notesHash;
@@ -1991,97 +2155,28 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
-  /// Build event blocks for a single hour with responsive widths and carousel when >3 overlap.
+  /// Build event blocks for a single hour using the day-wide overlap layout.
   List<Widget> _buildHourBlocks(List<PositionedEventBlock> hourBlocks) {
     if (hourBlocks.isEmpty) return const [];
 
-    final availableWidth =
-        MediaQuery.of(context).size.width - 60 - 16; // left label + padding
-    const double gap = 4.0;
-    final List<Widget> widgets = [];
+    final sortedBlocks = [...hourBlocks]
+      ..sort((a, b) {
+        final leftCmp = a.leftOffset.compareTo(b.leftOffset);
+        if (leftCmp != 0) return leftCmp;
+        return _compareEventItemsBySchedule(a.event, b.event);
+      });
 
-    // Group by start minute within the hour
-    final Map<int, List<PositionedEventBlock>> groups = {};
-    for (final block in hourBlocks) {
-      final key = block.event.startMin;
-      groups.putIfAbsent(key, () => []).add(block);
-    }
-
-    final sortedKeys = groups.keys.toList()..sort();
-    for (final key in sortedKeys) {
-      final blocks = groups[key]!;
-      final top = (blocks.first.event.startMin % 60).toDouble();
-      final count = blocks.length;
-      final rowHitHeight = blocks
-          .map((block) => _eventHitHeight(block.event))
-          .fold<double>(0, math.max);
-
-      if (count <= 3) {
-        double width;
-        List<double> lefts;
-        if (count == 1) {
-          width = availableWidth * 0.8;
-          lefts = [0.0];
-        } else if (count == 2) {
-          width = (availableWidth - gap) / 2;
-          lefts = [0.0, width + gap];
-        } else {
-          width = (availableWidth - 2 * gap) / 3;
-          lefts = [0.0, width + gap, 2 * (width + gap)];
-        }
-
-        for (int i = 0; i < blocks.length; i++) {
-          final adjusted = PositionedEventBlock(
-            event: blocks[i].event,
-            leftOffset: lefts[i],
-            width: width,
-          );
-          widgets.add(
-            Positioned(
-              left: 60 + lefts[i],
-              top: top,
-              child: _buildInteractiveEvent(adjusted, hitHeight: rowHitHeight),
-            ),
-          );
-        }
-      } else {
-        // >3: horizontal carousel showing 3 at a time
-        final width = (availableWidth - 2 * gap) / 3;
-        widgets.add(
-          Positioned(
-            left: 60,
-            top: top,
-            child: SizedBox(
-              width: availableWidth,
-              height: rowHitHeight,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                dragStartBehavior: DragStartBehavior.down,
-                physics: const ClampingScrollPhysics(),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (int i = 0; i < blocks.length; i++) ...[
-                      _buildInteractiveEvent(
-                        PositionedEventBlock(
-                          event: blocks[i].event,
-                          leftOffset: 0,
-                          width: width,
-                        ),
-                        hitHeight: rowHitHeight,
-                      ),
-                      if (i != blocks.length - 1) SizedBox(width: gap),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+    return [
+      for (final block in sortedBlocks)
+        Positioned(
+          left: _kTimelineLabelWidth + block.leftOffset,
+          top: (block.event.startMin % 60).toDouble(),
+          child: _buildInteractiveEvent(
+            block,
+            hitHeight: _overlapHitHeightForBlock(block),
           ),
-        );
-      }
-    }
-
-    return widgets;
+        ),
+    ];
   }
 
   void _handleLongPressStart(LongPressStartDetails details) {
@@ -2276,34 +2371,10 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   double _eventVisualHeight(EventItem event) {
-    final bool showTitle = event.title.trim().isNotEmpty;
-    final bool showLocation =
-        event.location != null && event.location!.trim().isNotEmpty;
-    final double textScale =
-        MediaQuery.maybeOf(context)?.textScaleFactor ?? 1.0;
-
-    int durationMinutes = event.endMin - event.startMin;
-    if (durationMinutes <= 0) {
-      durationMinutes = 15;
-    }
-    if (durationMinutes > 180) {
-      durationMinutes = 180;
-    }
-
-    final int reminderLineCount = (showTitle ? 1 : 0) + (showLocation ? 1 : 0);
-    final double reminderHeight = math.max(
-      _kMinEventBlockHeight / 2,
-      (reminderLineCount * (14.0 * textScale)) + 12,
+    return _eventVisualHeightForLayout(
+      event,
+      textScale: _layoutTextScale(context),
     );
-
-    if (event.isReminder) {
-      return reminderHeight;
-    }
-
-    final double rawHeight = durationMinutes.toDouble();
-    return rawHeight < _kMinEventBlockHeight
-        ? _kMinEventBlockHeight
-        : rawHeight;
   }
 
   double _eventHitHeight(EventItem event) => _eventVisualHeight(event) + 2;

@@ -5,65 +5,84 @@ import 'package:mobile/features/calendar/day_view.dart';
 
 void main() {
   group('DayViewGrid overlapping event gestures', () {
-    testWidgets('a short event card can start the horizontal overlap scroll', (
-      tester,
-    ) async {
-      await _setPhoneViewport(tester);
+    test('staggered overlapping events are assigned separate lanes', () {
+      final blocks = EventLayoutEngine.layoutEventItems(
+        events: const [
+          EventItem(
+            title: 'First Event',
+            startMin: 16 * 60 + 45,
+            endMin: 17 * 60 + 30,
+            flowId: 1,
+            color: Colors.green,
+            allDay: false,
+          ),
+          EventItem(
+            title: 'Second Event',
+            startMin: 17 * 60,
+            endMin: 18 * 60,
+            flowId: 2,
+            color: Colors.red,
+            allDay: false,
+          ),
+        ],
+        availableWidth: 314,
+        columnGap: 4,
+        textScale: 1.0,
+        day: 1,
+      );
 
-      await tester.pumpWidget(
-        _DayViewHarness(
-          notes: [
-            _timedNote(
-              title: 'Kung Fu Practice',
-              startHour: 10,
-              startMinute: 0,
-              endHour: 10,
-              endMinute: 30,
+      final first = blocks.firstWhere(
+        (block) => block.event.title == 'First Event',
+      );
+      final second = blocks.firstWhere(
+        (block) => block.event.title == 'Second Event',
+      );
+
+      expect(first.leftOffset, 0);
+      expect(second.leftOffset, greaterThan(0));
+      expect(first.width, closeTo(second.width, 0.001));
+    });
+
+    test(
+      'events with non-overlapping times still split lanes when their rendered cards would collide',
+      () {
+        final blocks = EventLayoutEngine.layoutEventItems(
+          events: const [
+            EventItem(
+              title: 'Short Top Event',
+              startMin: 13 * 60,
+              endMin: 13 * 60 + 30,
               flowId: 1,
+              color: Colors.green,
+              allDay: false,
             ),
-            _timedNote(
-              title: 'Writing Block',
-              startHour: 10,
-              startMinute: 0,
-              endHour: 11,
-              endMinute: 0,
+            EventItem(
+              title: 'Later Event',
+              startMin: 13 * 60 + 45,
+              endMin: 14 * 60 + 30,
               flowId: 2,
-            ),
-            _timedNote(
-              title: 'Deep Work',
-              startHour: 10,
-              startMinute: 0,
-              endHour: 12,
-              endMinute: 0,
-              flowId: 3,
-            ),
-            _timedNote(
-              title: 'Fourth Event',
-              startHour: 10,
-              startMinute: 0,
-              endHour: 13,
-              endMinute: 0,
-              flowId: 4,
+              color: Colors.red,
+              allDay: false,
             ),
           ],
-        ),
-      );
-      await tester.pumpAndSettle();
+          availableWidth: 314,
+          columnGap: 4,
+          textScale: 1.0,
+          day: 1,
+        );
 
-      final fourthEvent = find.text('Fourth Event');
-      final before = tester.getRect(fourthEvent);
-      expect(before.left, greaterThan(390));
+        final top = blocks.firstWhere(
+          (block) => block.event.title == 'Short Top Event',
+        );
+        final later = blocks.firstWhere(
+          (block) => block.event.title == 'Later Event',
+        );
 
-      await tester.dragFrom(
-        tester.getCenter(find.text('Kung Fu Practice')),
-        const Offset(-260, 0),
-      );
-      await tester.pumpAndSettle();
-
-      final after = tester.getRect(fourthEvent);
-      expect(after.left, lessThan(before.left));
-      expect(after.left, lessThan(390));
-    });
+        expect(top.leftOffset, 0);
+        expect(later.leftOffset, greaterThan(0));
+        expect(top.width, closeTo(later.width, 0.001));
+      },
+    );
 
     testWidgets(
       'a short event card inherits the tallest hit height in its overlap row',
