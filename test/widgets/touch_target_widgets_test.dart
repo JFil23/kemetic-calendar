@@ -71,6 +71,30 @@ void main() {
     expect(skippedY, closeTo(doneY, 0.1));
   });
 
+  testWidgets('Rhythm state button groups clear active state on second tap', (
+    tester,
+  ) async {
+    RhythmItemState? latest;
+
+    await _pumpTouchWidget(
+      tester,
+      RhythmStateButtonGroup(
+        current: RhythmItemState.done,
+        onChanged: (state) {
+          latest = state;
+        },
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.check_circle_rounded));
+    await tester.pumpAndSettle();
+    expect(latest, RhythmItemState.pending);
+
+    await tester.tap(find.byIcon(Icons.adjust_rounded));
+    await tester.pumpAndSettle();
+    expect(latest, RhythmItemState.partial);
+  });
+
   testWidgets('Glyph back button keeps a full touch target on phones', (
     tester,
   ) async {

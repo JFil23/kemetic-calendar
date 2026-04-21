@@ -34,7 +34,13 @@ class RhythmStateButtonGroup extends StatelessWidget {
               state: options[i].$1,
               isActive: current == options[i].$1,
               icon: options[i].$2,
-              onTap: onChanged != null ? () => onChanged!(options[i].$1) : null,
+              onTap: onChanged != null
+                  ? () => onChanged!(
+                      current == options[i].$1
+                          ? RhythmItemState.pending
+                          : options[i].$1,
+                    )
+                  : null,
             ),
           ],
         ],
