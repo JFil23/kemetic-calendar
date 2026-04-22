@@ -290,6 +290,12 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
 
 enum MonthExpansionLevel { compact, stacked, details }
 
+enum _OnboardingContinuationStage {
+  none,
+  awaitingCalendarReturnToggle,
+  awaitingDayViewReveal,
+}
+
 /* ───────────────────── Premium Dark Theme + Gloss ───────────────────── */
 
 const Color _bg = Colors.black; // True black
@@ -5075,14 +5081,15 @@ class _CalendarPageState extends State<CalendarPage>
   bool _showCalendarMonthCoachmark = false;
   bool _showCalendarToggleCoachmark = false;
   bool _onboardingPresentationScheduled = false;
+  _OnboardingContinuationStage _onboardingContinuationStage =
+      _OnboardingContinuationStage.none;
   bool _canShowCalendarToggleCoachmarkOnReturn = false;
   bool _calendarToggleCoachmarkArmedForReturn = false;
   // Leave false for normal onboarding behavior. Flip to true only for local iteration.
   static final bool _replayOnboardingOnEveryLaunch = false;
   static bool _hasPresentedOnboardingThisLaunch = false;
-  static bool _hasPresentedCalendarToggleCoachmarkThisLaunch = false;
-  static const String _calendarToggleCoachmarkKeyPrefix =
-      'onboarding_v1_calendar_toggle_after_return';
+  static const String _onboardingContinuationStageKeyPrefix =
+      'onboarding_v1_continuation_stage';
   static const List<int> _onboardingHighlightDays = [
     8,
     9,
@@ -5351,6 +5358,60 @@ class _CalendarPageState extends State<CalendarPage>
     });
   }
 
+  String _onboardingContinuationStageKeyForUser(String userId) =>
+      '$_onboardingContinuationStageKeyPrefix:$userId';
+
+  String? _encodeOnboardingContinuationStage(
+    _OnboardingContinuationStage stage,
+  ) {
+    switch (stage) {
+      case _OnboardingContinuationStage.none:
+        return null;
+      case _OnboardingContinuationStage.awaitingCalendarReturnToggle:
+        return 'awaiting_calendar_return_toggle';
+      case _OnboardingContinuationStage.awaitingDayViewReveal:
+        return 'awaiting_day_view_reveal';
+    }
+  }
+
+  _OnboardingContinuationStage _decodeOnboardingContinuationStage(String? raw) {
+    switch (raw) {
+      case 'awaiting_calendar_return_toggle':
+        return _OnboardingContinuationStage.awaitingCalendarReturnToggle;
+      case 'awaiting_day_view_reveal':
+        return _OnboardingContinuationStage.awaitingDayViewReveal;
+      default:
+        return _OnboardingContinuationStage.none;
+    }
+  }
+
+  Future<_OnboardingContinuationStage> _loadOnboardingContinuationStage(
+    String userId,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    return _decodeOnboardingContinuationStage(
+      prefs.getString(_onboardingContinuationStageKeyForUser(userId)),
+    );
+  }
+
+  Future<void> _persistOnboardingContinuationStage(
+    _OnboardingContinuationStage stage,
+  ) async {
+    if (_replayOnboardingOnEveryLaunch) return;
+
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final key = _onboardingContinuationStageKeyForUser(userId);
+    final encoded = _encodeOnboardingContinuationStage(stage);
+    if (encoded == null) {
+      await prefs.remove(key);
+    } else {
+      await prefs.setString(key, encoded);
+    }
+  }
+
   Future<void> _maybePresentOnboarding() async {
     if (!mounted || _showOnboarding) return;
 
@@ -5367,11 +5428,28 @@ class _CalendarPageState extends State<CalendarPage>
     final hasCompleted = await _onboardingStorage.hasCompleted(userId);
     if (!mounted) return;
     if (hasCompleted) {
-      _canShowCalendarToggleCoachmarkOnReturn = true;
+      _onboardingContinuationStage = _OnboardingContinuationStage.none;
+      _canShowCalendarToggleCoachmarkOnReturn = false;
+      await _persistOnboardingContinuationStage(
+        _OnboardingContinuationStage.none,
+      );
       return;
     }
 
-    setState(() => _showOnboarding = true);
+    final continuationStage = await _loadOnboardingContinuationStage(userId);
+    if (!mounted) return;
+
+    if (continuationStage == _OnboardingContinuationStage.none) {
+      setState(() => _showOnboarding = true);
+      return;
+    }
+
+    setState(() {
+      _onboardingContinuationStage = continuationStage;
+      _canShowCalendarToggleCoachmarkOnReturn =
+          continuationStage ==
+          _OnboardingContinuationStage.awaitingCalendarReturnToggle;
+    });
   }
 
   Future<void> _dismissOnboarding() async {
@@ -5400,8 +5478,13 @@ class _CalendarPageState extends State<CalendarPage>
   Future<void> _markOnboardingCompletedIfNeeded() async {
     if (_replayOnboardingOnEveryLaunch) return;
 
+    _onboardingContinuationStage = _OnboardingContinuationStage.none;
+    _canShowCalendarToggleCoachmarkOnReturn = false;
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
+    await _persistOnboardingContinuationStage(
+      _OnboardingContinuationStage.none,
+    );
     await _onboardingStorage.markCompleted(userId);
   }
 
@@ -5648,75 +5731,59 @@ class _CalendarPageState extends State<CalendarPage>
     });
   }
 
-  String _calendarToggleCoachmarkKeyForUser(String userId) =>
-      '$_calendarToggleCoachmarkKeyPrefix:$userId';
-
   Future<void> _maybePresentCalendarToggleCoachmarkAfterReturn() async {
     if (!mounted ||
+        _onboardingContinuationStage !=
+            _OnboardingContinuationStage.awaitingCalendarReturnToggle ||
         !_canShowCalendarToggleCoachmarkOnReturn ||
         !_calendarToggleCoachmarkArmedForReturn ||
         _showOnboarding ||
         _showCalendarMonthCoachmark ||
         _showCalendarToggleCoachmark) {
       return;
-    }
-
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
-
-    final shouldReplayPrompts = _replayOnboardingOnEveryLaunch;
-    if (shouldReplayPrompts) {
-      if (_hasPresentedCalendarToggleCoachmarkThisLaunch) return;
-    } else {
-      final prefs = await SharedPreferences.getInstance();
-      final hasSeen =
-          prefs.getBool(_calendarToggleCoachmarkKeyForUser(userId)) ?? false;
-      if (!mounted || hasSeen) return;
     }
 
     await Future<void>.delayed(const Duration(milliseconds: 280));
     if (!mounted ||
+        _onboardingContinuationStage !=
+            _OnboardingContinuationStage.awaitingCalendarReturnToggle ||
         !_canShowCalendarToggleCoachmarkOnReturn ||
         !_calendarToggleCoachmarkArmedForReturn ||
         _showOnboarding ||
         _showCalendarMonthCoachmark ||
         _showCalendarToggleCoachmark) {
       return;
-    }
-
-    if (shouldReplayPrompts) {
-      _hasPresentedCalendarToggleCoachmarkThisLaunch = true;
     }
 
     setState(() {
       _calendarToggleCoachmarkArmedForReturn = false;
       _showCalendarToggleCoachmark = true;
+      _onboardingContinuationStage =
+          _OnboardingContinuationStage.awaitingDayViewReveal;
+      _canShowCalendarToggleCoachmarkOnReturn = false;
     });
+    unawaited(
+      _persistOnboardingContinuationStage(
+        _OnboardingContinuationStage.awaitingDayViewReveal,
+      ),
+    );
+    unawaited(_autoDismissCalendarToggleCoachmark());
   }
 
-  Future<void> _markCalendarToggleCoachmarkCompletedIfNeeded() async {
-    if (_replayOnboardingOnEveryLaunch) return;
-
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_calendarToggleCoachmarkKeyForUser(userId), true);
+  Future<void> _autoDismissCalendarToggleCoachmark() async {
+    await Future<void>.delayed(const Duration(seconds: 4));
+    if (!mounted || !_showCalendarToggleCoachmark) return;
+    setState(() => _showCalendarToggleCoachmark = false);
   }
 
   void _handleCalendarToggleTapped() {
     if (!mounted) return;
 
-    final shouldFinalizeCoachmark = _showCalendarToggleCoachmark;
     setState(() {
       _showGregorian = !_showGregorian;
       _showCalendarToggleCoachmark = false;
       _calendarToggleCoachmarkArmedForReturn = false;
     });
-
-    if (shouldFinalizeCoachmark) {
-      unawaited(_markCalendarToggleCoachmarkCompletedIfNeeded());
-    }
   }
 
   GlobalKey? get _calendarMonthCoachmarkTargetKey {
@@ -5778,18 +5845,21 @@ class _CalendarPageState extends State<CalendarPage>
 
     if (shouldFinalizeOnboarding) {
       setState(() {
+        _onboardingContinuationStage =
+            _OnboardingContinuationStage.awaitingCalendarReturnToggle;
         _canShowCalendarToggleCoachmarkOnReturn = true;
         _showCalendarMonthCoachmark = false;
         _calendarMonthCoachmarkKy = null;
         _calendarMonthCoachmarkKm = null;
       });
+      unawaited(
+        _persistOnboardingContinuationStage(
+          _OnboardingContinuationStage.awaitingCalendarReturnToggle,
+        ),
+      );
     }
 
     _openMonthInfo(navigatorContext, kYear, kMonth);
-
-    if (shouldFinalizeOnboarding) {
-      unawaited(_markOnboardingCompletedIfNeeded());
-    }
   }
 
   void _handleCalendarMonthCoachmarkTargetTap() {
@@ -5797,6 +5867,26 @@ class _CalendarPageState extends State<CalendarPage>
     final targetKm = _calendarMonthCoachmarkKm;
     if (targetKy == null || targetKm == null) return;
     _handleMonthHeaderTapped(context, targetKy, targetKm);
+  }
+
+  bool get _shouldShowDayCardRevealCoachmarkFromOnboarding =>
+      _onboardingContinuationStage ==
+      _OnboardingContinuationStage.awaitingDayViewReveal;
+
+  Future<void> _handleDayCardRevealCoachmarkCompletedFromOnboarding() async {
+    if (_onboardingContinuationStage !=
+        _OnboardingContinuationStage.awaitingDayViewReveal) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _onboardingContinuationStage = _OnboardingContinuationStage.none;
+        _canShowCalendarToggleCoachmarkOnReturn = false;
+      });
+    }
+
+    await _markOnboardingCompletedIfNeeded();
   }
 
   /// ✅ Load persisted view state from SharedPreferences
@@ -11596,6 +11686,9 @@ class _CalendarPageState extends State<CalendarPage>
     int kDay, {
     EventItem? focusEvent,
   }) {
+    final shouldShowDayCardRevealCoachmark =
+        _shouldShowDayCardRevealCoachmarkFromOnboarding;
+
     // Adapter: Convert _Note to NoteData, and prime reminders for the day
     final notesForDayFn = (int y, int m, int d) {
       final key = '$y-$m-$d';
@@ -11736,6 +11829,13 @@ class _CalendarPageState extends State<CalendarPage>
               await _journalController.appendToToday(text);
             }
           },
+          showDayCardRevealCoachmarkForOnboarding:
+              shouldShowDayCardRevealCoachmark,
+          onDayCardRevealCoachmarkCompleted: shouldShowDayCardRevealCoachmark
+              ? () => unawaited(
+                  _handleDayCardRevealCoachmarkCompletedFromOnboarding(),
+                )
+              : null,
           onSaveFlow: _saveFlowById,
           loadCompletedClientEventIds: _loadCompletedClientEventIds,
           onRecordCompletion:

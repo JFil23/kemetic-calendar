@@ -11,7 +11,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/gestures.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/core/touch_targets.dart';
@@ -606,6 +605,8 @@ class DayViewPage extends StatefulWidget {
   })?
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final bool showDayCardRevealCoachmarkForOnboarding;
+  final VoidCallback? onDayCardRevealCoachmarkCompleted;
 
   const DayViewPage({
     super.key,
@@ -642,6 +643,8 @@ class DayViewPage extends StatefulWidget {
     this.loadCompletedClientEventIds,
     this.onRecordCompletion,
     this.onUnrecordCompletion,
+    this.showDayCardRevealCoachmarkForOnboarding = false,
+    this.onDayCardRevealCoachmarkCompleted,
   });
 
   @override
@@ -649,11 +652,6 @@ class DayViewPage extends StatefulWidget {
 }
 
 class _DayViewPageState extends State<DayViewPage> {
-  static final bool _replayDayCardRevealCoachmarkOnEveryLaunch = false;
-  static bool _hasPresentedDayCardRevealCoachmarkThisLaunch = false;
-  static const String _dayCardRevealCoachmarkKeyPrefix =
-      'onboarding_v1_day_view_day_card_reveal';
-
   late PageController _pageController;
   late int _currentKy;
   late int _currentKm;
@@ -672,6 +670,7 @@ class _DayViewPageState extends State<DayViewPage> {
   // 🔧 NEW: Orientation tracking for bidirectional lock
   Orientation? _lastOrientation;
   bool _showDayCardRevealCoachmark = false;
+  bool _hasResolvedDayCardRevealCoachmarkOnboarding = false;
   final GlobalKey _dayCardRevealTargetKey = GlobalKey(
     debugLabel: 'day_view_date_reveal_target',
   );
@@ -709,6 +708,10 @@ class _DayViewPageState extends State<DayViewPage> {
   @override
   void didUpdateWidget(covariant DayViewPage old) {
     super.didUpdateWidget(old);
+    if (!old.showDayCardRevealCoachmarkForOnboarding &&
+        widget.showDayCardRevealCoachmarkForOnboarding) {
+      _scheduleDayCardRevealCoachmarkCheck();
+    }
     if (old.initialKy != widget.initialKy ||
         old.initialKm != widget.initialKm ||
         old.initialKd != widget.initialKd) {
@@ -739,9 +742,6 @@ class _DayViewPageState extends State<DayViewPage> {
     super.dispose();
   }
 
-  String _dayCardRevealCoachmarkKeyForUser(String userId) =>
-      '$_dayCardRevealCoachmarkKeyPrefix:$userId';
-
   void _scheduleDayCardRevealCoachmarkCheck() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_maybePresentDayCardRevealCoachmark());
@@ -749,38 +749,33 @@ class _DayViewPageState extends State<DayViewPage> {
   }
 
   Future<void> _maybePresentDayCardRevealCoachmark() async {
-    if (!mounted || _showDayCardRevealCoachmark) return;
-
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
-
-    if (_replayDayCardRevealCoachmarkOnEveryLaunch) {
-      if (_hasPresentedDayCardRevealCoachmarkThisLaunch) return;
-      _hasPresentedDayCardRevealCoachmarkThisLaunch = true;
-      setState(() => _showDayCardRevealCoachmark = true);
+    if (!mounted ||
+        _showDayCardRevealCoachmark ||
+        !widget.showDayCardRevealCoachmarkForOnboarding) {
       return;
     }
-
-    final prefs = await SharedPreferences.getInstance();
-    final hasSeen =
-        prefs.getBool(_dayCardRevealCoachmarkKeyForUser(userId)) ?? false;
-    if (!mounted || hasSeen) return;
-
     setState(() => _showDayCardRevealCoachmark = true);
+    _markDayCardRevealCoachmarkOnboardingSeen();
+    unawaited(_autoDismissDayCardRevealCoachmark());
   }
 
   Future<void> _handleDayCardRevealCoachmarkCompleted() async {
     if (mounted && _showDayCardRevealCoachmark) {
       setState(() => _showDayCardRevealCoachmark = false);
     }
+    _markDayCardRevealCoachmarkOnboardingSeen();
+  }
 
-    if (_replayDayCardRevealCoachmarkOnEveryLaunch) return;
+  void _markDayCardRevealCoachmarkOnboardingSeen() {
+    if (_hasResolvedDayCardRevealCoachmarkOnboarding) return;
+    _hasResolvedDayCardRevealCoachmarkOnboarding = true;
+    widget.onDayCardRevealCoachmarkCompleted?.call();
+  }
 
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_dayCardRevealCoachmarkKeyForUser(userId), true);
+  Future<void> _autoDismissDayCardRevealCoachmark() async {
+    await Future<void>.delayed(const Duration(seconds: 4));
+    if (!mounted || !_showDayCardRevealCoachmark) return;
+    setState(() => _showDayCardRevealCoachmark = false);
   }
 
   /// Generate the day key for Kemetic day info lookup
