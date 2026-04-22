@@ -12,7 +12,11 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart'
-    show KemeticMath, CreateNutritionReminder, DeleteNutritionReminder;
+    show
+        CalendarPage,
+        KemeticMath,
+        CreateNutritionReminder,
+        DeleteNutritionReminder;
 import '../journal/journal_event_badge.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'dart:math' as math;
@@ -1871,39 +1875,67 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                 const SizedBox(height: 20),
 
                 // Action buttons (matching day view style)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton.icon(
-                      onPressed: widget.onManageFlows == null
-                          ? null
-                          : () {
-                              Navigator.pop(context);
-                              widget.onManageFlows!(null);
-                            },
-                      icon: Icon(
-                        Icons.view_timeline,
-                        color: widget.onManageFlows == null
-                            ? const Color(0xFF404040)
-                            : _gold,
-                      ),
-                      label: Text(
-                        'Manage Flows',
-                        style: TextStyle(
-                          color: widget.onManageFlows == null
-                              ? const Color(0xFF404040)
-                              : _gold,
+                Builder(
+                  builder: (context) {
+                    final canShareFlow =
+                        CalendarPage.globalKey.currentState?.mounted ?? false;
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton.icon(
+                          onPressed: flow == null
+                              ? (widget.onEditNote == null
+                                    ? null
+                                    : () async {
+                                        Navigator.pop(context);
+                                        await widget.onEditNote!(
+                                          widget.kYear,
+                                          widget.kMonth,
+                                          day,
+                                          event,
+                                        );
+                                      })
+                              : (canShareFlow
+                                    ? () async {
+                                        Navigator.pop(context);
+                                        await CalendarPage.shareFlowFromEvent(
+                                          event,
+                                        );
+                                      }
+                                    : null),
+                          icon: Icon(
+                            flow == null
+                                ? Icons.note_alt_outlined
+                                : Icons.share_outlined,
+                            color:
+                                (flow == null
+                                    ? widget.onEditNote == null
+                                    : !canShareFlow)
+                                ? const Color(0xFF404040)
+                                : _gold,
+                          ),
+                          label: Text(
+                            flow == null ? 'Note' : 'Share Flow',
+                            style: TextStyle(
+                              color:
+                                  (flow == null
+                                      ? widget.onEditNote == null
+                                      : !canShareFlow)
+                                  ? const Color(0xFF404040)
+                                  : _gold,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        'Close',
-                        style: TextStyle(color: _gold),
-                      ),
-                    ),
-                  ],
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text(
+                            'Close',
+                            style: TextStyle(color: _gold),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),

@@ -2872,24 +2872,24 @@ class _DayViewGridState extends State<DayViewGrid> {
     final isReminder = currentEvent.isReminder;
 
     if (flow != null) {
-      final enabled = widget.onManageFlows != null;
+      final enabled = CalendarPage.globalKey.currentState?.mounted ?? false;
       return TextButton.icon(
         onPressed: enabled
-            ? () {
+            ? () async {
                 Navigator.pop(sheetContext);
-                widget.onManageFlows!(flow.id);
+                await CalendarPage.shareFlowFromEvent(currentEvent);
               }
             : null,
         icon: enabled
-            ? KemeticGold.icon(Icons.view_timeline)
-            : const Icon(Icons.view_timeline, color: Color(0xFF404040)),
+            ? KemeticGold.icon(Icons.share_outlined)
+            : const Icon(Icons.share_outlined, color: Color(0xFF404040)),
         label: enabled
             ? KemeticGold.text(
-                'Manage Flows',
+                'Share Flow',
                 style: _goldHeaderStyle.copyWith(fontSize: 15),
               )
             : const Text(
-                'Manage Flows',
+                'Share Flow',
                 style: TextStyle(color: Color(0xFF404040)),
               ),
       );

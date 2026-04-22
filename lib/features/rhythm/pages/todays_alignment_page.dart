@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -109,7 +110,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   int _activeNutritionDayIndex = 0;
   bool _nutritionFormOpen = false;
   bool _calendarRevealNavigationInFlight = false;
-  double _calendarRevealSwipeAccum = 0.0;
 
   PageController _buildTodoPageController(int initialPage) {
     return PageController(viewportFraction: 0.96, initialPage: initialPage);
@@ -902,23 +902,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
     final timeText = DateFormat('h:mm a').format(dt);
     return '$dayText · $timeText';
-  }
-
-  void _jumpToTodayTodos() {
-    final today = _todayLocal;
-    final updatedMap = {..._todosByDay}..putIfAbsent(today, () => []);
-    final orderedDays = _buildTodoDays(updatedMap);
-    final todayIndex = orderedDays
-        .indexWhere((d) => _sameDay(d, today))
-        .clamp(0, orderedDays.length - 1);
-    setState(() {
-      _todoDays = orderedDays;
-      _todosByDay = updatedMap;
-      _activeTodoDayIndex = todayIndex;
-      _todos = updatedMap[orderedDays[todayIndex]] ?? [];
-      _future = _load();
-    });
-    _requestTodoPage(todayIndex, animate: true);
   }
 
   Future<void> _openCalendarMenu(BuildContext context) async {
@@ -3142,39 +3125,12 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   Widget _buildCalendarRevealSwipeGate() {
-    final edgeWidth = edgeSwipeGestureWidth(context);
-
-    return Positioned(
-      top: 0,
-      right: 0,
-      bottom: 0,
-      width: edgeWidth,
-      child: _HorizontalEdgeSwipePad(
-        onHorizontalDragStart: (_) {
-          _calendarRevealSwipeAccum = 0.0;
-        },
-        onHorizontalDragUpdate: (details) {
-          if (_calendarRevealNavigationInFlight) return;
-          _calendarRevealSwipeAccum += details.delta.dx;
-        },
-        onHorizontalDragEnd: (details) {
-          if (_calendarRevealNavigationInFlight) {
-            _calendarRevealSwipeAccum = 0.0;
-            return;
-          }
-
-          final vx = details.velocity.pixelsPerSecond.dx;
-          final traveled = _calendarRevealSwipeAccum;
-          final flingClose = vx < -750;
-          final dragClose = traveled < -42;
-
-          if (flingClose || dragClose) {
-            unawaited(_returnToCalendarFromSwipe());
-          }
-
-          _calendarRevealSwipeAccum = 0.0;
-        },
-      ),
+    return PageNavigationEdgeSwipe(
+      direction: PageNavigationSwipeDirection.rightToLeft,
+      enabled: !_calendarRevealNavigationInFlight,
+      onCommit: () {
+        unawaited(_returnToCalendarFromSwipe());
+      },
     );
   }
 
@@ -3226,7 +3182,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         IconButton(
           tooltip: 'Today',
           icon: const GlossyIcon(icon: Icons.today, gradient: goldGloss),
-          onPressed: _jumpToTodayTodos,
+          onPressed: () => CalendarPage.openMainCalendarAtToday(context),
         ),
         Builder(
           builder: (btnCtx) => IconButton(
@@ -3324,33 +3280,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
           ),
         );
     return [...doneAlignment, ...doneTodos];
-  }
-}
-
-class _HorizontalEdgeSwipePad extends StatelessWidget {
-  const _HorizontalEdgeSwipePad({
-    required this.onHorizontalDragStart,
-    required this.onHorizontalDragUpdate,
-    required this.onHorizontalDragEnd,
-  });
-
-  final GestureDragStartCallback? onHorizontalDragStart;
-  final GestureDragUpdateCallback? onHorizontalDragUpdate;
-  final GestureDragEndCallback? onHorizontalDragEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Listener(
-      behavior: HitTestBehavior.translucent,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: null,
-        onHorizontalDragStart: onHorizontalDragStart,
-        onHorizontalDragUpdate: onHorizontalDragUpdate,
-        onHorizontalDragEnd: onHorizontalDragEnd,
-        child: const SizedBox.expand(),
-      ),
-    );
   }
 }
 

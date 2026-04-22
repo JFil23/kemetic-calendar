@@ -3,7 +3,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/profile_model.dart';
@@ -49,7 +49,6 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _postsLoading = true;
   int _activePostIndex = 0;
   bool _calendarRevealNavigationInFlight = false;
-  double _calendarRevealSwipeAccum = 0.0;
 
   bool get _isViewingOwnProfile {
     final currentId = Supabase.instance.client.auth.currentUser?.id;
@@ -194,24 +193,6 @@ class _ProfilePageState extends State<ProfilePage> {
     await _replaceWithProfile(userId);
   }
 
-  void _goToCalendarToday() {
-    final calendarState = CalendarPage.globalKey.currentState;
-    if (calendarState != null) {
-      calendarState.jumpToTodayFromOutside();
-    }
-
-    final navigator = Navigator.of(context);
-    if (widget.openedFromCalendar && navigator.canPop()) {
-      navigator.pop();
-      return;
-    }
-
-    context.go('/');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      CalendarPage.globalKey.currentState?.jumpToTodayFromOutside();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final canRevealCalendar =
@@ -257,7 +238,7 @@ class _ProfilePageState extends State<ProfilePage> {
           IconButton(
             tooltip: 'Today',
             icon: const GlossyIcon(icon: Icons.today, gradient: goldGloss),
-            onPressed: _goToCalendarToday,
+            onPressed: () => CalendarPage.openMainCalendarAtToday(context),
           ),
           Builder(
             builder: (btnCtx) => IconButton(
@@ -579,39 +560,12 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildCalendarRevealSwipeGate() {
-    final edgeWidth = edgeSwipeGestureWidth(context);
-
-    return Positioned(
-      top: 0,
-      left: 0,
-      bottom: 0,
-      width: edgeWidth,
-      child: _HorizontalEdgeSwipePad(
-        onHorizontalDragStart: (_) {
-          _calendarRevealSwipeAccum = 0.0;
-        },
-        onHorizontalDragUpdate: (details) {
-          if (_calendarRevealNavigationInFlight) return;
-          _calendarRevealSwipeAccum += details.delta.dx;
-        },
-        onHorizontalDragEnd: (details) {
-          if (_calendarRevealNavigationInFlight) {
-            _calendarRevealSwipeAccum = 0.0;
-            return;
-          }
-
-          final vx = details.velocity.pixelsPerSecond.dx;
-          final traveled = _calendarRevealSwipeAccum;
-          final flingClose = vx > 750;
-          final dragClose = traveled > 42;
-
-          if (flingClose || dragClose) {
-            unawaited(_returnToCalendarFromSwipe());
-          }
-
-          _calendarRevealSwipeAccum = 0.0;
-        },
-      ),
+    return PageNavigationEdgeSwipe(
+      direction: PageNavigationSwipeDirection.leftToRight,
+      enabled: !_calendarRevealNavigationInFlight,
+      onCommit: () {
+        unawaited(_returnToCalendarFromSwipe());
+      },
     );
   }
 
@@ -1192,32 +1146,5 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
     await _loadPosts();
-  }
-}
-
-class _HorizontalEdgeSwipePad extends StatelessWidget {
-  const _HorizontalEdgeSwipePad({
-    required this.onHorizontalDragStart,
-    required this.onHorizontalDragUpdate,
-    required this.onHorizontalDragEnd,
-  });
-
-  final GestureDragStartCallback? onHorizontalDragStart;
-  final GestureDragUpdateCallback? onHorizontalDragUpdate;
-  final GestureDragEndCallback? onHorizontalDragEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Listener(
-      behavior: HitTestBehavior.translucent,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: null,
-        onHorizontalDragStart: onHorizontalDragStart,
-        onHorizontalDragUpdate: onHorizontalDragUpdate,
-        onHorizontalDragEnd: onHorizontalDragEnd,
-        child: const SizedBox.expand(),
-      ),
-    );
   }
 }

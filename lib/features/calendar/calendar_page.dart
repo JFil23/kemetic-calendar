@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/user_events_repo.dart';
 import '../../data/flows_repo.dart';
@@ -3890,6 +3892,26 @@ class CalendarPage extends StatefulWidget {
   static final GlobalKey<_CalendarPageState> globalKey =
       GlobalKey<_CalendarPageState>();
 
+  static Future<void> shareFlowFromEvent(EventItem event) async {
+    final state = globalKey.currentState;
+    if (state == null || !state.mounted) return;
+    await state._shareFlowFromEventItem(event);
+  }
+
+  static void openMainCalendarAtToday(
+    BuildContext context, {
+    bool animate = true,
+  }) {
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    GoRouter.of(context).go('/');
+    if (rootNavigator.canPop()) {
+      rootNavigator.popUntil((route) => route.isFirst);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      globalKey.currentState?.jumpToTodayFromOutside(animate: animate);
+    });
+  }
+
   // Static method for parsing rules from JSON (used by inbox import)
   static FlowRule ruleFromJson(Map<String, dynamic> j) {
     final allDay = (j['allDay'] ?? true) as bool;
@@ -4273,9 +4295,7 @@ class _CalendarPageState extends State<CalendarPage>
   late JournalController _journalController;
   bool _journalInitialized = false;
   bool _plannerNavigationInFlight = false;
-  double _plannerSwipeAccum = 0.0;
   bool _profileNavigationInFlight = false;
-  double _profileSwipeAccum = 0.0;
 
   // Repository instances
   late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
@@ -8579,6 +8599,69 @@ class _CalendarPageState extends State<CalendarPage>
         editingIndex: idx,
       );
     });
+  }
+
+  Future<void> _openFlowShareSheetFromEvent({
+    required int flowId,
+    required String fallbackTitle,
+  }) async {
+    var flowTitle = fallbackTitle.trim();
+    var flowExists = false;
+    for (final flow in _flows) {
+      if (flow.id != flowId) continue;
+      flowExists = true;
+      final candidate = flow.name.trim();
+      if (candidate.isNotEmpty) {
+        flowTitle = candidate;
+      }
+      break;
+    }
+
+    if (!flowExists) {
+      try {
+        final persistedFlow = await _flowsRepo.getFlowById(flowId);
+        if (persistedFlow != null) {
+          flowExists = true;
+          final candidate = persistedFlow.name.trim();
+          if (candidate.isNotEmpty) {
+            flowTitle = candidate;
+          }
+        }
+      } catch (_) {
+        // Ignore lookup failures here and surface the generic share error below.
+      }
+    }
+
+    if (!flowExists) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This flow is no longer available to share.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (flowTitle.isEmpty) {
+      flowTitle = 'Flow';
+    }
+
+    await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ShareFlowSheet(flowId: flowId, flowTitle: flowTitle),
+    );
+  }
+
+  Future<void> _shareFlowFromEventItem(EventItem evt) async {
+    final flowId = evt.flowId;
+    if (flowId == null || evt.isReminder) return;
+    await _openFlowShareSheetFromEvent(
+      flowId: flowId,
+      fallbackTitle: evt.title,
+    );
   }
 
   Future<void> _shareNoteSimple(EventItem evt) async {
@@ -16191,76 +16274,22 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Widget _buildPlannerSwipeGate() {
-    final edgeWidth = edgeSwipeGestureWidth(context);
-
-    return Positioned(
-      left: 0,
-      top: 0,
-      bottom: 0,
-      width: edgeWidth,
-      child: _HorizontalEdgeSwipePad(
-        onHorizontalDragStart: (_) {
-          _plannerSwipeAccum = 0.0;
-        },
-        onHorizontalDragUpdate: (details) {
-          if (_plannerNavigationInFlight) return;
-          _plannerSwipeAccum += details.delta.dx;
-        },
-        onHorizontalDragEnd: (details) {
-          if (_plannerNavigationInFlight) {
-            _plannerSwipeAccum = 0.0;
-            return;
-          }
-
-          final vx = details.velocity.pixelsPerSecond.dx;
-          final traveled = _plannerSwipeAccum;
-          final flingOpen = vx > 750;
-          final dragOpen = traveled > 42;
-
-          if (flingOpen || dragOpen) {
-            unawaited(_openPlannerPage(edgeSwipeTransition: true));
-          }
-
-          _plannerSwipeAccum = 0.0;
-        },
-      ),
+    return PageNavigationEdgeSwipe(
+      direction: PageNavigationSwipeDirection.leftToRight,
+      enabled: !_plannerNavigationInFlight,
+      onCommit: () {
+        unawaited(_openPlannerPage(edgeSwipeTransition: true));
+      },
     );
   }
 
   Widget _buildProfileSwipeGate() {
-    final edgeWidth = edgeSwipeGestureWidth(context);
-
-    return Positioned(
-      top: 0,
-      right: 0,
-      bottom: 0,
-      width: edgeWidth,
-      child: _HorizontalEdgeSwipePad(
-        onHorizontalDragStart: (_) {
-          _profileSwipeAccum = 0.0;
-        },
-        onHorizontalDragUpdate: (details) {
-          if (_profileNavigationInFlight) return;
-          _profileSwipeAccum += details.delta.dx;
-        },
-        onHorizontalDragEnd: (details) {
-          if (_profileNavigationInFlight) {
-            _profileSwipeAccum = 0.0;
-            return;
-          }
-
-          final vx = details.velocity.pixelsPerSecond.dx;
-          final traveled = _profileSwipeAccum;
-          final flingOpen = vx < -750;
-          final dragOpen = traveled < -42;
-
-          if (flingOpen || dragOpen) {
-            unawaited(_openProfile(context, openedFromCalendarSwipe: true));
-          }
-
-          _profileSwipeAccum = 0.0;
-        },
-      ),
+    return PageNavigationEdgeSwipe(
+      direction: PageNavigationSwipeDirection.rightToLeft,
+      enabled: !_profileNavigationInFlight,
+      onCommit: () {
+        unawaited(_openProfile(context, openedFromCalendarSwipe: true));
+      },
     );
   }
 
@@ -19151,24 +19180,24 @@ class _MainCalendarEventDetailSheetState
     final isReminder = currentEvent.isReminder;
 
     if (flowId != null) {
-      final enabled = widget.onManageFlows != null;
+      final enabled = CalendarPage.globalKey.currentState?.mounted ?? false;
       return TextButton.icon(
         onPressed: enabled
-            ? () {
+            ? () async {
                 Navigator.pop(sheetContext);
-                widget.onManageFlows!(flowId);
+                await CalendarPage.shareFlowFromEvent(currentEvent);
               }
             : null,
         icon: enabled
-            ? KemeticGold.icon(Icons.view_timeline)
-            : const Icon(Icons.view_timeline, color: Color(0xFF404040)),
+            ? KemeticGold.icon(Icons.share_outlined)
+            : const Icon(Icons.share_outlined, color: Color(0xFF404040)),
         label: enabled
             ? KemeticGold.text(
-                'Manage Flows',
+                'Share Flow',
                 style: _actionTextStyle.copyWith(fontSize: 15),
               )
             : const Text(
-                'Manage Flows',
+                'Share Flow',
                 style: TextStyle(color: Color(0xFF404040)),
               ),
       );
@@ -27566,22 +27595,9 @@ class _FlowHubPage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: TextButton(
-              style: TextButton.styleFrom(
-                foregroundColor: _silver,
-                textStyle: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              style: TextButton.styleFrom(foregroundColor: _silver),
               onPressed: onCreateNew,
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Add Flow'),
-                  SizedBox(width: 6),
-                  Icon(Icons.add, size: 20),
-                ],
-              ),
+              child: const Icon(Icons.add, size: 20),
             ),
           ),
         ],
@@ -29403,33 +29419,6 @@ class _GoldDivider extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _HorizontalEdgeSwipePad extends StatelessWidget {
-  const _HorizontalEdgeSwipePad({
-    required this.onHorizontalDragStart,
-    required this.onHorizontalDragUpdate,
-    required this.onHorizontalDragEnd,
-  });
-
-  final GestureDragStartCallback? onHorizontalDragStart;
-  final GestureDragUpdateCallback? onHorizontalDragUpdate;
-  final GestureDragEndCallback? onHorizontalDragEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Listener(
-      behavior: HitTestBehavior.translucent,
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: null,
-        onHorizontalDragStart: onHorizontalDragStart,
-        onHorizontalDragUpdate: onHorizontalDragUpdate,
-        onHorizontalDragEnd: onHorizontalDragEnd,
-        child: const SizedBox.expand(),
       ),
     );
   }
