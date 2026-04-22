@@ -245,6 +245,8 @@ class KemeticKeyboardHost extends StatefulWidget {
 
 class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
   final KemeticKeyboardController _controller = KemeticKeyboardController();
+  final GlobalKey _panelRegionKey = GlobalKey();
+  final GlobalKey _toggleRegionKey = GlobalKey();
   double _lastKeyboardHeight = 300;
   bool _opening = false;
   bool _systemKeyboardHidden = false;
@@ -287,6 +289,9 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
         }
       } else {
         _controller.attachEditable(null);
+        if (!kIsWeb) {
+          _dismissCustomKeyboard(unfocusTarget: false);
+        }
       }
       return;
     }
@@ -311,6 +316,47 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
     }
   }
 
+  void _handlePointerDown(PointerDownEvent event) {
+    if (!_controller.isCustomMode || _opening) return;
+    if (_containsGlobalPosition(_panelRegionKey, event.position)) return;
+    if (_containsGlobalPosition(_toggleRegionKey, event.position)) return;
+    if (_containsActiveEditable(event.position)) return;
+    _dismissCustomKeyboard();
+  }
+
+  bool _containsActiveEditable(Offset globalPosition) {
+    final editable = _controller.editable ?? _controller.lastEditable;
+    if (!_controller._isUsable(editable)) return false;
+    return _containsRenderObject(
+      editable!.context.findRenderObject(),
+      globalPosition,
+    );
+  }
+
+  bool _containsGlobalPosition(GlobalKey key, Offset globalPosition) {
+    return _containsRenderObject(
+      key.currentContext?.findRenderObject(),
+      globalPosition,
+    );
+  }
+
+  bool _containsRenderObject(
+    RenderObject? renderObject,
+    Offset globalPosition,
+  ) {
+    if (renderObject is! RenderBox || !renderObject.hasSize) return false;
+    final rect = renderObject.localToGlobal(Offset.zero) & renderObject.size;
+    return rect.contains(globalPosition);
+  }
+
+  void _dismissCustomKeyboard({bool unfocusTarget = true}) {
+    final target = _controller.editable ?? _controller.lastEditable;
+    _controller.closeAndClearTargets();
+    if (!unfocusTarget) return;
+    target?.widget.focusNode.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
@@ -318,20 +364,26 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
       _lastKeyboardHeight = bottomInset;
     }
 
-    return Stack(
-      children: [
-        widget.child,
-        _KeyboardToggle(
-          controller: _controller,
-          bottomInset: bottomInset,
-          onOpenCustom: _openCustomKeyboard,
-        ),
-        _KeyboardPanel(
-          controller: _controller,
-          keyboardHeight: _lastKeyboardHeight,
-          onSystemKeyboard: _closeCustomAndRestoreSystem,
-        ),
-      ],
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: _handlePointerDown,
+      child: Stack(
+        children: [
+          widget.child,
+          _KeyboardToggle(
+            controller: _controller,
+            regionKey: _toggleRegionKey,
+            bottomInset: bottomInset,
+            onOpenCustom: _openCustomKeyboard,
+          ),
+          _KeyboardPanel(
+            controller: _controller,
+            regionKey: _panelRegionKey,
+            keyboardHeight: _lastKeyboardHeight,
+            onSystemKeyboard: _closeCustomAndRestoreSystem,
+          ),
+        ],
+      ),
     );
   }
 
@@ -377,11 +429,13 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
 
 class _KeyboardToggle extends StatefulWidget {
   final KemeticKeyboardController controller;
+  final GlobalKey regionKey;
   final double bottomInset;
   final VoidCallback onOpenCustom;
 
   const _KeyboardToggle({
     required this.controller,
+    required this.regionKey,
     required this.bottomInset,
     required this.onOpenCustom,
   });
@@ -481,36 +535,39 @@ class _KeyboardToggleState extends State<_KeyboardToggle> {
           curve: Curves.easeOut,
           left: positionedOffset.dx,
           top: positionedOffset.dy,
-          child: AnimatedOpacity(
-            key: const ValueKey('kemetic-toggle-opacity'),
-            duration: const Duration(milliseconds: 180),
-            opacity: show ? 1 : 0,
-            child: IgnorePointer(
-              key: const ValueKey('kemetic-toggle-ignore-pointer'),
-              ignoring: !show,
-              child: KeyedSubtree(
-                key: const ValueKey('kemetic-toggle-hit-target'),
-                child: GestureDetector(
-                  onPanStart: (_) => _updateSize(),
-                  onPanUpdate: (details) {
-                    final next = _clampOffset(
-                      (_customOffset ?? targetOffset) + details.delta,
-                      screenSize,
-                      padding,
-                    );
-                    setState(() {
-                      _customOffset = next;
-                    });
-                  },
-                  child: FloatingActionButton.extended(
-                    key: _fabKey,
-                    heroTag: 'kemeticKeyboardToggle',
-                    backgroundColor: colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.95),
-                    foregroundColor: colorScheme.onSurfaceVariant,
-                    icon: const Icon(Icons.translate_outlined),
-                    label: const Text('Medu Neter'),
-                    onPressed: widget.onOpenCustom,
+          child: SizedBox(
+            key: widget.regionKey,
+            child: AnimatedOpacity(
+              key: const ValueKey('kemetic-toggle-opacity'),
+              duration: const Duration(milliseconds: 180),
+              opacity: show ? 1 : 0,
+              child: IgnorePointer(
+                key: const ValueKey('kemetic-toggle-ignore-pointer'),
+                ignoring: !show,
+                child: KeyedSubtree(
+                  key: const ValueKey('kemetic-toggle-hit-target'),
+                  child: GestureDetector(
+                    onPanStart: (_) => _updateSize(),
+                    onPanUpdate: (details) {
+                      final next = _clampOffset(
+                        (_customOffset ?? targetOffset) + details.delta,
+                        screenSize,
+                        padding,
+                      );
+                      setState(() {
+                        _customOffset = next;
+                      });
+                    },
+                    child: FloatingActionButton.extended(
+                      key: _fabKey,
+                      heroTag: 'kemeticKeyboardToggle',
+                      backgroundColor: colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.95),
+                      foregroundColor: colorScheme.onSurfaceVariant,
+                      icon: const Icon(Icons.translate_outlined),
+                      label: const Text('Medu Neter'),
+                      onPressed: widget.onOpenCustom,
+                    ),
                   ),
                 ),
               ),
@@ -526,10 +583,12 @@ enum _OutputMode { scholarly, ascii }
 
 class _KeyboardPanel extends StatefulWidget {
   final KemeticKeyboardController controller;
+  final GlobalKey regionKey;
   final double keyboardHeight;
   final VoidCallback onSystemKeyboard;
   const _KeyboardPanel({
     required this.controller,
+    required this.regionKey,
     required this.keyboardHeight,
     required this.onSystemKeyboard,
   });
@@ -559,111 +618,114 @@ class _KeyboardPanelState extends State<_KeyboardPanel> {
           alignment: Alignment.bottomCenter,
           child: Padding(
             padding: EdgeInsets.fromLTRB(12, 0, 12, 12 + bottomPadding),
-            child: Material(
-              key: const ValueKey('kemetic-keyboard-panel'),
-              elevation: 14,
-              color: colorScheme.surface.withValues(alpha: 0.98),
-              borderRadius: BorderRadius.circular(18),
-              child: SizedBox(
-                height: targetHeight,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.translate_outlined, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Kemetic phonograms — tap to insert',
-                              style: Theme.of(context).textTheme.labelMedium
-                                  ?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          SegmentedButton<_OutputMode>(
-                            style: ButtonStyle(
-                              visualDensity: expandedVisualDensity(
-                                context,
-                                fallback: VisualDensity.compact,
-                              ),
-                              tapTargetSize: expandedTapTargetSize(context),
-                            ),
-                            segments: const [
-                              ButtonSegment(
-                                value: _OutputMode.scholarly,
-                                label: Text('ꜣ'),
-                              ),
-                              ButtonSegment(
-                                value: _OutputMode.ascii,
-                                label: Text('ASCII'),
-                              ),
-                            ],
-                            selected: {_mode},
-                            onSelectionChanged: (v) =>
-                                setState(() => _mode = v.first),
-                          ),
-                          const SizedBox(width: 8),
-                          TextButton.icon(
-                            onPressed: widget.onSystemKeyboard,
-                            icon: const Icon(Icons.keyboard_outlined),
-                            label: const Text('ABC'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const ClampingScrollPhysics(),
-                        child: Row(
+            child: SizedBox(
+              key: widget.regionKey,
+              child: Material(
+                key: const ValueKey('kemetic-keyboard-panel'),
+                elevation: 14,
+                color: colorScheme.surface.withValues(alpha: 0.98),
+                borderRadius: BorderRadius.circular(18),
+                child: SizedBox(
+                  height: targetHeight,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                    child: Column(
+                      children: [
+                        Row(
                           children: [
-                            _KeyboardActionButton(
-                              key: const ValueKey('kemetic-action-start'),
-                              icon: Icons.first_page_rounded,
-                              tooltip: 'Move cursor to start',
-                              onPressed: () => widget.controller
-                                  .moveCaretToBoundary(toStart: true),
+                            const Icon(Icons.translate_outlined, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Kemetic phonograms — tap to insert',
+                                style: Theme.of(context).textTheme.labelMedium
+                                    ?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            SegmentedButton<_OutputMode>(
+                              style: ButtonStyle(
+                                visualDensity: expandedVisualDensity(
+                                  context,
+                                  fallback: VisualDensity.compact,
+                                ),
+                                tapTargetSize: expandedTapTargetSize(context),
+                              ),
+                              segments: const [
+                                ButtonSegment(
+                                  value: _OutputMode.scholarly,
+                                  label: Text('ꜣ'),
+                                ),
+                                ButtonSegment(
+                                  value: _OutputMode.ascii,
+                                  label: Text('ASCII'),
+                                ),
+                              ],
+                              selected: {_mode},
+                              onSelectionChanged: (v) =>
+                                  setState(() => _mode = v.first),
                             ),
                             const SizedBox(width: 8),
-                            _KeyboardActionButton(
-                              key: const ValueKey('kemetic-action-left'),
-                              icon: Icons.arrow_left_rounded,
-                              tooltip: 'Move cursor left',
-                              onPressed: () =>
-                                  widget.controller.moveCaretHorizontally(-1),
-                            ),
-                            const SizedBox(width: 8),
-                            _KeyboardActionButton(
-                              key: const ValueKey('kemetic-action-right'),
-                              icon: Icons.arrow_right_rounded,
-                              tooltip: 'Move cursor right',
-                              onPressed: () =>
-                                  widget.controller.moveCaretHorizontally(1),
-                            ),
-                            const SizedBox(width: 8),
-                            _KeyboardActionButton(
-                              key: const ValueKey('kemetic-action-end'),
-                              icon: Icons.last_page_rounded,
-                              tooltip: 'Move cursor to end',
-                              onPressed: () => widget.controller
-                                  .moveCaretToBoundary(toStart: false),
+                            TextButton.icon(
+                              onPressed: widget.onSystemKeyboard,
+                              icon: const Icon(Icons.keyboard_outlined),
+                              label: const Text('ABC'),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: _UniliteralLayout(
-                          key: const ValueKey('uniliteral'),
-                          controller: widget.controller,
-                          outputMode: _mode,
+                        const SizedBox(height: 8),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const ClampingScrollPhysics(),
+                          child: Row(
+                            children: [
+                              _KeyboardActionButton(
+                                key: const ValueKey('kemetic-action-start'),
+                                icon: Icons.first_page_rounded,
+                                tooltip: 'Move cursor to start',
+                                onPressed: () => widget.controller
+                                    .moveCaretToBoundary(toStart: true),
+                              ),
+                              const SizedBox(width: 8),
+                              _KeyboardActionButton(
+                                key: const ValueKey('kemetic-action-left'),
+                                icon: Icons.arrow_left_rounded,
+                                tooltip: 'Move cursor left',
+                                onPressed: () =>
+                                    widget.controller.moveCaretHorizontally(-1),
+                              ),
+                              const SizedBox(width: 8),
+                              _KeyboardActionButton(
+                                key: const ValueKey('kemetic-action-right'),
+                                icon: Icons.arrow_right_rounded,
+                                tooltip: 'Move cursor right',
+                                onPressed: () =>
+                                    widget.controller.moveCaretHorizontally(1),
+                              ),
+                              const SizedBox(width: 8),
+                              _KeyboardActionButton(
+                                key: const ValueKey('kemetic-action-end'),
+                                icon: Icons.last_page_rounded,
+                                tooltip: 'Move cursor to end',
+                                onPressed: () => widget.controller
+                                    .moveCaretToBoundary(toStart: false),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: _UniliteralLayout(
+                            key: const ValueKey('uniliteral'),
+                            controller: widget.controller,
+                            outputMode: _mode,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

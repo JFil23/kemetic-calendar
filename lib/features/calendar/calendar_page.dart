@@ -3877,7 +3877,15 @@ final List<_MaatFlowTemplate> kMaatFlowTemplatesEconomy = [
 
 /* ─────────────────────────── CALENDAR PAGE (flows + notes) ─────────────────────────── */
 
-GlobalKey keyForMonth(int ky, int km) => GlobalObjectKey('y${ky}m${km}');
+final Map<String, GlobalKey> _calendarMonthKeys = <String, GlobalKey>{};
+
+GlobalKey keyForMonth(int ky, int km) {
+  final id = 'y${ky}m${km}';
+  return _calendarMonthKeys.putIfAbsent(
+    id,
+    () => GlobalKey(debugLabel: 'calendar_month_$id'),
+  );
+}
 
 class CalendarPage extends StatefulWidget {
   final int? initialFlowIdToEdit;
@@ -4563,10 +4571,10 @@ class _CalendarPageState extends State<CalendarPage>
 
   static const String _kSessionScopeCalendarView = 'calendar_view';
   static const String _kSessionResumeKindDaySheet = 'calendar_day_sheet';
+  static const int _kCalendarViewStateSchemaVersion = 2;
 
-  // ✅ ADD: Flag to prevent auto-scroll on orientation change
-  bool _skipScrollToToday = false;
   bool _initialJumpScheduled = false;
+  bool _initialViewportSettled = false;
   bool _orientationJumpScheduled = false;
   bool _portraitRecenterPending = false;
 
@@ -4783,9 +4791,10 @@ class _CalendarPageState extends State<CalendarPage>
 
   // Call on scroll to keep tracking the centered month.
   void _onVerticalScroll() {
+    if (!_initialViewportSettled) return;
     // ✅ Debounce to next frame to avoid stale RenderObjects
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (mounted && _initialViewportSettled) {
         _updateCenteredMonth();
       }
     });
@@ -4906,8 +4915,8 @@ class _CalendarPageState extends State<CalendarPage>
 
   // for centering and for snapping to today
   final _centerKey = GlobalKey();
-  final _todayMonthKey = GlobalKey(); // month card
   final _todayDayKey = GlobalKey(); // 🔑 individual day chip
+  final _viewDayAnchorKey = GlobalKey(debugLabel: 'calendar_view_day_anchor');
   late final Map<int, GlobalKey> _onboardingHighlightDayKeys = {
     for (final day in _onboardingAnchorDays)
       day: GlobalKey(debugLabel: 'onboarding_day_$day'),
@@ -4918,6 +4927,24 @@ class _CalendarPageState extends State<CalendarPage>
     final onboardingKm = _lastViewKm ?? _today.kMonth;
     if (kYear != onboardingKy || kMonth != onboardingKm) return null;
     return _onboardingHighlightDayKeys[kDay];
+  }
+
+  Key? _calendarDayAnchorKeyFor(int kYear, int kMonth, int kDay) {
+    final viewKy = _lastViewKy;
+    final viewKm = _lastViewKm;
+    final viewKd = _lastViewKd;
+    if (viewKy != null &&
+        viewKm != null &&
+        viewKd != null &&
+        kYear == viewKy &&
+        kMonth == viewKm &&
+        kDay == viewKd &&
+        !(kYear == _today.kYear &&
+            kMonth == _today.kMonth &&
+            kDay == _today.kDay)) {
+      return _viewDayAnchorKey;
+    }
+    return _onboardingHighlightKeyFor(kYear, kMonth, kDay);
   }
 
   @override
@@ -4937,14 +4964,6 @@ class _CalendarPageState extends State<CalendarPage>
 
     _scrollCtrl.addListener(_onVerticalScroll);
 
-    // notifications
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      // ✅ Only scroll to today if no persisted state
-      if (!_skipScrollToToday) {
-        _scrollToToday();
-      }
-    });
     _scheduleOnboardingPresentation();
 
     // Schedule a one-time migration of clientEventIds to the unified format.
@@ -5365,8 +5384,7 @@ class _CalendarPageState extends State<CalendarPage>
   Future<void> _loadPersistedViewState() async {
     if (!_rememberLastView) {
       _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
-      _skipScrollToToday = true; // we'll jump once after first layout
-      _scheduleInitialJumpToToday();
+      _scheduleInitialViewportRestore();
       _restored = true;
       return;
     }
@@ -5377,10 +5395,16 @@ class _CalendarPageState extends State<CalendarPage>
       final savedKy = (savedState?['kYear'] as num?)?.toInt();
       final savedKm = (savedState?['kMonth'] as num?)?.toInt();
       final savedKd = (savedState?['kDay'] as num?)?.toInt();
+      final savedSchemaVersion =
+          (savedState?['schemaVersion'] as num?)?.toInt() ?? 0;
       final savedExpansion = savedState?['expansion'] as String?;
 
       // ✅ FIX 2: Allow years < 1 in saved state - support historical dates
-      if (savedKy != null && savedKm != null && savedKm >= 1 && savedKm <= 13) {
+      if (savedSchemaVersion == _kCalendarViewStateSchemaVersion &&
+          savedKy != null &&
+          savedKm != null &&
+          savedKm >= 1 &&
+          savedKm <= 13) {
         final today = KemeticMath.fromGregorian(DateTime.now());
 
         if (savedKy > today.kYear + 2) {
@@ -5390,6 +5414,7 @@ class _CalendarPageState extends State<CalendarPage>
             );
           }
           _setView(today.kYear, today.kMonth, kd: today.kDay);
+          _scheduleInitialViewportRestore();
           _restored = true;
           return;
         }
@@ -5408,15 +5433,16 @@ class _CalendarPageState extends State<CalendarPage>
           _lastViewKy = savedKy;
           _lastViewKm = savedKm;
           _lastViewKd = clamped;
-          _skipScrollToToday = true;
           _restored = true;
           _monthExpansion = _parseExpansion(savedExpansion);
         });
+        _scheduleInitialViewportRestore();
       } else {
         if (kDebugMode) {
           print('📂 [CALENDAR] No persisted state — defaulting to today');
         }
         _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
+        _scheduleInitialViewportRestore();
         _restored = true;
       }
     } catch (e) {
@@ -5424,6 +5450,7 @@ class _CalendarPageState extends State<CalendarPage>
         print('⚠️ [CALENDAR] Persist load error — defaulting to today: $e');
       }
       _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
+      _scheduleInitialViewportRestore();
       _restored = true;
     }
   }
@@ -5463,6 +5490,7 @@ class _CalendarPageState extends State<CalendarPage>
       final maxDay = _maxDayForMonth(ky, km);
       final clampedDay = dayToSave.clamp(1, maxDay);
       await SessionResumeService.saveScopedState(_kSessionScopeCalendarView, {
+        'schemaVersion': _kCalendarViewStateSchemaVersion,
         'kYear': ky,
         'kMonth': km,
         'kDay': clampedDay,
@@ -5481,28 +5509,33 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
-  void _scheduleInitialJumpToToday() {
+  void _scheduleInitialViewportRestore() {
     if (_initialJumpScheduled) return;
     _initialJumpScheduled = true;
     WidgetsBinding.instance.deferFirstFrame();
 
-    void attemptJump(int tries) {
+    void finishRestore() {
+      _initialViewportSettled = true;
+      _initialJumpScheduled = false;
+      WidgetsBinding.instance.allowFirstFrame();
+    }
+
+    void attemptRestore(int tries) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
-          WidgetsBinding.instance.allowFirstFrame();
+          finishRestore();
           return;
         }
-        final ok = _jumpToTodayNow(animate: false);
-        if (ok || tries >= 2) {
-          WidgetsBinding.instance.allowFirstFrame();
-          _initialJumpScheduled = false;
+        final ok = _jumpToCurrentViewNow(animate: false);
+        if (ok || tries >= 20) {
+          finishRestore();
         } else {
-          attemptJump(tries + 1);
+          attemptRestore(tries + 1);
         }
       });
     }
 
-    attemptJump(0);
+    attemptRestore(0);
   }
 
   void _scheduleOrientationJumpToToday() {
@@ -5535,37 +5568,30 @@ class _CalendarPageState extends State<CalendarPage>
     });
   }
 
-  bool _jumpToTodayNow({bool animate = true}) {
-    // Prefer the exact day; fall back to the month card if needed
-    final targetCtx =
-        _todayDayKey.currentContext ?? _todayMonthKey.currentContext;
-    if (targetCtx == null) return false;
+  BuildContext? _currentViewTargetContext() {
+    final viewKy = _lastViewKy;
+    final viewKm = _lastViewKm;
+    final viewKd = _lastViewKd;
+    if (viewKy != null && viewKm != null && viewKd != null) {
+      if (viewKy == _today.kYear &&
+          viewKm == _today.kMonth &&
+          viewKd == _today.kDay) {
+        return _todayDayKey.currentContext ??
+            keyForMonth(viewKy, viewKm).currentContext;
+      }
+      return _viewDayAnchorKey.currentContext ??
+          keyForMonth(viewKy, viewKm).currentContext;
+    }
+    return _todayDayKey.currentContext ??
+        keyForMonth(_today.kYear, _today.kMonth).currentContext;
+  }
 
-    final scrollableState = Scrollable.of(targetCtx);
-    if (scrollableState == null) return false;
-    final position = scrollableState.position;
+  bool _jumpToCurrentViewNow({bool animate = true}) {
+    final targetCtx = _currentViewTargetContext();
+    final targetPixels = _centeredScrollOffsetForContext(targetCtx);
+    if (targetPixels == null) return false;
 
-    final targetBox = targetCtx.findRenderObject();
-    final viewportBox = scrollableState.context.findRenderObject();
-    if (targetBox is! RenderBox || viewportBox is! RenderBox) return false;
-
-    // Compute centers in global coordinates
-    final targetCenterGlobal = targetBox
-        .localToGlobal(targetBox.size.center(Offset.zero))
-        .dy;
-    final viewportTopGlobal = viewportBox.localToGlobal(Offset.zero).dy;
-    final viewportCenterGlobal =
-        viewportTopGlobal + viewportBox.size.height / 2;
-
-    // Delta required to bring target center to viewport center
-    final delta = targetCenterGlobal - viewportCenterGlobal;
-
-    // Desired scroll offset (clamped to extents)
-    double targetPixels = position.pixels + delta;
-    targetPixels = targetPixels.clamp(
-      position.minScrollExtent,
-      position.maxScrollExtent,
-    );
+    final position = _scrollCtrl.position;
 
     if (animate) {
       position.animateTo(
@@ -5577,6 +5603,47 @@ class _CalendarPageState extends State<CalendarPage>
       position.jumpTo(targetPixels);
     }
     return true;
+  }
+
+  bool _jumpToTodayNow({bool animate = true}) {
+    final targetCtx =
+        _todayDayKey.currentContext ??
+        keyForMonth(_today.kYear, _today.kMonth).currentContext;
+    final targetPixels = _centeredScrollOffsetForContext(targetCtx);
+    if (targetPixels == null) return false;
+
+    final position = _scrollCtrl.position;
+
+    if (animate) {
+      position.animateTo(
+        targetPixels,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+    } else {
+      position.jumpTo(targetPixels);
+    }
+    return true;
+  }
+
+  double? _centeredScrollOffsetForContext(BuildContext? targetCtx) {
+    if (targetCtx == null || !_scrollCtrl.hasClients) return null;
+
+    final scrollableState = Scrollable.of(targetCtx);
+    if (scrollableState == null) return null;
+
+    final position = scrollableState.position;
+    final targetRenderObject = targetCtx.findRenderObject();
+    if (targetRenderObject == null) return null;
+
+    final viewport = RenderAbstractViewport.of(targetRenderObject);
+    if (viewport == null) return null;
+
+    final reveal = viewport.getOffsetToReveal(targetRenderObject, 0.5);
+    return reveal.offset.clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
   }
 
   /// ✅ Handle month change from landscape view (WITH CORRECT FEEDBACK LOOP GUARD TIMING)
@@ -9537,31 +9604,9 @@ class _CalendarPageState extends State<CalendarPage>
       if (!mounted) return;
 
       final targetCtx = keyForMonth(ky, km).currentContext;
-      if (targetCtx == null) return;
-
-      final scrollableState = Scrollable.of(targetCtx);
-      if (scrollableState == null) return;
-      final position = scrollableState.position;
-
-      final targetBox = targetCtx.findRenderObject();
-      final viewportBox = scrollableState.context.findRenderObject();
-      if (targetBox is! RenderBox || viewportBox is! RenderBox) return;
-
-      final targetCenterGlobal = targetBox
-          .localToGlobal(targetBox.size.center(Offset.zero))
-          .dy;
-      final viewportTopGlobal = viewportBox.localToGlobal(Offset.zero).dy;
-      final viewportCenterGlobal =
-          viewportTopGlobal + viewportBox.size.height / 2;
-
-      double targetPixels =
-          position.pixels + (targetCenterGlobal - viewportCenterGlobal);
-      targetPixels = targetPixels.clamp(
-        position.minScrollExtent,
-        position.maxScrollExtent,
-      );
-
-      position.jumpTo(targetPixels);
+      final targetPixels = _centeredScrollOffsetForContext(targetCtx);
+      if (targetPixels == null || !_scrollCtrl.hasClients) return;
+      _scrollCtrl.jumpTo(targetPixels);
     });
   }
 
@@ -9597,6 +9642,7 @@ class _CalendarPageState extends State<CalendarPage>
     final maxDay = _maxDayForMonth(ky, km);
     final kd = (_lastViewKd ?? _today.kDay).clamp(1, maxDay);
     await SessionResumeService.saveScopedState(_kSessionScopeCalendarView, {
+      'schemaVersion': _kCalendarViewStateSchemaVersion,
       'kYear': ky,
       'kMonth': km,
       'kDay': kd,
@@ -17129,9 +17175,10 @@ class _CalendarPageState extends State<CalendarPage>
     // ✅ FIX 4: Wrap with NotificationListener to capture scroll-end events
     return NotificationListener<ScrollEndNotification>(
       onNotification: (notification) {
+        if (!_initialViewportSettled) return false;
         // ✅ Only update centered month when scrolling STOPS
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
+          if (!mounted || !_initialViewportSettled) return;
 
           final centered = _computeCenteredMonthPrecisely();
           if (centered.$1 != _lastViewKy || centered.$2 != _lastViewKm) {
@@ -17143,7 +17190,7 @@ class _CalendarPageState extends State<CalendarPage>
       child: CustomScrollView(
         key: const PageStorageKey('calendar_portrait_scroll'),
         controller: _scrollCtrl,
-        anchor: 0.5, // center the "center" sliver in the viewport
+        anchor: 0.0, // start the center sliver at the top on cold open
         center: _centerKey, // current Kemetic year is the center
         slivers: [
           // PAST years
@@ -17158,7 +17205,7 @@ class _CalendarPageState extends State<CalendarPage>
                   todayDayKey: null, // no anchor in past/future lists
                   monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
                   dayAnchorKeyProvider: (m, d) =>
-                      _onboardingHighlightKeyFor(kYear, m, d),
+                      _calendarDayAnchorKeyFor(kYear, m, d),
                   onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
                   notesGetter: (m, d) => _getNotes(kYear, m, d),
                   flowColorsGetter: (ky, km, kd) =>
@@ -17195,7 +17242,7 @@ class _CalendarPageState extends State<CalendarPage>
               todayDay: kToday.kDay,
               monthAnchorKeyProvider: (m) => keyForMonth(kToday.kYear, m),
               dayAnchorKeyProvider: (m, d) =>
-                  _onboardingHighlightKeyFor(kToday.kYear, m, d),
+                  _calendarDayAnchorKeyFor(kToday.kYear, m, d),
               todayDayKey: _todayDayKey, // 🔑 pass day anchor
               onDayTap: (c, m, d) => _openDayView(c, kToday.kYear, m, d),
               notesGetter: (m, d) => _getNotes(kToday.kYear, m, d),
@@ -17232,7 +17279,7 @@ class _CalendarPageState extends State<CalendarPage>
                   todayDayKey: null,
                   monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
                   dayAnchorKeyProvider: (m, d) =>
-                      _onboardingHighlightKeyFor(kYear, m, d),
+                      _calendarDayAnchorKeyFor(kYear, m, d),
                   onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
                   notesGetter: (m, d) => _getNotes(kYear, m, d),
                   flowColorsGetter: (ky, km, kd) =>

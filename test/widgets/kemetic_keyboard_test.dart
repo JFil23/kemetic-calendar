@@ -138,6 +138,41 @@ void main() {
       expect(controller.selection, const TextSelection.collapsed(offset: 4));
     });
 
+    testWidgets(
+      'dismisses the custom keyboard when tapping outside the field',
+      (tester) async {
+        await tester.pumpWidget(
+          _KeyboardHarness(controller: TextEditingController()),
+        );
+
+        await _openCustomKeyboard(tester);
+        await tester.tapAt(const Offset(12, 12));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey('kemetic-keyboard-panel')),
+          findsNothing,
+        );
+      },
+    );
+
+    testWidgets('dismisses the custom keyboard when the field loses focus', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _KeyboardHarness(controller: TextEditingController()),
+      );
+
+      await _openCustomKeyboard(tester);
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('kemetic-keyboard-panel')),
+        findsNothing,
+      );
+    });
+
     testWidgets('moves the cursor to the start and end of the field', (
       tester,
     ) async {
@@ -235,13 +270,25 @@ class _KeyboardHarness extends StatelessWidget {
         body: KemeticKeyboardHost(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: TextField(
-              key: const ValueKey('kemetic-input'),
-              controller: controller,
-              autofocus: autofocus,
-              readOnly: readOnly,
-              onChanged: onChanged,
-              inputFormatters: inputFormatters,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  key: const ValueKey('kemetic-input'),
+                  controller: controller,
+                  autofocus: autofocus,
+                  readOnly: readOnly,
+                  onChanged: onChanged,
+                  inputFormatters: inputFormatters,
+                ),
+                const SizedBox(height: 24),
+                const Expanded(
+                  child: ColoredBox(
+                    key: ValueKey('outside-area'),
+                    color: Colors.transparent,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
