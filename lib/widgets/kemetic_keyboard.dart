@@ -166,6 +166,19 @@ class KemeticKeyboardController extends ChangeNotifier {
     );
   }
 
+  void deleteBackward() {
+    final target = _selectUsableEditable();
+    if (target == null) return;
+
+    final newValue = _buildDeletedValue(target.widget.controller.value);
+    if (newValue == target.widget.controller.value) {
+      attachEditable(target);
+      return;
+    }
+
+    _applyEditingValue(target, newValue);
+  }
+
   void _applyEditingValue(EditableTextState target, TextEditingValue newValue) {
     // Route edits through EditableText so input formatters, listeners, and
     // selection handling behave like real keyboard input.
@@ -210,6 +223,43 @@ class KemeticKeyboardController extends ChangeNotifier {
     return currentValue.copyWith(
       text: normalizedText,
       selection: TextSelection.collapsed(offset: newOffset),
+      composing: TextRange.empty,
+    );
+  }
+
+  TextEditingValue _buildDeletedValue(TextEditingValue currentValue) {
+    final text = currentValue.text;
+    if (text.isEmpty) {
+      return currentValue.copyWith(composing: TextRange.empty);
+    }
+
+    final selection = currentValue.selection;
+    final start = selection.isValid
+        ? min(selection.start, selection.end)
+        : text.length;
+    final end = selection.isValid
+        ? max(selection.start, selection.end)
+        : text.length;
+
+    if (selection.isValid && !selection.isCollapsed) {
+      final newText = text.replaceRange(start, end, '');
+      return currentValue.copyWith(
+        text: newText,
+        selection: TextSelection.collapsed(offset: start),
+        composing: TextRange.empty,
+      );
+    }
+
+    if (start <= 0) {
+      return currentValue.copyWith(composing: TextRange.empty);
+    }
+
+    final leadingText = text.substring(0, start);
+    final trailingText = text.substring(end);
+    final trimmedLeadingText = leadingText.characters.skipLast(1).toString();
+    return currentValue.copyWith(
+      text: '$trimmedLeadingText$trailingText',
+      selection: TextSelection.collapsed(offset: trimmedLeadingText.length),
       composing: TextRange.empty,
     );
   }
@@ -803,6 +853,15 @@ class _KeyboardPanelState extends State<_KeyboardPanel> {
                               physics: const ClampingScrollPhysics(),
                               child: Row(
                                 children: [
+                                  _KeyboardActionButton(
+                                    key: const ValueKey(
+                                      'kemetic-action-backspace',
+                                    ),
+                                    icon: Icons.backspace_outlined,
+                                    tooltip: 'Backspace',
+                                    onPressed: widget.controller.deleteBackward,
+                                  ),
+                                  const SizedBox(width: 8),
                                   _KeyboardActionButton(
                                     key: const ValueKey('kemetic-action-start'),
                                     icon: Icons.first_page_rounded,

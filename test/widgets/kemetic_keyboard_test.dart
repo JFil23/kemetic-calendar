@@ -302,6 +302,42 @@ void main() {
       expect(controller.selection, const TextSelection.collapsed(offset: 4));
     });
 
+    testWidgets('backspaces text from the custom keyboard', (tester) async {
+      final controller = TextEditingController(text: 'maat');
+
+      await tester.pumpWidget(_KeyboardHarness(controller: controller));
+      await _openCustomKeyboard(tester);
+
+      controller.selection = const TextSelection.collapsed(offset: 4);
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('kemetic-action-backspace')));
+      await tester.pumpAndSettle();
+
+      expect(_editableFocusNode(tester).hasFocus, isTrue);
+      expect(controller.text, 'maa');
+      expect(controller.selection, const TextSelection.collapsed(offset: 3));
+    });
+
+    testWidgets('backspace deletes the current selection', (tester) async {
+      final controller = TextEditingController(text: 'maat');
+
+      await tester.pumpWidget(_KeyboardHarness(controller: controller));
+      await _openCustomKeyboard(tester);
+
+      controller.selection = const TextSelection(
+        baseOffset: 1,
+        extentOffset: 4,
+      );
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('kemetic-action-backspace')));
+      await tester.pumpAndSettle();
+
+      expect(controller.text, 'm');
+      expect(controller.selection, const TextSelection.collapsed(offset: 1));
+    });
+
     testWidgets('closes cleanly when returning to the system keyboard', (
       tester,
     ) async {
