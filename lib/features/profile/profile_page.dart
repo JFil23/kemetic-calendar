@@ -19,6 +19,7 @@ import 'follow_list_page.dart';
 import '../calendar/calendar_page.dart';
 import 'flow_post_engagement_row.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import '../../widgets/inbox_icon_with_badge.dart';
 
 class ProfilePage extends StatefulWidget {
   final String userId;
@@ -243,7 +244,9 @@ class _ProfilePageState extends State<ProfilePage> {
           Builder(
             builder: (btnCtx) => IconButton(
               tooltip: 'Menu',
-              icon: const GlossyIcon(icon: Icons.apps, gradient: goldGloss),
+              icon: const InboxUnreadDotOverlay(
+                child: GlossyIcon(icon: Icons.apps, gradient: goldGloss),
+              ),
               onPressed: () => _openCalendarMenu(btnCtx),
             ),
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/widgets/inbox_icon_with_badge.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 import 'package:mobile/widgets/month_name_text.dart';
 
@@ -117,9 +118,11 @@ class KemeticDayViewHeader extends StatelessWidget {
                   Builder(
                     builder: (btnCtx) => IconButton(
                       tooltip: 'Menu',
-                      icon: const GlossyIcon(
-                        icon: Icons.apps,
-                        gradient: goldGloss,
+                      icon: const InboxUnreadDotOverlay(
+                        child: GlossyIcon(
+                          icon: Icons.apps,
+                          gradient: goldGloss,
+                        ),
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       onPressed: () async {

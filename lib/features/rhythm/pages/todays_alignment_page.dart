@@ -18,6 +18,7 @@ import 'package:mobile/features/rhythm/rhythm_telemetry.dart';
 import 'package:mobile/features/rhythm/todo_day_window.dart';
 import 'package:mobile/features/rhythm/rhythm_user_messages.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/widgets/inbox_icon_with_badge.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/services/session_resume_service.dart';
@@ -3287,7 +3288,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         Builder(
           builder: (btnCtx) => IconButton(
             tooltip: 'Menu',
-            icon: const GlossyIcon(icon: Icons.apps, gradient: goldGloss),
+            icon: const InboxUnreadDotOverlay(
+              child: GlossyIcon(icon: Icons.apps, gradient: goldGloss),
+            ),
             onPressed: () => _openCalendarMenu(btnCtx),
           ),
         ),

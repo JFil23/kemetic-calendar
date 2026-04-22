@@ -6,6 +6,57 @@ import '../data/share_repo.dart';
 import '../features/inbox/inbox_page.dart';
 import '../shared/glossy_text.dart';
 
+class InboxUnreadDotOverlay extends StatelessWidget {
+  final Widget child;
+  final double top;
+  final double right;
+  final double size;
+  final Color dotColor;
+  final Color borderColor;
+  final double borderWidth;
+
+  const InboxUnreadDotOverlay({
+    super.key,
+    required this.child,
+    this.top = -2,
+    this.right = -2,
+    this.size = 10,
+    this.dotColor = Colors.redAccent,
+    this.borderColor = Colors.black,
+    this.borderWidth = 1.5,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: ShareRepo(Supabase.instance.client).watchUnreadCount(),
+      builder: (context, snapshot) {
+        final show = (snapshot.data ?? 0) > 0;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            child,
+            if (show)
+              Positioned(
+                top: top,
+                right: right,
+                child: Container(
+                  width: size,
+                  height: size,
+                  decoration: BoxDecoration(
+                    color: dotColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: borderColor, width: borderWidth),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class InboxIconWithBadge extends StatelessWidget {
   final Color iconColor;
   final VoidCallback?
