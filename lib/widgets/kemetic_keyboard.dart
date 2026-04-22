@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile/core/touch_targets.dart';
 
+import 'kemetic_web_keyboard_input.dart'
+    if (dart.library.js_interop) 'kemetic_web_keyboard_input_web.dart';
+
 enum KeyboardMode { system, custom }
 
 /// ChangeNotifier that tracks the currently focused editable field and whether
@@ -166,6 +169,9 @@ class KemeticKeyboardController extends ChangeNotifier {
   void _applyEditingValue(EditableTextState target, TextEditingValue newValue) {
     // Route edits through EditableText so input formatters, listeners, and
     // selection handling behave like real keyboard input.
+    if (!kIsWeb && !target.widget.focusNode.hasFocus) {
+      target.widget.focusNode.requestFocus();
+    }
     target.userUpdateTextEditingValue(newValue, SelectionChangedCause.keyboard);
     target.bringIntoView(newValue.selection.extent);
     attachEditable(target);
@@ -261,6 +267,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
 
   @override
   void dispose() {
+    deactivateWebCustomKeyboardInput();
     _controller.removeListener(_handleControllerChanged);
     FocusManager.instance.removeListener(_handleFocusChange);
     _controller.dispose();
@@ -331,7 +338,8 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
       if (editable != null) {
         _controller.attachEditable(editable);
         if (kIsWeb) {
-          editable.widget.focusNode.unfocus();
+          editable.widget.focusNode.requestFocus();
+          syncWebCustomKeyboardInputTarget();
         } else {
           try {
             SystemChannels.textInput.invokeMethod('TextInput.hide');
@@ -340,9 +348,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
         }
       } else {
         _controller.attachEditable(null);
-        if (!kIsWeb) {
-          _dismissCustomKeyboard(unfocusTarget: false);
-        }
+        _dismissCustomKeyboard(unfocusTarget: false);
       }
       return;
     }
@@ -402,6 +408,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
 
   void _dismissCustomKeyboard({bool unfocusTarget = true}) {
     final target = _controller.editable ?? _controller.lastEditable;
+    deactivateWebCustomKeyboardInput();
     _controller.closeAndClearTargets();
     if (!unfocusTarget) return;
     target?.widget.focusNode.unfocus();
@@ -459,9 +466,8 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
     _controller.attachEditable(target); // ensure _editable is set for opening
 
     if (kIsWeb) {
-      // On web/PWAs, hide the native keyboard by blurring; keep last editable
-      // so custom inserts still work while unfocused.
-      target.widget.focusNode.unfocus();
+      target.widget.focusNode.requestFocus();
+      activateWebCustomKeyboardInput();
     } else {
       target.widget.focusNode.requestFocus(); // keep the text input connection
       try {
@@ -477,6 +483,9 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
 
   void _closeCustomAndRestoreSystem() {
     _controller.close();
+    if (kIsWeb) {
+      deactivateWebCustomKeyboardInput(requestSystemKeyboard: true);
+    }
     try {
       SystemChannels.textInput.invokeMethod('TextInput.show');
     } catch (_) {}
@@ -593,38 +602,42 @@ class _KeyboardToggleState extends State<_KeyboardToggle> {
           curve: Curves.easeOut,
           left: positionedOffset.dx,
           top: positionedOffset.dy,
-          child: SizedBox(
-            key: widget.regionKey,
-            child: AnimatedOpacity(
-              key: const ValueKey('kemetic-toggle-opacity'),
-              duration: const Duration(milliseconds: 180),
-              opacity: show ? 1 : 0,
-              child: IgnorePointer(
-                key: const ValueKey('kemetic-toggle-ignore-pointer'),
-                ignoring: !show,
-                child: KeyedSubtree(
-                  key: const ValueKey('kemetic-toggle-hit-target'),
-                  child: GestureDetector(
-                    onPanStart: (_) => _updateSize(),
-                    onPanUpdate: (details) {
-                      final next = _clampOffset(
-                        (_customOffset ?? targetOffset) + details.delta,
-                        screenSize,
-                        padding,
-                      );
-                      setState(() {
-                        _customOffset = next;
-                      });
-                    },
-                    child: FloatingActionButton.extended(
-                      key: _fabKey,
-                      heroTag: 'kemeticKeyboardToggle',
-                      backgroundColor: colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.95),
-                      foregroundColor: colorScheme.onSurfaceVariant,
-                      icon: const Icon(Icons.translate_outlined),
-                      label: const Text('Medu Neter'),
-                      onPressed: widget.onOpenCustom,
+          child: TextFieldTapRegion(
+            child: ExcludeFocus(
+              child: SizedBox(
+                key: widget.regionKey,
+                child: AnimatedOpacity(
+                  key: const ValueKey('kemetic-toggle-opacity'),
+                  duration: const Duration(milliseconds: 180),
+                  opacity: show ? 1 : 0,
+                  child: IgnorePointer(
+                    key: const ValueKey('kemetic-toggle-ignore-pointer'),
+                    ignoring: !show,
+                    child: KeyedSubtree(
+                      key: const ValueKey('kemetic-toggle-hit-target'),
+                      child: GestureDetector(
+                        onPanStart: (_) => _updateSize(),
+                        onPanUpdate: (details) {
+                          final next = _clampOffset(
+                            (_customOffset ?? targetOffset) + details.delta,
+                            screenSize,
+                            padding,
+                          );
+                          setState(() {
+                            _customOffset = next;
+                          });
+                        },
+                        child: FloatingActionButton.extended(
+                          key: _fabKey,
+                          heroTag: 'kemeticKeyboardToggle',
+                          backgroundColor: colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.95),
+                          foregroundColor: colorScheme.onSurfaceVariant,
+                          icon: const Icon(Icons.translate_outlined),
+                          label: const Text('Medu Neter'),
+                          onPressed: widget.onOpenCustom,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -746,69 +759,73 @@ class _KeyboardPanelState extends State<_KeyboardPanel> {
           alignment: Alignment.bottomCenter,
           child: Padding(
             padding: EdgeInsets.fromLTRB(12, 0, 12, 12 + bottomPadding),
-            child: SizedBox(
-              key: widget.regionKey,
-              child: Material(
-                key: const ValueKey('kemetic-keyboard-panel'),
-                elevation: 14,
-                color: colorScheme.surface.withValues(alpha: 0.98),
-                borderRadius: BorderRadius.circular(18),
+            child: TextFieldTapRegion(
+              child: ExcludeFocus(
                 child: SizedBox(
-                  height: targetHeight,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                    child: Column(
-                      children: [
-                        _buildPanelHeader(context, colorScheme),
-                        const SizedBox(height: 8),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          physics: const ClampingScrollPhysics(),
-                          child: Row(
-                            children: [
-                              _KeyboardActionButton(
-                                key: const ValueKey('kemetic-action-start'),
-                                icon: Icons.first_page_rounded,
-                                tooltip: 'Move cursor to start',
-                                onPressed: () => widget.controller
-                                    .moveCaretToBoundary(toStart: true),
+                  key: widget.regionKey,
+                  child: Material(
+                    key: const ValueKey('kemetic-keyboard-panel'),
+                    elevation: 14,
+                    color: colorScheme.surface.withValues(alpha: 0.98),
+                    borderRadius: BorderRadius.circular(18),
+                    child: SizedBox(
+                      height: targetHeight,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                        child: Column(
+                          children: [
+                            _buildPanelHeader(context, colorScheme),
+                            const SizedBox(height: 8),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const ClampingScrollPhysics(),
+                              child: Row(
+                                children: [
+                                  _KeyboardActionButton(
+                                    key: const ValueKey('kemetic-action-start'),
+                                    icon: Icons.first_page_rounded,
+                                    tooltip: 'Move cursor to start',
+                                    onPressed: () => widget.controller
+                                        .moveCaretToBoundary(toStart: true),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _KeyboardActionButton(
+                                    key: const ValueKey('kemetic-action-left'),
+                                    icon: Icons.arrow_left_rounded,
+                                    tooltip: 'Move cursor left',
+                                    onPressed: () => widget.controller
+                                        .moveCaretHorizontally(-1),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _KeyboardActionButton(
+                                    key: const ValueKey('kemetic-action-right'),
+                                    icon: Icons.arrow_right_rounded,
+                                    tooltip: 'Move cursor right',
+                                    onPressed: () => widget.controller
+                                        .moveCaretHorizontally(1),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _KeyboardActionButton(
+                                    key: const ValueKey('kemetic-action-end'),
+                                    icon: Icons.last_page_rounded,
+                                    tooltip: 'Move cursor to end',
+                                    onPressed: () => widget.controller
+                                        .moveCaretToBoundary(toStart: false),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              _KeyboardActionButton(
-                                key: const ValueKey('kemetic-action-left'),
-                                icon: Icons.arrow_left_rounded,
-                                tooltip: 'Move cursor left',
-                                onPressed: () =>
-                                    widget.controller.moveCaretHorizontally(-1),
+                            ),
+                            const SizedBox(height: 8),
+                            Expanded(
+                              child: _UniliteralLayout(
+                                key: const ValueKey('uniliteral'),
+                                controller: widget.controller,
+                                outputMode: _mode,
                               ),
-                              const SizedBox(width: 8),
-                              _KeyboardActionButton(
-                                key: const ValueKey('kemetic-action-right'),
-                                icon: Icons.arrow_right_rounded,
-                                tooltip: 'Move cursor right',
-                                onPressed: () =>
-                                    widget.controller.moveCaretHorizontally(1),
-                              ),
-                              const SizedBox(width: 8),
-                              _KeyboardActionButton(
-                                key: const ValueKey('kemetic-action-end'),
-                                icon: Icons.last_page_rounded,
-                                tooltip: 'Move cursor to end',
-                                onPressed: () => widget.controller
-                                    .moveCaretToBoundary(toStart: false),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        Expanded(
-                          child: _UniliteralLayout(
-                            key: const ValueKey('uniliteral'),
-                            controller: widget.controller,
-                            outputMode: _mode,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -915,6 +932,7 @@ class _PhonogramKey extends StatelessWidget {
         child: InkWell(
           key: ValueKey('kemetic-key-$displayValue'),
           onTap: () => controller._insert(displayValue, outputMode),
+          canRequestFocus: false,
           borderRadius: BorderRadius.circular(10),
           child: Center(
             child: Row(
@@ -956,6 +974,7 @@ class _KeyboardActionButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onPressed,
+        canRequestFocus: false,
         borderRadius: BorderRadius.circular(10),
         child: SizedBox(width: 44, height: 40, child: Icon(icon, size: 20)),
       ),

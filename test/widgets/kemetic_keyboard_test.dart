@@ -190,6 +190,41 @@ void main() {
       },
     );
 
+    testWidgets(
+      'keeps focus on the text field while typing with the custom keyboard',
+      (tester) async {
+        final controller = TextEditingController();
+
+        await tester.pumpWidget(_KeyboardHarness(controller: controller));
+        await _openCustomKeyboard(tester);
+
+        expect(_editableFocusNode(tester).hasFocus, isTrue);
+
+        await _tapKeyboardKey(tester, 'ꜣ');
+
+        expect(_editableFocusNode(tester).hasFocus, isTrue);
+        expect(controller.selection, const TextSelection.collapsed(offset: 1));
+      },
+    );
+
+    testWidgets('keeps focus on the text field when moving the cursor', (
+      tester,
+    ) async {
+      final controller = TextEditingController(text: 'maat');
+
+      await tester.pumpWidget(_KeyboardHarness(controller: controller));
+      await _openCustomKeyboard(tester);
+
+      controller.selection = const TextSelection.collapsed(offset: 4);
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('kemetic-action-left')));
+      await tester.pumpAndSettle();
+
+      expect(_editableFocusNode(tester).hasFocus, isTrue);
+      expect(controller.selection, const TextSelection.collapsed(offset: 3));
+    });
+
     testWidgets('moves the cursor left and right from the custom keyboard', (
       tester,
     ) async {
@@ -318,6 +353,10 @@ Finder _toggleFinder() {
 Future<void> _pressToggle(WidgetTester tester) async {
   final toggle = tester.widget<FloatingActionButton>(_toggleFinder());
   toggle.onPressed?.call();
+}
+
+FocusNode _editableFocusNode(WidgetTester tester) {
+  return tester.widget<EditableText>(find.byType(EditableText)).focusNode;
 }
 
 class _KeyboardHarness extends StatelessWidget {
