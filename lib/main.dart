@@ -40,6 +40,7 @@ import 'features/rhythm/pages/todays_alignment_page.dart';
 import 'features/settings/settings_prefs.dart';
 import 'features/reflections/decan_reflection_detail_page.dart';
 import 'widgets/kemetic_keyboard.dart';
+import 'services/session_resume_service.dart';
 
 // Conditional import: on web we use URL cleanup + visibility hook; elsewhere no-ops.
 import 'utils/web_history.dart'
@@ -353,38 +354,59 @@ final _router = GoRouter(
         final shareId = state.uri.queryParameters['share'];
         if (shareId != null) {
           // Redirect to share preview if share parameter exists
-          return SharePreviewPage(
-            shareId: shareId,
-            token: state.uri.queryParameters['token'],
+          return SessionTrackedRoute(
+            location: state.uri.toString(),
+            child: SharePreviewPage(
+              shareId: shareId,
+              token: state.uri.queryParameters['token'],
+            ),
           );
         }
-        return const InboxPage();
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: const InboxPage(),
+        );
       },
     ),
     GoRoute(
       path: '/share/:shareId',
       builder: (context, state) {
-        return SharePreviewPage(
-          shareId: state.pathParameters['shareId']!,
-          token: state.uri.queryParameters['token'],
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: SharePreviewPage(
+            shareId: state.pathParameters['shareId']!,
+            token: state.uri.queryParameters['token'],
+          ),
         );
       },
     ),
     GoRoute(
       path: '/rhythm/mycycle',
-      builder: (context, state) => const MyCyclePage(),
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: const MyCyclePage(),
+      ),
     ),
     GoRoute(
       path: '/rhythm/today',
-      builder: (context, state) => const TodaysAlignmentPage(),
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: const TodaysAlignmentPage(),
+      ),
     ),
     GoRoute(
       path: '/rhythm/todo',
-      builder: (context, state) => const TodaysAlignmentPage(),
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: const TodaysAlignmentPage(),
+      ),
     ),
     GoRoute(
       path: '/rhythm/tracker',
-      builder: (context, state) => const CommitmentTrackerPage(),
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: const CommitmentTrackerPage(),
+      ),
     ),
   ],
 );
@@ -409,8 +431,12 @@ class MyApp extends StatelessWidget {
             : mq.textScaler;
         return MediaQuery(
           data: mq.copyWith(textScaler: textScaler),
-          child: _LaunchShell(
-            child: KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
+          child: SessionLifecycleBridge(
+            child: _LaunchShell(
+              child: KemeticKeyboardHost(
+                child: child ?? const SizedBox.shrink(),
+              ),
+            ),
           ),
         );
       },
@@ -601,6 +627,7 @@ class _AuthGateState extends State<AuthGate> {
   bool _appOpenLogged = false;
   bool _notifyInitInProgress = false;
   bool _notifyInitialized = false;
+  bool _sessionResumeChecked = false;
 
   @override
   void initState() {
@@ -694,6 +721,7 @@ class _AuthGateState extends State<AuthGate> {
       }
       _installPushNavigation();
       _consumePendingWebPushIntent();
+      _scheduleSessionResumeCheck();
       if (!_scheduledDecans) {
         _scheduledDecans = true;
         fireAndForgetGuarded(
@@ -716,6 +744,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (ev == AuthChangeEvent.signedOut) {
+      _sessionResumeChecked = false;
       _calendarSync?.stop();
       fireAndForgetGuarded(
         'push unregister',
@@ -723,6 +752,26 @@ class _AuthGateState extends State<AuthGate> {
         onError: _logAuthGateError,
       );
     }
+  }
+
+  void _scheduleSessionResumeCheck() {
+    if (_sessionResumeChecked) return;
+    _sessionResumeChecked = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_maybeResumeSessionRoute());
+    });
+  }
+
+  Future<void> _maybeResumeSessionRoute() async {
+    if (!mounted || supabase.auth.currentSession == null) return;
+    final savedLocation = await SessionResumeService.readRouteLocation();
+    if (!mounted ||
+        savedLocation == null ||
+        savedLocation.isEmpty ||
+        savedLocation == '/') {
+      return;
+    }
+    _router.go(savedLocation);
   }
 
   // -- Log app_open once per cold start after auth is present
@@ -1239,7 +1288,9 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     // Authenticated
-    return Scaffold(body: CalendarPage());
+    return Scaffold(
+      body: SessionTrackedRoute(location: '/', child: CalendarPage()),
+    );
   }
 
   void _installPushNavigation() {

@@ -18,6 +18,7 @@ import '../profile/flow_post_detail_page.dart';
 import '../profile/profile_page.dart';
 import '../profile/profile_search_page.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import '../../services/session_resume_service.dart';
 
 void _logInboxImport(String message) {
   if (kDebugMode) {
@@ -33,6 +34,7 @@ class InboxPage extends StatefulWidget {
 }
 
 class _InboxPageState extends State<InboxPage> {
+  static const String _resumeKind = 'inbox_conversation';
   static const _bg = Color(0xFF000000);
   static const _cardBg = Color(0xFF0D0D0F);
   static const _gold = KemeticGold.base;
@@ -49,6 +51,7 @@ class _InboxPageState extends State<InboxPage> {
   InboxActivityItem? _latestEngagement;
   List<InboxActivityItem> _activity = const [];
   bool _marking = false;
+  bool _resumeConversationChecked = false;
 
   @override
   void initState() {
@@ -66,6 +69,9 @@ class _InboxPageState extends State<InboxPage> {
       }
     });
     _refreshUnified();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_resumeConversationIfNeeded());
+    });
   }
 
   Future<void> _handleRefresh() async {
@@ -189,16 +195,54 @@ class _InboxPageState extends State<InboxPage> {
       return;
     }
 
-    Navigator.of(context).push(
+    _openConversation(
+      otherUserId: selectedUser.userId,
+      otherProfile: ConversationUser(
+        id: selectedUser.userId,
+        displayName: selectedUser.displayName,
+        handle: selectedUser.handle,
+        avatarUrl: selectedUser.avatarUrl,
+      ),
+    );
+  }
+
+  Future<void> _resumeConversationIfNeeded() async {
+    if (!mounted || _resumeConversationChecked) return;
+    _resumeConversationChecked = true;
+
+    final entry = await SessionResumeService.consumeResumeEntry(
+      kind: _resumeKind,
+      baseRoute: '/inbox',
+    );
+    if (!mounted || entry == null) return;
+
+    final payload = entry.payload;
+    final otherUserId = payload['otherUserId'] as String?;
+    if (otherUserId == null || otherUserId.isEmpty) return;
+
+    _openConversation(
+      otherUserId: otherUserId,
+      otherProfile: ConversationUser(
+        id: otherUserId,
+        displayName: payload['displayName'] as String?,
+        handle: payload['handle'] as String?,
+        avatarUrl: payload['avatarUrl'] as String?,
+      ),
+      initialDraftText: payload['draftText'] as String?,
+    );
+  }
+
+  Future<void> _openConversation({
+    required String otherUserId,
+    required ConversationUser otherProfile,
+    String? initialDraftText,
+  }) {
+    return Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => InboxConversationPage(
-          otherUserId: selectedUser.userId,
-          otherProfile: ConversationUser(
-            id: selectedUser.userId,
-            displayName: selectedUser.displayName,
-            handle: selectedUser.handle,
-            avatarUrl: selectedUser.avatarUrl,
-          ),
+          otherUserId: otherUserId,
+          otherProfile: otherProfile,
+          initialDraftText: initialDraftText,
         ),
       ),
     );
@@ -496,14 +540,9 @@ class _InboxPageState extends State<InboxPage> {
           // Mark unread incoming items as viewed when opening the thread
           _markConversationRead(items);
 
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => InboxConversationPage(
-                otherUserId: otherUserId,
-                otherProfile: otherProfile,
-              ),
-            ),
+          _openConversation(
+            otherUserId: otherUserId,
+            otherProfile: otherProfile,
           );
         },
       ),

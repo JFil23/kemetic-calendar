@@ -5,6 +5,7 @@ import 'package:mobile/core/touch_targets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/services/session_resume_service.dart';
 
 import 'package:mobile/features/rhythm/rhythm_add_flow.dart';
 import 'package:mobile/features/rhythm/rhythm_telemetry.dart';
@@ -28,6 +29,7 @@ class MyCyclePage extends StatefulWidget {
 class _MyCyclePageState extends State<MyCyclePage> {
   final RhythmRepo _repo = RhythmRepo(Supabase.instance.client);
   late Future<RhythmRepoResult<List<RhythmSection>>> _future;
+  bool _resumeEditorChecked = false;
 
   @override
   void initState() {
@@ -37,6 +39,7 @@ class _MyCyclePageState extends State<MyCyclePage> {
       unawaited(
         RhythmTelemetry.trackScreen(Supabase.instance.client, 'my_cycle'),
       );
+      unawaited(_resumeEditorIfNeeded());
     });
   }
 
@@ -44,6 +47,40 @@ class _MyCyclePageState extends State<MyCyclePage> {
     setState(() {
       _future = _repo.fetchMyCycle();
     });
+  }
+
+  Future<void> _resumeEditorIfNeeded() async {
+    if (!mounted || _resumeEditorChecked) return;
+    _resumeEditorChecked = true;
+
+    final entry = await SessionResumeService.consumeResumeEntry(
+      kind: kRhythmEditorResumeKind,
+      baseRoute: '/rhythm/mycycle',
+    );
+    if (!mounted || entry == null) return;
+
+    final payload = RhythmEditorResumePayload.fromJson(entry.payload);
+    if (payload == null) return;
+
+    if (payload.isTimed) {
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
+          builder: (_) => TimedRhythmEditorPage(
+            initial: payload.draft,
+            categoryDisplay: payload.category,
+          ),
+        ),
+      );
+    } else {
+      await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
+          builder: (_) => UntimedRhythmEditorPage(
+            initial: payload.draft,
+            category: payload.category,
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _openAddFlow() => openRhythmAddFlow(context, onSaved: _refresh);

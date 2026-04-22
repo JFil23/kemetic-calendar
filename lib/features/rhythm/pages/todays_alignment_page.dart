@@ -19,6 +19,7 @@ import 'package:mobile/features/rhythm/rhythm_user_messages.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile/services/session_resume_service.dart';
 
 import 'package:mobile/core/day_key.dart';
 import '../data/planner_badge_repo.dart';
@@ -47,6 +48,7 @@ class TodaysAlignmentPage extends StatefulWidget {
 }
 
 class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
+  static const String _sessionScopeKey = 'today_alignment_page';
   static const Gradient _plannerReflectionGloss = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
@@ -110,6 +112,13 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   int _activeNutritionDayIndex = 0;
   bool _nutritionFormOpen = false;
   bool _calendarRevealNavigationInFlight = false;
+  DateTime? _restoredTodoFocusDay;
+  Timer? _sessionPersistDebounce;
+
+  bool get _tracksSessionState =>
+      !widget.embedded &&
+      !widget.openedFromCalendar &&
+      !widget.openedFromCalendarSwipe;
 
   PageController _buildTodoPageController(int initialPage) {
     return PageController(viewportFraction: 0.96, initialPage: initialPage);
@@ -130,8 +139,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       viewportFraction: 0.94,
       initialPage: _activeNutritionDayIndex,
     );
-    _future = _load();
-    unawaited(_loadNotes());
+    _bindSessionListeners();
+    final restoreFuture = _restoreSessionState();
+    _future = restoreFuture.then((_) => _load());
+    unawaited(restoreFuture.then((_) => _loadNotes()));
     unawaited(_loadNutrition());
     unawaited(_loadNutritionStates());
     _scheduleMidnightRefresh();
@@ -147,6 +158,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
   @override
   void dispose() {
+    _sessionPersistDebounce?.cancel();
     _commitmentInputController.dispose();
     _noteInputController.dispose();
     _todoPageController.dispose();
@@ -158,6 +170,92 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     _fullscreenPageController?.dispose();
     _midnightTimer?.cancel();
     super.dispose();
+  }
+
+  void _bindSessionListeners() {
+    if (!_tracksSessionState) return;
+    _commitmentInputController.addListener(_persistSessionStateSoon);
+    _noteInputController.addListener(_persistSessionStateSoon);
+    _nutritionNutrientController.addListener(_persistSessionStateSoon);
+    _nutritionSourceController.addListener(_persistSessionStateSoon);
+    _nutritionPurposeController.addListener(_persistSessionStateSoon);
+  }
+
+  Future<void> _restoreSessionState() async {
+    if (!_tracksSessionState) return;
+    final state = await SessionResumeService.readScopedState(_sessionScopeKey);
+    if (!mounted || state == null) return;
+
+    _commitmentInputController.text = state['commitmentDraft'] as String? ?? '';
+    _noteInputController.text = state['noteDraft'] as String? ?? '';
+    _nutritionNutrientController.text =
+        state['nutritionNutrientDraft'] as String? ?? '';
+    _nutritionSourceController.text =
+        state['nutritionSourceDraft'] as String? ?? '';
+    _nutritionPurposeController.text =
+        state['nutritionPurposeDraft'] as String? ?? '';
+    _activeNoteIndex = ((state['activeNoteIndex'] as num?)?.toInt() ?? 0).clamp(
+      0,
+      1 << 20,
+    );
+    _activeNutritionDayIndex =
+        ((state['activeNutritionDayIndex'] as num?)?.toInt() ??
+                _activeNutritionDayIndex)
+            .clamp(0, 9);
+
+    final todoFocusIso = state['activeTodoDay'] as String?;
+    final parsedTodoFocus = todoFocusIso == null
+        ? null
+        : DateTime.tryParse(todoFocusIso);
+    if (parsedTodoFocus != null) {
+      _restoredTodoFocusDay = DateUtils.dateOnly(parsedTodoFocus.toLocal());
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_nutritionPageController.hasClients) return;
+      _nutritionPageController.jumpToPage(_activeNutritionDayIndex);
+    });
+  }
+
+  DateTime _sessionTodoFocusDay() {
+    if (_todoDays.isNotEmpty) {
+      return _activeTodoDay;
+    }
+    return _restoredTodoFocusDay ?? _todayLocal;
+  }
+
+  void _persistSessionStateSoon() {
+    if (!_tracksSessionState) return;
+    _sessionPersistDebounce?.cancel();
+    _sessionPersistDebounce = Timer(const Duration(milliseconds: 250), () {
+      unawaited(_persistSessionState());
+    });
+  }
+
+  Future<void> _persistSessionState() async {
+    if (!_tracksSessionState) return;
+    await SessionResumeService.saveScopedState(_sessionScopeKey, {
+      'commitmentDraft': _commitmentInputController.text,
+      'noteDraft': _noteInputController.text,
+      'nutritionNutrientDraft': _nutritionNutrientController.text,
+      'nutritionSourceDraft': _nutritionSourceController.text,
+      'nutritionPurposeDraft': _nutritionPurposeController.text,
+      'activeNoteIndex': _activeNoteIndex,
+      'activeNutritionDayIndex': _activeNutritionDayIndex,
+      'activeTodoDay': _sessionTodoFocusDay().toIso8601String(),
+    });
+  }
+
+  void _syncNotePageToActiveIndex() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_notePageController.hasClients || _notes.isEmpty) return;
+      final clamped = _clampNoteIndex(_notes.length);
+      final currentPage = (_notePageController.page ?? clamped.toDouble())
+          .round();
+      if (currentPage != clamped) {
+        _notePageController.jumpToPage(clamped);
+      }
+    });
   }
 
   Future<void> _load() async {
@@ -173,7 +271,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             : null;
         _alignmentItems = items.data;
       });
-      _hydrateTodos(todos.data, focusDay: _todayLocal);
+      _hydrateTodos(todos.data, focusDay: _restoredTodoFocusDay ?? _todayLocal);
+      _restoredTodoFocusDay = null;
+      _persistSessionStateSoon();
       unawaited(_reconcileTodoPlannerBadges(todos.data));
     } catch (_) {
       if (!mounted) return;
@@ -186,6 +286,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         _todosByDay = {_todayLocal: []};
         _activeTodoDayIndex = 0;
       });
+      _persistSessionStateSoon();
     }
   }
 
@@ -954,6 +1055,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       _activeTodoDayIndex = index;
       _todos = _todosByDay[_todoDays[index]] ?? [];
     });
+    _persistSessionStateSoon();
   }
 
   double _todoPageHeightEstimate() {
@@ -1137,6 +1239,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         _activeNoteIndex = _clampNoteIndex(cached.length);
         _fullscreenNote = null;
       });
+      _syncNotePageToActiveIndex();
+      _persistSessionStateSoon();
       return;
     }
 
@@ -1186,6 +1290,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       _activeNoteIndex = _clampNoteIndex(notes.length);
       _fullscreenNote = null;
     });
+    _syncNotePageToActiveIndex();
+    _persistSessionStateSoon();
   }
 
   Future<void> _addNote() async {
@@ -1366,6 +1472,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         _fullscreenPageController!.jumpToPage(clamped);
       }
     }
+    _persistSessionStateSoon();
   }
 
   void _enterFullscreen([int? noteIndex]) {
@@ -1404,6 +1511,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     });
 
     await _saveNotesToPrefs(updated);
+    _syncNotePageToActiveIndex();
+    _persistSessionStateSoon();
 
     if (persistOrder) {
       final remote = <RhythmNote>[];
@@ -2376,6 +2485,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                       setState(() {
                         _activeNutritionDayIndex = index;
                       });
+                      _persistSessionStateSoon();
                     },
                     itemBuilder: (context, index) {
                       return _nutritionGridPage(
@@ -2657,6 +2767,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                             _fullscreenNote = _notes[index];
                           }
                         });
+                        _persistSessionStateSoon();
                         return;
                       }
                       unawaited(_jumpToNote(index));

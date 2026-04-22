@@ -68,6 +68,7 @@ import '../journal/journal_page.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
 import '../../services/push_notifications.dart';
+import '../../services/session_resume_service.dart';
 import '../../widgets/flow_start_date_picker.dart';
 import '../../utils/external_link_utils.dart';
 import '../inbox/inbox_page.dart';
@@ -4549,8 +4550,8 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
-  // Toggle view persistence; set to true to restore prior behavior.
-  static const bool _rememberLastView = false;
+  // Keep calendar position only for the active short-lived session.
+  static const bool _rememberLastView = true;
 
   int? _lastViewKy; // last centered Kemetic year
   int? _lastViewKm; // last centered Kemetic month (1..13)
@@ -4560,11 +4561,8 @@ class _CalendarPageState extends State<CalendarPage>
   int _buildCount = 0; // Track how many times build() is called
   Orientation? _lastOrientation; // Track orientation changes
 
-  // ✅ ADD: Preference keys for state persistence
-  static const String _kPrefLastViewYear = 'calendar_last_view_ky';
-  static const String _kPrefLastViewMonth = 'calendar_last_view_km';
-  static const String _kPrefLastViewDay = 'calendar_last_view_kd';
-  static const String _kPrefMonthExpansion = 'calendar_month_expansion';
+  static const String _kSessionScopeCalendarView = 'calendar_view';
+  static const String _kSessionResumeKindDaySheet = 'calendar_day_sheet';
 
   // ✅ ADD: Flag to prevent auto-scroll on orientation change
   bool _skipScrollToToday = false;
@@ -4578,6 +4576,7 @@ class _CalendarPageState extends State<CalendarPage>
 
   // ✅ ADD: First-build gating flag to prevent race condition
   bool _restored = false;
+  bool _daySheetResumeAttempted = false;
   bool _isTablet(BuildContext context) =>
       MediaQuery.of(context).size.shortestSide >= 600;
 
@@ -4934,6 +4933,7 @@ class _CalendarPageState extends State<CalendarPage>
 
     // ✅ Load persisted state first, fallback to today
     _loadPersistedViewState();
+    _scheduleDaySheetResumeRestore();
 
     _scrollCtrl.addListener(_onVerticalScroll);
 
@@ -5036,6 +5036,75 @@ class _CalendarPageState extends State<CalendarPage>
         textBackplateBlurSigma: 14,
       ),
     ];
+  }
+
+  void _scheduleDaySheetResumeRestore() {
+    if (_daySheetResumeAttempted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_restoreDaySheetIfNeeded());
+    });
+  }
+
+  Future<void> _restoreDaySheetIfNeeded([int attempt = 0]) async {
+    if (!mounted || _daySheetResumeAttempted) return;
+    if (!_restored) {
+      if (attempt >= 20) return;
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      if (!mounted) return;
+      return _restoreDaySheetIfNeeded(attempt + 1);
+    }
+
+    _daySheetResumeAttempted = true;
+    final entry = await SessionResumeService.consumeResumeEntry(
+      kind: _kSessionResumeKindDaySheet,
+      baseRoute: '/',
+    );
+    if (!mounted || entry == null) return;
+
+    final payload = entry.payload;
+    final kYear = (payload['kYear'] as num?)?.toInt();
+    final kMonth = (payload['kMonth'] as num?)?.toInt();
+    final kDay = (payload['kDay'] as num?)?.toInt();
+    if (kYear == null || kMonth == null || kDay == null) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _openDaySheet(
+        kYear,
+        kMonth,
+        kDay,
+        allowDateChange: payload['allowDateChange'] == true,
+        initialStartTime: _timeOfDayFromSession(payload, 'start'),
+        initialEndTime: _timeOfDayFromSession(payload, 'end'),
+        initialAllDay: payload['allDay'] == true,
+        initialTitle: payload['title'] as String?,
+        initialLocation: payload['location'] as String?,
+        initialDetail: payload['detail'] as String?,
+        initialColor: _colorFromSessionValue(
+          (payload['colorValue'] as num?)?.toInt(),
+        ),
+        initialCategory: payload['category'] as String?,
+        initialAlertMinutes: (payload['alertMinutesBefore'] as num?)?.toInt(),
+        editingIndex: (payload['editingIndex'] as num?)?.toInt(),
+      );
+    });
+  }
+
+  TimeOfDay? _timeOfDayFromSession(
+    Map<String, dynamic> payload,
+    String prefix,
+  ) {
+    final hour = (payload['${prefix}Hour'] as num?)?.toInt();
+    final minute = (payload['${prefix}Minute'] as num?)?.toInt();
+    if (hour == null || minute == null) return null;
+    return TimeOfDay(hour: hour.clamp(0, 23), minute: minute.clamp(0, 59));
+  }
+
+  Color? _colorFromSessionValue(int? colorValue) {
+    if (colorValue == null) return null;
+    return Color(colorValue);
   }
 
   void _scheduleOnboardingPresentation() {
@@ -5302,11 +5371,13 @@ class _CalendarPageState extends State<CalendarPage>
       return;
     }
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedKy = prefs.getInt(_kPrefLastViewYear);
-      final savedKm = prefs.getInt(_kPrefLastViewMonth);
-      final savedKd = prefs.getInt(_kPrefLastViewDay);
-      final savedExpansion = prefs.getString(_kPrefMonthExpansion);
+      final savedState = await SessionResumeService.readScopedState(
+        _kSessionScopeCalendarView,
+      );
+      final savedKy = (savedState?['kYear'] as num?)?.toInt();
+      final savedKm = (savedState?['kMonth'] as num?)?.toInt();
+      final savedKd = (savedState?['kDay'] as num?)?.toInt();
+      final savedExpansion = savedState?['expansion'] as String?;
 
       // ✅ FIX 2: Allow years < 1 in saved state - support historical dates
       if (savedKy != null && savedKm != null && savedKm >= 1 && savedKm <= 13) {
@@ -5386,15 +5457,17 @@ class _CalendarPageState extends State<CalendarPage>
   Future<void> _saveViewState(int ky, int km, [int? kd]) async {
     if (!_rememberLastView) return; // persistence disabled
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_kPrefLastViewYear, ky);
-      await prefs.setInt(_kPrefLastViewMonth, km);
       // ✅ HARDENING 1: Save day if provided, otherwise keep existing or use 1
       final dayToSave = kd ?? _lastViewKd ?? 1;
       // Clamp day to valid range before saving
       final maxDay = _maxDayForMonth(ky, km);
       final clampedDay = dayToSave.clamp(1, maxDay);
-      await prefs.setInt(_kPrefLastViewDay, clampedDay);
+      await SessionResumeService.saveScopedState(_kSessionScopeCalendarView, {
+        'kYear': ky,
+        'kMonth': km,
+        'kDay': clampedDay,
+        'expansion': _expansionToString(_monthExpansion),
+      });
 
       if (kDebugMode) {
         print(
@@ -9518,10 +9591,17 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _persistExpansionLevel(MonthExpansionLevel level) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kPrefMonthExpansion, _expansionToString(level));
-    } catch (_) {}
+    if (!_rememberLastView) return;
+    final ky = _lastViewKy ?? _today.kYear;
+    final km = _lastViewKm ?? _today.kMonth;
+    final maxDay = _maxDayForMonth(ky, km);
+    final kd = (_lastViewKd ?? _today.kDay).clamp(1, maxDay);
+    await SessionResumeService.saveScopedState(_kSessionScopeCalendarView, {
+      'kYear': ky,
+      'kMonth': km,
+      'kDay': kd,
+      'expansion': _expansionToString(level),
+    });
   }
 
   void _setExpansionLevel(
@@ -11475,6 +11555,42 @@ class _CalendarPageState extends State<CalendarPage>
         : 0;
     if (selectedColorIndex < 0) selectedColorIndex = 0;
 
+    Map<String, dynamic> daySheetSessionPayload() {
+      return <String, dynamic>{
+        'kYear': selYear,
+        'kMonth': selMonth,
+        'kDay': selDay,
+        'allowDateChange': allowDateChange,
+        'title': controllerTitle.text,
+        'location': controllerLocation.text,
+        'detail': controllerDetail.text,
+        'allDay': allDay,
+        'startHour': startTime?.hour,
+        'startMinute': startTime?.minute,
+        'endHour': endTime?.hour,
+        'endMinute': endTime?.minute,
+        'colorValue': _flowPalette[selectedColorIndex].value,
+        'category': selectedCategory,
+        'alertMinutesBefore': alertMinutesBefore,
+        'editingIndex': editingIndex,
+      };
+    }
+
+    void persistDaySheetSession() {
+      unawaited(
+        SessionResumeService.saveResumeEntry(
+          baseRoute: '/',
+          kind: _kSessionResumeKindDaySheet,
+          payload: daySheetSessionPayload(),
+        ),
+      );
+    }
+
+    controllerTitle.addListener(persistDaySheetSession);
+    controllerLocation.addListener(persistDaySheetSession);
+    controllerDetail.addListener(persistDaySheetSession);
+    persistDaySheetSession();
+
     try {
       debugPrint('🚀 Attempting to show modal bottom sheet...');
       UiGuards.disableJournalSwipe();
@@ -11565,6 +11681,7 @@ class _CalendarPageState extends State<CalendarPage>
                     endTime = _addMinutes(t, 60);
                   }
                 });
+                persistDaySheetSession();
               }
 
               Future<void> pickEnd() async {
@@ -11594,6 +11711,7 @@ class _CalendarPageState extends State<CalendarPage>
                     startTime = _addMinutes(t, -60);
                   }
                 });
+                persistDaySheetSession();
               }
 
               Widget timeButton({
@@ -11663,6 +11781,7 @@ class _CalendarPageState extends State<CalendarPage>
                                     }
                                   }
                                 });
+                                persistDaySheetSession();
                               },
                               children: List<Widget>.generate(13, (i) {
                                 final m = i + 1;
@@ -11691,6 +11810,7 @@ class _CalendarPageState extends State<CalendarPage>
                                   final max = maxDayFor(selYear, selMonth);
                                   selDay = (i % max) + 1;
                                 });
+                                persistDaySheetSession();
                               },
                               children: List<Widget>.generate(dayCount, (i) {
                                 final d = i + 1;
@@ -11728,6 +11848,7 @@ class _CalendarPageState extends State<CalendarPage>
                                     }
                                   }
                                 });
+                                persistDaySheetSession();
                               },
                               children: List<Widget>.generate(401, (i) {
                                 final ky = yearStart + i;
@@ -12378,9 +12499,12 @@ class _CalendarPageState extends State<CalendarPage>
                                   ChoiceChip(
                                     label: Text(cat),
                                     selected: selectedCategory == cat,
-                                    onSelected: (_) => setSheetState(() {
-                                      selectedCategory = cat;
-                                    }),
+                                    onSelected: (_) {
+                                      setSheetState(() {
+                                        selectedCategory = cat;
+                                      });
+                                      persistDaySheetSession();
+                                    },
                                     selectedColor: const Color(
                                       0xFFD4AF37,
                                     ).withOpacity(0.2),
@@ -12409,9 +12533,12 @@ class _CalendarPageState extends State<CalendarPage>
                                   ),
                                   onPressed: selectedCategory == null
                                       ? null
-                                      : () => setSheetState(
-                                          () => selectedCategory = null,
-                                        ),
+                                      : () {
+                                          setSheetState(
+                                            () => selectedCategory = null,
+                                          );
+                                          persistDaySheetSession();
+                                        },
                                   backgroundColor: const Color(0xFF1A1A1A),
                                 ),
                               ],
@@ -12421,7 +12548,10 @@ class _CalendarPageState extends State<CalendarPage>
                             SwitchListTile(
                               contentPadding: EdgeInsets.zero,
                               value: allDay,
-                              onChanged: (v) => setSheetState(() => allDay = v),
+                              onChanged: (v) {
+                                setSheetState(() => allDay = v);
+                                persistDaySheetSession();
+                              },
                               title: const GlossyText(
                                 text: 'All-day',
                                 style: TextStyle(fontSize: 14),
@@ -12467,6 +12597,7 @@ class _CalendarPageState extends State<CalendarPage>
                                   setSheetState(() {
                                     alertMinutesBefore = picked;
                                   });
+                                  persistDaySheetSession();
                                 }
                               },
                               child: Container(
@@ -12679,6 +12810,7 @@ class _CalendarPageState extends State<CalendarPage>
                                                         customResult['interval']
                                                             as int;
                                                   });
+                                                  persistDaySheetSession();
                                                 }
                                               },
                                               child: const GlossyText(
@@ -12706,6 +12838,7 @@ class _CalendarPageState extends State<CalendarPage>
                                       endDate = null;
                                     }
                                   });
+                                  persistDaySheetSession();
                                 }
                               },
                               child: Container(
@@ -12814,6 +12947,7 @@ class _CalendarPageState extends State<CalendarPage>
                                                                   .onDate;
                                                           endDate = picked;
                                                         });
+                                                        persistDaySheetSession();
                                                       }
                                                     },
                                                     child: const GlossyText(
@@ -12847,6 +12981,7 @@ class _CalendarPageState extends State<CalendarPage>
                                             endDate = null;
                                           }
                                         });
+                                        persistDaySheetSession();
                                       }
                                     },
                               child: Container(
@@ -12934,9 +13069,12 @@ class _CalendarPageState extends State<CalendarPage>
                                   final color = _flowPalette[i];
 
                                   return InkWell(
-                                    onTap: () => setSheetState(() {
-                                      selectedColorIndex = i;
-                                    }),
+                                    onTap: () {
+                                      setSheetState(() {
+                                        selectedColorIndex = i;
+                                      });
+                                      persistDaySheetSession();
+                                    },
                                     borderRadius: BorderRadius.circular(18),
                                     child: Container(
                                       width: 30,
@@ -13189,6 +13327,20 @@ class _CalendarPageState extends State<CalendarPage>
           );
         },
       ).then((_) {
+        controllerTitle.removeListener(persistDaySheetSession);
+        controllerLocation.removeListener(persistDaySheetSession);
+        controllerDetail.removeListener(persistDaySheetSession);
+        controllerTitle.dispose();
+        controllerLocation.dispose();
+        controllerDetail.dispose();
+        yearCtrl.dispose();
+        monthCtrl.dispose();
+        dayCtrl.dispose();
+        unawaited(
+          SessionResumeService.clearResumeEntry(
+            kind: _kSessionResumeKindDaySheet,
+          ),
+        );
         UiGuards.enableJournalSwipe();
       });
 
@@ -13199,6 +13351,20 @@ class _CalendarPageState extends State<CalendarPage>
       debugPrint('Error: $e');
       debugPrint('Stack trace: $stackTrace');
       debugPrint('');
+      controllerTitle.removeListener(persistDaySheetSession);
+      controllerLocation.removeListener(persistDaySheetSession);
+      controllerDetail.removeListener(persistDaySheetSession);
+      controllerTitle.dispose();
+      controllerLocation.dispose();
+      controllerDetail.dispose();
+      yearCtrl.dispose();
+      monthCtrl.dispose();
+      dayCtrl.dispose();
+      unawaited(
+        SessionResumeService.clearResumeEntry(
+          kind: _kSessionResumeKindDaySheet,
+        ),
+      );
       UiGuards.enableJournalSwipe(); // Re-enable even on error
     }
   }

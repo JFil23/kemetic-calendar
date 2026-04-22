@@ -14,14 +14,17 @@ import 'shared_flow_details_entry.dart';
 import 'conversation_user.dart';
 import '../invites/event_invite_details_page.dart';
 import '../profile/profile_page.dart';
+import '../../services/session_resume_service.dart';
 
 class InboxConversationPage extends StatefulWidget {
   final String otherUserId;
   final ConversationUser otherProfile;
+  final String? initialDraftText;
 
   const InboxConversationPage({
     required this.otherUserId,
     required this.otherProfile,
+    this.initialDraftText,
     super.key,
   });
 
@@ -30,6 +33,7 @@ class InboxConversationPage extends StatefulWidget {
 }
 
 class _InboxConversationPageState extends State<InboxConversationPage> {
+  static const String _resumeKind = 'inbox_conversation';
   final Set<String> _locallyDeleted = <String>{};
   final Set<String> _locallyViewedShareIds = <String>{};
   final Set<String> _messageLikeUpdatingIds = <String>{};
@@ -49,13 +53,36 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
     super.initState();
     _inboxRepo = InboxRepo(Supabase.instance.client);
     _shareRepo = ShareRepo(Supabase.instance.client);
+    _messageController.text = widget.initialDraftText ?? '';
+    _messageController.addListener(_persistResumeState);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _persistResumeState();
+    });
   }
 
   @override
   void dispose() {
+    _messageController.removeListener(_persistResumeState);
+    unawaited(SessionResumeService.clearResumeEntry(kind: _resumeKind));
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _persistResumeState() {
+    unawaited(
+      SessionResumeService.saveResumeEntry(
+        baseRoute: '/inbox',
+        kind: _resumeKind,
+        payload: {
+          'otherUserId': widget.otherUserId,
+          'displayName': widget.otherProfile.displayName,
+          'handle': widget.otherProfile.handle,
+          'avatarUrl': widget.otherProfile.avatarUrl,
+          'draftText': _messageController.text,
+        },
+      ),
+    );
   }
 
   void _scrollToBottom() {
@@ -80,6 +107,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
         text: text,
       );
       _messageController.clear();
+      _persistResumeState();
       _scrollToBottom();
     } catch (e) {
       if (!mounted) return;

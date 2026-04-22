@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/services/session_resume_service.dart';
 
 import 'package:mobile/features/rhythm/rhythm_reminders.dart';
 import 'package:mobile/features/rhythm/rhythm_telemetry.dart';
@@ -11,6 +12,101 @@ import '../data/rhythm_repo.dart';
 import '../theme/rhythm_theme.dart';
 import '../viewmodels/rhythm_draft.dart';
 import '../widgets/rhythm_states.dart';
+
+const String kRhythmEditorResumeKind = 'rhythm_editor';
+
+class RhythmEditorResumePayload {
+  const RhythmEditorResumePayload({
+    required this.category,
+    required this.isTimed,
+    required this.draft,
+  });
+
+  final String category;
+  final bool isTimed;
+  final RhythmDraft draft;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'category': category,
+      'isTimed': isTimed,
+      'draft': {
+        'id': draft.id,
+        'title': draft.title,
+        'description': draft.description,
+        'category': draft.category,
+        'isTimed': draft.isTimed,
+        'showInAlignment': draft.showInAlignment,
+        'sendReminders': draft.sendReminders,
+        'trackContinuity': draft.trackContinuity,
+        'patterns': [
+          for (final pattern in draft.patterns)
+            {
+              'daysOfWeek': pattern.daysOfWeek,
+              'allDay': pattern.allDay,
+              'startHour': pattern.start?.hour,
+              'startMinute': pattern.start?.minute,
+              'endHour': pattern.end?.hour,
+              'endMinute': pattern.end?.minute,
+              'isOptional': pattern.isOptional,
+            },
+        ],
+      },
+    };
+  }
+
+  static RhythmEditorResumePayload? fromJson(Map<String, dynamic> json) {
+    final draftJson = json['draft'];
+    if (draftJson is! Map<String, dynamic>) return null;
+
+    final category = json['category'] as String?;
+    final isTimed = json['isTimed'] == true;
+    final title = draftJson['title'] as String?;
+    if (category == null || title == null) return null;
+
+    final patternsRaw = draftJson['patterns'];
+    final patterns = <TimePattern>[];
+    if (patternsRaw is List) {
+      for (final raw in patternsRaw) {
+        if (raw is! Map<String, dynamic>) continue;
+        patterns.add(
+          TimePattern(
+            daysOfWeek: ((raw['daysOfWeek'] as List?) ?? const [])
+                .map((value) => (value as num).toInt())
+                .toList(),
+            allDay: raw['allDay'] == true,
+            start: _timeOfDayFromJson(raw, 'start'),
+            end: _timeOfDayFromJson(raw, 'end'),
+            isOptional: raw['isOptional'] == true,
+          ),
+        );
+      }
+    }
+
+    return RhythmEditorResumePayload(
+      category: category,
+      isTimed: isTimed,
+      draft: RhythmDraft(
+        id: draftJson['id'] as String?,
+        title: title,
+        description: draftJson['description'] as String?,
+        category: (draftJson['category'] as String?) ?? category,
+        isTimed: draftJson['isTimed'] == true,
+        showInAlignment: draftJson['showInAlignment'] != false,
+        sendReminders: draftJson['sendReminders'] == true,
+        trackContinuity: draftJson['trackContinuity'] != false,
+        patterns: patterns,
+      ),
+    );
+  }
+
+  static TimeOfDay? _timeOfDayFromJson(Map<String, dynamic> json, String key) {
+    final hour = (json['${key}Hour'] as num?)?.toInt();
+    final minute = (json['${key}Minute'] as num?)?.toInt();
+    if (hour == null || minute == null) return null;
+    return TimeOfDay(hour: hour.clamp(0, 23), minute: minute.clamp(0, 59));
+  }
+}
 
 class TimedRhythmEditorPage extends StatefulWidget {
   const TimedRhythmEditorPage({
@@ -58,6 +154,48 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
               start: TimeOfDay(hour: 6, minute: 0),
             ),
           ];
+    _title.addListener(_persistResumeState);
+    _description.addListener(_persistResumeState);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _persistResumeState();
+    });
+  }
+
+  @override
+  void dispose() {
+    _title.removeListener(_persistResumeState);
+    _description.removeListener(_persistResumeState);
+    unawaited(
+      SessionResumeService.clearResumeEntry(kind: kRhythmEditorResumeKind),
+    );
+    _title.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  void _persistResumeState() {
+    final payload = RhythmEditorResumePayload(
+      category: widget.categoryDisplay,
+      isTimed: true,
+      draft: RhythmDraft(
+        id: widget.initial?.id,
+        title: _title.text,
+        description: _description.text.isEmpty ? null : _description.text,
+        category: widget.categoryDisplay,
+        isTimed: true,
+        showInAlignment: _showAlignment,
+        sendReminders: _sendReminders,
+        trackContinuity: _trackContinuity,
+        patterns: List<TimePattern>.from(_patterns),
+      ),
+    );
+    unawaited(
+      SessionResumeService.saveResumeEntry(
+        baseRoute: '/rhythm/mycycle',
+        kind: kRhythmEditorResumeKind,
+        payload: payload.toJson(),
+      ),
+    );
   }
 
   @override
@@ -112,11 +250,13 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
                       setState(() {
                         _patterns[index] = updated;
                       });
+                      _persistResumeState();
                     },
                     onDelete: _patterns.length == 1
                         ? null
                         : () => setState(() {
                             _patterns.removeAt(index);
+                            _persistResumeState();
                           }),
                   );
                 }),
@@ -124,6 +264,7 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
                 OutlinedButton.icon(
                   onPressed: () => setState(() {
                     _patterns = [..._patterns, const TimePattern(allDay: true)];
+                    _persistResumeState();
                   }),
                   icon: const Icon(Icons.add),
                   label: const Text('Add time pattern'),
@@ -134,17 +275,26 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
                 SwitchListTile.adaptive(
                   title: const Text('Show in Planner'),
                   value: _showAlignment,
-                  onChanged: (v) => setState(() => _showAlignment = v),
+                  onChanged: (v) {
+                    setState(() => _showAlignment = v);
+                    _persistResumeState();
+                  },
                 ),
                 SwitchListTile.adaptive(
                   title: const Text('Send reminders'),
                   value: _sendReminders,
-                  onChanged: (v) => setState(() => _sendReminders = v),
+                  onChanged: (v) {
+                    setState(() => _sendReminders = v);
+                    _persistResumeState();
+                  },
                 ),
                 SwitchListTile.adaptive(
                   title: const Text('Track continuity'),
                   value: _trackContinuity,
-                  onChanged: (v) => setState(() => _trackContinuity = v),
+                  onChanged: (v) {
+                    setState(() => _trackContinuity = v);
+                    _persistResumeState();
+                  },
                 ),
                 if (_friendlyError != null) ...[
                   const SizedBox(height: 12),
@@ -225,6 +375,7 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
 
     if (!mounted) return;
     setState(() => _saving = false);
+    await SessionResumeService.clearResumeEntry(kind: kRhythmEditorResumeKind);
     Navigator.of(context).pop(true);
   }
 }
@@ -264,6 +415,47 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
     _showAlignment = initial?.showInAlignment ?? true;
     _sendReminders = initial?.sendReminders ?? false;
     _trackContinuity = initial?.trackContinuity ?? true;
+    _title.addListener(_persistResumeState);
+    _description.addListener(_persistResumeState);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _persistResumeState();
+    });
+  }
+
+  @override
+  void dispose() {
+    _title.removeListener(_persistResumeState);
+    _description.removeListener(_persistResumeState);
+    unawaited(
+      SessionResumeService.clearResumeEntry(kind: kRhythmEditorResumeKind),
+    );
+    _title.dispose();
+    _description.dispose();
+    super.dispose();
+  }
+
+  void _persistResumeState() {
+    final payload = RhythmEditorResumePayload(
+      category: widget.category,
+      isTimed: false,
+      draft: RhythmDraft(
+        id: widget.initial?.id,
+        title: _title.text,
+        description: _description.text.isEmpty ? null : _description.text,
+        category: widget.category,
+        isTimed: false,
+        showInAlignment: _showAlignment,
+        sendReminders: _sendReminders,
+        trackContinuity: _trackContinuity,
+      ),
+    );
+    unawaited(
+      SessionResumeService.saveResumeEntry(
+        baseRoute: '/rhythm/mycycle',
+        kind: kRhythmEditorResumeKind,
+        payload: payload.toJson(),
+      ),
+    );
   }
 
   @override
@@ -314,17 +506,26 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
                 SwitchListTile.adaptive(
                   title: const Text('Show in Planner'),
                   value: _showAlignment,
-                  onChanged: (v) => setState(() => _showAlignment = v),
+                  onChanged: (v) {
+                    setState(() => _showAlignment = v);
+                    _persistResumeState();
+                  },
                 ),
                 SwitchListTile.adaptive(
                   title: const Text('Send reminders'),
                   value: _sendReminders,
-                  onChanged: (v) => setState(() => _sendReminders = v),
+                  onChanged: (v) {
+                    setState(() => _sendReminders = v);
+                    _persistResumeState();
+                  },
                 ),
                 SwitchListTile.adaptive(
                   title: const Text('Track continuity'),
                   value: _trackContinuity,
-                  onChanged: (v) => setState(() => _trackContinuity = v),
+                  onChanged: (v) {
+                    setState(() => _trackContinuity = v);
+                    _persistResumeState();
+                  },
                 ),
                 if (_friendlyError != null) ...[
                   const SizedBox(height: 12),
@@ -404,6 +605,7 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
 
     if (!mounted) return;
     setState(() => _saving = false);
+    await SessionResumeService.clearResumeEntry(kind: kRhythmEditorResumeKind);
     Navigator.of(context).pop(true);
   }
 }
