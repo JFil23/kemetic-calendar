@@ -43,6 +43,74 @@ Map<String, ({int count, bool likedByMe})> aggregateDmMessageLikeStates(
   return states;
 }
 
+bool isMissingDmFunctionError(Object error) {
+  if (error is FunctionException && error.status == 404) {
+    return true;
+  }
+
+  final message = error.toString().toLowerCase();
+  return message.contains('send_dm_message') &&
+      (message.contains('404') ||
+          message.contains('not found') ||
+          message.contains('does not exist'));
+}
+
+bool shouldRetryDmPushFromResponse(dynamic responseData) {
+  final body = _asDmMap(responseData);
+  if (body == null) return false;
+
+  final pushError = _asDmString(body['pushError']);
+  if (pushError != null && pushError.isNotEmpty) {
+    return true;
+  }
+
+  final push = _asDmMap(body['push']);
+  if (push == null) return false;
+
+  final delivered =
+      push['delivered'] == true ||
+      _asDmString(push['delivered'])?.toLowerCase() == 'true';
+  if (delivered) return false;
+
+  final reason = _asDmString(push['reason'])?.toLowerCase();
+  return reason == 'missing_internal_function_key' || reason == 'unauthorized';
+}
+
+String userFacingDmSendError(Object error) {
+  final message = error.toString().toLowerCase();
+
+  if (message.contains('not signed in')) {
+    return 'Please sign in to send messages.';
+  }
+  if (message.contains('cannot message yourself')) {
+    return 'You cannot message yourself.';
+  }
+  if (message.contains('recipient not found')) {
+    return 'That user could not be found.';
+  }
+  if (message.contains('not accepting messages')) {
+    return 'That user is not accepting messages right now.';
+  }
+  if (isMissingDmFunctionError(error)) {
+    return 'Messaging is updating right now. Please try again in a moment.';
+  }
+
+  return 'Could not send message right now. Please try again.';
+}
+
+Map<String, dynamic>? _asDmMap(dynamic value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return value.cast<String, dynamic>();
+  return null;
+}
+
+String? _asDmString(dynamic value) {
+  if (value == null) return null;
+  final text = value is String ? value : value.toString();
+  final trimmed = text.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
 class InboxRepo {
   final SupabaseClient _client;
   final ShareRepo _shareRepo;
@@ -221,15 +289,55 @@ class InboxRepo {
         'send_dm_message',
         body: {'recipientId': recipientId, 'text': trimmed},
       );
+      final body = _asDmMap(response.data);
       if (response.status >= 400) {
-        final body = response.data;
-        final message = body is Map<String, dynamic>
-            ? (body['error'] ?? body['message'])?.toString()
-            : body?.toString();
+        final message = _asDmString(body?['error'] ?? body?['message']);
         throw Exception(message ?? 'HTTP ${response.status}');
       }
+
+      if (shouldRetryDmPushFromResponse(body)) {
+        final share = _asDmMap(body?['share']);
+        unawaited(
+          _sendDmPushFallback(
+            recipientId: recipientId,
+            senderId: senderId,
+            text: trimmed,
+            shareId: _asDmString(share?['id']),
+          ),
+        );
+      }
       return null;
+    } on FunctionException catch (e, st) {
+      if (isMissingDmFunctionError(e)) {
+        if (kDebugMode) {
+          debugPrint(
+            '[InboxRepo] send_dm_message missing, using direct DM fallback',
+          );
+          debugPrint('$st');
+        }
+        await _sendTextMessageDirect(
+          senderId: senderId,
+          recipientId: recipientId,
+          text: trimmed,
+        );
+        return null;
+      }
+      rethrow;
     } catch (e, st) {
+      if (isMissingDmFunctionError(e)) {
+        if (kDebugMode) {
+          debugPrint(
+            '[InboxRepo] send_dm_message unavailable, using direct DM fallback',
+          );
+          debugPrint('$st');
+        }
+        await _sendTextMessageDirect(
+          senderId: senderId,
+          recipientId: recipientId,
+          text: trimmed,
+        );
+        return null;
+      }
       if (kDebugMode) {
         debugPrint('[InboxRepo] sendTextMessage failed: $e');
         debugPrint('$st');
@@ -252,6 +360,121 @@ class InboxRepo {
 
       return conv;
     });
+  }
+
+  Future<void> _sendTextMessageDirect({
+    required String senderId,
+    required String recipientId,
+    required String text,
+  }) async {
+    final recipient = await _client
+        .from('profiles')
+        .select('id, allow_incoming_shares')
+        .eq('id', recipientId)
+        .maybeSingle();
+
+    if (recipient == null || _asDmString(recipient['id']) == null) {
+      throw Exception('Recipient not found');
+    }
+    if (recipient['allow_incoming_shares'] == false) {
+      throw Exception('Recipient is not accepting messages right now');
+    }
+
+    final dmFlowId = await _ensureDmPlaceholderFlow(senderId);
+    final payload = {'type': 'message', 'text': text, 'name': text};
+    final inserted = await _client
+        .from('flow_shares')
+        .insert({
+          'flow_id': dmFlowId,
+          'sender_id': senderId,
+          'recipient_id': recipientId,
+          'channel': 'in_app',
+          'status': 'sent',
+          'payload_json': payload,
+        })
+        .select('id')
+        .single();
+
+    await _sendDmPushFallback(
+      recipientId: recipientId,
+      senderId: senderId,
+      text: text,
+      shareId: _asDmString(inserted['id']),
+    );
+  }
+
+  Future<int> _ensureDmPlaceholderFlow(String senderId) async {
+    final existing = await _client
+        .from('flows')
+        .select('id')
+        .eq('user_id', senderId)
+        .eq('notes', '__dm_placeholder__')
+        .order('id', ascending: true)
+        .limit(1)
+        .maybeSingle();
+
+    final existingId = existing?['id'];
+    if (existingId is int) return existingId;
+    if (existingId is num) return existingId.toInt();
+
+    final inserted = await _client
+        .from('flows')
+        .insert({
+          'user_id': senderId,
+          'name': 'DM Messages',
+          'color': 0,
+          'active': false,
+          'rules': [],
+          'notes': '__dm_placeholder__',
+          'ai_metadata': {'dm_placeholder': true},
+        })
+        .select('id')
+        .single();
+
+    final insertedId = inserted['id'];
+    if (insertedId is int) return insertedId;
+    if (insertedId is num) return insertedId.toInt();
+    throw Exception('Failed to create DM placeholder flow');
+  }
+
+  Future<void> _sendDmPushFallback({
+    required String recipientId,
+    required String senderId,
+    required String text,
+    String? shareId,
+  }) async {
+    final senderProfile = await _client
+        .from('profiles')
+        .select('display_name, handle')
+        .eq('id', senderId)
+        .maybeSingle();
+
+    final displayName = _asDmString(senderProfile?['display_name']);
+    final handle = _asDmString(senderProfile?['handle']);
+    final senderLabel =
+        displayName ?? (handle != null ? '@$handle' : 'Someone');
+    final preview = text.length > 120 ? '${text.substring(0, 120)}...' : text;
+
+    try {
+      await _client.functions.invoke(
+        'send_push',
+        body: {
+          'userIds': [recipientId],
+          'notification': {
+            'title': 'New message from $senderLabel',
+            'body': preview,
+          },
+          'data': {
+            'type': 'dm',
+            'kind': 'dm',
+            'sender_id': senderId,
+            if (shareId != null && shareId.isNotEmpty) 'share_id': shareId,
+          },
+        },
+      );
+    } catch (e) {
+      _log('[InboxRepo] DM push fallback failed: $e');
+    }
   }
 
   Future<Map<String, ({int count, bool likedByMe})>> getMessageLikeStates(

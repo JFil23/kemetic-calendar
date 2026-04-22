@@ -279,6 +279,7 @@ class ShareRepo {
 
     final payloadJson = await _buildFlowSharePayload(flowId, flowRow);
     final results = <ShareResult>[];
+    final flowName = _cleanNullableString(flowRow['name']) ?? 'Shared Flow';
 
     for (final recipient in recipients) {
       if (recipient.type == ShareRecipientType.user) {
@@ -326,6 +327,11 @@ class ShareRepo {
               'recipient': recipient.toJson(),
               'recipient_id': recipientId,
             }),
+          );
+          await _sendFlowSharePush(
+            recipientId: recipientId,
+            shareId: row['id'] as String?,
+            flowName: flowName,
           );
         } catch (e) {
           results.add(
@@ -380,6 +386,64 @@ class ShareRepo {
     }
 
     return results;
+  }
+
+  Future<void> _sendFlowSharePush({
+    required String recipientId,
+    required String? shareId,
+    required String flowName,
+  }) async {
+    final senderId = _client.auth.currentUser?.id;
+    if (senderId == null ||
+        senderId.isEmpty ||
+        recipientId.isEmpty ||
+        shareId == null ||
+        shareId.isEmpty) {
+      return;
+    }
+
+    String senderLabel = 'Someone';
+    try {
+      final profile = await _client
+          .from('profiles')
+          .select('display_name, handle')
+          .eq('id', senderId)
+          .maybeSingle();
+      final displayName = _cleanNullableString(profile?['display_name']);
+      final handle = _cleanNullableString(profile?['handle']);
+      if (displayName != null && displayName.isNotEmpty) {
+        senderLabel = displayName;
+      } else if (handle != null && handle.isNotEmpty) {
+        senderLabel = '@$handle';
+      }
+    } catch (e) {
+      _log('[ShareRepo] load sender profile for flow share push failed: $e');
+    }
+
+    final trimmedName = flowName.trim();
+    final body = trimmedName.isEmpty ? 'Tap to open in Inbox' : trimmedName;
+
+    try {
+      await _client.functions.invoke(
+        'send_push',
+        body: {
+          'userIds': [recipientId],
+          'notification': {
+            'title': 'Flow shared by $senderLabel',
+            'body': body,
+          },
+          'data': {
+            'type': 'dm',
+            'kind': 'dm',
+            'sender_id': senderId,
+            'share_id': shareId,
+            'share_kind': 'flow',
+          },
+        },
+      );
+    } catch (e) {
+      _log('[ShareRepo] send flow share push failed: $e');
+    }
   }
 
   /// Share an event (user_events) with recipients
@@ -2127,14 +2191,22 @@ class ShareRepo {
       );
     }
 
-    final items = filtered
-        .map((item) {
-          if (verbose) {
-            _log('📬 [ShareRepo] Parsing item: ${item['share_id']}');
-          }
-          return InboxShareItem.fromJson(item);
-        })
-        .toList(growable: false);
+    final items = <InboxShareItem>[];
+    for (final item in filtered) {
+      if (verbose) {
+        _log('📬 [ShareRepo] Parsing item: ${item['share_id']}');
+      }
+      final parsed = InboxShareItem.tryFromJson(item);
+      if (parsed == null) {
+        if (verbose) {
+          _log(
+            '⚠️ [ShareRepo] Skipping malformed inbox row: ${item['share_id']}',
+          );
+        }
+        continue;
+      }
+      items.add(parsed);
+    }
 
     if (verbose) {
       _log('✅ [ShareRepo] Successfully parsed ${items.length} items');
@@ -2193,28 +2265,123 @@ class ShareRepo {
       return Stream.value(const []);
     }
 
-    return _client
-        .from('inbox_share_items_filtered')
-        .stream(primaryKey: ['share_id'])
-        .order('created_at', ascending: false)
-        .map((data) {
-          final list = (data as List?) ?? const [];
-          final filtered = list.cast<Map<String, dynamic>>().where((row) {
-            final senderId = row['sender_id'] as String?;
-            final recipientId = row['recipient_id'] as String?;
-            return senderId == uid || recipientId == uid;
-          }).toList();
+    final controller = StreamController<List<InboxShareItem>>();
+    final channelName =
+        'inbox_watch_${uid}_${DateTime.now().microsecondsSinceEpoch}';
+    List<InboxShareItem> lastItems = const [];
+    Timer? refreshDebounce;
+    bool refreshInFlight = false;
+    bool refreshQueued = false;
 
-          if (kDebugMode) {
-            debugPrint(
-              '[watchInbox] ${list.length} raw items, ${filtered.length} filtered (uid=$uid)',
-            );
-          }
+    Future<void> emitLatest() async {
+      if (refreshInFlight) {
+        refreshQueued = true;
+        return;
+      }
+      refreshInFlight = true;
+      try {
+        final items = await _fetchInboxItems();
+        lastItems = items;
+        if (!controller.isClosed) {
+          controller.add(items);
+        }
+      } catch (e, st) {
+        _log('[watchInbox] refresh failed: $e');
+        if (kDebugMode) {
+          debugPrint('$st');
+        }
+        if (!controller.isClosed) {
+          controller.add(lastItems);
+        }
+      } finally {
+        refreshInFlight = false;
+        if (refreshQueued) {
+          refreshQueued = false;
+          unawaited(emitLatest());
+        }
+      }
+    }
 
-          return filtered
-              .map((item) => InboxShareItem.fromJson(item))
-              .toList(growable: false);
-        });
+    void scheduleRefresh() {
+      refreshDebounce?.cancel();
+      refreshDebounce = Timer(const Duration(milliseconds: 120), () {
+        unawaited(emitLatest());
+      });
+    }
+
+    final channel = _client.channel(channelName)
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'flow_shares',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'sender_id',
+          value: uid,
+        ),
+        callback: (_) => scheduleRefresh(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'flow_shares',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'recipient_id',
+          value: uid,
+        ),
+        callback: (_) => scheduleRefresh(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'event_shares',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'sender_id',
+          value: uid,
+        ),
+        callback: (_) => scheduleRefresh(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'event_shares',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'recipient_id',
+          value: uid,
+        ),
+        callback: (_) => scheduleRefresh(),
+      )
+      ..subscribe((status, [error]) {
+        if (kDebugMode) {
+          debugPrint(
+            '[watchInbox] channel=$channelName status=$status error=$error',
+          );
+        }
+        switch (status) {
+          case RealtimeSubscribeStatus.subscribed:
+            scheduleRefresh();
+            break;
+          case RealtimeSubscribeStatus.channelError:
+          case RealtimeSubscribeStatus.timedOut:
+            scheduleRefresh();
+            break;
+          case RealtimeSubscribeStatus.closed:
+            break;
+        }
+      });
+
+    unawaited(emitLatest());
+
+    controller.onCancel = () async {
+      refreshDebounce?.cancel();
+      await channel.unsubscribe();
+      await controller.close();
+    };
+
+    return controller.stream;
   }
 
   Stream<List<InboxShareItem>> watchPendingEventInvites() {

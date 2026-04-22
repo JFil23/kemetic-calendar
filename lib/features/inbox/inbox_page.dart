@@ -50,7 +50,6 @@ class _InboxPageState extends State<InboxPage> {
   InboxActivityItem? _latestFollow;
   InboxActivityItem? _latestEngagement;
   List<InboxActivityItem> _activity = const [];
-  bool _marking = false;
   bool _resumeConversationChecked = false;
 
   @override
@@ -95,8 +94,6 @@ class _InboxPageState extends State<InboxPage> {
           a.type == InboxActivityType.like ||
           a.type == InboxActivityType.comment,
     );
-
-    await _markAllUnreadViewed();
 
     if (!mounted) return;
     setState(() {
@@ -611,16 +608,6 @@ class _InboxPageState extends State<InboxPage> {
         backgroundColor: Colors.redAccent,
       ),
     );
-  }
-
-  Future<void> _markAllUnreadViewed() async {
-    if (_marking) return;
-    _marking = true;
-    try {
-      await _markItemsViewed(_latestThreads.values.expand((items) => items));
-    } finally {
-      _marking = false;
-    }
   }
 
   Widget _buildActivityRow(

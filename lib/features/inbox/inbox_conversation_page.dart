@@ -113,7 +113,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not send message: $e'),
+          content: Text(userFacingDmSendError(e)),
           backgroundColor: Colors.red,
         ),
       );
@@ -348,6 +348,11 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                 stream: _inboxRepo.watchConversationWith(widget.otherUserId),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
+                    if (kDebugMode) {
+                      debugPrint(
+                        '[InboxConversationPage] conversation stream error: ${snapshot.error}',
+                      );
+                    }
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -358,9 +363,9 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                             size: 48,
                           ),
                           const SizedBox(height: 16),
-                          Text(
-                            'Error: ${snapshot.error}',
-                            style: const TextStyle(color: Colors.white70),
+                          const Text(
+                            'Conversation temporarily unavailable',
+                            style: TextStyle(color: Colors.white70),
                           ),
                         ],
                       ),

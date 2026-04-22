@@ -227,6 +227,35 @@ void main() {
       expect(item.isFlow, isTrue);
       expect(item.subtitle, 'Flow shared by @initiate');
     });
+
+    test('decodes stringified payload_json maps for direct messages', () {
+      final item = InboxShareItem.fromJson({
+        'share_id': 'share-7',
+        'kind': 'flow',
+        'recipient_id': 'recipient-1',
+        'sender_id': 'sender-7',
+        'sender_handle': 'scribe',
+        'sender_name': 'Scribe',
+        'payload_id': 'share-7',
+        'title': '',
+        'created_at': '2026-04-16T00:00:00Z',
+        'payload_json': '{"type":"message","text":"Bring candles"}',
+      });
+
+      expect(item.isTextMessage, isTrue);
+      expect(item.messageText, 'Bring candles');
+      expect(item.title, 'Bring candles');
+    });
+
+    test('tryFromJson drops malformed rows instead of throwing', () {
+      final item = InboxShareItem.tryFromJson({
+        'kind': 'flow',
+        'sender_id': 'sender-8',
+        'created_at': 'not-a-date',
+      });
+
+      expect(item, isNull);
+    });
   });
 
   group('ShareResult.fromJson', () {

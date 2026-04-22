@@ -1,6 +1,7 @@
 // lib/data/share_models.dart
 // Share Models & Contracts for Flow Sharing System
 
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'flow_share_snapshot.dart';
 
@@ -491,6 +492,19 @@ class InboxShareItem {
     this.recipientAvatarUrl,
   });
 
+  static InboxShareItem? tryFromJson(Map<String, dynamic> json) {
+    try {
+      return InboxShareItem.fromJson(json);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+          '[InboxItem] Skipping malformed row: shareId=${json['share_id']} error=$e',
+        );
+      }
+      return null;
+    }
+  }
+
   factory InboxShareItem.fromJson(Map<String, dynamic> json) {
     if (kDebugMode) {
       debugPrint(
@@ -498,57 +512,50 @@ class InboxShareItem {
       );
     }
 
-    final payload = json['payload_json'] is Map
-        ? Map<String, dynamic>.from(json['payload_json'] as Map)
-        : null;
+    final payload = _parseJsonMap(json['payload_json']);
+    final shareId = _requireString(json, 'share_id');
+    final kind = InboxShareKind.fromString(
+      _nullableString(json['kind']) ?? 'flow',
+    );
+    final fallbackTitle =
+        _nullableString(payload?['title']) ??
+        _nullableString(payload?['name']) ??
+        _nullableString(payload?['text']) ??
+        (kind == InboxShareKind.message ? 'Message' : 'Shared item');
 
     final result = InboxShareItem(
-      shareId: json['share_id'] as String,
-      kind: InboxShareKind.fromString(json['kind'] as String? ?? 'flow'),
-      recipientId: json['recipient_id'] as String,
-      senderId: json['sender_id'] as String,
+      shareId: shareId,
+      kind: kind,
+      recipientId: _requireString(json, 'recipient_id'),
+      senderId: _requireString(json, 'sender_id'),
 
       // ✅ CRITICAL FIX: Handle NULL values with fallbacks
-      senderHandle: json['sender_handle'] as String? ?? 'unknown',
-      senderName: json['sender_name'] as String? ?? 'Unknown User',
+      senderHandle: _nullableString(json['sender_handle']) ?? 'unknown',
+      senderName: _nullableString(json['sender_name']) ?? 'Unknown User',
 
-      senderAvatar: json['sender_avatar'] as String?,
-      payloadId: json['payload_id'] as String,
-      title: json['title'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      viewedAt: json['viewed_at'] != null
-          ? DateTime.parse(json['viewed_at'] as String)
-          : null,
-      importedAt: json['imported_at'] != null
-          ? DateTime.parse(json['imported_at'] as String)
-          : null,
-      deletedAt:
-          json['deleted_at'] !=
-              null // ✅ new
-          ? DateTime.parse(json['deleted_at'] as String)
-          : null,
-      suggestedSchedule: json['suggested_schedule'] != null
-          ? SuggestedSchedule.fromJson(
-              json['suggested_schedule'] as Map<String, dynamic>,
-            )
-          : null,
-      eventDate: json['event_date'] != null
-          ? DateTime.parse(json['event_date'] as String)
-          : null,
+      senderAvatar: _nullableString(json['sender_avatar']),
+      payloadId: _nullableString(json['payload_id']) ?? shareId,
+      title: _nullableString(json['title']) ?? fallbackTitle,
+      createdAt:
+          _parseDateTime(json['created_at']) ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      viewedAt: _parseDateTime(json['viewed_at']),
+      importedAt: _parseDateTime(json['imported_at']),
+      deletedAt: _parseDateTime(json['deleted_at']),
+      suggestedSchedule: _parseSuggestedSchedule(json['suggested_schedule']),
+      eventDate: _parseDateTime(json['event_date']),
 
       // ✅ CRITICAL FIX: Keep payloadJson nullable (don't convert null to empty map)
       payloadJson: payload,
       responseStatus: EventInviteResponseStatus.fromDbValue(
-        json['response_status'] as String?,
+        _nullableString(json['response_status']),
       ),
-      respondedAt: json['responded_at'] != null
-          ? DateTime.tryParse(json['responded_at'] as String)
-          : null,
+      respondedAt: _parseDateTime(json['responded_at']),
 
       // Future-friendly recipient profile fields (will be null until backend adds)
-      recipientHandle: json['recipient_handle'] as String?,
-      recipientDisplayName: json['recipient_display_name'] as String?,
-      recipientAvatarUrl: json['recipient_avatar_url'] as String?,
+      recipientHandle: _nullableString(json['recipient_handle']),
+      recipientDisplayName: _nullableString(json['recipient_display_name']),
+      recipientAvatarUrl: _nullableString(json['recipient_avatar_url']),
     );
 
     if (kDebugMode) {
@@ -645,4 +652,48 @@ class InboxShareItem {
       return null;
     }
   }
+}
+
+String _requireString(Map<String, dynamic> json, String key) {
+  final value = _nullableString(json[key]);
+  if (value != null) return value;
+  throw FormatException('Missing required inbox field: $key');
+}
+
+String? _nullableString(Object? value) {
+  if (value == null) return null;
+  final text = value is String ? value : value.toString();
+  final trimmed = text.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
+DateTime? _parseDateTime(Object? value) {
+  final text = _nullableString(value);
+  if (text == null) return null;
+  return DateTime.tryParse(text);
+}
+
+Map<String, dynamic>? _parseJsonMap(Object? value) {
+  if (value is Map) {
+    return Map<String, dynamic>.from(value);
+  }
+  final text = _nullableString(value);
+  if (text == null) return null;
+  try {
+    final decoded = jsonDecode(text);
+    if (decoded is Map) {
+      return Map<String, dynamic>.from(decoded);
+    }
+  } catch (_) {
+    if (kDebugMode) {
+      debugPrint('[InboxItem] Failed to decode JSON map payload');
+    }
+  }
+  return null;
+}
+
+SuggestedSchedule? _parseSuggestedSchedule(Object? value) {
+  final json = _parseJsonMap(value);
+  if (json == null) return null;
+  return SuggestedSchedule.fromJson(json);
 }
