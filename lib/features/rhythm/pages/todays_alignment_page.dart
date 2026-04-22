@@ -15,6 +15,7 @@ import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/profile/profile_page.dart';
 import 'package:mobile/features/rhythm/rhythm_telemetry.dart';
+import 'package:mobile/features/rhythm/todo_day_window.dart';
 import 'package:mobile/features/rhythm/rhythm_user_messages.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
@@ -94,7 +95,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   List<DateTime> _todoDays = [];
   List<RhythmNote> _notes = [];
   int _activeNoteIndex = 0;
-  int _activeTodoDayIndex = 0;
+  int _activeTodoDayIndex = defaultTodoPreviousDayCount;
   RhythmNote? _fullscreenNote;
   bool _isSyncingNotePages = false;
   bool _missingTables = false;
@@ -112,7 +113,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   int _activeNutritionDayIndex = 0;
   bool _nutritionFormOpen = false;
   bool _calendarRevealNavigationInFlight = false;
-  DateTime? _restoredTodoFocusDay;
   Timer? _sessionPersistDebounce;
 
   bool get _tracksSessionState =>
@@ -133,6 +133,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   @override
   void initState() {
     super.initState();
+    _todoDays = buildTodoDayWindow(anchorDay: _todayLocal);
+    _todosByDay = {for (final day in _todoDays) day: <RhythmTodo>[]};
     _todoPageController = _buildTodoPageController(_activeTodoDayIndex);
     _activeNutritionDayIndex = (_currentDecanDay() - 1).clamp(0, 9);
     _nutritionPageController = PageController(
@@ -203,25 +205,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                 _activeNutritionDayIndex)
             .clamp(0, 9);
 
-    final todoFocusIso = state['activeTodoDay'] as String?;
-    final parsedTodoFocus = todoFocusIso == null
-        ? null
-        : DateTime.tryParse(todoFocusIso);
-    if (parsedTodoFocus != null) {
-      _restoredTodoFocusDay = DateUtils.dateOnly(parsedTodoFocus.toLocal());
-    }
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_nutritionPageController.hasClients) return;
       _nutritionPageController.jumpToPage(_activeNutritionDayIndex);
     });
-  }
-
-  DateTime _sessionTodoFocusDay() {
-    if (_todoDays.isNotEmpty) {
-      return _activeTodoDay;
-    }
-    return _restoredTodoFocusDay ?? _todayLocal;
   }
 
   void _persistSessionStateSoon() {
@@ -242,7 +229,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       'nutritionPurposeDraft': _nutritionPurposeController.text,
       'activeNoteIndex': _activeNoteIndex,
       'activeNutritionDayIndex': _activeNutritionDayIndex,
-      'activeTodoDay': _sessionTodoFocusDay().toIso8601String(),
     });
   }
 
@@ -263,6 +249,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       final items = await _repo.fetchTodaysAlignment();
       final todos = await _repo.fetchTodos();
       if (!mounted) return;
+      final focusDay = _sameDay(_currentTodoWindowAnchorDay(), _todayLocal)
+          ? _activeTodoDay
+          : _todayLocal;
       final repoErr = items.friendlyError ?? todos.friendlyError;
       setState(() {
         _missingTables = items.missingTables || todos.missingTables;
@@ -271,20 +260,23 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             : null;
         _alignmentItems = items.data;
       });
-      _hydrateTodos(todos.data, focusDay: _restoredTodoFocusDay ?? _todayLocal);
-      _restoredTodoFocusDay = null;
+      _hydrateTodos(todos.data, focusDay: focusDay);
       _persistSessionStateSoon();
       unawaited(_reconcileTodoPlannerBadges(todos.data));
     } catch (_) {
+      final windowDays = buildTodoDayWindow(anchorDay: _todayLocal);
       if (!mounted) return;
       setState(() {
         _missingTables = false;
         _friendlyError = RhythmUserMessages.loadFailedTodayAlignment;
         _alignmentItems = [];
         _todos = [];
-        _todoDays = [_todayLocal];
-        _todosByDay = {_todayLocal: []};
-        _activeTodoDayIndex = 0;
+        _todoDays = windowDays;
+        _todosByDay = {for (final day in windowDays) day: <RhythmTodo>[]};
+        _activeTodoDayIndex = resolveTodoDayWindowIndex(
+          windowDays,
+          today: _todayLocal,
+        );
       });
       _persistSessionStateSoon();
     }
@@ -812,31 +804,28 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
   List<DateTime> _buildTodoDays(Map<DateTime, List<RhythmTodo>> grouped) {
     final today = _todayLocal;
-    final days = grouped.keys
-        .map(_normalizeDate)
-        .where((d) => !d.isAfter(today))
-        .toSet()
-        .toList();
-    if (!days.any((d) => _sameDay(d, today))) {
-      days.add(today);
-    }
-    // Order oldest -> newest so past days sit to the left of today.
-    days.sort((a, b) => a.compareTo(b));
-    final start = days.length > 5 ? days.length - 5 : 0;
-    final limited = days.sublist(start);
-
-    for (final d in limited) {
+    final days = buildTodoDayWindow(anchorDay: today);
+    for (final d in days) {
       grouped.putIfAbsent(d, () => []);
     }
-    return limited.isEmpty ? [today] : limited;
+    return days;
+  }
+
+  DateTime _currentTodoWindowAnchorDay() {
+    if (_todoDays.length <= defaultTodoPreviousDayCount) {
+      return _todayLocal;
+    }
+    return _todoDays[defaultTodoPreviousDayCount];
   }
 
   void _hydrateTodos(List<RhythmTodo> todos, {DateTime? focusDay}) {
     final grouped = _groupTodosByDay(todos);
     final days = _buildTodoDays(grouped);
-    final targetDay = focusDay != null ? _normalizeDate(focusDay) : _todayLocal;
-    final activeIndex = days.indexWhere((d) => _sameDay(d, targetDay));
-    final resolvedIndex = activeIndex >= 0 ? activeIndex : 0;
+    final resolvedIndex = resolveTodoDayWindowIndex(
+      days,
+      today: _todayLocal,
+      focusDay: focusDay,
+    );
     final activeDay = days[resolvedIndex];
     setState(() {
       _todosByDay = grouped;
@@ -3020,7 +3009,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             RhythmSectionCard(
               title: 'To Do',
               subtitle:
-                  'Add what you want to move today. Press return or tap Add.',
+                  'Add what you want to move for this day. Press return or tap Add.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -3169,7 +3158,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Swipe to revisit the last 5 days of to-dos.',
+                    'Swipe to review the previous 2 days or plan 2 days ahead.',
                     textAlign: TextAlign.center,
                     style: RhythmTheme.label.copyWith(color: Colors.white54),
                   ),
