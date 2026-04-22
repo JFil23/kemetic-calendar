@@ -118,6 +118,78 @@ void main() {
       );
     });
 
+    testWidgets('stays stable when mounted above the navigator overlay', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _KeyboardHarness(
+          controller: TextEditingController(),
+          hostInAppBuilder: true,
+        ),
+      );
+
+      await _openCustomKeyboard(tester);
+      await tester.longPress(find.byKey(const ValueKey('kemetic-action-left')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('kemetic-keyboard-panel')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('wraps header controls on narrow emulator widths', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(320, 640));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _KeyboardHarness(
+          controller: TextEditingController(),
+          hostInAppBuilder: true,
+        ),
+      );
+
+      await _openCustomKeyboard(tester);
+
+      expect(find.text('ASCII'), findsOneWidget);
+      expect(find.text('ABC'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'keeps a bottom-anchored text field above the custom keyboard',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(
+          _KeyboardHarness(
+            controller: TextEditingController(),
+            hostInAppBuilder: true,
+            bottomAnchoredField: true,
+          ),
+        );
+
+        await _openCustomKeyboard(tester);
+
+        final fieldRect = tester.getRect(
+          find.byKey(const ValueKey('kemetic-input')),
+        );
+        final panelRect = tester.getRect(
+          find.byKey(const ValueKey('kemetic-keyboard-panel')),
+        );
+
+        expect(fieldRect.bottom, lessThanOrEqualTo(panelRect.top));
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets('moves the cursor left and right from the custom keyboard', (
       tester,
     ) async {
@@ -255,6 +327,8 @@ class _KeyboardHarness extends StatelessWidget {
     this.inputFormatters = const [],
     this.readOnly = false,
     this.autofocus = false,
+    this.hostInAppBuilder = false,
+    this.bottomAnchoredField = false,
   });
 
   final TextEditingController controller;
@@ -262,37 +336,68 @@ class _KeyboardHarness extends StatelessWidget {
   final List<TextInputFormatter> inputFormatters;
   final bool readOnly;
   final bool autofocus;
+  final bool hostInAppBuilder;
+  final bool bottomAnchoredField;
+
+  Widget _buildInputBody() {
+    final input = TextField(
+      key: const ValueKey('kemetic-input'),
+      controller: controller,
+      autofocus: autofocus,
+      readOnly: readOnly,
+      onChanged: onChanged,
+      inputFormatters: inputFormatters,
+    );
+
+    if (bottomAnchoredField) {
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Expanded(
+              child: ColoredBox(
+                key: ValueKey('outside-area'),
+                color: Colors.transparent,
+              ),
+            ),
+            const SizedBox(height: 24),
+            input,
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          input,
+          const SizedBox(height: 24),
+          const Expanded(
+            child: ColoredBox(
+              key: ValueKey('outside-area'),
+              color: Colors.transparent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (hostInAppBuilder) {
+      return MaterialApp(
+        builder: (context, child) =>
+            KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
+        home: Scaffold(body: _buildInputBody()),
+      );
+    }
+
     return MaterialApp(
-      home: Scaffold(
-        body: KemeticKeyboardHost(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  key: const ValueKey('kemetic-input'),
-                  controller: controller,
-                  autofocus: autofocus,
-                  readOnly: readOnly,
-                  onChanged: onChanged,
-                  inputFormatters: inputFormatters,
-                ),
-                const SizedBox(height: 24),
-                const Expanded(
-                  child: ColoredBox(
-                    key: ValueKey('outside-area'),
-                    color: Colors.transparent,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      home: Scaffold(body: KemeticKeyboardHost(child: _buildInputBody())),
     );
   }
 }

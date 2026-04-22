@@ -254,15 +254,66 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
   @override
   void initState() {
     super.initState();
+    _controller.addListener(_handleControllerChanged);
     FocusManager.instance.addListener(_handleFocusChange);
     _handleFocusChange();
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_handleControllerChanged);
     FocusManager.instance.removeListener(_handleFocusChange);
     _controller.dispose();
     super.dispose();
+  }
+
+  double _resolvedPanelHeight() {
+    return max(
+      260.0,
+      min(_lastKeyboardHeight == 0 ? 320.0 : _lastKeyboardHeight, 420.0),
+    );
+  }
+
+  double _customKeyboardInset(MediaQueryData media) {
+    if (!_controller.shouldShowPanel) return 0;
+    return _resolvedPanelHeight() + 12 + media.padding.bottom;
+  }
+
+  void _handleControllerChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+    if (!_controller.shouldShowPanel) return;
+    _scheduleRevealFocusedEditable();
+  }
+
+  void _scheduleRevealFocusedEditable() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_controller.shouldShowPanel) return;
+      final target = _controller.editable ?? _controller.lastEditable;
+      if (!_controller._isUsable(target)) return;
+
+      final editable = target!;
+      final selection = editable.widget.controller.selection;
+      final textLength = editable.widget.controller.text.length;
+      final extentPosition = selection.isValid
+          ? selection.extent
+          : TextPosition(offset: textLength);
+
+      try {
+        editable.bringIntoView(
+          TextPosition(offset: extentPosition.offset.clamp(0, textLength)),
+        );
+      } catch (_) {}
+
+      Scrollable.ensureVisible(
+        editable.context,
+        alignment: 1.0,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   void _handleFocusChange() {
@@ -359,17 +410,24 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final media = MediaQuery.of(context);
+    final bottomInset = media.viewInsets.bottom;
     if (bottomInset > 60 && (bottomInset - _lastKeyboardHeight).abs() > 1) {
       _lastKeyboardHeight = bottomInset;
     }
+    final effectiveViewInsets = media.viewInsets.copyWith(
+      bottom: max(bottomInset, _customKeyboardInset(media)),
+    );
 
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: _handlePointerDown,
       child: Stack(
         children: [
-          widget.child,
+          MediaQuery(
+            data: media.copyWith(viewInsets: effectiveViewInsets),
+            child: widget.child,
+          ),
           _KeyboardToggle(
             controller: _controller,
             regionKey: _toggleRegionKey,
@@ -600,6 +658,76 @@ class _KeyboardPanel extends StatefulWidget {
 class _KeyboardPanelState extends State<_KeyboardPanel> {
   _OutputMode _mode = _OutputMode.scholarly;
 
+  Widget _buildPanelHeader(BuildContext context, ColorScheme colorScheme) {
+    final title = Row(
+      children: [
+        const Icon(Icons.translate_outlined, size: 18),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'Kemetic phonograms — tap to insert',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+    final modeToggle = SegmentedButton<_OutputMode>(
+      style: ButtonStyle(
+        visualDensity: expandedVisualDensity(
+          context,
+          fallback: VisualDensity.compact,
+        ),
+        tapTargetSize: expandedTapTargetSize(context),
+      ),
+      segments: const [
+        ButtonSegment(value: _OutputMode.scholarly, label: Text('ꜣ')),
+        ButtonSegment(value: _OutputMode.ascii, label: Text('ASCII')),
+      ],
+      selected: {_mode},
+      onSelectionChanged: (v) => setState(() => _mode = v.first),
+    );
+    final systemKeyboardButton = TextButton.icon(
+      onPressed: widget.onSystemKeyboard,
+      icon: const Icon(Icons.keyboard_outlined),
+      label: const Text('ABC'),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useCompactLayout = constraints.maxWidth < 720;
+        if (useCompactLayout) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              title,
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [modeToggle, systemKeyboardButton],
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: title),
+            const SizedBox(width: 12),
+            modeToggle,
+            const SizedBox(width: 8),
+            systemKeyboardButton,
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -631,51 +759,7 @@ class _KeyboardPanelState extends State<_KeyboardPanel> {
                     padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                     child: Column(
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.translate_outlined, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Kemetic phonograms — tap to insert',
-                                style: Theme.of(context).textTheme.labelMedium
-                                    ?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            SegmentedButton<_OutputMode>(
-                              style: ButtonStyle(
-                                visualDensity: expandedVisualDensity(
-                                  context,
-                                  fallback: VisualDensity.compact,
-                                ),
-                                tapTargetSize: expandedTapTargetSize(context),
-                              ),
-                              segments: const [
-                                ButtonSegment(
-                                  value: _OutputMode.scholarly,
-                                  label: Text('ꜣ'),
-                                ),
-                                ButtonSegment(
-                                  value: _OutputMode.ascii,
-                                  label: Text('ASCII'),
-                                ),
-                              ],
-                              selected: {_mode},
-                              onSelectionChanged: (v) =>
-                                  setState(() => _mode = v.first),
-                            ),
-                            const SizedBox(width: 8),
-                            TextButton.icon(
-                              onPressed: widget.onSystemKeyboard,
-                              icon: const Icon(Icons.keyboard_outlined),
-                              label: const Text('ABC'),
-                            ),
-                          ],
-                        ),
+                        _buildPanelHeader(context, colorScheme),
                         const SizedBox(height: 8),
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
@@ -867,18 +951,20 @@ class _KeyboardActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.92),
+    final button = Material(
+      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.92),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onPressed,
         borderRadius: BorderRadius.circular(10),
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(10),
-          child: SizedBox(width: 44, height: 40, child: Icon(icon, size: 20)),
-        ),
+        child: SizedBox(width: 44, height: 40, child: Icon(icon, size: 20)),
       ),
     );
+    final hasOverlay = Overlay.maybeOf(context, rootOverlay: true) != null;
+    if (!hasOverlay) {
+      return Semantics(label: tooltip, button: true, child: button);
+    }
+    return Tooltip(message: tooltip, child: button);
   }
 }
 
