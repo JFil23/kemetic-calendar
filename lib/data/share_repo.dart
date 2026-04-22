@@ -6,8 +6,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import '../core/kemetic_converter.dart';
 import 'share_models.dart';
 import 'user_events_repo.dart';
+import '../utils/event_cid_util.dart';
 
 class ShareRepo {
   final SupabaseClient _client;
@@ -121,6 +123,7 @@ class ShareRepo {
     required List<ShareRecipient> recipients,
     SuggestedSchedule? suggestedSchedule,
   }) async {
+    final normalizedRecipients = dedupeShareRecipients(recipients);
     _log('[ShareRepo] Current user: ${_client.auth.currentUser?.id}');
     _log(
       '[ShareRepo] Current session: ${_client.auth.currentSession?.accessToken != null}',
@@ -131,7 +134,7 @@ class ShareRepo {
         'create_flow_share',
         body: {
           'flow_id': flowId,
-          'recipients': recipients.map((r) => r.toJson()).toList(),
+          'recipients': normalizedRecipients.map((r) => r.toJson()).toList(),
           if (suggestedSchedule != null)
             'suggested_schedule': suggestedSchedule.toJson(),
         },
@@ -209,11 +212,174 @@ class ShareRepo {
       );
 
       return results;
+    } on FunctionException catch (e, stackTrace) {
+      _log('[ShareRepo] Error sharing flow: $e');
+      _log('[ShareRepo] Stack trace: $stackTrace');
+      if (e.status == 404) {
+        _log(
+          '[ShareRepo] create_flow_share missing on backend; falling back to direct flow_shares writes',
+        );
+        try {
+          return await _shareFlowDirect(
+            flowId: flowId,
+            recipients: normalizedRecipients,
+            suggestedSchedule: suggestedSchedule,
+          );
+        } catch (fallbackError, fallbackStackTrace) {
+          _log('[ShareRepo] Direct flow share fallback failed: $fallbackError');
+          _log('[ShareRepo] Stack trace: $fallbackStackTrace');
+          return [
+            ShareResult(
+              status: null,
+              error: _flowShareErrorMessage(
+                fallbackError,
+                missingFunction: true,
+              ),
+            ),
+          ];
+        }
+      }
+
+      return [ShareResult(status: null, error: _flowShareErrorMessage(e))];
     } catch (e, stackTrace) {
       _log('[ShareRepo] Error sharing flow: $e');
       _log('[ShareRepo] Stack trace: $stackTrace');
-      rethrow;
+      return [ShareResult(status: null, error: _flowShareErrorMessage(e))];
     }
+  }
+
+  Future<List<ShareResult>> _shareFlowDirect({
+    required int flowId,
+    required List<ShareRecipient> recipients,
+    SuggestedSchedule? suggestedSchedule,
+  }) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) {
+      return [
+        ShareResult(status: null, error: 'Please sign in to share flows'),
+      ];
+    }
+
+    final rawFlow = await _client
+        .from('flows')
+        .select('id, name, color, notes, rules, user_id')
+        .eq('id', flowId)
+        .maybeSingle();
+    final flowRow = rawFlow is Map<String, dynamic> ? rawFlow : null;
+
+    if (flowRow == null) {
+      return [ShareResult(status: null, error: 'Flow not found')];
+    }
+
+    if ((flowRow['user_id'] as String?) != userId) {
+      return [
+        ShareResult(status: null, error: 'You can only share your own flows'),
+      ];
+    }
+
+    final payloadJson = await _buildFlowSharePayload(flowId, flowRow);
+    final results = <ShareResult>[];
+
+    for (final recipient in recipients) {
+      if (recipient.type == ShareRecipientType.user) {
+        final recipientId = await _resolveRecipientUserId(recipient.value);
+        if (recipientId == null || recipientId.isEmpty) {
+          results.add(
+            ShareResult(
+              recipient: recipient,
+              status: null,
+              error: 'User not found',
+            ),
+          );
+          continue;
+        }
+
+        if (recipientId == userId) {
+          results.add(
+            ShareResult(
+              recipient: recipient,
+              status: null,
+              error: 'You cannot share with yourself',
+            ),
+          );
+          continue;
+        }
+
+        try {
+          final rawRow = await _client
+              .from('flow_shares')
+              .insert({
+                'flow_id': flowId,
+                'sender_id': userId,
+                'recipient_id': recipientId,
+                'channel': 'in_app',
+                'suggested_schedule': suggestedSchedule?.toJson(),
+                'payload_json': payloadJson,
+                'status': 'sent',
+              })
+              .select('id, status, recipient_id')
+              .single();
+          final row = (rawRow as Map).cast<String, dynamic>();
+          results.add(
+            ShareResult.fromJson({
+              ...row,
+              'recipient': recipient.toJson(),
+              'recipient_id': recipientId,
+            }),
+          );
+        } catch (e) {
+          results.add(
+            ShareResult(
+              recipient: recipient,
+              status: null,
+              error: _flowShareErrorMessage(e),
+            ),
+          );
+        }
+        continue;
+      }
+
+      if (recipient.type == ShareRecipientType.email) {
+        try {
+          final rawRow = await _client
+              .from('flow_shares')
+              .insert({
+                'flow_id': flowId,
+                'sender_id': userId,
+                'recipient_id': null,
+                'channel': 'email',
+                'suggested_schedule': suggestedSchedule?.toJson(),
+                'payload_json': payloadJson,
+                'status': 'sent',
+              })
+              .select('id, status')
+              .single();
+          final row = (rawRow as Map).cast<String, dynamic>();
+          results.add(
+            ShareResult.fromJson({...row, 'recipient': recipient.toJson()}),
+          );
+        } catch (e) {
+          results.add(
+            ShareResult(
+              recipient: recipient,
+              status: null,
+              error: _flowShareErrorMessage(e),
+            ),
+          );
+        }
+        continue;
+      }
+
+      results.add(
+        ShareResult(
+          recipient: recipient,
+          status: null,
+          error: 'Only in-app users and email recipients are supported',
+        ),
+      );
+    }
+
+    return results;
   }
 
   /// Share an event (user_events) with recipients
@@ -331,7 +497,7 @@ class ShareRepo {
     final rawEvent = await _client
         .from('user_events')
         .select(
-          'id, user_id, title, detail, location, starts_at, ends_at, all_day, flow_local_id',
+          'id, user_id, title, detail, location, starts_at, ends_at, all_day, flow_local_id, category',
         )
         .eq('id', eventId)
         .maybeSingle();
@@ -362,6 +528,7 @@ class ShareRepo {
       'starts_at': eventRow['starts_at'],
       'ends_at': eventRow['ends_at'],
       'all_day': eventRow['all_day'],
+      'category': eventRow['category'],
       if (sourceFlowPayload != null) 'source_flow': sourceFlowPayload,
     };
     final inviteTitle =
@@ -650,6 +817,66 @@ class ShareRepo {
     };
   }
 
+  Future<Map<String, dynamic>> _buildFlowSharePayload(
+    int flowId,
+    Map<String, dynamic> flowRow,
+  ) async {
+    final rawFlowEvents = await _client
+        .from('user_events')
+        .select('title, detail, location, all_day, starts_at, ends_at')
+        .eq('flow_local_id', flowId)
+        .order('starts_at', ascending: true)
+        .order('created_at', ascending: true);
+
+    final flowEvents = (rawFlowEvents as List<dynamic>? ?? const <dynamic>[])
+        .whereType<Map>()
+        .map((row) => row.cast<String, dynamic>())
+        .toList(growable: false);
+
+    DateTime? firstStartsAtUtc;
+    for (final row in flowEvents) {
+      final startUtc = _parseDateTimeValue(row['starts_at'])?.toUtc();
+      if (startUtc == null) continue;
+      firstStartsAtUtc = startUtc;
+      break;
+    }
+
+    final flowName = _cleanNullableString(flowRow['name']) ?? 'Shared Flow';
+    final eventSnapshots = flowEvents
+        .map((row) {
+          final startUtc = _parseDateTimeValue(row['starts_at'])?.toUtc();
+          final endUtc = _parseDateTimeValue(row['ends_at'])?.toUtc();
+          final allDay = _parseBoolishValue(row['all_day']);
+          final offsetDays = firstStartsAtUtc != null && startUtc != null
+              ? ((startUtc.millisecondsSinceEpoch -
+                            firstStartsAtUtc.millisecondsSinceEpoch) /
+                        Duration.millisecondsPerDay)
+                    .round()
+              : 0;
+
+          return <String, dynamic>{
+            'offset_days': offsetDays,
+            'title': _cleanNullableString(row['title']) ?? flowName,
+            'detail': _cleanNullableString(row['detail']),
+            'location': _cleanNullableString(row['location']),
+            'all_day': allDay,
+            if (!allDay && startUtc != null)
+              'start_time': _formatShareTime(startUtc),
+            if (!allDay && endUtc != null) 'end_time': _formatShareTime(endUtc),
+          };
+        })
+        .toList(growable: false);
+
+    return {
+      'flow_id': flowId,
+      'name': flowName,
+      'color': _parseIntValue(flowRow['color']) ?? 0x004DD0E1,
+      'notes': _cleanNullableString(flowRow['notes']),
+      'rules': (flowRow['rules'] as List?) ?? const <dynamic>[],
+      'events': eventSnapshots,
+    };
+  }
+
   Future<Map<String, dynamic>> _insertEventShareRow({
     required String eventId,
     required String senderId,
@@ -754,6 +981,35 @@ class ShareRepo {
     }
 
     return 'Could not send invites';
+  }
+
+  String _flowShareErrorMessage(Object error, {bool missingFunction = false}) {
+    final message = error.toString();
+    final normalized = message.toLowerCase();
+
+    if (missingFunction) {
+      return 'Flow sharing backend is not deployed yet.';
+    }
+
+    if (error is FunctionException && error.status == 404) {
+      return 'Flow sharing backend is not deployed yet.';
+    }
+
+    if (normalized.contains('user not found') ||
+        message.contains('USER_NOT_FOUND')) {
+      return 'User not found';
+    }
+
+    if (normalized.contains('share with yourself') ||
+        message.contains('CANNOT_INVITE_SELF')) {
+      return 'You cannot share with yourself';
+    }
+
+    if (normalized.contains('flow not found')) {
+      return 'Flow not found';
+    }
+
+    return 'Could not share flow';
   }
 
   Future<List<EventInviteeStatus>> getEventInvitees({
@@ -1068,7 +1324,7 @@ class ShareRepo {
       location: _cleanNullableString(payload?['location']),
       allDay: _parseBoolishValue(payload?['all_day']),
       endsAtUtc: _parseDateTimeValue(payload?['ends_at'])?.toUtc(),
-      category: null,
+      category: _cleanNullableString(payload?['category']),
       caller: 'event_share_accept_import',
     );
   }
@@ -1126,6 +1382,8 @@ class ShareRepo {
     }
 
     final sourceEvents = _asMapList(sourceFlow['events']);
+    final inviteStartsAt = _parseDateTimeValue(payload?['starts_at']);
+    final inviteEndsAt = _parseDateTimeValue(payload?['ends_at']);
     final firstEventStart = sourceEvents
         .map((event) => _parseDateTimeValue(event['starts_at']))
         .whereType<DateTime>()
@@ -1140,6 +1398,15 @@ class ShareRepo {
           if (prev == null || dt.isAfter(prev)) return dt;
           return prev;
         });
+    final flowStartDate =
+        _parseDateOnlyValue(sourceFlow['start_date']) ??
+        firstEventStart ??
+        inviteStartsAt;
+    final flowEndDate =
+        _parseDateOnlyValue(sourceFlow['end_date']) ??
+        lastEventStart ??
+        inviteEndsAt ??
+        inviteStartsAt;
 
     final isReminder = _parseBoolishValue(sourceFlow['is_reminder']);
     final importedReminderUuid = isReminder
@@ -1165,9 +1432,8 @@ class ShareRepo {
       name: name,
       color: _parseIntValue(sourceFlow['color']) ?? 0x004DD0E1,
       active: true,
-      startDate:
-          _parseDateOnlyValue(sourceFlow['start_date']) ?? firstEventStart,
-      endDate: _parseDateOnlyValue(sourceFlow['end_date']) ?? lastEventStart,
+      startDate: flowStartDate,
+      endDate: flowEndDate,
       notes: importedNotes,
       rules: jsonEncode(rulesData),
       // Accepted imports should show up on the recipient's calendar even if the
@@ -1192,6 +1458,7 @@ class ShareRepo {
       return;
     }
 
+    var importedEventCount = 0;
     for (final event in sourceEvents) {
       final startsAt = _parseDateTimeValue(event['starts_at']);
       if (startsAt == null) continue;
@@ -1214,6 +1481,19 @@ class ShareRepo {
         flowLocalId: targetFlowId,
         category: _cleanNullableString(event['category']),
         caller: 'event_share_flow_import',
+      );
+      importedEventCount++;
+    }
+
+    if (importedEventCount == 0 && rulesData.isNotEmpty) {
+      await _materializeImportedInviteFlowRules(
+        repo: repo,
+        flowId: targetFlowId,
+        flowName: name,
+        rawNotes: importedNotes,
+        rulesData: rulesData,
+        scheduleStart: flowStartDate,
+        scheduleEnd: flowEndDate,
       );
     }
   }
@@ -1255,6 +1535,232 @@ class ShareRepo {
     return legacy is Map<String, dynamic>
         ? {...legacy, '_matched_by_share_id': false}
         : null;
+  }
+
+  Future<int> _materializeImportedInviteFlowRules({
+    required UserEventsRepo repo,
+    required int flowId,
+    required String flowName,
+    required String? rawNotes,
+    required List<dynamic> rulesData,
+    required DateTime? scheduleStart,
+    required DateTime? scheduleEnd,
+  }) async {
+    if (scheduleStart == null) {
+      return 0;
+    }
+
+    final start = _dateOnlyLocal(scheduleStart);
+    final end = _dateOnlyLocal(
+      scheduleEnd ?? start.add(const Duration(days: 90)),
+    );
+    final noteMeta = _decodeInviteFlowRuleNotes(rawNotes);
+    final detailWithMeta = _encodeInviteDetailWithAlert(
+      noteMeta.detail,
+      alertMinutes: noteMeta.alertMinutes,
+    );
+    final converter = KemeticConverter();
+    final rules = rulesData
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+
+    var imported = 0;
+    for (
+      var date = start;
+      !date.isAfter(end);
+      date = date.add(const Duration(days: 1))
+    ) {
+      final kDate = converter.fromGregorian(date);
+      final kMonth = kDate.epagomenal ? 13 : kDate.month;
+
+      for (final rule in rules) {
+        if (!_inviteRuleMatches(
+          rule,
+          localDate: date,
+          kemeticMonth: kMonth,
+          kemeticDay: kDate.day,
+        )) {
+          continue;
+        }
+
+        final allDay = _parseRuleAllDay(rule);
+        final startHour = allDay ? 9 : (_parseIntValue(rule['startHour']) ?? 9);
+        final startMinute = allDay
+            ? 0
+            : (_parseIntValue(rule['startMinute']) ?? 0);
+        final startsAt = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          startHour,
+          startMinute,
+        );
+
+        DateTime? endsAt;
+        if (!allDay) {
+          final endHour = _parseIntValue(rule['endHour']);
+          final endMinute = _parseIntValue(rule['endMinute']);
+          if (endHour != null && endMinute != null) {
+            endsAt = DateTime(
+              date.year,
+              date.month,
+              date.day,
+              endHour,
+              endMinute,
+            );
+          } else {
+            endsAt = startsAt.add(const Duration(hours: 1));
+          }
+        }
+
+        final clientEventId = EventCidUtil.buildClientEventId(
+          ky: kDate.year,
+          km: kMonth,
+          kd: kDate.day,
+          title: flowName.isEmpty ? 'Flow Event' : flowName,
+          startHour: startsAt.hour,
+          startMinute: startsAt.minute,
+          allDay: allDay,
+          flowId: flowId,
+        );
+
+        await repo.upsertByClientId(
+          clientEventId: clientEventId,
+          title: flowName.isEmpty ? 'Flow Event' : flowName,
+          startsAtUtc: startsAt.toUtc(),
+          detail: detailWithMeta ?? noteMeta.detail,
+          location: noteMeta.location,
+          allDay: allDay,
+          endsAtUtc: endsAt?.toUtc(),
+          flowLocalId: flowId,
+          category: noteMeta.category,
+          caller: 'event_share_flow_import_rules',
+        );
+        imported++;
+      }
+    }
+
+    return imported;
+  }
+
+  bool _inviteRuleMatches(
+    Map<String, dynamic> rule, {
+    required DateTime localDate,
+    required int kemeticMonth,
+    required int kemeticDay,
+  }) {
+    switch (_cleanNullableString(rule['type'])) {
+      case 'week':
+        return _parseRuleIntSet(rule['weekdays']).contains(localDate.weekday);
+      case 'decan':
+        if (kemeticMonth == 13) return false;
+        final months = _parseRuleIntSet(rule['months']);
+        final decans = _parseRuleIntSet(rule['decans']);
+        final daysInDecan = _parseRuleIntSet(rule['daysInDecan']);
+        if (!months.contains(kemeticMonth)) return false;
+        final decan = ((kemeticDay - 1) ~/ 10) + 1;
+        final dayInDecan = ((kemeticDay - 1) % 10) + 1;
+        if (!decans.contains(decan)) return false;
+        if (daysInDecan.isNotEmpty && !daysInDecan.contains(dayInDecan)) {
+          return false;
+        }
+        return true;
+      case 'dates':
+        final target = _dateOnlyLocal(localDate);
+        return _parseRuleDateSet(
+          rule['dates'],
+        ).any((candidate) => _sameLocalDay(candidate, target));
+      default:
+        return false;
+    }
+  }
+
+  bool _parseRuleAllDay(Map<String, dynamic> rule) {
+    final raw = rule['allDay'] ?? rule['all_day'];
+    return raw == null ? true : _parseBoolishValue(raw);
+  }
+
+  Set<int> _parseRuleIntSet(Object? raw) {
+    if (raw is! List) return const <int>{};
+    return raw.map(_parseIntValue).whereType<int>().toSet();
+  }
+
+  Set<DateTime> _parseRuleDateSet(Object? raw) {
+    if (raw is! List) return const <DateTime>{};
+    final dates = <DateTime>{};
+    for (final item in raw) {
+      DateTime? parsed;
+      if (item is num) {
+        parsed = DateTime.fromMillisecondsSinceEpoch(item.toInt());
+      } else if (item is String) {
+        final asInt = int.tryParse(item.trim());
+        if (asInt != null) {
+          parsed = DateTime.fromMillisecondsSinceEpoch(asInt);
+        } else {
+          parsed = DateTime.tryParse(item.trim());
+        }
+      } else if (item is DateTime) {
+        parsed = item;
+      }
+      if (parsed == null) continue;
+      dates.add(_dateOnlyLocal(parsed));
+    }
+    return dates;
+  }
+
+  ({String? detail, String? location, String? category, int? alertMinutes})
+  _decodeInviteFlowRuleNotes(String? rawNotes) {
+    final trimmed = rawNotes?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return (detail: null, location: null, category: null, alertMinutes: null);
+    }
+
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is Map<String, dynamic> &&
+          decoded['kind'] == 'repeating_note') {
+        return (
+          detail: _cleanNullableString(decoded['detail']),
+          location: _cleanNullableString(decoded['location']),
+          category: _cleanNullableString(decoded['category']),
+          alertMinutes:
+              _parseIntValue(decoded['alertMinutes']) ??
+              _parseIntValue(decoded['alert_minutes']),
+        );
+      }
+    } catch (_) {
+      // Ignore non-JSON note payloads; fall back to legacy overview parsing.
+    }
+
+    return (
+      detail: _decodeInviteNotesOverview(trimmed),
+      location: null,
+      category: null,
+      alertMinutes: null,
+    );
+  }
+
+  String? _decodeInviteNotesOverview(String rawNotes) {
+    for (final token in rawNotes.split(';')) {
+      final trimmed = token.trim();
+      if (!trimmed.startsWith('ov=')) continue;
+      return _cleanNullableString(Uri.decodeComponent(trimmed.substring(3)));
+    }
+    return null;
+  }
+
+  String? _encodeInviteDetailWithAlert(String? detail, {int? alertMinutes}) {
+    final buffer = StringBuffer();
+    if (alertMinutes != null) {
+      buffer.write('alert=$alertMinutes;');
+    }
+    final cleanDetail = _cleanNullableString(detail);
+    if (cleanDetail != null) {
+      buffer.write(cleanDetail);
+    }
+    final out = buffer.toString();
+    return out.isEmpty ? null : out;
   }
 
   bool _isLocallyEndedImportedFlow({
@@ -1323,8 +1829,26 @@ class ShareRepo {
   DateTime? _parseDateOnlyValue(Object? raw) {
     final parsed = _parseDateTimeValue(raw);
     if (parsed == null) return null;
-    final local = parsed.toLocal();
+    return _dateOnlyLocal(parsed);
+  }
+
+  DateTime _dateOnlyLocal(DateTime value) {
+    final local = value.toLocal();
     return DateTime(local.year, local.month, local.day);
+  }
+
+  bool _sameLocalDay(DateTime a, DateTime b) {
+    final left = _dateOnlyLocal(a);
+    final right = _dateOnlyLocal(b);
+    return left.year == right.year &&
+        left.month == right.month &&
+        left.day == right.day;
+  }
+
+  String _formatShareTime(DateTime value) {
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
   }
 
   String? _cleanNullableString(Object? raw) {
