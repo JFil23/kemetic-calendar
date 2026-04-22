@@ -31,27 +31,34 @@ class GlyphBackButton extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (showCloseIcon)
                 KemeticGold.icon(Icons.close, size: 20)
               else
-                ShaderMask(
-                  shaderCallback: (Rect bounds) =>
-                      KemeticGold.gloss.createShader(bounds),
-                  blendMode: BlendMode.srcIn,
-                  child: const Text(
-                    '𓋴 𓄿 𓏏 𓂋',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white,
-                      fontFamily: 'GentiumPlus',
-                      fontFamilyFallback: [
-                        'NotoSans',
-                        'Roboto',
-                        'Arial',
-                        'sans-serif',
-                      ],
+                SizedBox(
+                  height: 20,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: ShaderMask(
+                      shaderCallback: (Rect bounds) =>
+                          KemeticGold.gloss.createShader(bounds),
+                      blendMode: BlendMode.srcIn,
+                      child: const Text(
+                        '𓋴 𓄿 𓏏 𓂋',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontFamily: 'GentiumPlus',
+                          fontFamilyFallback: [
+                            'NotoSans',
+                            'Roboto',
+                            'Arial',
+                            'sans-serif',
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),

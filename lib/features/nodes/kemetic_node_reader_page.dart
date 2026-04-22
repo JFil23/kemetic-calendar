@@ -75,13 +75,22 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     return true;
   }
 
+  void _handleBackNavigation() {
+    if (_popNode()) return;
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final paragraphs = _buildParagraphs(_node);
-    return WillPopScope(
-      onWillPop: () async {
-        final handled = _popNode();
-        return !handled;
+    return PopScope(
+      canPop: _history.length <= 1,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _popNode();
+        }
       },
       child: Scaffold(
         backgroundColor: Colors.black,
@@ -94,7 +103,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
           leadingWidth: 64,
           leading: GlyphBackButton(
             showLabel: false,
-            onTap: () => Navigator.of(context).pop(),
+            onTap: _handleBackNavigation,
           ),
           titleSpacing: 0,
           title: Column(

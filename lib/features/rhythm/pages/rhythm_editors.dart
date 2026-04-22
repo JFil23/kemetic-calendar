@@ -376,6 +376,7 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
     if (!mounted) return;
     setState(() => _saving = false);
     await SessionResumeService.clearResumeEntry(kind: kRhythmEditorResumeKind);
+    if (!mounted) return;
     Navigator.of(context).pop(true);
   }
 }
@@ -606,6 +607,7 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
     if (!mounted) return;
     setState(() => _saving = false);
     await SessionResumeService.clearResumeEntry(kind: kRhythmEditorResumeKind);
+    if (!mounted) return;
     Navigator.of(context).pop(true);
   }
 }
