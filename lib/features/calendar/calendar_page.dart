@@ -20562,6 +20562,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
   late int _currentPage;
   int? _currentDecanIndex;
   int? _selectedDay;
+  int _infoSelectionSerial = 0;
 
   @override
   void initState() {
@@ -20652,6 +20653,18 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     return widget.flowColorsGetter(ky, km, kd);
   }
 
+  void _setInfoSelection({
+    required int? decanIndex,
+    required int? selectedDay,
+  }) {
+    setState(() {
+      _currentDecanIndex = decanIndex;
+      _selectedDay = selectedDay;
+      _infoSelectionSerial++;
+    });
+    SpeechService.instance.stop();
+  }
+
   void _handleDayTap(BuildContext ctx, int ky, int km, int kd) {
     final state = CalendarPage.globalKey.currentState;
     if (state != null) {
@@ -20670,6 +20683,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     setState(() {
       _currentDecanIndex = null;
       _selectedDay = null;
+      _infoSelectionSerial++;
     });
     SpeechService.instance.stop();
     await _pageController.animateToPage(
@@ -20819,6 +20833,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
             _currentPage = page;
             _currentDecanIndex = null;
             _selectedDay = null;
+            _infoSelectionSerial++;
           });
           SpeechService.instance.stop();
         },
@@ -20857,10 +20872,8 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                         notesGetter: (m, d) => _notesFor(pageYear, m, d),
                         flowColorsGetter: (ky, km, kd) =>
                             _flowColorsFor(pageYear, km, kd),
-                        onDayTap: (c, m, d) => setState(() {
-                          _selectedDay = d;
-                          _currentDecanIndex = null;
-                        }),
+                        onDayTap: (c, m, d) =>
+                            _setInfoSelection(decanIndex: null, selectedDay: d),
                         showGregorian: widget.showGregorian,
                         flowNameGetter: widget.flowNameGetter,
                         onManageFlows: widget.onManageFlows,
@@ -20884,10 +20897,10 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                         notesGetter: (m, d) => _notesFor(pageYear, m, d),
                         flowColorsGetter: (ky, km, kd) =>
                             _flowColorsFor(pageYear, km, kd),
-                        onDayTap: (c, m, d) => setState(() {
-                          _selectedDay = d;
-                          _currentDecanIndex = ((d - 1) / 10).floor();
-                        }),
+                        onDayTap: (c, m, d) => _setInfoSelection(
+                          decanIndex: ((d - 1) / 10).floor(),
+                          selectedDay: d,
+                        ),
                         showGregorian: widget.showGregorian,
                         flowNameGetter: widget.flowNameGetter,
                         onManageFlows: widget.onManageFlows,
@@ -20899,14 +20912,14 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                         onShareReminder: widget.onShareReminder,
                         onEndFlow: widget.onEndFlow,
                         onAppendToJournal: widget.onAppendToJournal,
-                        onMonthHeaderTap: (_) => setState(() {
-                          _currentDecanIndex = null;
-                          _selectedDay = null;
-                        }),
-                        onDecanTap: (_, idx) => setState(() {
-                          _currentDecanIndex = idx;
-                          _selectedDay = null;
-                        }),
+                        onMonthHeaderTap: (_) => _setInfoSelection(
+                          decanIndex: null,
+                          selectedDay: null,
+                        ),
+                        onDecanTap: (_, idx) => _setInfoSelection(
+                          decanIndex: idx,
+                          selectedDay: null,
+                        ),
                       ),
                   ],
                 ),
@@ -20933,6 +20946,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                               linkMap: infoLinks,
                               backLabel: backLabel,
                               inlineNodes: _decanInlineNodes,
+                              selectionSerial: _infoSelectionSerial,
                             ),
                             _EventsTab(
                               kYear: pageYear,
@@ -20989,6 +21003,7 @@ class _InfoTab extends StatefulWidget {
   final List<KemeticNodeLink> linkMap;
   final String backLabel;
   final Map<String, _InlineNodeContent> inlineNodes;
+  final int selectionSerial;
 
   const _InfoTab({
     required this.title,
@@ -20997,6 +21012,7 @@ class _InfoTab extends StatefulWidget {
     required this.linkMap,
     required this.backLabel,
     required this.inlineNodes,
+    required this.selectionSerial,
   });
 
   @override
@@ -21014,6 +21030,21 @@ class _InfoTabState extends State<_InfoTab> {
   final ScrollController _nodeController = ScrollController();
   final List<_InfoNodeEntry> _history = [];
   double _infoOffset = 0;
+
+  @override
+  void didUpdateWidget(covariant _InfoTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectionSerial == oldWidget.selectionSerial) {
+      return;
+    }
+    SpeechService.instance.stop();
+    _history.clear();
+    _infoOffset = 0;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_infoController.hasClients) return;
+      _infoController.jumpTo(0);
+    });
+  }
 
   @override
   void dispose() {
