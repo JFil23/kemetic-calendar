@@ -95,6 +95,199 @@ typedef _QuickAddParse = ({
   String title,
 });
 
+class _QuickAddSheet extends StatefulWidget {
+  const _QuickAddSheet({
+    required this.parse,
+    required this.onSave,
+    required this.onOpenFullEditor,
+    required this.scaffoldMessengerContext,
+  });
+
+  final _QuickAddParse? Function(String raw) parse;
+  final Future<void> Function(_QuickAddParse parsed) onSave;
+  final VoidCallback onOpenFullEditor;
+  final BuildContext scaffoldMessengerContext;
+
+  @override
+  State<_QuickAddSheet> createState() => _QuickAddSheetState();
+}
+
+class _QuickAddSheetState extends State<_QuickAddSheet> {
+  final TextEditingController _textCtrl = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+  final GlobalKey _fieldKey = GlobalKey();
+  final ScrollController _scrollCtrl = ScrollController();
+  String? _error;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_requestInitialFocus());
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    _textCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _requestInitialFocus() async {
+    if (!mounted) return;
+    _focusNode.requestFocus();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    if (!mounted) return;
+    final fieldContext = _fieldKey.currentContext;
+    if (fieldContext == null || !fieldContext.mounted) return;
+    await Scrollable.ensureVisible(
+      fieldContext,
+      alignment: 0.1,
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+    );
+  }
+
+  void _showSnackBar(SnackBar snackBar) {
+    final messenger = ScaffoldMessenger.maybeOf(
+      widget.scaffoldMessengerContext,
+    );
+    messenger?.showSnackBar(snackBar);
+  }
+
+  Future<void> _handleSubmit() async {
+    if (_submitting) return;
+
+    final parsed = widget.parse(_textCtrl.text);
+    if (parsed == null) {
+      setState(() {
+        _error = 'Please enter a description.';
+      });
+      return;
+    }
+
+    setState(() {
+      _error = null;
+      _submitting = true;
+    });
+
+    try {
+      await widget.onSave(parsed);
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[QuickAdd] Failed to save note: $e');
+        debugPrint('$st');
+      }
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+      });
+      _showSnackBar(
+        SnackBar(
+          content: Text('Failed to save note: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).pop();
+    _showSnackBar(
+      SnackBar(
+        content: Text('Added "${parsed.title}"'),
+        backgroundColor: const Color(0xFF1E1E1E),
+      ),
+    );
+  }
+
+  void _handleOpenFullEditor() {
+    Navigator.of(context).pop();
+    widget.onOpenFullEditor();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          controller: _scrollCtrl,
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Quick add (natural language)',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                key: _fieldKey,
+                controller: _textCtrl,
+                autofocus: false,
+                focusNode: _focusNode,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'e.g., “Fri 3pm-4pm coffee with Amara”',
+                  hintStyle: const TextStyle(color: Colors.white54),
+                  filled: true,
+                  fillColor: const Color(0xFF111111),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.white24),
+                  ),
+                ),
+                minLines: 1,
+                maxLines: 3,
+                onSubmitted: (_) => _handleSubmit(),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 8),
+                Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: KemeticGold.base,
+                        foregroundColor: Colors.black,
+                      ),
+                      onPressed: _submitting ? null : _handleSubmit,
+                      child: const Text('Quick add'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: _submitting ? null : _handleOpenFullEditor,
+                    child: KemeticGold.text(
+                      'Open full editor',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 enum MonthExpansionLevel { compact, stacked, details }
 
 /* ───────────────────── Premium Dark Theme + Gloss ───────────────────── */
@@ -13839,13 +14032,6 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _openQuickAddSheet() async {
-    final textCtrl = TextEditingController();
-    String? error;
-    final focusNode = FocusNode();
-    final fieldKey = GlobalKey();
-    final scrollCtrl = ScrollController();
-    bool scheduledFocus = false;
-
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -13853,169 +14039,36 @@ class _CalendarPageState extends State<CalendarPage>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (ctx) {
-        return AnimatedPadding(
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          ),
-          child: SafeArea(
-            top: false,
-            child: StatefulBuilder(
-              builder: (context, setSheetState) {
-                // Request focus and ensure visibility once after layout/keyboard settle
-                if (!scheduledFocus) {
-                  scheduledFocus = true;
-                  WidgetsBinding.instance.addPostFrameCallback((_) async {
-                    focusNode.requestFocus();
-                    await Future.delayed(const Duration(milliseconds: 50));
-                    if (fieldKey.currentContext != null) {
-                      Scrollable.ensureVisible(
-                        fieldKey.currentContext!,
-                        alignment: 0.1,
-                        duration: const Duration(milliseconds: 150),
-                        curve: Curves.easeOut,
-                      );
-                    }
-                  });
-                }
-
-                return SingleChildScrollView(
-                  controller: scrollCtrl,
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Quick add (natural language)',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        key: fieldKey,
-                        controller: textCtrl,
-                        autofocus: false,
-                        focusNode: focusNode,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: 'e.g., “Fri 3pm-4pm coffee with Amara”',
-                          hintStyle: const TextStyle(color: Colors.white54),
-                          filled: true,
-                          fillColor: const Color(0xFF111111),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.white24),
-                          ),
-                        ),
-                        minLines: 1,
-                        maxLines: 3,
-                      ),
-                      if (error != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          error!,
-                          style: const TextStyle(color: Colors.redAccent),
-                        ),
-                      ],
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: KemeticGold.base,
-                                foregroundColor: Colors.black,
-                              ),
-                              onPressed: () async {
-                                final parsed = _parseQuickAdd(textCtrl.text);
-                                if (parsed == null) {
-                                  setSheetState(() {
-                                    error = 'Please enter a description.';
-                                  });
-                                  return;
-                                }
-                                final k = KemeticMath.fromGregorian(
-                                  parsed.date,
-                                );
-                                try {
-                                  await _saveSingleNoteOnly(
-                                    selYear: k.kYear,
-                                    selMonth: k.kMonth,
-                                    selDay: k.kDay,
-                                    title: parsed.title,
-                                    detail: null,
-                                    location: null,
-                                    allDay: parsed.allDay,
-                                    startTime: parsed.allDay
-                                        ? null
-                                        : parsed.start,
-                                    endTime: parsed.allDay ? null : parsed.end,
-                                    color: null,
-                                    alertMinutesBefore: _alertNoneMinutes,
-                                  );
-                                  if (!context.mounted) return;
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Added "${parsed.title}"'),
-                                      backgroundColor: const Color(0xFF1E1E1E),
-                                    ),
-                                  );
-                                } catch (e, st) {
-                                  if (kDebugMode) {
-                                    debugPrint(
-                                      '[QuickAdd] Failed to save note: $e',
-                                    );
-                                    debugPrint('$st');
-                                  }
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Failed to save note: $e'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              },
-                              child: const Text('Quick add'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _openDaySheet(
-                                _today.kYear,
-                                _today.kMonth,
-                                _today.kDay,
-                                allowDateChange: true,
-                              );
-                            },
-                            child: KemeticGold.text(
-                              'Open full editor',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-      },
+      builder: (_) => _QuickAddSheet(
+        parse: _parseQuickAdd,
+        scaffoldMessengerContext: context,
+        onSave: (parsed) async {
+          final k = KemeticMath.fromGregorian(parsed.date);
+          await _saveSingleNoteOnly(
+            selYear: k.kYear,
+            selMonth: k.kMonth,
+            selDay: k.kDay,
+            title: parsed.title,
+            detail: null,
+            location: null,
+            allDay: parsed.allDay,
+            startTime: parsed.allDay ? null : parsed.start,
+            endTime: parsed.allDay ? null : parsed.end,
+            color: null,
+            alertMinutesBefore: _alertNoneMinutes,
+          );
+        },
+        onOpenFullEditor: () {
+          if (!mounted) return;
+          _openDaySheet(
+            _today.kYear,
+            _today.kMonth,
+            _today.kDay,
+            allowDateChange: true,
+          );
+        },
+      ),
     );
-    focusNode.dispose();
   }
 
   /* ───── UI ───── */

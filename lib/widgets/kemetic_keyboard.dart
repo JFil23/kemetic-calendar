@@ -256,6 +256,8 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
   double _lastKeyboardHeight = 300;
   bool _opening = false;
   bool _systemKeyboardHidden = false;
+  bool _dismissScheduled = false;
+  bool _restoreSystemKeyboardScheduled = false;
 
   @override
   void initState() {
@@ -408,11 +410,17 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
 
   void _dismissCustomKeyboard({bool unfocusTarget = true}) {
     final target = _controller.editable ?? _controller.lastEditable;
-    deactivateWebCustomKeyboardInput();
-    _controller.closeAndClearTargets();
-    if (!unfocusTarget) return;
-    target?.widget.focusNode.unfocus();
-    FocusManager.instance.primaryFocus?.unfocus();
+    if (_dismissScheduled) return;
+    _dismissScheduled = true;
+    Future<void>.microtask(() {
+      _dismissScheduled = false;
+      if (!mounted) return;
+      deactivateWebCustomKeyboardInput();
+      _controller.closeAndClearTargets();
+      if (!unfocusTarget) return;
+      target?.widget.focusNode.unfocus();
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
   }
 
   @override
@@ -482,15 +490,29 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
   }
 
   void _closeCustomAndRestoreSystem() {
-    _controller.close();
-    if (kIsWeb) {
-      deactivateWebCustomKeyboardInput(requestSystemKeyboard: true);
-    }
-    try {
-      SystemChannels.textInput.invokeMethod('TextInput.show');
-    } catch (_) {}
-    _systemKeyboardHidden = false;
-    _controller.requestSystemKeyboard();
+    if (_restoreSystemKeyboardScheduled) return;
+    _restoreSystemKeyboardScheduled = true;
+    final target = _controller.editable ?? _controller.lastEditable;
+    Future<void>.microtask(() {
+      _restoreSystemKeyboardScheduled = false;
+      if (!mounted) return;
+      _controller.close();
+      if (kIsWeb) {
+        deactivateWebCustomKeyboardInput(requestSystemKeyboard: true);
+      }
+      try {
+        SystemChannels.textInput.invokeMethod('TextInput.show');
+      } catch (_) {}
+      _systemKeyboardHidden = false;
+
+      if (_controller._isUsable(target)) {
+        target!.widget.focusNode.requestFocus();
+        target.requestKeyboard();
+        _controller.attachEditable(target);
+      } else {
+        _controller.requestSystemKeyboard();
+      }
+    });
   }
 }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -142,6 +144,61 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets(
+      'closes cleanly from the quick add modal sheet when returning to the system keyboard',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(const _QuickAddSheetHarness());
+        await tester.tap(find.byKey(const ValueKey('open-quick-add-sheet')));
+        await tester.pumpAndSettle();
+
+        await _openCustomKeyboardOnField(
+          tester,
+          const ValueKey('quick-add-input'),
+        );
+        await tester.tap(find.text('ABC'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey('kemetic-keyboard-panel')),
+          findsNothing,
+        );
+        expect(find.byKey(const ValueKey('quick-add-input')), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'dismisses cleanly from the quick add modal sheet when tapping outside',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(const _QuickAddSheetHarness());
+        await tester.tap(find.byKey(const ValueKey('open-quick-add-sheet')));
+        await tester.pumpAndSettle();
+
+        await _openCustomKeyboardOnField(
+          tester,
+          const ValueKey('quick-add-input'),
+        );
+        await tester.tapAt(const Offset(12, 12));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey('kemetic-keyboard-panel')),
+          findsNothing,
+        );
+        expect(
+          find.byKey(const ValueKey('open-quick-add-sheet')),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets('wraps header controls on narrow emulator widths', (
       tester,
     ) async {
@@ -245,6 +302,24 @@ void main() {
       expect(controller.selection, const TextSelection.collapsed(offset: 4));
     });
 
+    testWidgets('closes cleanly when returning to the system keyboard', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _KeyboardHarness(controller: TextEditingController()),
+      );
+
+      await _openCustomKeyboard(tester);
+      await tester.tap(find.text('ABC'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('kemetic-keyboard-panel')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets(
       'dismisses the custom keyboard when tapping outside the field',
       (tester) async {
@@ -328,11 +403,32 @@ void main() {
       await tester.pumpAndSettle();
       expect(controller.selection, const TextSelection.collapsed(offset: 4));
     });
+
+    testWidgets('unmounts cleanly while the custom keyboard is open', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _KeyboardHarness(controller: TextEditingController()),
+      );
+
+      await _openCustomKeyboard(tester);
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
   });
 }
 
 Future<void> _openCustomKeyboard(WidgetTester tester) async {
-  await tester.tap(find.byKey(const ValueKey('kemetic-input')));
+  await _openCustomKeyboardOnField(tester, const ValueKey('kemetic-input'));
+}
+
+Future<void> _openCustomKeyboardOnField(
+  WidgetTester tester,
+  ValueKey<String> fieldKey,
+) async {
+  await tester.tap(find.byKey(fieldKey));
   await tester.pumpAndSettle();
   await _pressToggle(tester);
   await tester.pumpAndSettle();
@@ -437,6 +533,146 @@ class _KeyboardHarness extends StatelessWidget {
 
     return MaterialApp(
       home: Scaffold(body: KemeticKeyboardHost(child: _buildInputBody())),
+    );
+  }
+}
+
+class _QuickAddSheetHarness extends StatelessWidget {
+  const _QuickAddSheetHarness();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      builder: (context, child) =>
+          KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
+      home: Builder(
+        builder: (modalContext) => Scaffold(
+          body: Center(
+            child: ElevatedButton(
+              key: const ValueKey('open-quick-add-sheet'),
+              onPressed: () {
+                showModalBottomSheet<void>(
+                  context: modalContext,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.black,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                  ),
+                  builder: (_) => const _QuickAddSheetHarnessContent(),
+                );
+              },
+              child: const Text('Open quick add'),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickAddSheetHarnessContent extends StatefulWidget {
+  const _QuickAddSheetHarnessContent();
+
+  @override
+  State<_QuickAddSheetHarnessContent> createState() =>
+      _QuickAddSheetHarnessContentState();
+}
+
+class _QuickAddSheetHarnessContentState
+    extends State<_QuickAddSheetHarnessContent> {
+  final FocusNode _focusNode = FocusNode();
+  final GlobalKey _fieldKey = GlobalKey();
+  final TextEditingController _textCtrl = TextEditingController();
+  final ScrollController _scrollCtrl = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_requestInitialFocus());
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    _textCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _requestInitialFocus() async {
+    if (!mounted) return;
+    _focusNode.requestFocus();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    if (!mounted) return;
+    final fieldContext = _fieldKey.currentContext;
+    if (fieldContext == null || !fieldContext.mounted) return;
+    await Scrollable.ensureVisible(
+      fieldContext,
+      alignment: 0.1,
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          controller: _scrollCtrl,
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Quick add (natural language)',
+                style: TextStyle(color: Colors.white),
+              ),
+              const SizedBox(height: 8),
+              KeyedSubtree(
+                key: _fieldKey,
+                child: TextField(
+                  key: const ValueKey('quick-add-input'),
+                  controller: _textCtrl,
+                  autofocus: false,
+                  focusNode: _focusNode,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    hintText: 'e.g., Fri 3pm-4pm coffee',
+                  ),
+                  minLines: 1,
+                  maxLines: 3,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Close'),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {});
+                    },
+                    child: const Text('Refresh'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
