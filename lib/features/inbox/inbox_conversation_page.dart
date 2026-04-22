@@ -251,6 +251,13 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
 
       if (!ok) {
         _showError('Could not update message like. Please try again.');
+      } else if (target) {
+        await _inboxRepo.sendMessageLikePush(
+          targetUserId: share.senderId,
+          likerUserId: userId,
+          messageText: share.messageText ?? share.title,
+          shareId: share.shareId,
+        );
       }
     } on InboxMessageLikesUnavailable {
       if (!mounted) return;

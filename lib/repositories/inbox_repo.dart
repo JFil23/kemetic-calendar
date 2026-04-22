@@ -535,6 +535,59 @@ class InboxRepo {
     }
   }
 
+  Future<void> sendMessageLikePush({
+    required String targetUserId,
+    required String likerUserId,
+    required String messageText,
+    String? shareId,
+  }) async {
+    final normalizedTargetUserId = targetUserId.trim();
+    final normalizedLikerUserId = likerUserId.trim();
+    if (normalizedTargetUserId.isEmpty || normalizedLikerUserId.isEmpty) {
+      return;
+    }
+    if (normalizedTargetUserId == normalizedLikerUserId) return;
+
+    try {
+      final likerProfile = await _client
+          .from('profiles')
+          .select('display_name, handle')
+          .eq('id', normalizedLikerUserId)
+          .maybeSingle();
+
+      final displayName = _asDmString(likerProfile?['display_name']);
+      final handle = _asDmString(likerProfile?['handle']);
+      final likerLabel =
+          displayName ?? (handle != null ? '@$handle' : 'Someone');
+      final preview = messageText.trim();
+      final body = preview.isEmpty
+          ? 'Tap to open the conversation.'
+          : (preview.length > 120
+                ? '${preview.substring(0, 120)}...'
+                : preview);
+
+      await _client.functions.invoke(
+        'send_push',
+        body: {
+          'userIds': [normalizedTargetUserId],
+          'notification': {
+            'title': '$likerLabel liked your message',
+            'body': body,
+          },
+          'data': {
+            'type': 'dm_message_like',
+            'kind': 'dm',
+            'sender_id': normalizedLikerUserId,
+            if (shareId != null && shareId.trim().isNotEmpty)
+              'share_id': shareId.trim(),
+          },
+        },
+      );
+    } catch (e) {
+      _log('[InboxRepo] DM like push failed: $e');
+    }
+  }
+
   /// Get the "other" user ID from a share item
   String? _getOtherUserId(InboxShareItem item, String uid) {
     if (item.senderId == uid) return item.recipientId;
