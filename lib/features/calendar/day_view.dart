@@ -11,12 +11,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/gestures.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'calendar_page.dart';
 import 'day_view_chrome.dart';
 import 'landscape_month_view.dart';
+import '../onboarding/day_view_date_coachmark.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
 import '../../data/user_events_repo.dart';
@@ -647,6 +649,11 @@ class DayViewPage extends StatefulWidget {
 }
 
 class _DayViewPageState extends State<DayViewPage> {
+  static final bool _replayDayCardRevealCoachmarkOnEveryLaunch = false;
+  static bool _hasPresentedDayCardRevealCoachmarkThisLaunch = false;
+  static const String _dayCardRevealCoachmarkKeyPrefix =
+      'onboarding_v1_day_view_day_card_reveal';
+
   late PageController _pageController;
   late int _currentKy;
   late int _currentKm;
@@ -664,6 +671,10 @@ class _DayViewPageState extends State<DayViewPage> {
 
   // 🔧 NEW: Orientation tracking for bidirectional lock
   Orientation? _lastOrientation;
+  bool _showDayCardRevealCoachmark = false;
+  final GlobalKey _dayCardRevealTargetKey = GlobalKey(
+    debugLabel: 'day_view_date_reveal_target',
+  );
 
   @override
   void initState() {
@@ -692,6 +703,7 @@ class _DayViewPageState extends State<DayViewPage> {
     _miniCalendarScrollController = ScrollController(
       initialScrollOffset: initialScroll,
     );
+    _scheduleDayCardRevealCoachmarkCheck();
   }
 
   @override
@@ -725,6 +737,50 @@ class _DayViewPageState extends State<DayViewPage> {
     _pageController.dispose();
     _miniCalendarScrollController.dispose(); // 🔧 Don't forget to dispose
     super.dispose();
+  }
+
+  String _dayCardRevealCoachmarkKeyForUser(String userId) =>
+      '$_dayCardRevealCoachmarkKeyPrefix:$userId';
+
+  void _scheduleDayCardRevealCoachmarkCheck() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_maybePresentDayCardRevealCoachmark());
+    });
+  }
+
+  Future<void> _maybePresentDayCardRevealCoachmark() async {
+    if (!mounted || _showDayCardRevealCoachmark) return;
+
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    if (_replayDayCardRevealCoachmarkOnEveryLaunch) {
+      if (_hasPresentedDayCardRevealCoachmarkThisLaunch) return;
+      _hasPresentedDayCardRevealCoachmarkThisLaunch = true;
+      setState(() => _showDayCardRevealCoachmark = true);
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen =
+        prefs.getBool(_dayCardRevealCoachmarkKeyForUser(userId)) ?? false;
+    if (!mounted || hasSeen) return;
+
+    setState(() => _showDayCardRevealCoachmark = true);
+  }
+
+  Future<void> _handleDayCardRevealCoachmarkCompleted() async {
+    if (mounted && _showDayCardRevealCoachmark) {
+      setState(() => _showDayCardRevealCoachmark = false);
+    }
+
+    if (_replayDayCardRevealCoachmarkOnEveryLaunch) return;
+
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_dayCardRevealCoachmarkKeyForUser(userId), true);
   }
 
   /// Generate the day key for Kemetic day info lookup
@@ -1014,7 +1070,7 @@ class _DayViewPageState extends State<DayViewPage> {
               }
 
               // Portrait day view
-              return Column(
+              final portraitDayView = Column(
                 children: [
                   // Custom Apple-style header
                   KemeticDayViewHeader(
@@ -1084,13 +1140,17 @@ class _DayViewPageState extends State<DayViewPage> {
                         },
                     dateButtonBuilder: (monthName, currentKd, gregorianYear) {
                       return KemeticDayButton(
+                        key: _dayCardRevealTargetKey,
                         dayKey: _getKemeticDayKey(
                           _currentKy,
                           _currentKm,
                           _currentKd,
                         ),
                         kYear: _currentKy,
-                        openOnTap: true,
+                        openOnTap: false,
+                        onOpen: () {
+                          unawaited(_handleDayCardRevealCoachmarkCompleted());
+                        },
                         child: Text(
                           '${monthName.split(' ').first} $currentKd, $gregorianYear',
                           style: const TextStyle(
@@ -1159,6 +1219,18 @@ class _DayViewPageState extends State<DayViewPage> {
                       },
                     ),
                   ),
+                ],
+              );
+
+              return Stack(
+                children: [
+                  portraitDayView,
+                  if (_showDayCardRevealCoachmark)
+                    Positioned.fill(
+                      child: DayViewDateCoachmark(
+                        targetKey: _dayCardRevealTargetKey,
+                      ),
+                    ),
                 ],
               );
             },

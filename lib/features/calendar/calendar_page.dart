@@ -80,6 +80,8 @@ import '../nodes/kemetic_node_library.dart';
 import '../nodes/kemetic_node_model.dart';
 import '../nodes/node_user_insights_section.dart';
 import '../invites/pending_event_invite_overlay.dart';
+import '../onboarding/calendar_month_coachmark.dart';
+import '../onboarding/calendar_toggle_coachmark.dart';
 import '../onboarding/onboarding_overlay.dart';
 import '../onboarding/onboarding_storage.dart';
 import '../rhythm/data/planner_badge_repo.dart';
@@ -3878,12 +3880,21 @@ final List<_MaatFlowTemplate> kMaatFlowTemplatesEconomy = [
 /* ─────────────────────────── CALENDAR PAGE (flows + notes) ─────────────────────────── */
 
 final Map<String, GlobalKey> _calendarMonthKeys = <String, GlobalKey>{};
+final Map<String, GlobalKey> _calendarMonthHeaderKeys = <String, GlobalKey>{};
 
 GlobalKey keyForMonth(int ky, int km) {
   final id = 'y${ky}m${km}';
   return _calendarMonthKeys.putIfAbsent(
     id,
     () => GlobalKey(debugLabel: 'calendar_month_$id'),
+  );
+}
+
+GlobalKey keyForMonthHeader(int ky, int km) {
+  final id = 'y${ky}m${km}';
+  return _calendarMonthHeaderKeys.putIfAbsent(
+    id,
+    () => GlobalKey(debugLabel: 'calendar_month_header_$id'),
   );
 }
 
@@ -4868,7 +4879,17 @@ class _CalendarPageState extends State<CalendarPage>
   // toggle: Kemetic (false) <-> Gregorian overlay (true)
   bool _showGregorian = false;
   bool _showOnboarding = false;
+  bool _showCalendarMonthCoachmark = false;
+  bool _showCalendarToggleCoachmark = false;
   bool _onboardingPresentationScheduled = false;
+  bool _canShowCalendarToggleCoachmarkOnReturn = false;
+  bool _calendarToggleCoachmarkArmedForReturn = false;
+  // Leave false for normal onboarding behavior. Flip to true only for local iteration.
+  static final bool _replayOnboardingOnEveryLaunch = false;
+  static bool _hasPresentedOnboardingThisLaunch = false;
+  static bool _hasPresentedCalendarToggleCoachmarkThisLaunch = false;
+  static const String _calendarToggleCoachmarkKeyPrefix =
+      'onboarding_v1_calendar_toggle_after_return';
   static const List<int> _onboardingHighlightDays = [
     8,
     9,
@@ -4917,6 +4938,9 @@ class _CalendarPageState extends State<CalendarPage>
   final _centerKey = GlobalKey();
   final _todayDayKey = GlobalKey(); // 🔑 individual day chip
   final _viewDayAnchorKey = GlobalKey(debugLabel: 'calendar_view_day_anchor');
+  final _calendarToggleKey = GlobalKey(debugLabel: 'calendar_toggle_haw');
+  int? _calendarMonthCoachmarkKy;
+  int? _calendarMonthCoachmarkKm;
   late final Map<int, GlobalKey> _onboardingHighlightDayKeys = {
     for (final day in _onboardingAnchorDays)
       day: GlobalKey(debugLabel: 'onboarding_day_$day'),
@@ -5140,8 +5164,19 @@ class _CalendarPageState extends State<CalendarPage>
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
 
+    if (_replayOnboardingOnEveryLaunch) {
+      if (_hasPresentedOnboardingThisLaunch) return;
+      _hasPresentedOnboardingThisLaunch = true;
+      setState(() => _showOnboarding = true);
+      return;
+    }
+
     final hasCompleted = await _onboardingStorage.hasCompleted(userId);
-    if (!mounted || hasCompleted) return;
+    if (!mounted) return;
+    if (hasCompleted) {
+      _canShowCalendarToggleCoachmarkOnReturn = true;
+      return;
+    }
 
     setState(() => _showOnboarding = true);
   }
@@ -5150,25 +5185,31 @@ class _CalendarPageState extends State<CalendarPage>
     if (!mounted) return;
 
     setState(() => _showOnboarding = false);
-
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) return;
-    await _onboardingStorage.markCompleted(userId);
   }
 
   void _handleOnboardingSkip() {
-    unawaited(_dismissOnboarding());
+    unawaited(_finishOnboardingFlow());
   }
 
   void _handleOnboardingComplete() {
-    unawaited(_completeOnboardingFlow());
+    unawaited(_finishOnboardingFlow());
   }
 
-  Future<void> _completeOnboardingFlow() async {
+  Future<void> _finishOnboardingFlow() async {
     await _dismissOnboarding();
     final profileCompleted = await _requireProfileSetupAfterOnboarding();
     if (!profileCompleted || !mounted) return;
     await _promptForNotificationsAfterOnboarding();
+    if (!mounted) return;
+    await _showCalendarMonthCoachmarkAfterOnboarding();
+  }
+
+  Future<void> _markOnboardingCompletedIfNeeded() async {
+    if (_replayOnboardingOnEveryLaunch) return;
+
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    await _onboardingStorage.markCompleted(userId);
   }
 
   Future<bool> _requireProfileSetupAfterOnboarding() async {
@@ -5188,20 +5229,25 @@ class _CalendarPageState extends State<CalendarPage>
 
     final hasDisplayName = (profile.displayName?.trim().isNotEmpty ?? false);
     final hasHandle = (profile.handle?.trim().isNotEmpty ?? false);
-    if (hasDisplayName && hasHandle) return true;
+    final isProfileComplete = hasDisplayName && hasHandle;
+    final shouldReplayPrompts = _replayOnboardingOnEveryLaunch;
+    if (isProfileComplete && !shouldReplayPrompts) return true;
+    final requireCompletion = !isProfileComplete;
 
     UiGuards.disableJournalSwipe();
     try {
       final updated = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
-          builder: (_) =>
-              EditProfilePage(initialProfile: profile, requireCompletion: true),
+          builder: (_) => EditProfilePage(
+            initialProfile: profile,
+            requireCompletion: requireCompletion,
+          ),
         ),
       );
       if (updated == true && mounted) {
         await _loadFromDisk();
       }
-      return updated == true;
+      return updated == true || (shouldReplayPrompts && !requireCompletion);
     } finally {
       UiGuards.enableJournalSwipe();
     }
@@ -5212,19 +5258,30 @@ class _CalendarPageState extends State<CalendarPage>
     if (currentUser == null) return;
 
     final prefs = await SharedPreferences.getInstance();
-    if (SettingsPrefs.realTimeAlertsEnabledFrom(prefs)) return;
+    final shouldReplayPrompts = _replayOnboardingOnEveryLaunch;
+    if (!shouldReplayPrompts &&
+        SettingsPrefs.realTimeAlertsEnabledFrom(prefs)) {
+      return;
+    }
 
     final push = PushNotifications.instance(Supabase.instance.client);
     final diagnostics = await push.getDiagnostics();
     if (!mounted) return;
 
-    if (diagnostics.permissionGranted && diagnostics.databaseRegistered) {
+    if (!shouldReplayPrompts &&
+        diagnostics.permissionGranted &&
+        diagnostics.databaseRegistered) {
       await prefs.setBool(SettingsPrefs.realTimeAlertsKey, true);
       return;
     }
 
     var requesting = false;
-    String? status;
+    String? status =
+        shouldReplayPrompts &&
+            diagnostics.permissionGranted &&
+            diagnostics.databaseRegistered
+        ? 'Notifications are already enabled on this device. This prompt is being replayed for onboarding review.'
+        : null;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -5378,6 +5435,175 @@ class _CalendarPageState extends State<CalendarPage>
         );
       },
     );
+  }
+
+  Future<void> _showCalendarMonthCoachmarkAfterOnboarding() async {
+    if (!mounted) return;
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    if (!mounted) return;
+
+    final targetKy = _lastViewKy ?? _today.kYear;
+    final rawTargetKm = _lastViewKm ?? _today.kMonth;
+    final targetKm = rawTargetKm < 1
+        ? 1
+        : (rawTargetKm > 12 ? 12 : rawTargetKm);
+
+    setState(() {
+      _calendarMonthCoachmarkKy = targetKy;
+      _calendarMonthCoachmarkKm = targetKm;
+      _showCalendarMonthCoachmark = true;
+    });
+  }
+
+  String _calendarToggleCoachmarkKeyForUser(String userId) =>
+      '$_calendarToggleCoachmarkKeyPrefix:$userId';
+
+  Future<void> _maybePresentCalendarToggleCoachmarkAfterReturn() async {
+    if (!mounted ||
+        !_canShowCalendarToggleCoachmarkOnReturn ||
+        !_calendarToggleCoachmarkArmedForReturn ||
+        _showOnboarding ||
+        _showCalendarMonthCoachmark ||
+        _showCalendarToggleCoachmark) {
+      return;
+    }
+
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    final shouldReplayPrompts = _replayOnboardingOnEveryLaunch;
+    if (shouldReplayPrompts) {
+      if (_hasPresentedCalendarToggleCoachmarkThisLaunch) return;
+    } else {
+      final prefs = await SharedPreferences.getInstance();
+      final hasSeen =
+          prefs.getBool(_calendarToggleCoachmarkKeyForUser(userId)) ?? false;
+      if (!mounted || hasSeen) return;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 280));
+    if (!mounted ||
+        !_canShowCalendarToggleCoachmarkOnReturn ||
+        !_calendarToggleCoachmarkArmedForReturn ||
+        _showOnboarding ||
+        _showCalendarMonthCoachmark ||
+        _showCalendarToggleCoachmark) {
+      return;
+    }
+
+    if (shouldReplayPrompts) {
+      _hasPresentedCalendarToggleCoachmarkThisLaunch = true;
+    }
+
+    setState(() {
+      _calendarToggleCoachmarkArmedForReturn = false;
+      _showCalendarToggleCoachmark = true;
+    });
+  }
+
+  Future<void> _markCalendarToggleCoachmarkCompletedIfNeeded() async {
+    if (_replayOnboardingOnEveryLaunch) return;
+
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_calendarToggleCoachmarkKeyForUser(userId), true);
+  }
+
+  void _handleCalendarToggleTapped() {
+    if (!mounted) return;
+
+    final shouldFinalizeCoachmark = _showCalendarToggleCoachmark;
+    setState(() {
+      _showGregorian = !_showGregorian;
+      _showCalendarToggleCoachmark = false;
+      _calendarToggleCoachmarkArmedForReturn = false;
+    });
+
+    if (shouldFinalizeCoachmark) {
+      unawaited(_markCalendarToggleCoachmarkCompletedIfNeeded());
+    }
+  }
+
+  GlobalKey? get _calendarMonthCoachmarkTargetKey {
+    final targetKy = _calendarMonthCoachmarkKy;
+    final targetKm = _calendarMonthCoachmarkKm;
+    if (targetKy == null || targetKm == null) return null;
+    return keyForMonthHeader(targetKy, targetKm);
+  }
+
+  MaterialPageRoute<void> _buildMonthDetailRoute(int kYear, int kMonth) {
+    final todayMonth = kYear == _today.kYear ? _today.kMonth : null;
+    final todayDay = kYear == _today.kYear ? _today.kDay : null;
+
+    return MaterialPageRoute<void>(
+      builder: (_) => _MonthDetailPage(
+        kYear: kYear,
+        kMonth: kMonth,
+        todayMonth: todayMonth,
+        todayDay: todayDay,
+        showGregorian: _showGregorian,
+        notesGetter: (m, d) => _getNotes(kYear, m, d),
+        flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
+        onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
+        noteColorResolver: _noteColor,
+        flowNameGetter: _flowName,
+        onManageFlows: _getMyFlowsCallback(),
+        onEditNote: (ky, km, kd, evt) async =>
+            _editNoteByEvent(ky, km, kd, evt),
+        onDeleteNote: (ky, km, kd, evt) async =>
+            _deleteNoteByEvent(ky, km, kd, evt),
+        onShareNote: (evt) async => _shareNoteSimple(evt),
+        onEditReminder: (id) async => _editReminderById(id),
+        onEndReminder: (id) async => _endReminderRule(id),
+        onShareReminder: (evt) async => _shareNoteSimple(evt),
+        onEndFlow: (id) => _endFlow(id),
+        onAppendToJournal: _journalInitialized
+            ? (text) => _journalController.appendToToday(text)
+            : null,
+        decanIndex: null,
+      ),
+    );
+  }
+
+  void _openMonthInfo(BuildContext navigatorContext, int kYear, int kMonth) {
+    Navigator.of(navigatorContext).push(_buildMonthDetailRoute(kYear, kMonth));
+  }
+
+  void _handleMonthHeaderTapped(
+    BuildContext navigatorContext,
+    int kYear,
+    int kMonth,
+  ) {
+    if (!mounted) return;
+
+    final shouldFinalizeOnboarding =
+        _showCalendarMonthCoachmark &&
+        _calendarMonthCoachmarkKy == kYear &&
+        _calendarMonthCoachmarkKm == kMonth;
+
+    if (shouldFinalizeOnboarding) {
+      setState(() {
+        _canShowCalendarToggleCoachmarkOnReturn = true;
+        _showCalendarMonthCoachmark = false;
+        _calendarMonthCoachmarkKy = null;
+        _calendarMonthCoachmarkKm = null;
+      });
+    }
+
+    _openMonthInfo(navigatorContext, kYear, kMonth);
+
+    if (shouldFinalizeOnboarding) {
+      unawaited(_markOnboardingCompletedIfNeeded());
+    }
+  }
+
+  void _handleCalendarMonthCoachmarkTargetTap() {
+    final targetKy = _calendarMonthCoachmarkKy;
+    final targetKm = _calendarMonthCoachmarkKm;
+    if (targetKy == null || targetKm == null) return;
+    _handleMonthHeaderTapped(context, targetKy, targetKm);
   }
 
   /// ✅ Load persisted view state from SharedPreferences
@@ -5713,7 +5939,13 @@ class _CalendarPageState extends State<CalendarPage>
   // ✅ Called when we pop back to Calendar from another page
   @override
   void didPopNext() {
-    _refreshAfterReturn();
+    unawaited(_handleCalendarReturnFromAnotherPage());
+  }
+
+  @override
+  void didPushNext() {
+    if (!_canShowCalendarToggleCoachmarkOnReturn) return;
+    _calendarToggleCoachmarkArmedForReturn = true;
   }
 
   // ✅ Fallback: app comes back to foreground
@@ -5731,6 +5963,12 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   // ✅ Refresh when returning to this page
+  Future<void> _handleCalendarReturnFromAnotherPage() async {
+    await _refreshAfterReturn();
+    if (!mounted) return;
+    await _maybePresentCalendarToggleCoachmarkAfterReturn();
+  }
+
   Future<void> _refreshAfterReturn() async {
     if (!mounted) return;
 
@@ -16382,17 +16620,20 @@ class _CalendarPageState extends State<CalendarPage>
           color: _gold,
         ), // ensure action icons use rich gold
         title: GestureDetector(
-          onTap: () => setState(() => _showGregorian = !_showGregorian),
-          child: Padding(
-            padding: const EdgeInsets.only(left: 6.0),
-            child: GlossyText(
-              text: "ḥꜣw",
-              gradient: _showGregorian ? whiteGloss : goldGloss,
-              style: _titleGold.copyWith(
-                fontSize: (_titleGold.fontSize ?? 22.0).roundToDouble(),
-                letterSpacing: 0,
-                // shadows off for button text; mask + small shadows = haze
-                shadows: null,
+          onTap: _handleCalendarToggleTapped,
+          child: RepaintBoundary(
+            key: _calendarToggleKey,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 6.0),
+              child: GlossyText(
+                text: "ḥꜣw",
+                gradient: _showGregorian ? whiteGloss : goldGloss,
+                style: _titleGold.copyWith(
+                  fontSize: (_titleGold.fontSize ?? 22.0).roundToDouble(),
+                  letterSpacing: 0,
+                  // shadows off for button text; mask + small shadows = haze
+                  shadows: null,
+                ),
               ),
             ),
           ),
@@ -16435,20 +16676,54 @@ class _CalendarPageState extends State<CalendarPage>
       body: _buildBodyWithJournal(),
     );
 
-    if (!_showOnboarding) return scaffold;
+    Widget content = scaffold;
 
-    return Stack(
-      children: [
-        scaffold,
-        Positioned.fill(
-          child: OnboardingOverlay(
-            slides: _buildOnboardingSlides(),
-            onSkip: _handleOnboardingSkip,
-            onComplete: _handleOnboardingComplete,
+    final calendarMonthCoachmarkTargetKey = _calendarMonthCoachmarkTargetKey;
+    if (_showCalendarMonthCoachmark &&
+        calendarMonthCoachmarkTargetKey != null) {
+      content = Stack(
+        children: [
+          content,
+          Positioned.fill(
+            child: CalendarMonthCoachmark(
+              targetKey: calendarMonthCoachmarkTargetKey,
+              onTargetTap: _handleCalendarMonthCoachmarkTargetTap,
+            ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
+    }
+
+    if (_showCalendarToggleCoachmark) {
+      content = Stack(
+        children: [
+          content,
+          Positioned.fill(
+            child: CalendarToggleCoachmark(
+              targetKey: _calendarToggleKey,
+              onTargetTap: _handleCalendarToggleTapped,
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (_showOnboarding) {
+      content = Stack(
+        children: [
+          content,
+          Positioned.fill(
+            child: OnboardingOverlay(
+              slides: _buildOnboardingSlides(),
+              onSkip: _handleOnboardingSkip,
+              onComplete: _handleOnboardingComplete,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return content;
   }
 
   Widget _buildBodyWithJournal() {
@@ -17204,8 +17479,11 @@ class _CalendarPageState extends State<CalendarPage>
                   todayDay: null,
                   todayDayKey: null, // no anchor in past/future lists
                   monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
+                  monthHeaderKeyProvider: (m) => keyForMonthHeader(kYear, m),
                   dayAnchorKeyProvider: (m, d) =>
                       _calendarDayAnchorKeyFor(kYear, m, d),
+                  onMonthHeaderTap: (context, kMonth) =>
+                      _handleMonthHeaderTapped(context, kYear, kMonth),
                   onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
                   notesGetter: (m, d) => _getNotes(kYear, m, d),
                   flowColorsGetter: (ky, km, kd) =>
@@ -17241,9 +17519,12 @@ class _CalendarPageState extends State<CalendarPage>
               todayMonth: kToday.kMonth,
               todayDay: kToday.kDay,
               monthAnchorKeyProvider: (m) => keyForMonth(kToday.kYear, m),
+              monthHeaderKeyProvider: (m) => keyForMonthHeader(kToday.kYear, m),
               dayAnchorKeyProvider: (m, d) =>
                   _calendarDayAnchorKeyFor(kToday.kYear, m, d),
               todayDayKey: _todayDayKey, // 🔑 pass day anchor
+              onMonthHeaderTap: (context, kMonth) =>
+                  _handleMonthHeaderTapped(context, kToday.kYear, kMonth),
               onDayTap: (c, m, d) => _openDayView(c, kToday.kYear, m, d),
               notesGetter: (m, d) => _getNotes(kToday.kYear, m, d),
               flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
@@ -17278,8 +17559,11 @@ class _CalendarPageState extends State<CalendarPage>
                   todayDay: null,
                   todayDayKey: null,
                   monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
+                  monthHeaderKeyProvider: (m) => keyForMonthHeader(kYear, m),
                   dayAnchorKeyProvider: (m, d) =>
                       _calendarDayAnchorKeyFor(kYear, m, d),
+                  onMonthHeaderTap: (context, kMonth) =>
+                      _handleMonthHeaderTapped(context, kYear, kMonth),
                   onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
                   notesGetter: (m, d) => _getNotes(kYear, m, d),
                   flowColorsGetter: (ky, km, kd) =>
@@ -17593,7 +17877,9 @@ class _YearSection extends StatelessWidget {
     this.onEndFlow,
     this.onAppendToJournal,
     this.monthAnchorKeyProvider,
+    this.monthHeaderKeyProvider,
     this.dayAnchorKeyProvider,
+    this.onMonthHeaderTap,
     this.todayDayKey,
   });
 
@@ -17620,8 +17906,10 @@ class _YearSection extends StatelessWidget {
   final List<_Note> Function(int kMonth, int kDay) notesGetter;
   final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
 
+  final void Function(BuildContext context, int kMonth)? onMonthHeaderTap;
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
   final Key? Function(int kMonth)? monthAnchorKeyProvider;
+  final Key? Function(int kMonth)? monthHeaderKeyProvider;
   final Key? Function(int kMonth, int kDay)? dayAnchorKeyProvider;
   final Key? todayDayKey; // 🔑
 
@@ -17634,6 +17922,7 @@ class _YearSection extends StatelessWidget {
         const _SeasonHeader(title: 'Flood season (Akhet)'),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(1),
+          monthHeaderKey: monthHeaderKeyProvider?.call(1),
           dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 1,
@@ -17657,10 +17946,14 @@ class _YearSection extends StatelessWidget {
           onShareReminder: onShareReminder,
           onEndFlow: onEndFlow,
           onAppendToJournal: onAppendToJournal,
+          onMonthHeaderTap: onMonthHeaderTap == null
+              ? null
+              : (context) => onMonthHeaderTap!(context, 1),
         ),
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(2),
+          monthHeaderKey: monthHeaderKeyProvider?.call(2),
           dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 2,
@@ -17684,10 +17977,14 @@ class _YearSection extends StatelessWidget {
           onShareReminder: onShareReminder,
           onEndFlow: onEndFlow,
           onAppendToJournal: onAppendToJournal,
+          onMonthHeaderTap: onMonthHeaderTap == null
+              ? null
+              : (context) => onMonthHeaderTap!(context, 2),
         ),
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(3),
+          monthHeaderKey: monthHeaderKeyProvider?.call(3),
           dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 3,
@@ -17711,10 +18008,14 @@ class _YearSection extends StatelessWidget {
           onShareReminder: onShareReminder,
           onEndFlow: onEndFlow,
           onAppendToJournal: onAppendToJournal,
+          onMonthHeaderTap: onMonthHeaderTap == null
+              ? null
+              : (context) => onMonthHeaderTap!(context, 3),
         ),
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(4),
+          monthHeaderKey: monthHeaderKeyProvider?.call(4),
           dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 4,
@@ -17738,12 +18039,16 @@ class _YearSection extends StatelessWidget {
           onShareReminder: onShareReminder,
           onEndFlow: onEndFlow,
           onAppendToJournal: onAppendToJournal,
+          onMonthHeaderTap: onMonthHeaderTap == null
+              ? null
+              : (context) => onMonthHeaderTap!(context, 4),
         ),
         const _GoldDivider(),
 
         const _SeasonHeader(title: 'Emergence season (Peret)'),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(5),
+          monthHeaderKey: monthHeaderKeyProvider?.call(5),
           dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 5,
@@ -17767,10 +18072,14 @@ class _YearSection extends StatelessWidget {
           onShareReminder: onShareReminder,
           onEndFlow: onEndFlow,
           onAppendToJournal: onAppendToJournal,
+          onMonthHeaderTap: onMonthHeaderTap == null
+              ? null
+              : (context) => onMonthHeaderTap!(context, 5),
         ),
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(6),
+          monthHeaderKey: monthHeaderKeyProvider?.call(6),
           dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 6,
@@ -17794,10 +18103,14 @@ class _YearSection extends StatelessWidget {
           onShareReminder: onShareReminder,
           onEndFlow: onEndFlow,
           onAppendToJournal: onAppendToJournal,
+          onMonthHeaderTap: onMonthHeaderTap == null
+              ? null
+              : (context) => onMonthHeaderTap!(context, 6),
         ),
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(7),
+          monthHeaderKey: monthHeaderKeyProvider?.call(7),
           dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 7,
@@ -17821,10 +18134,14 @@ class _YearSection extends StatelessWidget {
           onShareReminder: onShareReminder,
           onEndFlow: onEndFlow,
           onAppendToJournal: onAppendToJournal,
+          onMonthHeaderTap: onMonthHeaderTap == null
+              ? null
+              : (context) => onMonthHeaderTap!(context, 7),
         ),
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(8),
+          monthHeaderKey: monthHeaderKeyProvider?.call(8),
           dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 8,
@@ -17848,12 +18165,16 @@ class _YearSection extends StatelessWidget {
           onShareReminder: onShareReminder,
           onEndFlow: onEndFlow,
           onAppendToJournal: onAppendToJournal,
+          onMonthHeaderTap: onMonthHeaderTap == null
+              ? null
+              : (context) => onMonthHeaderTap!(context, 8),
         ),
         const _GoldDivider(),
 
         const _SeasonHeader(title: 'Harvest season (Shemu)'),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(9),
+          monthHeaderKey: monthHeaderKeyProvider?.call(9),
           dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 9,
@@ -17877,10 +18198,14 @@ class _YearSection extends StatelessWidget {
           onShareReminder: onShareReminder,
           onEndFlow: onEndFlow,
           onAppendToJournal: onAppendToJournal,
+          onMonthHeaderTap: onMonthHeaderTap == null
+              ? null
+              : (context) => onMonthHeaderTap!(context, 9),
         ),
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(10),
+          monthHeaderKey: monthHeaderKeyProvider?.call(10),
           dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 10,
@@ -17904,10 +18229,14 @@ class _YearSection extends StatelessWidget {
           onShareReminder: onShareReminder,
           onEndFlow: onEndFlow,
           onAppendToJournal: onAppendToJournal,
+          onMonthHeaderTap: onMonthHeaderTap == null
+              ? null
+              : (context) => onMonthHeaderTap!(context, 10),
         ),
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(11),
+          monthHeaderKey: monthHeaderKeyProvider?.call(11),
           dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 11,
@@ -17931,10 +18260,14 @@ class _YearSection extends StatelessWidget {
           onShareReminder: onShareReminder,
           onEndFlow: onEndFlow,
           onAppendToJournal: onAppendToJournal,
+          onMonthHeaderTap: onMonthHeaderTap == null
+              ? null
+              : (context) => onMonthHeaderTap!(context, 11),
         ),
         const _GoldDivider(),
         _MonthCard(
           anchorKey: monthAnchorKeyProvider?.call(12),
+          monthHeaderKey: monthHeaderKeyProvider?.call(12),
           dayAnchorKeyProvider: dayAnchorKeyProvider,
           kYear: kYear,
           kMonth: 12,
@@ -17958,6 +18291,9 @@ class _YearSection extends StatelessWidget {
           onShareReminder: onShareReminder,
           onEndFlow: onEndFlow,
           onAppendToJournal: onAppendToJournal,
+          onMonthHeaderTap: onMonthHeaderTap == null
+              ? null
+              : (context) => onMonthHeaderTap!(context, 12),
         ),
         const _GoldDivider(),
 
@@ -17993,6 +18329,7 @@ class _YearSection extends StatelessWidget {
 
 class _MonthCard extends StatelessWidget {
   final Key? anchorKey;
+  final Key? monthHeaderKey;
   final Key? Function(int kMonth, int kDay)? dayAnchorKeyProvider;
   final int kYear;
   final int kMonth; // 1..12
@@ -18026,6 +18363,7 @@ class _MonthCard extends StatelessWidget {
 
   const _MonthCard({
     this.anchorKey,
+    this.monthHeaderKey,
     this.dayAnchorKeyProvider,
     required this.kYear,
     required this.kMonth,
@@ -18202,19 +18540,22 @@ class _MonthCard extends StatelessWidget {
                 // Header row: Kemetic month name (left), Season+Year (right)
                 Row(
                   children: [
-                    GestureDetector(
-                      onTap: () {
-                        if (onMonthHeaderTap != null) {
-                          onMonthHeaderTap!(context);
-                        } else {
-                          _openMonthInfo(context);
-                        }
-                      },
-                      child: _GlossyMonthNameText(
-                        text: getMonthById(kMonth).displayFull,
-                        style:
-                            _monthTitleGold, // MonthNameText handles font families
-                        gradient: goldGloss,
+                    RepaintBoundary(
+                      key: monthHeaderKey,
+                      child: GestureDetector(
+                        onTap: () {
+                          if (onMonthHeaderTap != null) {
+                            onMonthHeaderTap!(context);
+                          } else {
+                            _openMonthInfo(context);
+                          }
+                        },
+                        child: _GlossyMonthNameText(
+                          text: getMonthById(kMonth).displayFull,
+                          style:
+                              _monthTitleGold, // MonthNameText handles font families
+                          gradient: goldGloss,
+                        ),
                       ),
                     ),
                     const Spacer(),

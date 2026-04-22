@@ -21854,6 +21854,7 @@ class KemeticDayButton extends StatefulWidget {
   final String dayKey;
   final int kYear;
   final bool openOnTap;
+  final VoidCallback? onOpen;
 
   const KemeticDayButton({
     super.key,
@@ -21861,6 +21862,7 @@ class KemeticDayButton extends StatefulWidget {
     required this.dayKey,
     required this.kYear,
     this.openOnTap = false,
+    this.onOpen,
   });
 
   @override
@@ -21889,6 +21891,7 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
       buttonPosition: position,
       buttonSize: size,
     );
+    widget.onOpen?.call();
   }
 
   @override

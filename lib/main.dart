@@ -346,6 +346,7 @@ class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
 final _router = GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: '/',
+  observers: <NavigatorObserver>[routeObserver, TelemetryRouteObserver()],
   routes: [
     GoRoute(path: '/', builder: (context, state) => const AuthGate()),
     GoRoute(
