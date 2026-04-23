@@ -4,6 +4,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../core/kemetic_converter.dart';
@@ -12,6 +13,10 @@ import 'user_events_repo.dart';
 import '../utils/event_cid_util.dart';
 
 class ShareRepo {
+  static const String _activitySeenPrefKey = 'inbox:activity_seen_at:v1';
+  static final StreamController<void> _activitySeenChangedController =
+      StreamController<void>.broadcast();
+
   final SupabaseClient _client;
 
   ShareRepo(this._client);
@@ -20,6 +25,10 @@ class ShareRepo {
     if (kDebugMode) {
       debugPrint(message);
     }
+  }
+
+  String _activitySeenStorageKey(String uid, InboxActivityBucket bucket) {
+    return '$_activitySeenPrefKey:$uid:${bucket.storageKey}';
   }
 
   // Activity items (likes, comments, follows) for unified inbox feed.
@@ -115,6 +124,213 @@ class ShareRepo {
       }
       return const [];
     }
+  }
+
+  Future<DateTime?> getActivitySeenAt(InboxActivityBucket bucket) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null || uid.isEmpty) return null;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_activitySeenStorageKey(uid, bucket));
+      if (raw == null || raw.isEmpty) return null;
+      return DateTime.tryParse(raw)?.toUtc();
+    } catch (e) {
+      _log('[ShareRepo] Error loading activity seen timestamp: $e');
+      return null;
+    }
+  }
+
+  Future<void> markActivitySeen(
+    InboxActivityBucket bucket, {
+    DateTime? seenAt,
+  }) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null || uid.isEmpty) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final effectiveSeenAt = (seenAt ?? DateTime.now()).toUtc();
+      await prefs.setString(
+        _activitySeenStorageKey(uid, bucket),
+        effectiveSeenAt.toIso8601String(),
+      );
+      _activitySeenChangedController.add(null);
+    } catch (e) {
+      _log('[ShareRepo] Error saving activity seen timestamp: $e');
+    }
+  }
+
+  Future<int> getUnreadActivityCount({
+    InboxActivityBucket? bucket,
+    int limit = 200,
+  }) async {
+    final activity = await getRecentActivity(limit: limit);
+    if (activity.isEmpty) return 0;
+
+    if (bucket != null) {
+      final seenAt = await getActivitySeenAt(bucket);
+      final bucketItems = activity.where((item) => item.bucket == bucket);
+      if (seenAt == null) return bucketItems.length;
+      return bucketItems.where((item) => item.createdAt.isAfter(seenAt)).length;
+    }
+
+    final unreadState = await getUnreadActivityState(limit: limit);
+    return unreadState.totalUnread;
+  }
+
+  Future<InboxActivityUnreadState> getUnreadActivityState({
+    int limit = 200,
+  }) async {
+    final activity = await getRecentActivity(limit: limit);
+    if (activity.isEmpty) {
+      return const InboxActivityUnreadState();
+    }
+
+    final movementSeenAt = await getActivitySeenAt(
+      InboxActivityBucket.movement,
+    );
+    final communitySeenAt = await getActivitySeenAt(
+      InboxActivityBucket.community,
+    );
+
+    var unreadMovement = 0;
+    var unreadCommunity = 0;
+
+    for (final item in activity) {
+      switch (item.bucket) {
+        case InboxActivityBucket.movement:
+          if (movementSeenAt == null ||
+              item.createdAt.isAfter(movementSeenAt)) {
+            unreadMovement++;
+          }
+          break;
+        case InboxActivityBucket.community:
+          if (communitySeenAt == null ||
+              item.createdAt.isAfter(communitySeenAt)) {
+            unreadCommunity++;
+          }
+          break;
+      }
+    }
+
+    return InboxActivityUnreadState(
+      unreadMovement: unreadMovement,
+      unreadCommunity: unreadCommunity,
+    );
+  }
+
+  Future<InboxUnreadState> getUnreadState() async {
+    final unreadMessages = await getUnreadCount();
+    final unreadActivity = await getUnreadActivityState();
+    return InboxUnreadState(
+      unreadMessages: unreadMessages,
+      unreadMovement: unreadActivity.unreadMovement,
+      unreadCommunity: unreadActivity.unreadCommunity,
+    );
+  }
+
+  Stream<int> watchUnreadActivityCount({
+    InboxActivityBucket? bucket,
+    int limit = 200,
+  }) {
+    return watchUnreadActivityState(limit: limit).map((state) {
+      if (bucket == null) return state.totalUnread;
+      switch (bucket) {
+        case InboxActivityBucket.movement:
+          return state.unreadMovement;
+        case InboxActivityBucket.community:
+          return state.unreadCommunity;
+      }
+    }).distinct();
+  }
+
+  Stream<InboxActivityUnreadState> watchUnreadActivityState({int limit = 200}) {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) {
+      return Stream.value(const InboxActivityUnreadState());
+    }
+
+    final controller = StreamController<InboxActivityUnreadState>();
+
+    Future<void> refreshUnreadCount() async {
+      final state = await getUnreadActivityState(limit: limit);
+      if (!controller.isClosed) controller.add(state);
+    }
+
+    final channel = _client.channel('inbox_activity_unread_$uid')
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'flow_post_likes',
+        callback: (_) => refreshUnreadCount(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'flow_post_comments',
+        callback: (_) => refreshUnreadCount(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'follows',
+        callback: (_) => refreshUnreadCount(),
+      )
+      ..subscribe();
+
+    final seenSub = _activitySeenChangedController.stream.listen((_) {
+      refreshUnreadCount();
+    });
+
+    refreshUnreadCount();
+
+    controller.onCancel = () async {
+      await seenSub.cancel();
+      await channel.unsubscribe();
+      await controller.close();
+    };
+
+    return controller.stream.distinct();
+  }
+
+  Stream<InboxUnreadState> watchUnreadState() {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) {
+      return Stream.value(const InboxUnreadState());
+    }
+
+    final controller = StreamController<InboxUnreadState>();
+    var unreadMessages = 0;
+    var unreadActivity = const InboxActivityUnreadState();
+
+    void emit() {
+      if (controller.isClosed) return;
+      controller.add(
+        InboxUnreadState(
+          unreadMessages: unreadMessages,
+          unreadMovement: unreadActivity.unreadMovement,
+          unreadCommunity: unreadActivity.unreadCommunity,
+        ),
+      );
+    }
+
+    final messageSub = watchUnreadCount().listen((count) {
+      unreadMessages = count;
+      emit();
+    });
+    final activitySub = watchUnreadActivityState().listen((state) {
+      unreadActivity = state;
+      emit();
+    });
+
+    controller.onCancel = () async {
+      await messageSub.cancel();
+      await activitySub.cancel();
+      await controller.close();
+    };
+
+    return controller.stream.distinct();
   }
 
   /// Share a flow with recipients
@@ -2449,6 +2665,73 @@ class ShareRepo {
   }
 }
 
+enum InboxActivityBucket { movement, community }
+
+extension on InboxActivityBucket {
+  String get storageKey {
+    switch (this) {
+      case InboxActivityBucket.movement:
+        return 'movement';
+      case InboxActivityBucket.community:
+        return 'community';
+    }
+  }
+}
+
+class InboxActivityUnreadState {
+  const InboxActivityUnreadState({
+    this.unreadMovement = 0,
+    this.unreadCommunity = 0,
+  });
+
+  final int unreadMovement;
+  final int unreadCommunity;
+
+  int get totalUnread => unreadMovement + unreadCommunity;
+  bool get hasUnreadMovement => unreadMovement > 0;
+  bool get hasUnreadCommunity => unreadCommunity > 0;
+
+  @override
+  bool operator ==(Object other) {
+    return other is InboxActivityUnreadState &&
+        other.unreadMovement == unreadMovement &&
+        other.unreadCommunity == unreadCommunity;
+  }
+
+  @override
+  int get hashCode => Object.hash(unreadMovement, unreadCommunity);
+}
+
+class InboxUnreadState {
+  const InboxUnreadState({
+    this.unreadMessages = 0,
+    this.unreadMovement = 0,
+    this.unreadCommunity = 0,
+  });
+
+  final int unreadMessages;
+  final int unreadMovement;
+  final int unreadCommunity;
+
+  int get unreadActivity => unreadMovement + unreadCommunity;
+  int get totalUnread => unreadMessages + unreadActivity;
+  bool get hasUnread => totalUnread > 0;
+  bool get hasUnreadMovement => unreadMovement > 0;
+  bool get hasUnreadCommunity => unreadCommunity > 0;
+
+  @override
+  bool operator ==(Object other) {
+    return other is InboxUnreadState &&
+        other.unreadMessages == unreadMessages &&
+        other.unreadMovement == unreadMovement &&
+        other.unreadCommunity == unreadCommunity;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(unreadMessages, unreadMovement, unreadCommunity);
+}
+
 enum InboxActivityType { like, comment, follow }
 
 class InboxActivityItem {
@@ -2473,4 +2756,14 @@ class InboxActivityItem {
   final String? flowPostId;
   final String? flowName;
   final String? commentPreview;
+
+  InboxActivityBucket get bucket {
+    switch (type) {
+      case InboxActivityType.follow:
+        return InboxActivityBucket.community;
+      case InboxActivityType.like:
+      case InboxActivityType.comment:
+        return InboxActivityBucket.movement;
+    }
+  }
 }

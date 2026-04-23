@@ -28,10 +28,10 @@ class InboxUnreadDotOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<int>(
-      stream: ShareRepo(Supabase.instance.client).watchUnreadCount(),
+    return StreamBuilder<InboxUnreadState>(
+      stream: ShareRepo(Supabase.instance.client).watchUnreadState(),
       builder: (context, snapshot) {
-        final show = (snapshot.data ?? 0) > 0;
+        final show = (snapshot.data ?? const InboxUnreadState()).hasUnread;
         return Stack(
           clipBehavior: Clip.none,
           children: [
@@ -75,10 +75,11 @@ class InboxIconWithBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<int>(
-      stream: ShareRepo(Supabase.instance.client).watchUnreadCount(),
+    return StreamBuilder<InboxUnreadState>(
+      stream: ShareRepo(Supabase.instance.client).watchUnreadState(),
       builder: (context, snapshot) {
-        final unreadCount = snapshot.data ?? 0;
+        final unreadCount =
+            (snapshot.data ?? const InboxUnreadState()).totalUnread;
         final useGoldGradient = iconColor == KemeticGold.base;
         final Widget iconWidget = useGoldGradient
             ? KemeticGold.icon(Icons.mail_outline)

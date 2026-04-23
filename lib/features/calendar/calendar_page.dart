@@ -10790,10 +10790,11 @@ class _CalendarPageState extends State<CalendarPage>
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.white12),
             ),
-            child: StreamBuilder<int>(
-              stream: ShareRepo(Supabase.instance.client).watchUnreadCount(),
+            child: StreamBuilder<InboxUnreadState>(
+              stream: ShareRepo(Supabase.instance.client).watchUnreadState(),
               builder: (context, snapshot) {
-                final hasUnreadInbox = (snapshot.data ?? 0) > 0;
+                final hasUnreadInbox =
+                    (snapshot.data ?? const InboxUnreadState()).hasUnread;
                 final actions = _calendarActions(
                   context,
                   anchorRect,
@@ -16959,10 +16960,11 @@ class _CalendarPageState extends State<CalendarPage>
             onPressed: _scrollToToday,
           ),
           Builder(
-            builder: (ctx) => StreamBuilder<int>(
-              stream: ShareRepo(Supabase.instance.client).watchUnreadCount(),
+            builder: (ctx) => StreamBuilder<InboxUnreadState>(
+              stream: ShareRepo(Supabase.instance.client).watchUnreadState(),
               builder: (context, snapshot) {
-                final hasUnreadInbox = (snapshot.data ?? 0) > 0;
+                final hasUnreadInbox =
+                    (snapshot.data ?? const InboxUnreadState()).hasUnread;
                 return IconButton(
                   tooltip: 'Menu',
                   icon: _NotificationDotOverlay(

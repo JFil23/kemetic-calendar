@@ -43,6 +43,7 @@ class _InboxPageState extends State<InboxPage> {
   late final InboxRepo _inboxRepo;
   late final ShareRepo _shareRepo;
   StreamSubscription<Map<String, List<InboxShareItem>>>? _convSub;
+  StreamSubscription<InboxUnreadState>? _unreadStateSub;
   Map<String, List<InboxShareItem>> _latestThreads = const {};
   List<_UnifiedInboxItem> _unified = const [];
   final Set<String> _optimisticReadShareIds = <String>{};
@@ -50,6 +51,7 @@ class _InboxPageState extends State<InboxPage> {
   InboxActivityItem? _latestFollow;
   InboxActivityItem? _latestEngagement;
   List<InboxActivityItem> _activity = const [];
+  InboxUnreadState _unreadState = const InboxUnreadState();
   bool _resumeConversationChecked = false;
 
   @override
@@ -66,6 +68,13 @@ class _InboxPageState extends State<InboxPage> {
           _unified = _buildUnifiedItems();
         });
       }
+    });
+    _unreadStateSub = _shareRepo.watchUnreadState().listen((state) {
+      if (!mounted) {
+        _unreadState = state;
+        return;
+      }
+      setState(() => _unreadState = state);
     });
     _refreshUnified();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -105,6 +114,7 @@ class _InboxPageState extends State<InboxPage> {
   @override
   void dispose() {
     _convSub?.cancel();
+    _unreadStateSub?.cancel();
     super.dispose();
   }
 
@@ -119,45 +129,36 @@ class _InboxPageState extends State<InboxPage> {
           icon: KemeticGold.icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
-        title: StreamBuilder<int>(
-          stream: _shareRepo.watchUnreadCount(),
-          builder: (context, snapshot) {
-            final unreadCount = snapshot.data ?? 0;
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Inbox',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Inbox',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (_unreadState.totalUnread > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _gold,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_unreadState.totalUnread}',
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (unreadCount > 0) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _gold,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '$unreadCount',
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            );
-          },
+              ),
+            ],
+          ],
         ),
         actions: [
           IconButton(
@@ -674,6 +675,24 @@ class _InboxPageState extends State<InboxPage> {
   int get _summaryTileCount =>
       (_latestFollow != null ? 1 : 0) + (_latestEngagement != null ? 1 : 0);
 
+  Widget? _buildActivityTileUnreadDot(bool show) {
+    if (!show) return null;
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: const BoxDecoration(
+        color: Colors.redAccent,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+
+  DateTime _latestTimestampForActivity(Iterable<InboxActivityItem> items) {
+    return items
+        .map((item) => item.createdAt.toUtc())
+        .reduce((latest, next) => next.isAfter(latest) ? next : latest);
+  }
+
   Widget _buildSummaryTile(int index) {
     // Order: follow first, then engagement
     if (_latestFollow != null && index == 0) {
@@ -696,6 +715,7 @@ class _InboxPageState extends State<InboxPage> {
           title,
           style: TextStyle(color: Colors.white.withOpacity(0.7)),
         ),
+        trailing: _buildActivityTileUnreadDot(_unreadState.hasUnreadCommunity),
         onTap: _openFollowersSheet,
       );
     }
@@ -725,6 +745,7 @@ class _InboxPageState extends State<InboxPage> {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(color: Colors.white.withOpacity(0.7)),
       ),
+      trailing: _buildActivityTileUnreadDot(_unreadState.hasUnreadMovement),
       onTap: _openEngagementSheet,
     );
   }
@@ -733,7 +754,15 @@ class _InboxPageState extends State<InboxPage> {
     final followers =
         _activity.where((a) => a.type == InboxActivityType.follow).toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    _showActivitySheet(title: 'Community', items: followers);
+    if (followers.isNotEmpty) {
+      unawaited(
+        _shareRepo.markActivitySeen(
+          InboxActivityBucket.community,
+          seenAt: _latestTimestampForActivity(followers),
+        ),
+      );
+    }
+    unawaited(_showActivitySheet(title: 'Community', items: followers));
   }
 
   void _openEngagementSheet() {
@@ -746,14 +775,22 @@ class _InboxPageState extends State<InboxPage> {
             )
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    _showActivitySheet(title: 'Movement', items: engagement);
+    if (engagement.isNotEmpty) {
+      unawaited(
+        _shareRepo.markActivitySeen(
+          InboxActivityBucket.movement,
+          seenAt: _latestTimestampForActivity(engagement),
+        ),
+      );
+    }
+    unawaited(_showActivitySheet(title: 'Movement', items: engagement));
   }
 
-  void _showActivitySheet({
+  Future<void> _showActivitySheet({
     required String title,
     required List<InboxActivityItem> items,
   }) {
-    showModalBottomSheet(
+    return showModalBottomSheet(
       context: context,
       backgroundColor: _bg,
       isScrollControlled: true,
