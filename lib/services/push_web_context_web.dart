@@ -50,10 +50,7 @@ bool _hasProperty(JSAny target, String name) {
 
 bool _navigatorStandalone() {
   try {
-    return js_util.getProperty<bool?>(
-          web.window.navigator,
-          'standalone',
-        ) ==
+    return js_util.getProperty<bool?>(web.window.navigator, 'standalone') ==
         true;
   } catch (_) {
     return false;
@@ -65,11 +62,7 @@ String _messagingWorkerUrl() {
 }
 
 String _messagingScopeUrl() {
-  return Uri.base.resolve('firebase-cloud-messaging-push-scope').toString();
-}
-
-String _messagingScopePath() {
-  return Uri.base.resolve('firebase-cloud-messaging-push-scope').path;
+  return Uri.base.resolve('/').toString();
 }
 
 Future<bool> _hasMessagingServiceWorkerRegistration() async {
@@ -93,11 +86,13 @@ Future<bool> ensureWebPushServiceWorkerReady() async {
 
   try {
     final container = web.window.navigator.serviceWorker;
-    var registration = await container.getRegistration(_messagingScopeUrl()).toDart;
+    var registration = await container
+        .getRegistration(_messagingScopeUrl())
+        .toDart;
     registration ??= await container
         .register(
           _messagingWorkerUrl(),
-          web.RegistrationOptions(scope: _messagingScopePath()),
+          web.RegistrationOptions(scope: Uri.base.resolve('/').path),
         )
         .toDart;
 
@@ -107,7 +102,9 @@ Future<bool> ensureWebPushServiceWorkerReady() async {
 
     for (var attempt = 0; attempt < 10; attempt++) {
       await Future<void>.delayed(const Duration(milliseconds: 150));
-      final refreshed = await container.getRegistration(_messagingScopeUrl()).toDart;
+      final refreshed = await container
+          .getRegistration(_messagingScopeUrl())
+          .toDart;
       if (refreshed?.active != null || refreshed?.waiting != null) {
         return true;
       }

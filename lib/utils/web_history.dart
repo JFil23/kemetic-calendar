@@ -3,3 +3,4 @@
 void replaceUrlWithoutQuery() {}
 void onVisibilityChange(void Function() cb) {}
 void nudgeStandaloneWebView() {}
+void onPushNotificationTap(void Function(Map<String, dynamic>) cb) {}

@@ -20,6 +20,7 @@ import 'features/inbox/inbox_page.dart';
 import 'features/inbox/inbox_conversation_page.dart';
 import 'features/inbox/conversation_user.dart';
 import 'features/invites/event_invite_details_page.dart';
+import 'data/profile_repo.dart';
 import 'data/share_models.dart';
 import 'utils/event_cid_util.dart';
 import 'telemetry/telemetry.dart';
@@ -28,11 +29,13 @@ import 'shared/glossy_text.dart';
 import 'utils/hive_local_storage_web.dart';
 import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
+import 'core/push_intent_bus.dart';
 import 'core/shared_file_intent.dart';
 import 'core/theme/app_theme.dart';
 import 'services/calendar_sync_service.dart';
 import 'services/push_notifications.dart';
 import 'services/decan_reflection_scheduler.dart';
+import 'features/profile/flow_post_detail_page.dart';
 import 'features/profile/profile_page.dart';
 import 'features/rhythm/pages/commitment_tracker_page.dart';
 import 'features/rhythm/pages/my_cycle_page.dart';
@@ -103,6 +106,7 @@ final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final ValueNotifier<bool> _webAuthExchangeInProgress = ValueNotifier<bool>(
   false,
 );
+bool _deferSessionResumeForPushNavigation = false;
 
 void _configureLogging() {
   if (kReleaseMode || kProfileMode) {
@@ -433,9 +437,11 @@ class MyApp extends StatelessWidget {
         return MediaQuery(
           data: mq.copyWith(textScaler: textScaler),
           child: SessionLifecycleBridge(
-            child: _LaunchShell(
-              child: KemeticKeyboardHost(
-                child: child ?? const SizedBox.shrink(),
+            child: PushIntentBridge(
+              child: _LaunchShell(
+                child: KemeticKeyboardHost(
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             ),
           ),
@@ -443,6 +449,520 @@ class MyApp extends StatelessWidget {
       },
     );
   }
+}
+
+class PushIntentBridge extends StatefulWidget {
+  const PushIntentBridge({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<PushIntentBridge> createState() => _PushIntentBridgeState();
+}
+
+class _PushIntentBridgeState extends State<PushIntentBridge> {
+  static const String _kCalendarPushResumeKind = 'calendar_push_event';
+  static const int _kPushNavigationDedupWindowMs = 8000;
+
+  StreamSubscription<Map<String, dynamic>>? _pushNavSub;
+  StreamSubscription<AuthState>? _authSub;
+  final Map<String, int> _handledPushNavigationKeys = <String, int>{};
+  Map<String, dynamic>? _pendingPushData;
+  bool _initialTasksStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final push = PushNotifications.instance(supabase);
+    _pushNavSub = push.openedMessages.listen(
+      (data) {
+        runGuardedSync(
+          'push intent bridge',
+          () => _queueOrHandlePushData(data),
+          onError: _logPushBridgeError,
+        );
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _logPushBridgeError('push intent stream', error, stackTrace);
+      },
+    );
+
+    _authSub = supabase.auth.onAuthStateChange.listen(
+      (data) {
+        if (supabase.auth.currentSession == null) return;
+        final pending = _pendingPushData;
+        if (pending == null) return;
+        _pendingPushData = null;
+        fireAndForgetGuarded(
+          'pending push navigation',
+          _handlePushNavigationWhenReady(pending),
+          onError: _logPushBridgeError,
+        );
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _logPushBridgeError('push intent auth stream', error, stackTrace);
+      },
+    );
+
+    onPushNotificationTap((data) {
+      runGuardedSync(
+        'web push tap bridge',
+        () => _queueOrHandlePushData(data),
+        onError: _logPushBridgeError,
+      );
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startInitialTasks();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pushNavSub?.cancel();
+    _authSub?.cancel();
+    super.dispose();
+  }
+
+  void _logPushBridgeError(String scope, Object error, StackTrace stackTrace) {
+    if (!kDebugMode) return;
+    debugPrint('[PushIntentBridge] $scope failed: $error');
+    debugPrint('$stackTrace');
+  }
+
+  void _startInitialTasks() {
+    if (_initialTasksStarted) return;
+    _initialTasksStarted = true;
+
+    fireAndForgetGuarded(
+      'initial push message',
+      PushNotifications.instance(supabase).emitInitialMessage(),
+      onError: _logPushBridgeError,
+    );
+    _consumePendingWebPushIntent();
+  }
+
+  void _consumePendingWebPushIntent() {
+    if (!kIsWeb) return;
+    final params = Uri.base.queryParameters;
+    final kind = _trimmedValue(params['push_kind'] ?? params['pushKind']);
+    if (kind == null) return;
+
+    final data = <String, dynamic>{
+      'kind': kind,
+      if (_trimmedValue(params['reflection_id'] ?? params['reflectionId']) !=
+          null)
+        'reflection_id': params['reflection_id'] ?? params['reflectionId'],
+      if (_trimmedValue(params['sender_id'] ?? params['senderId']) != null)
+        'sender_id': params['sender_id'] ?? params['senderId'],
+      if (_trimmedValue(params['share_id'] ?? params['shareId']) != null)
+        'share_id': params['share_id'] ?? params['shareId'],
+      if (_trimmedValue(
+            params['response_status'] ?? params['responseStatus'],
+          ) !=
+          null)
+        'response_status':
+            params['response_status'] ?? params['responseStatus'],
+      if (_trimmedValue(params['client_event_id'] ?? params['clientEventId']) !=
+          null)
+        'client_event_id': params['client_event_id'] ?? params['clientEventId'],
+      if (_trimmedValue(params['flow_post_id'] ?? params['flowPostId']) != null)
+        'flow_post_id': params['flow_post_id'] ?? params['flowPostId'],
+      if (_trimmedValue(params['reminder_id'] ?? params['reminderId']) != null)
+        'reminder_id': params['reminder_id'] ?? params['reminderId'],
+    };
+
+    replaceUrlWithoutQuery();
+    _queueOrHandlePushData(data);
+  }
+
+  void _queueOrHandlePushData(Map<String, dynamic> rawData) {
+    final data = Map<String, dynamic>.from(rawData);
+    if (data.isEmpty) return;
+
+    _deferSessionResumeForPushNavigation = true;
+
+    if (supabase.auth.currentSession == null) {
+      _pendingPushData = data;
+      return;
+    }
+
+    fireAndForgetGuarded(
+      'push navigation',
+      _handlePushNavigationWhenReady(data),
+      onError: _logPushBridgeError,
+    );
+  }
+
+  String? _trimmedValue(Object? raw) {
+    if (raw == null) return null;
+    final text = raw.toString().trim();
+    return text.isEmpty ? null : text;
+  }
+
+  String _pushNavigationKey(Map<String, dynamic> data) {
+    return 'payload:${jsonEncode(_normalizePushNavigationData(data))}';
+  }
+
+  Object? _normalizePushNavigationData(Object? value) {
+    if (value is Map) {
+      final entries = value.entries.toList()
+        ..sort((a, b) => a.key.toString().compareTo(b.key.toString()));
+      return <String, Object?>{
+        for (final entry in entries)
+          entry.key.toString(): _normalizePushNavigationData(entry.value),
+      };
+    }
+    if (value is Iterable) {
+      return value.map(_normalizePushNavigationData).toList(growable: false);
+    }
+    if (value == null || value is num || value is String || value is bool) {
+      return value;
+    }
+    return value.toString();
+  }
+
+  void _pruneHandledPushNavigationKeys([int? nowMs]) {
+    final thresholdMs =
+        (nowMs ?? DateTime.now().millisecondsSinceEpoch) -
+        _kPushNavigationDedupWindowMs;
+    _handledPushNavigationKeys.removeWhere(
+      (_, handledAtMs) => handledAtMs < thresholdMs,
+    );
+    while (_handledPushNavigationKeys.length > 48) {
+      _handledPushNavigationKeys.remove(_handledPushNavigationKeys.keys.first);
+    }
+  }
+
+  bool _wasHandledRecently(String navigationKey) {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    _pruneHandledPushNavigationKeys(nowMs);
+    final handledAtMs = _handledPushNavigationKeys[navigationKey];
+    if (handledAtMs == null) {
+      return false;
+    }
+    return nowMs - handledAtMs <= _kPushNavigationDedupWindowMs;
+  }
+
+  void _rememberHandledPushNavigation(String navigationKey) {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    _handledPushNavigationKeys[navigationKey] = nowMs;
+    _pruneHandledPushNavigationKeys(nowMs);
+  }
+
+  Future<void> _handlePushNavigationWhenReady(
+    Map<String, dynamic> data, {
+    int attempt = 0,
+  }) async {
+    if (!mounted) return;
+
+    final nav = _rootNavigatorKey.currentState;
+    if (nav == null) {
+      if (attempt >= 20) return;
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      if (!mounted) return;
+      return _handlePushNavigationWhenReady(data, attempt: attempt + 1);
+    }
+
+    final navigationKey = _pushNavigationKey(data);
+    if (_wasHandledRecently(navigationKey)) {
+      return;
+    }
+
+    final handled = await _handlePushNavigation(nav, data);
+    if (!handled) {
+      return;
+    }
+
+    _rememberHandledPushNavigation(navigationKey);
+  }
+
+  Future<bool> _handlePushNavigation(
+    NavigatorState nav,
+    Map<String, dynamic> data,
+  ) async {
+    final kind = _trimmedValue(data['kind'] ?? data['type']);
+    if (kind == null) return false;
+
+    final reflectionId = _trimmedValue(
+      data['reflectionId'] ?? data['reflection_id'],
+    );
+    if (kind == 'decan_reflection' && reflectionId != null) {
+      final uid = supabase.auth.currentUser?.id;
+      if (uid == null) return false;
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => ProfilePage(userId: uid, isMyProfile: true),
+        ),
+      );
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => DecanReflectionDetailPage(reflectionId: reflectionId),
+        ),
+      );
+      return true;
+    }
+
+    if (kind == 'dm') {
+      final senderId = _trimmedValue(data['sender_id'] ?? data['senderId']);
+      if (senderId != null) {
+        await _openDmConversation(nav, senderId);
+      } else {
+        nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+      }
+      return true;
+    }
+
+    if (kind == 'event_invite') {
+      final shareId = _trimmedValue(data['share_id'] ?? data['shareId']);
+      final senderId = _trimmedValue(data['sender_id'] ?? data['senderId']);
+      if (shareId != null) {
+        await _openEventInvite(nav, shareId, senderId: senderId);
+      } else if (senderId != null) {
+        await _openDmConversation(nav, senderId);
+      } else {
+        nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+      }
+      return true;
+    }
+
+    if (kind == 'flow_like' ||
+        kind == 'flow_comment' ||
+        kind == 'flow_comment_reply' ||
+        kind == 'flow_comment_like') {
+      final flowPostId = _trimmedValue(
+        data['flow_post_id'] ?? data['flowPostId'],
+      );
+      if (flowPostId != null) {
+        await _openFlowPostActivity(
+          nav,
+          flowPostId,
+          openCommentsOnLoad: kind != 'flow_like',
+        );
+      } else {
+        nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+      }
+      return true;
+    }
+
+    final clientEventId = _trimmedValue(
+      data['client_event_id'] ?? data['clientEventId'],
+    );
+    if (kind == 'calendar_event' ||
+        kind == 'scheduled_notification' ||
+        kind == 'reminder_10min' ||
+        (clientEventId != null && kind == 'reminder')) {
+      if (clientEventId != null) {
+        await _openCalendarEventFromPush(clientEventId);
+      } else {
+        _router.go('/');
+      }
+      return true;
+    }
+
+    if (clientEventId != null) {
+      await _openCalendarEventFromPush(clientEventId);
+      return true;
+    }
+
+    return false;
+  }
+
+  Future<void> _openDmConversation(NavigatorState nav, String senderId) async {
+    try {
+      final profile = await supabase
+          .from('profiles')
+          .select('id, display_name, handle, avatar_url')
+          .eq('id', senderId)
+          .maybeSingle();
+
+      final otherProfile = ConversationUser(
+        id: senderId,
+        displayName: (profile?['display_name'] as String?)?.trim(),
+        handle: (profile?['handle'] as String?)?.trim(),
+        avatarUrl: (profile?['avatar_url'] as String?)?.trim(),
+      );
+
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => InboxConversationPage(
+            otherUserId: senderId,
+            otherProfile: otherProfile,
+          ),
+        ),
+      );
+    } catch (_) {
+      nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+    }
+  }
+
+  Future<void> _openEventInvite(
+    NavigatorState nav,
+    String shareId, {
+    String? senderId,
+  }) async {
+    try {
+      final row = await supabase
+          .from('inbox_share_items_filtered')
+          .select()
+          .eq('share_id', shareId)
+          .maybeSingle();
+      if (row != null) {
+        final share = InboxShareItem.fromJson(row);
+        nav.push(
+          MaterialPageRoute(
+            builder: (_) => EventInviteDetailsPage(share: share),
+          ),
+        );
+        return;
+      }
+    } catch (_) {
+      // Fall back below.
+    }
+
+    final directShare = await _loadEventInviteShare(shareId);
+    if (directShare != null) {
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => EventInviteDetailsPage(share: directShare),
+        ),
+      );
+      return;
+    }
+
+    if (senderId != null) {
+      await _openDmConversation(nav, senderId);
+      return;
+    }
+    nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+  }
+
+  Map<String, dynamic>? _coerceJsonMap(Object? raw) {
+    if (raw is Map<String, dynamic>) {
+      return raw;
+    }
+    if (raw is Map) {
+      return Map<String, dynamic>.from(raw);
+    }
+    if (raw is String) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          return Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  DateTime? _parseDateTimeValue(Object? raw) {
+    final text = _trimmedValue(raw);
+    if (text == null) {
+      return null;
+    }
+    return DateTime.tryParse(text);
+  }
+
+  Future<InboxShareItem?> _loadEventInviteShare(String shareId) async {
+    try {
+      final raw = await supabase
+          .from('event_shares')
+          .select(
+            'id, event_id, recipient_id, sender_id, payload_json, '
+            'created_at, viewed_at, imported_at, deleted_at, '
+            'response_status, responded_at, '
+            'sender:profiles!event_shares_sender_id_fkey(handle, display_name, avatar_url), '
+            'recipient:profiles!event_shares_recipient_id_fkey(handle, display_name, avatar_url)',
+          )
+          .eq('id', shareId)
+          .maybeSingle();
+
+      final row = _coerceJsonMap(raw);
+      if (row == null) {
+        return null;
+      }
+
+      final payload = _coerceJsonMap(row['payload_json']);
+      final sender = _coerceJsonMap(row['sender']);
+      final recipient = _coerceJsonMap(row['recipient']);
+      final createdAt =
+          _parseDateTimeValue(row['created_at']) ?? DateTime.now().toUtc();
+
+      return InboxShareItem(
+        shareId: (_trimmedValue(row['id']) ?? shareId),
+        kind: InboxShareKind.event,
+        recipientId: _trimmedValue(row['recipient_id']) ?? '',
+        senderId: _trimmedValue(row['sender_id']) ?? '',
+        senderHandle: _trimmedValue(sender?['handle']),
+        senderName: _trimmedValue(sender?['display_name']),
+        senderAvatar: _trimmedValue(sender?['avatar_url']),
+        payloadId: _trimmedValue(row['event_id']) ?? shareId,
+        title:
+            _trimmedValue(payload?['title'] ?? payload?['name']) ??
+            'Event Invite',
+        createdAt: createdAt,
+        viewedAt: _parseDateTimeValue(row['viewed_at']),
+        importedAt: _parseDateTimeValue(row['imported_at']),
+        deletedAt: _parseDateTimeValue(row['deleted_at']),
+        eventDate: _parseDateTimeValue(
+          payload?['starts_at'] ?? payload?['startsAt'],
+        ),
+        payloadJson: payload,
+        responseStatus: EventInviteResponseStatus.fromDbValue(
+          _trimmedValue(row['response_status']),
+        ),
+        respondedAt: _parseDateTimeValue(row['responded_at']),
+        recipientHandle: _trimmedValue(recipient?['handle']),
+        recipientDisplayName: _trimmedValue(recipient?['display_name']),
+        recipientAvatarUrl: _trimmedValue(recipient?['avatar_url']),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _openFlowPostActivity(
+    NavigatorState nav,
+    String flowPostId, {
+    required bool openCommentsOnLoad,
+  }) async {
+    try {
+      final post = await ProfileRepo(supabase).getFlowPostById(flowPostId);
+      if (post != null) {
+        final currentUserId = supabase.auth.currentUser?.id;
+        nav.push(
+          MaterialPageRoute(
+            builder: (_) => FlowPostDetailPage(
+              post: post,
+              isOwner: currentUserId != null && post.userId == currentUserId,
+              openCommentsOnLoad: openCommentsOnLoad,
+            ),
+          ),
+        );
+        return;
+      }
+    } catch (_) {
+      // Fall back below.
+    }
+
+    nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+  }
+
+  Future<void> _openCalendarEventFromPush(String clientEventId) async {
+    await SessionResumeService.saveResumeEntry(
+      baseRoute: '/',
+      kind: _kCalendarPushResumeKind,
+      payload: {'clientEventId': clientEventId},
+    );
+    emitCalendarPushOpenIntent(clientEventId);
+    _router.go('/');
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _LaunchShell extends StatefulWidget {
@@ -617,11 +1137,9 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   CalendarSyncService? _calendarSync;
-  StreamSubscription<Map<String, dynamic>>? _pushNavSub;
   final DecanReflectionScheduler _decanScheduler = DecanReflectionScheduler(
     supabase,
   );
-  final Set<String> _handledPushNavigationKeys = <String>{};
   bool _scheduledDecans = false;
 
   // One-shot guards
@@ -661,7 +1179,6 @@ class _AuthGateState extends State<AuthGate> {
     _linkSub?.cancel();
     _intentDataStreamSubscription?.cancel();
     unawaited(disposeSharedCalendarSyncService());
-    _pushNavSub?.cancel();
     super.dispose();
   }
 
@@ -720,8 +1237,6 @@ class _AuthGateState extends State<AuthGate> {
       } else if (kDebugMode) {
         debugPrint('[push] registerForUser skipped (device push toggle off)');
       }
-      _installPushNavigation();
-      _consumePendingWebPushIntent();
       _scheduleSessionResumeCheck();
       if (!_scheduledDecans) {
         _scheduledDecans = true;
@@ -764,10 +1279,15 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _maybeResumeSessionRoute() async {
-    if (!mounted || supabase.auth.currentSession == null) return;
+    if (!mounted ||
+        supabase.auth.currentSession == null ||
+        _deferSessionResumeForPushNavigation) {
+      return;
+    }
     final savedLocation = await SessionResumeService.readRouteLocation();
     if (!mounted ||
         savedLocation == null ||
+        _deferSessionResumeForPushNavigation ||
         savedLocation.isEmpty ||
         savedLocation == '/') {
       return;
@@ -1292,184 +1812,5 @@ class _AuthGateState extends State<AuthGate> {
     return Scaffold(
       body: SessionTrackedRoute(location: '/', child: CalendarPage()),
     );
-  }
-
-  void _installPushNavigation() {
-    final push = PushNotifications.instance(supabase);
-    _pushNavSub ??= push.openedMessages.listen(
-      (data) {
-        runGuardedSync(
-          'push navigation',
-          () => _handlePushNavigation(data),
-          onError: _logAuthGateError,
-        );
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        _logAuthGateError('push navigation stream', error, stackTrace);
-      },
-    );
-    fireAndForgetGuarded(
-      'initial push message',
-      push.emitInitialMessage(),
-      onError: _logAuthGateError,
-    );
-  }
-
-  void _consumePendingWebPushIntent() {
-    if (!kIsWeb) return;
-    final params = Uri.base.queryParameters;
-    final kind = params['push_kind'] ?? params['pushKind'];
-    if (kind == null || kind.isEmpty) return;
-
-    final data = <String, dynamic>{
-      'kind': kind,
-      if ((params['reflection_id'] ?? params['reflectionId']) != null)
-        'reflection_id': params['reflection_id'] ?? params['reflectionId'],
-      if ((params['sender_id'] ?? params['senderId']) != null)
-        'sender_id': params['sender_id'] ?? params['senderId'],
-      if ((params['share_id'] ?? params['shareId']) != null)
-        'share_id': params['share_id'] ?? params['shareId'],
-      if ((params['client_event_id'] ?? params['clientEventId']) != null)
-        'client_event_id': params['client_event_id'] ?? params['clientEventId'],
-    };
-
-    replaceUrlWithoutQuery();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      runGuardedSync(
-        'pending web push intent',
-        () => _handlePushNavigation(data),
-        onError: _logAuthGateError,
-      );
-    });
-  }
-
-  String _pushNavigationKey(Map<String, dynamic> data) {
-    final kind = (data['kind'] ?? data['type'] ?? 'unknown').toString();
-    final detail =
-        data['reflectionId'] ??
-        data['reflection_id'] ??
-        data['share_id'] ??
-        data['sender_id'] ??
-        data['client_event_id'] ??
-        '';
-    return '$kind:$detail';
-  }
-
-  void _handlePushNavigation(Map<String, dynamic> data) {
-    final kind = data['kind'] ?? data['type'];
-    final navigationKey = _pushNavigationKey(data);
-    if (_handledPushNavigationKeys.contains(navigationKey)) {
-      return;
-    }
-    _handledPushNavigationKeys.add(navigationKey);
-    while (_handledPushNavigationKeys.length > 24) {
-      _handledPushNavigationKeys.remove(_handledPushNavigationKeys.first);
-    }
-
-    final reflectionId = data['reflectionId'] ?? data['reflection_id'];
-    final nav = _rootNavigatorKey.currentState;
-    if (nav == null) return;
-
-    if (kind == 'decan_reflection' &&
-        reflectionId is String &&
-        reflectionId.isNotEmpty) {
-      final uid = supabase.auth.currentUser?.id;
-      if (uid == null) return;
-      nav.push(
-        MaterialPageRoute(
-          builder: (_) => ProfilePage(userId: uid, isMyProfile: true),
-        ),
-      );
-      nav.push(
-        MaterialPageRoute(
-          builder: (_) => DecanReflectionDetailPage(reflectionId: reflectionId),
-        ),
-      );
-      return;
-    }
-
-    if (kind == 'dm') {
-      final senderId = (data['sender_id'] ?? data['senderId'])?.toString();
-      if (senderId != null && senderId.isNotEmpty) {
-        unawaited(_openDmConversation(nav, senderId));
-        return;
-      }
-      nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
-      return;
-    }
-
-    if (kind == 'event_invite') {
-      final shareId = (data['share_id'] ?? data['shareId'])?.toString();
-      final senderId = (data['sender_id'] ?? data['senderId'])?.toString();
-      if (shareId != null && shareId.isNotEmpty) {
-        unawaited(_openEventInvite(nav, shareId, senderId: senderId));
-        return;
-      }
-      if (senderId != null && senderId.isNotEmpty) {
-        unawaited(_openDmConversation(nav, senderId));
-        return;
-      }
-      nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
-    }
-  }
-
-  Future<void> _openDmConversation(NavigatorState nav, String senderId) async {
-    try {
-      final profile = await supabase
-          .from('profiles')
-          .select('id, display_name, handle, avatar_url')
-          .eq('id', senderId)
-          .maybeSingle();
-
-      final otherProfile = ConversationUser(
-        id: senderId,
-        displayName: (profile?['display_name'] as String?)?.trim(),
-        handle: (profile?['handle'] as String?)?.trim(),
-        avatarUrl: (profile?['avatar_url'] as String?)?.trim(),
-      );
-
-      nav.push(
-        MaterialPageRoute(
-          builder: (_) => InboxConversationPage(
-            otherUserId: senderId,
-            otherProfile: otherProfile,
-          ),
-        ),
-      );
-    } catch (_) {
-      nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
-    }
-  }
-
-  Future<void> _openEventInvite(
-    NavigatorState nav,
-    String shareId, {
-    String? senderId,
-  }) async {
-    try {
-      final row = await supabase
-          .from('inbox_share_items_filtered')
-          .select()
-          .eq('share_id', shareId)
-          .maybeSingle();
-      if (row != null) {
-        final share = InboxShareItem.fromJson(row);
-        nav.push(
-          MaterialPageRoute(
-            builder: (_) => EventInviteDetailsPage(share: share),
-          ),
-        );
-        return;
-      }
-    } catch (_) {
-      // Fall back below.
-    }
-
-    if (senderId != null && senderId.isNotEmpty) {
-      await _openDmConversation(nav, senderId);
-      return;
-    }
-    nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
   }
 }

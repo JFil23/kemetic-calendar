@@ -7,6 +7,11 @@ import 'dart:math' as math;
 import 'package:web/web.dart' as web;
 
 final List<JSFunction> _visibilityListeners = <JSFunction>[];
+final List<JSFunction> _pushTapListeners = <JSFunction>[];
+
+bool _hasProperty(JSAny target, String name) {
+  return js_util.hasProperty(target, name);
+}
 
 bool _navigatorStandalone() {
   try {
@@ -105,4 +110,61 @@ void onVisibilityChange(void Function() cb) {
   }).toJS;
   _visibilityListeners.add(listener);
   web.document.addEventListener('visibilitychange', listener);
+}
+
+Map<String, dynamic>? _normalizePushTapPayload(Object? raw) {
+  if (raw is! Map) {
+    return null;
+  }
+
+  final payload = Map<String, dynamic>.from(raw.cast<String, dynamic>());
+  final messageType = payload['type']?.toString();
+  final nestedData = payload['data'];
+  if (messageType == 'kemetic-push-tap') {
+    if (nestedData is Map) {
+      return Map<String, dynamic>.from(nestedData.cast<String, dynamic>());
+    }
+    return null;
+  }
+
+  if (payload.containsKey('kind') || payload.containsKey('type')) {
+    return payload;
+  }
+
+  return null;
+}
+
+void onPushNotificationTap(void Function(Map<String, dynamic>) cb) {
+  if (!_hasProperty(web.window.navigator, 'serviceWorker')) {
+    return;
+  }
+
+  final container = js_util.getProperty<JSAny?>(
+    web.window.navigator,
+    'serviceWorker',
+  );
+  if (container == null) {
+    return;
+  }
+
+  final listener = ((web.Event event) {
+    Object? payload;
+    try {
+      final rawData = js_util.getProperty<Object?>(event, 'data');
+      payload = js_util.dartify(rawData);
+    } catch (_) {
+      payload = null;
+    }
+
+    final data = _normalizePushTapPayload(payload);
+    if (data != null) {
+      cb(data);
+    }
+  }).toJS;
+
+  _pushTapListeners.add(listener);
+  js_util.callMethod<void>(container, 'addEventListener', [
+    'message',
+    listener,
+  ]);
 }

@@ -7,16 +7,46 @@ import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
 
+const String _legacyWorkerScopeSegment = 'firebase-cloud-messaging-push-scope';
+
 String _workerUrl() {
   return Uri.base.resolve('firebase-messaging-sw.js').toString();
 }
 
 String _workerScopeUrl() {
-  return Uri.base.resolve('firebase-cloud-messaging-push-scope').toString();
+  return Uri.base.resolve('/').toString();
 }
 
 String _workerScopePath() {
-  return Uri.base.resolve('firebase-cloud-messaging-push-scope').path;
+  return Uri.base.resolve('/').path;
+}
+
+String _legacyWorkerScopeUrl() {
+  return Uri.base.resolve(_legacyWorkerScopeSegment).toString();
+}
+
+Future<void> _clearLegacyRegistration(
+  web.ServiceWorkerContainer container,
+) async {
+  final legacy = await container
+      .getRegistration(_legacyWorkerScopeUrl())
+      .toDart;
+  if (legacy == null) {
+    return;
+  }
+
+  try {
+    final subscription = await legacy.pushManager.getSubscription().toDart;
+    await subscription?.unsubscribe().toDart;
+  } catch (_) {
+    // Best effort only.
+  }
+
+  try {
+    await legacy.unregister().toDart;
+  } catch (_) {
+    // Best effort only.
+  }
 }
 
 Future<web.ServiceWorkerRegistration?> _ensureRegistration() async {
@@ -88,12 +118,20 @@ Future<String?> subscribeBrowserPush(String publicKey) async {
       )
       .toDart;
 
+  final container = web.window.navigator.serviceWorker;
+  await _clearLegacyRegistration(container);
   return _subscriptionToJson(subscription);
 }
 
 Future<void> unsubscribeBrowserPush() async {
   final registration = await _ensureRegistration();
-  if (registration == null) return;
-  final subscription = await registration.pushManager.getSubscription().toDart;
-  await subscription?.unsubscribe().toDart;
+  if (registration != null) {
+    final subscription = await registration.pushManager
+        .getSubscription()
+        .toDart;
+    await subscription?.unsubscribe().toDart;
+  }
+
+  final container = web.window.navigator.serviceWorker;
+  await _clearLegacyRegistration(container);
 }

@@ -69,6 +69,7 @@ import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
 import '../../services/push_notifications.dart';
 import '../../services/session_resume_service.dart';
+import '../../core/push_intent_bus.dart';
 import '../../widgets/flow_start_date_picker.dart';
 import '../../utils/external_link_utils.dart';
 import '../inbox/inbox_page.dart';
@@ -4781,6 +4782,7 @@ class _CalendarPageState extends State<CalendarPage>
 
   static const String _kSessionScopeCalendarView = 'calendar_view';
   static const String _kSessionResumeKindDaySheet = 'calendar_day_sheet';
+  static const String _kSessionResumeKindPushEvent = 'calendar_push_event';
   static const int _kCalendarViewStateSchemaVersion = 2;
 
   bool _initialJumpScheduled = false;
@@ -4795,6 +4797,8 @@ class _CalendarPageState extends State<CalendarPage>
   // ✅ ADD: First-build gating flag to prevent race condition
   bool _restored = false;
   bool _daySheetResumeAttempted = false;
+  bool _pushEventResumeAttempted = false;
+  int? _lastHandledCalendarPushIntentNonce;
   bool _isTablet(BuildContext context) =>
       MediaQuery.of(context).size.shortestSide >= 600;
 
@@ -5184,7 +5188,9 @@ class _CalendarPageState extends State<CalendarPage>
 
     // ✅ Load persisted state first, fallback to today
     _loadPersistedViewState();
+    calendarPushOpenIntent.addListener(_handleCalendarPushOpenIntent);
     _scheduleDaySheetResumeRestore();
+    _schedulePushEventResumeRestore();
 
     _scrollCtrl.addListener(_onVerticalScroll);
 
@@ -5288,6 +5294,21 @@ class _CalendarPageState extends State<CalendarPage>
     });
   }
 
+  void _schedulePushEventResumeRestore() {
+    if (_pushEventResumeAttempted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_restorePushEventIfNeeded());
+    });
+  }
+
+  void _handleCalendarPushOpenIntent() {
+    final intent = calendarPushOpenIntent.value;
+    if (intent == null) return;
+    if (_lastHandledCalendarPushIntentNonce == intent.nonce) return;
+    _lastHandledCalendarPushIntentNonce = intent.nonce;
+    unawaited(_openCalendarEventFromPush(intent.clientEventId));
+  }
+
   Future<void> _restoreDaySheetIfNeeded([int attempt = 0]) async {
     if (!mounted || _daySheetResumeAttempted) return;
     if (!_restored) {
@@ -5298,6 +5319,17 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     _daySheetResumeAttempted = true;
+    final pendingPushEvent = await SessionResumeService.readResumeEntry(
+      kind: _kSessionResumeKindPushEvent,
+      baseRoute: '/',
+    );
+    if (pendingPushEvent != null) {
+      await SessionResumeService.clearResumeEntry(
+        kind: _kSessionResumeKindDaySheet,
+      );
+      return;
+    }
+
     final entry = await SessionResumeService.consumeResumeEntry(
       kind: _kSessionResumeKindDaySheet,
       baseRoute: '/',
@@ -5331,6 +5363,129 @@ class _CalendarPageState extends State<CalendarPage>
         initialCategory: payload['category'] as String?,
         initialAlertMinutes: (payload['alertMinutesBefore'] as num?)?.toInt(),
         editingIndex: (payload['editingIndex'] as num?)?.toInt(),
+      );
+    });
+  }
+
+  Future<void> _restorePushEventIfNeeded([int attempt = 0]) async {
+    if (!mounted || _pushEventResumeAttempted) return;
+    if (!_restored) {
+      if (attempt >= 20) return;
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      if (!mounted) return;
+      return _restorePushEventIfNeeded(attempt + 1);
+    }
+
+    _pushEventResumeAttempted = true;
+    final entry = await SessionResumeService.consumeResumeEntry(
+      kind: _kSessionResumeKindPushEvent,
+      baseRoute: '/',
+    );
+    if (!mounted || entry == null) return;
+
+    final clientEventId = (entry.payload['clientEventId'] as String?)?.trim();
+    if (clientEventId == null || clientEventId.isEmpty) {
+      return;
+    }
+
+    await _openCalendarEventFromPush(clientEventId);
+  }
+
+  ({int kYear, int kMonth, int kDay, int index, _Note note})?
+  _findNoteLocationByClientEventId(String clientEventId) {
+    final trimmed = clientEventId.trim();
+    if (trimmed.isEmpty) return null;
+
+    for (final entry in _notes.entries) {
+      final index = _findNoteIndexByIdOrClientId(
+        entry.key,
+        clientEventId: trimmed,
+      );
+      if (index < 0) continue;
+
+      final parts = entry.key.split('-');
+      if (parts.length != 3) continue;
+      final kYear = int.tryParse(parts[0]);
+      final kMonth = int.tryParse(parts[1]);
+      final kDay = int.tryParse(parts[2]);
+      if (kYear == null || kMonth == null || kDay == null) continue;
+
+      return (
+        kYear: kYear,
+        kMonth: kMonth,
+        kDay: kDay,
+        index: index,
+        note: entry.value[index],
+      );
+    }
+
+    return null;
+  }
+
+  Future<void> _openCalendarEventFromPush(
+    String clientEventId, [
+    int attempt = 0,
+  ]) async {
+    if (!mounted) return;
+    if (!_restored) {
+      if (attempt >= 20) return;
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      if (!mounted) return;
+      return _openCalendarEventFromPush(clientEventId, attempt + 1);
+    }
+
+    final localMatch = _findNoteLocationByClientEventId(clientEventId);
+    if (localMatch != null) {
+      final note = localMatch.note;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _openDaySheet(
+          localMatch.kYear,
+          localMatch.kMonth,
+          localMatch.kDay,
+          allowDateChange: false,
+          initialTitle: note.title,
+          initialLocation: note.location,
+          initialDetail: note.detail,
+          initialAllDay: note.allDay,
+          initialStartTime: note.start,
+          initialEndTime: note.end,
+          initialColor: note.manualColor,
+          initialCategory: note.category,
+          initialAlertMinutes: note.alertOffsetMinutes,
+          editingIndex: localMatch.index,
+        );
+      });
+      return;
+    }
+
+    final event = await UserEventsRepo(
+      Supabase.instance.client,
+    ).getEventByClientEventId(clientEventId);
+    if (!mounted || event == null) return;
+
+    final localStart = event.startsAt.toLocal();
+    final localEnd = event.endsAt?.toLocal();
+    final kDate = KemeticMath.fromGregorian(localStart);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _openDaySheet(
+        kDate.kYear,
+        kDate.kMonth,
+        kDate.kDay,
+        allowDateChange: false,
+        initialTitle: event.title,
+        initialLocation: event.location,
+        initialDetail: event.detail,
+        initialAllDay: event.allDay,
+        initialStartTime: event.allDay
+            ? null
+            : TimeOfDay(hour: localStart.hour, minute: localStart.minute),
+        initialEndTime: event.allDay || localEnd == null
+            ? null
+            : TimeOfDay(hour: localEnd.hour, minute: localEnd.minute),
+        initialCategory: event.category,
       );
     });
   }
@@ -6206,6 +6361,7 @@ class _CalendarPageState extends State<CalendarPage>
       routeObserver.unsubscribe(this);
     }
     WidgetsBinding.instance.removeObserver(this);
+    calendarPushOpenIntent.removeListener(_handleCalendarPushOpenIntent);
     _reminderSub?.cancel();
     _authSub?.cancel();
     _reminderService.dispose();

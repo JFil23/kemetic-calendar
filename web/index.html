@@ -310,7 +310,7 @@
 
       function registerFirebaseMessagingWorker() {
         const workerUrl = new URL('firebase-messaging-sw.js', document.baseURI).toString();
-        const scopePath = new URL('firebase-cloud-messaging-push-scope', document.baseURI).pathname;
+        const scopePath = new URL('/', document.baseURI).pathname;
 
         navigator.serviceWorker
           .register(workerUrl, { scope: scopePath })

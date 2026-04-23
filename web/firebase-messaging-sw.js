@@ -77,6 +77,7 @@ self.addEventListener('notificationclick', function(event) {
   const targetUrl =
     event.notification?.data?.url ||
     new URL('/', self.location.origin).toString();
+  const pushData = event.notification?.data || {};
 
   event.waitUntil((async function() {
     const clientList = await self.clients.matchAll({
@@ -84,17 +85,33 @@ self.addEventListener('notificationclick', function(event) {
       includeUncontrolled: true,
     });
 
-    for (const client of clientList) {
-      const sameOrigin = client.url.startsWith(self.location.origin);
-      if (!sameOrigin) continue;
+    const candidateClients = clientList
+      .filter((client) => client.url.startsWith(self.location.origin))
+      .sort((a, b) => {
+        const score = (client) => {
+          let value = 0;
+          if (client.url === targetUrl) value += 4;
+          if (client.visibilityState === 'visible') value += 3;
+          if (client.focused) value += 5;
+          return value;
+        };
+        return score(b) - score(a);
+      });
 
+    for (const client of candidateClients) {
       try {
         if ('focus' in client) {
           await client.focus();
         }
-        if ('navigate' in client && client.url !== targetUrl) {
-          await client.navigate(targetUrl);
-        }
+      } catch (_) {
+        // Keep going; postMessage may still succeed.
+      }
+
+      try {
+        client.postMessage({
+          type: 'kemetic-push-tap',
+          data: pushData,
+        });
         return;
       } catch (_) {
         // Keep searching or fall back to openWindow below.
