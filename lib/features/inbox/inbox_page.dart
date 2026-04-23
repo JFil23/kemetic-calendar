@@ -59,6 +59,7 @@ class _InboxPageState extends State<InboxPage> {
     super.initState();
     final client = Supabase.instance.client;
     _shareRepo = ShareRepo(client);
+    _unreadState = _shareRepo.currentUnreadState;
     _inboxRepo = InboxRepo(client);
     _convSub = _inboxRepo.watchConversations().listen((threads) {
       _latestThreads = threads;

@@ -10758,6 +10758,7 @@ class _CalendarPageState extends State<CalendarPage>
         _kActionGridVPadding * 2 +
         rows * _kActionTileHeight +
         (rows - 1) * _kActionGridSpacing;
+    final shareRepo = ShareRepo(Supabase.instance.client);
 
     final position = RelativeRect.fromRect(
       Rect.fromLTWH(
@@ -10791,7 +10792,8 @@ class _CalendarPageState extends State<CalendarPage>
               border: Border.all(color: Colors.white12),
             ),
             child: StreamBuilder<InboxUnreadState>(
-              stream: ShareRepo(Supabase.instance.client).watchUnreadState(),
+              initialData: shareRepo.currentUnreadState,
+              stream: shareRepo.watchUnreadState(),
               builder: (context, snapshot) {
                 final hasUnreadInbox =
                     (snapshot.data ?? const InboxUnreadState()).hasUnread;
@@ -16960,21 +16962,26 @@ class _CalendarPageState extends State<CalendarPage>
             onPressed: _scrollToToday,
           ),
           Builder(
-            builder: (ctx) => StreamBuilder<InboxUnreadState>(
-              stream: ShareRepo(Supabase.instance.client).watchUnreadState(),
-              builder: (context, snapshot) {
-                final hasUnreadInbox =
-                    (snapshot.data ?? const InboxUnreadState()).hasUnread;
-                return IconButton(
-                  tooltip: 'Menu',
-                  icon: _NotificationDotOverlay(
-                    show: hasUnreadInbox,
-                    child: const _GlossyIcon(Icons.apps, gradient: goldGloss),
-                  ),
-                  onPressed: () => _showActionsMenu(ctx, includeNewNote: false),
-                );
-              },
-            ),
+            builder: (ctx) {
+              final shareRepo = ShareRepo(Supabase.instance.client);
+              return StreamBuilder<InboxUnreadState>(
+                initialData: shareRepo.currentUnreadState,
+                stream: shareRepo.watchUnreadState(),
+                builder: (context, snapshot) {
+                  final hasUnreadInbox =
+                      (snapshot.data ?? const InboxUnreadState()).hasUnread;
+                  return IconButton(
+                    tooltip: 'Menu',
+                    icon: _NotificationDotOverlay(
+                      show: hasUnreadInbox,
+                      child: const _GlossyIcon(Icons.apps, gradient: goldGloss),
+                    ),
+                    onPressed: () =>
+                        _showActionsMenu(ctx, includeNewNote: false),
+                  );
+                },
+              );
+            },
           ),
           // My Profile button
           IconButton(

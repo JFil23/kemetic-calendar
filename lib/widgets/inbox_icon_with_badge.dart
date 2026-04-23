@@ -28,8 +28,10 @@ class InboxUnreadDotOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final shareRepo = ShareRepo(Supabase.instance.client);
     return StreamBuilder<InboxUnreadState>(
-      stream: ShareRepo(Supabase.instance.client).watchUnreadState(),
+      initialData: shareRepo.currentUnreadState,
+      stream: shareRepo.watchUnreadState(),
       builder: (context, snapshot) {
         final show = (snapshot.data ?? const InboxUnreadState()).hasUnread;
         return Stack(
@@ -75,8 +77,10 @@ class InboxIconWithBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final shareRepo = ShareRepo(Supabase.instance.client);
     return StreamBuilder<InboxUnreadState>(
-      stream: ShareRepo(Supabase.instance.client).watchUnreadState(),
+      initialData: shareRepo.currentUnreadState,
+      stream: shareRepo.watchUnreadState(),
       builder: (context, snapshot) {
         final unreadCount =
             (snapshot.data ?? const InboxUnreadState()).totalUnread;

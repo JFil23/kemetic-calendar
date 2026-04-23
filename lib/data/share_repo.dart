@@ -16,6 +16,7 @@ class ShareRepo {
   static const String _activitySeenPrefKey = 'inbox:activity_seen_at:v1';
   static final StreamController<void> _activitySeenChangedController =
       StreamController<void>.broadcast();
+  static final Map<String, _InboxUnreadTracker> _unreadTrackers = {};
 
   final SupabaseClient _client;
 
@@ -27,6 +28,31 @@ class ShareRepo {
     }
   }
 
+  _InboxUnreadTracker? _trackerForCurrentUser() {
+    final uid = _client.auth.currentUser?.id;
+    final staleTrackerIds = _unreadTrackers.keys
+        .where((trackerUid) => trackerUid != uid)
+        .toList(growable: false);
+    for (final trackerUid in staleTrackerIds) {
+      final tracker = _unreadTrackers.remove(trackerUid);
+      if (tracker != null) {
+        unawaited(tracker.dispose());
+      }
+    }
+
+    if (uid == null || uid.isEmpty) {
+      return null;
+    }
+
+    return _unreadTrackers.putIfAbsent(
+      uid,
+      () => _InboxUnreadTracker(_client, uid),
+    );
+  }
+
+  InboxUnreadState get currentUnreadState =>
+      _trackerForCurrentUser()?.currentState ?? const InboxUnreadState();
+
   String _activitySeenStorageKey(String uid, InboxActivityBucket bucket) {
     return '$_activitySeenPrefKey:$uid:${bucket.storageKey}';
   }
@@ -37,36 +63,63 @@ class ShareRepo {
     if (uid == null) return const [];
 
     try {
-      final likes = await _client
-          .from('flow_post_likes')
-          .select(
-            'created_at, user_id, flow_post_id, profiles(display_name, handle, avatar_url), flow_posts!inner(name, user_id)',
-          )
-          .eq('flow_posts.user_id', uid)
-          .order('created_at', ascending: false)
-          .limit(limit);
+      Future<List<Map<String, dynamic>>> loadRows(
+        String label,
+        Future<dynamic> request,
+      ) async {
+        try {
+          final response = await request;
+          return (response as List? ?? const []).cast<Map<String, dynamic>>();
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('[ShareRepo] getRecentActivity $label error: $e');
+          }
+          return const [];
+        }
+      }
 
-      final comments = await _client
-          .from('flow_post_comments')
-          .select(
-            'created_at, user_id, body, flow_post_id, profiles(display_name, handle, avatar_url), flow_posts!inner(name, user_id)',
-          )
-          .eq('flow_posts.user_id', uid)
-          .order('created_at', ascending: false)
-          .limit(limit);
-
-      final follows = await _client
-          .from('follows')
-          .select(
-            'created_at, follower_id, profiles!follower_id(display_name, handle, avatar_url)',
-          )
-          .eq('followee_id', uid)
-          .order('created_at', ascending: false)
-          .limit(limit);
+      final responses = await Future.wait<List<Map<String, dynamic>>>([
+        loadRows(
+          'likes',
+          _client
+              .from('flow_post_likes')
+              .select(
+                'created_at, user_id, flow_post_id, profiles(display_name, handle, avatar_url), flow_posts!inner(name, user_id)',
+              )
+              .eq('flow_posts.user_id', uid)
+              .order('created_at', ascending: false)
+              .limit(limit),
+        ),
+        loadRows(
+          'comments',
+          _client
+              .from('flow_post_comments')
+              .select(
+                'created_at, user_id, body, flow_post_id, profiles(display_name, handle, avatar_url), flow_posts!inner(name, user_id)',
+              )
+              .eq('flow_posts.user_id', uid)
+              .order('created_at', ascending: false)
+              .limit(limit),
+        ),
+        loadRows(
+          'follows',
+          _client
+              .from('follows')
+              .select(
+                'created_at, follower_id, profiles!follower_id(display_name, handle, avatar_url)',
+              )
+              .eq('followee_id', uid)
+              .order('created_at', ascending: false)
+              .limit(limit),
+        ),
+      ]);
+      final likes = responses[0];
+      final comments = responses[1];
+      final follows = responses[2];
 
       final items = <InboxActivityItem>[];
 
-      for (final row in (likes as List? ?? const [])) {
+      for (final row in likes) {
         final profile = row['profiles'] as Map<String, dynamic>?;
         final createdAt = DateTime.parse(row['created_at'] as String);
         items.add(
@@ -83,7 +136,7 @@ class ShareRepo {
         );
       }
 
-      for (final row in (comments as List? ?? const [])) {
+      for (final row in comments) {
         final profile = row['profiles'] as Map<String, dynamic>?;
         final createdAt = DateTime.parse(row['created_at'] as String);
         items.add(
@@ -101,7 +154,7 @@ class ShareRepo {
         );
       }
 
-      for (final row in (follows as List? ?? const [])) {
+      for (final row in follows) {
         final profile = row['profiles'] as Map<String, dynamic>?;
         final createdAt = DateTime.parse(row['created_at'] as String);
         items.add(
@@ -221,8 +274,12 @@ class ShareRepo {
   }
 
   Future<InboxUnreadState> getUnreadState() async {
-    final unreadMessages = await getUnreadCount();
-    final unreadActivity = await getUnreadActivityState();
+    final results = await Future.wait<dynamic>([
+      getUnreadCount(),
+      getUnreadActivityState(),
+    ]);
+    final unreadMessages = results[0] as int;
+    final unreadActivity = results[1] as InboxActivityUnreadState;
     return InboxUnreadState(
       unreadMessages: unreadMessages,
       unreadMovement: unreadActivity.unreadMovement,
@@ -295,42 +352,11 @@ class ShareRepo {
   }
 
   Stream<InboxUnreadState> watchUnreadState() {
-    final uid = _client.auth.currentUser?.id;
-    if (uid == null) {
+    final tracker = _trackerForCurrentUser();
+    if (tracker == null) {
       return Stream.value(const InboxUnreadState());
     }
-
-    final controller = StreamController<InboxUnreadState>();
-    var unreadMessages = 0;
-    var unreadActivity = const InboxActivityUnreadState();
-
-    void emit() {
-      if (controller.isClosed) return;
-      controller.add(
-        InboxUnreadState(
-          unreadMessages: unreadMessages,
-          unreadMovement: unreadActivity.unreadMovement,
-          unreadCommunity: unreadActivity.unreadCommunity,
-        ),
-      );
-    }
-
-    final messageSub = watchUnreadCount().listen((count) {
-      unreadMessages = count;
-      emit();
-    });
-    final activitySub = watchUnreadActivityState().listen((state) {
-      unreadActivity = state;
-      emit();
-    });
-
-    controller.onCancel = () async {
-      await messageSub.cancel();
-      await activitySub.cancel();
-      await controller.close();
-    };
-
-    return controller.stream.distinct();
+    return tracker.stream;
   }
 
   /// Share a flow with recipients
@@ -2447,7 +2473,11 @@ class ShareRepo {
     }
 
     final updated = await query.select('id').maybeSingle();
-    return updated is Map;
+    final ok = updated is Map;
+    if (ok) {
+      _trackerForCurrentUser()?.scheduleRefresh(immediate: true);
+    }
+    return ok;
   }
 
   /// Search for users by handle
@@ -2620,6 +2650,7 @@ class ShareRepo {
     if (uid == null) {
       return Stream.value(0);
     }
+
     final controller = StreamController<int>();
 
     Future<void> refreshUnreadCount() async {
@@ -2627,7 +2658,6 @@ class ShareRepo {
       if (!controller.isClosed) controller.add(count);
     }
 
-    // Subscribe to both flow and event shares for this recipient
     final channel = _client.channel('inbox_unread_$uid')
       ..onPostgresChanges(
         event: PostgresChangeEvent.all,
@@ -2653,7 +2683,6 @@ class ShareRepo {
       )
       ..subscribe();
 
-    // Initial load
     refreshUnreadCount();
 
     controller.onCancel = () async {
@@ -2662,6 +2691,147 @@ class ShareRepo {
     };
 
     return controller.stream.distinct();
+  }
+}
+
+class _InboxUnreadTracker {
+  _InboxUnreadTracker(this._client, this._uid) {
+    stream = Stream<InboxUnreadState>.multi((controller) {
+      controller.add(_state);
+      final sub = _changes.stream.listen(
+        controller.add,
+        onError: controller.addError,
+      );
+      controller.onCancel = sub.cancel;
+    }, isBroadcast: true);
+
+    _seenSub = ShareRepo._activitySeenChangedController.stream.listen((_) {
+      scheduleRefresh(immediate: true);
+    });
+
+    _channel = _client.channel('inbox_unread_state_$_uid')
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'flow_shares',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'recipient_id',
+          value: _uid,
+        ),
+        callback: (_) => scheduleRefresh(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'event_shares',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'recipient_id',
+          value: _uid,
+        ),
+        callback: (_) => scheduleRefresh(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'flow_post_likes',
+        callback: (_) => scheduleRefresh(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'flow_post_comments',
+        callback: (_) => scheduleRefresh(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'follows',
+        callback: (_) => scheduleRefresh(),
+      )
+      ..subscribe((status, [error]) {
+        switch (status) {
+          case RealtimeSubscribeStatus.subscribed:
+            scheduleRefresh(immediate: true);
+            break;
+          case RealtimeSubscribeStatus.channelError:
+          case RealtimeSubscribeStatus.timedOut:
+            if (kDebugMode) {
+              debugPrint(
+                '[ShareRepo] inbox unread tracker channel status=$status error=$error',
+              );
+            }
+            scheduleRefresh(immediate: true);
+            break;
+          case RealtimeSubscribeStatus.closed:
+            break;
+        }
+      });
+
+    scheduleRefresh(immediate: true);
+  }
+
+  final SupabaseClient _client;
+  final String _uid;
+  final StreamController<InboxUnreadState> _changes =
+      StreamController<InboxUnreadState>.broadcast();
+  late final Stream<InboxUnreadState> stream;
+
+  RealtimeChannel? _channel;
+  StreamSubscription<void>? _seenSub;
+  Timer? _refreshDebounce;
+  bool _refreshInFlight = false;
+  bool _refreshQueued = false;
+  InboxUnreadState _state = const InboxUnreadState();
+
+  InboxUnreadState get currentState => _state;
+
+  void scheduleRefresh({bool immediate = false}) {
+    _refreshDebounce?.cancel();
+    if (immediate) {
+      unawaited(_refresh());
+      return;
+    }
+    _refreshDebounce = Timer(const Duration(milliseconds: 120), () {
+      unawaited(_refresh());
+    });
+  }
+
+  Future<void> _refresh() async {
+    if (_refreshInFlight) {
+      _refreshQueued = true;
+      return;
+    }
+
+    _refreshInFlight = true;
+    try {
+      final nextState = await ShareRepo(_client).getUnreadState();
+      if (nextState != _state) {
+        _state = nextState;
+        if (!_changes.isClosed) {
+          _changes.add(nextState);
+        }
+      }
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[ShareRepo] inbox unread tracker refresh failed: $e');
+        debugPrint('$st');
+      }
+    } finally {
+      _refreshInFlight = false;
+      if (_refreshQueued) {
+        _refreshQueued = false;
+        scheduleRefresh(immediate: true);
+      }
+    }
+  }
+
+  Future<void> dispose() async {
+    _refreshDebounce?.cancel();
+    await _seenSub?.cancel();
+    await _channel?.unsubscribe();
+    await _changes.close();
   }
 }
 
