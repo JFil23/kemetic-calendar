@@ -1,7 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 void main() {
   group('DayViewGrid overlapping event gestures', () {
@@ -258,6 +260,100 @@ void main() {
       },
     );
   });
+
+  group('DayViewPage header toggle', () {
+    testWidgets(
+      'tapping the month label toggles the day header between Kemetic and Gregorian labels',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        const ky = 1;
+        const km = 2;
+        const kd = 5;
+        final gregorian = KemeticMath.toGregorian(ky, km, kd);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: DayViewPage(
+              initialKy: ky,
+              initialKm: km,
+              initialKd: kd,
+              showGregorian: false,
+              notesForDay: (_, __, ___) => const [],
+              flowIndex: const {},
+              getMonthName: (month) {
+                switch (month) {
+                  case 1:
+                    return 'Thoth (Tḥwty)';
+                  case 2:
+                    return 'Paopi (Mnḫt)';
+                  default:
+                    return 'Month $month';
+                }
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final localizations = MaterialLocalizations.of(
+          tester.element(find.byType(Scaffold)),
+        );
+        final gregorianLabel = localizations.formatMediumDate(gregorian);
+        final legacyGridHeader =
+            '${gregorian.month}/${gregorian.day}/${gregorian.year}';
+        final kemeticLabel = 'Paopi 5, ${gregorian.year}';
+        final gregorianMonthLabel = _gregorianMonthName(gregorian.month);
+
+        expect(find.text('Paopi (Mnḫt)'), findsOneWidget);
+        expect(find.text(kemeticLabel), findsOneWidget);
+        expect(find.text(gregorianLabel), findsNothing);
+        expect(find.text(legacyGridHeader), findsNothing);
+
+        await tester.tap(find.byKey(const ValueKey('day_view_month_toggle')));
+        await tester.pumpAndSettle();
+
+        expect(find.text(gregorianMonthLabel), findsOneWidget);
+        expect(find.text(gregorianLabel), findsOneWidget);
+        expect(find.text(legacyGridHeader), findsNothing);
+        expect(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is GlossyText &&
+                widget.text == gregorianLabel &&
+                widget.gradient == blueGloss,
+          ),
+          findsOneWidget,
+        );
+        expect(find.text(kemeticLabel), findsNothing);
+
+        await tester.tap(find.byKey(const ValueKey('day_view_month_toggle')));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Paopi (Mnḫt)'), findsOneWidget);
+        expect(find.text(kemeticLabel), findsOneWidget);
+      },
+    );
+  });
+}
+
+String _gregorianMonthName(int month) {
+  const monthNames = <String>[
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  return monthNames[month - 1];
 }
 
 Future<void> _setPhoneViewport(WidgetTester tester) async {

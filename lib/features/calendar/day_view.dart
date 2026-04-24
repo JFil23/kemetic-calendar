@@ -656,6 +656,7 @@ class _DayViewPageState extends State<DayViewPage> {
   late int _currentKy;
   late int _currentKm;
   late int _currentKd;
+  late bool _showGregorian;
   late DateTime _initialGregorian; // Added for stable date arithmetic
   static const int _centerPage = 5000;
   int _gridInstance = 0; // Forces grid rebuilds when jumping
@@ -681,6 +682,7 @@ class _DayViewPageState extends State<DayViewPage> {
     _currentKy = widget.initialKy;
     _currentKm = widget.initialKm;
     _currentKd = widget.initialKd;
+    _showGregorian = widget.showGregorian;
     _initialGregorian = KemeticMath.toGregorian(
       _currentKy,
       _currentKm,
@@ -712,6 +714,9 @@ class _DayViewPageState extends State<DayViewPage> {
         widget.showDayCardRevealCoachmarkForOnboarding) {
       _scheduleDayCardRevealCoachmarkCheck();
     }
+    if (old.showGregorian != widget.showGregorian) {
+      _showGregorian = widget.showGregorian;
+    }
     if (old.initialKy != widget.initialKy ||
         old.initialKm != widget.initialKm ||
         old.initialKd != widget.initialKd) {
@@ -740,6 +745,27 @@ class _DayViewPageState extends State<DayViewPage> {
     _pageController.dispose();
     _miniCalendarScrollController.dispose(); // 🔧 Don't forget to dispose
     super.dispose();
+  }
+
+  void _toggleDateDisplay() {
+    if (!mounted) return;
+    setState(() {
+      _showGregorian = !_showGregorian;
+    });
+  }
+
+  String _buildHeaderDateLabel(
+    BuildContext context,
+    DateTime currentGregorian,
+  ) {
+    if (_showGregorian) {
+      return MaterialLocalizations.of(
+        context,
+      ).formatMediumDate(currentGregorian);
+    }
+
+    final kemeticMonthLabel = widget.getMonthName(_currentKm).split(' ').first;
+    return '$kemeticMonthLabel $_currentKd, ${currentGregorian.year}';
   }
 
   void _scheduleDayCardRevealCoachmarkCheck() {
@@ -1035,7 +1061,7 @@ class _DayViewPageState extends State<DayViewPage> {
                   initialKy: _currentKy,
                   initialKm: _currentKm,
                   initialKd: _currentKd,
-                  showGregorian: widget.showGregorian,
+                  showGregorian: _showGregorian,
                   notesForDay: widget.notesForDay,
                   flowIndex: flowIndex,
                   getMonthName: widget.getMonthName,
@@ -1072,6 +1098,7 @@ class _DayViewPageState extends State<DayViewPage> {
                     currentKy: _currentKy,
                     currentKm: _currentKm,
                     currentKd: _currentKd,
+                    showGregorian: _showGregorian,
                     getMonthName: widget.getMonthName,
                     miniCalendarScrollController: _miniCalendarScrollController,
                     onSelectDay: (day) {
@@ -1099,6 +1126,7 @@ class _DayViewPageState extends State<DayViewPage> {
                         curve: Curves.easeOut,
                       );
                     },
+                    onToggleDateDisplay: _toggleDateDisplay,
                     onClose: () => Navigator.pop(context),
                     onJumpToToday: _jumpToToday,
                     onOpenQuickAdd:
@@ -1133,7 +1161,11 @@ class _DayViewPageState extends State<DayViewPage> {
                           await CalendarPage.globalKey.currentState
                               ?.openProfileFromOutside(ctx);
                         },
-                    dateButtonBuilder: (monthName, currentKd, gregorianYear) {
+                    dateButtonBuilder: (context, currentGregorian) {
+                      final headerDateLabel = _buildHeaderDateLabel(
+                        context,
+                        currentGregorian,
+                      );
                       return KemeticDayButton(
                         key: _dayCardRevealTargetKey,
                         dayKey: _getKemeticDayKey(
@@ -1146,16 +1178,29 @@ class _DayViewPageState extends State<DayViewPage> {
                         onOpen: () {
                           unawaited(_handleDayCardRevealCoachmarkCompleted());
                         },
-                        child: Text(
-                          '${monthName.split(' ').first} $currentKd, $gregorianYear',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          softWrap: false,
-                          textAlign: TextAlign.center,
-                        ),
+                        child: _showGregorian
+                            ? GlossyText(
+                                text: headerDateLabel,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                gradient: blueGloss,
+                                maxLines: 1,
+                                softWrap: false,
+                                textAlign: TextAlign.center,
+                              )
+                            : Text(
+                                headerDateLabel,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                softWrap: false,
+                                textAlign: TextAlign.center,
+                              ),
                       );
                     },
                   ),
@@ -1180,7 +1225,7 @@ class _DayViewPageState extends State<DayViewPage> {
                             kDate.kDay,
                           ),
                           dataVersion: widget.dataVersion,
-                          showGregorian: widget.showGregorian,
+                          showGregorian: _showGregorian,
                           flowIndex: flowIndex,
                           initialScrollOffset: _savedScrollOffset, // 🔧 NEW
                           focusStartMin: widget.focusStartMin,
@@ -1976,22 +2021,6 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     return Column(
       children: [
-        // Gregorian date header (if enabled)
-        if (widget.showGregorian) ...[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            color: const Color(0xFF0D0D0F),
-            child: Text(
-              _formatGregorianDate(
-                KemeticMath.toGregorian(widget.ky, widget.km, widget.kd),
-              ),
-              style: const TextStyle(fontSize: 14, color: Color(0xFF808080)),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-
         // Timeline grid
         Expanded(
           child: DragTarget<_DragPayload>(
@@ -2623,10 +2652,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     if (hour < 12) return '$hour AM';
     if (hour == 12) return '12 PM';
     return '${hour - 12} PM';
-  }
-
-  String _formatGregorianDate(DateTime date) {
-    return '${date.month}/${date.day}/${date.year}';
   }
 
   String _buildBadgeToken(

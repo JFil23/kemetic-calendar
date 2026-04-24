@@ -25,10 +25,12 @@ class KemeticDayViewHeader extends StatelessWidget {
     required this.currentKy,
     required this.currentKm,
     required this.currentKd,
+    required this.showGregorian,
     required this.getMonthName,
     required this.dateButtonBuilder,
     this.miniCalendarScrollController,
     this.onSelectDay,
+    this.onToggleDateDisplay,
     this.onClose,
     this.onJumpToToday,
     this.onOpenQuickAdd,
@@ -39,11 +41,13 @@ class KemeticDayViewHeader extends StatelessWidget {
   final int currentKy;
   final int currentKm;
   final int currentKd;
+  final bool showGregorian;
   final String Function(int km) getMonthName;
-  final Widget Function(String monthName, int currentKd, int gregorianYear)
+  final Widget Function(BuildContext context, DateTime currentGregorian)
   dateButtonBuilder;
   final ScrollController? miniCalendarScrollController;
   final ValueChanged<int>? onSelectDay;
+  final VoidCallback? onToggleDateDisplay;
   final VoidCallback? onClose;
   final VoidCallback? onJumpToToday;
   final Future<void> Function(BuildContext context)? onOpenQuickAdd;
@@ -62,7 +66,7 @@ class KemeticDayViewHeader extends StatelessWidget {
       fallback: 30,
       minSize: 44,
     );
-    final monthName = getMonthName(currentKm);
+    final kemeticMonthName = getMonthName(currentKm);
     final dayCount = currentKm == 13
         ? (KemeticMath.isLeapKemeticYear(currentKy) ? 6 : 5)
         : 30;
@@ -74,7 +78,9 @@ class KemeticDayViewHeader extends StatelessWidget {
       currentKm,
       currentKd,
     );
-    final gregorianYear = currentGregorian.year;
+    final monthName = showGregorian
+        ? _gregorianMonthNames[currentGregorian.month - 1]
+        : kemeticMonthName;
 
     return Container(
       color: const Color(0xFF0D0D0F),
@@ -91,7 +97,13 @@ class KemeticDayViewHeader extends StatelessWidget {
                     icon: KemeticGold.icon(Icons.close),
                     onPressed: onClose ?? () {},
                   ),
-                  Expanded(child: _DayViewMonthLabel(monthName: monthName)),
+                  Expanded(
+                    child: _DayViewMonthLabel(
+                      monthName: monthName,
+                      showGregorian: showGregorian,
+                      onTap: onToggleDateDisplay,
+                    ),
+                  ),
                   if (onOpenQuickAdd != null)
                     Builder(
                       builder: (btnCtx) => IconButton(
@@ -204,7 +216,7 @@ class KemeticDayViewHeader extends StatelessWidget {
             Container(
               padding: const EdgeInsets.only(bottom: 12),
               alignment: Alignment.center,
-              child: dateButtonBuilder(monthName, currentKd, gregorianYear),
+              child: dateButtonBuilder(context, currentGregorian),
             ),
             const Divider(height: 1, color: Color(0xFF1A1A1A)),
           ],
@@ -214,15 +226,37 @@ class KemeticDayViewHeader extends StatelessWidget {
   }
 }
 
+const List<String> _gregorianMonthNames = <String>[
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
 class _DayViewMonthLabel extends StatelessWidget {
-  const _DayViewMonthLabel({required this.monthName});
+  const _DayViewMonthLabel({
+    required this.monthName,
+    required this.showGregorian,
+    this.onTap,
+  });
 
   final String monthName;
+  final bool showGregorian;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return ShaderMask(
-      shaderCallback: (Rect bounds) => _dayViewGoldGloss.createShader(bounds),
+    final label = ShaderMask(
+      shaderCallback: (Rect bounds) =>
+          (showGregorian ? whiteGloss : _dayViewGoldGloss).createShader(bounds),
       blendMode: BlendMode.srcIn,
       child: MonthNameText(
         monthName,
@@ -230,6 +264,22 @@ class _DayViewMonthLabel extends StatelessWidget {
         maxLines: 1,
         softWrap: false,
         overflow: TextOverflow.fade,
+      ),
+    );
+
+    if (onTap == null) return label;
+
+    return Semantics(
+      button: true,
+      label: showGregorian ? 'Show Kemetic dates' : 'Show Gregorian dates',
+      child: GestureDetector(
+        key: const ValueKey('day_view_month_toggle'),
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: label,
+        ),
       ),
     );
   }

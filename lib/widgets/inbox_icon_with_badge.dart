@@ -28,7 +28,13 @@ class InboxUnreadDotOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shareRepo = ShareRepo(Supabase.instance.client);
+    ShareRepo? shareRepo;
+    try {
+      shareRepo = ShareRepo(Supabase.instance.client);
+    } on AssertionError {
+      return child;
+    }
+
     return StreamBuilder<InboxUnreadState>(
       initialData: shareRepo.currentUnreadState,
       stream: shareRepo.watchUnreadState(),
@@ -77,7 +83,34 @@ class InboxIconWithBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shareRepo = ShareRepo(Supabase.instance.client);
+    ShareRepo? shareRepo;
+    try {
+      shareRepo = ShareRepo(Supabase.instance.client);
+    } on AssertionError {
+      return IconButton(
+        icon: iconColor == KemeticGold.base
+            ? KemeticGold.icon(Icons.mail_outline)
+            : Icon(Icons.mail_outline, color: iconColor),
+        tooltip: 'Inbox',
+        onPressed: () async {
+          final importedFlowId = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const InboxPage()),
+          );
+
+          if (onImportFlow != null && importedFlowId != null) {
+            await onImportFlow!(importedFlowId);
+          }
+
+          if (onRefreshAsync != null) {
+            await onRefreshAsync!(importedFlowId);
+          } else if (onRefreshSync != null) {
+            onRefreshSync!();
+          }
+        },
+      );
+    }
+
     return StreamBuilder<InboxUnreadState>(
       initialData: shareRepo.currentUnreadState,
       stream: shareRepo.watchUnreadState(),

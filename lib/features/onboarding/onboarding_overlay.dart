@@ -892,10 +892,11 @@ class _OnboardingDayInsightVisualState extends State<OnboardingDayInsightVisual>
                       currentKy: widget.kYear,
                       currentKm: widget.kMonth,
                       currentKd: widget.kDay,
+                      showGregorian: false,
                       getMonthName: (_) => monthName,
                       miniCalendarScrollController:
                           _miniCalendarScrollController,
-                      dateButtonBuilder: (monthName, currentKd, gregorianYear) {
+                      dateButtonBuilder: (_, currentGregorian) {
                         return Container(
                           key: _dateButtonKey,
                           child: KemeticDayButton(
@@ -903,7 +904,7 @@ class _OnboardingDayInsightVisualState extends State<OnboardingDayInsightVisual>
                             kYear: widget.kYear,
                             openOnTap: true,
                             child: Text(
-                              '${monthName.split(' ').first} $currentKd, $gregorianYear',
+                              '${monthName.split(' ').first} ${widget.kDay}, ${currentGregorian.year}',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 15,
