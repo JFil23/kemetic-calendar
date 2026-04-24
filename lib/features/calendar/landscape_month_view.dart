@@ -7,8 +7,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart'; // For DragStartBehavior
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:mobile/core/touch_targets.dart';
 import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart' show CalendarPage, KemeticMath;
 import '../journal/journal_event_badge.dart';
@@ -25,6 +27,27 @@ const Color _landscapeBg = Color(0xFF000000); // True black
 const Color _landscapeSurface = Color(0xFF0D0D0F); // Dark surface
 const Color _landscapeDivider = Color(0xFF1A1A1A); // Divider lines
 const double kLandscapeHeaderHeight = 58.0; // Day number header height
+const TextStyle _landscapeActionTextStyle = TextStyle(
+  fontSize: 17,
+  fontWeight: FontWeight.w600,
+  fontFamily: 'GentiumPlus',
+  fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+);
+
+class _ConstantIntListenable implements ValueListenable<int> {
+  const _ConstantIntListenable(this.value);
+
+  @override
+  final int value;
+
+  @override
+  void addListener(VoidCallback listener) {}
+
+  @override
+  void removeListener(VoidCallback listener) {}
+}
+
+const _kLandscapeZeroListenable = _ConstantIntListenable(0);
 
 void _logLandscape(String message) {
   if (kDebugMode) {
@@ -51,6 +74,7 @@ class LandscapeMonthView extends StatelessWidget {
   final int initialKm;
   final int? initialKd; // Optional - from day view
   final bool showGregorian;
+  final ValueListenable<int>? dataVersion;
   final List<NoteData> Function(int ky, int km, int kd) notesForDay;
   final Map<int, FlowData> flowIndex;
   final String Function(int km) getMonthName;
@@ -59,9 +83,13 @@ class LandscapeMonthView extends StatelessWidget {
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
   final ValueChanged<VoidCallback?>? onTodayActionChanged;
   final void Function(int flowId)? onEndFlow;
-  final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem evt)?
+  onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
   onEditNote;
+  final Future<void> Function(String reminderId)? onEditReminder;
+  final Future<void> Function(String reminderId)? onEndReminder;
+  final Future<void> Function(EventItem evt)? onShareReminder;
   final Future<void> Function(
     int ky,
     int km,
@@ -72,6 +100,7 @@ class LandscapeMonthView extends StatelessWidget {
   onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
+  final Future<void> Function(int flowId)? onSaveFlow;
   final bool embeddedInCalendarScaffold;
 
   const LandscapeMonthView({
@@ -80,6 +109,7 @@ class LandscapeMonthView extends StatelessWidget {
     required this.initialKm,
     this.initialKd,
     required this.showGregorian,
+    this.dataVersion,
     required this.notesForDay,
     required this.flowIndex,
     required this.getMonthName,
@@ -90,9 +120,13 @@ class LandscapeMonthView extends StatelessWidget {
     this.onEndFlow,
     this.onDeleteNote,
     this.onEditNote,
+    this.onEditReminder,
+    this.onEndReminder,
+    this.onShareReminder,
     this.onMoveEventTime,
     this.onShareNote,
     this.onAppendToJournal,
+    this.onSaveFlow,
     this.embeddedInCalendarScaffold = false,
   });
 
@@ -103,6 +137,7 @@ class LandscapeMonthView extends StatelessWidget {
       initialKm: initialKm,
       initialDay: initialKd,
       showGregorian: showGregorian,
+      dataVersion: dataVersion,
       notesForDay: notesForDay,
       flowIndex: flowIndex,
       getMonthName: getMonthName,
@@ -113,9 +148,13 @@ class LandscapeMonthView extends StatelessWidget {
       onEndFlow: onEndFlow,
       onDeleteNote: onDeleteNote,
       onEditNote: onEditNote,
+      onEditReminder: onEditReminder,
+      onEndReminder: onEndReminder,
+      onShareReminder: onShareReminder,
       onMoveEventTime: onMoveEventTime,
       onShareNote: onShareNote,
       onAppendToJournal: onAppendToJournal,
+      onSaveFlow: onSaveFlow,
       embeddedInCalendarScaffold: embeddedInCalendarScaffold,
     );
   }
@@ -131,6 +170,7 @@ class LandscapeMonthPager extends StatefulWidget {
   final int initialKm;
   final int? initialDay;
   final bool showGregorian;
+  final ValueListenable<int>? dataVersion;
   final List<NoteData> Function(int ky, int km, int kd) notesForDay;
   final Map<int, FlowData> flowIndex;
   final String Function(int km) getMonthName;
@@ -139,9 +179,13 @@ class LandscapeMonthPager extends StatefulWidget {
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
   final ValueChanged<VoidCallback?>? onTodayActionChanged;
   final void Function(int flowId)? onEndFlow;
-  final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem evt)?
+  onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
   onEditNote;
+  final Future<void> Function(String reminderId)? onEditReminder;
+  final Future<void> Function(String reminderId)? onEndReminder;
+  final Future<void> Function(EventItem evt)? onShareReminder;
   final Future<void> Function(
     int ky,
     int km,
@@ -152,6 +196,7 @@ class LandscapeMonthPager extends StatefulWidget {
   onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
+  final Future<void> Function(int flowId)? onSaveFlow;
   final bool embeddedInCalendarScaffold;
 
   const LandscapeMonthPager({
@@ -160,6 +205,7 @@ class LandscapeMonthPager extends StatefulWidget {
     required this.initialKm,
     this.initialDay,
     required this.showGregorian,
+    this.dataVersion,
     required this.notesForDay,
     required this.flowIndex,
     required this.getMonthName,
@@ -170,9 +216,13 @@ class LandscapeMonthPager extends StatefulWidget {
     this.onEndFlow,
     this.onDeleteNote,
     this.onEditNote,
+    this.onEditReminder,
+    this.onEndReminder,
+    this.onShareReminder,
     this.onMoveEventTime,
     this.onShareNote,
     this.onAppendToJournal,
+    this.onSaveFlow,
     this.embeddedInCalendarScaffold = false,
   });
 
@@ -591,6 +641,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           kMonth: m.kMonth,
           initialDay: pageInitialDay, // ✅ use 'initialDay'
           showGregorian: widget.showGregorian,
+          dataVersion: widget.dataVersion,
           notesForDay: widget.notesForDay,
           flowIndex: widget.flowIndex,
           getMonthName: widget.getMonthName,
@@ -599,9 +650,13 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           onEndFlow: widget.onEndFlow,
           onDeleteNote: widget.onDeleteNote,
           onEditNote: widget.onEditNote,
+          onEditReminder: widget.onEditReminder,
+          onEndReminder: widget.onEndReminder,
+          onShareReminder: widget.onShareReminder,
           onMoveEventTime: widget.onMoveEventTime,
           onShareNote: widget.onShareNote,
           onAppendToJournal: widget.onAppendToJournal,
+          onSaveFlow: widget.onSaveFlow,
         );
       },
     );
@@ -618,15 +673,20 @@ class LandscapeMonthGridBody extends StatefulWidget {
   final int kMonth;
   final int? initialDay;
   final bool showGregorian;
+  final ValueListenable<int>? dataVersion;
   final List<NoteData> Function(int ky, int km, int kd) notesForDay;
   final Map<int, FlowData> flowIndex;
   final String Function(int km) getMonthName;
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int flowId)? onEndFlow;
-  final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem evt)?
+  onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
   onEditNote;
+  final Future<void> Function(String reminderId)? onEditReminder;
+  final Future<void> Function(String reminderId)? onEndReminder;
+  final Future<void> Function(EventItem evt)? onShareReminder;
   final Future<void> Function(
     int ky,
     int km,
@@ -637,6 +697,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
   onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
+  final Future<void> Function(int flowId)? onSaveFlow;
 
   const LandscapeMonthGridBody({
     super.key,
@@ -644,6 +705,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
     required this.kMonth,
     this.initialDay,
     required this.showGregorian,
+    this.dataVersion,
     required this.notesForDay,
     required this.flowIndex,
     required this.getMonthName,
@@ -652,9 +714,13 @@ class LandscapeMonthGridBody extends StatefulWidget {
     this.onEndFlow,
     this.onDeleteNote,
     this.onEditNote,
+    this.onEditReminder,
+    this.onEndReminder,
+    this.onShareReminder,
     this.onMoveEventTime,
     this.onShareNote,
     this.onAppendToJournal,
+    this.onSaveFlow,
   });
 
   @override
@@ -669,7 +735,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       kLandscapeHeaderHeight; // day number header (shared constant)
   static const double _daySepW = 1.0; // day separator
   static const double _hourSepH = 1.0; // hour separator
-  static const double _kLandscapeEventMinHeight = 56.0; // was 32.0
+  static const double _kLandscapeEventMinHeight = 64.0;
 
   // 🔧 UPDATED: Use shared color constants
   static const Color _gold = _landscapeGold;
@@ -1095,13 +1161,195 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       // Build composite key
       final key = '$flowKey|$startKey|$endKey|$titleKey';
 
-      // Only keep first occurrence
       if (!seen.containsKey(key)) {
+        seen[key] = note;
+        continue;
+      }
+
+      final existing = seen[key]!;
+      bool hasIdentity(NoteData n) =>
+          (n.id != null && n.id!.trim().isNotEmpty) ||
+          (n.clientEventId != null && n.clientEventId!.trim().isNotEmpty);
+
+      if (!hasIdentity(existing) && hasIdentity(note)) {
         seen[key] = note;
       }
     }
 
     return seen.values.toList();
+  }
+
+  EventItem _eventItemFromNote(NoteData note) {
+    final startMin = note.allDay
+        ? 9 * 60
+        : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
+    final endMin = note.allDay
+        ? 17 * 60
+        : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
+
+    Color eventColor = Colors.blue;
+    if (note.manualColor != null) {
+      eventColor = note.manualColor!;
+    } else if (note.flowId != null) {
+      final flow = widget.flowIndex[note.flowId];
+      if (flow != null) {
+        eventColor = flow.color;
+      }
+    }
+
+    return EventItem(
+      id: note.id,
+      clientEventId: note.clientEventId,
+      title: note.title,
+      detail: note.detail,
+      location: note.location,
+      startMin: startMin,
+      endMin: endMin,
+      flowId: note.flowId,
+      color: eventColor,
+      manualColor: note.manualColor,
+      allDay: note.allDay,
+      category: note.category,
+      isReminder: note.isReminder,
+      reminderId: note.reminderId,
+    );
+  }
+
+  String _sheetEventIdentityKey(EventItem event) {
+    final id = event.id?.trim();
+    if (id != null && id.isNotEmpty) return 'id:$id';
+
+    final clientEventId = event.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      return 'cid:$clientEventId';
+    }
+
+    final reminderId = event.reminderId?.trim();
+    if (reminderId != null && reminderId.isNotEmpty) {
+      return 'rid:$reminderId';
+    }
+
+    return [
+      event.title.trim().toLowerCase(),
+      event.startMin,
+      event.endMin,
+      event.flowId ?? '',
+      event.location?.trim().toLowerCase() ?? '',
+      event.detail?.trim().toLowerCase() ?? '',
+      event.allDay,
+      event.isReminder,
+    ].join('|');
+  }
+
+  bool _eventsShareStableIdentity(EventItem a, EventItem b) {
+    final aId = a.id?.trim();
+    final bId = b.id?.trim();
+    if (aId != null && aId.isNotEmpty && bId != null && bId.isNotEmpty) {
+      return aId == bId;
+    }
+
+    final aClientId = a.clientEventId?.trim();
+    final bClientId = b.clientEventId?.trim();
+    if (aClientId != null &&
+        aClientId.isNotEmpty &&
+        bClientId != null &&
+        bClientId.isNotEmpty) {
+      return aClientId == bClientId;
+    }
+
+    final aReminderId = a.reminderId?.trim();
+    final bReminderId = b.reminderId?.trim();
+    if (aReminderId != null &&
+        aReminderId.isNotEmpty &&
+        bReminderId != null &&
+        bReminderId.isNotEmpty) {
+      return aReminderId == bReminderId;
+    }
+
+    return _sheetEventIdentityKey(a) == _sheetEventIdentityKey(b);
+  }
+
+  int _compareEventItemsBySchedule(EventItem a, EventItem b) {
+    final startCmp = a.startMin.compareTo(b.startMin);
+    if (startCmp != 0) return startCmp;
+
+    final endCmp = a.endMin.compareTo(b.endMin);
+    if (endCmp != 0) return endCmp;
+
+    return _sheetEventIdentityKey(a).compareTo(_sheetEventIdentityKey(b));
+  }
+
+  List<EventItem> _eventsForKemeticDay(int ky, int km, int kd) {
+    final notes = _dedupeNotesForUI(widget.notesForDay(ky, km, kd));
+    final events = [for (final note in notes) _eventItemFromNote(note)];
+    events.sort(_compareEventItemsBySchedule);
+    return events;
+  }
+
+  DayViewSheetEventTarget _resolveCurrentEventTarget(
+    DayViewSheetEventTarget target,
+  ) {
+    final currentEvents = _eventsForKemeticDay(target.ky, target.km, target.kd);
+    if (currentEvents.isEmpty) return target;
+
+    for (final candidate in currentEvents) {
+      if (!_eventsShareStableIdentity(candidate, target.event)) continue;
+      return DayViewSheetEventTarget(
+        ky: target.ky,
+        km: target.km,
+        kd: target.kd,
+        event: candidate,
+      );
+    }
+
+    return target;
+  }
+
+  DayViewSheetEventTarget? _resolveAdjacentEventTarget({
+    required int ky,
+    required int km,
+    required int kd,
+    required EventItem event,
+    required bool forward,
+  }) {
+    if (ky != widget.kYear || km != widget.kMonth) return null;
+
+    final currentEvents = _eventsForKemeticDay(ky, km, kd);
+    final currentIndex = currentEvents.indexWhere(
+      (candidate) => _eventsShareStableIdentity(candidate, event),
+    );
+
+    if (currentIndex >= 0) {
+      final sameDayIndex = forward ? currentIndex + 1 : currentIndex - 1;
+      if (sameDayIndex >= 0 && sameDayIndex < currentEvents.length) {
+        return DayViewSheetEventTarget(
+          ky: ky,
+          km: km,
+          kd: kd,
+          event: currentEvents[sameDayIndex],
+        );
+      }
+    }
+
+    final dayRange = forward
+        ? Iterable<int>.generate(
+            _getDaysInMonth() - kd,
+            (index) => kd + index + 1,
+          )
+        : Iterable<int>.generate(kd - 1, (index) => kd - index - 1);
+
+    for (final nextDay in dayRange) {
+      final nextDayEvents = _eventsForKemeticDay(ky, km, nextDay);
+      if (nextDayEvents.isEmpty) continue;
+      return DayViewSheetEventTarget(
+        ky: ky,
+        km: km,
+        kd: nextDay,
+        event: forward ? nextDayEvents.first : nextDayEvents.last,
+      );
+    }
+
+    return null;
   }
 
   List<Widget> _buildEventsForDay(int day, double colW) {
@@ -1140,59 +1388,11 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       }
     }
 
-    // Convert notes to events
-    final events = <EventItem>[];
-    for (final note in notes) {
-      final startMin = note.allDay
-          ? 9 * 60
-          : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
-      final endMin = note.allDay
-          ? 17 * 60
-          : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
-
-      Color eventColor = Colors.blue; // sensible default
-
-      // 1) per-note manual color wins
-      if (note.manualColor != null) {
-        eventColor = note.manualColor!;
-      }
-      // 2) flow color if this note belongs to a flow
-      else if (note.flowId != null) {
-        final flow = widget.flowIndex[note.flowId];
-        if (flow != null) {
-          eventColor = flow.color;
-        }
-      }
-      // 3) fallback color for plain notes (already set above)
-
-      events.add(
-        EventItem(
-          id: note.id,
-          clientEventId: note.clientEventId,
-          title: note.title,
-          detail: note.detail,
-          location: note.location,
-          startMin: startMin,
-          endMin: endMin,
-          flowId: note.flowId,
-          color: eventColor,
-          manualColor: note.manualColor,
-          allDay: note.allDay,
-          category: note.category,
-          isReminder: note.isReminder,
-          reminderId: note.reminderId,
-        ),
-      );
-    }
+    final events = [for (final note in notes) _eventItemFromNote(note)];
 
     if (events.isEmpty) return [];
 
-    // Sort by start time, then title
-    events.sort((a, b) {
-      final timeCompare = a.startMin.compareTo(b.startMin);
-      if (timeCompare != 0) return timeCompare;
-      return a.title.compareTo(b.title);
-    });
+    events.sort(_compareEventItemsBySchedule);
 
     const columnGap = 4.0;
     final widgets = <Widget>[];
@@ -1267,8 +1467,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
 
   Widget _buildEventCard(EventItem event, int durationMinutes) {
     return Container(
-      margin: const EdgeInsets.only(right: 4, bottom: 2),
-      padding: const EdgeInsets.all(4),
+      padding: EdgeInsets.symmetric(
+        horizontal: 4,
+        vertical: event.isReminder ? 3 : 4,
+      ),
       decoration: BoxDecoration(
         color: event.color.withOpacity(0.20),
         border: Border(left: BorderSide(color: event.color, width: 3)),
@@ -1340,8 +1542,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Flow name first (if available)
-        if (hasFlow) ...[
+        // Flow name first (if available). Skip for reminders to avoid overflow in short block.
+        if (hasFlow && !event.isReminder) ...[
           Text(
             flow!.name,
             style: TextStyle(
@@ -1364,7 +1566,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               fontWeight: FontWeight.w500, // ✅ w500 not w600
               color: Colors.white,
             ),
-            maxLines: (hasFlow || durationMinutes < 90)
+            maxLines: (event.isReminder || hasFlow || durationMinutes < 90)
                 ? 1
                 : 2, // ✅ Conditional line limit
             overflow: TextOverflow.ellipsis,
@@ -1405,379 +1607,750 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     );
   }
 
-  void _showEventDetail(EventItem event, int day) {
-    final flow = widget.flowIndex[event.flowId];
+  String _detailSheetTargetKey(DayViewSheetEventTarget target) =>
+      '${target.ky}:${target.km}:${target.kd}:${_sheetEventIdentityKey(target.event)}';
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: _surface, // Dark surface (matching day view)
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+  ({List<DayViewSheetEventTarget> pages, int currentIndex})
+  _detailSheetPagesForTarget(DayViewSheetEventTarget target) {
+    final previous = _resolveAdjacentEventTarget(
+      ky: target.ky,
+      km: target.km,
+      kd: target.kd,
+      event: target.event,
+      forward: false,
+    );
+    final next = _resolveAdjacentEventTarget(
+      ky: target.ky,
+      km: target.km,
+      kd: target.kd,
+      event: target.event,
+      forward: true,
+    );
+
+    final pages = <DayViewSheetEventTarget>[
+      if (previous != null) previous,
+      target,
+      if (next != null) next,
+    ];
+    return (pages: pages, currentIndex: previous != null ? 1 : 0);
+  }
+
+  ButtonStyle _endButtonStyle(BuildContext context) {
+    return withExpandedTouchTargets(
+      context,
+      OutlinedButton.styleFrom(
+        side: const BorderSide(color: _gold),
+        foregroundColor: _gold,
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        minimumSize: const Size(0, 35),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
       ),
-      builder: (context) {
-        return SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget _buildEndFlowButton(
+    int? flowId, {
+    required BuildContext actionContext,
+  }) {
+    final onEndFlow = widget.onEndFlow;
+    final id = flowId;
+    final enabled = onEndFlow != null && id != null;
+    return OutlinedButton.icon(
+      style: _endButtonStyle(actionContext),
+      onPressed: enabled
+          ? () {
+              Navigator.pop(actionContext);
+              onEndFlow(id);
+            }
+          : null,
+      icon: const Icon(Icons.stop_circle),
+      label: const Text('End Flow'),
+    );
+  }
+
+  Widget _buildEndNoteButton(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+    required BuildContext actionContext,
+  }) {
+    final enabled = widget.onDeleteNote != null;
+    return OutlinedButton.icon(
+      style: _endButtonStyle(actionContext),
+      onPressed: enabled
+          ? () async {
+              Navigator.pop(actionContext);
+              await widget.onDeleteNote!(ky, km, kd, event);
+            }
+          : null,
+      icon: const Icon(Icons.delete_outline),
+      label: const Text('End Note'),
+    );
+  }
+
+  Widget _buildEndReminderButton(
+    EventItem event, {
+    required BuildContext actionContext,
+  }) {
+    final enabled = widget.onEndReminder != null && event.reminderId != null;
+    return OutlinedButton.icon(
+      style: _endButtonStyle(actionContext),
+      onPressed: enabled
+          ? () async {
+              Navigator.pop(actionContext);
+              final reminderId = event.reminderId;
+              if (reminderId != null) {
+                await widget.onEndReminder?.call(reminderId);
+              }
+            }
+          : null,
+      icon: const Icon(Icons.stop_circle),
+      label: const Text('End Reminder'),
+    );
+  }
+
+  String _cleanEventDetail(String? rawDetail) {
+    if (rawDetail == null || rawDetail.isEmpty) return '';
+
+    var displayDetail = rawDetail.trim();
+    if (displayDetail.startsWith('flowLocalId=')) {
+      final semi = displayDetail.indexOf(';');
+      if (semi > 0 && semi < displayDetail.length - 1) {
+        displayDetail = displayDetail.substring(semi + 1).trim();
+      } else {
+        return '';
+      }
+    }
+
+    displayDetail = _stripCidLines(displayDetail);
+    if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
+      return '';
+    }
+
+    return displayDetail;
+  }
+
+  Widget _buildEventDetailSheetPage({
+    required DayViewSheetEventTarget target,
+    bool scrollable = true,
+  }) {
+    final currentEvent = target.event;
+    final flow = widget.flowIndex[currentEvent.flowId];
+    final isReminder = currentEvent.isReminder;
+    final detail = _cleanEventDetail(currentEvent.detail);
+    final isNutrition = detail.contains('Source:');
+
+    Widget? metaChip;
+    if (flow != null) {
+      metaChip = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: flow.color.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          flow.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12,
+            color: flow.color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    } else if (isReminder) {
+      metaChip = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: KemeticGold.base.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: KemeticGold.text(
+          'Reminder',
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      );
+    } else if (isNutrition) {
+      metaChip = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: KemeticGold.base.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            KemeticGold.icon(Icons.local_drink, size: 14),
+            const SizedBox(width: 4),
+            KemeticGold.text(
+              'Nutrition',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final body = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (metaChip != null) metaChip,
+        if (metaChip != null) const SizedBox(height: 12),
+        KemeticGold.text(
+          currentEvent.title,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            const Icon(Icons.access_time, size: 16, color: Color(0xFF808080)),
+            const SizedBox(width: 8),
+            Text(
+              _formatTimeRange(
+                currentEvent.startMin,
+                currentEvent.endMin,
+                allDay: currentEvent.allDay,
+              ),
+              style: const TextStyle(color: Color(0xFF808080)),
+            ),
+          ],
+        ),
+        if (currentEvent.location != null &&
+            currentEvent.location!.trim().isNotEmpty) ...[
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () => _launchLocation(currentEvent.location!.trim()),
+            child: Row(
               children: [
-                // Header row with badges and menu
-                Row(
-                  children: [
-                    if (flow != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: flow.color.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: flow.color, width: 1),
-                        ),
-                        child: Text(
-                          flow.name,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: flow.color,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      )
-                    else if (event.detail != null &&
-                        event.detail!.contains('Source:'))
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: KemeticGold.base.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            KemeticGold.icon(Icons.local_drink, size: 14),
-                            const SizedBox(width: 4),
-                            KemeticGold.text(
-                              'Nutrition',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    const Spacer(),
-                    if (flow != null && widget.onEndFlow != null)
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: _gold),
-                          foregroundColor: _gold,
-                        ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          widget.onEndFlow?.call(flow.id);
-                        },
-                        icon: KemeticGold.icon(Icons.stop_circle),
-                        label: KemeticGold.text(
-                          'End Flow',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      )
-                    else if (flow == null && widget.onDeleteNote != null)
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: _gold),
-                          foregroundColor: _gold,
-                        ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          widget.onDeleteNote!(
-                            widget.kYear,
-                            widget.kMonth,
-                            day,
-                            event,
-                          );
-                        },
-                        icon: KemeticGold.icon(Icons.delete_outline),
-                        label: KemeticGold.text(
-                          'End Note',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    const SizedBox(width: 8),
-                    PopupMenuButton<String>(
-                      icon: KemeticGold.icon(Icons.more_vert),
-                      tooltip: 'Event options',
-                      onSelected: (value) async {
-                        if (value == 'journal') {
-                          await _handleAddToJournal(
-                            event,
-                            day,
-                            sheetContext: context,
-                          );
-                        } else if (value == 'edit' && flow != null) {
-                          Navigator.pop(context);
-                          widget.onManageFlows?.call(flow.id);
-                        } else if (value == 'invite_people' &&
-                            widget.onShareNote != null) {
-                          Navigator.pop(context);
-                          await widget.onShareNote!(event);
-                        } else if (value == 'edit_note' &&
-                            flow == null &&
-                            widget.onEditNote != null) {
-                          Navigator.pop(context);
-                          await widget.onEditNote!(
-                            widget.kYear,
-                            widget.kMonth,
-                            day,
-                            event,
-                          );
-                        } else if (value == 'invite_people' &&
-                            flow == null &&
-                            widget.onShareNote != null) {
-                          Navigator.pop(context);
-                          await widget.onShareNote!(event);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'journal',
-                          child: Row(
-                            children: [
-                              KemeticGold.icon(Icons.check_circle),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Done / Add to journal',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (flow != null)
-                          PopupMenuItem(
-                            value: 'edit',
-                            child: Row(
-                              children: [
-                                KemeticGold.icon(Icons.edit),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Edit Flow',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (flow != null && widget.onShareNote != null)
-                          PopupMenuItem(
-                            value: 'invite_people',
-                            child: Row(
-                              children: [
-                                KemeticGold.icon(Icons.person_add_alt_1),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Invite People',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (flow == null && widget.onEditNote != null)
-                          PopupMenuItem(
-                            value: 'edit_note',
-                            child: Row(
-                              children: [
-                                KemeticGold.icon(Icons.edit),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Edit Note',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                        if (flow == null && widget.onShareNote != null)
-                          PopupMenuItem(
-                            value: 'invite_people',
-                            child: Row(
-                              children: [
-                                KemeticGold.icon(Icons.person_add_alt_1),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Invite People',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                      color: const Color(0xFF000000),
-                    ),
-                  ],
+                const Icon(
+                  Icons.location_on,
+                  size: 16,
+                  color: Color(0xFF808080),
                 ),
-                const SizedBox(height: 8),
-
-                // Event title
-                Text(
-                  event.title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Time
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.access_time,
-                      size: 16,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    currentEvent.location!.trim(),
+                    style: const TextStyle(
                       color: Color(0xFF808080),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _formatTimeRange(event.startMin, event.endMin),
-                      style: const TextStyle(color: Color(0xFF808080)),
-                    ),
-                  ],
-                ),
-
-                // Location (clickable)
-                if (event.location != null && event.location!.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () => _launchLocation(event.location!.trim()),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.location_on,
-                          size: 16,
-                          color: Color(0xFF808080),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            event.location!,
-                            style: const TextStyle(
-                              color: Color(0xFF808080),
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ),
-                      ],
+                      decoration: TextDecoration.underline,
                     ),
                   ),
-                ],
-
-                // Details
-                if (event.detail != null && event.detail!.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Builder(
-                    builder: (context) {
-                      String displayDetail = event.detail!;
-                      if (displayDetail.startsWith('flowLocalId=')) {
-                        final semi = displayDetail.indexOf(';');
-                        if (semi > 0 && semi < displayDetail.length - 1) {
-                          displayDetail = displayDetail
-                              .substring(semi + 1)
-                              .trim();
-                        } else {
-                          return const SizedBox.shrink();
-                        }
-                      }
-                      if (displayDetail.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return RichText(
-                        text: TextSpan(
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.white,
-                          ),
-                          children: _buildTextSpans(displayDetail),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-
-                const SizedBox(height: 20),
-
-                // Action buttons (matching day view style)
-                Builder(
-                  builder: (context) {
-                    final canShareFlow =
-                        CalendarPage.globalKey.currentState?.mounted ?? false;
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        TextButton.icon(
-                          onPressed: flow == null
-                              ? (widget.onEditNote == null
-                                    ? null
-                                    : () async {
-                                        Navigator.pop(context);
-                                        await widget.onEditNote!(
-                                          widget.kYear,
-                                          widget.kMonth,
-                                          day,
-                                          event,
-                                        );
-                                      })
-                              : (canShareFlow
-                                    ? () async {
-                                        Navigator.pop(context);
-                                        await CalendarPage.shareFlowFromEvent(
-                                          event,
-                                        );
-                                      }
-                                    : null),
-                          icon: Icon(
-                            flow == null
-                                ? Icons.note_alt_outlined
-                                : Icons.share_outlined,
-                            color:
-                                (flow == null
-                                    ? widget.onEditNote == null
-                                    : !canShareFlow)
-                                ? const Color(0xFF404040)
-                                : _gold,
-                          ),
-                          label: Text(
-                            flow == null ? 'Note' : 'Share Flow',
-                            style: TextStyle(
-                              color:
-                                  (flow == null
-                                      ? widget.onEditNote == null
-                                      : !canShareFlow)
-                                  ? const Color(0xFF404040)
-                                  : _gold,
-                            ),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text(
-                            'Close',
-                            style: TextStyle(color: _gold),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
                 ),
               ],
             ),
           ),
+        ],
+        if (detail.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 14, color: Colors.white),
+              children: _buildTextSpans(detail),
+            ),
+          ),
+        ],
+      ],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.04),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: _gold.withOpacity(0.4)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.45),
+              blurRadius: 18,
+              spreadRadius: 1,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: scrollable
+            ? SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: body,
+              )
+            : body,
+      ),
+    );
+  }
+
+  Widget _buildEventDetailTopActionRow({
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    final currentEvent = target.event;
+    final flow = widget.flowIndex[currentEvent.flowId];
+    final isReminder = currentEvent.isReminder;
+
+    return Row(
+      children: [
+        const Spacer(),
+        if (flow != null)
+          _buildEndFlowButton(flow.id, actionContext: sheetContext)
+        else if (isReminder)
+          _buildEndReminderButton(currentEvent, actionContext: sheetContext)
+        else if (widget.onDeleteNote != null)
+          _buildEndNoteButton(
+            currentEvent,
+            ky: target.ky,
+            km: target.km,
+            kd: target.kd,
+            actionContext: sheetContext,
+          ),
+        const SizedBox(width: 8),
+        _buildEventDetailOverflowButton(
+          sheetContext: sheetContext,
+          target: target,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEventDetailPrimaryAction({
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    final currentEvent = target.event;
+    final flow = widget.flowIndex[currentEvent.flowId];
+    final isReminder = currentEvent.isReminder;
+
+    if (flow != null) {
+      final enabled = CalendarPage.globalKey.currentState?.mounted ?? false;
+      return TextButton.icon(
+        onPressed: enabled
+            ? () async {
+                Navigator.pop(sheetContext);
+                await CalendarPage.shareFlowFromEvent(currentEvent);
+              }
+            : null,
+        icon: enabled
+            ? KemeticGold.icon(Icons.share_outlined)
+            : const Icon(Icons.share_outlined, color: Color(0xFF404040)),
+        label: enabled
+            ? KemeticGold.text(
+                'Share Flow',
+                style: _landscapeActionTextStyle.copyWith(fontSize: 15),
+              )
+            : const Text(
+                'Share Flow',
+                style: TextStyle(color: Color(0xFF404040)),
+              ),
+      );
+    }
+
+    if (isReminder) {
+      final enabled =
+          widget.onEditReminder != null && currentEvent.reminderId != null;
+      return TextButton.icon(
+        onPressed: enabled
+            ? () async {
+                Navigator.pop(sheetContext);
+                await widget.onEditReminder!(currentEvent.reminderId!);
+              }
+            : null,
+        icon: enabled
+            ? KemeticGold.icon(Icons.notifications_active_outlined)
+            : const Icon(
+                Icons.notifications_active_outlined,
+                color: Color(0xFF404040),
+              ),
+        label: enabled
+            ? KemeticGold.text(
+                'Reminder',
+                style: _landscapeActionTextStyle.copyWith(fontSize: 15),
+              )
+            : const Text(
+                'Reminder',
+                style: TextStyle(color: Color(0xFF404040)),
+              ),
+      );
+    }
+
+    final enabled = widget.onEditNote != null;
+    return TextButton.icon(
+      onPressed: enabled
+          ? () async {
+              Navigator.pop(sheetContext);
+              await widget.onEditNote!(
+                target.ky,
+                target.km,
+                target.kd,
+                currentEvent,
+              );
+            }
+          : null,
+      icon: enabled
+          ? KemeticGold.icon(Icons.note_alt_outlined)
+          : const Icon(Icons.note_alt_outlined, color: Color(0xFF404040)),
+      label: enabled
+          ? KemeticGold.text(
+              'Note',
+              style: _landscapeActionTextStyle.copyWith(fontSize: 15),
+            )
+          : const Text('Note', style: TextStyle(color: Color(0xFF404040))),
+    );
+  }
+
+  Widget _buildEventDetailOverflowButton({
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    final currentEvent = target.event;
+    final flow = widget.flowIndex[currentEvent.flowId];
+    final isReminder = currentEvent.isReminder;
+
+    return PopupMenuButton<String>(
+      icon: KemeticGold.icon(Icons.more_vert),
+      tooltip: 'Event options',
+      color: const Color(0xFF000000),
+      onSelected: (value) async {
+        if (value == 'journal') {
+          await _handleAddToJournal(
+            currentEvent,
+            target.kd,
+            sheetContext: sheetContext,
+          );
+        } else if (value == 'edit' && flow != null) {
+          Navigator.pop(sheetContext);
+          widget.onManageFlows?.call(flow.id);
+        } else if (value == 'invite_people') {
+          Navigator.pop(sheetContext);
+          if (isReminder && widget.onShareReminder != null) {
+            await widget.onShareReminder!(currentEvent);
+          } else if (widget.onShareNote != null) {
+            await widget.onShareNote!(currentEvent);
+          }
+        } else if (value == 'save' &&
+            flow != null &&
+            widget.onSaveFlow != null) {
+          Navigator.pop(sheetContext);
+          await widget.onSaveFlow!(flow.id);
+        } else if (value == 'edit_reminder' &&
+            isReminder &&
+            widget.onEditReminder != null &&
+            currentEvent.reminderId != null) {
+          Navigator.pop(sheetContext);
+          await widget.onEditReminder!(currentEvent.reminderId!);
+        } else if (value == 'edit_note' &&
+            flow == null &&
+            !isReminder &&
+            widget.onEditNote != null) {
+          Navigator.pop(sheetContext);
+          await widget.onEditNote!(
+            target.ky,
+            target.km,
+            target.kd,
+            currentEvent,
+          );
+        }
+      },
+      itemBuilder: (context) => [
+        if (widget.onAppendToJournal != null)
+          PopupMenuItem(
+            value: 'journal',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.library_add_check),
+                const SizedBox(width: 12),
+                const Text(
+                  'Add to journal',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (flow != null && !isReminder && widget.onManageFlows != null)
+          PopupMenuItem(
+            value: 'edit',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text('Edit Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (flow != null && !isReminder && widget.onShareNote != null)
+          PopupMenuItem(
+            value: 'invite_people',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.person_add_alt_1),
+                const SizedBox(width: 12),
+                const Text(
+                  'Invite People',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (flow != null && !isReminder && widget.onSaveFlow != null)
+          PopupMenuItem(
+            value: 'save',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.bookmark_add),
+                const SizedBox(width: 12),
+                const Text('Save Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (isReminder &&
+            widget.onEditReminder != null &&
+            currentEvent.reminderId != null)
+          PopupMenuItem(
+            value: 'edit_reminder',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text(
+                  'Edit Reminder',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (isReminder && widget.onShareReminder != null)
+          PopupMenuItem(
+            value: 'invite_people',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.person_add_alt_1),
+                const SizedBox(width: 12),
+                const Text(
+                  'Invite People',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (flow == null && !isReminder && widget.onEditNote != null)
+          PopupMenuItem(
+            value: 'edit_note',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text('Edit Note', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (flow == null && !isReminder && widget.onShareNote != null)
+          PopupMenuItem(
+            value: 'invite_people',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.person_add_alt_1),
+                const SizedBox(width: 12),
+                const Text(
+                  'Invite People',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildEventDetailBottomActionRow({
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildEventDetailPrimaryAction(
+          sheetContext: sheetContext,
+          target: target,
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(sheetContext),
+          child: KemeticGold.text(
+            'Close',
+            style: _landscapeActionTextStyle.copyWith(fontSize: 15),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showEventDetail(EventItem event, int day) {
+    final sheetDataListenable = widget.dataVersion ?? _kLandscapeZeroListenable;
+    final currentTarget = ValueNotifier<DayViewSheetEventTarget>(
+      DayViewSheetEventTarget(
+        ky: widget.kYear,
+        km: widget.kMonth,
+        kd: day,
+        event: event,
+      ),
+    );
+    final measuredHeights = ValueNotifier<Map<String, double>>({});
+    final initialPages = _detailSheetPagesForTarget(currentTarget.value);
+    PageController sheetPageController = PageController(
+      initialPage: initialPages.currentIndex,
+    );
+
+    void updateMeasuredHeight(String key, double height) {
+      final normalized = height.ceilToDouble();
+      if (normalized <= 0) return;
+      final previous = measuredHeights.value[key];
+      if (previous != null && (previous - normalized).abs() < 1) return;
+      measuredHeights.value = Map<String, double>.from(measuredHeights.value)
+        ..[key] = normalized;
+    }
+
+    void resetSheetPageController(int initialPage) {
+      final previous = sheetPageController;
+      sheetPageController = PageController(initialPage: initialPage);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        previous.dispose();
+      });
+    }
+
+    void moveToTarget(DayViewSheetEventTarget nextTarget) {
+      final previousTarget = currentTarget.value;
+      currentTarget.value = nextTarget;
+      if (mounted && nextTarget.kd != previousTarget.kd) {
+        _scrollToDay(nextTarget.kd);
+      }
+      HapticFeedback.selectionClick();
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _bg,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return ValueListenableBuilder<int>(
+          valueListenable: sheetDataListenable,
+          builder: (context, _, __) {
+            return ValueListenableBuilder<DayViewSheetEventTarget>(
+              valueListenable: currentTarget,
+              builder: (context, rawTarget, __) {
+                final target = _resolveCurrentEventTarget(rawTarget);
+                final pages = _detailSheetPagesForTarget(target);
+                final currentKey = _detailSheetTargetKey(target);
+                final pageViewKey = ValueKey<String>(
+                  '$currentKey:${pages.currentIndex}:${pages.pages.length}',
+                );
+
+                return ValueListenableBuilder<Map<String, double>>(
+                  valueListenable: measuredHeights,
+                  builder: (context, heights, __) {
+                    final maxSheetHeight = math.min(
+                      MediaQuery.sizeOf(context).height * 0.72,
+                      560.0,
+                    );
+                    final sheetHeight = (heights[currentKey] ?? 200.0)
+                        .clamp(0.0, math.max(180.0, maxSheetHeight - 112.0))
+                        .toDouble();
+
+                    return SafeArea(
+                      top: false,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Offstage(
+                            child: Column(
+                              children: [
+                                for (final pageTarget in pages.pages)
+                                  _MeasureSize(
+                                    onChange: (size) {
+                                      updateMeasuredHeight(
+                                        _detailSheetTargetKey(pageTarget),
+                                        size.height,
+                                      );
+                                    },
+                                    child: SizedBox(
+                                      width: MediaQuery.sizeOf(context).width,
+                                      child: _buildEventDetailSheetPage(
+                                        target: pageTarget,
+                                        scrollable: false,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildEventDetailTopActionRow(
+                                  sheetContext: sheetContext,
+                                  target: target,
+                                ),
+                                const SizedBox(height: 10),
+                                AnimatedSize(
+                                  duration: const Duration(milliseconds: 180),
+                                  curve: Curves.easeOutCubic,
+                                  alignment: Alignment.bottomCenter,
+                                  child: SizedBox(
+                                    height: sheetHeight,
+                                    child: PageView.builder(
+                                      key: pageViewKey,
+                                      controller: sheetPageController,
+                                      physics: const BouncingScrollPhysics(),
+                                      itemCount: pages.pages.length,
+                                      onPageChanged: (index) {
+                                        if (index == pages.currentIndex) return;
+                                        final nextTarget = pages.pages[index];
+                                        final nextPages =
+                                            _detailSheetPagesForTarget(
+                                              nextTarget,
+                                            );
+                                        resetSheetPageController(
+                                          nextPages.currentIndex,
+                                        );
+                                        moveToTarget(nextTarget);
+                                      },
+                                      itemBuilder: (context, index) {
+                                        return _buildEventDetailSheetPage(
+                                          target: pages.pages[index],
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                _buildEventDetailBottomActionRow(
+                                  sheetContext: sheetContext,
+                                  target: target,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
         );
       },
-    );
+    ).whenComplete(() {
+      currentTarget.dispose();
+      measuredHeights.dispose();
+      sheetPageController.dispose();
+    });
   }
 
   Map<EventItem, int> _assignColumns(List<EventItem> events) {
@@ -1823,9 +2396,22 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       if (trimmed.startsWith('flowLocalId=')) return false;
       final norm = trimmed.replaceAll(RegExp(r'\s+'), '');
       if (cidRegex.hasMatch(norm)) return false;
+      if (norm.toLowerCase().startsWith('kemet_cid:reminder:')) return false;
+      if (norm.toLowerCase().startsWith('reminder:')) return false;
       return true;
     }).toList();
     return kept.join('\n').trim();
+  }
+
+  bool _looksLikeCidDetail(String text) {
+    final trimmed = text.trim().replaceAll(RegExp(r'\s+'), '');
+    final withPrefix = trimmed.startsWith('kemet_cid:')
+        ? trimmed.substring('kemet_cid:'.length)
+        : trimmed;
+    final cidPattern = RegExp(
+      r'^ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
+    );
+    return cidPattern.hasMatch(withPrefix);
   }
 
   String _buildBadgeToken(EventItem event, int day) {
@@ -2023,7 +2609,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     return spans;
   }
 
-  String _formatTimeRange(int startMin, int endMin) {
+  String _formatTimeRange(int startMin, int endMin, {bool allDay = false}) {
+    if (allDay) return 'All day';
     final startHour = startMin ~/ 60;
     final startMinute = startMin % 60;
     final endHour = endMin ~/ 60;
@@ -2036,5 +2623,42 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     }
 
     return '${formatTime(startHour, startMinute)} – ${formatTime(endHour, endMinute)}';
+  }
+}
+
+class _MeasureSize extends SingleChildRenderObjectWidget {
+  const _MeasureSize({required this.onChange, required super.child});
+
+  final ValueChanged<Size> onChange;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _MeasureSizeRenderObject(onChange);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    covariant _MeasureSizeRenderObject renderObject,
+  ) {
+    renderObject.onChange = onChange;
+  }
+}
+
+class _MeasureSizeRenderObject extends RenderProxyBox {
+  _MeasureSizeRenderObject(this.onChange);
+
+  ValueChanged<Size> onChange;
+  Size? _oldSize;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final newSize = child?.size;
+    if (newSize == null || newSize == _oldSize) return;
+    _oldSize = newSize;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      onChange(newSize);
+    });
   }
 }

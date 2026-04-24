@@ -16995,6 +16995,7 @@ class _CalendarPageState extends State<CalendarPage>
           initialKm: km,
           initialKd: _lastViewKd ?? _today.kDay, // ✅ Highlight current day
           showGregorian: _showGregorian,
+          dataVersion: _dayViewDataVersion,
           notesForDay: (ky, km, kd) {
             final notes = _getNotes(ky, km, kd);
             return notes
@@ -17036,12 +17037,17 @@ class _CalendarPageState extends State<CalendarPage>
           onEditNote: (ky, km, kd, evt) async {
             await _editNoteByEvent(ky, km, kd, evt);
           },
+          onEditReminder: (id) async => _editReminderById(id),
+          onEndReminder: (id) async => _endReminderRule(id),
+          onShareReminder: (evt) async => _shareNoteSimple(evt),
           onShareNote: (evt) async {
             await _shareNoteSimple(evt);
           },
           onAppendToJournal: _journalInitialized
               ? (text) => _journalController.appendToToday(text)
               : null,
+          onEndFlow: (id) => _endFlow(id),
+          onSaveFlow: _saveFlowById,
         ),
       );
     }

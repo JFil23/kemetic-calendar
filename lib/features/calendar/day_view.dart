@@ -1062,11 +1062,14 @@ class _DayViewPageState extends State<DayViewPage> {
                   initialKm: _currentKm,
                   initialKd: _currentKd,
                   showGregorian: _showGregorian,
+                  dataVersion: widget.dataVersion,
                   notesForDay: widget.notesForDay,
                   flowIndex: flowIndex,
                   getMonthName: widget.getMonthName,
                   onManageFlows: widget.onManageFlows,
                   onAddNote: widget.onAddNote,
+                  onDeleteNote: widget.onDeleteNote,
+                  onEditNote: widget.onEditNote,
                   onMoveEventTime: widget.onMoveEventTime,
                   onMonthChanged: (ky, km) {
                     // ✅ HANDLE MONTH CHANGE IN DAY VIEW
@@ -1087,6 +1090,13 @@ class _DayViewPageState extends State<DayViewPage> {
                       }
                     });
                   },
+                  onShareNote: widget.onShareNote,
+                  onEditReminder: widget.onEditReminder,
+                  onEndReminder: widget.onEndReminder,
+                  onShareReminder: widget.onShareReminder,
+                  onEndFlow: widget.onEndFlow,
+                  onAppendToJournal: widget.onAppendToJournal,
+                  onSaveFlow: widget.onSaveFlow,
                 );
               }
 
