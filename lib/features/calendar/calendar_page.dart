@@ -372,22 +372,22 @@ const TextStyle _neutralOnBlack = TextStyle(
   color: Colors.white, // same color as the day numbers
 );
 
-const Color _trackSkySignifierBase = Color(0xFFD5A01F);
-const Color _trackSkySignifierLight = Color(0xFFFFE6A0);
-const Color _trackSkySignifierMid = Color(0xFFF0BE43);
-const Color _trackSkySignifierDeep = Color(0xFF8B6514);
-const Color _trackSkySignifierText = Color(0xFF332000);
+const Color _trackSkySignifierBase = Color(0xFF6876D8);
+const Color _trackSkySignifierLight = Color(0xFFDFE6FF);
+const Color _trackSkySignifierMid = Color(0xFFA4B1FF);
+const Color _trackSkySignifierDeep = Color(0xFF1A224F);
+const Color _trackSkySignifierText = Color(0xFFF6F8FF);
 
 const LinearGradient _trackSkySignifierGradient = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
   colors: [
-    _trackSkySignifierLight,
-    _trackSkySignifierMid,
-    _trackSkySignifierBase,
     _trackSkySignifierDeep,
+    _trackSkySignifierBase,
+    _trackSkySignifierMid,
+    _trackSkySignifierLight,
   ],
-  stops: [0.0, 0.34, 0.72, 1.0],
+  stops: [0.0, 0.44, 0.78, 1.0],
 );
 
 Color _defaultNoteColor(_Note _) => _silver;
@@ -401,6 +401,686 @@ bool _isTrackSkyFlowName(String? name) {
 Color _displayFlowColor(String? flowName, Color fallback) {
   if (_isTrackSkyFlowName(flowName)) return _trackSkySignifierBase;
   return fallback;
+}
+
+enum _TrackSkyBadgeKind {
+  moon,
+  lunarEclipse,
+  solarEclipse,
+  meteor,
+  planet,
+  solarSeason,
+  genericSky,
+}
+
+class _TrackSkyBadgeSpec {
+  final _TrackSkyBadgeKind kind;
+  final Gradient background;
+  final Color borderColor;
+  final Color textColor;
+  final Color glowColor;
+  final Color accentColor;
+  final Color secondaryAccentColor;
+
+  const _TrackSkyBadgeSpec({
+    required this.kind,
+    required this.background,
+    required this.borderColor,
+    required this.textColor,
+    required this.glowColor,
+    required this.accentColor,
+    required this.secondaryAccentColor,
+  });
+}
+
+_TrackSkyBadgeKind _trackSkyBadgeKindForTitle(String title) {
+  if (title.contains('solar eclipse') || title.contains('ring of fire')) {
+    return _TrackSkyBadgeKind.solarEclipse;
+  }
+  if (title.contains('lunar eclipse') ||
+      title.contains('blood moon') ||
+      title.contains('penumbral') ||
+      title.contains('partial lunar')) {
+    return _TrackSkyBadgeKind.lunarEclipse;
+  }
+  if (title.contains('moon')) return _TrackSkyBadgeKind.moon;
+  if (title.contains('lyrids') ||
+      title.contains('aquariids') ||
+      title.contains('perseids') ||
+      title.contains('geminids') ||
+      title.contains('quadrantids') ||
+      title.contains('meteor')) {
+    return _TrackSkyBadgeKind.meteor;
+  }
+  if (title.contains('equinox') || title.contains('solstice')) {
+    return _TrackSkyBadgeKind.solarSeason;
+  }
+  if (title.contains('planet') ||
+      title.contains('conjunction') ||
+      title.contains('opposition') ||
+      title.contains('elongation') ||
+      title.contains('venus') ||
+      title.contains('mars') ||
+      title.contains('jupiter') ||
+      title.contains('saturn') ||
+      title.contains('mercury')) {
+    return _TrackSkyBadgeKind.planet;
+  }
+  return _TrackSkyBadgeKind.genericSky;
+}
+
+Color _trackSkyMoonTintForTitle(String title) {
+  if (title.contains('blood')) return const Color(0xFFC7655D);
+  if (title.contains('blue moon')) return const Color(0xFFA8D6FF);
+  if (title.contains('pink')) return const Color(0xFFF5B4D7);
+  if (title.contains('flower')) return const Color(0xFFFFE3B0);
+  if (title.contains('strawberry')) return const Color(0xFFF39AA6);
+  if (title.contains('harvest')) return const Color(0xFFF5C46B);
+  if (title.contains('hunter')) return const Color(0xFFCF925B);
+  if (title.contains('snow') || title.contains('cold')) {
+    return const Color(0xFFEAF5FF);
+  }
+  if (title.contains('wolf')) return const Color(0xFFD9E6FF);
+  if (title.contains('beaver')) return const Color(0xFFD7B58F);
+  if (title.contains('buck')) return const Color(0xFFE0BF8C);
+  if (title.contains('sturgeon')) return const Color(0xFFE7EEF9);
+  return const Color(0xFFF4E7CF);
+}
+
+Color _trackSkyMeteorTintForTitle(String title) {
+  if (title.contains('perseids')) return const Color(0xFF9FCAFF);
+  if (title.contains('geminids')) return const Color(0xFFA9F5EF);
+  if (title.contains('lyrids')) return const Color(0xFFD7C3FF);
+  if (title.contains('quadrantids')) return const Color(0xFFEAF5FF);
+  if (title.contains('aquariids')) return const Color(0xFF8DEAF7);
+  return const Color(0xFFB9D0FF);
+}
+
+Color _trackSkyPlanetTintForTitle(String title) {
+  if (title.contains('mars')) return const Color(0xFFE17D5D);
+  if (title.contains('venus')) return const Color(0xFFF6E2C0);
+  if (title.contains('jupiter')) return const Color(0xFFF4C88D);
+  if (title.contains('saturn')) return const Color(0xFFE8D27A);
+  if (title.contains('mercury')) return const Color(0xFFD9E1F0);
+  return const Color(0xFFBFD2FF);
+}
+
+Color _trackSkySolarTintForTitle(String title) {
+  if (title.contains('winter')) return const Color(0xFFF1D4A3);
+  if (title.contains('summer')) return const Color(0xFFF7B45A);
+  if (title.contains('autumn')) return const Color(0xFFF19A62);
+  if (title.contains('vernal') || title.contains('spring')) {
+    return const Color(0xFFF8CDA0);
+  }
+  return const Color(0xFFF3C47E);
+}
+
+_TrackSkyBadgeSpec _trackSkyBadgeSpecForTitle(String rawTitle) {
+  final title = rawTitle.trim().toLowerCase();
+  final kind = _trackSkyBadgeKindForTitle(title);
+  switch (kind) {
+    case _TrackSkyBadgeKind.moon:
+      final moonTint = _trackSkyMoonTintForTitle(title);
+      return _TrackSkyBadgeSpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF040813),
+            Color.lerp(const Color(0xFF16245D), moonTint, 0.16)!,
+            const Color(0xFF2A1F52),
+          ],
+        ),
+        borderColor: moonTint.withOpacity(0.72),
+        textColor: const Color(0xFFF8FAFF),
+        glowColor: moonTint.withOpacity(0.5),
+        accentColor: moonTint,
+        secondaryAccentColor: Colors.white,
+      );
+    case _TrackSkyBadgeKind.lunarEclipse:
+      final eclipseTint = _trackSkyMoonTintForTitle(title);
+      return _TrackSkyBadgeSpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF05070F),
+            Color.lerp(const Color(0xFF301126), eclipseTint, 0.34)!,
+            const Color(0xFF120812),
+          ],
+        ),
+        borderColor: eclipseTint.withOpacity(0.78),
+        textColor: const Color(0xFFFFF6F1),
+        glowColor: eclipseTint.withOpacity(0.55),
+        accentColor: eclipseTint,
+        secondaryAccentColor: const Color(0xFFFFD7BF),
+      );
+    case _TrackSkyBadgeKind.solarEclipse:
+      final ringTint = title.contains('ring of fire')
+          ? const Color(0xFFFFA24B)
+          : const Color(0xFFF4E6C1);
+      return _TrackSkyBadgeSpec(
+        kind: kind,
+        background: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF03050B), Color(0xFF171B2E), Color(0xFF090B14)],
+        ),
+        borderColor: ringTint.withOpacity(0.8),
+        textColor: const Color(0xFFFFF8EF),
+        glowColor: ringTint.withOpacity(0.6),
+        accentColor: ringTint,
+        secondaryAccentColor: const Color(0xFFFFD26A),
+      );
+    case _TrackSkyBadgeKind.meteor:
+      final meteorTint = _trackSkyMeteorTintForTitle(title);
+      return _TrackSkyBadgeSpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF050816),
+            Color.lerp(const Color(0xFF1E1B54), meteorTint, 0.2)!,
+            const Color(0xFF0C1029),
+          ],
+        ),
+        borderColor: meteorTint.withOpacity(0.78),
+        textColor: const Color(0xFFF4F8FF),
+        glowColor: meteorTint.withOpacity(0.52),
+        accentColor: meteorTint,
+        secondaryAccentColor: Colors.white,
+      );
+    case _TrackSkyBadgeKind.planet:
+      final planetTint = _trackSkyPlanetTintForTitle(title);
+      return _TrackSkyBadgeSpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF050915),
+            Color.lerp(const Color(0xFF13224B), planetTint, 0.18)!,
+            const Color(0xFF161038),
+          ],
+        ),
+        borderColor: planetTint.withOpacity(0.72),
+        textColor: const Color(0xFFF8FAFF),
+        glowColor: planetTint.withOpacity(0.5),
+        accentColor: planetTint,
+        secondaryAccentColor: const Color(0xFFE9EFFF),
+      );
+    case _TrackSkyBadgeKind.solarSeason:
+      final solarTint = _trackSkySolarTintForTitle(title);
+      return _TrackSkyBadgeSpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF071326),
+            Color.lerp(const Color(0xFF5C2F57), solarTint, 0.26)!,
+            Color.lerp(const Color(0xFFF18E5B), solarTint, 0.4)!,
+          ],
+          stops: const [0.0, 0.58, 1.0],
+        ),
+        borderColor: solarTint.withOpacity(0.82),
+        textColor: const Color(0xFFFFFAF1),
+        glowColor: solarTint.withOpacity(0.55),
+        accentColor: solarTint,
+        secondaryAccentColor: const Color(0xFFFFE7B8),
+      );
+    case _TrackSkyBadgeKind.genericSky:
+      return const _TrackSkyBadgeSpec(
+        kind: _TrackSkyBadgeKind.genericSky,
+        background: _trackSkySignifierGradient,
+        borderColor: _trackSkySignifierMid,
+        textColor: _trackSkySignifierText,
+        glowColor: _trackSkySignifierLight,
+        accentColor: _trackSkySignifierLight,
+        secondaryAccentColor: Colors.white,
+      );
+  }
+}
+
+_TrackSkyBadgeSpec _trackSkyBadgeSpecForNote(_Note note) =>
+    _trackSkyBadgeSpecForTitle(note.title);
+
+List<Widget> _buildTrackSkyStars({
+  required String seed,
+  required bool showLabel,
+  required bool dense,
+  required Color tint,
+}) {
+  final random = math.Random(seed.hashCode & 0x7fffffff);
+  final count = dense ? 4 : 9;
+  return List<Widget>.generate(count, (index) {
+    final x = showLabel
+        ? (0.1 + random.nextDouble() * 0.95).clamp(-1.0, 1.0)
+        : (-0.8 + random.nextDouble() * 1.6).clamp(-1.0, 1.0);
+    final y = (-0.82 + random.nextDouble() * 1.5).clamp(-1.0, 1.0);
+    final size = dense
+        ? 1.0 + random.nextDouble() * 0.8
+        : 1.0 + random.nextDouble() * 1.7;
+    final opacity = 0.28 + random.nextDouble() * 0.45;
+    final color = (index % 3 == 0 ? tint : Colors.white).withOpacity(opacity);
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Align(
+          alignment: Alignment(x.toDouble(), y.toDouble()),
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color,
+                  blurRadius: dense ? 1.2 : 2.8,
+                  spreadRadius: dense ? 0.0 : 0.08,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  });
+}
+
+List<Widget> _buildTrackSkyAccentWidgets({
+  required _TrackSkyBadgeSpec spec,
+  required String title,
+  required bool dense,
+  required bool showLabel,
+}) {
+  final lower = title.toLowerCase();
+  switch (spec.kind) {
+    case _TrackSkyBadgeKind.moon:
+      final isMicro = lower.contains('micromoon');
+      final isSuper = lower.contains('supermoon');
+      final size = dense
+          ? (isSuper ? 9.0 : (isMicro ? 6.0 : 7.4))
+          : (isSuper ? 21.0 : (isMicro ? 14.5 : 18.0));
+      return [
+        Positioned(
+          right: dense ? 3 : 8,
+          top: dense ? 1.0 : 5.5,
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  Colors.white.withOpacity(0.98),
+                  spec.accentColor,
+                  spec.secondaryAccentColor.withOpacity(0.12),
+                ],
+                stops: const [0.0, 0.56, 1.0],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: spec.accentColor.withOpacity(0.35),
+                  blurRadius: dense ? 4 : 9,
+                  spreadRadius: dense ? 0.1 : 0.5,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ];
+    case _TrackSkyBadgeKind.lunarEclipse:
+      final isPenumbral = lower.contains('penumbral');
+      final size = dense ? 8.3 : 18.0;
+      return [
+        Positioned(
+          right: dense ? 3 : 8,
+          top: dense ? 1.2 : 5.5,
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: Stack(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        spec.secondaryAccentColor.withOpacity(0.96),
+                        spec.accentColor,
+                        spec.accentColor.withOpacity(0.12),
+                      ],
+                      stops: const [0.0, 0.58, 1.0],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: spec.accentColor.withOpacity(0.34),
+                        blurRadius: dense ? 4 : 8,
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  left: size * (isPenumbral ? 0.18 : 0.3),
+                  top: size * 0.02,
+                  child: Container(
+                    width: size * 0.9,
+                    height: size * 0.9,
+                    decoration: BoxDecoration(
+                      color: const Color(
+                        0xCC05080F,
+                      ).withOpacity(isPenumbral ? 0.4 : 0.7),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ];
+    case _TrackSkyBadgeKind.solarEclipse:
+      final size = dense ? 8.6 : 18.5;
+      return [
+        Positioned(
+          right: dense ? 3 : 8,
+          top: dense ? 1.0 : 5.2,
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: Stack(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: spec.accentColor,
+                      width: dense ? 1.3 : 2.1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: spec.accentColor.withOpacity(0.55),
+                        blurRadius: dense ? 4 : 9,
+                        spreadRadius: dense ? 0.0 : 0.4,
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned.fill(
+                  child: Padding(
+                    padding: EdgeInsets.all(dense ? 1.6 : 3.0),
+                    child: DecoratedBox(
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF05070D),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ];
+    case _TrackSkyBadgeKind.meteor:
+      return [
+        Positioned(
+          right: dense ? 3 : 4,
+          top: dense ? 1.2 : 4.0,
+          child: Transform.rotate(
+            angle: -0.52,
+            child: Container(
+              width: dense ? 11 : 28,
+              height: dense ? 1.2 : 1.8,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    spec.accentColor.withOpacity(0.18),
+                    spec.accentColor.withOpacity(0.82),
+                    Colors.white.withOpacity(0.98),
+                  ],
+                  stops: const [0.0, 0.42, 0.78, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          right: dense ? 2.0 : 3.0,
+          top: dense ? 0.6 : 2.2,
+          child: Container(
+            width: dense ? 3.4 : 6.0,
+            height: dense ? 3.4 : 6.0,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  Colors.white,
+                  spec.accentColor,
+                  spec.accentColor.withOpacity(0.04),
+                ],
+                stops: const [0.0, 0.48, 1.0],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: spec.accentColor.withOpacity(0.55),
+                  blurRadius: dense ? 3 : 7,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ];
+    case _TrackSkyBadgeKind.planet:
+      if (lower.contains('parade')) {
+        final colors = [
+          spec.accentColor,
+          const Color(0xFFF4D88E),
+          const Color(0xFFD7E2FF),
+          const Color(0xFFE7C8FF),
+        ];
+        return [
+          for (int i = 0; i < colors.length; i++)
+            Positioned(
+              right: (dense ? 2.0 : 5.0) + i * (dense ? 3.6 : 6.2),
+              top: (dense ? 1.4 : 6.0) + (i.isEven ? 0.0 : (dense ? 1.2 : 2.0)),
+              child: Container(
+                width: dense ? 2.7 : 4.5,
+                height: dense ? 2.7 : 4.5,
+                decoration: BoxDecoration(
+                  color: colors[i],
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors[i].withOpacity(0.45),
+                      blurRadius: dense ? 2.2 : 4.5,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ];
+      }
+      if (lower.contains('conjunction')) {
+        return [
+          Positioned(
+            right: dense ? 4.0 : 12.0,
+            top: dense ? 1.2 : 5.4,
+            child: Container(
+              width: dense ? 4.2 : 7.0,
+              height: dense ? 4.2 : 7.0,
+              decoration: BoxDecoration(
+                color: spec.accentColor,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: spec.accentColor.withOpacity(0.45),
+                    blurRadius: dense ? 2.2 : 5.5,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            right: dense ? 1.4 : 6.0,
+            top: dense ? 2.8 : 8.0,
+            child: Container(
+              width: dense ? 3.5 : 5.8,
+              height: dense ? 3.5 : 5.8,
+              decoration: BoxDecoration(
+                color: spec.secondaryAccentColor,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: spec.secondaryAccentColor.withOpacity(0.38),
+                    blurRadius: dense ? 2.0 : 4.5,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ];
+      }
+      if (lower.contains('saturn')) {
+        final size = dense ? 5.2 : 10.0;
+        return [
+          Positioned(
+            right: dense ? 3.2 : 9.0,
+            top: dense ? 1.5 : 5.5,
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Transform.rotate(
+                    angle: -0.28,
+                    child: Container(
+                      width: size,
+                      height: size * 0.42,
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: spec.secondaryAccentColor.withOpacity(0.8),
+                          width: dense ? 0.7 : 1.0,
+                        ),
+                        borderRadius: BorderRadius.circular(size),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: size * 0.62,
+                    height: size * 0.62,
+                    decoration: BoxDecoration(
+                      color: spec.accentColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ];
+      }
+      return [
+        Positioned(
+          right: dense ? 3.0 : 8.0,
+          top: dense ? 1.2 : 5.2,
+          child: Container(
+            width: dense ? 6.0 : 12.0,
+            height: dense ? 6.0 : 12.0,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  spec.secondaryAccentColor.withOpacity(0.98),
+                  spec.accentColor,
+                  spec.accentColor.withOpacity(0.08),
+                ],
+                stops: const [0.0, 0.56, 1.0],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: spec.accentColor.withOpacity(0.38),
+                  blurRadius: dense ? 4 : 8,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ];
+    case _TrackSkyBadgeKind.solarSeason:
+      return [
+        Positioned(
+          left: showLabel ? 0 : 3,
+          right: dense ? 4 : 6,
+          bottom: dense ? 1.1 : 3.2,
+          child: Container(
+            height: dense ? 1.0 : 1.6,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  spec.secondaryAccentColor.withOpacity(0.22),
+                  spec.secondaryAccentColor.withOpacity(0.6),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          right: dense ? 4 : 12,
+          bottom: dense ? 0.4 : 3.0,
+          child: Container(
+            width: dense ? 5.0 : 11.0,
+            height: dense ? 5.0 : 11.0,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  Colors.white.withOpacity(0.98),
+                  spec.accentColor,
+                  spec.accentColor.withOpacity(0.08),
+                ],
+                stops: const [0.0, 0.54, 1.0],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: spec.accentColor.withOpacity(0.45),
+                  blurRadius: dense ? 4 : 8,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ];
+    case _TrackSkyBadgeKind.genericSky:
+      return [
+        Positioned(
+          right: dense ? 2.8 : 7.0,
+          top: dense ? 1.4 : 5.0,
+          child: Container(
+            width: dense ? 6.0 : 12.0,
+            height: dense ? 6.0 : 12.0,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  spec.secondaryAccentColor.withOpacity(0.8),
+                  spec.accentColor.withOpacity(0.4),
+                  spec.accentColor.withOpacity(0.0),
+                ],
+                stops: const [0.0, 0.42, 1.0],
+              ),
+            ),
+          ),
+        ),
+      ];
+  }
 }
 
 double _chipHeightFor(MonthExpansionLevel level) {
@@ -18999,29 +19679,84 @@ class _DayChip extends StatelessWidget {
     final gradient = isToday
         ? goldGloss
         : (showGregorian ? blueGloss : silverGloss);
+    _Note? trackSkyHeaderNote;
+    for (final note in notes) {
+      if (_isTrackSkyFlowName(flowNameGetter?.call(note))) {
+        trackSkyHeaderNote = note;
+        break;
+      }
+    }
 
     final isCompact = expansionLevel == MonthExpansionLevel.compact;
     final chipHeight = decanHeight ?? _chipHeightFor(expansionLevel);
-    final miniHeight = _miniHeightFor(expansionLevel);
+    final nonCompactHeaderHeight = 24.0;
 
-    Widget _buildMiniBlocks() {
-      if (isCompact) {
-        final noteCount = notes.length;
-        // Show a single dot set: flow colors if present; otherwise a single silver dot when notes exist.
-        if (flowColors.isNotEmpty) {
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final c in flowColors.take(3)) ...[
-                _ColorDot(color: c),
-                const SizedBox(width: 2.5),
-              ],
+    Widget _buildMiniBlocksCompact({required double maxWidth}) {
+      const spacing = 2.5;
+      const maxMarkersCap = 3;
+      const trackSkyMarkerWidth = 7.0;
+      const colorDotWidth = 5.0;
+
+      final double safeMaxWidth = maxWidth.isFinite
+          ? (maxWidth > 1 ? maxWidth - 1 : 0)
+          : 0;
+      final noteCount = notes.length;
+      final trackSkyNotes = notes
+          .where((note) => _isTrackSkyFlowName(flowNameGetter?.call(note)))
+          .toList();
+
+      int fitCount(double itemWidth) {
+        if (safeMaxWidth <= 0) return 0;
+        return ((safeMaxWidth + spacing) / (itemWidth + spacing)).floor().clamp(
+          0,
+          maxMarkersCap,
+        );
+      }
+
+      Widget buildRow<T>(List<T> items, Widget Function(T item) builder) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < items.length; i++) ...[
+              if (i > 0) const SizedBox(width: spacing),
+              builder(items[i]),
             ],
-          );
-        }
-        if (noteCount > 0) {
-          return const _GlossyDot(gradient: silverGloss);
-        }
+          ],
+        );
+      }
+
+      if (trackSkyNotes.isNotEmpty) {
+        final visibleTrackSkyNotes = trackSkyNotes
+            .take(fitCount(trackSkyMarkerWidth))
+            .toList(growable: false);
+        if (visibleTrackSkyNotes.isEmpty) return const SizedBox.shrink();
+        return buildRow<_Note>(
+          visibleTrackSkyNotes,
+          (note) => _TrackSkyMicroSignifier(note: note),
+        );
+      }
+
+      // Show a single dot set: flow colors if present; otherwise a single silver dot when notes exist.
+      if (flowColors.isNotEmpty) {
+        final visibleFlowColors = flowColors
+            .take(fitCount(colorDotWidth))
+            .toList(growable: false);
+        if (visibleFlowColors.isEmpty) return const SizedBox.shrink();
+        return buildRow<Color>(
+          visibleFlowColors,
+          (color) => _ColorDot(color: color),
+        );
+      }
+
+      if (noteCount > 0 && safeMaxWidth >= colorDotWidth) {
+        return const _GlossyDot(gradient: silverGloss);
+      }
+
+      return const SizedBox.shrink();
+    }
+
+    Widget _buildMiniBlocks({double? availableHeight}) {
+      if (isCompact) {
         return const SizedBox.shrink();
       }
 
@@ -19044,87 +19779,73 @@ class _DayChip extends StatelessWidget {
           ? 2
           : (expansionLevel == MonthExpansionLevel.details ? 5 : 1);
 
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          int visibleCount = maxBlocks;
-          if (expansionLevel == MonthExpansionLevel.details &&
-              constraints.maxHeight.isFinite) {
-            // Estimate pill height for two-line text + padding/border.
-            const double estimatedPillHeight = 50.0;
-            const double spacingHeight = 3.0;
-            const double overflowIndicatorHeight = 15.0;
+      int visibleCount = maxBlocks;
+      if (expansionLevel == MonthExpansionLevel.details &&
+          availableHeight != null &&
+          availableHeight.isFinite) {
+        const double estimatedPillHeight = 40.0;
+        const double spacingHeight = 6.0;
+        const double overflowIndicatorHeight = 15.0;
 
-            double used = 0;
-            int count = 0;
-            while (count < sorted.length && count < maxBlocks) {
-              final next =
-                  estimatedPillHeight + (count == 0 ? 0 : spacingHeight);
-              if (used + next > constraints.maxHeight) break;
-              used += next;
-              count++;
-            }
+        double used = 0;
+        int count = 0;
+        while (count < sorted.length && count < maxBlocks) {
+          final next = estimatedPillHeight + (count == 0 ? 0 : spacingHeight);
+          if (used + next > availableHeight) break;
+          used += next;
+          count++;
+        }
 
-            // Reserve room for "+N" indicator when there are hidden events.
-            final hasHidden = count < sorted.length;
-            if (hasHidden &&
-                count > 0 &&
-                used + overflowIndicatorHeight > constraints.maxHeight) {
-              count = (count - 1).clamp(0, maxBlocks);
-            }
+        final hasHidden = count < sorted.length;
+        if (hasHidden &&
+            count > 0 &&
+            used + overflowIndicatorHeight > availableHeight) {
+          count = (count - 1).clamp(0, maxBlocks);
+        }
 
-            visibleCount = count.clamp(0, maxBlocks);
-          }
+        visibleCount = count.clamp(0, maxBlocks);
+      }
 
-          final visible = sorted.take(visibleCount).toList();
-          final remaining = sorted.length - visible.length;
+      final visible = sorted.take(visibleCount).toList();
+      final remaining = sorted.length - visible.length;
 
-          return ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: constraints.maxHeight),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (int i = 0; i < visible.length; i++) ...[
-                  _MiniEventBlock(
-                    note: visible[i],
-                    color: noteColorResolver(visible[i]),
-                    isTrackSky: _isTrackSkyFlowName(
-                      flowNameGetter?.call(visible[i]),
-                    ),
-                    dense: expansionLevel == MonthExpansionLevel.stacked,
-                    label: expansionLevel == MonthExpansionLevel.details
-                        ? _labelFor(visible[i])
-                        : null,
-                    expand: expansionLevel == MonthExpansionLevel.details,
-                    onTap: expansionLevel == MonthExpansionLevel.details
-                        ? () => _showEventDetailFromNote(context, visible[i])
-                        : null,
-                  ),
-                  if (i != visible.length - 1)
-                    SizedBox(
-                      height: expansionLevel == MonthExpansionLevel.details
-                          ? 6
-                          : 3,
-                    ),
-                ],
-                if (remaining > 0 &&
-                    expansionLevel == MonthExpansionLevel.details)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      '+$remaining',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-              ],
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (int i = 0; i < visible.length; i++) ...[
+            _MiniEventBlock(
+              note: visible[i],
+              color: noteColorResolver(visible[i]),
+              isTrackSky: _isTrackSkyFlowName(flowNameGetter?.call(visible[i])),
+              dense: expansionLevel == MonthExpansionLevel.stacked,
+              label: expansionLevel == MonthExpansionLevel.details
+                  ? _labelFor(visible[i])
+                  : null,
+              expand: expansionLevel == MonthExpansionLevel.details,
+              onTap: expansionLevel == MonthExpansionLevel.details
+                  ? () => _showEventDetailFromNote(context, visible[i])
+                  : null,
             ),
-          );
-        },
+            if (i != visible.length - 1)
+              SizedBox(
+                height: expansionLevel == MonthExpansionLevel.details ? 6 : 3,
+              ),
+          ],
+          if (remaining > 0 && expansionLevel == MonthExpansionLevel.details)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                '+$remaining',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+        ],
       );
     }
 
@@ -19160,10 +19881,38 @@ class _DayChip extends StatelessWidget {
                         style: textStyle,
                         gradient: gradient,
                       ),
-                      Positioned(
-                        right: 4,
-                        bottom: 4,
-                        child: _buildMiniBlocks(),
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: Align(
+                            alignment: Alignment.bottomRight,
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                right: 4,
+                                bottom: 4,
+                              ),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final maxWidth = constraints.maxWidth.isFinite
+                                      ? constraints.maxWidth
+                                      : 0.0;
+                                  return ClipRect(
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth: maxWidth,
+                                      ),
+                                      child: Align(
+                                        alignment: Alignment.bottomRight,
+                                        child: _buildMiniBlocksCompact(
+                                          maxWidth: maxWidth,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   )
@@ -19173,17 +19922,118 @@ class _DayChip extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       SizedBox(
-                        width: double.infinity,
-                        child: Center(
-                          child: GlossyText(
-                            text: label,
-                            style: textStyle,
-                            gradient: gradient,
-                          ),
+                        height: nonCompactHeaderHeight,
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final maxWidth = constraints.maxWidth.isFinite
+                                ? constraints.maxWidth
+                                : 0.0;
+                            final canShowTrackSkyMotif =
+                                trackSkyHeaderNote != null && maxWidth >= 14;
+                            final motifWidth = canShowTrackSkyMotif
+                                ? math.min(14.0, maxWidth * 0.4)
+                                : 0.0;
+                            final motifOffset = canShowTrackSkyMotif
+                                ? (motifWidth / 2) + 1.5
+                                : 0.0;
+                            final motifOnLeftEdge = kDay % 10 == 0;
+                            final motifSpec = trackSkyHeaderNote == null
+                                ? null
+                                : _trackSkyBadgeSpecForNote(
+                                    trackSkyHeaderNote!,
+                                  );
+
+                            return Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: nonCompactHeaderHeight,
+                                  child: Center(
+                                    child: GlossyText(
+                                      text: label,
+                                      style: textStyle,
+                                      gradient: gradient,
+                                    ),
+                                  ),
+                                ),
+                                if (canShowTrackSkyMotif && motifSpec != null)
+                                  Positioned(
+                                    top: 10,
+                                    left: motifOnLeftEdge ? -motifOffset : null,
+                                    right: motifOnLeftEdge
+                                        ? null
+                                        : -motifOffset,
+                                    child: IgnorePointer(
+                                      child: SizedBox(
+                                        width: motifWidth,
+                                        height: 10,
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            Align(
+                                              alignment: Alignment.topCenter,
+                                              child: SizedBox(
+                                                height: 6.2,
+                                                child: FittedBox(
+                                                  fit: BoxFit.scaleDown,
+                                                  alignment:
+                                                      Alignment.topCenter,
+                                                  child:
+                                                      _buildTrackSkyBadgeMotif(
+                                                        spec: motifSpec,
+                                                        title:
+                                                            trackSkyHeaderNote!
+                                                                .title,
+                                                        dense: false,
+                                                      ),
+                                                ),
+                                              ),
+                                            ),
+                                            Align(
+                                              alignment: Alignment.bottomCenter,
+                                              child: Container(
+                                                height: 1.8,
+                                                decoration: BoxDecoration(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        999,
+                                                      ),
+                                                  gradient: LinearGradient(
+                                                    colors: [
+                                                      motifSpec.accentColor
+                                                          .withOpacity(0.0),
+                                                      motifSpec.accentColor
+                                                          .withOpacity(0.75),
+                                                      motifSpec
+                                                          .secondaryAccentColor
+                                                          .withOpacity(0.95),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Expanded(child: ClipRect(child: _buildMiniBlocks())),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return ClipRect(
+                              child: _buildMiniBlocks(
+                                availableHeight: constraints.maxHeight,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
                     ],
                   ),
               ],
@@ -19565,25 +20415,51 @@ class _MainCalendarEventDetailSheetState
     final isReminder = currentEvent.isReminder;
     final detail = _cleanDetail(currentEvent.detail);
     final isNutrition = detail.contains('Source:');
+    final isTrackSky = _isTrackSkyFlowName(flow?.name);
+    final trackSkySpec = isTrackSky
+        ? _trackSkyBadgeSpecForTitle(currentEvent.title)
+        : null;
 
     Widget? metaChip;
     if (flow != null) {
       metaChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: flow.color.withOpacity(0.16),
+          gradient: isTrackSky ? trackSkySpec!.background : null,
+          color: isTrackSky ? null : flow.color.withOpacity(0.16),
+          border: isTrackSky
+              ? Border.all(color: trackSkySpec!.borderColor.withOpacity(0.78))
+              : null,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(
-          flow.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 12,
-            color: flow.color,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        child: isTrackSky
+            ? Text(
+                flow.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: trackSkySpec!.textColor,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withOpacity(0.42),
+                      offset: const Offset(0, 1),
+                      blurRadius: 2,
+                    ),
+                  ],
+                ),
+              )
+            : Text(
+                flow.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: flow.color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
       );
     } else if (isReminder) {
       metaChip = Container(
@@ -20209,6 +21085,513 @@ class _ColorDot extends StatelessWidget {
   }
 }
 
+class _TrackSkyMicroSignifier extends StatelessWidget {
+  final _Note note;
+  const _TrackSkyMicroSignifier({required this.note});
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = _trackSkyBadgeSpecForNote(note);
+    return Container(
+      width: 6.5,
+      height: 6.5,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: spec.background,
+        border: Border.all(
+          color: spec.borderColor.withOpacity(0.8),
+          width: 0.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.22),
+            blurRadius: 1.4,
+            offset: const Offset(0, 0.5),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: Stack(
+          children: [
+            ..._buildTrackSkyStars(
+              seed: '${note.title}|micro',
+              showLabel: false,
+              dense: true,
+              tint: spec.accentColor,
+            ),
+            ..._buildTrackSkyAccentWidgets(
+              spec: spec,
+              title: note.title,
+              dense: true,
+              showLabel: false,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Widget _buildTrackSkyBadgeMotif({
+  required _TrackSkyBadgeSpec spec,
+  required String title,
+  required bool dense,
+}) {
+  final lower = title.toLowerCase();
+  final double size = dense ? 10.0 : 16.0;
+  final double ringSize = dense ? 1.0 : 1.4;
+
+  Widget planet({
+    required Color color,
+    double? diameter,
+    BoxBorder? border,
+    List<BoxShadow>? shadow,
+  }) {
+    final d = diameter ?? size;
+    return Container(
+      width: d,
+      height: d,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+        border: border,
+        boxShadow: shadow,
+      ),
+    );
+  }
+
+  switch (spec.kind) {
+    case _TrackSkyBadgeKind.moon:
+      return planet(
+        color: spec.accentColor,
+        shadow: [
+          BoxShadow(
+            color: spec.glowColor.withOpacity(0.42),
+            blurRadius: dense ? 3 : 6,
+          ),
+        ],
+      );
+    case _TrackSkyBadgeKind.lunarEclipse:
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          children: [
+            planet(
+              color: spec.accentColor,
+              shadow: [
+                BoxShadow(
+                  color: spec.glowColor.withOpacity(0.35),
+                  blurRadius: dense ? 3 : 6,
+                ),
+              ],
+            ),
+            Positioned(
+              left: size * (lower.contains('penumbral') ? 0.16 : 0.28),
+              top: size * 0.05,
+              child: planet(
+                color: const Color(0xCC03050B),
+                diameter: size * 0.82,
+              ),
+            ),
+          ],
+        ),
+      );
+    case _TrackSkyBadgeKind.solarEclipse:
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            planet(
+              color: Colors.transparent,
+              border: Border.all(color: spec.accentColor, width: ringSize),
+              shadow: [
+                BoxShadow(
+                  color: spec.glowColor.withOpacity(0.5),
+                  blurRadius: dense ? 4 : 7,
+                ),
+              ],
+            ),
+            planet(color: const Color(0xFF04060D), diameter: size * 0.64),
+          ],
+        ),
+      );
+    case _TrackSkyBadgeKind.meteor:
+      return SizedBox(
+        width: size + (dense ? 4 : 7),
+        height: size,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              right: 0,
+              top: dense ? 2.0 : 3.0,
+              child: planet(
+                color: Colors.white,
+                diameter: dense ? 3.2 : 5.0,
+                shadow: [
+                  BoxShadow(
+                    color: spec.glowColor.withOpacity(0.55),
+                    blurRadius: dense ? 3 : 6,
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              left: 0,
+              top: dense ? 3.0 : 5.0,
+              child: Transform.rotate(
+                angle: -0.35,
+                child: Container(
+                  width: dense ? 10 : 15,
+                  height: dense ? 1.2 : 1.8,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        spec.accentColor.withOpacity(0.18),
+                        spec.accentColor.withOpacity(0.72),
+                        Colors.white,
+                      ],
+                      stops: const [0.0, 0.34, 0.72, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    case _TrackSkyBadgeKind.planet:
+      if (lower.contains('saturn')) {
+        return SizedBox(
+          width: size + (dense ? 2 : 4),
+          height: size,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Transform.rotate(
+                angle: -0.25,
+                child: Container(
+                  width: size + (dense ? 2 : 5),
+                  height: dense ? 3.0 : 5.0,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: spec.secondaryAccentColor.withOpacity(0.82),
+                      width: dense ? 0.8 : 1.1,
+                    ),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              planet(color: spec.accentColor, diameter: size * 0.64),
+            ],
+          ),
+        );
+      }
+      if (lower.contains('conjunction')) {
+        return SizedBox(
+          width: size + (dense ? 2 : 5),
+          height: size,
+          child: Stack(
+            children: [
+              Positioned(
+                right: 0,
+                top: dense ? 0.6 : 1.3,
+                child: planet(
+                  color: spec.secondaryAccentColor,
+                  diameter: size * 0.52,
+                ),
+              ),
+              Positioned(
+                left: 0,
+                bottom: dense ? 0.6 : 1.4,
+                child: planet(color: spec.accentColor, diameter: size * 0.64),
+              ),
+            ],
+          ),
+        );
+      }
+      if (lower.contains('parade')) {
+        final colors = [
+          spec.accentColor,
+          spec.secondaryAccentColor,
+          const Color(0xFFE7C8FF),
+        ];
+        return SizedBox(
+          width: size + (dense ? 5 : 9),
+          height: size,
+          child: Stack(
+            children: [
+              for (int i = 0; i < colors.length; i++)
+                Positioned(
+                  left: i * (dense ? 3.0 : 5.0),
+                  top: i.isEven ? 0 : (dense ? 1.8 : 2.5),
+                  child: planet(color: colors[i], diameter: dense ? 3.0 : 4.4),
+                ),
+            ],
+          ),
+        );
+      }
+      return planet(
+        color: spec.accentColor,
+        shadow: [
+          BoxShadow(
+            color: spec.glowColor.withOpacity(0.4),
+            blurRadius: dense ? 3 : 6,
+          ),
+        ],
+      );
+    case _TrackSkyBadgeKind.solarSeason:
+      return SizedBox(
+        width: size + (dense ? 4 : 8),
+        height: size,
+        child: Stack(
+          children: [
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: dense ? 1.0 : 2.0,
+              child: Container(
+                height: dense ? 1.0 : 1.5,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      spec.secondaryAccentColor.withOpacity(0.5),
+                      spec.secondaryAccentColor,
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: dense ? 2.0 : 4.0,
+              bottom: dense ? 1.2 : 2.1,
+              child: planet(
+                color: spec.accentColor,
+                diameter: dense ? 4.2 : 6.8,
+                shadow: [
+                  BoxShadow(
+                    color: spec.glowColor.withOpacity(0.45),
+                    blurRadius: dense ? 3 : 6,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    case _TrackSkyBadgeKind.genericSky:
+      return planet(
+        color: spec.secondaryAccentColor,
+        diameter: dense ? 4.0 : 6.0,
+        shadow: [
+          BoxShadow(
+            color: spec.glowColor.withOpacity(0.4),
+            blurRadius: dense ? 3 : 6,
+          ),
+        ],
+      );
+  }
+}
+
+class _TrackSkyMiniBadge extends StatelessWidget {
+  final _Note note;
+  final bool dense;
+  final bool expand;
+  final String? label;
+  final VoidCallback? onTap;
+
+  const _TrackSkyMiniBadge({
+    required this.note,
+    this.dense = true,
+    this.expand = false,
+    this.label,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final showLabel = label != null && !dense;
+    final isDetailPill = expand && showLabel;
+    final spec = _trackSkyBadgeSpecForNote(note);
+    final motif = _buildTrackSkyBadgeMotif(
+      spec: spec,
+      title: note.title,
+      dense: dense,
+    );
+    final double badgeHeight = isDetailPill ? 40 : (dense ? 10 : 26);
+    final double motifBoxWidth = showLabel ? 16 : (dense ? 12 : 18);
+    final double motifBoxHeight = dense ? 10 : 14;
+    final EdgeInsetsGeometry padding = showLabel
+        ? const EdgeInsets.fromLTRB(7, 6, 6, 6)
+        : const EdgeInsets.symmetric(horizontal: 4, vertical: 2);
+    final BorderRadius radius = BorderRadius.circular(
+      isDetailPill ? 12 : (dense ? 5 : 10),
+    );
+
+    final labelStyle = TextStyle(
+      color: spec.textColor,
+      fontSize: isDetailPill ? 10.5 : 10,
+      height: 1.18,
+      fontWeight: isDetailPill ? FontWeight.w600 : FontWeight.w500,
+      shadows: [
+        Shadow(
+          color: Colors.black.withOpacity(0.68),
+          offset: const Offset(0, 1.2),
+          blurRadius: 2.8,
+        ),
+        Shadow(
+          color: spec.glowColor.withOpacity(0.36),
+          offset: Offset.zero,
+          blurRadius: 5,
+        ),
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, outerConstraints) {
+        final double minW = dense
+            ? (outerConstraints.maxWidth.isFinite
+                  ? math.min(24.0, outerConstraints.maxWidth)
+                  : 24.0)
+            : 0.0;
+        final badge = RepaintBoundary(
+          child: Container(
+            width: expand ? double.infinity : null,
+            height: badgeHeight,
+            constraints: BoxConstraints(minWidth: minW),
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              gradient: spec.background,
+              border: Border.all(
+                color: spec.borderColor.withOpacity(dense ? 0.95 : 1.0),
+                width: dense ? 0.95 : 1.0,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.26),
+                  blurRadius: dense ? 2 : 5,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: radius,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final canShowMotifWithLabel =
+                      showLabel && constraints.maxWidth >= 44;
+
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ..._buildTrackSkyStars(
+                        seed: note.title,
+                        showLabel: showLabel,
+                        dense: dense,
+                        tint: spec.accentColor,
+                      ),
+                      if (showLabel)
+                        Positioned.fill(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [
+                                  const Color(0xAA04060C),
+                                  const Color(0x7204060C),
+                                  const Color(0x1204060C),
+                                  Colors.transparent,
+                                ],
+                                stops: const [0.0, 0.38, 0.64, 1.0],
+                              ),
+                            ),
+                          ),
+                        ),
+                      Padding(
+                        padding: padding,
+                        child: showLabel
+                            ? Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                      right: canShowMotifWithLabel
+                                          ? motifBoxWidth + 2
+                                          : 0,
+                                    ),
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        label!,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        softWrap: true,
+                                        textAlign: TextAlign.left,
+                                        style: labelStyle,
+                                      ),
+                                    ),
+                                  ),
+                                  if (canShowMotifWithLabel)
+                                    Positioned(
+                                      right: 0,
+                                      top: 0,
+                                      bottom: 0,
+                                      child: Align(
+                                        alignment: Alignment.centerRight,
+                                        child: SizedBox(
+                                          width: motifBoxWidth,
+                                          height: motifBoxHeight,
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            alignment: Alignment.centerRight,
+                                            child: motif,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              )
+                            : Center(
+                                child: SizedBox(
+                                  width: motifBoxWidth,
+                                  height: motifBoxHeight,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.center,
+                                    child: motif,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+
+        if (expand && !dense && onTap != null) {
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: badge,
+          );
+        }
+
+        return IgnorePointer(child: badge);
+      },
+    );
+  }
+}
+
 class _MiniEventBlock extends StatelessWidget {
   final _Note note;
   final Color color;
@@ -20230,12 +21613,21 @@ class _MiniEventBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (isTrackSky) {
+      return _TrackSkyMiniBadge(
+        note: note,
+        dense: dense,
+        expand: expand,
+        label: label,
+        onTap: onTap,
+      );
+    }
+
     final showLabel = label != null && !dense;
     final isDetailPill = expand && showLabel;
     final bg = color.withOpacity(dense ? 0.28 : 0.22);
-    final border = isTrackSky ? _trackSkySignifierBase : color.withOpacity(0.9);
-    final double minH = isDetailPill ? 38 : (dense ? 8 : 24);
-    final double minW = dense ? 24 : 0;
+    final border = color.withOpacity(0.9);
+    final double badgeHeight = isDetailPill ? 38 : (dense ? 8 : 24);
     final EdgeInsetsGeometry padding = showLabel
         ? (isDetailPill
               ? const EdgeInsets.symmetric(horizontal: 3, vertical: 6)
@@ -20245,63 +21637,47 @@ class _MiniEventBlock extends StatelessWidget {
       isDetailPill ? 12 : (dense ? 5 : 10),
     );
     final TextStyle labelStyle = TextStyle(
-      color: isTrackSky ? _trackSkySignifierText : Colors.white,
+      color: Colors.white,
       fontSize: isDetailPill ? 10.5 : 10,
       height: 1.2,
       fontWeight: isDetailPill ? FontWeight.w600 : FontWeight.w500,
-      shadows: isTrackSky
-          ? const [
-              Shadow(
-                color: Color(0x6EFFF5D1),
-                offset: Offset(0, 0.55),
-                blurRadius: 0.3,
-              ),
-              Shadow(
-                color: Color(0x36000000),
-                offset: Offset(0, 1.0),
-                blurRadius: 1.2,
-              ),
-            ]
-          : null,
     );
-    final container = Container(
-      width: expand ? double.infinity : null,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: isTrackSky ? null : bg,
-        gradient: isTrackSky ? _trackSkySignifierGradient : null,
-        borderRadius: radius,
-        border: Border.all(color: border, width: dense ? 0.8 : 1.0),
-        boxShadow: isTrackSky
-            ? const [
-                BoxShadow(
-                  color: Color(0x33140C00),
-                  blurRadius: 4,
-                  offset: Offset(0, 1),
-                ),
-              ]
-            : null,
-      ),
-      constraints: expand && isDetailPill
-          ? BoxConstraints(minHeight: minH)
-          : BoxConstraints(minHeight: minH, minWidth: minW),
-      alignment: Alignment.centerLeft,
-      child: showLabel
-          ? Text(
-              label!,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              softWrap: true,
-              textAlign: TextAlign.left,
-              style: labelStyle,
-            )
-          : null,
-    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double minW = dense
+            ? (constraints.maxWidth.isFinite
+                  ? math.min(24.0, constraints.maxWidth)
+                  : 24.0)
+            : 0.0;
+        final container = Container(
+          width: expand ? double.infinity : null,
+          height: badgeHeight,
+          padding: padding,
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: radius,
+            border: Border.all(color: border, width: dense ? 0.8 : 1.0),
+          ),
+          constraints: BoxConstraints(minWidth: minW),
+          alignment: Alignment.centerLeft,
+          child: showLabel
+              ? Text(
+                  label!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
+                  textAlign: TextAlign.left,
+                  style: labelStyle,
+                )
+              : null,
+        );
 
-    if (expand && !dense && onTap != null) {
-      return GestureDetector(onTap: onTap, child: container);
-    }
-    return container;
+        if (expand && !dense && onTap != null) {
+          return GestureDetector(onTap: onTap, child: container);
+        }
+        return container;
+      },
+    );
   }
 }
 

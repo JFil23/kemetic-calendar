@@ -38,42 +38,577 @@ const TextStyle _goldHeaderStyle = TextStyle(
   fontFamily: 'GentiumPlus',
   fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
 );
-const Gradient _trackSkyEventGloss = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [
-    Color(0xFFFFF1BF),
-    Color(0xFFF2CF63),
-    Color(0xFFFFF8D9),
-    Color(0xFFF4D97A),
-  ],
-  stops: [0.0, 0.34, 0.62, 1.0],
-);
-const Color _trackSkyEventAccent = Color(0xFFE9BE45);
-const Color _trackSkyEventBorder = Color(0xFFECCB72);
-const Color _trackSkyEventTitle = Color(0xFF221200);
-const Color _trackSkyEventLabel = Color(0xFF5E3900);
-const Color _trackSkyEventLocation = Color(0xFF6F4605);
 
 bool _isTrackSkyFlowName(String? name) {
   final normalized = name?.trim().toLowerCase();
   return normalized == 'follow the sky' || normalized == 'track the sky';
 }
 
-Gradient _trackSkyEventSurfaceGradient({double alpha = 1}) {
-  Color c(int value) => Color(value).withValues(alpha: alpha);
-  return LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [
-      c(0xFFD5A13A),
-      c(0xFFF1D57A),
-      c(0xFFF7E49A),
-      c(0xFFE7BC50),
-      c(0xFFBA8218),
-    ],
-    stops: const [0.0, 0.26, 0.5, 0.76, 1.0],
-  );
+enum _TrackSkyCardKind {
+  moon,
+  lunarEclipse,
+  solarEclipse,
+  meteor,
+  planet,
+  solarSeason,
+  genericSky,
+}
+
+class _TrackSkyCardSpec {
+  final _TrackSkyCardKind kind;
+  final Gradient background;
+  final Color borderColor;
+  final Color accentColor;
+  final Color accentSecondaryColor;
+  final Color titleColor;
+  final Color labelColor;
+  final Color detailColor;
+  final Color glowColor;
+
+  const _TrackSkyCardSpec({
+    required this.kind,
+    required this.background,
+    required this.borderColor,
+    required this.accentColor,
+    required this.accentSecondaryColor,
+    required this.titleColor,
+    required this.labelColor,
+    required this.detailColor,
+    required this.glowColor,
+  });
+}
+
+_TrackSkyCardKind _trackSkyCardKindForTitle(String title) {
+  if (title.contains('solar eclipse') || title.contains('ring of fire')) {
+    return _TrackSkyCardKind.solarEclipse;
+  }
+  if (title.contains('lunar eclipse') ||
+      title.contains('blood moon') ||
+      title.contains('penumbral') ||
+      title.contains('partial lunar')) {
+    return _TrackSkyCardKind.lunarEclipse;
+  }
+  if (title.contains('moon')) return _TrackSkyCardKind.moon;
+  if (title.contains('lyrids') ||
+      title.contains('aquariids') ||
+      title.contains('perseids') ||
+      title.contains('geminids') ||
+      title.contains('quadrantids') ||
+      title.contains('meteor')) {
+    return _TrackSkyCardKind.meteor;
+  }
+  if (title.contains('equinox') || title.contains('solstice')) {
+    return _TrackSkyCardKind.solarSeason;
+  }
+  if (title.contains('planet') ||
+      title.contains('conjunction') ||
+      title.contains('opposition') ||
+      title.contains('elongation') ||
+      title.contains('venus') ||
+      title.contains('mars') ||
+      title.contains('jupiter') ||
+      title.contains('saturn') ||
+      title.contains('mercury')) {
+    return _TrackSkyCardKind.planet;
+  }
+  return _TrackSkyCardKind.genericSky;
+}
+
+Color _trackSkyMoonTint(String title) {
+  if (title.contains('blood')) return const Color(0xFFC7655D);
+  if (title.contains('blue moon')) return const Color(0xFFA8D6FF);
+  if (title.contains('pink')) return const Color(0xFFF5B4D7);
+  if (title.contains('flower')) return const Color(0xFFFFE3B0);
+  if (title.contains('strawberry')) return const Color(0xFFF39AA6);
+  if (title.contains('harvest')) return const Color(0xFFF5C46B);
+  if (title.contains('hunter')) return const Color(0xFFCF925B);
+  if (title.contains('snow') || title.contains('cold')) {
+    return const Color(0xFFEAF5FF);
+  }
+  if (title.contains('wolf')) return const Color(0xFFD9E6FF);
+  if (title.contains('beaver')) return const Color(0xFFD7B58F);
+  if (title.contains('buck')) return const Color(0xFFE0BF8C);
+  if (title.contains('sturgeon')) return const Color(0xFFE7EEF9);
+  return const Color(0xFFF4E7CF);
+}
+
+Color _trackSkyMeteorTint(String title) {
+  if (title.contains('perseids')) return const Color(0xFF9FCAFF);
+  if (title.contains('geminids')) return const Color(0xFFA9F5EF);
+  if (title.contains('lyrids')) return const Color(0xFFD7C3FF);
+  if (title.contains('quadrantids')) return const Color(0xFFEAF5FF);
+  if (title.contains('aquariids')) return const Color(0xFF8DEAF7);
+  return const Color(0xFFB9D0FF);
+}
+
+Color _trackSkyPlanetTint(String title) {
+  if (title.contains('mars')) return const Color(0xFFE17D5D);
+  if (title.contains('venus')) return const Color(0xFFF6E2C0);
+  if (title.contains('jupiter')) return const Color(0xFFF4C88D);
+  if (title.contains('saturn')) return const Color(0xFFE8D27A);
+  if (title.contains('mercury')) return const Color(0xFFD9E1F0);
+  return const Color(0xFFBFD2FF);
+}
+
+Color _trackSkySolarTint(String title) {
+  if (title.contains('winter')) return const Color(0xFFF1D4A3);
+  if (title.contains('summer')) return const Color(0xFFF7B45A);
+  if (title.contains('autumn')) return const Color(0xFFF19A62);
+  if (title.contains('vernal') || title.contains('spring')) {
+    return const Color(0xFFF8CDA0);
+  }
+  return const Color(0xFFF3C47E);
+}
+
+_TrackSkyCardSpec _trackSkyCardSpecForEvent(EventItem event) {
+  final title = event.title.trim().toLowerCase();
+  final kind = _trackSkyCardKindForTitle(title);
+  switch (kind) {
+    case _TrackSkyCardKind.moon:
+      final tint = _trackSkyMoonTint(title);
+      return _TrackSkyCardSpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF040813),
+            Color.lerp(const Color(0xFF16245D), tint, 0.16)!,
+            const Color(0xFF2A1F52),
+          ],
+        ),
+        borderColor: tint.withValues(alpha: 0.78),
+        accentColor: tint,
+        accentSecondaryColor: Colors.white,
+        titleColor: const Color(0xFFF7FAFF),
+        labelColor: const Color(0xFFE3EAFF),
+        detailColor: const Color(0xFFD9E4FF),
+        glowColor: tint.withValues(alpha: 0.56),
+      );
+    case _TrackSkyCardKind.lunarEclipse:
+      final tint = _trackSkyMoonTint(title);
+      return _TrackSkyCardSpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF05070F),
+            Color.lerp(const Color(0xFF301126), tint, 0.34)!,
+            const Color(0xFF120812),
+          ],
+        ),
+        borderColor: tint.withValues(alpha: 0.82),
+        accentColor: tint,
+        accentSecondaryColor: const Color(0xFFFFD7BF),
+        titleColor: const Color(0xFFFFF6F1),
+        labelColor: const Color(0xFFFFE8DD),
+        detailColor: const Color(0xFFFFD9CC),
+        glowColor: tint.withValues(alpha: 0.56),
+      );
+    case _TrackSkyCardKind.solarEclipse:
+      final tint = title.contains('ring of fire')
+          ? const Color(0xFFFFA24B)
+          : const Color(0xFFF4E6C1);
+      return _TrackSkyCardSpec(
+        kind: kind,
+        background: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF03050B), Color(0xFF171B2E), Color(0xFF090B14)],
+        ),
+        borderColor: tint.withValues(alpha: 0.84),
+        accentColor: tint,
+        accentSecondaryColor: const Color(0xFFFFD26A),
+        titleColor: const Color(0xFFFFF8EF),
+        labelColor: const Color(0xFFFFEED5),
+        detailColor: const Color(0xFFFFDCB0),
+        glowColor: tint.withValues(alpha: 0.58),
+      );
+    case _TrackSkyCardKind.meteor:
+      final tint = _trackSkyMeteorTint(title);
+      return _TrackSkyCardSpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF050816),
+            Color.lerp(const Color(0xFF1E1B54), tint, 0.2)!,
+            const Color(0xFF0C1029),
+          ],
+        ),
+        borderColor: tint.withValues(alpha: 0.82),
+        accentColor: tint,
+        accentSecondaryColor: Colors.white,
+        titleColor: const Color(0xFFF4F8FF),
+        labelColor: const Color(0xFFDCE8FF),
+        detailColor: const Color(0xFFCAE3FF),
+        glowColor: tint.withValues(alpha: 0.55),
+      );
+    case _TrackSkyCardKind.planet:
+      final tint = _trackSkyPlanetTint(title);
+      return _TrackSkyCardSpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF050915),
+            Color.lerp(const Color(0xFF13224B), tint, 0.18)!,
+            const Color(0xFF161038),
+          ],
+        ),
+        borderColor: tint.withValues(alpha: 0.8),
+        accentColor: tint,
+        accentSecondaryColor: const Color(0xFFE9EFFF),
+        titleColor: const Color(0xFFF8FAFF),
+        labelColor: const Color(0xFFDDE6FF),
+        detailColor: const Color(0xFFD7E2FF),
+        glowColor: tint.withValues(alpha: 0.52),
+      );
+    case _TrackSkyCardKind.solarSeason:
+      final tint = _trackSkySolarTint(title);
+      return _TrackSkyCardSpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF071326),
+            Color.lerp(const Color(0xFF5C2F57), tint, 0.26)!,
+            Color.lerp(const Color(0xFFF18E5B), tint, 0.4)!,
+          ],
+          stops: const [0.0, 0.58, 1.0],
+        ),
+        borderColor: tint.withValues(alpha: 0.84),
+        accentColor: tint,
+        accentSecondaryColor: const Color(0xFFFFE7B8),
+        titleColor: const Color(0xFFFFFAF1),
+        labelColor: const Color(0xFFFFEFD5),
+        detailColor: const Color(0xFFFFE1B7),
+        glowColor: tint.withValues(alpha: 0.56),
+      );
+    case _TrackSkyCardKind.genericSky:
+      return const _TrackSkyCardSpec(
+        kind: _TrackSkyCardKind.genericSky,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF090D1E), Color(0xFF222A5B), Color(0xFF4B5EBB)],
+        ),
+        borderColor: Color(0xFFA4B1FF),
+        accentColor: Color(0xFFDCE6FF),
+        accentSecondaryColor: Colors.white,
+        titleColor: Color(0xFFF8FAFF),
+        labelColor: Color(0xFFE0E8FF),
+        detailColor: Color(0xFFD8E2FF),
+        glowColor: Color(0x88A4B1FF),
+      );
+  }
+}
+
+List<Widget> _buildTrackSkyCardStars({
+  required String seed,
+  required Color tint,
+  required bool compact,
+}) {
+  final random = math.Random(seed.hashCode & 0x7fffffff);
+  final count = compact ? 7 : 11;
+  return List<Widget>.generate(count, (index) {
+    final x = (-0.88 + random.nextDouble() * 1.76).clamp(-1.0, 1.0);
+    final y = (-0.86 + random.nextDouble() * 1.72).clamp(-1.0, 1.0);
+    final size = compact
+        ? 0.9 + random.nextDouble() * 1.2
+        : 1.0 + random.nextDouble() * 1.9;
+    final opacity = 0.2 + random.nextDouble() * 0.42;
+    final color = (index % 3 == 0 ? tint : Colors.white).withValues(
+      alpha: opacity,
+    );
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Align(
+          alignment: Alignment(x.toDouble(), y.toDouble()),
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(color: color, blurRadius: compact ? 1.2 : 2.8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  });
+}
+
+Widget _buildTrackSkyCardAccent(
+  _TrackSkyCardSpec spec,
+  String title, {
+  double size = 24,
+}) {
+  final lower = title.toLowerCase();
+
+  Widget planet({
+    required Color color,
+    double? diameter,
+    BoxBorder? border,
+    List<BoxShadow>? shadow,
+  }) {
+    final d = diameter ?? size;
+    return Container(
+      width: d,
+      height: d,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: border,
+        boxShadow: shadow,
+      ),
+    );
+  }
+
+  switch (spec.kind) {
+    case _TrackSkyCardKind.moon:
+      return planet(
+        color: spec.accentColor,
+        shadow: [
+          BoxShadow(
+            color: spec.glowColor.withValues(alpha: 0.42),
+            blurRadius: 10,
+          ),
+        ],
+      );
+    case _TrackSkyCardKind.lunarEclipse:
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          children: [
+            planet(
+              color: spec.accentColor,
+              shadow: [
+                BoxShadow(
+                  color: spec.glowColor.withValues(alpha: 0.38),
+                  blurRadius: 9,
+                ),
+              ],
+            ),
+            Positioned(
+              left: size * (lower.contains('penumbral') ? 0.16 : 0.28),
+              top: size * 0.05,
+              child: planet(
+                color: const Color(0xCC03050B),
+                diameter: size * 0.82,
+              ),
+            ),
+          ],
+        ),
+      );
+    case _TrackSkyCardKind.solarEclipse:
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            planet(
+              color: Colors.transparent,
+              border: Border.all(color: spec.accentColor, width: 2),
+              shadow: [
+                BoxShadow(
+                  color: spec.glowColor.withValues(alpha: 0.5),
+                  blurRadius: 10,
+                ),
+              ],
+            ),
+            planet(color: const Color(0xFF04060D), diameter: size * 0.64),
+          ],
+        ),
+      );
+    case _TrackSkyCardKind.meteor:
+      return SizedBox(
+        width: size + 10,
+        height: size,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              right: 0,
+              top: 5,
+              child: planet(
+                color: Colors.white,
+                diameter: size * 0.28,
+                shadow: [
+                  BoxShadow(
+                    color: spec.glowColor.withValues(alpha: 0.58),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              left: 0,
+              top: 8,
+              child: Transform.rotate(
+                angle: -0.35,
+                child: Container(
+                  width: size * 0.85,
+                  height: 2,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        spec.accentColor.withValues(alpha: 0.2),
+                        spec.accentColor.withValues(alpha: 0.72),
+                        Colors.white,
+                      ],
+                      stops: const [0.0, 0.34, 0.72, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    case _TrackSkyCardKind.planet:
+      if (lower.contains('saturn')) {
+        return SizedBox(
+          width: size + 6,
+          height: size,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Transform.rotate(
+                angle: -0.25,
+                child: Container(
+                  width: size + 6,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: spec.accentSecondaryColor.withValues(alpha: 0.84),
+                      width: 1.2,
+                    ),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              planet(color: spec.accentColor, diameter: size * 0.62),
+            ],
+          ),
+        );
+      }
+      if (lower.contains('conjunction')) {
+        return SizedBox(
+          width: size + 8,
+          height: size,
+          child: Stack(
+            children: [
+              Positioned(
+                right: 0,
+                top: 2,
+                child: planet(
+                  color: spec.accentSecondaryColor,
+                  diameter: size * 0.46,
+                ),
+              ),
+              Positioned(
+                left: 0,
+                bottom: 2,
+                child: planet(color: spec.accentColor, diameter: size * 0.62),
+              ),
+            ],
+          ),
+        );
+      }
+      if (lower.contains('parade')) {
+        final colors = [
+          spec.accentColor,
+          spec.accentSecondaryColor,
+          const Color(0xFFE7C8FF),
+        ];
+        return SizedBox(
+          width: size + 10,
+          height: size,
+          child: Stack(
+            children: [
+              for (int i = 0; i < colors.length; i++)
+                Positioned(
+                  left: i * 7.0,
+                  top: i.isEven ? 1.5 : 5,
+                  child: planet(color: colors[i], diameter: 5.2),
+                ),
+            ],
+          ),
+        );
+      }
+      return planet(
+        color: spec.accentColor,
+        shadow: [
+          BoxShadow(
+            color: spec.glowColor.withValues(alpha: 0.42),
+            blurRadius: 8,
+          ),
+        ],
+      );
+    case _TrackSkyCardKind.solarSeason:
+      return SizedBox(
+        width: size + 8,
+        height: size,
+        child: Stack(
+          children: [
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 2,
+              child: Container(
+                height: 1.6,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      spec.accentSecondaryColor.withValues(alpha: 0.48),
+                      spec.accentSecondaryColor,
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 3,
+              bottom: 2,
+              child: planet(
+                color: spec.accentColor,
+                diameter: 8,
+                shadow: [
+                  BoxShadow(
+                    color: spec.glowColor.withValues(alpha: 0.45),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    case _TrackSkyCardKind.genericSky:
+      return planet(
+        color: spec.accentSecondaryColor,
+        diameter: 8,
+        shadow: [
+          BoxShadow(
+            color: spec.glowColor.withValues(alpha: 0.42),
+            blurRadius: 8,
+          ),
+        ],
+      );
+  }
 }
 
 // ========================================
@@ -1705,14 +2240,36 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
   }
 
+  List<PositionedEventBlock> _eventBlocksTouchingHour(
+    int hour, {
+    List<PositionedEventBlock>? hourBlocks,
+  }) {
+    final rowStart = hour * 60.0;
+    final rowEnd = rowStart + 60.0;
+    final blocks = hourBlocks ?? _displayBlocks;
+    return blocks.where((block) {
+      final visualStart = block.event.startMin.toDouble();
+      final visualEnd = visualStart + _eventVisualHeight(block.event);
+      return visualStart < rowEnd && visualEnd > rowStart;
+    }).toList();
+  }
+
   bool _isPointOverEventBlock(
     Offset localPosition,
-    List<PositionedEventBlock> hourBlocks,
-  ) {
-    for (final block in hourBlocks) {
-      final top = (block.event.startMin % 60).toDouble();
-      final visualHeight = _eventVisualHeight(block.event);
-      final heightInRow = math.min(60.0 - top, visualHeight);
+    int hour, {
+    List<PositionedEventBlock>? hourBlocks,
+  }) {
+    final rowStart = hour * 60.0;
+    for (final block in _eventBlocksTouchingHour(
+      hour,
+      hourBlocks: hourBlocks,
+    )) {
+      final visualStart = block.event.startMin.toDouble();
+      final visualEnd = visualStart + _eventVisualHeight(block.event);
+      final top = math.max(visualStart, rowStart) - rowStart;
+      final heightInRow =
+          math.min(visualEnd, rowStart + 60.0) -
+          math.max(visualStart, rowStart);
       if (heightInRow <= 0) continue;
       final rect = Rect.fromLTWH(
         block.leftOffset,
@@ -2384,7 +2941,11 @@ class _DayViewGridState extends State<DayViewGrid> {
                   debugPrint('[DayView] hour row longPressStart hour=$hour');
                 }
                 if (_isDraggingEvent) return;
-                if (_isPointOverEventBlock(details.localPosition, hourBlocks)) {
+                if (_isPointOverEventBlock(
+                  details.localPosition,
+                  hour,
+                  hourBlocks: hourBlocks,
+                )) {
                   if (kDebugMode) {
                     debugPrint(
                       '[DayView] hour row longPressStart skipped (over block)',
@@ -2470,6 +3031,9 @@ class _DayViewGridState extends State<DayViewGrid> {
           // Event blocks
           ..._buildHourBlocks(hourBlocks),
 
+          // Overflow portions of earlier blocks need their own hit targets.
+          ..._buildOverflowTapProxiesForHour(hour),
+
           // Drag preview time chip (if active)
           ..._buildPreviewTimeChipForHour(hour),
         ],
@@ -2499,6 +3063,105 @@ class _DayViewGridState extends State<DayViewGrid> {
           ),
         ),
     ];
+  }
+
+  List<Widget> _buildOverflowTapProxiesForHour(int hour) {
+    final rowStart = hour * 60.0;
+    final rowEnd = rowStart + 60.0;
+    final spillBlocks = _displayBlocks.where((block) {
+      final visualStart = block.event.startMin.toDouble();
+      final visualEnd = visualStart + _eventVisualHeight(block.event);
+      return visualStart < rowStart && visualEnd > rowStart;
+    }).toList();
+
+    if (spillBlocks.isEmpty) return const [];
+
+    return [
+      for (final block in spillBlocks)
+        Builder(
+          builder: (_) {
+            final visualStart = block.event.startMin.toDouble();
+            final visualEnd = visualStart + _eventVisualHeight(block.event);
+            final visibleTop = math.max(visualStart, rowStart) - rowStart;
+            final visibleHeight =
+                math.min(visualEnd, rowEnd) - math.max(visualStart, rowStart);
+            if (visibleHeight <= 0) return const SizedBox.shrink();
+
+            return Positioned(
+              left: _kTimelineLabelWidth + block.leftOffset,
+              top: visibleTop,
+              child: _buildOverflowTapProxy(block, height: visibleHeight),
+            );
+          },
+        ),
+    ];
+  }
+
+  Widget _buildOverflowTapProxy(
+    PositionedEventBlock block, {
+    required double height,
+  }) {
+    final event = block.event;
+    final hitWidth = block.width + 4;
+
+    Widget targetBox() => SizedBox(width: hitWidth, height: height);
+
+    if (!_isEventDraggable(event)) {
+      return GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => _showEventDetail(event),
+        onLongPress: () {
+          HapticFeedback.mediumImpact();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("This event can't be moved"),
+              duration: Duration(milliseconds: 1200),
+            ),
+          );
+        },
+        child: targetBox(),
+      );
+    }
+
+    return LongPressDraggable<_DragPayload>(
+      data: _DragPayload(event),
+      delay: const Duration(milliseconds: 350),
+      feedback: Material(
+        color: Colors.transparent,
+        child: _buildEventBlock(block, isPreview: false),
+      ),
+      childWhenDragging: targetBox(),
+      onDragUpdate: (details) => _handleDragUpdate(event, details),
+      onDragStarted: () {
+        _isDraggingEvent = true;
+        _dragPreviewEvent = event;
+        _dragPreviewStartMin = event.startMin;
+        _lastDragSnappedMinute = event.startMin;
+        HapticFeedback.selectionClick();
+        if (kDebugMode) {
+          debugPrint('[DayView] overflow proxy drag title="${event.title}"');
+        }
+        setState(() {});
+      },
+      onDraggableCanceled: (_, __) {
+        _isDraggingEvent = false;
+        _clearDragPreview();
+        _lastDragSnappedMinute = null;
+      },
+      onDragEnd: (_) {
+        _isDraggingEvent = false;
+        _clearDragPreview();
+      },
+      onDragCompleted: () {
+        _isDraggingEvent = false;
+        _clearDragPreview();
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => _showEventDetail(event),
+        child: targetBox(),
+      ),
+    );
   }
 
   void _handleLongPressStart(LongPressStartDetails details) {
@@ -2708,6 +3371,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     final event = block.event;
     final flow = widget.flowIndex[event.flowId];
     final isTrackSky = _isTrackSkyFlowName(flow?.name);
+    final trackSkySpec = isTrackSky ? _trackSkyCardSpecForEvent(event) : null;
 
     // 🔍 DEBUG: Log block being rendered
     if (kDebugMode) {
@@ -2722,46 +3386,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     final borderRadius = BorderRadius.circular(isTrackSky ? 8 : 4);
 
     if (isTrackSky) {
-      if (kIsWeb) {
-        return Container(
-          width: block.width,
-          height: height,
-          margin: const EdgeInsets.only(right: 4, bottom: 2),
-          decoration: BoxDecoration(
-            borderRadius: borderRadius,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: const [
-                Color(0xFFE1B24A),
-                Color(0xFFF6D87C),
-                Color(0xFFFBE7A6),
-                Color(0xFFE7B93A),
-                Color(0xFFBE8616),
-              ],
-              stops: const [0.0, 0.24, 0.5, 0.76, 1.0],
-            ),
-            border: Border.all(color: const Color(0xFFE8C561), width: 0.9),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x33000000),
-                blurRadius: 8,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.hardEdge,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
-            child: _buildEventTextContents(
-              event,
-              durationMinutes,
-              isPreview: isPreview,
-            ),
-          ),
-        );
-      }
-      final surfaceAlpha = isPreview ? 0.84 : 1.0;
       return Container(
         width: block.width,
         height: height,
@@ -2770,15 +3394,15 @@ class _DayViewGridState extends State<DayViewGrid> {
           borderRadius: borderRadius,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isPreview ? 0.16 : 0.24),
-              blurRadius: 10,
+              color: Colors.black.withValues(alpha: isPreview ? 0.16 : 0.28),
+              blurRadius: kIsWeb ? 8 : 12,
               offset: const Offset(0, 4),
             ),
             BoxShadow(
-              color: _trackSkyEventAccent.withValues(
-                alpha: isPreview ? 0.06 : 0.1,
+              color: trackSkySpec!.glowColor.withValues(
+                alpha: isPreview ? 0.08 : 0.14,
               ),
-              blurRadius: 12,
+              blurRadius: kIsWeb ? 10 : 14,
               spreadRadius: -3,
               offset: const Offset(0, 0),
             ),
@@ -2790,11 +3414,11 @@ class _DayViewGridState extends State<DayViewGrid> {
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  gradient: _trackSkyEventSurfaceGradient(alpha: surfaceAlpha),
+                  gradient: trackSkySpec.background,
                   borderRadius: borderRadius,
                   border: Border.all(
-                    color: _trackSkyEventBorder.withValues(
-                      alpha: isPreview ? 0.16 : 0.26,
+                    color: trackSkySpec.borderColor.withValues(
+                      alpha: isPreview ? 0.7 : 0.92,
                     ),
                     width: 0.9,
                   ),
@@ -2802,151 +3426,44 @@ class _DayViewGridState extends State<DayViewGrid> {
               ),
             ),
             IgnorePointer(
-              child: ClipRRect(
-                borderRadius: borderRadius,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(-0.72, 0.18),
-                      radius: 1.02,
-                      colors: [
-                        Colors.white.withValues(alpha: isPreview ? 0.27 : 0.39),
-                        const Color(
-                          0xFFFFF4C7,
-                        ).withValues(alpha: isPreview ? 0.15 : 0.22),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.32, 1.0],
-                    ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ..._buildTrackSkyCardStars(
+                    seed: event.title,
+                    tint: trackSkySpec.accentColor,
+                    compact: durationMinutes < 80,
                   ),
-                ),
-              ),
-            ),
-            IgnorePointer(
-              child: ClipRRect(
-                borderRadius: borderRadius,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(0.9, -0.86),
-                      radius: 0.72,
-                      colors: [
-                        Colors.white.withValues(alpha: isPreview ? 0.22 : 0.34),
-                        const Color(
-                          0xFFFFF0B4,
-                        ).withValues(alpha: isPreview ? 0.12 : 0.18),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.34, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            IgnorePointer(
-              child: ClipRRect(
-                borderRadius: borderRadius,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: const Alignment(-1.0, -0.08),
-                      end: const Alignment(1.0, 0.22),
-                      colors: [
-                        Colors.transparent,
-                        Colors.white.withValues(
-                          alpha: isPreview ? 0.035 : 0.06,
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            const Color(0xA804060C),
+                            const Color(0x7A04060C),
+                            const Color(0x1804060C),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.34, 0.62, 1.0],
                         ),
-                        Colors.white.withValues(
-                          alpha: isPreview ? 0.065 : 0.10,
-                        ),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.16, 0.38, 0.55, 0.82],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            IgnorePointer(
-              child: ClipRRect(
-                borderRadius: borderRadius,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(0.96, 0.92),
-                      radius: 0.96,
-                      colors: [
-                        Colors.transparent,
-                        const Color(
-                          0xFFD79D22,
-                        ).withValues(alpha: isPreview ? 0.08 : 0.12),
-                        const Color(
-                          0xFF9D660B,
-                        ).withValues(alpha: isPreview ? 0.12 : 0.2),
-                      ],
-                      stops: const [0.36, 0.7, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            IgnorePointer(
-              child: ClipRRect(
-                borderRadius: borderRadius,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: const Alignment(-0.88, -0.92),
-                      radius: 1.0,
-                      colors: [
-                        Colors.white.withValues(alpha: isPreview ? 0.1 : 0.16),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.74],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            IgnorePointer(
-              child: Padding(
-                padding: const EdgeInsets.all(0.9),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(7.1),
-                    border: Border.all(
-                      color: Colors.white.withValues(
-                        alpha: isPreview ? 0.08 : 0.14,
                       ),
-                      width: 0.55,
                     ),
                   ),
-                ),
-              ),
-            ),
-            IgnorePointer(
-              child: Positioned(
-                left: 7,
-                top: 6,
-                bottom: 6,
-                width: math.min(block.width * 0.48, 188.0),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6.2),
-                    gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        Colors.white.withValues(alpha: isPreview ? 0.12 : 0.18),
-                        const Color(
-                          0xFFFFF1CB,
-                        ).withValues(alpha: isPreview ? 0.08 : 0.12),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.42, 1.0],
+                  Positioned(
+                    right: 10,
+                    top: 7,
+                    child: Opacity(
+                      opacity: isPreview ? 0.82 : 1.0,
+                      child: _buildTrackSkyCardAccent(
+                        trackSkySpec,
+                        event.title,
+                        size: math.min(height - 18, 24),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
             Padding(
@@ -3003,18 +3520,19 @@ class _DayViewGridState extends State<DayViewGrid> {
     final flow = widget.flowIndex[event.flowId];
     final bool hasFlow = flow != null;
     final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
+    final trackSkySpec = isTrackSky ? _trackSkyCardSpecForEvent(event) : null;
 
     final showTitle = event.title.trim().isNotEmpty;
     final showLocation =
         event.location != null && event.location!.trim().isNotEmpty;
     final titleColor = isTrackSky
-        ? _trackSkyEventTitle.withValues(alpha: isPreview ? 0.94 : 1.0)
+        ? trackSkySpec!.titleColor.withValues(alpha: isPreview ? 0.94 : 1.0)
         : (isPreview ? Colors.white70 : Colors.white);
     final flowColor = hasFlow && !isTrackSky
         ? event.color.withValues(alpha: isPreview ? 0.75 : 1.0)
         : null;
     final locationColor = isTrackSky
-        ? _trackSkyEventLocation.withValues(alpha: isPreview ? 0.78 : 0.96)
+        ? trackSkySpec!.detailColor.withValues(alpha: isPreview ? 0.78 : 0.96)
         : Colors.white.withValues(alpha: isPreview ? 0.55 : 0.7);
     final titleMaxLines = (event.isReminder || hasFlow || durationMinutes < 90)
         ? 1
@@ -3051,15 +3569,13 @@ class _DayViewGridState extends State<DayViewGrid> {
         );
       }
       final highlightStyle = style.copyWith(
-        color: const Color(
-          0xFFFFF7D8,
-        ).withValues(alpha: isPreview ? 0.58 : 0.78),
+        color: Colors.white.withValues(alpha: isPreview ? 0.56 : 0.74),
         shadows: null,
       );
       final shadowStyle = style.copyWith(
         color: const Color(
-          0xFF724203,
-        ).withValues(alpha: isPreview ? 0.22 : 0.34),
+          0xFF02050C,
+        ).withValues(alpha: isPreview ? 0.28 : 0.42),
         shadows: null,
       );
       final fillStyle = style.copyWith(color: style.color);
@@ -3105,7 +3621,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: _trackSkyEventLabel.withValues(
+                    color: trackSkySpec!.labelColor.withValues(
                       alpha: isPreview ? 0.9 : 1.0,
                     ),
                   ),
@@ -3155,7 +3671,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
-                    color: _trackSkyEventLabel.withValues(
+                    color: trackSkySpec!.labelColor.withValues(
                       alpha: isPreview ? 0.8 : 0.9,
                     ),
                     fontStyle: FontStyle.italic,
@@ -3185,7 +3701,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: _trackSkyEventLocation.withValues(
+              color: trackSkySpec!.detailColor.withValues(
                 alpha: isPreview ? 0.82 : 0.96,
               ),
             ),
@@ -3343,26 +3859,41 @@ class _DayViewGridState extends State<DayViewGrid> {
     final bool isNutrition =
         currentEvent.detail != null && currentEvent.detail!.contains('Source:');
     final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
+    final trackSkySpec = isTrackSky
+        ? _trackSkyCardSpecForEvent(currentEvent)
+        : null;
 
     Widget? metaChip;
     if (flow != null) {
+      final skyMetaSpec = isTrackSky ? trackSkySpec! : null;
       metaChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: isTrackSky
-              ? _trackSkyEventAccent.withValues(alpha: 0.16)
-              : flow.color.withValues(alpha: 0.16),
+          gradient: isTrackSky ? skyMetaSpec!.background : null,
+          color: isTrackSky ? null : flow.color.withValues(alpha: 0.16),
+          border: isTrackSky
+              ? Border.all(
+                  color: skyMetaSpec!.borderColor.withValues(alpha: 0.78),
+                )
+              : null,
           borderRadius: BorderRadius.circular(8),
         ),
         child: isTrackSky
-            ? GlossyText(
-                text: flow.name,
+            ? Text(
+                flow.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                gradient: _trackSkyEventGloss,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
+                  color: skyMetaSpec!.titleColor,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withValues(alpha: 0.42),
+                      offset: const Offset(0, 1),
+                      blurRadius: 2,
+                    ),
+                  ],
                 ),
               )
             : Text(

@@ -55,6 +55,523 @@ void _logLandscape(String message) {
   }
 }
 
+bool _isLandscapeTrackSkyFlowName(String? name) {
+  final normalized = name?.trim().toLowerCase();
+  return normalized == 'follow the sky' || normalized == 'track the sky';
+}
+
+enum _LandscapeTrackSkyKind {
+  moon,
+  lunarEclipse,
+  solarEclipse,
+  meteor,
+  planet,
+  solarSeason,
+  genericSky,
+}
+
+class _LandscapeTrackSkySpec {
+  final _LandscapeTrackSkyKind kind;
+  final Gradient background;
+  final Color borderColor;
+  final Color titleColor;
+  final Color flowColor;
+  final Color glowColor;
+  final Color accentColor;
+  final Color secondaryAccentColor;
+
+  const _LandscapeTrackSkySpec({
+    required this.kind,
+    required this.background,
+    required this.borderColor,
+    required this.titleColor,
+    required this.flowColor,
+    required this.glowColor,
+    required this.accentColor,
+    required this.secondaryAccentColor,
+  });
+}
+
+_LandscapeTrackSkyKind _landscapeTrackSkyKindForTitle(String title) {
+  if (title.contains('solar eclipse') || title.contains('ring of fire')) {
+    return _LandscapeTrackSkyKind.solarEclipse;
+  }
+  if (title.contains('lunar eclipse') ||
+      title.contains('blood moon') ||
+      title.contains('penumbral') ||
+      title.contains('partial lunar')) {
+    return _LandscapeTrackSkyKind.lunarEclipse;
+  }
+  if (title.contains('moon')) return _LandscapeTrackSkyKind.moon;
+  if (title.contains('lyrids') ||
+      title.contains('aquariids') ||
+      title.contains('perseids') ||
+      title.contains('geminids') ||
+      title.contains('quadrantids') ||
+      title.contains('meteor')) {
+    return _LandscapeTrackSkyKind.meteor;
+  }
+  if (title.contains('equinox') || title.contains('solstice')) {
+    return _LandscapeTrackSkyKind.solarSeason;
+  }
+  if (title.contains('planet') ||
+      title.contains('conjunction') ||
+      title.contains('opposition') ||
+      title.contains('elongation') ||
+      title.contains('venus') ||
+      title.contains('mars') ||
+      title.contains('jupiter') ||
+      title.contains('saturn') ||
+      title.contains('mercury')) {
+    return _LandscapeTrackSkyKind.planet;
+  }
+  return _LandscapeTrackSkyKind.genericSky;
+}
+
+Color _landscapeTrackSkyMoonTint(String title) {
+  if (title.contains('blood')) return const Color(0xFFC7655D);
+  if (title.contains('pink')) return const Color(0xFFF5B4D7);
+  if (title.contains('flower')) return const Color(0xFFFFE3B0);
+  if (title.contains('strawberry')) return const Color(0xFFF39AA6);
+  if (title.contains('harvest')) return const Color(0xFFF5C46B);
+  if (title.contains('hunter')) return const Color(0xFFCF925B);
+  if (title.contains('snow') || title.contains('cold')) {
+    return const Color(0xFFEAF5FF);
+  }
+  if (title.contains('wolf')) return const Color(0xFFD9E6FF);
+  return const Color(0xFFF4E7CF);
+}
+
+Color _landscapeTrackSkyMeteorTint(String title) {
+  if (title.contains('perseids')) return const Color(0xFF9FCAFF);
+  if (title.contains('geminids')) return const Color(0xFFA9F5EF);
+  if (title.contains('lyrids')) return const Color(0xFFD7C3FF);
+  if (title.contains('quadrantids')) return const Color(0xFFEAF5FF);
+  if (title.contains('aquariids')) return const Color(0xFF8DEAF7);
+  return const Color(0xFFB9D0FF);
+}
+
+Color _landscapeTrackSkyPlanetTint(String title) {
+  if (title.contains('mars')) return const Color(0xFFE17D5D);
+  if (title.contains('venus')) return const Color(0xFFF6E2C0);
+  if (title.contains('jupiter')) return const Color(0xFFF4C88D);
+  if (title.contains('saturn')) return const Color(0xFFE8D27A);
+  if (title.contains('mercury')) return const Color(0xFFD9E1F0);
+  return const Color(0xFFBFD2FF);
+}
+
+Color _landscapeTrackSkySolarTint(String title) {
+  if (title.contains('winter')) return const Color(0xFFF1D4A3);
+  if (title.contains('summer')) return const Color(0xFFF7B45A);
+  if (title.contains('autumn')) return const Color(0xFFF19A62);
+  if (title.contains('vernal') || title.contains('spring')) {
+    return const Color(0xFFF8CDA0);
+  }
+  return const Color(0xFFF3C47E);
+}
+
+_LandscapeTrackSkySpec _landscapeTrackSkySpecForEvent(EventItem event) {
+  final title = event.title.trim().toLowerCase();
+  final kind = _landscapeTrackSkyKindForTitle(title);
+
+  switch (kind) {
+    case _LandscapeTrackSkyKind.moon:
+      final moonTint = _landscapeTrackSkyMoonTint(title);
+      return _LandscapeTrackSkySpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF040813),
+            Color.lerp(const Color(0xFF17275F), moonTint, 0.18)!,
+            const Color(0xFF24174A),
+          ],
+        ),
+        borderColor: moonTint.withValues(alpha: 0.82),
+        titleColor: const Color(0xFFF8FAFF),
+        flowColor: moonTint.withValues(alpha: 0.96),
+        glowColor: moonTint.withValues(alpha: 0.34),
+        accentColor: moonTint,
+        secondaryAccentColor: Colors.white,
+      );
+    case _LandscapeTrackSkyKind.lunarEclipse:
+      final eclipseTint = _landscapeTrackSkyMoonTint(title);
+      return _LandscapeTrackSkySpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF05070F),
+            Color.lerp(const Color(0xFF2E1024), eclipseTint, 0.34)!,
+            const Color(0xFF120812),
+          ],
+        ),
+        borderColor: eclipseTint.withValues(alpha: 0.8),
+        titleColor: const Color(0xFFFFF6F1),
+        flowColor: const Color(0xFFFFE0D2),
+        glowColor: eclipseTint.withValues(alpha: 0.36),
+        accentColor: eclipseTint,
+        secondaryAccentColor: const Color(0xFFFFD7BF),
+      );
+    case _LandscapeTrackSkyKind.solarEclipse:
+      final ringTint = title.contains('ring of fire')
+          ? const Color(0xFFFFA24B)
+          : const Color(0xFFF4E6C1);
+      return _LandscapeTrackSkySpec(
+        kind: kind,
+        background: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF03050B), Color(0xFF171B2E), Color(0xFF090B14)],
+        ),
+        borderColor: ringTint.withValues(alpha: 0.82),
+        titleColor: const Color(0xFFFFF8EF),
+        flowColor: ringTint,
+        glowColor: ringTint.withValues(alpha: 0.38),
+        accentColor: ringTint,
+        secondaryAccentColor: const Color(0xFFFFD26A),
+      );
+    case _LandscapeTrackSkyKind.meteor:
+      final meteorTint = _landscapeTrackSkyMeteorTint(title);
+      return _LandscapeTrackSkySpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF050816),
+            Color.lerp(const Color(0xFF1E1B54), meteorTint, 0.2)!,
+            const Color(0xFF0C1029),
+          ],
+        ),
+        borderColor: meteorTint.withValues(alpha: 0.8),
+        titleColor: const Color(0xFFF4F8FF),
+        flowColor: meteorTint,
+        glowColor: meteorTint.withValues(alpha: 0.36),
+        accentColor: meteorTint,
+        secondaryAccentColor: Colors.white,
+      );
+    case _LandscapeTrackSkyKind.planet:
+      final planetTint = _landscapeTrackSkyPlanetTint(title);
+      return _LandscapeTrackSkySpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF050915),
+            Color.lerp(const Color(0xFF14254F), planetTint, 0.18)!,
+            const Color(0xFF15113A),
+          ],
+        ),
+        borderColor: planetTint.withValues(alpha: 0.78),
+        titleColor: const Color(0xFFF8FAFF),
+        flowColor: planetTint,
+        glowColor: planetTint.withValues(alpha: 0.34),
+        accentColor: planetTint,
+        secondaryAccentColor: const Color(0xFFE9EFFF),
+      );
+    case _LandscapeTrackSkyKind.solarSeason:
+      final solarTint = _landscapeTrackSkySolarTint(title);
+      return _LandscapeTrackSkySpec(
+        kind: kind,
+        background: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF071326),
+            Color.lerp(const Color(0xFF5C2F57), solarTint, 0.24)!,
+            Color.lerp(const Color(0xFFF18E5B), solarTint, 0.38)!,
+          ],
+          stops: const [0.0, 0.58, 1.0],
+        ),
+        borderColor: solarTint.withValues(alpha: 0.82),
+        titleColor: const Color(0xFFFFFAF1),
+        flowColor: const Color(0xFFFFE7B8),
+        glowColor: solarTint.withValues(alpha: 0.36),
+        accentColor: solarTint,
+        secondaryAccentColor: const Color(0xFFFFE7B8),
+      );
+    case _LandscapeTrackSkyKind.genericSky:
+      return const _LandscapeTrackSkySpec(
+        kind: _LandscapeTrackSkyKind.genericSky,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF050916), Color(0xFF17265B), Color(0xFF25133C)],
+        ),
+        borderColor: Color(0xFF9FB6FF),
+        titleColor: Color(0xFFF7FAFF),
+        flowColor: Color(0xFFDCE6FF),
+        glowColor: Color(0x552F6FFF),
+        accentColor: Color(0xFFB8C8FF),
+        secondaryAccentColor: Colors.white,
+      );
+  }
+}
+
+List<Widget> _buildLandscapeTrackSkyStars({
+  required String seed,
+  required Color tint,
+  required bool compact,
+}) {
+  final random = math.Random(seed.hashCode & 0x7fffffff);
+  final count = compact ? 5 : 9;
+  return List<Widget>.generate(count, (index) {
+    final x = (-0.8 + random.nextDouble() * 1.7).clamp(-1.0, 1.0);
+    final y = (-0.78 + random.nextDouble() * 1.45).clamp(-1.0, 1.0);
+    final size = compact
+        ? 0.9 + random.nextDouble() * 0.8
+        : 1.0 + random.nextDouble() * 1.5;
+    final opacity = 0.26 + random.nextDouble() * 0.42;
+    final color = (index % 3 == 0 ? tint : Colors.white).withValues(
+      alpha: opacity,
+    );
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Align(
+          alignment: Alignment(x.toDouble(), y.toDouble()),
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color,
+                  blurRadius: compact ? 1.2 : 2.6,
+                  spreadRadius: compact ? 0 : 0.08,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  });
+}
+
+Widget _buildLandscapeTrackSkyAccent(
+  _LandscapeTrackSkySpec spec,
+  String title, {
+  required bool compact,
+}) {
+  final lower = title.toLowerCase();
+  final double size = compact ? 10.0 : 14.0;
+
+  Widget orb({
+    required Color color,
+    double? diameter,
+    BoxBorder? border,
+    List<BoxShadow>? shadow,
+  }) {
+    final d = diameter ?? size;
+    return Container(
+      width: d,
+      height: d,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+        border: border,
+        boxShadow: shadow,
+      ),
+    );
+  }
+
+  switch (spec.kind) {
+    case _LandscapeTrackSkyKind.moon:
+      return orb(
+        color: spec.accentColor,
+        shadow: [BoxShadow(color: spec.glowColor, blurRadius: compact ? 4 : 7)],
+      );
+    case _LandscapeTrackSkyKind.lunarEclipse:
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          children: [
+            orb(
+              color: spec.accentColor,
+              shadow: [
+                BoxShadow(color: spec.glowColor, blurRadius: compact ? 4 : 7),
+              ],
+            ),
+            Positioned(
+              left: size * (lower.contains('penumbral') ? 0.16 : 0.28),
+              top: size * 0.05,
+              child: orb(color: const Color(0xCC03050B), diameter: size * 0.82),
+            ),
+          ],
+        ),
+      );
+    case _LandscapeTrackSkyKind.solarEclipse:
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            orb(
+              color: Colors.transparent,
+              border: Border.all(
+                color: spec.accentColor,
+                width: compact ? 1.0 : 1.4,
+              ),
+              shadow: [
+                BoxShadow(color: spec.glowColor, blurRadius: compact ? 5 : 8),
+              ],
+            ),
+            orb(color: const Color(0xFF04060D), diameter: size * 0.64),
+          ],
+        ),
+      );
+    case _LandscapeTrackSkyKind.meteor:
+      return SizedBox(
+        width: size + 8,
+        height: size,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              right: 0,
+              top: compact ? 2.3 : 3.0,
+              child: orb(
+                color: Colors.white,
+                diameter: compact ? 3.4 : 4.8,
+                shadow: [
+                  BoxShadow(color: spec.glowColor, blurRadius: compact ? 4 : 7),
+                ],
+              ),
+            ),
+            Positioned(
+              left: 0,
+              top: compact ? 3.1 : 5.0,
+              child: Transform.rotate(
+                angle: -0.35,
+                child: Container(
+                  width: compact ? 11 : 16,
+                  height: compact ? 1.2 : 1.8,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        spec.accentColor.withValues(alpha: 0.18),
+                        spec.accentColor.withValues(alpha: 0.7),
+                        Colors.white,
+                      ],
+                      stops: const [0.0, 0.34, 0.72, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    case _LandscapeTrackSkyKind.planet:
+      if (lower.contains('saturn')) {
+        return SizedBox(
+          width: size + 5,
+          height: size,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Transform.rotate(
+                angle: -0.25,
+                child: Container(
+                  width: size + 5,
+                  height: compact ? 3.0 : 4.2,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: spec.secondaryAccentColor.withValues(alpha: 0.82),
+                      width: compact ? 0.8 : 1.0,
+                    ),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              orb(color: spec.accentColor, diameter: size * 0.64),
+            ],
+          ),
+        );
+      }
+      if (lower.contains('conjunction')) {
+        return SizedBox(
+          width: size + 4,
+          height: size,
+          child: Stack(
+            children: [
+              Positioned(
+                right: 0,
+                top: compact ? 0.8 : 1.2,
+                child: orb(
+                  color: spec.secondaryAccentColor,
+                  diameter: size * 0.52,
+                ),
+              ),
+              Positioned(
+                left: 0,
+                bottom: compact ? 0.8 : 1.3,
+                child: orb(color: spec.accentColor, diameter: size * 0.64),
+              ),
+            ],
+          ),
+        );
+      }
+      return orb(
+        color: spec.accentColor,
+        shadow: [BoxShadow(color: spec.glowColor, blurRadius: compact ? 4 : 7)],
+      );
+    case _LandscapeTrackSkyKind.solarSeason:
+      return SizedBox(
+        width: size + 6,
+        height: size,
+        child: Stack(
+          children: [
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: compact ? 1.0 : 2.0,
+              child: Container(
+                height: compact ? 1.0 : 1.4,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      spec.secondaryAccentColor.withValues(alpha: 0.5),
+                      spec.secondaryAccentColor,
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: compact ? 2.0 : 4.0,
+              bottom: compact ? 1.1 : 2.1,
+              child: orb(
+                color: spec.accentColor,
+                diameter: compact ? 4.4 : 6.2,
+                shadow: [
+                  BoxShadow(color: spec.glowColor, blurRadius: compact ? 4 : 7),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    case _LandscapeTrackSkyKind.genericSky:
+      return orb(
+        color: spec.accentColor,
+        diameter: compact ? 4.2 : 5.8,
+        shadow: [BoxShadow(color: spec.glowColor, blurRadius: compact ? 4 : 7)],
+      );
+  }
+}
+
 class _LandscapeDragPayload {
   final EventItem event;
   final int day;
@@ -1466,6 +1983,87 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   }
 
   Widget _buildEventCard(EventItem event, int durationMinutes) {
+    final flow = widget.flowIndex[event.flowId];
+    final isTrackSky = _isLandscapeTrackSkyFlowName(flow?.name);
+    final trackSkySpec = isTrackSky
+        ? _landscapeTrackSkySpecForEvent(event)
+        : null;
+
+    if (trackSkySpec != null) {
+      final compact = durationMinutes < 90;
+      return Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 6 : 7,
+          vertical: compact ? 5 : 6,
+        ),
+        decoration: BoxDecoration(
+          gradient: trackSkySpec.background,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: trackSkySpec.borderColor.withValues(alpha: 0.92),
+            width: 0.95,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.26),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: trackSkySpec.glowColor,
+              blurRadius: compact ? 12 : 16,
+              spreadRadius: -4,
+            ),
+          ],
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      const Color(0xB004060C),
+                      const Color(0x7804060C),
+                      const Color(0x1804060C),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.34, 0.62, 1.0],
+                  ),
+                ),
+              ),
+            ),
+            ..._buildLandscapeTrackSkyStars(
+              seed: event.title,
+              tint: trackSkySpec.accentColor,
+              compact: compact,
+            ),
+            Positioned(
+              right: compact ? 6 : 8,
+              top: compact ? 5 : 6,
+              child: IgnorePointer(
+                child: _buildLandscapeTrackSkyAccent(
+                  trackSkySpec,
+                  event.title,
+                  compact: compact,
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: _buildEventBlockContent(
+                event,
+                durationMinutes,
+                trackSkySpec: trackSkySpec,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: 4,
@@ -1529,13 +2127,37 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     );
   }
 
-  Widget _buildEventBlockContent(EventItem event, int durationMinutes) {
+  Widget _buildEventBlockContent(
+    EventItem event,
+    int durationMinutes, {
+    _LandscapeTrackSkySpec? trackSkySpec,
+  }) {
     final flow = widget.flowIndex[event.flowId];
     final hasFlow = flow != null;
+    final isTrackSky = trackSkySpec != null;
 
     final showTitle = event.title.trim().isNotEmpty;
     final showLocation =
         event.location != null && event.location!.trim().isNotEmpty;
+    final titleColor = trackSkySpec?.titleColor ?? Colors.white;
+    final flowColor = trackSkySpec?.flowColor ?? event.color;
+    final secondaryTextColor = isTrackSky
+        ? Colors.white.withValues(alpha: 0.82)
+        : Colors.white.withOpacity(0.7);
+    final textShadows = isTrackSky
+        ? <Shadow>[
+            Shadow(
+              color: Colors.black.withValues(alpha: 0.78),
+              offset: const Offset(0, 1.0),
+              blurRadius: 2.2,
+            ),
+            Shadow(
+              color: trackSkySpec!.glowColor.withValues(alpha: 0.46),
+              offset: Offset.zero,
+              blurRadius: 4.2,
+            ),
+          ]
+        : null;
 
     return Column(
       mainAxisSize: MainAxisSize.min, // ✅ Don't expand unnecessarily
@@ -1549,7 +2171,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w600,
-              color: event.color,
+              color: flowColor,
+              shadows: textShadows,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -1561,10 +2184,11 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         if (showTitle)
           Text(
             event.title.trim(),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500, // ✅ w500 not w600
-              color: Colors.white,
+              color: titleColor,
+              shadows: textShadows,
             ),
             maxLines: (event.isReminder || hasFlow || durationMinutes < 90)
                 ? 1
@@ -1575,11 +2199,12 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           Text(
             // ✅ No const - text is conditional
             hasFlow ? '(flow block)' : '(scheduled)', // ✅ Match day view logic
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w400,
-              color: Colors.white70, // ✅ Exact day view color
+              color: titleColor.withValues(alpha: 0.82),
               fontStyle: FontStyle.italic,
+              shadows: textShadows,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -1595,8 +2220,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                 event.location!.trim(),
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.white.withOpacity(0.7),
+                  color: secondaryTextColor,
                   decoration: TextDecoration.underline,
+                  shadows: textShadows,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -1741,14 +2367,38 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     final isReminder = currentEvent.isReminder;
     final detail = _cleanEventDetail(currentEvent.detail);
     final isNutrition = detail.contains('Source:');
+    final isTrackSky = _isLandscapeTrackSkyFlowName(flow?.name);
+    final trackSkySpec = isTrackSky
+        ? _landscapeTrackSkySpecForEvent(currentEvent)
+        : null;
 
     Widget? metaChip;
     if (flow != null) {
       metaChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: flow.color.withOpacity(0.16),
+          gradient: isTrackSky ? trackSkySpec!.background : null,
+          color: isTrackSky ? null : flow.color.withOpacity(0.16),
           borderRadius: BorderRadius.circular(8),
+          border: isTrackSky
+              ? Border.all(
+                  color: trackSkySpec!.borderColor.withValues(alpha: 0.78),
+                )
+              : null,
+          boxShadow: isTrackSky
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.24),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                  BoxShadow(
+                    color: trackSkySpec!.glowColor.withValues(alpha: 0.24),
+                    blurRadius: 12,
+                    spreadRadius: -4,
+                  ),
+                ]
+              : null,
         ),
         child: Text(
           flow.name,
@@ -1756,8 +2406,17 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 12,
-            color: flow.color,
-            fontWeight: FontWeight.w600,
+            color: isTrackSky ? trackSkySpec!.titleColor : flow.color,
+            fontWeight: isTrackSky ? FontWeight.w700 : FontWeight.w600,
+            shadows: isTrackSky
+                ? [
+                    Shadow(
+                      color: Colors.black.withValues(alpha: 0.42),
+                      offset: const Offset(0, 1),
+                      blurRadius: 2,
+                    ),
+                  ]
+                : null,
           ),
         ),
       );
