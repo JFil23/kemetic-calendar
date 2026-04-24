@@ -17,6 +17,7 @@ import 'package:mobile/core/touch_targets.dart';
 import 'calendar_page.dart';
 import 'day_view_chrome.dart';
 import 'landscape_month_view.dart';
+import 'track_sky_flow.dart';
 import '../onboarding/day_view_date_coachmark.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
@@ -37,6 +38,43 @@ const TextStyle _goldHeaderStyle = TextStyle(
   fontFamily: 'GentiumPlus',
   fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
 );
+const Gradient _trackSkyEventGloss = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color(0xFFFFF1BF),
+    Color(0xFFF2CF63),
+    Color(0xFFFFF8D9),
+    Color(0xFFF4D97A),
+  ],
+  stops: [0.0, 0.34, 0.62, 1.0],
+);
+const Color _trackSkyEventAccent = Color(0xFFE9BE45);
+const Color _trackSkyEventBorder = Color(0xFFECCB72);
+const Color _trackSkyEventTitle = Color(0xFF221200);
+const Color _trackSkyEventLabel = Color(0xFF5E3900);
+const Color _trackSkyEventLocation = Color(0xFF6F4605);
+
+bool _isTrackSkyFlowName(String? name) {
+  final normalized = name?.trim().toLowerCase();
+  return normalized == 'follow the sky' || normalized == 'track the sky';
+}
+
+Gradient _trackSkyEventSurfaceGradient({double alpha = 1}) {
+  Color c(int value) => Color(value).withValues(alpha: alpha);
+  return LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      c(0xFFD5A13A),
+      c(0xFFF1D57A),
+      c(0xFFF7E49A),
+      c(0xFFE7BC50),
+      c(0xFFBA8218),
+    ],
+    stops: const [0.0, 0.26, 0.5, 0.76, 1.0],
+  );
+}
 
 // ========================================
 // EVENT LAYOUT ENGINE
@@ -236,12 +274,14 @@ class FlowData {
   final String name;
   final Color color;
   final bool active;
+  final String? notes;
 
   const FlowData({
     required this.id,
     required this.name,
     required this.color,
     required this.active,
+    this.notes,
   });
 }
 
@@ -1439,6 +1479,9 @@ class _DayViewGridState extends State<DayViewGrid> {
   int? _cachedNotesHash;
   int? _cachedFlowHash;
   List<PositionedEventBlock> _displayBlocks = const [];
+  final Map<TrackSkyTimeZone, TrackSkyFlowData> _trackSkyDataByTimeZone =
+      <TrackSkyTimeZone, TrackSkyFlowData>{};
+  final Set<TrackSkyTimeZone> _trackSkyLoadingTimeZones = <TrackSkyTimeZone>{};
   bool _hasScrolledToInitial = false; // Added for scroll persistence
   int? _tempDragStartMin; // minutes since midnight
   bool _isDraggingEvent = false;
@@ -1532,9 +1575,19 @@ class _DayViewGridState extends State<DayViewGrid> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll); // Added listener
+    _primeTrackSkyFlowData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToSavedOrCurrentTime(); // Renamed method
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant DayViewGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_computeFlowIndexHash(oldWidget.flowIndex) !=
+        _computeFlowIndexHash(widget.flowIndex)) {
+      _primeTrackSkyFlowData();
+    }
   }
 
   @override
@@ -1959,9 +2012,150 @@ class _DayViewGridState extends State<DayViewGrid> {
           e.value.name,
           e.value.color.value,
           e.value.active,
+          e.value.notes,
         ),
       ),
     );
+  }
+
+  TrackSkyTimeZone? _trackSkyTimeZoneForFlow(FlowData? flow) {
+    final raw = flow?.notes;
+    if (raw == null || raw.isEmpty) return null;
+    for (final token in raw.split(';')) {
+      final trimmed = token.trim();
+      if (!trimmed.startsWith('sky_tz=')) continue;
+      switch (trimmed.substring('sky_tz='.length)) {
+        case 'pacific':
+          return TrackSkyTimeZone.pacific;
+        case 'mountain':
+          return TrackSkyTimeZone.mountain;
+        case 'central':
+          return TrackSkyTimeZone.central;
+        case 'eastern':
+          return TrackSkyTimeZone.eastern;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _primeTrackSkyFlowData() async {
+    final neededTimeZones = widget.flowIndex.values
+        .where((flow) => _isTrackSkyFlowName(flow.name))
+        .map(_trackSkyTimeZoneForFlow)
+        .whereType<TrackSkyTimeZone>()
+        .toSet();
+    for (final timezone in neededTimeZones) {
+      if (_trackSkyDataByTimeZone.containsKey(timezone) ||
+          _trackSkyLoadingTimeZones.contains(timezone)) {
+        continue;
+      }
+      _trackSkyLoadingTimeZones.add(timezone);
+      unawaited(() async {
+        try {
+          final data = await loadTrackSkyFlowData(timezone);
+          if (!mounted) return;
+          setState(() {
+            _trackSkyDataByTimeZone[timezone] = data;
+          });
+        } catch (_) {
+        } finally {
+          _trackSkyLoadingTimeZones.remove(timezone);
+        }
+      }());
+    }
+  }
+
+  TrackSkyEvent? _resolveTrackSkyEvent(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+  }) {
+    final flow = widget.flowIndex[event.flowId];
+    if (!_isTrackSkyFlowName(flow?.name)) return null;
+    final timezone = _trackSkyTimeZoneForFlow(flow);
+    if (timezone == null) return null;
+    final data = _trackSkyDataByTimeZone[timezone];
+    if (data == null) {
+      _primeTrackSkyFlowData();
+      return null;
+    }
+
+    final targetDate = DateUtils.dateOnly(KemeticMath.toGregorian(ky, km, kd));
+    final normalizedTitle = event.title.trim().toLowerCase();
+    final exactMatches = data.events.where((candidate) {
+      if (candidate.title.trim().toLowerCase() != normalizedTitle) return false;
+      final candidateDate = DateUtils.dateOnly(
+        trackSkyEventStartLocal(candidate, timezone),
+      );
+      if (!DateUtils.isSameDay(candidateDate, targetDate)) return false;
+      if (event.allDay != candidate.schedule.allDay) return false;
+      if (event.allDay) return true;
+      final candidateStart = trackSkyEventStartLocal(candidate, timezone);
+      final candidateStartMin =
+          candidateStart.hour * 60 + candidateStart.minute;
+      return candidateStartMin == event.startMin;
+    }).toList();
+    if (exactMatches.isNotEmpty) return exactMatches.first;
+
+    final dayMatches = data.events.where((candidate) {
+      if (candidate.title.trim().toLowerCase() != normalizedTitle) return false;
+      final candidateDate = DateUtils.dateOnly(
+        trackSkyEventStartLocal(candidate, timezone),
+      );
+      return DateUtils.isSameDay(candidateDate, targetDate);
+    }).toList();
+    if (dayMatches.isNotEmpty) return dayMatches.first;
+
+    return null;
+  }
+
+  String _trackSkyDisplayDetail(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+  }) {
+    final resolved = _resolveTrackSkyEvent(event, ky: ky, km: km, kd: kd);
+    if (resolved != null) {
+      return resolved.detailSummary;
+    }
+
+    final raw = event.detail;
+    if (raw == null || raw.isEmpty) return '';
+    String displayDetail = raw;
+    if (displayDetail.startsWith('flowLocalId=')) {
+      final semi = displayDetail.indexOf(';');
+      if (semi > 0 && semi < displayDetail.length - 1) {
+        displayDetail = displayDetail.substring(semi + 1).trim();
+      } else {
+        return '';
+      }
+    }
+    displayDetail = kemeticizeTrackSkyText(
+      normalizeTrackSkyDetailText(_stripCidLines(displayDetail)),
+      anchorDate: KemeticMath.toGregorian(ky, km, kd),
+    );
+    if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
+      return '';
+    }
+    return displayDetail;
+  }
+
+  String _trackSkyTeaserText(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+  }) {
+    final resolved = _resolveTrackSkyEvent(event, ky: ky, km: km, kd: kd);
+    if (resolved != null && resolved.teaserText.isNotEmpty) {
+      return resolved.teaserText;
+    }
+    final detail = _trackSkyDisplayDetail(event, ky: ky, km: km, kd: kd);
+    if (detail.isEmpty) return '';
+    final firstPipe = detail.indexOf(' | ');
+    return firstPipe >= 0 ? detail.substring(0, firstPipe).trim() : detail;
   }
 
   double _timelineAvailableWidth(BuildContext context) {
@@ -2512,6 +2706,8 @@ class _DayViewGridState extends State<DayViewGrid> {
     bool isPreview = false,
   }) {
     final event = block.event;
+    final flow = widget.flowIndex[event.flowId];
+    final isTrackSky = _isTrackSkyFlowName(flow?.name);
 
     // 🔍 DEBUG: Log block being rendered
     if (kDebugMode) {
@@ -2523,11 +2719,257 @@ class _DayViewGridState extends State<DayViewGrid> {
     final int durationMinutes = (event.endMin - event.startMin).clamp(15, 180);
     final double height = _eventVisualHeight(event);
 
+    final borderRadius = BorderRadius.circular(isTrackSky ? 8 : 4);
+
+    if (isTrackSky) {
+      if (kIsWeb) {
+        return Container(
+          width: block.width,
+          height: height,
+          margin: const EdgeInsets.only(right: 4, bottom: 2),
+          decoration: BoxDecoration(
+            borderRadius: borderRadius,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: const [
+                Color(0xFFE1B24A),
+                Color(0xFFF6D87C),
+                Color(0xFFFBE7A6),
+                Color(0xFFE7B93A),
+                Color(0xFFBE8616),
+              ],
+              stops: const [0.0, 0.24, 0.5, 0.76, 1.0],
+            ),
+            border: Border.all(color: const Color(0xFFE8C561), width: 0.9),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x33000000),
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.hardEdge,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
+            child: _buildEventTextContents(
+              event,
+              durationMinutes,
+              isPreview: isPreview,
+            ),
+          ),
+        );
+      }
+      final surfaceAlpha = isPreview ? 0.84 : 1.0;
+      return Container(
+        width: block.width,
+        height: height,
+        margin: const EdgeInsets.only(right: 4, bottom: 2),
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isPreview ? 0.16 : 0.24),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: _trackSkyEventAccent.withValues(
+                alpha: isPreview ? 0.06 : 0.1,
+              ),
+              blurRadius: 12,
+              spreadRadius: -3,
+              offset: const Offset(0, 0),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: _trackSkyEventSurfaceGradient(alpha: surfaceAlpha),
+                  borderRadius: borderRadius,
+                  border: Border.all(
+                    color: _trackSkyEventBorder.withValues(
+                      alpha: isPreview ? 0.16 : 0.26,
+                    ),
+                    width: 0.9,
+                  ),
+                ),
+              ),
+            ),
+            IgnorePointer(
+              child: ClipRRect(
+                borderRadius: borderRadius,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.72, 0.18),
+                      radius: 1.02,
+                      colors: [
+                        Colors.white.withValues(alpha: isPreview ? 0.27 : 0.39),
+                        const Color(
+                          0xFFFFF4C7,
+                        ).withValues(alpha: isPreview ? 0.15 : 0.22),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.32, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            IgnorePointer(
+              child: ClipRRect(
+                borderRadius: borderRadius,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0.9, -0.86),
+                      radius: 0.72,
+                      colors: [
+                        Colors.white.withValues(alpha: isPreview ? 0.22 : 0.34),
+                        const Color(
+                          0xFFFFF0B4,
+                        ).withValues(alpha: isPreview ? 0.12 : 0.18),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.34, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            IgnorePointer(
+              child: ClipRRect(
+                borderRadius: borderRadius,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: const Alignment(-1.0, -0.08),
+                      end: const Alignment(1.0, 0.22),
+                      colors: [
+                        Colors.transparent,
+                        Colors.white.withValues(
+                          alpha: isPreview ? 0.035 : 0.06,
+                        ),
+                        Colors.white.withValues(
+                          alpha: isPreview ? 0.065 : 0.10,
+                        ),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.16, 0.38, 0.55, 0.82],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            IgnorePointer(
+              child: ClipRRect(
+                borderRadius: borderRadius,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0.96, 0.92),
+                      radius: 0.96,
+                      colors: [
+                        Colors.transparent,
+                        const Color(
+                          0xFFD79D22,
+                        ).withValues(alpha: isPreview ? 0.08 : 0.12),
+                        const Color(
+                          0xFF9D660B,
+                        ).withValues(alpha: isPreview ? 0.12 : 0.2),
+                      ],
+                      stops: const [0.36, 0.7, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            IgnorePointer(
+              child: ClipRRect(
+                borderRadius: borderRadius,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.88, -0.92),
+                      radius: 1.0,
+                      colors: [
+                        Colors.white.withValues(alpha: isPreview ? 0.1 : 0.16),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.74],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            IgnorePointer(
+              child: Padding(
+                padding: const EdgeInsets.all(0.9),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(7.1),
+                    border: Border.all(
+                      color: Colors.white.withValues(
+                        alpha: isPreview ? 0.08 : 0.14,
+                      ),
+                      width: 0.55,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            IgnorePointer(
+              child: Positioned(
+                left: 7,
+                top: 6,
+                bottom: 6,
+                width: math.min(block.width * 0.48, 188.0),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6.2),
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Colors.white.withValues(alpha: isPreview ? 0.12 : 0.18),
+                        const Color(
+                          0xFFFFF1CB,
+                        ).withValues(alpha: isPreview ? 0.08 : 0.12),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.42, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 11,
+                vertical: event.isReminder ? 4 : 4,
+              ),
+              child: _buildEventTextContents(
+                event,
+                durationMinutes,
+                isPreview: isPreview,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final fillColor = isPreview
-        ? event.color.withOpacity(0.12)
-        : event.color.withOpacity(0.2);
+        ? event.color.withValues(alpha: 0.12)
+        : event.color.withValues(alpha: 0.2);
     final BoxBorder border = isPreview
-        ? Border.all(color: event.color.withOpacity(0.65), width: 1.5)
+        ? Border.all(color: event.color.withValues(alpha: 0.65), width: 1.5)
         : Border(left: BorderSide(color: event.color, width: 3));
 
     return Container(
@@ -2537,7 +2979,7 @@ class _DayViewGridState extends State<DayViewGrid> {
       decoration: BoxDecoration(
         color: fillColor,
         border: border,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: borderRadius,
       ),
       padding: EdgeInsets.symmetric(
         horizontal: 4,
@@ -2560,15 +3002,95 @@ class _DayViewGridState extends State<DayViewGrid> {
   }) {
     final flow = widget.flowIndex[event.flowId];
     final bool hasFlow = flow != null;
+    final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
 
     final showTitle = event.title.trim().isNotEmpty;
     final showLocation =
         event.location != null && event.location!.trim().isNotEmpty;
-    final titleColor = isPreview ? Colors.white70 : Colors.white;
-    final flowColor = hasFlow
-        ? event.color.withOpacity(isPreview ? 0.75 : 1.0)
+    final titleColor = isTrackSky
+        ? _trackSkyEventTitle.withValues(alpha: isPreview ? 0.94 : 1.0)
+        : (isPreview ? Colors.white70 : Colors.white);
+    final flowColor = hasFlow && !isTrackSky
+        ? event.color.withValues(alpha: isPreview ? 0.75 : 1.0)
         : null;
-    final locationColor = Colors.white.withOpacity(isPreview ? 0.55 : 0.7);
+    final locationColor = isTrackSky
+        ? _trackSkyEventLocation.withValues(alpha: isPreview ? 0.78 : 0.96)
+        : Colors.white.withValues(alpha: isPreview ? 0.55 : 0.7);
+    final titleMaxLines = (event.isReminder || hasFlow || durationMinutes < 90)
+        ? 1
+        : 2;
+    final trackSkyTeaser = isTrackSky
+        ? _trackSkyTeaserText(
+            event,
+            ky: widget.ky,
+            km: widget.km,
+            kd: widget.kd,
+          )
+        : '';
+
+    Widget buildTrackSkyText(
+      String text, {
+      required TextStyle style,
+      required int maxLines,
+      required TextOverflow overflow,
+    }) {
+      if (kIsWeb) {
+        return Text(
+          text,
+          style: style.copyWith(
+            shadows: const [
+              Shadow(
+                color: Color(0x22FFF8D6),
+                offset: Offset(0, -0.2),
+                blurRadius: 0.2,
+              ),
+            ],
+          ),
+          maxLines: maxLines,
+          overflow: overflow,
+        );
+      }
+      final highlightStyle = style.copyWith(
+        color: const Color(
+          0xFFFFF7D8,
+        ).withValues(alpha: isPreview ? 0.58 : 0.78),
+        shadows: null,
+      );
+      final shadowStyle = style.copyWith(
+        color: const Color(
+          0xFF724203,
+        ).withValues(alpha: isPreview ? 0.22 : 0.34),
+        shadows: null,
+      );
+      final fillStyle = style.copyWith(color: style.color);
+      return Stack(
+        children: [
+          ExcludeSemantics(
+            child: Transform.translate(
+              offset: const Offset(-0.3, -0.3),
+              child: Text(
+                text,
+                style: highlightStyle,
+                maxLines: maxLines,
+                overflow: overflow,
+              ),
+            ),
+          ),
+          ExcludeSemantics(
+            child: Transform.translate(
+              offset: const Offset(0.55, 0.72),
+              child: Text(
+                text,
+                style: shadowStyle,
+                maxLines: maxLines,
+                overflow: overflow,
+              ),
+            ),
+          ),
+          Text(text, style: fillStyle, maxLines: maxLines, overflow: overflow),
+        ],
+      );
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min, // ✅ Don't expand unnecessarily
@@ -2577,49 +3099,103 @@ class _DayViewGridState extends State<DayViewGrid> {
       children: [
         // Flow name first (if available). Skip for reminders to avoid overflow in short block.
         if (hasFlow && !event.isReminder) ...[
-          Text(
-            flow.name,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: flowColor,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
+          isTrackSky
+              ? buildTrackSkyText(
+                  flow.name,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: _trackSkyEventLabel.withValues(
+                      alpha: isPreview ? 0.9 : 1.0,
+                    ),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : Text(
+                  flow.name,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: flowColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+          SizedBox(height: isTrackSky ? 1 : 2),
         ],
 
         // Note title - only render if meaningful
         if (showTitle)
-          Text(
-            event.title,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: titleColor,
-            ),
-            maxLines: (event.isReminder || hasFlow || durationMinutes < 90)
-                ? 1
-                : 2,
-            overflow: TextOverflow.ellipsis,
-          )
+          isTrackSky
+              ? buildTrackSkyText(
+                  event.title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: titleColor,
+                  ),
+                  maxLines: titleMaxLines,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : Text(
+                  event.title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: titleColor,
+                  ),
+                  maxLines: titleMaxLines,
+                  overflow: TextOverflow.ellipsis,
+                )
         else
-          Text(
-            // Fallback so you don't get giant red nothing-brick
-            hasFlow ? '(flow block)' : '(scheduled)',
+          isTrackSky
+              ? buildTrackSkyText(
+                  hasFlow ? '(flow block)' : '(scheduled)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                    color: _trackSkyEventLabel.withValues(
+                      alpha: isPreview ? 0.8 : 0.9,
+                    ),
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : Text(
+                  // Fallback so you don't get giant red nothing-brick
+                  hasFlow ? '(flow block)' : '(scheduled)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: isPreview ? Colors.white60 : Colors.white70,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+
+        if (isTrackSky &&
+            trackSkyTeaser.isNotEmpty &&
+            durationMinutes >= 45) ...[
+          const SizedBox(height: 1),
+          buildTrackSkyText(
+            trackSkyTeaser,
             style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w400,
-              color: isPreview ? Colors.white60 : Colors.white70,
-              fontStyle: FontStyle.italic,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: _trackSkyEventLocation.withValues(
+                alpha: isPreview ? 0.82 : 0.96,
+              ),
             ),
-            maxLines: 1,
+            maxLines: durationMinutes >= 90 ? 2 : 1,
             overflow: TextOverflow.ellipsis,
           ),
+        ],
 
         // Location (clickable)
-        if (showLocation)
+        if (showLocation && !isTrackSky)
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: InkWell(
@@ -2766,31 +3342,45 @@ class _DayViewGridState extends State<DayViewGrid> {
     final bool isReminder = currentEvent.isReminder;
     final bool isNutrition =
         currentEvent.detail != null && currentEvent.detail!.contains('Source:');
+    final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
 
     Widget? metaChip;
     if (flow != null) {
       metaChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: flow.color.withOpacity(0.16),
+          color: isTrackSky
+              ? _trackSkyEventAccent.withValues(alpha: 0.16)
+              : flow.color.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(
-          flow.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 12,
-            color: flow.color,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        child: isTrackSky
+            ? GlossyText(
+                text: flow.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                gradient: _trackSkyEventGloss,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              )
+            : Text(
+                flow.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: flow.color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
       );
     } else if (isReminder) {
       metaChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: KemeticGold.base.withOpacity(0.16),
+          color: KemeticGold.base.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(8),
         ),
         child: KemeticGold.text(
@@ -2802,7 +3392,7 @@ class _DayViewGridState extends State<DayViewGrid> {
       metaChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: KemeticGold.base.withOpacity(0.16),
+          color: KemeticGold.base.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -2868,20 +3458,37 @@ class _DayViewGridState extends State<DayViewGrid> {
             ),
           ),
         ],
-        if (currentEvent.detail != null && currentEvent.detail!.isNotEmpty) ...[
+        if ((isTrackSky &&
+                _trackSkyDisplayDetail(
+                  currentEvent,
+                  ky: target.ky,
+                  km: target.km,
+                  kd: target.kd,
+                ).isNotEmpty) ||
+            (currentEvent.detail != null &&
+                currentEvent.detail!.isNotEmpty)) ...[
           const SizedBox(height: 16),
           Builder(
             builder: (context) {
-              String displayDetail = currentEvent.detail!;
-              if (displayDetail.startsWith('flowLocalId=')) {
-                final semi = displayDetail.indexOf(';');
-                if (semi > 0 && semi < displayDetail.length - 1) {
-                  displayDetail = displayDetail.substring(semi + 1).trim();
-                } else {
-                  return const SizedBox.shrink();
-                }
-              }
-              displayDetail = _stripCidLines(displayDetail);
+              final displayDetail = isTrackSky
+                  ? _trackSkyDisplayDetail(
+                      currentEvent,
+                      ky: target.ky,
+                      km: target.km,
+                      kd: target.kd,
+                    )
+                  : () {
+                      var rawDetail = currentEvent.detail!;
+                      if (rawDetail.startsWith('flowLocalId=')) {
+                        final semi = rawDetail.indexOf(';');
+                        if (semi > 0 && semi < rawDetail.length - 1) {
+                          rawDetail = rawDetail.substring(semi + 1).trim();
+                        } else {
+                          return '';
+                        }
+                      }
+                      return _stripCidLines(rawDetail);
+                    }();
               if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
                 return const SizedBox.shrink();
               }

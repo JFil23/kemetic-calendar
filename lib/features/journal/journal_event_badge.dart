@@ -1,6 +1,18 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:mobile/core/touch_targets.dart';
+import 'package:mobile/shared/glossy_text.dart';
+
+const Gradient _eventBadgeGoldGloss = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color(0xFFFFF1BF),
+    Color(0xFFF2CF63),
+    Color(0xFFFFF8D9),
+    Color(0xFFF4D97A),
+  ],
+  stops: [0.0, 0.34, 0.62, 1.0],
+);
 
 /// Snapshot of an event when it was added to the journal.
 /// Stored as plain-text token and rendered inline via WidgetSpan.
@@ -192,13 +204,22 @@ class _CollapsedEventBadge extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Flexible(
-                child: Text(
-                  token.title,
+                child: GlossyText(
+                  text: token.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
+                  softWrap: false,
+                  gradient: _eventBadgeGoldGloss,
+                  style:
+                      Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ) ??
+                      const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                 ),
               ),
               if (token.start != null) ...[
@@ -273,12 +294,24 @@ class _ExpandedEventBadge extends StatelessWidget {
                             ),
                             const SizedBox(width: 6),
                             Expanded(
-                              child: Text(
-                                token.title,
+                              child: GlossyText(
+                                text: token.title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(fontWeight: FontWeight.w600),
+                                softWrap: false,
+                                gradient: _eventBadgeGoldGloss,
+                                style:
+                                    Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ) ??
+                                    const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
                               ),
                             ),
                           ],

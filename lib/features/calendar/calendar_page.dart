@@ -72,6 +72,7 @@ import '../../services/session_resume_service.dart';
 import '../../core/push_intent_bus.dart';
 import '../../widgets/flow_start_date_picker.dart';
 import '../../utils/external_link_utils.dart';
+import 'track_sky_flow.dart';
 import '../inbox/inbox_page.dart';
 import '../reflections/decan_reflection_archive_page.dart';
 import '../settings/settings_page.dart';
@@ -319,6 +320,17 @@ const Color _silverLight = Color(0xFFF5F7FA);
 const Color _silverDeep = Color(0xFF7A838C);
 
 // Gradients are now imported from shared/glossy_text.dart
+const Gradient _maatBadgeGoldGloss = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color(0xFFFFF1BF),
+    Color(0xFFF2CF63),
+    Color(0xFFFFF8D9),
+    Color(0xFFF4D97A),
+  ],
+  stops: [0.0, 0.34, 0.62, 1.0],
+);
 
 // Base text styles (color overridden to white inside gloss wrappers)
 const TextStyle _titleGold = TextStyle(
@@ -360,7 +372,36 @@ const TextStyle _neutralOnBlack = TextStyle(
   color: Colors.white, // same color as the day numbers
 );
 
+const Color _trackSkySignifierBase = Color(0xFFD5A01F);
+const Color _trackSkySignifierLight = Color(0xFFFFE6A0);
+const Color _trackSkySignifierMid = Color(0xFFF0BE43);
+const Color _trackSkySignifierDeep = Color(0xFF8B6514);
+const Color _trackSkySignifierText = Color(0xFF332000);
+
+const LinearGradient _trackSkySignifierGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+    _trackSkySignifierLight,
+    _trackSkySignifierMid,
+    _trackSkySignifierBase,
+    _trackSkySignifierDeep,
+  ],
+  stops: [0.0, 0.34, 0.72, 1.0],
+);
+
 Color _defaultNoteColor(_Note _) => _silver;
+
+bool _isTrackSkyFlowName(String? name) {
+  if (name == null) return false;
+  final normalized = name.trim().toLowerCase();
+  return normalized == 'follow the sky' || normalized == 'track the sky';
+}
+
+Color _displayFlowColor(String? flowName, Color fallback) {
+  if (_isTrackSkyFlowName(flowName)) return _trackSkySignifierBase;
+  return fallback;
+}
 
 double _chipHeightFor(MonthExpansionLevel level) {
   switch (level) {
@@ -3531,549 +3572,33 @@ class _MaatFlowDay {
        ];
 }
 
+enum _MaatFlowTemplateKind { sequence, trackSky }
+
 class _MaatFlowTemplate {
   final String key; // stable identifier (e.g., "wealth-economy")
   final String title; // flow title
   final String overview; // overview / description
-  final List<_MaatFlowDay> days; // strictly length 10
+  final List<_MaatFlowDay> days;
   final Color color; // a nice default color
+  final _MaatFlowTemplateKind kind;
   _MaatFlowTemplate({
     required this.key,
     required this.title,
     required this.overview,
-    required this.days,
+    this.days = const [],
     required this.color,
+    this.kind = _MaatFlowTemplateKind.sequence,
   });
 }
 
-/// First five flows you provided (10 days each). You can add more later.
 final List<_MaatFlowTemplate> kMaatFlowTemplates = [
   _MaatFlowTemplate(
-    key: 'wealth-economy',
-    title: 'Wealth & Economy',
+    key: 'track-the-sky',
+    title: 'Follow the sky',
     overview:
-        'During the first decan we explore how Old Kingdom Egyptians thought about wealth, labour, trade and the cosmic order of Ma’at. Each entry begins with a question and then unfolds as if told by a Kemetic worker, artisan or family. These narratives paint vivid daily scenes based on primary and secondary sources—excavated texts, art and modern scholarship. Instead of modern astronomical notes, they focus on lived experiences: stretching ropes in a muddy field, scooping barley into baskets, tasting the sweet tang of fermenting beer, or lifting a copper adze. By stepping into their world we see how the values of Maʿat shaped choices and created balance—and we can almost smell the baking bread and hear the ring of chisels.',
-    color: Color(0xFFFFC145),
-    days: [
-      _MaatFlowDay.single(
-        title: 'Day 1 — How did the job market work in the Old Kingdom?',
-        detail:
-            '''The Old Kingdom did not lock people into fixed castes. A Kemetic family lived by the rhythm of the river. In summer the husband waded into his flooded fields, muddy water swirling around his ankles as he planted wheat; come drier months he sat in the shade carving a cedar handle or mending his wife’s loom; during the inundation he climbed scaffolding to set limestone blocks in the king’s tomb. Labour was seasonal and rotational, and those who built pyramids and temples during the floods were compensated in bread and beer. Skill was an offering to the cosmic whole rather than an identity: a fine cobbler gained respect and extra rations, not a private fortune. At night, by oil-lamp, he scratched his changing tasks and rations into a papyrus ledger, knowing that his versatility kept his household fed and maintained Maʿat.''',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 2 — What role did gold play in the Kemetic economy?',
-        detail:
-            '''Gold was considered the flesh of the gods. In the dim light of a shrine a carpenter could glimpse a statue’s gilded face glowing like sunrise; he bowed his head and inhaled incense before returning to his workshop and the smell of sawdust. Copper, on the other hand, was everyday: chisels, adzes, axes, saws, drills and fish-hooks were all made from copper. A Kemetic artisan seldom held raw gold; his callused hands gripped copper chisels as he carved limestone and wood, the metal warm from his touch. For ordinary people gold was not money but sacred brilliance; it adorned amulets and burial goods and signified the gods’ skin. In the marketplace, value was measured in grain and labour; the glow of gold inspired reverence, not commerce.''',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 3 — How was grain used as currency?',
-        detail:
-            '''Cereal crops were the bedrock of the Old Kingdom economy. Wheat and barley fed households and fermented into beer; they were also the primary medium of exchange and the basis of wages. Workers received rations of bread and beer in return for their labour. Taxes were assessed in grain, and surplus stored in state granaries functioned like a bank account. A Kemetic farmer poured scoops of grain into a woven basket, listening to the rustle as his wife counted handfuls; he filled jars for levies and set aside sacks for sandals, oil or pottery. He tested the kernels between his teeth and tapped his clay silo walls to check for damp. Grain was both sustenance and savings; a cracked bin could mean hunger in the dry season.''',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 4 — Was wealth about hoarding or balance?',
-        detail:
-            '''Kemetic wealth was measured not by accumulation but by harmony. Too much hoarded grain was an imbalance against Ma’at; temples and the state held surplus to redistribute during famine or festivals. Households kept enough to feed their members and offer to the gods, trusting that reciprocity would provide security. In the stillness of evening a farmer might open his granary door and listen to the soft whisper of grain; he would glance at a neighbour’s nearly empty bin and carry over a basketful, knowing they would help when his canal wall burst. Shared labour on royal projects built not just monuments but social credit; a man who spent days hauling stone could expect assistance when floods failed. Wealth, to him, was a web of obligations and mutual care—not the number of baskets in his storehouse.''',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 5 — How did barter trade function?',
-        detail:
-            '''Without coinage, Egyptians relied on barter. Wheat, barley and oil were common trade goods. On market day the air smelled of onions, fish and wet earth; donkey carts jostled as people haggled. A farmer might spread grain on a reed mat to swap for a potter’s jar, a potter might trade his jars for sandals, and a sandal-maker might swap footwear for beer. Scribes in linen kilts recorded these exchanges in temple ledgers, watching for fairness. The ability to bargain honestly was a practical expression of Ma’at: exaggeration disrupted cosmic order. A Kemetic woman balancing a basket of leeks on her head gauged the weight of a clay jug in her hands before measuring out barley. Fair dealing built trust that extended beyond the transaction into festival feasts and flood season repairs.''',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 6 — What were copper tools used for?',
-        detail:
-            '''Copper was the workhorse metal of the Old Kingdom. Archaeometallurgical studies reveal a toolkit of chisels, adzes, axes, saws, drills, cosmetic spatulas, weaving needles, leather-working awls, fish-hooks and harpoons. Copper was smelted from malachite and chalcopyrite and sometimes alloyed with arsenic to make it harder. These tools built homes, carved hieroglyphs and prepared food. In the workshop a carpenter felt the weight of his copper adze bite into a beam as wood shavings curled at his feet; his wife warmed a copper needle in her lap while weaving linen; their son’s bare feet gripped the riverbank as he cast a gleaming hook into the water. While craftspeople shaped copper, gold sat behind locked doors in temples and tombs. Tools were the backbone of the earthly realm, just as the goddess Nut’s body supported the heavens.''',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 7 — How were wages paid in bread and beer?',
-        detail:
-            '''State labourers were not paid in coins but in rations. Workers on pyramid projects received daily allocations of bread, beer, onions and sometimes meat. Beer, brewed from barley and lightly fermented, was safer than raw water and calorically dense. Brew houses were often run by women, giving them a role in the economy. In the afternoon heat men lined up outside a granary while scribes scooped loaves and filled clay jars with frothy beer; the workers wiped sweat from their faces as they took their rations. A Kemetic man hefted sacks of bread and jars of beer over his shoulder and trudged home along the canal. His wife might have spent the day stirring bubbling mash in clay vats, the yeasty smell filling their yard, turning grain into a drink that nourished the whole household. Wages were eaten and drunk; rations fed bodies and fuelled gratitude toward the state and the gods.''',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 8 — How did Ma’at shape economic behaviour?',
-        detail:
-            '''Maʿat governed honesty in trade and fairness in distribution. In the marketplace a farmer set down his basket and swore an oath over the balance and cubit rod before measuring barley; a scribe watched his hands and recorded the weight with care. Greed and hoarding were considered forms of isfet (chaos), inviting divine retribution. When a canal wall cracked, neighbours came with baskets of mud and willow poles without being asked; helping repair it was both obligation and insurance for the future. A Kemetic merchant might refuse a customer who tried to tip his scale, knowing that false measures offended the gods and the community alike. A woman pressing an extra loaf into a widow’s hands believed she was protecting her own family’s future, because Maʿat was reciprocal: what you gave returned in time of need.''',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 9 — How did temple redistribution support society?',
-        detail:
-            '''Temples were economic hubs. They collected taxes in grain and produce, stored them in massive granaries, and redistributed food and resources to priests, workers and those in need. Festivals such as the Opet celebration consumed large portions of these stores, feeding entire communities. In return, people donated goods and labour to the temples. On feast days a Kemetic family donned clean linen and walked to the temple carrying a basket of barley and a jug of beer; the children’s eyes widened at the towering granary bins. Inside, priests and scribes scooped out rations with large wooden ladles, and the smell of roasting goose and freshly baked bread hung in the air. When the barque of Amun sailed during Opet, temple granaries opened and everyone—rich or poor—ate together on mats spread under date palms. Redistribution was not charity; it was the embodied law of Maʿat, and the family knew their offerings would come back to them in rations, festival feasts or relief during a famine.''',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 10 — How were artisans rewarded?',
-        detail:
-            '''Artisans produced stone vessels, jewellery, statuary and textiles. Payment came in rations and in honour: names of outstanding builders and carvers were sometimes inscribed in tombs or recorded by scribes. Reputation could lead to better living quarters or increased grain allocations. No one amassed private fortunes; instead, skill earned social credit that endured into the afterlife when descendants recited their names at offering tables. In his workshop a Kemetic sculptor sat cross-legged on the floor, chisel tapping stone as sunlight slanted through the doorway. He paused to wipe dust from his face and considered the divine face he carved. At supper he returned home with bread, beer and onions; neighbours stopped by to admire a small figurine he brought for his wife. His children listened wide-eyed as others praised his hands. That praise was its own reward, ensuring his name would live when his body did not.''',
-      ),
-    ],
-  ),
-
-  _MaatFlowTemplate(
-    key: 'family-life-marriage',
-    title: 'Family Life & Marriage',
-    overview:
-        'This decan immerses us in the intimate world of Old Kingdom households. We step into mud‑brick courtyards where couples share bread, watch toddlers learn to walk and negotiate the practical and spiritual bonds of marriage. Marriage was not a grand public rite but a personal contract; divorce was possible; property could be held by either spouse. Families honoured elders and tended ancestors; respect for parents was fundamental. Through these ten entries we witness a wife balancing grain accounts, a husband building a new room for his growing family and a grandmother teaching grandchildren the correct way to pour a libation. Maʿat binds the home just as it binds the cosmos.',
-    color: Color(0xFF55DDE0), // teal
-    days: [
-      _MaatFlowDay.single(
-        title: 'Day 1 — What did a Kemetic marriage look like?',
-        detail:
-            'For a Kemetic couple, marriage began when they chose to live together. There was no state ceremony; rather, they moved into a house and pooled resources. Young men and women were free to seek partners, and premarital intimacy was accepted. A farmer brings his betrothed a gift of linen and bread, and together they smear fresh mud onto the walls of their shared home. Friends joke and help them carry mats, while elders bless them with advice about patience and reciprocity. This everyday act of cohabitation was both practical and sacred, aligning their household with Maʿat.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 2 — How did couples decide to marry?',
-        detail:
-            'Choosing a spouse was pragmatic and affectionate. Parents might introduce potential partners, but adolescents had a say. A young woman in the weaving room whispers to her friend about the carpenter’s steady hands and shares a honey cake he brought to her mother. Later she watches him harvest barley; she imagines his ability to farm during flood season and craft tools in the dry months. Affection was expressed through gifts and shared labour rather than formal courtship. Marriage happened when two people decided that their lives fit together and that their combined efforts would sustain their family.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 3 — What were the roles of parents and children?',
-        detail:
-            'Kemetic families were nuclear units nested within extended kin. Parents nurtured and provided; children respected elders and learned by watching. The eldest son or daughter was expected to care for ageing parents and ensure proper burials. A daughter helps her father prepare a funerary stela for his own mother, carefully painting hieroglyphs as he tells her stories of their ancestors. The son sits nearby grinding grain, knowing he will inherit his father’s tools and obligations. Respect flowed both ways: parents instructed with patience, and children offered obedience because Maʿat required harmony between generations.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 4 — How did spouses manage property?',
-        detail:
-            'Property rights in marriage were clearly defined. Each spouse retained ownership of what they brought to the union, and joint property could be used by the husband but still belonged to both. A wife might own a field inherited from her mother; her husband might own tools. Together they planted wheat in her field, and he built her a storage bin. When they measured the harvest, she recorded her share on a clay tablet, confident that if he died or they separated she would retain her land. The clarity of these arrangements ensured that love coexisted with legal autonomy.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 5 — How did divorce work in Kemet?',
-        detail:
-            'Either partner could initiate divorce. If a marriage faltered—perhaps due to infidelity or incompatibility—property was divided: each spouse left with what they had brought plus a share of jointly acquired goods. A woman sits with a scribe at the town gate, dictating a list of items to take from her former home: a mirror, two baskets of barley, a goat. Her ex‑husband watches silently, understanding that she has the right to leave. There is no social stigma; neighbours still greet her warmly. Divorce was a practical solution, not a moral failing.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 6 — What did love and affection look like?',
-        detail:
-            'Love poetry and erotic imagery show that Kemetic couples were affectionate. Husbands expressed desire in letters; wives reciprocated with teasing songs. A potter returns from market with a string of blue faience beads for his wife. They sit together on the roof at twilight, feet dangling, sharing beer and roasted onions. He quotes a line from a love poem comparing her to a lotus; she laughs and hands him a fig. Affection was woven into daily chores and quiet moments; romance did not require lavish gestures.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 7 — How were households organized?',
-        detail:
-            'Ideally, married couples lived in their own house, though extended family might share walls. Homes were built of mud‑brick, with a central room for cooking and sleeping and a flat roof for work and relaxation. In Deir el‑Medina the front room often served as a birthing space; midwives and female relatives gathered there to support labouring women. Our couple adds a second level when their family grows, stacking bricks in the cool morning hours while children chase goats. Household organization was practical and flexible, adapting to seasons and life stages.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 8 — How were births and child-rearing celebrated?',
-        detail:
-            'Children were blessings and responsibilities. Births took place at home with female relatives, midwives and the goddess Taweret invoked for protection. After a baby’s arrival, neighbours brought bread and beads; the mother rested on woven mats and drank barley beer to regain strength. Fathers registered the child’s name with a scribe and thanked their ancestors at the household shrine. Older children learned to recite ancestor names and help with chores. Raising children was a communal act that reinforced family cohesion and continuity.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 9 — How were marriages celebrated?',
-        detail:
-            'There were no elaborate weddings. Friends and family acknowledged the union with small gifts and shared meals. The groom gave presents to his bride and her family—perhaps linen, jewellery or labour. Neighbours bring baskets of vegetables, beer and small amulets; musicians beat drums as the couple sprinkles natron and incense on their doorway. The simple exchange of gifts and the couple’s declaration were enough to sanctify the partnership. Community recognition mattered more than formal ritual.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 10 — How did Maʿat shape family life?',
-        detail:
-            'Maʿat required balance and reciprocity in the home. Husbands and wives shared labour and decision‑making; respect for parents ensured continuity; generosity toward neighbours built social safety nets. A father teaching his son to plough tells him that a straight furrow is like an honest word: both align with Maʿat. A mother dividing loaves reminds her daughters that fairness keeps chaos away. Families who upheld these values believed their names would be remembered and their spirits sustained in the afterlife. Harmony within the household mirrored cosmic order.',
-      ),
-    ],
-  ),
-
-  _MaatFlowTemplate(
-    key: 'women-roles-rights',
-    title: 'Women’s Roles & Rights',
-    overview:
-        'Women in Old Kingdom Kemet enjoyed legal autonomy and social influence... Maʿat empowered them to act justly.',
-    color: Color(0xFFE85DFF), // magenta
-    days: [
-      _MaatFlowDay.single(
-        title: 'Day 1 — What legal rights did women have?',
-        detail: 'From the earliest Old Kingdom records...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 2 — Could women own land and run businesses?',
-        detail: 'Yes. Women owned about ten percent of farmland...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 3 — What roles did women play in agriculture and craft?',
-        detail: 'Women worked alongside men...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 4 — Were women part of the priesthood?',
-        detail: 'Noblewomen served as priestesses...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 5 — How did marriage affect women’s property?',
-        detail: 'Marriage did not erase a woman’s ownership...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 6 — Could women take legal action in court?',
-        detail: 'Women could and did initiate lawsuits...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 7 — How did daughters inherit and transmit property?',
-        detail: 'Property could pass through the female line...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 8 — How did women contribute beyond the home?',
-        detail: 'Women brewed beer, sold goods and practiced midwifery...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 9 — Were there female scribes or doctors?',
-        detail: 'While rare, women could become scribes or physicians...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 10 — How did Maʿat shape female identity?',
-        detail:
-            'Women embodied Maʿat through fairness and ritual cleanliness...',
-      ),
-    ],
-  ),
-
-  _MaatFlowTemplate(
-    key: 'work-craftsmanship',
-    title: 'Work & Craftsmanship',
-    overview:
-        'Craftsmanship in Kemet was both physical labour and spiritual service... These entries explore the rhythm of work and pride.',
-    color: Color(0xFF7C5CFF), // violet
-    days: [
-      _MaatFlowDay.single(
-        title: 'Day 1 — What was a day like for a tomb builder?',
-        detail: 'At dawn a Kemetic mason... the work was sacred.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 2 — How were artisans organized and paid?',
-        detail: 'Artisans were organized into crews...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 3 — What did craft specialisation mean?',
-        detail: 'Many developed specialised skills...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 4 — How did families participate in craft production?',
-        detail: 'Craft was often a family affair...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 5 — What roles did scribes and overseers play?',
-        detail: 'Scribes recorded wages and materials...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 6 — How did craftsmen maintain Maʿat in their work?',
-        detail: 'Maʿat required precision and honesty...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 7 — What was life like in Deir el-Medina?',
-        detail: 'A planned village, tight-knit community...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 8 — How were goods exchanged among craftsmen?',
-        detail: 'Workers bartered goods and services...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 9 — Were there labour disputes?',
-        detail: 'Yes, seeds of collective action were present...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 10 — How did Maʿat guide craftsmanship?',
-        detail: 'Craftsmanship was a form of devotion...',
-      ),
-    ],
-  ),
-
-  _MaatFlowTemplate(
-    key: 'food-drink',
-    title: 'Food & Drink',
-    overview:
-        'Food connected Kemetic households to the earth, the gods and each other... smell the bread baking and taste the beer.',
-    color: Color(0xFF41A5EE), // sky
-    days: [
-      _MaatFlowDay.single(
-        title: 'Day 1 — What was the Kemetic staple diet?',
-        detail: 'Bread, beer and vegetables formed the core...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 2 — How was bread made and consumed?',
-        detail: 'Bread came in many shapes...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 3 — What role did beer play?',
-        detail: 'Beer was brewed by fermenting bread and barley...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 4 — What vegetables and fruits were cultivated?',
-        detail: 'Onions, leeks, garlic, figs, dates...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 5 — Was meat common?',
-        detail: 'Meat was rare; fish and legumes were common...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 6 — What were communal feasts like?',
-        detail: 'Festivals redistributed meat, beer and bread...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 7 — How was food stored and preserved?',
-        detail: 'Grain silos, drying, sealed jars...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 8 — What sweet treats were enjoyed?',
-        detail: 'Honey, dates and figs...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 9 — How did Maʿat influence food sharing?',
-        detail: 'Generosity and hospitality embodied Maʿat...',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 10 — What other drinks existed besides beer?',
-        detail: 'Wine for the wealthy, palm wine, herbal infusions...',
-      ),
-    ],
-  ),
-];
-
-/// Medu Neter category.
-final List<_MaatFlowTemplate> kMaatFlowTemplatesMeduNeter = [
-  _MaatFlowTemplate(
-    key: 'haw-ten-layers',
-    title: 'ḥꜣw Series: Ten Layers of Time\'s Presence',
-    overview:
-        'A 10-day exploration of ḥꜣw—a Kemetic word that holds meanings of moment, lifetime, environment, and belongings. Each day pairs scholarship with a reflection practice.',
-    color: Color(0xFF6AD19B), // greenish accent
-    days: [
-      _MaatFlowDay.single(
-        title: 'Day 1 — The Kemetic Quantum: One Word, Many Worlds',
-        detail:
-            'Kemetic scribes worked in a worldview where language didn’t aim for a single, fixed definition. Instead, words carried layers. One root could express time, place, state, and relationship—because the world itself was understood as woven, not separate.\n\nThis is the quantum of ancient thought: that one symbol could radiate several truths at once. A falcon could mean sight, protection, kingship, horizon. A single hieroglyph could lean toward the Netjeru—the diverse expressions of divine order—or toward the rhythms of daily life.\n\nThe word ḥꜣw, written with the twisted-wick ḥ-sign, the vulture ꜣ, and the quail chick w, appears in inscriptions to mark a moment, a reign, a neighborhood, a circumstance. One word, many domains.\n\nPractice:\nChoose an everyday object—a cup, a door, a shadow—and write three meanings it could hold at once. Let your mind expand when you stop forcing one truth.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 2 — Djehuty: He Who Reckons Time',
-        detail:
-            'Among the Netjeru, Djehuty embodies measurement, writing, calculation, and renewal. Scribes invoked him as He Who Reckons Time, the one who keeps cycles aligned with the moon’s rhythm and the solar year.\n\nIn tombs such as Senenmut’s at Deir el-Bahri, astronomical ceilings show decans, lunar phases, and star tables—all realms where Djehuty’s influence was felt. He was not a distant figure but a principle of intelligent order, the inner mathematics of the cosmos.\n\nTo the scribes, timing was never merely mechanical—when you acted shaped what you became. Djehuty’s presence reminded them that a single skill could serve many roles: writing as creation, healing, connection, and harmonizing with Ma’at.\n\nPractice:\nName one talent you have. List three ways it functions in your life. Reflect on how one ability can carry many identities.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 3 — Time Worn as Masks: Deities of the Calendar',
-        detail:
-            'In Kemet, time moved through divine rhythms. Each month carried the name of a festival, many dedicated to the Netjeru: the Month of Tekh (associated with Djehuty), the Month of Pa-en-Ipet (linked to Opet rites), and others.\n\nTemple calendars at Dendera and Edfu inscribed these cycles, making the year a procession of sacred qualities. A month wasn’t an empty box of days—it was an invitation. Time itself wore masks, each guiding mood, labor, and ritual.\n\nRoyal records in Urkunden IV often date events by these months, embedding history within sacred rhythm.\n\nPractice:\nName your next seven days after qualities or Netjeru aspects. Journal how each name influences the way you meet your day.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 4 — ḥꜣw as Moment: The Instant That Anchors Events',
-        detail:
-            'One of the oldest meanings of ḥꜣw is the simple, potent “at the time of.” In inscriptions such as Urk. IV 969 and Cairo 20061, phrases like m-ḥꜣw mark the moment an event unfolds, or describe a reigning king as imi-ḥꜣw.f—“the one who is in his (appointed) time.”\n\nA moment in Kemet was not a neutral tick of a clock—it was a placement, a charged intersection of action and cosmic rhythm.\n\nPractice:\nPause once today and journal: What is the quality of this moment? What small action honors it?\n\nAttested Text (Urkunden IV 969 — Royal Annals):\nTransliteration:\nm-ḥꜣw nsw-bity ḫpr-kꜣ-Rꜥ …\nEnglish:\n“At the time of the King of Upper and Lower Egypt, Kheper-ka-Ra…”\nContext: Used to date events by the reigning king’s moment in time.\n\nAttested Text (Cairo CG 20061 — Royal Stela):\nTransliteration:\n… imi-ḥꜣw.f …\nEnglish:\n“… he who is in his (appointed) time.”\nContext: A title describing the king’s rightful presence within his destined moment.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 5 — ḥꜣw as Lifetime: The Arc of a Life',
-        detail:
-            'In texts like British Museum Papyrus BM 614, ḥꜣw refers to a lifetime—the full span of a person’s earthly journey. In royal inscriptions, it can mark the reign of a ruler, weaving personal epochs into cosmic cycles.\n\nLife was a bend in the Nile: carrying what came before, nourishing the present, flowing into what comes after.\n\nPractice:\nJournal your life as a river. Mark three major bends—turns that shaped who you are now.\n\nAttested Text (BM Papyrus 614, line 14 — Funerary Papyrus):\nTransliteration:\n… ḥꜣw n ḥm.t nṯr …\nEnglish:\n“… the lifetime of the divine woman …”\nContext: Refers to the full span of a woman’s earthly life.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 6 — ḥꜣw as Presence: Being in One’s Time',
-        detail:
-            'When ḥꜣw appears in duty rosters and autobiographies, it often means being in the right moment—present, aligned, in one’s ḥꜣw. Priests in Siut inscriptions are described this way: awake to their role, standing in the moment meant for them.\n\nPresence, in this view, is a sacred alignment—a way of tuning oneself to Ma’at.\n\nPractice:\nSit for one minute and journal what you notice when you give full attention to a single sense.\n\nAttested Text (Siut Tomb Inscriptions — Priest Duty Roster):\nTransliteration:\nḥm-kꜣ ḥr imi-ḥꜣw.f m pr-ḫrw …\nEnglish:\n“The ka-servant who is in his time in the offering-house…”\nContext: A priest performing his ritual duties in the correct, appointed moment.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 7 — ḥꜣw as Neighborhood: The Near Circle',
-        detail:
-            'ḥꜣw also describes the neighborhood—the lived surroundings shaping one’s relationships. Egyptians saw community as an extension of self; proximity formed obligation and meaning.\n\nIn the Peasant’s Tale, ḥꜣw appears in disputes over possessions and local ties. In geographic inscriptions, it marks vicinity or nearness.\n\nPractice:\nJournal the names of three people whose presence shapes your daily world. Reflect on what each brings into your “near circle.”\n\nAttested Text (Hammamat 114,8 — Expedition Inscription):\nTransliteration:\nwḏ mdw m-ḥꜣw-ḥr st …\nEnglish:\n“… issuing the order in front of the place …”\nContext: Uses the ḥꜣw-root to mark spatial relation (in front of / before).\n\nAttested Text (Lesko 98,21 — Ritual / Divine Movement):\nTransliteration:\njr nṯr pn m ḥꜣw.f …\nEnglish:\n“When this god is in his vicinity …”\nContext: Uses ḥꜣw to describe nearness or presence within one’s spatial circle.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 8 — ḥꜣw as Environment: The World That Holds You',
-        detail:
-            'From “neighborhood,” ḥꜣw naturally expands into environment—the broader setting in which a life unfolds. Egyptians mapped closeness, distance, and relation with subtlety, expressing nearness through this same root.\n\nEarthly environments mirrored cosmic ones; landscapes were reflections of order.\n\nPractice:\nLook around your current environment. Journal one detail that feels symbolic of your inner state.\n\nAttested Text (Urkunden IV 584 — Geographic Description):\nTransliteration:\nr-ḥꜣw …\nEnglish:\n“near.”\nContext: Used to describe the area near a landmark or spatial feature.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 9 — ḥꜣw as Belongings: The Objects That Travel With You',
-        detail:
-            'In the Eloquent Peasant, ḥꜣw describes belongings—the items that accompany a person’s identity, responsibilities, and fate. What one carries is part of one’s story.\n\nEgyptian texts often treat personal goods as extensions of the ka, the vital essence that travels with and through a person.\n\nPractice:\nChoose one object you keep close. Journal what story it holds for you.\n\nAttested Text (Eloquent Peasant B1,105 — Narrative Tale):\nTransliteration:\nẖr ḥꜣw.i r ḫrp.k …\nEnglish:\n“As for my belongings, they are under your authority…”\nContext: The peasant appeals for the protection of his property.\n\nAttested Text (Eloquent Peasant B1,135 — Narrative Tale):\nTransliteration:\njr wnn ḥꜣw pn …\nEnglish:\n“If this circumstance exists…”\nContext: Part of a logical argument describing conditions in a legal plea.',
-      ),
-      _MaatFlowDay.single(
-        title: 'Day 10 — ḥꜣw as Affairs: The Interwoven Dance of Life Events',
-        detail:
-            'Finally, ḥꜣw appears as affairs, circumstances, matters—the web of unfolding situations in which one acts. Egyptians saw events as connected threads rather than isolated points.\n\nYour affairs, like your moments and belongings, are part of the weave of your life.\n\nPractice:\nReview your journal from this series. Identify one situation in your life where time, place, people, and objects all intersect. Write what wisdom appears when you see the whole pattern.\n\nAttested Text (Eloquent Peasant B1,262 — Narrative Tale):\nTransliteration:\njw ḥꜣw pn nfr n jryt …\nEnglish:\n“This affair is good to be done…”\nContext: Used to judge the goodness or propriety of an action within a larger situation.',
-      ),
-    ],
-  ),
-];
-
-/// Economy category.
-final List<_MaatFlowTemplate> kMaatFlowTemplatesEconomy = [
-  _MaatFlowTemplate(
-    key: 'dollarism-maat',
-    title:
-        'Dollarism vs Ma\'at — Order, Sovereignty, and the Architecture of Balance',
-    overview:
-        'A 10-day look at dollarism through Kemetic balance: circulation versus extraction, fragmentation versus cohesion, and how invisible power shapes sovereignty. Each day pairs a primary note with an evening reflection.',
-    color: Color(0xFFAF7E52), // bronze tone
-    days: [
-      _MaatFlowDay(
-        notes: const [
-          _MaatFlowNoteSlot(
-            title: 'Day 1 — When Power Became Invisible',
-            detail:
-                '''When Malcolm X traveled across Africa in 1964, he observed that colonial domination had not ended — it had changed form.\n\n"The modern 20th century weapon of neo-imperialism is dollarism."\n\nColonialism once required visible force. Dollarism requires structural positioning.\n\nThe method:\n- Enter through aid.\n- Stabilize through loans.\n- Influence through advisory systems.\n- Bind through economic indispensability.\n\nThis is not conquest of land. It is conquest of dependency.\n\nIn Kemetic terms, this is not frontal isfet (chaos through violence). It is subtle isfet (imbalance through asymmetry).\n\nMa’at is not merely moral truth. It is structural equilibrium.\n\nWhen a society’s survival is anchored externally, its internal equilibrium shifts.\n\nThe throne may remain. The balance tilts.''',
-            start: const TimeOfDay(hour: 10, minute: 0),
-            end: const TimeOfDay(hour: 10, minute: 30),
-          ),
-          _MaatFlowNoteSlot(
-            title: 'Reflection — Day 1',
-            detail:
-                'Is power more dangerous when visible — or when embedded?\n\nHow does imbalance manifest when it does not announce itself?\n\nWhere in a system can dependency hide beneath cooperation?',
-            start: const TimeOfDay(hour: 19, minute: 0),
-            end: const TimeOfDay(hour: 19, minute: 30),
-          ),
-        ],
-      ),
-      _MaatFlowDay(
-        notes: const [
-          _MaatFlowNoteSlot(
-            title: 'Day 2 — Sovereignty as Energy Circulation',
-            detail:
-                '''Ma’at is circulation.\n\nThe Nile floods. The land yields grain. Grain fills storehouses. Storehouses redistribute.\n\nThe system breathes.\n\nPolitical sovereignty without economic circulation is symbolic.\n\nDollarism interrupts circulation by redirecting surplus outward before internal stabilization completes.\n\nInterest payments precede redistribution. Extraction precedes equilibrium.\n\nCosmologically, Ma’at represents alignment between heaven, earth, and society.\n\nWhen economic architecture becomes externally anchored, circulation distorts.\n\nImbalance at the economic level becomes imbalance at the cultural level.\n\nDependency is not only financial.\n\nIt is energetic.''',
-            start: const TimeOfDay(hour: 10, minute: 0),
-            end: const TimeOfDay(hour: 10, minute: 30),
-          ),
-          _MaatFlowNoteSlot(
-            title: 'Reflection — Day 2',
-            detail:
-                'What happens when circulation is interrupted?\n\nCan a civilization remain spiritually aligned if its economic energy exits before replenishment?',
-            start: const TimeOfDay(hour: 19, minute: 0),
-            end: const TimeOfDay(hour: 19, minute: 30),
-          ),
-        ],
-      ),
-      _MaatFlowDay(
-        notes: const [
-          _MaatFlowNoteSlot(
-            title: 'Day 3 — Fragmentation and the Geography of Weakness',
-            detail:
-                '''Ma’at unifies opposites.\n\nUpper and Lower Egypt were bound under a single crown.\n\nDivision was not diversity. It was vulnerability.\n\nDollarism thrives on competitive fragmentation.\n\nWhen regions compete for:\n- Financing\n- Trade access\n- Strategic favor\n\nthey weaken their collective negotiating structure.\n\nThis mirrors the Second Intermediate Period.\n\nAs central cohesion weakened, peripheral autonomy increased.\n\nBut before fragmentation fully surfaced, something else occurred.\n\nWho were the Hyksos? Hyksos were Western Asiatic peoples, likely from Canaan and surrounding Levantine regions. Archaeological evidence from Tell el-Dab’a shows gradual Levantine settlement in the Nile Delta during the late Middle Kingdom.\n\nThey did not arrive as a single invading army. They arrived over time:\n- Traders\n- Pastoral groups\n- Artisans\n- Possibly refugees from instability in Canaan\n- Nomadic or semi-nomadic peoples integrating into Delta settlements\n\nMa’at did not forbid foreigners.\n\nKemet historically absorbed:\n- Nubians\n- Levantine traders\n- Mercenaries\n- Skilled migrants\n\nMa’at encouraged order through integration — not isolation. Foreign settlement itself was not isfet. Imbalance arose later.\n\nOver time, Levantine communities consolidated power in the Delta. They fortified cities. They maintained external trade connections. They developed military systems suited to mobility.\n\nThe geography of the Delta made this possible. Flat, fertile, porous — open to Mediterranean routes and Levantine caravans.\n\nWhen central authority weakened, the Delta became a semi-autonomous gateway. The geometry shifted from unified axis to scattered nodes. Scattered nodes invite leverage.\n\nIn cosmological terms, Ma’at is symmetry. Isfet is distortion. Fragmentation distorts symmetry.''',
-            start: const TimeOfDay(hour: 10, minute: 0),
-            end: const TimeOfDay(hour: 10, minute: 30),
-          ),
-          _MaatFlowNoteSlot(
-            title: 'Reflection — Day 3',
-            detail:
-                'When does hospitality become strategic vulnerability?\n\nHow does geography influence sovereignty?\n\nCan openness remain aligned with Ma’at without surrendering structural control?',
-            start: const TimeOfDay(hour: 19, minute: 0),
-            end: const TimeOfDay(hour: 19, minute: 30),
-          ),
-        ],
-      ),
-      _MaatFlowDay(
-        notes: const [
-          _MaatFlowNoteSlot(
-            title: 'Day 4 — The Artery Before the Throne',
-            detail:
-                '''Hyksos did not first seize the throne. They embedded within the Nile Delta.\n\nArchaeological images of Tell el-Dab’a and Delta fortifications show this embedding.\n\nThe Delta was not merely fertile land. It was the hinge between Africa and the Levant.\n\nThrough it moved:\n- Maritime trade across the Mediterranean\n- Caravan routes into Canaan\n- Cedar timber from Lebanon\n- Tin and bronze from Anatolia\n- Horses and military innovations\n\nThe Nile Valley narrows in Upper Egypt — defensible, linear, unified. The Delta spreads outward — open, branching, porous.\n\nThe Kemites expanded differently. Their expansion was connective:\n- Mastery of the Nile’s flood cycle\n- Canal systems\n- Agricultural synchronization\n- Temple redistribution networks\n- Diplomatic trade missions\n\nThey connected the land through Ma’at. They mastered the flow of water, grain, and labor.\n\nThe Hyksos developed differently. They concentrated control:\n- Fortified Avaris\n- Secured metal supply chains\n- Industrialized weapon production\n- Integrated chariot warfare\n\nThe Kemetic model: integration through balance. The Hyksos model: control through concentration.\n\nControl of the artery precedes control of sovereignty.\n\nDollarism mirrors this logic:\n\nControl the financial artery. Control credit flows. Control denominated trade. Control infrastructure capital.\n\nThe throne may remain symbolically independent. But the artery defines survival.\n\nIn Kemetic cosmology, the heart regulates the body. If the heart is externally regulated, life is externally regulated.''',
-            start: const TimeOfDay(hour: 10, minute: 0),
-            end: const TimeOfDay(hour: 10, minute: 30),
-          ),
-          _MaatFlowNoteSlot(
-            title: 'Reflection — Day 4',
-            detail:
-                'What distinguishes connection from control?\n\nHow does infrastructure shift from integration to leverage?',
-            start: const TimeOfDay(hour: 19, minute: 0),
-            end: const TimeOfDay(hour: 19, minute: 30),
-          ),
-        ],
-      ),
-      _MaatFlowDay(
-        notes: const [
-          _MaatFlowNoteSlot(
-            title: 'Day 5 — Invention vs Weaponized Coordination',
-            detail:
-                '''Kemet did not lack knowledge.\n\nIts Middle Kingdom economy was deeply sophisticated:\n- State-managed grain taxation\n- Central storehouses\n- Irrigation engineering\n- Labor mobilization for public works\n- Diplomatic trade treaties\n- Temple treasuries\n\nEconomic collapse was described as cosmic disorder. Economic order was sacred order.\n\nThe Kemetic system created predictable surplus, stable storage, organized labor, and trade routes. These very systems created the logistical foundation later used by Hyksos rulers.\n\nBronze entered through trade networks Kemet cultivated. Agricultural surplus sustained northern settlements. Administrative structures stabilized Delta life long before Hyksos consolidation.\n\nThey did not invent wealth. They inherited and redirected it.\n\nHyksos military systems emphasized:\n- Standardized bronze production\n- Composite bows\n- Horse-drawn chariots\n\nThey coordinated.\n\nDollarism operates identically. It leverages existing infrastructure.\n\nMa’at generates systems. Isfet weaponizes systems. The difference is intention and structure.''',
-            start: const TimeOfDay(hour: 10, minute: 0),
-            end: const TimeOfDay(hour: 10, minute: 30),
-          ),
-          _MaatFlowNoteSlot(
-            title: 'Reflection — Day 5',
-            detail:
-                'How can a civilization’s strengths become the infrastructure of its vulnerability?\n\nWhat safeguards prevent stability from being redirected?',
-            start: const TimeOfDay(hour: 19, minute: 0),
-            end: const TimeOfDay(hour: 19, minute: 30),
-          ),
-        ],
-      ),
-      _MaatFlowDay(
-        notes: const [
-          _MaatFlowNoteSlot(
-            title: 'Day 6 — Central Weakness and Peripheral Ascendancy',
-            detail:
-                '''By the Second Intermediate Period:\n- Central authority fractured.\n- Provincial leaders rose.\n- Administrative coherence weakened.\n\nTwo thrones emerged. The Hyksos consolidated the north. The Thebans held the south.\n\nImagine the atmosphere:\n- Taxation still functioning — but allegiance divided.\n- Temples still performing ritual — but political command split.\n- Trade flowing — but loyalties uncertain.\n- Fortifications rising — but unity thinning.\n\nFracture does not always appear as collapse. It appears as parallel systems operating without integration.\n\nThe vulnerability was internal before it was external.\n\nDollarism enters where fiscal gaps exist. External capital fills structural deficiencies. Dependency becomes normalized when internal production cannot sustain growth.\n\nCosmologically, Ma’at requires the center to remain aligned. When the center weakens, the circumference expands unpredictably. Isfet begins at the axis.''',
-            start: const TimeOfDay(hour: 10, minute: 0),
-            end: const TimeOfDay(hour: 10, minute: 30),
-          ),
-          _MaatFlowNoteSlot(
-            title: 'Reflection — Day 6',
-            detail:
-                'What does slow fracture feel like within a civilization?\n\nHow does quiet division invite external leverage?',
-            start: const TimeOfDay(hour: 19, minute: 0),
-            end: const TimeOfDay(hour: 19, minute: 30),
-          ),
-        ],
-      ),
-      _MaatFlowDay(
-        notes: const [
-          _MaatFlowNoteSlot(
-            title: 'Day 7 — Circulation vs Extraction',
-            detail:
-                '''Ma’at circulates.\n\nGrain stored internally. Labor coordinated internally. Surplus redistributed internally.\n\nExtraction was external only after stability.\n\nIn the “Negative Confessions” of the Book of the Dead, the speaker declares:\n- "I have not diminished the grain measure."\n- "I have not stolen."\n\nEconomic ethics were sacred ethics. Isfet is distortion. Extraction without reciprocity is isfet.\n\nDollarism reverses sequence. Extraction often precedes stabilization:\n- Profit repatriation\n- Debt servicing\n- Trade imbalances\n\nThis alters energetic flow. A civilization that exports surplus before securing equilibrium destabilizes its foundation.\n\nCirculation preserves Ma’at. Premature extraction accelerates isfet.''',
-            start: const TimeOfDay(hour: 10, minute: 0),
-            end: const TimeOfDay(hour: 10, minute: 30),
-          ),
-          _MaatFlowNoteSlot(
-            title: 'Reflection — Day 7',
-            detail:
-                'When does exchange cross into imbalance?\n\nHow is proportionality maintained under pressure?',
-            start: const TimeOfDay(hour: 19, minute: 0),
-            end: const TimeOfDay(hour: 19, minute: 30),
-          ),
-        ],
-      ),
-      _MaatFlowDay(
-        notes: const [
-          _MaatFlowNoteSlot(
-            title: 'Day 8 — Adaptation Without Identity Loss',
-            detail:
-                '''Under Ahmose I, Upper Egypt unified and expelled Hyksos authority.\n\nThe Delta was reclaimed. Avaris fell. The Nile unified again.\n\nThis was not quiet transition. It was decisive.\n\nChariot warfare integrated. Military command centralized. Northern fortifications dismantled.\n\nThe Kemites absorbed the very technologies that destabilized them.\n\nMa’at was restored through disciplined strength. Balance returned to the axis. The river breathed again as one.''',
-            start: const TimeOfDay(hour: 10, minute: 0),
-            end: const TimeOfDay(hour: 10, minute: 30),
-          ),
-          _MaatFlowNoteSlot(
-            title: 'Reflection — Day 8',
-            detail:
-                'How does restoration remain aligned with Ma’at?\n\nWhat prevents triumph from becoming excess?',
-            start: const TimeOfDay(hour: 19, minute: 0),
-            end: const TimeOfDay(hour: 19, minute: 30),
-          ),
-        ],
-      ),
-      _MaatFlowDay(
-        notes: const [
-          _MaatFlowNoteSlot(
-            title: 'Day 9 — Dollarism in Service to Ma’at',
-            detail:
-                '''After expulsion, Kemet projected into Canaan. Trade routes secured. Military capacity expanded. Diplomacy strengthened.\n\nWhat if economic leverage had been consciously structured in service of Ma’at?\n\nDollarism aligned with Ma’at would mean:\n- Economic strength used to stabilize circulation\n- Trade leverage without creating dependency\n- Infrastructure development that reinforces sovereignty\n\nMa’at could fortify itself against dollarism by:\n- Mastering currency systems\n- Protecting gateways\n- Ensuring internal economic literacy\n- Scaling innovation intentionally\n\nLeverage itself is neutral. Alignment determines outcome.\n\nMoney in service of Ma’at stabilizes. Money in service of asymmetry destabilizes.''',
-            start: const TimeOfDay(hour: 10, minute: 0),
-            end: const TimeOfDay(hour: 10, minute: 30),
-          ),
-          _MaatFlowNoteSlot(
-            title: 'Reflection — Day 9',
-            detail:
-                'Can leverage exist without exploitation?\n\nWhat would economic mastery aligned with Ma’at look like?',
-            start: const TimeOfDay(hour: 19, minute: 0),
-            end: const TimeOfDay(hour: 19, minute: 30),
-          ),
-        ],
-      ),
-      _MaatFlowDay(
-        notes: const [
-          _MaatFlowNoteSlot(
-            title: 'Day 10 — Ma’at in an Age of Invisible Power',
-            detail:
-                '''Dollarism thrives when:\n- Economic literacy is shallow.\n- Unity dissolves.\n- Trade arteries are externally regulated.\n- Systems are not internally integrated.\n\nMa’at survives when:\n- Economic systems are understood.\n- Circulation precedes extraction.\n- Unity outweighs competition.\n- Adaptation preserves identity.\n\nMalcolm identified the structural weapon. The Hyksos episode revealed the structural vulnerability. The New Kingdom revealed the structural correction.\n\nCosmologically:\n\nMa’at is not passive goodness. It is active equilibrium. It is engineered balance. It is sovereignty aligned with order.\n\nMoney is not corruption. Ignorance of money invites imbalance. Mastery aligned with Ma’at restores equilibrium.''',
-            start: const TimeOfDay(hour: 10, minute: 0),
-            end: const TimeOfDay(hour: 10, minute: 30),
-          ),
-          _MaatFlowNoteSlot(
-            title: 'Reflection — Day 10',
-            detail:
-                'If Ma’at is active equilibrium, what structures must exist to preserve it?\n\nHow does one cultivate mastery without losing alignment?\n\nWhere must strength and balance meet?',
-            start: const TimeOfDay(hour: 19, minute: 0),
-            end: const TimeOfDay(hour: 19, minute: 30),
-          ),
-        ],
-      ),
-    ],
+        'An ongoing Ma’at flow for live skywatching. Join from whatever point in the calendar you are on, choose your U.S. timezone, and the remaining equinoxes, lunar events, meteor peaks, and planetary highlights through March 20, 2027 will be added directly to your calendar with viewing guidance.',
+    color: _trackSkySignifierBase,
+    kind: _MaatFlowTemplateKind.trackSky,
   ),
 ];
 
@@ -8292,8 +7817,9 @@ class _CalendarPageState extends State<CalendarPage>
     for (final fid in flowIds) {
       try {
         final flow = _flows.firstWhere((f) => f.id == fid);
-        if (!colors.contains(flow.color)) {
-          colors.add(flow.color);
+        final displayColor = _displayFlowColor(flow.name, flow.color);
+        if (!colors.contains(displayColor)) {
+          colors.add(displayColor);
           if (colors.length == 3) break; // Cap to 3 colors
         }
       } catch (_) {
@@ -8321,8 +7847,9 @@ class _CalendarPageState extends State<CalendarPage>
     for (final fid in flowIds) {
       try {
         final flow = _flows.firstWhere((f) => f.id == fid);
-        if (!colors.contains(flow.color)) {
-          colors.add(flow.color);
+        final displayColor = _displayFlowColor(flow.name, flow.color);
+        if (!colors.contains(displayColor)) {
+          colors.add(displayColor);
           if (colors.length == 3) break; // Cap to 3 colors
         }
       } catch (_) {
@@ -8418,8 +7945,9 @@ class _CalendarPageState extends State<CalendarPage>
       flowIndex[f.id] = FlowData(
         id: f.id,
         name: f.name,
-        color: f.color,
+        color: _displayFlowColor(f.name, f.color),
         active: f.active,
+        notes: f.notes,
       );
     }
     return flowIndex;
@@ -10566,7 +10094,7 @@ class _CalendarPageState extends State<CalendarPage>
     if (note.flowId != null && note.flowId != -1) {
       try {
         final flow = _flows.firstWhere((f) => f.id == note.flowId);
-        return flow.color;
+        return _displayFlowColor(flow.name, flow.color);
       } catch (_) {}
     }
     if (note.isReminder) return _blue;
@@ -11558,7 +11086,9 @@ class _CalendarPageState extends State<CalendarPage>
             openMaatFlows: () {
               Navigator.of(innerCtx).push(
                 MaterialPageRoute(
-                  builder: (ctx3) => _MaatCategoriesPage(
+                  builder: (ctx3) => _MaatFlowsListPage(
+                    title: 'ḥꜣw',
+                    templates: kMaatFlowTemplates,
                     hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
                     onPickTemplate: (tpl) {
                       Navigator.of(ctx3).push(
@@ -11568,13 +11098,18 @@ class _CalendarPageState extends State<CalendarPage>
                             addInstance:
                                 ({
                                   required _MaatFlowTemplate template,
-                                  required DateTime startDate,
-                                  required bool useKemetic,
+                                  DateTime? startDate,
+                                  bool? useKemetic,
+                                  TrackSkyTimeZone? trackSkyTimeZone,
+                                  int? alertMinutesBefore,
                                 }) async {
                                   final id = await _addMaatFlowInstance(
                                     template: template,
                                     startDate: startDate,
-                                    useKemetic: useKemetic,
+                                    useKemetic: useKemetic ?? false,
+                                    trackSkyTimeZone: trackSkyTimeZone,
+                                    alertMinutesBefore:
+                                        alertMinutesBefore ?? _alertNoneMinutes,
                                   );
                                   return id;
                                 },
@@ -11687,14 +11222,156 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   /// Create a user-owned *instance* from a Ma'at template starting on [startDate].
-  /// - [useKemetic]: true to interpret [startDate] as Kemetic (kY/kM/kD); false = Gregorian.
-  /// - Produces a new _Flow with explicit dates (10 days) and adds 10 notes linked to the flowId.
+  /// - Sequence templates use [startDate] and optionally [useKemetic].
+  /// - Ongoing templates can use their own join settings, such as timezone.
   /// - Returns the created flow's id.
   Future<int> _addMaatFlowInstance({
     required _MaatFlowTemplate template,
-    required DateTime startDate,
-    required bool useKemetic,
+    DateTime? startDate,
+    bool useKemetic = false,
+    TrackSkyTimeZone? trackSkyTimeZone,
+    int alertMinutesBefore = _alertNoneMinutes,
   }) async {
+    if (template.kind == _MaatFlowTemplateKind.trackSky) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final flowData = await loadTrackSkyFlowData(timezone);
+      final events = upcomingTrackSkyEvents(flowData);
+      if (events.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No upcoming sky events remain for this flow.'),
+            ),
+          );
+        }
+        return -1;
+      }
+
+      final dates = <DateTime>{
+        for (final event in events)
+          DateUtils.dateOnly(trackSkyEventStartLocal(event, timezone)),
+      };
+      final orderedDates = dates.toList()..sort();
+      final firstG = orderedDates.first;
+      final lastG = orderedDates.last;
+
+      final flow = _Flow(
+        id: -1,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: firstG,
+        end: lastG,
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'sky_tz=${timezone.key}',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          debugPrint('[trackSky] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      for (final event in events) {
+        final startLocal = trackSkyEventStartLocal(event, timezone);
+        final endLocal = trackSkyEventEndLocal(event, timezone);
+        final dayOnly = DateUtils.dateOnly(startLocal);
+        final kyKmKd = KemeticMath.fromGregorian(dayOnly);
+        final startTod = event.schedule.allDay
+            ? null
+            : TimeOfDay(hour: startLocal.hour, minute: startLocal.minute);
+        final endTod = event.schedule.allDay
+            ? null
+            : TimeOfDay(hour: endLocal.hour, minute: endLocal.minute);
+        final clientEventId = _buildCid(
+          ky: kyKmKd.kYear,
+          km: kyKmKd.kMonth,
+          kd: kyKmKd.kDay,
+          title: event.title,
+          startHour: startTod?.hour,
+          startMinute: startTod?.minute,
+          allDay: event.schedule.allDay,
+          flowId: serverFlowId,
+        );
+        final note = _Note(
+          clientEventId: clientEventId,
+          title: event.title,
+          detail: event.detailText,
+          allDay: event.schedule.allDay,
+          start: startTod,
+          end: endTod,
+          flowId: serverFlowId,
+          category: event.category,
+          alertOffsetMinutes: alertMinutesBefore,
+        );
+
+        _addNote(
+          kyKmKd.kYear,
+          kyKmKd.kMonth,
+          kyKmKd.kDay,
+          event.title,
+          event.detailText,
+          clientEventId: clientEventId,
+          allDay: event.schedule.allDay,
+          start: startTod,
+          end: endTod,
+          flowId: serverFlowId,
+          category: event.category,
+          alertOffsetMinutes: alertMinutesBefore,
+        );
+
+        await _scheduleAlertForEvent(
+          note: note,
+          ky: kyKmKd.kYear,
+          km: kyKmKd.kMonth,
+          kd: kyKmKd.kDay,
+          clientEventId: clientEventId,
+        );
+
+        Future.microtask(() async {
+          try {
+            await repo.upsertByClientId(
+              clientEventId: clientEventId,
+              title: event.title,
+              startsAtUtc: trackSkyEventStartUtc(event, timezone),
+              detail: _encodeDetailWithMeta(
+                event.detailText,
+                alertMinutes: alertMinutesBefore,
+              ),
+              location: null,
+              allDay: event.schedule.allDay,
+              endsAtUtc: trackSkyEventEndUtc(event, timezone),
+              category: event.category,
+              flowLocalId: serverFlowId,
+              caller: 'track_sky_join',
+            );
+          } catch (_) {}
+        });
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
+    if (startDate == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please pick a start date first.')),
+        );
+      }
+      return -1;
+    }
+
     // 1) Build the 10 Gregorian dates starting at chosen start.
     final dates = <DateTime>{};
     DateTime firstG;
@@ -17986,8 +17663,9 @@ class _CalendarPageState extends State<CalendarPage>
       index[f.id] = FlowData(
         id: f.id,
         name: f.name,
-        color: f.color,
+        color: _displayFlowColor(f.name, f.color),
         active: f.active,
+        notes: f.notes,
       );
     }
     return index;
@@ -18000,8 +17678,9 @@ class _CalendarPageState extends State<CalendarPage>
       return FlowData(
         id: flow.id,
         name: flow.name,
-        color: flow.color,
+        color: _displayFlowColor(flow.name, flow.color),
         active: flow.active,
+        notes: flow.notes,
       );
     }
     return null;
@@ -19409,6 +19088,9 @@ class _DayChip extends StatelessWidget {
                   _MiniEventBlock(
                     note: visible[i],
                     color: noteColorResolver(visible[i]),
+                    isTrackSky: _isTrackSkyFlowName(
+                      flowNameGetter?.call(visible[i]),
+                    ),
                     dense: expansionLevel == MonthExpansionLevel.stacked,
                     label: expansionLevel == MonthExpansionLevel.details
                         ? _labelFor(visible[i])
@@ -19807,7 +19489,7 @@ class _MainCalendarEventDetailSheetState
         return '';
       }
     }
-    return _stripCidLines(detail).trim();
+    return normalizeTrackSkyDetailText(_stripCidLines(detail).trim());
   }
 
   String _formatTimeRange(int startMin, int endMin, {bool allDay = false}) {
@@ -20530,12 +20212,14 @@ class _ColorDot extends StatelessWidget {
 class _MiniEventBlock extends StatelessWidget {
   final _Note note;
   final Color color;
+  final bool isTrackSky;
   final bool dense;
   final bool expand;
   final String? label;
   const _MiniEventBlock({
     required this.note,
     required this.color,
+    this.isTrackSky = false,
     this.dense = true,
     this.expand = false,
     this.label,
@@ -20549,7 +20233,7 @@ class _MiniEventBlock extends StatelessWidget {
     final showLabel = label != null && !dense;
     final isDetailPill = expand && showLabel;
     final bg = color.withOpacity(dense ? 0.28 : 0.22);
-    final border = color.withOpacity(0.9);
+    final border = isTrackSky ? _trackSkySignifierBase : color.withOpacity(0.9);
     final double minH = isDetailPill ? 38 : (dense ? 8 : 24);
     final double minW = dense ? 24 : 0;
     final EdgeInsetsGeometry padding = showLabel
@@ -20561,18 +20245,42 @@ class _MiniEventBlock extends StatelessWidget {
       isDetailPill ? 12 : (dense ? 5 : 10),
     );
     final TextStyle labelStyle = TextStyle(
-      color: Colors.white,
+      color: isTrackSky ? _trackSkySignifierText : Colors.white,
       fontSize: isDetailPill ? 10.5 : 10,
       height: 1.2,
       fontWeight: isDetailPill ? FontWeight.w600 : FontWeight.w500,
+      shadows: isTrackSky
+          ? const [
+              Shadow(
+                color: Color(0x6EFFF5D1),
+                offset: Offset(0, 0.55),
+                blurRadius: 0.3,
+              ),
+              Shadow(
+                color: Color(0x36000000),
+                offset: Offset(0, 1.0),
+                blurRadius: 1.2,
+              ),
+            ]
+          : null,
     );
     final container = Container(
       width: expand ? double.infinity : null,
       padding: padding,
       decoration: BoxDecoration(
-        color: bg,
+        color: isTrackSky ? null : bg,
+        gradient: isTrackSky ? _trackSkySignifierGradient : null,
         borderRadius: radius,
         border: Border.all(color: border, width: dense ? 0.8 : 1.0),
+        boxShadow: isTrackSky
+            ? const [
+                BoxShadow(
+                  color: Color(0x33140C00),
+                  blurRadius: 4,
+                  offset: Offset(0, 1),
+                ),
+              ]
+            : null,
       ),
       constraints: expand && isDetailPill
           ? BoxConstraints(minHeight: minH)
@@ -27975,7 +27683,7 @@ String _cleanDetail(String? s) {
     return trimmed.isNotEmpty;
   }).toList();
   t = kept.join('\n');
-  return t.trim();
+  return normalizeTrackSkyDetailText(t.trim());
 }
 
 // Helper: strip cid-only lines and legacy flowLocalId lines from detail text.
@@ -28720,121 +28428,6 @@ class GlossyButton extends StatelessWidget {
   }
 }
 
-/* ───────────────────────── Ma’at Flows categories ───────────────────────── */
-
-class _MaatCategoriesPage extends StatelessWidget {
-  const _MaatCategoriesPage({
-    required this.hasActiveForKey,
-    required this.onPickTemplate,
-    required this.onCreateNew,
-    super.key,
-  });
-
-  final bool Function(String key) hasActiveForKey;
-  final void Function(_MaatFlowTemplate tpl) onPickTemplate;
-  final VoidCallback onCreateNew;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0.5,
-        title: const Text("ḥꜣw", style: TextStyle(color: Colors.white)),
-        actions: [
-          IconButton(
-            tooltip: 'New flow',
-            icon: const Icon(Icons.add, color: _silver),
-            onPressed: onCreateNew,
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => _MaatFlowsListPage(
-                    title: 'Kemetic Culture & History',
-                    templates: kMaatFlowTemplates,
-                    hasActiveForKey: hasActiveForKey,
-                    onPickTemplate: onPickTemplate,
-                    onCreateNew: onCreateNew,
-                  ),
-                ),
-              );
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              textStyle: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-              alignment: Alignment.centerLeft,
-            ),
-            child: const Text('Kemetic Culture & History'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => _MaatFlowsListPage(
-                    title: 'Medu Neter',
-                    templates: kMaatFlowTemplatesMeduNeter,
-                    hasActiveForKey: hasActiveForKey,
-                    onPickTemplate: onPickTemplate,
-                    onCreateNew: onCreateNew,
-                  ),
-                ),
-              );
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              textStyle: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-              alignment: Alignment.centerLeft,
-            ),
-            child: const Text('Medu Neter'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => _MaatFlowsListPage(
-                    title: 'Economy',
-                    templates: kMaatFlowTemplatesEconomy,
-                    hasActiveForKey: hasActiveForKey,
-                    onPickTemplate: onPickTemplate,
-                    onCreateNew: onCreateNew,
-                  ),
-                ),
-              );
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              textStyle: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-              alignment: Alignment.centerLeft,
-            ),
-            child: const Text('Economy'),
-          ),
-          const Divider(height: 12, color: Colors.white10),
-        ],
-      ),
-    );
-  }
-}
-
 /* ───────────────────────── Ma’at Flows list ───────────────────────── */
 
 class _MaatFlowsListPage extends StatelessWidget {
@@ -28860,7 +28453,11 @@ class _MaatFlowsListPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0.5,
-        title: Text(title, style: const TextStyle(color: Colors.white)),
+        title: GlossyText(
+          text: title,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          gradient: goldGloss,
+        ),
         actions: [
           IconButton(
             tooltip: 'New flow',
@@ -28869,48 +28466,70 @@ class _MaatFlowsListPage extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        itemCount: templates.length,
-        separatorBuilder: (_, __) =>
-            const Divider(height: 12, color: Colors.white10),
-        itemBuilder: (ctx, i) {
-          final t = templates[i];
-          final added = hasActiveForKey(t.key);
-          return ListTile(
-            onTap: () => onPickTemplate(t),
-            leading: Container(
-              width: 18,
-              height: 18,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: _glossFromColor(t.color),
+      body: templates.isEmpty
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'No Ma’at flows yet.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                ),
               ),
-            ),
-            title: Text(t.title, style: const TextStyle(color: Colors.white)),
-            subtitle: Text(
-              '10 days • ${t.overview.isEmpty ? '—' : 'Tap for details'}',
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-            trailing: added
-                ? Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              itemCount: templates.length,
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 12, color: Colors.white10),
+              itemBuilder: (ctx, i) {
+                final t = templates[i];
+                final added = hasActiveForKey(t.key);
+                return ListTile(
+                  onTap: () => onPickTemplate(t),
+                  leading: Container(
+                    width: 18,
+                    height: 18,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: _gold, width: 1.2),
+                      shape: BoxShape.circle,
+                      gradient: _glossFromColor(t.color),
                     ),
-                    child: const Text(
-                      'Added',
-                      style: TextStyle(color: _gold, fontSize: 12),
+                  ),
+                  title: GlossyText(
+                    text: t.title,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
                     ),
-                  )
-                : const Icon(Icons.chevron_right, color: _silver),
-          );
-        },
-      ),
+                    gradient: goldGloss,
+                  ),
+                  subtitle: Text(
+                    '${t.kind == _MaatFlowTemplateKind.trackSky ? 'Ongoing' : '10 days'} • ${t.overview.isEmpty ? '—' : 'Tap for details'}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  trailing: added
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: _gold, width: 1.2),
+                          ),
+                          child: const GlossyText(
+                            text: 'Added',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            gradient: _maatBadgeGoldGloss,
+                          ),
+                        )
+                      : const Icon(Icons.chevron_right, color: _silver),
+                );
+              },
+            ),
     );
   }
 }
@@ -28927,8 +28546,10 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   final _MaatFlowTemplate template;
   final Future<int> Function({
     required _MaatFlowTemplate template,
-    required DateTime startDate,
-    required bool useKemetic,
+    DateTime? startDate,
+    bool? useKemetic,
+    TrackSkyTimeZone? trackSkyTimeZone,
+    int? alertMinutesBefore,
   })
   addInstance;
 
@@ -28939,6 +28560,18 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
 
 class _MaatFlowTemplateDetailPageState
     extends State<_MaatFlowTemplateDetailPage> {
+  late TrackSkyTimeZone _previewTrackSkyTimeZone;
+  Future<TrackSkyFlowData>? _trackSkyFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _previewTrackSkyTimeZone = detectTrackSkyTimeZone();
+    if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
+      _trackSkyFuture = loadTrackSkyFlowData(_previewTrackSkyTimeZone);
+    }
+  }
+
   String _fmtGregorian(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -29355,8 +28988,561 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  void _setTrackSkyPreviewTimeZone(
+    TrackSkyTimeZone timezone, {
+    bool forceReload = false,
+  }) {
+    if (!forceReload && _previewTrackSkyTimeZone == timezone) return;
+    if (forceReload) {
+      clearTrackSkyFlowCache(timezone);
+    }
+    setState(() {
+      _previewTrackSkyTimeZone = timezone;
+      _trackSkyFuture = loadTrackSkyFlowData(timezone);
+    });
+  }
+
+  Future<void> _openTrackSkyJoinSheet() async {
+    TrackSkyTimeZone selectedTimeZone = _previewTrackSkyTimeZone;
+    int? selectedAlertMinutes;
+    bool isWorking = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetCtx) {
+        final media = MediaQuery.of(sheetCtx);
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheetState) {
+            return AnimatedPadding(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+              child: SafeArea(
+                top: false,
+                child: FractionallySizedBox(
+                  heightFactor: 0.88,
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      16,
+                      16,
+                      16 + media.padding.bottom,
+                    ),
+                    child: FutureBuilder<TrackSkyFlowData>(
+                      future: loadTrackSkyFlowData(selectedTimeZone),
+                      builder: (context, snapshot) {
+                        final data = snapshot.data;
+                        final upcoming = data == null
+                            ? const <TrackSkyEvent>[]
+                            : upcomingTrackSkyEvents(data);
+                        final dateRange = upcoming.isEmpty
+                            ? null
+                            : '${MaterialLocalizations.of(context).formatShortDate(DateTime.parse(upcoming.first.schedule.dateIso))} → ${MaterialLocalizations.of(context).formatShortDate(DateTime.parse(upcoming.last.schedule.dateIso))}';
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Center(
+                              child: Container(
+                                width: 36,
+                                height: 4,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white24,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: ListView(
+                                padding: EdgeInsets.zero,
+                                children: [
+                                  const GlossyText(
+                                    text: 'Join Follow the sky',
+                                    gradient: _maatBadgeGoldGloss,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Choose your timezone and alert preference. The remaining sky events for that timezone will be added to your calendar.',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'Timezone',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ...TrackSkyTimeZone.values.map((timezone) {
+                                    return RadioListTile<TrackSkyTimeZone>(
+                                      value: timezone,
+                                      groupValue: selectedTimeZone,
+                                      activeColor: _gold,
+                                      contentPadding: EdgeInsets.zero,
+                                      title: Text(
+                                        timezone.label,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        timezone.shortLabel,
+                                        style: const TextStyle(
+                                          color: Colors.white54,
+                                        ),
+                                      ),
+                                      onChanged: isWorking
+                                          ? null
+                                          : (value) {
+                                              if (value == null) return;
+                                              setSheetState(() {
+                                                selectedTimeZone = value;
+                                              });
+                                            },
+                                    );
+                                  }),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Alert',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    title: const Text(
+                                      'Alert preference',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    subtitle: Text(
+                                      selectedAlertMinutes == null
+                                          ? 'Choose when you want to be reminded'
+                                          : _alertLabelFor(
+                                              selectedAlertMinutes,
+                                            ),
+                                      style: TextStyle(
+                                        color: selectedAlertMinutes == null
+                                            ? _gold
+                                            : Colors.white54,
+                                      ),
+                                    ),
+                                    trailing: const Icon(
+                                      Icons.chevron_right,
+                                      color: _silver,
+                                    ),
+                                    onTap: isWorking
+                                        ? null
+                                        : () async {
+                                            final picked =
+                                                await _pickAlertMinutes(
+                                                  sheetCtx,
+                                                  selectedAlertMinutes,
+                                                );
+                                            if (picked == null) return;
+                                            setSheetState(() {
+                                              selectedAlertMinutes = picked;
+                                            });
+                                          },
+                                  ),
+                                  if (snapshot.hasError) ...[
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Could not load sky events for this timezone.',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: OutlinedButton(
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: _gold,
+                                          side: const BorderSide(
+                                            color: _gold,
+                                            width: 1.1,
+                                          ),
+                                        ),
+                                        onPressed: isWorking
+                                            ? null
+                                            : () {
+                                                clearTrackSkyFlowCache(
+                                                  selectedTimeZone,
+                                                );
+                                                setSheetState(() {});
+                                              },
+                                        child: const Text('Retry'),
+                                      ),
+                                    ),
+                                  ] else if (snapshot.connectionState ==
+                                      ConnectionState.waiting)
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      child: Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    )
+                                  else ...[
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      upcoming.isEmpty
+                                          ? 'No upcoming sky events remain in this timezone.'
+                                          : '${upcoming.length} events will be added${dateRange == null ? '' : ' • $dateRange'}',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                  if (selectedAlertMinutes == null) ...[
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Choose an alert preference before joining.',
+                                      style: TextStyle(
+                                        color: _gold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _gold,
+                                  foregroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                ),
+                                onPressed:
+                                    isWorking ||
+                                        snapshot.hasError ||
+                                        snapshot.connectionState ==
+                                            ConnectionState.waiting
+                                    ? null
+                                    : () async {
+                                        if (selectedAlertMinutes == null) {
+                                          final picked =
+                                              await _pickAlertMinutes(
+                                                sheetCtx,
+                                                _alertNoneMinutes,
+                                              );
+                                          if (picked == null) return;
+                                          setSheetState(() {
+                                            selectedAlertMinutes = picked;
+                                          });
+                                          return;
+                                        }
+                                        setSheetState(() => isWorking = true);
+                                        final id = await widget.addInstance(
+                                          template: widget.template,
+                                          trackSkyTimeZone: selectedTimeZone,
+                                          alertMinutesBefore:
+                                              selectedAlertMinutes!,
+                                        );
+                                        if (!mounted || !sheetCtx.mounted) {
+                                          return;
+                                        }
+                                        if (id > 0) {
+                                          Navigator.of(sheetCtx).pop();
+                                          Navigator.of(context).pop(id);
+                                        } else {
+                                          setSheetState(
+                                            () => isWorking = false,
+                                          );
+                                        }
+                                      },
+                                child: Text(
+                                  isWorking
+                                      ? 'Joining…'
+                                      : selectedAlertMinutes == null
+                                      ? 'Choose Alert'
+                                      : 'Join Flow',
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildTrackSkyCategorySection(
+    BuildContext context,
+    String category,
+    List<TrackSkyEvent> events,
+  ) {
+    if (events.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        GlossyText(
+          text: '$category (${events.length})',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          gradient: silverGloss,
+        ),
+        const SizedBox(height: 8),
+        ...events.map((event) => _buildTrackSkyEventTile(context, event)),
+      ],
+    );
+  }
+
+  Widget _buildTrackSkyEventTile(BuildContext context, TrackSkyEvent event) {
+    final detailSummary = event.detailSummary;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B0C0F),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          collapsedIconColor: _silver,
+          iconColor: _gold,
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          title: Text(
+            event.title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              event.exactLabel,
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ),
+          children: detailSummary.isEmpty
+              ? const <Widget>[]
+              : <Widget>[
+                  Text(
+                    detailSummary,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13.5,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrackSkyScaffold(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final buttonWidth = math.min(media.size.width - 32, 280.0);
+    final ctaBottom = media.padding.bottom + 12;
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0.5,
+        title: GlossyText(
+          text: widget.template.title,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          gradient: goldGloss,
+        ),
+      ),
+      body: Stack(
+        children: [
+          FutureBuilder<TrackSkyFlowData>(
+            future: _trackSkyFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Could not load sky events.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _gold,
+                            side: const BorderSide(color: _gold, width: 1.1),
+                          ),
+                          onPressed: () => _setTrackSkyPreviewTimeZone(
+                            _previewTrackSkyTimeZone,
+                            forceReload: true,
+                          ),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final data = snapshot.data;
+              if (data == null) {
+                return const SizedBox.shrink();
+              }
+              final upcoming = upcomingTrackSkyEvents(data);
+              final l10n = MaterialLocalizations.of(context);
+              final firstDate = upcoming.isEmpty
+                  ? null
+                  : l10n.formatShortDate(
+                      DateTime.parse(upcoming.first.schedule.dateIso),
+                    );
+              final lastDate = upcoming.isEmpty
+                  ? null
+                  : l10n.formatShortDate(
+                      DateTime.parse(upcoming.last.schedule.dateIso),
+                    );
+
+              return ListView(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, ctaBottom + 96),
+                children: [
+                  GlossyText(
+                    text: widget.template.title,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    gradient: goldGloss,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.template.overview,
+                    style: const TextStyle(color: Colors.white, height: 1.35),
+                  ),
+                  const SizedBox(height: 16),
+                  const GlossyText(
+                    text: 'Preview Timezone',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                    gradient: silverGloss,
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: TrackSkyTimeZone.values.map((timezone) {
+                      return ChoiceChip(
+                        label: Text(timezone.shortLabel),
+                        selected: _previewTrackSkyTimeZone == timezone,
+                        onSelected: (_) =>
+                            _setTrackSkyPreviewTimeZone(timezone),
+                        selectedColor: _gold,
+                        labelStyle: TextStyle(
+                          color: _previewTrackSkyTimeZone == timezone
+                              ? Colors.black
+                              : Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        backgroundColor: const Color(0xFF15171B),
+                        side: const BorderSide(color: Colors.white24),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    upcoming.isEmpty
+                        ? 'No upcoming sky events remain in ${_previewTrackSkyTimeZone.label}.'
+                        : 'Previewing ${upcoming.length} upcoming events in ${_previewTrackSkyTimeZone.label}${firstDate == null || lastDate == null ? '' : ' • $firstDate → $lastDate'}.',
+                    style: const TextStyle(color: Colors.white70, height: 1.35),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Only events with a usable viewing window are included when you join. You can confirm timezone and alert settings from the Join Flow button.',
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                      height: 1.35,
+                    ),
+                  ),
+                  for (final category in kTrackSkyCategoryOrder)
+                    _buildTrackSkyCategorySection(
+                      context,
+                      category,
+                      upcoming
+                          .where((event) => event.category == category)
+                          .toList(),
+                    ),
+                ],
+              );
+            },
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: ctaBottom,
+            child: Center(
+              child: SizedBox(
+                width: buttonWidth,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF090A0D),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    side: const BorderSide(color: _gold, width: 1.15),
+                    elevation: 0,
+                  ),
+                  onPressed: _openTrackSkyJoinSheet,
+                  child: const GlossyText(
+                    text: 'Join Flow',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    gradient: goldGloss,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSequenceScaffold(BuildContext context) {
     final l10n = MaterialLocalizations.of(context);
     return Scaffold(
       backgroundColor: _bg,
@@ -29388,7 +29574,7 @@ class _MaatFlowTemplateDetailPageState
             gradient: silverGloss,
           ),
           const SizedBox(height: 8),
-          ...List.generate(10, (i) {
+          ...List.generate(widget.template.days.length, (i) {
             final d = widget.template.days[i];
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -29491,6 +29677,14 @@ class _MaatFlowTemplateDetailPageState
         ],
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
+      return _buildTrackSkyScaffold(context);
+    }
+    return _buildSequenceScaffold(context);
   }
 }
 

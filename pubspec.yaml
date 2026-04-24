@@ -97,6 +97,7 @@ flutter:
 
   assets:
     - env/dev.json
+    - assets/ma_at_flows/
 
   # Using GoogleFonts package for all typography
   # Includes support for Egyptological transliteration characters
