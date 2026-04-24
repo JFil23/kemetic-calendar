@@ -5143,6 +5143,7 @@ class _CalendarPageState extends State<CalendarPage>
   final _todayDayKey = GlobalKey(); // 🔑 individual day chip
   final _viewDayAnchorKey = GlobalKey(debugLabel: 'calendar_view_day_anchor');
   final _calendarToggleKey = GlobalKey(debugLabel: 'calendar_toggle_haw');
+  VoidCallback? _landscapeTodayAction;
   int? _calendarMonthCoachmarkKy;
   int? _calendarMonthCoachmarkKm;
   late final Map<int, GlobalKey> _onboardingHighlightDayKeys = {
@@ -10826,6 +10827,125 @@ class _CalendarPageState extends State<CalendarPage>
     BuildContext context, {
     bool includeNewNote = true,
   }) => _showActionsMenu(context, includeNewNote: includeNewNote);
+
+  void _handleCalendarAppBarToday({required bool useLandscapeGrid}) {
+    if (useLandscapeGrid) {
+      final landscapeTodayAction = _landscapeTodayAction;
+      if (landscapeTodayAction != null) {
+        landscapeTodayAction();
+        return;
+      }
+    }
+    _scrollToToday();
+  }
+
+  Widget _buildLandscapeCalendarTitle(int ky, int km) {
+    final titleGradient = _showGregorian ? whiteGloss : goldGloss;
+    return GestureDetector(
+      onTap: _handleCalendarToggleTapped,
+      child: RepaintBoundary(
+        key: _calendarToggleKey,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 6.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _GlossyMonthNameText(
+                text: _monthLabel(km),
+                style: _monthTitleGold.copyWith(fontSize: 18),
+                gradient: titleGradient,
+              ),
+              GlossyText(
+                text: _gregYearLabelFor(ky, km),
+                gradient: titleGradient,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.fade,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildCalendarAppBar({
+    required bool useLandscapeGrid,
+    Widget? titleOverride,
+  }) {
+    return AppBar(
+      backgroundColor: Colors.black,
+      elevation: 0.5,
+      centerTitle: false,
+      titleSpacing: 12,
+      iconTheme: const IconThemeData(color: _gold),
+      title:
+          titleOverride ??
+          GestureDetector(
+            onTap: _handleCalendarToggleTapped,
+            child: RepaintBoundary(
+              key: _calendarToggleKey,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 6.0),
+                child: GlossyText(
+                  text: "ḥꜣw",
+                  gradient: _showGregorian ? whiteGloss : goldGloss,
+                  style: _titleGold.copyWith(
+                    fontSize: (_titleGold.fontSize ?? 22.0).roundToDouble(),
+                    letterSpacing: 0,
+                    shadows: null,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      actions: [
+        IconButton(
+          tooltip: 'New note',
+          icon: const _GlossyIcon(Icons.add, gradient: goldGloss),
+          onPressed: _openQuickAddSheet,
+        ),
+        IconButton(
+          tooltip: 'Today',
+          icon: const _GlossyIcon(Icons.today, gradient: goldGloss),
+          onPressed: () =>
+              _handleCalendarAppBarToday(useLandscapeGrid: useLandscapeGrid),
+        ),
+        Builder(
+          builder: (ctx) {
+            final shareRepo = ShareRepo(Supabase.instance.client);
+            return StreamBuilder<InboxUnreadState>(
+              initialData: shareRepo.currentUnreadState,
+              stream: shareRepo.watchUnreadState(),
+              builder: (context, snapshot) {
+                final hasUnreadInbox =
+                    (snapshot.data ?? const InboxUnreadState()).hasUnread;
+                return IconButton(
+                  tooltip: 'Menu',
+                  icon: _NotificationDotOverlay(
+                    show: hasUnreadInbox,
+                    child: const _GlossyIcon(Icons.apps, gradient: goldGloss),
+                  ),
+                  onPressed: () => _showActionsMenu(ctx, includeNewNote: false),
+                );
+              },
+            );
+          },
+        ),
+        IconButton(
+          tooltip: 'My Profile',
+          icon: const _GlossyIcon(Icons.person, gradient: goldGloss),
+          onPressed: () => _openProfile(context),
+        ),
+      ],
+    );
+  }
 
   Route<void> _profileRoute({
     required String userId,
@@ -16801,6 +16921,9 @@ class _CalendarPageState extends State<CalendarPage>
     final isLandscape = orientation == Orientation.landscape;
     // Landscape grid only on phone-sized screens; tablets/desktop stay on portrait layout.
     final useGrid = isLandscape && size.shortestSide < 600;
+    if (!useGrid) {
+      _landscapeTodayAction = null;
+    }
 
     // ========================================
     // DEBUG: Log orientation changes
@@ -16849,11 +16972,6 @@ class _CalendarPageState extends State<CalendarPage>
 
       final ky = _lastViewKy ?? kToday.kYear;
       final km = _lastViewKm ?? kToday.kMonth;
-      final nutritionReminderItemIds = {
-        for (final r in _reminderRules)
-          if (r.id.startsWith('nutrition:'))
-            r.id.replaceFirst('nutrition:', ''),
-      };
 
       if (kDebugMode) {
         print('\n📱 [CALENDAR] Building LandscapeMonthView');
@@ -16865,132 +16983,72 @@ class _CalendarPageState extends State<CalendarPage>
         );
       }
 
-      return LandscapeMonthView(
-        initialKy: ky,
-        initialKm: km,
-        initialKd: _lastViewKd ?? _today.kDay, // ✅ Highlight current day
-        showGregorian: _showGregorian,
-        notesForDay: (ky, km, kd) {
-          final notes = _getNotes(ky, km, kd);
-          return notes
-              .map(
-                (n) => NoteData(
-                  id: n.id?.toString(),
-                  clientEventId: n.clientEventId,
-                  title: n.title,
-                  detail: n.detail,
-                  location: n.location,
-                  allDay: n.allDay,
-                  start: n.start,
-                  end: n.end,
-                  flowId: n.flowId,
-                  manualColor: n.manualColor,
-                  category: n.category,
-                  isReminder: n.isReminder,
-                  reminderId: n.reminderId,
-                ),
-              )
-              .toList();
-        },
-        flowIndex: _buildFlowIndex(),
-        getMonthName: (km) => getMonthById(km).displayFull,
-        onManageFlows: _getMyFlowsCallback(),
-        onAddNote: (ky, km, kd) {
-          if (kDebugMode) {
-            print('\n🎯 [CALLBACK] onAddNote received from landscape');
-            print('   Date: $ky-$km-$kd');
-          }
-          _openDaySheet(ky, km, kd, allowDateChange: true);
-        },
-        onMonthChanged: _handleLandscapeMonthChanged, // ✅ ADD CALLBACK
-        onDeleteNote: (ky, km, kd, evt) async =>
-            _deleteNoteByEvent(ky, km, kd, evt),
-        onEditNote: (ky, km, kd, evt) async {
-          await _editNoteByEvent(ky, km, kd, evt);
-        },
-        onShareNote: (evt) async {
-          await _shareNoteSimple(evt);
-        },
-        onAppendToJournal: _journalInitialized
-            ? (text) => _journalController.appendToToday(text)
-            : null,
-        onCreateReminder: _createReminderFromNutrition,
-        onDeleteReminder: _deleteReminderFromNutrition,
-        nutritionReminderItemIds: nutritionReminderItemIds,
+      return Scaffold(
+        backgroundColor: _bg,
+        appBar: _buildCalendarAppBar(
+          useLandscapeGrid: true,
+          titleOverride: _buildLandscapeCalendarTitle(ky, km),
+        ),
+        body: LandscapeMonthView(
+          embeddedInCalendarScaffold: true,
+          initialKy: ky,
+          initialKm: km,
+          initialKd: _lastViewKd ?? _today.kDay, // ✅ Highlight current day
+          showGregorian: _showGregorian,
+          notesForDay: (ky, km, kd) {
+            final notes = _getNotes(ky, km, kd);
+            return notes
+                .map(
+                  (n) => NoteData(
+                    id: n.id?.toString(),
+                    clientEventId: n.clientEventId,
+                    title: n.title,
+                    detail: n.detail,
+                    location: n.location,
+                    allDay: n.allDay,
+                    start: n.start,
+                    end: n.end,
+                    flowId: n.flowId,
+                    manualColor: n.manualColor,
+                    category: n.category,
+                    isReminder: n.isReminder,
+                    reminderId: n.reminderId,
+                  ),
+                )
+                .toList();
+          },
+          flowIndex: _buildFlowIndex(),
+          getMonthName: (km) => getMonthById(km).displayFull,
+          onManageFlows: _getMyFlowsCallback(),
+          onAddNote: (ky, km, kd) {
+            if (kDebugMode) {
+              print('\n🎯 [CALLBACK] onAddNote received from landscape');
+              print('   Date: $ky-$km-$kd');
+            }
+            _openDaySheet(ky, km, kd, allowDateChange: true);
+          },
+          onMonthChanged: _handleLandscapeMonthChanged, // ✅ ADD CALLBACK
+          onTodayActionChanged: (action) {
+            _landscapeTodayAction = action;
+          },
+          onDeleteNote: (ky, km, kd, evt) async =>
+              _deleteNoteByEvent(ky, km, kd, evt),
+          onEditNote: (ky, km, kd, evt) async {
+            await _editNoteByEvent(ky, km, kd, evt);
+          },
+          onShareNote: (evt) async {
+            await _shareNoteSimple(evt);
+          },
+          onAppendToJournal: _journalInitialized
+              ? (text) => _journalController.appendToToday(text)
+              : null,
+        ),
       );
     }
 
     final scaffold = Scaffold(
       backgroundColor: _bg,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0.5,
-        // Left-biased title (not centered, not flush)
-        centerTitle: false,
-        titleSpacing: 12, // 10–14; 12 matches your "correct" look
-        iconTheme: const IconThemeData(
-          color: _gold,
-        ), // ensure action icons use rich gold
-        title: GestureDetector(
-          onTap: _handleCalendarToggleTapped,
-          child: RepaintBoundary(
-            key: _calendarToggleKey,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 6.0),
-              child: GlossyText(
-                text: "ḥꜣw",
-                gradient: _showGregorian ? whiteGloss : goldGloss,
-                style: _titleGold.copyWith(
-                  fontSize: (_titleGold.fontSize ?? 22.0).roundToDouble(),
-                  letterSpacing: 0,
-                  // shadows off for button text; mask + small shadows = haze
-                  shadows: null,
-                ),
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'New note',
-            icon: const _GlossyIcon(Icons.add, gradient: goldGloss),
-            onPressed: _openQuickAddSheet,
-          ),
-          IconButton(
-            tooltip: 'Today',
-            icon: const _GlossyIcon(Icons.today, gradient: goldGloss),
-            onPressed: _scrollToToday,
-          ),
-          Builder(
-            builder: (ctx) {
-              final shareRepo = ShareRepo(Supabase.instance.client);
-              return StreamBuilder<InboxUnreadState>(
-                initialData: shareRepo.currentUnreadState,
-                stream: shareRepo.watchUnreadState(),
-                builder: (context, snapshot) {
-                  final hasUnreadInbox =
-                      (snapshot.data ?? const InboxUnreadState()).hasUnread;
-                  return IconButton(
-                    tooltip: 'Menu',
-                    icon: _NotificationDotOverlay(
-                      show: hasUnreadInbox,
-                      child: const _GlossyIcon(Icons.apps, gradient: goldGloss),
-                    ),
-                    onPressed: () =>
-                        _showActionsMenu(ctx, includeNewNote: false),
-                  );
-                },
-              );
-            },
-          ),
-          // My Profile button
-          IconButton(
-            tooltip: 'My Profile',
-            icon: const _GlossyIcon(Icons.person, gradient: goldGloss),
-            onPressed: () => _openProfile(context),
-          ),
-        ],
-      ),
+      appBar: _buildCalendarAppBar(useLandscapeGrid: false),
       body: _buildBodyWithJournal(),
     );
 

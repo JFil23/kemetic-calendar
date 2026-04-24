@@ -7,24 +7,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart'; // For DragStartBehavior
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'day_view.dart'; // For NoteData, FlowData
-import 'calendar_page.dart'
-    show
-        CalendarPage,
-        KemeticMath,
-        CreateNutritionReminder,
-        DeleteNutritionReminder;
+import 'calendar_page.dart' show CalendarPage, KemeticMath;
 import '../journal/journal_event_badge.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'dart:math' as math;
-import '../nutrition/nutrition_grid.dart';
-import '../../data/nutrition_repo.dart';
-import '../../data/user_events_repo.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/widgets/month_name_text.dart';
 
 // ========================================
 // SHARED CONSTANTS FOR LANDSCAPE VIEW
@@ -47,8 +38,7 @@ class _LandscapeDragPayload {
 
   _LandscapeDragPayload(this.event, this.day);
 
-  int get durationMin =>
-      (event.endMin - event.startMin).clamp(15, 12 * 60) as int;
+  int get durationMin => (event.endMin - event.startMin).clamp(15, 12 * 60);
 }
 
 // ========================================
@@ -67,6 +57,7 @@ class LandscapeMonthView extends StatelessWidget {
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
+  final ValueChanged<VoidCallback?>? onTodayActionChanged;
   final void Function(int flowId)? onEndFlow;
   final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
@@ -81,9 +72,7 @@ class LandscapeMonthView extends StatelessWidget {
   onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
-  final CreateNutritionReminder? onCreateReminder;
-  final DeleteNutritionReminder? onDeleteReminder;
-  final Set<String> nutritionReminderItemIds;
+  final bool embeddedInCalendarScaffold;
 
   const LandscapeMonthView({
     super.key,
@@ -97,15 +86,14 @@ class LandscapeMonthView extends StatelessWidget {
     this.onManageFlows,
     this.onAddNote,
     this.onMonthChanged, // ✅ NEW CALLBACK
+    this.onTodayActionChanged,
     this.onEndFlow,
     this.onDeleteNote,
     this.onEditNote,
     this.onMoveEventTime,
     this.onShareNote,
     this.onAppendToJournal,
-    this.onCreateReminder,
-    this.onDeleteReminder,
-    this.nutritionReminderItemIds = const {},
+    this.embeddedInCalendarScaffold = false,
   });
 
   @override
@@ -121,15 +109,14 @@ class LandscapeMonthView extends StatelessWidget {
       onManageFlows: onManageFlows,
       onAddNote: onAddNote,
       onMonthChanged: onMonthChanged, // ✅ PASS CALLBACK DOWN
+      onTodayActionChanged: onTodayActionChanged,
       onEndFlow: onEndFlow,
       onDeleteNote: onDeleteNote,
       onEditNote: onEditNote,
       onMoveEventTime: onMoveEventTime,
       onShareNote: onShareNote,
       onAppendToJournal: onAppendToJournal,
-      onCreateReminder: onCreateReminder,
-      onDeleteReminder: onDeleteReminder,
-      nutritionReminderItemIds: nutritionReminderItemIds,
+      embeddedInCalendarScaffold: embeddedInCalendarScaffold,
     );
   }
 }
@@ -150,6 +137,7 @@ class LandscapeMonthPager extends StatefulWidget {
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
+  final ValueChanged<VoidCallback?>? onTodayActionChanged;
   final void Function(int flowId)? onEndFlow;
   final void Function(int ky, int km, int kd, EventItem evt)? onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
@@ -164,9 +152,7 @@ class LandscapeMonthPager extends StatefulWidget {
   onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
-  final CreateNutritionReminder? onCreateReminder;
-  final DeleteNutritionReminder? onDeleteReminder;
-  final Set<String> nutritionReminderItemIds;
+  final bool embeddedInCalendarScaffold;
 
   const LandscapeMonthPager({
     super.key,
@@ -180,15 +166,14 @@ class LandscapeMonthPager extends StatefulWidget {
     this.onManageFlows,
     this.onAddNote,
     this.onMonthChanged, // ✅ NEW CALLBACK
+    this.onTodayActionChanged,
     this.onEndFlow,
     this.onDeleteNote,
     this.onEditNote,
     this.onMoveEventTime,
     this.onShareNote,
     this.onAppendToJournal,
-    this.onCreateReminder,
-    this.onDeleteReminder,
-    this.nutritionReminderItemIds = const {},
+    this.embeddedInCalendarScaffold = false,
   });
 
   @override
@@ -218,17 +203,19 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
   bool _isJumpingToToday = false; // Blocks onPageChanged during Today jump
   bool _suppressRemap = false; // Blocks didUpdateWidget remap
 
+  Gradient get _monthTitleGradient =>
+      widget.showGregorian ? whiteGloss : goldGloss;
+
+  void _publishTodayAction() {
+    widget.onTodayActionChanged?.call(_jumpToToday);
+  }
+
   // ✅ FIX A: Canonical month math - Year 1, Month 1 = index 0
   /// Absolute month index where (Year 1, Month 1) == 0
   int _toTotalMonths(int ky, int km) {
     // km expected 1..13, ky can be any integer (…,-1,0,1,2,…)
     return (ky - 1) * 13 + (km - 1); // ✅ Year 1, Month 1 = 0
   }
-
-  int _pageFor(int ky, int km) =>
-      _centerPage +
-      (_toTotalMonths(ky, km) -
-          _toTotalMonths(widget.initialKy, widget.initialKm));
 
   /// Calculate absolute page for a month using stable internal base
   /// This avoids dependency on potentially stale widget.initialKy/Km
@@ -252,78 +239,6 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     return _fromTotalMonths(total);
   }
 
-  void _openNutritionSheet() {
-    final topInset = MediaQuery.of(context).padding.top + kToolbarHeight;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final nutritionRepo = NutritionRepo(Supabase.instance.client);
-    final eventsRepo = UserEventsRepo(Supabase.instance.client);
-
-    showGeneralDialog(
-      context: context,
-      useRootNavigator: true,
-      barrierLabel: 'Nutrition',
-      barrierDismissible: true,
-      barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 220),
-      transitionBuilder: (ctx, anim, _, child) {
-        final offset = Tween(
-          begin: const Offset(0, -1),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic));
-        return SlideTransition(position: offset, child: child);
-      },
-      pageBuilder: (ctx, _, __) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => Navigator.of(ctx, rootNavigator: true).pop(),
-                child: Container(color: Colors.transparent),
-              ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              top: topInset,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: screenWidth - 24,
-                    maxHeight: screenHeight * 0.75,
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: _landscapeBg,
-                        borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(12),
-                        ),
-                        border: Border.all(
-                          color: _landscapeGold.withOpacity(0.5),
-                          width: 1,
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(16),
-                      child: NutritionGridWidget(
-                        repo: nutritionRepo,
-                        eventsRepo: eventsRepo,
-                        onCreateReminder: widget.onCreateReminder,
-                        onDeleteReminder: widget.onDeleteReminder,
-                        reminderItemIds: widget.nutritionReminderItemIds,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -332,10 +247,12 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     _lastNotifiedPage = _centerPage; // Optional: for consistency
     // ✅ Initialize stable base
     _baseTotalMonths = _toTotalMonths(widget.initialKy, widget.initialKm);
+    _publishTodayAction();
   }
 
   @override
   void dispose() {
+    widget.onTodayActionChanged?.call(null);
     _pageController.dispose();
     super.dispose();
   }
@@ -343,6 +260,11 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
   @override
   void didUpdateWidget(LandscapeMonthPager oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.onTodayActionChanged != widget.onTodayActionChanged) {
+      oldWidget.onTodayActionChanged?.call(null);
+      _publishTodayAction();
+    }
 
     final newBase = _toTotalMonths(widget.initialKy, widget.initialKm);
     if (newBase == _baseTotalMonths) return;
@@ -412,6 +334,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
 
     final targetPage = _pageForAbsolute(t.kYear, t.kMonth);
 
+    _isJumpingToToday = true;
     _isAnimating = true;
     _suppressRemap = true;
 
@@ -429,6 +352,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     widget.onMonthChanged?.call(t.kYear, t.kMonth);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _isJumpingToToday = false;
       _isAnimating = false;
       _suppressRemap = false;
     });
@@ -455,26 +379,38 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     }
   }
 
-  // 🔧 NEW: Build month header for AppBar
-  Widget _buildMonthHeader(String monthName, String yearLabel) {
+  Widget _buildMonthInfo(String monthName, String yearLabel) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          monthName,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: _landscapeGold,
+        ShaderMask(
+          shaderCallback: (Rect bounds) =>
+              _monthTitleGradient.createShader(bounds),
+          blendMode: BlendMode.srcIn,
+          child: MonthNameText(
+            monthName,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+            softWrap: false,
+            maxLines: 1,
+            overflow: TextOverflow.fade,
           ),
         ),
-        Text(
-          yearLabel,
-          style: TextStyle(
+        GlossyText(
+          text: yearLabel,
+          style: const TextStyle(
             fontSize: 11,
-            color: _landscapeGold.withOpacity(0.6),
+            fontWeight: FontWeight.w500,
+            color: Colors.white,
           ),
+          gradient: _monthTitleGradient,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.fade,
         ),
       ],
     );
@@ -482,14 +418,19 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.embeddedInCalendarScaffold) {
+      return ColoredBox(
+        color: _landscapeBg,
+        child: _buildBodyWithSwipeGate(context),
+      );
+    }
+
     return Scaffold(
       backgroundColor: _landscapeBg,
       body: Column(
         children: [
-          _buildCustomHeader(context), // Custom header like day_view
-          Expanded(
-            child: _buildBodyWithSwipeGate(context), // PageView below
-          ),
+          _buildCustomHeader(context),
+          Expanded(child: _buildBodyWithSwipeGate(context)),
         ],
       ),
     );
@@ -521,36 +462,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           child: Row(
             children: [
               // Month/Year title - REMOVED GestureDetector, PageView handles swipes
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      monthName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: _landscapeGold,
-                      ),
-                    ),
-                    Text(
-                      yearLabel,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: _landscapeGold.withOpacity(0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Flow Studio button - OUTSIDE GestureDetector (no gesture interference)
-              IconButton(
-                tooltip: 'Nutrition',
-                icon: KemeticGold.icon(Icons.table_chart_outlined),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                onPressed: _openNutritionSheet,
-              ),
+              Expanded(child: _buildMonthInfo(monthName, yearLabel)),
               // Flow Studio button - OUTSIDE GestureDetector (no gesture interference)
               IconButton(
                 tooltip: 'Flow Studio',
@@ -690,9 +602,6 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           onMoveEventTime: widget.onMoveEventTime,
           onShareNote: widget.onShareNote,
           onAppendToJournal: widget.onAppendToJournal,
-          onCreateReminder: widget.onCreateReminder,
-          onDeleteReminder: widget.onDeleteReminder,
-          nutritionReminderItemIds: widget.nutritionReminderItemIds,
         );
       },
     );
@@ -728,9 +637,6 @@ class LandscapeMonthGridBody extends StatefulWidget {
   onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
-  final CreateNutritionReminder? onCreateReminder;
-  final DeleteNutritionReminder? onDeleteReminder;
-  final Set<String> nutritionReminderItemIds;
 
   const LandscapeMonthGridBody({
     super.key,
@@ -749,9 +655,6 @@ class LandscapeMonthGridBody extends StatefulWidget {
     this.onMoveEventTime,
     this.onShareNote,
     this.onAppendToJournal,
-    this.onCreateReminder,
-    this.onDeleteReminder,
-    this.nutritionReminderItemIds = const {},
   });
 
   @override
@@ -887,78 +790,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       targetOffset.clamp(0.0, _hGrid.position.maxScrollExtent),
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
-    );
-  }
-
-  void _openNutritionSheet() {
-    final topInset = MediaQuery.of(context).padding.top + kToolbarHeight;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final nutritionRepo = NutritionRepo(Supabase.instance.client);
-    final eventsRepo = UserEventsRepo(Supabase.instance.client);
-
-    showGeneralDialog(
-      context: context,
-      useRootNavigator: true,
-      barrierLabel: 'Nutrition',
-      barrierDismissible: true,
-      barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 220),
-      transitionBuilder: (ctx, anim, _, child) {
-        final offset = Tween(
-          begin: const Offset(0, -1),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic));
-        return SlideTransition(position: offset, child: child);
-      },
-      pageBuilder: (ctx, _, __) {
-        return Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: () => Navigator.of(ctx, rootNavigator: true).pop(),
-                child: Container(color: Colors.transparent),
-              ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              top: topInset,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: screenWidth - 24,
-                    maxHeight: screenHeight * 0.75,
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: _bg,
-                        borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(12),
-                        ),
-                        border: Border.all(
-                          color: _gold.withOpacity(0.5),
-                          width: 1,
-                        ),
-                      ),
-                      padding: const EdgeInsets.all(16),
-                      child: NutritionGridWidget(
-                        repo: nutritionRepo,
-                        eventsRepo: eventsRepo,
-                        onCreateReminder: widget.onCreateReminder,
-                        onDeleteReminder: widget.onDeleteReminder,
-                        reminderItemIds: widget.nutritionReminderItemIds,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -1154,6 +985,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     final gregorianDate = safeLocalDisplay(
       KemeticMath.toGregorian(widget.kYear, widget.kMonth, day),
     );
+    final primaryLabel = widget.showGregorian ? '${gregorianDate.day}' : '$day';
+    final primaryColor = isToday
+        ? _gold
+        : (widget.showGregorian ? blueLight : Colors.white);
 
     return Container(
       width: colW,
@@ -1173,11 +1008,11 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            '$day',
+            primaryLabel,
             style: TextStyle(
               fontSize: 16,
               fontWeight: isToday ? FontWeight.bold : FontWeight.w500,
-              color: isToday ? _gold : Colors.white,
+              color: primaryColor,
             ),
           ),
           if (widget.showGregorian)
@@ -1187,7 +1022,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                 fontSize: 9,
                 color: isToday
                     ? _gold.withOpacity(0.7)
-                    : const Color(0xFF808080),
+                    : blueLight.withOpacity(0.8),
               ),
             ),
         ],
