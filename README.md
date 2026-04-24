@@ -44,6 +44,7 @@ Validate release identity and Firebase/deep-link alignment before submission:
 ```bash
 cd mobile
 scripts/verify_release_config.sh
+scripts/verify_release_config.sh --strict-signing
 ```
 
 Validate mobile deep-link entrypoints on a simulator/device:
@@ -56,30 +57,40 @@ scripts/validate_deep_links.sh ios
 
 ## Release builds
 
-Use the shared dart-define files so mobile builds receive the expected Supabase and app configuration:
+Use the guarded helper scripts so release builds receive the expected Supabase
+config and reject placeholder identity/signing before producing store artifacts:
 
 ```bash
 cd mobile
-flutter build apk --release --dart-define-from-file=env/prod.json
-flutter build ipa --dart-define-from-file=env/prod.json
+scripts/build_android_release.sh
+scripts/build_ios_release.sh
 scripts/build_web_release.sh env/prod.json
 ```
 
-The iOS helper script wraps the same production defines:
+If you need raw Flutter commands for ad hoc testing, keep in mind:
+
+- `flutter build appbundle --release --dart-define-from-file=env/prod.json` is the Android store artifact.
+- `flutter build apk ...` is for side-loading, not Play Store submission.
+
+The iOS helper script wraps the same production defines and synchronizes the
+Firebase plist before building:
 
 ```bash
 cd mobile
 scripts/build_ios_release.sh
 ```
 
-Android release signing uses `android/key.properties` when present and falls back to debug signing for local release builds. Start from:
+Android release signing uses `android/key.properties`. The guarded Android
+release helper refuses to build when the keystore file is missing, still uses
+example values, or points at a missing keystore. Start from:
 
 ```bash
 cd mobile
 cp android/key.properties.example android/key.properties
 ```
 
-The `storeFile` value in `android/key.properties` should point to your local upload keystore path.
+The `storeFile` value in `android/key.properties` should point to your local
+upload keystore path.
 
 ## iOS Firebase
 
@@ -91,6 +102,7 @@ The `storeFile` value in `android/key.properties` should point to your local upl
 
 - Keep `android/app/google-services.json` aligned with the final Android `applicationId`.
 - Do not ship the placeholder `com.example.mobile` Firebase client.
+- Keep `web/.well-known/assetlinks.json` aligned with the Android `applicationId` and release keystore SHA-256 fingerprint.
 
 ## Notes
 
@@ -98,5 +110,4 @@ The `storeFile` value in `android/key.properties` should point to your local upl
 - Keep `maat.app/.well-known/assetlinks.json` and `maat.app/.well-known/apple-app-site-association` live for Android App Links and iOS Universal Links.
 - `scripts/deploy_cloudflare_pages.sh` can direct-upload `build/web` to Cloudflare Pages with `CLOUDFLARE_PAGES_PROJECT=<project>`.
 - Cloudflare Pages builds need `SUPABASE_URL` and `SUPABASE_ANON_KEY` configured in the build environment if you are not providing an env JSON file locally.
-- Android `assetlinks.json` still depends on the final Android `applicationId` and release keystore SHA-256 fingerprint, so that file cannot be generated correctly while `com.example.mobile` is still in use.
 - Commit example env files only; keep real env JSON files and production secrets out of git.

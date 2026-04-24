@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 ENV_FILE="${ENV_FILE:-env/prod.json}"
 [[ -f "$ENV_FILE" ]] || { echo "❌ $ENV_FILE not found. Copy env/prod.example.json and fill it." >&2; exit 1; }
 
-readarray -t ENV_INFO < <(python - <<'PY' "$ENV_FILE"
+ENV_INFO="$(python3 - <<'PY' "$ENV_FILE"
 import json, sys
 path = sys.argv[1]
 with open(path) as f:
@@ -26,9 +26,14 @@ def mask(k: str) -> str:
 print(url)
 print(mask(anon))
 PY
-)
-SUPABASE_URL="${ENV_INFO[0]:-}"
-ANON_MASK="${ENV_INFO[1]:-}"
+)"
+SUPABASE_URL="${ENV_INFO%%$'\n'*}"
+ANON_MASK="${ENV_INFO#*$'\n'}"
+if [[ "$ANON_MASK" == "$ENV_INFO" ]]; then
+  ANON_MASK=""
+fi
+
+scripts/ensure_ios_firebase.sh
 
 echo "🚀 Building iOS release with $ENV_FILE (SUPABASE_URL=$SUPABASE_URL, ANON=$ANON_MASK)"
 flutter build ios --release --dart-define-from-file="$ENV_FILE" "$@"

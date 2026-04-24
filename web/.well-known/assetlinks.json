@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.jaralephillips.hawcalendar",
+      "sha256_cert_fingerprints": [
+        "53:0F:71:CE:7E:66:5C:6F:69:68:69:05:80:60:C2:4E:3B:14:C6:5E:0B:0E:A2:F8:10:2A:0E:41:DC:DC:BF:2F"
+      ]
+    }
+  }
+]

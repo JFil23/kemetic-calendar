@@ -1,4 +1,4 @@
-package com.example.mobile
+package com.jaralephillips.hawcalendar
 
 import android.Manifest
 import android.content.ContentUris

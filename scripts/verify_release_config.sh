@@ -4,10 +4,36 @@ set -euo pipefail
 # Verifies release-facing Android/iOS identity and deep-link config alignment.
 # Usage:
 #   scripts/verify_release_config.sh
+#   scripts/verify_release_config.sh --strict-signing
 
 cd "$(dirname "$0")/.."
 
-python3 - <<'PY'
+STRICT_SIGNING=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --strict-signing)
+      STRICT_SIGNING=1
+      ;;
+    -h|--help)
+      cat <<'EOF'
+Usage: scripts/verify_release_config.sh [--strict-signing]
+
+Checks Android/iOS release identity, Firebase alignment, and deep-link config.
+Use --strict-signing for store-readiness checks that must reject missing or
+placeholder Android signing material.
+EOF
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+python3 - "$STRICT_SIGNING" <<'PY'
 import json
 import plistlib
 import re
@@ -15,6 +41,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(".")
+STRICT_SIGNING = sys.argv[1] == "1"
 errors: list[str] = []
 warnings: list[str] = []
 notes: list[str] = []
@@ -37,6 +64,19 @@ def load_plist(path: str) -> dict:
         return plistlib.load(handle)
 
 
+def load_properties(path: str) -> dict[str, str]:
+    props: dict[str, str] = {}
+    for raw_line in read_text(path).splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        props[key.strip()] = value.strip()
+    return props
+
+
 def extract_url_schemes(info_plist: dict) -> set[str]:
     schemes: set[str] = set()
     for item in info_plist.get("CFBundleURLTypes", []):
@@ -48,6 +88,13 @@ def extract_url_schemes(info_plist: dict) -> set[str]:
 
 def normalize_set(values: set[str]) -> str:
     return ", ".join(sorted(values))
+
+
+def add_problem(message: str, *, strict: bool = False) -> None:
+    if strict:
+        errors.append(message)
+    else:
+        warnings.append(message)
 
 
 build_gradle = read_text("android/app/build.gradle.kts")
@@ -113,12 +160,51 @@ if android_app_id not in android_firebase_packages:
         f"{android_app_id} (found: {normalize_set(android_firebase_packages) or 'none'})"
     )
 
-if not (ROOT / "android/key.properties").exists():
-    warnings.append(
-        "android/key.properties is missing; release builds will fall back to debug signing locally"
+key_properties_path = ROOT / "android/key.properties"
+if not key_properties_path.exists():
+    add_problem(
+        "android/key.properties is missing; release builds will fall back to debug signing locally",
+        strict=STRICT_SIGNING,
     )
 else:
     notes.append("android/key.properties present")
+    key_properties = load_properties("android/key.properties")
+    missing_keys = {
+        key
+        for key in ("storePassword", "keyPassword", "keyAlias", "storeFile")
+        if not key_properties.get(key)
+    }
+    if missing_keys:
+        add_problem(
+            "android/key.properties is missing required keys: "
+            f"{normalize_set(missing_keys)}",
+            strict=STRICT_SIGNING,
+        )
+    store_password = key_properties.get("storePassword", "")
+    key_password = key_properties.get("keyPassword", "")
+    store_file = key_properties.get("storeFile", "")
+    if store_password == "change-me" or key_password == "change-me":
+        add_problem(
+            "android/key.properties still contains example password values",
+            strict=STRICT_SIGNING,
+        )
+    if store_file == "/absolute/path/to/upload-keystore.jks":
+        add_problem(
+            "android/key.properties still contains the example storeFile path",
+            strict=STRICT_SIGNING,
+        )
+    elif store_file:
+        store_file_path = Path(store_file).expanduser()
+        if not store_file_path.is_absolute():
+            add_problem(
+                "android/key.properties storeFile must be an absolute path",
+                strict=STRICT_SIGNING,
+            )
+        elif not store_file_path.exists():
+            add_problem(
+                f"android/key.properties storeFile does not exist: {store_file_path}",
+                strict=STRICT_SIGNING,
+            )
 
 project = read_text("ios/Runner.xcodeproj/project.pbxproj")
 ios_bundle_ids = {
@@ -137,6 +223,23 @@ elif len(ios_bundle_ids) > 1:
     ios_bundle_id = sorted(ios_bundle_ids)[0]
 else:
     ios_bundle_id = next(iter(ios_bundle_ids))
+
+ios_teams = {
+    match
+    for match in re.findall(r"DEVELOPMENT_TEAM = ([^;]+);", project)
+    if match and ".RunnerTests" not in match
+}
+if not ios_teams:
+    warnings.append("Could not find iOS DEVELOPMENT_TEAM in Xcode project")
+    ios_team = ""
+elif len(ios_teams) > 1:
+    warnings.append(
+        "Multiple iOS DEVELOPMENT_TEAM values found in Xcode project: "
+        f"{normalize_set(ios_teams)}"
+    )
+    ios_team = sorted(ios_teams)[0]
+else:
+    ios_team = next(iter(ios_teams))
 
 for plist_path in (
     "ios/config/GoogleService-Info.plist",
@@ -157,6 +260,51 @@ url_schemes = extract_url_schemes(info_plist)
 for required_scheme in ("kemet.app", "maat"):
     if required_scheme not in url_schemes:
         errors.append(f"iOS URL scheme {required_scheme} is missing from Info.plist")
+
+for usage_key in ("NSCalendarsUsageDescription", "NSPhotoLibraryUsageDescription"):
+    value = info_plist.get(usage_key, "")
+    if not isinstance(value, str) or not value.strip():
+        errors.append(f"iOS Info.plist is missing {usage_key}")
+
+app_icon_1024 = ROOT / "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png"
+if not app_icon_1024.exists():
+    errors.append("iOS App Store icon is missing: ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png")
+
+aasa_path = ROOT / "web/.well-known/apple-app-site-association"
+if not aasa_path.exists():
+    warnings.append("web/.well-known/apple-app-site-association is missing")
+else:
+    aasa = json.loads(read_text("web/.well-known/apple-app-site-association"))
+    expected_app_id = f"{ios_team}.{ios_bundle_id}" if ios_team and ios_bundle_id else ""
+    aasa_app_ids = {
+        detail.get("appID", "")
+        for detail in aasa.get("applinks", {}).get("details", [])
+        if isinstance(detail, dict)
+    }
+    if expected_app_id and expected_app_id not in aasa_app_ids:
+        errors.append(
+            "web/.well-known/apple-app-site-association does not include appID "
+            f"{expected_app_id} (found: {normalize_set({app_id for app_id in aasa_app_ids if app_id}) or 'none'})"
+        )
+
+assetlinks_path = ROOT / "web/.well-known/assetlinks.json"
+if not assetlinks_path.exists():
+    add_problem(
+        "web/.well-known/assetlinks.json is missing; Android App Links cannot verify",
+        strict=STRICT_SIGNING,
+    )
+else:
+    assetlinks = json.loads(read_text("web/.well-known/assetlinks.json"))
+    assetlinks_packages = {
+        entry.get("target", {}).get("package_name", "")
+        for entry in assetlinks
+        if isinstance(entry, dict)
+    }
+    if android_app_id and android_app_id not in assetlinks_packages:
+        errors.append(
+            "web/.well-known/assetlinks.json does not include Android package "
+            f"{android_app_id} (found: {normalize_set({pkg for pkg in assetlinks_packages if pkg}) or 'none'})"
+        )
 
 required_domains = {"applinks:maat.app", "applinks:www.maat.app"}
 for entitlements_path in (
@@ -181,6 +329,7 @@ print(
 )
 print(f"- iOS app bundle identifier: {ios_bundle_id}")
 print(f"- iOS URL schemes: {normalize_set(url_schemes)}")
+print(f"- Strict signing: {'on' if STRICT_SIGNING else 'off'}")
 
 if notes:
     print("\nNotes:")
