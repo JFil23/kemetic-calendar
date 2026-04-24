@@ -1,6 +1,8 @@
 // lib/features/ai_generation/ai_flow_generation_modal.dart
 // UPDATED VERSION - Matches Flow Studio styling exactly
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -41,6 +43,13 @@ LinearGradient _glossFromColor(Color c) {
 
 enum CalendarMode { kemetic, gregorian }
 
+class _VisibleThinkingStep {
+  const _VisibleThinkingStep({required this.title, required this.detail});
+
+  final String title;
+  final String detail;
+}
+
 class AIFlowGenerationModal extends StatefulWidget {
   const AIFlowGenerationModal({super.key});
 
@@ -59,9 +68,22 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
   CalendarMode _mode = CalendarMode.gregorian;
   bool _isGenerating = false;
   String? _error;
+  Timer? _visibleThinkingTimer;
+  List<_VisibleThinkingStep> _visibleThinkingSteps = const [];
+  int _visibleThinkingIndex = 0;
+
+  _VisibleThinkingStep? get _activeVisibleThinkingStep {
+    if (_visibleThinkingSteps.isEmpty) return null;
+    final safeIndex = _visibleThinkingIndex.clamp(
+      0,
+      _visibleThinkingSteps.length - 1,
+    );
+    return _visibleThinkingSteps[safeIndex];
+  }
 
   @override
   void dispose() {
+    _stopVisibleThinking();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -105,15 +127,24 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       return;
     }
 
+    final split = _splitForFlowApi(_descriptionController.text);
+    final enrichedDescription = split.description;
+    final rangeDays = _endDate!.difference(_startDate!).inDays + 1;
+    final visibleThinkingSteps = _buildVisibleThinkingSteps(
+      hasSourceText:
+          split.sourceText != null && split.sourceText!.trim().isNotEmpty,
+      rangeDays: rangeDays,
+    );
+
     setState(() {
       _isGenerating = true;
       _error = null;
+      _visibleThinkingSteps = visibleThinkingSteps;
+      _visibleThinkingIndex = 0;
     });
+    _startVisibleThinking();
 
     try {
-      final split = _splitForFlowApi(_descriptionController.text);
-      final enrichedDescription = split.description;
-
       // ✅ CRITICAL: Convert color to hex string format
       // Ensure _selectedColorIndex is within bounds
       final safeColorIndex = _selectedColorIndex.clamp(
@@ -174,6 +205,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
         final msg =
             response.errorMessage ??
             'Generation failed. Please check your connection or try again.';
+        _stopVisibleThinking();
         setState(() {
           _error = msg;
           _isGenerating = false;
@@ -182,6 +214,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       }
 
       // Success! Close modal and return the result
+      _stopVisibleThinking();
       Navigator.of(context).pop(
         response.copyWith(
           requestedStartDate: _startDate,
@@ -218,11 +251,70 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       debugPrint('[AI Modal] Error during generation: $e');
       debugPrint('[AI Modal] Stack trace: $stackTrace');
 
+      _stopVisibleThinking();
       setState(() {
         _error = 'Something went wrong. Please try again.';
         _isGenerating = false;
       });
     }
+  }
+
+  List<_VisibleThinkingStep> _buildVisibleThinkingSteps({
+    required bool hasSourceText,
+    required int rangeDays,
+  }) {
+    return [
+      _VisibleThinkingStep(
+        title: 'Reading your request',
+        detail: hasSourceText
+            ? 'Pulling milestones, constraints, and concrete details from your pasted notes.'
+            : 'Clarifying the goal, date window, and the cadence this flow needs.',
+      ),
+      _VisibleThinkingStep(
+        title: 'Shaping the progression',
+        detail: 'Laying out a clean arc across your $rangeDays-day range.',
+      ),
+      const _VisibleThinkingStep(
+        title: 'Placing the beats',
+        detail:
+            'Spacing events so the flow feels usable instead of front-loaded.',
+      ),
+      const _VisibleThinkingStep(
+        title: 'Tightening the language',
+        detail: 'Cleaning up event phrasing and stripping out generic filler.',
+      ),
+      const _VisibleThinkingStep(
+        title: 'Finalizing the result',
+        detail:
+            'Packaging the flow and preparing it to drop back into your calendar.',
+      ),
+    ];
+  }
+
+  void _startVisibleThinking() {
+    _visibleThinkingTimer?.cancel();
+    if (_visibleThinkingSteps.length <= 1) return;
+    _visibleThinkingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final nextIndex = _visibleThinkingIndex + 1;
+      if (nextIndex >= _visibleThinkingSteps.length) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _visibleThinkingIndex = nextIndex;
+      });
+    });
+  }
+
+  void _stopVisibleThinking() {
+    _visibleThinkingTimer?.cancel();
+    _visibleThinkingTimer = null;
+    _visibleThinkingSteps = const [];
+    _visibleThinkingIndex = 0;
   }
 
   String _formatDateRange() {
@@ -611,15 +703,28 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                         ),
                       ),
                       child: _isGenerating
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.black,
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.black,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                SizedBox(width: 12),
+                                Text(
+                                  'Generating flow…',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             )
                           : const Text(
                               'Generate Flow',
@@ -629,6 +734,72 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                               ),
                             ),
                     ),
+
+                    if (_isGenerating &&
+                        _activeVisibleThinkingStep != null) ...[
+                      const SizedBox(height: 12),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        child: Container(
+                          key: ValueKey<String>(
+                            _activeVisibleThinkingStep!.title,
+                          ),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF111111),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: gold.withValues(alpha: 0.22),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: gold.withValues(alpha: 0.14),
+                                ),
+                                child: const Icon(
+                                  Icons.auto_awesome,
+                                  color: gold,
+                                  size: 16,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _activeVisibleThinkingStep!.title,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _activeVisibleThinkingStep!.detail,
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.72,
+                                        ),
+                                        fontSize: 13,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
 
                     const SizedBox(height: 16),
 
