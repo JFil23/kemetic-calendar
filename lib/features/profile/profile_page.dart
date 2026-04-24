@@ -6,10 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/profile_avatar_glyphs.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../../data/flow_post_model.dart';
 import '../../utils/detail_sanitizer.dart';
+import '../../widgets/profile_avatar.dart';
 import 'edit_profile_page.dart';
 import 'profile_search_page.dart';
 import 'flow_post_picker_page.dart';
@@ -319,6 +321,36 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
           ],
+          if (profile.avatarGlyphIds.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              profileGlyphPhraseGlyphs(profile.avatarGlyphIds),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: KemeticGold.base,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'GentiumPlus',
+                fontFamilyFallback: [
+                  'Noto Sans Egyptian Hieroglyphs',
+                  'Apple Symbols',
+                  'Segoe UI Symbol',
+                  'Arial Unicode MS',
+                  'NotoSans',
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              profileGlyphPhraseMeaning(profile.avatarGlyphIds),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.68),
+                fontSize: 13,
+                height: 1.3,
+              ),
+            ),
+          ],
 
           // Bio
           if (profile.bio != null && profile.bio!.isNotEmpty) ...[
@@ -361,40 +393,16 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildAvatar(UserProfile profile) {
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: const Color(0xFF0D0D0F), // Dark surface
-        border: Border.all(
-          color: KemeticGold.base, // Gold border
-          width: 2,
-        ),
-      ),
-      child: profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty
-          ? ClipOval(
-              child: Image.network(
-                profile.avatarUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildDefaultAvatar(profile),
-              ),
-            )
-          : _buildDefaultAvatar(profile),
-    );
-  }
-
-  Widget _buildDefaultAvatar(UserProfile profile) {
-    return Center(
-      child: Text(
-        profile.effectiveName[0].toUpperCase(),
-        style: const TextStyle(
-          color: KemeticGold.base, // Gold
-          fontSize: 40,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+    return ProfileAvatar(
+      radius: 50,
+      displayName: profile.effectiveName,
+      avatarUrl: profile.avatarUrl,
+      avatarGlyphIds: profile.avatarGlyphIds,
+      borderColor: KemeticGold.base,
+      borderWidth: 2,
+      foregroundColor: KemeticGold.base,
+      backgroundColor: const Color(0xFF0D0D0F),
+      maxInitialCharacters: 1,
     );
   }
 

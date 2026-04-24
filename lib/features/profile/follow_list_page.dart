@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
 import '../../data/profile_repo.dart';
+import '../../widgets/profile_avatar.dart';
 
 enum FollowListType { followers, following }
 
@@ -145,13 +146,6 @@ class _FollowListPageState extends State<FollowListPage> {
             Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
         itemBuilder: (context, index) {
           final user = _users[index];
-          final initials =
-              (user.displayName?.isNotEmpty == true
-                      ? user.displayName![0]
-                      : user.handle?.isNotEmpty == true
-                      ? user.handle![0]
-                      : '?')
-                  .toUpperCase();
           final subtitle =
               user.displayName != null && user.displayName!.isNotEmpty
               ? '@${user.handle ?? 'user'}'
@@ -162,18 +156,13 @@ class _FollowListPageState extends State<FollowListPage> {
               vertical: 8,
               horizontal: 20,
             ),
-            leading: CircleAvatar(
+            leading: ProfileAvatar(
               radius: 20,
+              displayName: user.name,
+              avatarUrl: user.avatarUrl,
+              avatarGlyphIds: user.avatarGlyphIds,
               backgroundColor: KemeticGold.base.withValues(alpha: 0.2),
-              backgroundImage: user.avatarUrl != null
-                  ? NetworkImage(user.avatarUrl!)
-                  : null,
-              child: user.avatarUrl == null
-                  ? KemeticGold.text(
-                      initials,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    )
-                  : null,
+              foregroundColor: KemeticGold.base,
             ),
             title: Text(
               user.displayName?.isNotEmpty == true
@@ -187,7 +176,9 @@ class _FollowListPageState extends State<FollowListPage> {
             subtitle: subtitle != null
                 ? Text(
                     subtitle,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
                   )
                 : null,
             trailing: KemeticGold.icon(Icons.chevron_right),

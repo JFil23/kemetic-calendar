@@ -19,6 +19,7 @@ import '../profile/profile_page.dart';
 import '../profile/profile_search_page.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../services/session_resume_service.dart';
+import '../../widgets/profile_avatar.dart';
 
 void _logInboxImport(String message) {
   if (kDebugMode) {
@@ -201,6 +202,7 @@ class _InboxPageState extends State<InboxPage> {
         displayName: selectedUser.displayName,
         handle: selectedUser.handle,
         avatarUrl: selectedUser.avatarUrl,
+        avatarGlyphIds: selectedUser.avatarGlyphIds,
       ),
     );
   }
@@ -226,6 +228,10 @@ class _InboxPageState extends State<InboxPage> {
         displayName: payload['displayName'] as String?,
         handle: payload['handle'] as String?,
         avatarUrl: payload['avatarUrl'] as String?,
+        avatarGlyphIds:
+            (payload['avatarGlyphIds'] as List<dynamic>? ?? const [])
+                .map((item) => '$item')
+                .toList(growable: false),
       ),
       initialDraftText: payload['draftText'] as String?,
     );
@@ -477,26 +483,14 @@ class _InboxPageState extends State<InboxPage> {
         }
       },
       child: ListTile(
-        leading: CircleAvatar(
+        leading: ProfileAvatar(
           radius: 24,
+          displayName:
+              otherProfile.displayName ?? otherProfile.handle ?? 'User',
+          avatarUrl: otherProfile.avatarUrl,
+          avatarGlyphIds: otherProfile.avatarGlyphIds,
           backgroundColor: _gold.withOpacity(0.2),
-          backgroundImage: otherProfile.avatarUrl != null
-              ? NetworkImage(otherProfile.avatarUrl!)
-              : null,
-          child: otherProfile.avatarUrl == null
-              ? Text(
-                  (otherProfile.displayName ?? otherProfile.handle ?? '?')
-                      .characters
-                      .take(2)
-                      .toString()
-                      .toUpperCase(),
-                  style: const TextStyle(
-                    color: _gold,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : null,
+          foregroundColor: _gold,
         ),
         title: Text(
           otherProfile.displayName ?? otherProfile.handle ?? 'User',

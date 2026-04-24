@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/flow_post_comment_model.dart';
 import '../../data/flow_post_model.dart';
 import '../../data/profile_repo.dart';
+import '../../widgets/profile_avatar.dart';
 
 class FlowPostEngagementRow extends StatefulWidget {
   final FlowPost post;
@@ -1042,19 +1043,13 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
     FlowPostComment comment, {
     required bool isReply,
   }) {
-    final label = (comment.displayName ?? comment.handle ?? 'U').trim();
-    final initial = label.isEmpty ? 'U' : label[0].toUpperCase();
-    return CircleAvatar(
+    return ProfileAvatar(
       radius: isReply ? 14 : 16,
+      displayName: comment.displayName ?? comment.handle ?? 'User',
+      avatarUrl: comment.avatarUrl,
+      avatarGlyphIds: comment.avatarGlyphIds,
       backgroundColor: const Color(0xFF1C1C1E),
       foregroundColor: KemeticGold.base,
-      child: Text(
-        initial,
-        style: TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: isReply ? 12 : 13,
-        ),
-      ),
     );
   }
 

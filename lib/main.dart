@@ -21,6 +21,7 @@ import 'features/inbox/inbox_conversation_page.dart';
 import 'features/inbox/conversation_user.dart';
 import 'features/invites/event_invite_details_page.dart';
 import 'data/profile_repo.dart';
+import 'data/profile_avatar_glyphs.dart';
 import 'data/share_models.dart';
 import 'utils/event_cid_util.dart';
 import 'telemetry/telemetry.dart';
@@ -771,17 +772,28 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
 
   Future<void> _openDmConversation(NavigatorState nav, String senderId) async {
     try {
-      final profile = await supabase
-          .from('profiles')
-          .select('id, display_name, handle, avatar_url')
-          .eq('id', senderId)
-          .maybeSingle();
+      Map<String, dynamic>? profile;
+      try {
+        profile = await supabase
+            .from('profiles')
+            .select('id, display_name, handle, avatar_url, avatar_glyphs')
+            .eq('id', senderId)
+            .maybeSingle();
+      } catch (e) {
+        if (!_isMissingAvatarGlyphsColumnError(e)) rethrow;
+        profile = await supabase
+            .from('profiles')
+            .select('id, display_name, handle, avatar_url')
+            .eq('id', senderId)
+            .maybeSingle();
+      }
 
       final otherProfile = ConversationUser(
         id: senderId,
         displayName: (profile?['display_name'] as String?)?.trim(),
         handle: (profile?['handle'] as String?)?.trim(),
         avatarUrl: (profile?['avatar_url'] as String?)?.trim(),
+        avatarGlyphIds: parseProfileAvatarGlyphIds(profile?['avatar_glyphs']),
       );
 
       nav.push(
@@ -795,6 +807,18 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     } catch (_) {
       nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
     }
+  }
+
+  bool _isMissingAvatarGlyphsColumnError(Object error) {
+    if (error is! PostgrestException) return false;
+    final text =
+        '${error.code} ${error.message} ${error.details ?? ''} ${error.hint ?? ''}'
+            .toLowerCase();
+    return text.contains('avatar_glyphs') &&
+        (error.code == '42703' ||
+            error.code == 'PGRST204' ||
+            text.contains('column') ||
+            text.contains('schema cache'));
   }
 
   Future<void> _openEventInvite(

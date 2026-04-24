@@ -1,10 +1,13 @@
 // lib/data/profile_model.dart
 
+import 'profile_avatar_glyphs.dart';
+
 class UserProfile {
   final String id;
   final String? handle;
   final String? displayName;
   final String? avatarUrl;
+  final List<String> avatarGlyphIds;
   final String? bio;
   final String? location;
   final bool isDiscoverable;
@@ -20,6 +23,7 @@ class UserProfile {
     this.handle,
     this.displayName,
     this.avatarUrl,
+    this.avatarGlyphIds = const [],
     this.bio,
     this.location,
     this.isDiscoverable = true,
@@ -37,6 +41,7 @@ class UserProfile {
       handle: json['handle'] as String?,
       displayName: json['display_name'] as String?,
       avatarUrl: json['avatar_url'] as String?,
+      avatarGlyphIds: parseProfileAvatarGlyphIds(json['avatar_glyphs']),
       bio: json['bio'] as String?,
       location: json['location'] as String?,
       isDiscoverable: json['is_discoverable'] as bool? ?? true,
@@ -57,6 +62,7 @@ class UserProfile {
       'handle': handle,
       'display_name': displayName,
       'avatar_url': avatarUrl,
+      'avatar_glyphs': avatarGlyphIds,
       'bio': bio,
       'location': location,
       'is_discoverable': isDiscoverable,
@@ -71,12 +77,14 @@ class UserProfile {
 
   String get effectiveName => displayName ?? handle ?? 'User';
   bool get isComplete => handle != null && handle!.isNotEmpty;
+  bool get hasGlyphAvatar => avatarGlyphIds.isNotEmpty;
 
   UserProfile copyWith({
     String? id,
     String? handle,
     String? displayName,
     String? avatarUrl,
+    List<String>? avatarGlyphIds,
     String? bio,
     String? location,
     bool? isDiscoverable,
@@ -92,6 +100,7 @@ class UserProfile {
       handle: handle ?? this.handle,
       displayName: displayName ?? this.displayName,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      avatarGlyphIds: avatarGlyphIds ?? this.avatarGlyphIds,
       bio: bio ?? this.bio,
       location: location ?? this.location,
       isDiscoverable: isDiscoverable ?? this.isDiscoverable,

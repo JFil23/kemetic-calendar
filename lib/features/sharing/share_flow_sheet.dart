@@ -9,6 +9,7 @@ import '../../data/profile_repo.dart';
 import '../inbox/inbox_conversation_page.dart';
 import '../inbox/conversation_user.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import '../../widgets/profile_avatar.dart';
 
 class ShareFlowSheet extends StatefulWidget {
   final int? flowId;
@@ -542,24 +543,18 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
         itemCount: _searchResults.length,
         itemBuilder: (context, index) {
           final user = _searchResults[index];
-          final displayChar =
-              (user.displayName?.isNotEmpty == true
-                      ? user.displayName![0]
-                      : user.handle?.isNotEmpty == true
-                      ? user.handle![0]
-                      : '?')
-                  .toUpperCase();
           final displayText = user.handle != null
               ? '@${user.handle}'
               : user.displayName ?? 'User';
 
           return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: KemeticGold.base,
-              child: Text(
-                displayChar,
-                style: const TextStyle(color: Colors.black),
-              ),
+            leading: ProfileAvatar(
+              radius: 20,
+              displayName: user.name,
+              avatarUrl: user.avatarUrl,
+              avatarGlyphIds: user.avatarGlyphIds,
+              backgroundColor: KemeticGold.base.withValues(alpha: 0.18),
+              foregroundColor: KemeticGold.base,
             ),
             title: Text(
               displayText,

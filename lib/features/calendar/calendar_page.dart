@@ -20960,6 +20960,7 @@ class _MainCalendarEventDetailSheetState
               children: [
                 for (final pageTarget in pages.pages)
                   _MeasureSize(
+                    key: ValueKey<String>(_detailSheetTargetKey(pageTarget)),
                     onChange: (size) {
                       _updateMeasuredHeight(
                         _detailSheetTargetKey(pageTarget),
@@ -21030,7 +21031,7 @@ class _MainCalendarEventDetailSheetState
 }
 
 class _MeasureSize extends SingleChildRenderObjectWidget {
-  const _MeasureSize({required this.onChange, required super.child});
+  const _MeasureSize({super.key, required this.onChange, required super.child});
 
   final ValueChanged<Size> onChange;
 

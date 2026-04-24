@@ -8,12 +8,23 @@ import 'package:flutter/material.dart' show DateUtils;
 import 'package:mobile/utils/detail_sanitizer.dart';
 import 'package:mobile/utils/event_cid_util.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
+import 'profile_avatar_glyphs.dart';
 import 'profile_model.dart';
 import 'share_models.dart';
 import 'flow_post_model.dart';
 import 'flows_repo.dart';
 import 'user_events_repo.dart';
 import 'flow_post_comment_model.dart';
+
+class ProfileAvatarGlyphsUnavailable implements Exception {
+  const ProfileAvatarGlyphsUnavailable();
+
+  @override
+  String toString() {
+    return 'Glyph avatars are not available on this backend yet. '
+        'Apply the avatar glyph migration and refresh the PostgREST schema cache.';
+  }
+}
 
 class ProfileRepo {
   final SupabaseClient _client;
@@ -23,6 +34,108 @@ class ProfileRepo {
   void _log(String message) {
     if (kDebugMode) {
       debugPrint(message);
+    }
+  }
+
+  String _profilesSelect({bool includeAvatarGlyphs = true}) {
+    final avatarGlyphs = includeAvatarGlyphs ? ', avatar_glyphs' : '';
+    return 'id, handle, display_name, avatar_url$avatarGlyphs, email';
+  }
+
+  String _profileRelationSelect({bool includeAvatarGlyphs = true}) {
+    final avatarGlyphs = includeAvatarGlyphs ? ', avatar_glyphs' : '';
+    return 'profiles(display_name, handle, avatar_url$avatarGlyphs)';
+  }
+
+  String _flowPostCommentSelect({
+    required bool includeParentCommentId,
+    required bool includeAvatarGlyphs,
+  }) {
+    final parentCommentId = includeParentCommentId ? 'parent_comment_id, ' : '';
+    return 'id, flow_post_id, user_id, ${parentCommentId}body, created_at, '
+        '${_profileRelationSelect(includeAvatarGlyphs: includeAvatarGlyphs)}';
+  }
+
+  Future<List<dynamic>> _runProfilesQuery(
+    Future<dynamic> Function(String selectClause) run,
+  ) async {
+    try {
+      final response = await run(_profilesSelect());
+      return (response as List<dynamic>?) ?? const [];
+    } catch (e) {
+      if (!_isMissingColumn(e, 'avatar_glyphs')) rethrow;
+      _log(
+        '[ProfileRepo] avatar_glyphs missing from profiles; retrying query without glyphs.',
+      );
+      final response = await run(_profilesSelect(includeAvatarGlyphs: false));
+      return (response as List<dynamic>?) ?? const [];
+    }
+  }
+
+  Future<Map<String, dynamic>> _insertFlowPostCommentRow(
+    Map<String, dynamic> payload, {
+    required bool includeParentCommentId,
+  }) async {
+    var includeParent = includeParentCommentId;
+    var includeAvatarGlyphs = true;
+
+    while (true) {
+      try {
+        final inserted = await _client
+            .from('flow_post_comments')
+            .insert(payload)
+            .select(
+              _flowPostCommentSelect(
+                includeParentCommentId: includeParent,
+                includeAvatarGlyphs: includeAvatarGlyphs,
+              ),
+            )
+            .single();
+        return Map<String, dynamic>.from(inserted as Map);
+      } catch (e) {
+        if (includeParent && _isMissingColumn(e, 'parent_comment_id')) {
+          includeParent = false;
+          continue;
+        }
+        if (includeAvatarGlyphs && _isMissingColumn(e, 'avatar_glyphs')) {
+          includeAvatarGlyphs = false;
+          continue;
+        }
+        rethrow;
+      }
+    }
+  }
+
+  Future<List<dynamic>> _selectFlowPostCommentsRowsWithFallback(
+    String postId,
+  ) async {
+    var includeParent = true;
+    var includeAvatarGlyphs = true;
+
+    while (true) {
+      try {
+        final rows = await _client
+            .from('flow_post_comments')
+            .select(
+              _flowPostCommentSelect(
+                includeParentCommentId: includeParent,
+                includeAvatarGlyphs: includeAvatarGlyphs,
+              ),
+            )
+            .eq('flow_post_id', postId)
+            .order('created_at', ascending: true);
+        return (rows as List<dynamic>?) ?? const [];
+      } catch (e) {
+        if (includeParent && _isMissingColumn(e, 'parent_comment_id')) {
+          includeParent = false;
+          continue;
+        }
+        if (includeAvatarGlyphs && _isMissingColumn(e, 'avatar_glyphs')) {
+          includeAvatarGlyphs = false;
+          continue;
+        }
+        rethrow;
+      }
     }
   }
 
@@ -154,13 +267,15 @@ class ProfileRepo {
           .toList();
       if (followerIds.isEmpty) return const [];
 
-      final profilesResp = await _client
-          .from('profiles')
-          .select('id, handle, display_name, avatar_url, email')
-          .inFilter('id', followerIds);
+      final profilesResp = await _runProfilesQuery(
+        (selectClause) => _client
+            .from('profiles')
+            .select(selectClause)
+            .inFilter('id', followerIds),
+      );
 
       final profileMap = <String, Map<String, dynamic>>{};
-      for (final row in (profilesResp as List<dynamic>? ?? const [])) {
+      for (final row in profilesResp) {
         final id = row['id'] as String?;
         if (id != null) {
           profileMap[id] = row as Map<String, dynamic>;
@@ -177,6 +292,7 @@ class ProfileRepo {
             handle: p['handle'] as String?,
             displayName: p['display_name'] as String?,
             avatarUrl: p['avatar_url'] as String?,
+            avatarGlyphIds: parseProfileAvatarGlyphIds(p['avatar_glyphs']),
             email: p['email'] as String?,
           ),
         );
@@ -203,13 +319,15 @@ class ProfileRepo {
           .toList();
       if (followeeIds.isEmpty) return const [];
 
-      final profilesResp = await _client
-          .from('profiles')
-          .select('id, handle, display_name, avatar_url, email')
-          .inFilter('id', followeeIds);
+      final profilesResp = await _runProfilesQuery(
+        (selectClause) => _client
+            .from('profiles')
+            .select(selectClause)
+            .inFilter('id', followeeIds),
+      );
 
       final profileMap = <String, Map<String, dynamic>>{};
-      for (final row in (profilesResp as List<dynamic>? ?? const [])) {
+      for (final row in profilesResp) {
         final id = row['id'] as String?;
         if (id != null) {
           profileMap[id] = row as Map<String, dynamic>;
@@ -226,6 +344,7 @@ class ProfileRepo {
             handle: p['handle'] as String?,
             displayName: p['display_name'] as String?,
             avatarUrl: p['avatar_url'] as String?,
+            avatarGlyphIds: parseProfileAvatarGlyphIds(p['avatar_glyphs']),
             email: p['email'] as String?,
           ),
         );
@@ -259,6 +378,7 @@ class ProfileRepo {
     String? handle,
     String? displayName,
     String? avatarUrl,
+    List<String>? avatarGlyphIds,
     String? bio,
     String? location,
     bool? isDiscoverable,
@@ -272,17 +392,26 @@ class ProfileRepo {
       if (handle != null) updates['handle'] = handle;
       if (displayName != null) updates['display_name'] = displayName;
       if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
+      if (avatarGlyphIds != null) {
+        updates['avatar_glyphs'] = normalizeProfileAvatarGlyphIds(
+          avatarGlyphIds,
+        );
+      }
       if (bio != null) updates['bio'] = bio;
       if (location != null) updates['location'] = location;
       if (isDiscoverable != null) updates['is_discoverable'] = isDiscoverable;
-      if (allowIncomingShares != null)
+      if (allowIncomingShares != null) {
         updates['allow_incoming_shares'] = allowIncomingShares;
+      }
       updates['updated_at'] = DateTime.now().toUtc().toIso8601String();
 
       await _client.from('profiles').update(updates).eq('id', userId);
 
       return true;
     } catch (e) {
+      if (avatarGlyphIds != null && _isMissingColumn(e, 'avatar_glyphs')) {
+        throw const ProfileAvatarGlyphsUnavailable();
+      }
       _log('[ProfileRepo] Error updating profile: $e');
       return false;
     }
@@ -330,24 +459,24 @@ class ProfileRepo {
       _log('[ProfileRepo] Searching for users matching: $clean');
 
       // 1️⃣ Search by handle prefix
-      final handleResponse = await _client
-          .from('profiles')
-          .select('id, handle, display_name, avatar_url, email')
-          .ilike('handle', '$clean%')
-          .eq('allow_incoming_shares', true)
-          .limit(10);
-
-      final handleRows = (handleResponse as List?) ?? const [];
+      final handleRows = await _runProfilesQuery(
+        (selectClause) => _client
+            .from('profiles')
+            .select(selectClause)
+            .ilike('handle', '$clean%')
+            .eq('allow_incoming_shares', true)
+            .limit(10),
+      );
 
       // 2️⃣ Search by display_name substring
-      final nameResponse = await _client
-          .from('profiles')
-          .select('id, handle, display_name, avatar_url, email')
-          .ilike('display_name', '%$clean%')
-          .eq('allow_incoming_shares', true)
-          .limit(10);
-
-      final nameRows = (nameResponse as List?) ?? const [];
+      final nameRows = await _runProfilesQuery(
+        (selectClause) => _client
+            .from('profiles')
+            .select(selectClause)
+            .ilike('display_name', '%$clean%')
+            .eq('allow_incoming_shares', true)
+            .limit(10),
+      );
 
       // 3️⃣ Combine + dedupe by id
       final Map<String, Map<String, dynamic>> combined = {};
@@ -369,6 +498,7 @@ class ProfileRepo {
           handle: json['handle'] as String?,
           displayName: json['display_name'] as String?,
           avatarUrl: json['avatar_url'] as String?,
+          avatarGlyphIds: parseProfileAvatarGlyphIds(json['avatar_glyphs']),
           email: json['email'] as String?,
         );
       }).toList();
@@ -850,13 +980,10 @@ class ProfileRepo {
           'parent_comment_id': parentCommentId,
       };
 
-      final inserted = await _client
-          .from('flow_post_comments')
-          .insert(payload)
-          .select(
-            'id, flow_post_id, user_id, parent_comment_id, body, created_at, profiles(display_name, handle, avatar_url)',
-          )
-          .single();
+      final inserted = await _insertFlowPostCommentRow(
+        payload,
+        includeParentCommentId: true,
+      );
 
       return FlowPostComment.fromJson(inserted);
     } catch (e) {
@@ -867,17 +994,14 @@ class ProfileRepo {
           );
         }
         try {
-          final inserted = await _client
-              .from('flow_post_comments')
-              .insert({
-                'flow_post_id': postId,
-                'user_id': _client.auth.currentUser?.id,
-                'body': body.trim(),
-              })
-              .select(
-                'id, flow_post_id, user_id, body, created_at, profiles(display_name, handle, avatar_url)',
-              )
-              .single();
+          final inserted = await _insertFlowPostCommentRow(
+            {
+              'flow_post_id': postId,
+              'user_id': _client.auth.currentUser?.id,
+              'body': body.trim(),
+            },
+            includeParentCommentId: false,
+          );
           return FlowPostComment.fromJson(inserted);
         } catch (fallbackError) {
           if (_isMissingTable(fallbackError, 'flow_post_comments')) {
@@ -979,22 +1103,13 @@ class ProfileRepo {
 
   Future<dynamic> _selectFlowPostCommentsRows(String postId) async {
     try {
-      return await _client
-          .from('flow_post_comments')
-          .select(
-            'id, flow_post_id, user_id, parent_comment_id, body, created_at, profiles(display_name, handle, avatar_url)',
-          )
-          .eq('flow_post_id', postId)
-          .order('created_at', ascending: true);
+      return await _selectFlowPostCommentsRowsWithFallback(postId);
     } catch (e) {
-      if (!_isMissingColumn(e, 'parent_comment_id')) rethrow;
-      return await _client
-          .from('flow_post_comments')
-          .select(
-            'id, flow_post_id, user_id, body, created_at, profiles(display_name, handle, avatar_url)',
-          )
-          .eq('flow_post_id', postId)
-          .order('created_at', ascending: true);
+      if (!_isMissingColumn(e, 'parent_comment_id') &&
+          !_isMissingColumn(e, 'avatar_glyphs')) {
+        rethrow;
+      }
+      return await _selectFlowPostCommentsRowsWithFallback(postId);
     }
   }
 
@@ -1040,6 +1155,7 @@ class UserSearchResult {
   final String? handle; // ✅ Made nullable
   final String? displayName;
   final String? avatarUrl;
+  final List<String> avatarGlyphIds;
   final String? email;
 
   UserSearchResult({
@@ -1047,6 +1163,7 @@ class UserSearchResult {
     this.handle, // ✅ Not required
     this.displayName,
     this.avatarUrl,
+    this.avatarGlyphIds = const [],
     this.email,
   });
 

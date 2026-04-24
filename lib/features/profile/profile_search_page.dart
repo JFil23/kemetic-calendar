@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
 import '../../data/profile_repo.dart';
+import '../../widgets/profile_avatar.dart';
 
 class ProfileSearchPage extends StatefulWidget {
   final bool returnFullResult;
@@ -204,13 +205,6 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
           Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
       itemBuilder: (context, index) {
         final user = _results[index];
-        final initials =
-            (user.displayName?.isNotEmpty == true
-                    ? user.displayName![0]
-                    : user.handle?.isNotEmpty == true
-                    ? user.handle![0]
-                    : '?')
-                .toUpperCase();
         final subtitle =
             user.displayName != null && user.displayName!.isNotEmpty
             ? '@${user.handle ?? 'user'}'
@@ -218,21 +212,13 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
 
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          leading: CircleAvatar(
+          leading: ProfileAvatar(
             radius: 20,
+            displayName: user.name,
+            avatarUrl: user.avatarUrl,
+            avatarGlyphIds: user.avatarGlyphIds,
             backgroundColor: KemeticGold.base.withValues(alpha: 0.2),
-            backgroundImage: user.avatarUrl != null
-                ? NetworkImage(user.avatarUrl!)
-                : null,
-            child: user.avatarUrl == null
-                ? Text(
-                    initials,
-                    style: const TextStyle(
-                      color: KemeticGold.base,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : null,
+            foregroundColor: KemeticGold.base,
           ),
           title: Text(
             user.displayName?.isNotEmpty == true

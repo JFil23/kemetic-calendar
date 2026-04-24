@@ -1,5 +1,7 @@
 // lib/data/flow_post_comment_model.dart
 
+import 'profile_avatar_glyphs.dart';
+
 class FlowPostComment {
   final String id;
   final String flowPostId;
@@ -10,6 +12,7 @@ class FlowPostComment {
   final String? displayName;
   final String? handle;
   final String? avatarUrl;
+  final List<String> avatarGlyphIds;
   final int likesCount;
   final bool likedByMe;
 
@@ -23,6 +26,7 @@ class FlowPostComment {
     this.displayName,
     this.handle,
     this.avatarUrl,
+    this.avatarGlyphIds = const [],
     this.likesCount = 0,
     this.likedByMe = false,
   });
@@ -49,6 +53,7 @@ class FlowPostComment {
       displayName: profile?['display_name'] as String?,
       handle: profile?['handle'] as String?,
       avatarUrl: profile?['avatar_url'] as String?,
+      avatarGlyphIds: parseProfileAvatarGlyphIds(profile?['avatar_glyphs']),
       likesCount: (json['likes_count'] as num?)?.toInt() ?? 0,
       likedByMe: json['liked_by_me'] as bool? ?? false,
     );
@@ -67,6 +72,7 @@ class FlowPostComment {
     String? displayName,
     String? handle,
     String? avatarUrl,
+    List<String>? avatarGlyphIds,
     int? likesCount,
     bool? likedByMe,
   }) {
@@ -82,6 +88,7 @@ class FlowPostComment {
       displayName: displayName ?? this.displayName,
       handle: handle ?? this.handle,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      avatarGlyphIds: avatarGlyphIds ?? this.avatarGlyphIds,
       likesCount: likesCount ?? this.likesCount,
       likedByMe: likedByMe ?? this.likedByMe,
     );

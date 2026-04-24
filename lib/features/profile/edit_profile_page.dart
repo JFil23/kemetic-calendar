@@ -5,8 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import '../../data/profile_avatar_glyphs.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
+import '../../widgets/profile_avatar.dart';
+import 'profile_glyph_avatar_composer.dart';
 
 class EditProfilePage extends StatefulWidget {
   final UserProfile initialProfile;
@@ -32,6 +35,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _locationController;
 
   String? _avatarUrl;
+  List<String> _avatarGlyphIds = const [];
+  bool _avatarGlyphIdsDirty = false;
   bool _isDiscoverable = true;
   bool _allowIncomingShares = true;
   bool _isLoading = false;
@@ -58,6 +63,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       text: widget.initialProfile.location,
     );
     _avatarUrl = widget.initialProfile.avatarUrl;
+    _avatarGlyphIds = widget.initialProfile.avatarGlyphIds;
     _isDiscoverable = widget.initialProfile.isDiscoverable;
     _allowIncomingShares = widget.initialProfile.allowIncomingShares;
 
@@ -122,7 +128,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
           .from('avatars')
           .getPublicUrl(filePath);
 
-      setState(() => _avatarUrl = url);
+      setState(() {
+        _avatarUrl = url;
+        _avatarGlyphIds = const [];
+        _avatarGlyphIdsDirty = true;
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -137,9 +147,37 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  Future<void> _editGlyphAvatar() async {
+    final displayName = _displayNameController.text.trim().isNotEmpty
+        ? _displayNameController.text.trim()
+        : (_handleController.text.trim().isNotEmpty
+              ? _handleController.text.trim()
+              : widget.initialProfile.effectiveName);
+
+    final selected = await showProfileGlyphAvatarComposer(
+      context,
+      displayName: displayName,
+      initialGlyphIds: _avatarGlyphIds,
+    );
+
+    if (selected == null || !mounted) return;
+    setState(() {
+      _avatarGlyphIds = normalizeProfileAvatarGlyphIds(selected);
+      _avatarGlyphIdsDirty = true;
+      if (_avatarGlyphIds.isNotEmpty) {
+        _avatarUrl = null;
+      }
+    });
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
     if (_handleError != null) return;
+
+    final shouldPersistAvatarGlyphs =
+        _avatarGlyphIdsDirty &&
+        (_avatarGlyphIds.isNotEmpty ||
+            widget.initialProfile.avatarGlyphIds.isNotEmpty);
 
     setState(() => _isLoading = true);
 
@@ -148,6 +186,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         handle: _handleController.text.trim().toLowerCase(),
         displayName: _displayNameController.text.trim(),
         avatarUrl: _avatarUrl,
+        avatarGlyphIds: shouldPersistAvatarGlyphs ? _avatarGlyphIds : null,
         bio: _bioController.text.trim(),
         location: _locationController.text.trim(),
         isDiscoverable: _isDiscoverable,
@@ -164,6 +203,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
             content: Text('Failed to update profile'),
             backgroundColor: Colors.red,
           ),
+        );
+      }
+    } on ProfileAvatarGlyphsUnavailable catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
@@ -271,41 +316,131 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         const SizedBox(height: 24),
                       ],
                       // Avatar
-                      GestureDetector(
-                        onTap: _pickAvatar,
-                        child: Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFF0D0D0F),
-                            border: Border.all(
-                              color: KemeticGold.base,
-                              width: 2,
-                            ),
-                          ),
-                          child: _avatarUrl != null
-                              ? ClipOval(
-                                  child: Image.network(
-                                    _avatarUrl!,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.camera_alt,
-                                  color: KemeticGold.base,
-                                  size: 40,
-                                ),
-                        ),
+                      ProfileAvatar(
+                        radius: 50,
+                        displayName:
+                            _displayNameController.text.trim().isNotEmpty
+                            ? _displayNameController.text.trim()
+                            : (_handleController.text.trim().isNotEmpty
+                                  ? _handleController.text.trim()
+                                  : widget.initialProfile.effectiveName),
+                        avatarUrl: _avatarUrl,
+                        avatarGlyphIds: _avatarGlyphIds,
+                        borderColor: KemeticGold.base,
+                        borderWidth: 2,
+                        foregroundColor: KemeticGold.base,
+                        backgroundColor: const Color(0xFF0D0D0F),
+                        maxInitialCharacters: 1,
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Tap to change avatar',
+                        _avatarGlyphIds.isNotEmpty
+                            ? 'Glyph avatar active'
+                            : (_avatarUrl != null
+                                  ? 'Photo avatar active'
+                                  : 'Choose a photo or build a glyph avatar'),
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.5),
                           fontSize: 13,
                         ),
                       ),
+                      if (_avatarGlyphIds.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          profileGlyphPhraseGlyphs(_avatarGlyphIds),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: KemeticGold.base,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'GentiumPlus',
+                            fontFamilyFallback: [
+                              'Noto Sans Egyptian Hieroglyphs',
+                              'Apple Symbols',
+                              'Segoe UI Symbol',
+                              'Arial Unicode MS',
+                              'NotoSans',
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          profileGlyphPhraseMeaning(_avatarGlyphIds),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.66),
+                            fontSize: 12,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                  color: KemeticGold.base.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                              onPressed: _pickAvatar,
+                              icon: KemeticGold.icon(
+                                Icons.photo_library_outlined,
+                              ),
+                              label: const Text('Photo Avatar'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                  color: KemeticGold.base.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                              onPressed: _editGlyphAvatar,
+                              icon: KemeticGold.icon(
+                                Icons.auto_awesome_outlined,
+                              ),
+                              label: Text(
+                                _avatarGlyphIds.isEmpty
+                                    ? 'Glyph Avatar'
+                                    : 'Edit Glyph',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_avatarUrl != null || _avatarGlyphIds.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _avatarUrl = null;
+                              _avatarGlyphIds = const [];
+                            });
+                          },
+                          child: Text(
+                            'Remove avatar',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.72),
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 32),
 
                       // Display Name

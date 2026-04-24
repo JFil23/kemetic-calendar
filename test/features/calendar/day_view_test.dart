@@ -259,6 +259,58 @@ void main() {
         expect(find.text('End Flow'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'detail sheet keeps a stable height when paging through same-sized reminders',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        final notes = [
+          _timedReminderNote(
+            clientEventId: 'cid-reminder-1',
+            reminderId: 'reminder-family-salon-1',
+            title: 'Family Salon A',
+            startHour: 10,
+          ),
+          _timedReminderNote(
+            clientEventId: 'cid-reminder-2',
+            reminderId: 'reminder-family-salon-2',
+            title: 'Family Salon B',
+            startHour: 11,
+          ),
+          _timedReminderNote(
+            clientEventId: 'cid-reminder-3',
+            reminderId: 'reminder-family-salon-3',
+            title: 'Family Salon C',
+            startHour: 12,
+          ),
+          _timedReminderNote(
+            clientEventId: 'cid-reminder-4',
+            reminderId: 'reminder-family-salon-4',
+            title: 'Family Salon D',
+            startHour: 13,
+          ),
+        ];
+
+        await tester.pumpWidget(_PagedReminderDayViewHarness(notes: notes));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Family Salon B'));
+        await tester.pumpAndSettle();
+
+        final initialHeight = _detailSheetPageHeight(tester);
+        expect(find.text('Family Salon B'), findsWidgets);
+
+        await tester.drag(find.byType(PageView), const Offset(-320, 0));
+        await tester.pumpAndSettle();
+        await tester.drag(find.byType(PageView), const Offset(-320, 0));
+        await tester.pumpAndSettle();
+
+        final finalHeight = _detailSheetPageHeight(tester);
+        expect(find.text('Family Salon D'), findsWidgets);
+        expect(finalHeight, closeTo(initialHeight, 0.01));
+      },
+    );
   });
 
   group('DayViewPage header toggle', () {
@@ -384,6 +436,30 @@ NoteData _timedNote({
     end: TimeOfDay(hour: endHour, minute: endMinute),
     flowId: flowId,
   );
+}
+
+NoteData _timedReminderNote({
+  required String clientEventId,
+  required String reminderId,
+  required String title,
+  required int startHour,
+}) {
+  return NoteData(
+    clientEventId: clientEventId,
+    title: title,
+    allDay: false,
+    start: TimeOfDay(hour: startHour, minute: 0),
+    end: TimeOfDay(hour: startHour, minute: 30),
+    isReminder: true,
+    reminderId: reminderId,
+  );
+}
+
+double _detailSheetPageHeight(WidgetTester tester) {
+  final sizedBox = find.byWidgetPredicate(
+    (widget) => widget is SizedBox && widget.child is PageView,
+  );
+  return tester.getSize(sizedBox).height;
 }
 
 class _DayViewHarness extends StatelessWidget {
@@ -527,6 +603,68 @@ class _SheetPersistenceHarness extends StatelessWidget {
               initialScrollOffset: 9 * 60,
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _PagedReminderDayViewHarness extends StatelessWidget {
+  const _PagedReminderDayViewHarness({required this.notes});
+
+  final List<NoteData> notes;
+
+  @override
+  Widget build(BuildContext context) {
+    final events = notes.map(_eventFromNote).toList()
+      ..sort((a, b) => a.startMin.compareTo(b.startMin));
+
+    DayViewSheetEventTarget? resolveAdjacent({
+      required int ky,
+      required int km,
+      required int kd,
+      required EventItem event,
+      required bool forward,
+    }) {
+      final index = events.indexWhere(
+        (candidate) => candidate.clientEventId == event.clientEventId,
+      );
+      if (index < 0) return null;
+      final nextIndex = forward ? index + 1 : index - 1;
+      if (nextIndex < 0 || nextIndex >= events.length) return null;
+      return DayViewSheetEventTarget(
+        ky: ky,
+        km: km,
+        kd: kd,
+        event: events[nextIndex],
+      );
+    }
+
+    DayViewSheetEventTarget resolveCurrent(DayViewSheetEventTarget target) {
+      for (final event in events) {
+        if (event.clientEventId != target.event.clientEventId) continue;
+        return DayViewSheetEventTarget(
+          ky: target.ky,
+          km: target.km,
+          kd: target.kd,
+          event: event,
+        );
+      }
+      return target;
+    }
+
+    return MaterialApp(
+      home: Scaffold(
+        body: DayViewGrid(
+          ky: 1,
+          km: 1,
+          kd: 1,
+          notes: notes,
+          showGregorian: false,
+          flowIndex: const {},
+          initialScrollOffset: 9 * 60,
+          resolveAdjacentEvent: resolveAdjacent,
+          resolveCurrentEventTarget: resolveCurrent,
         ),
       ),
     );

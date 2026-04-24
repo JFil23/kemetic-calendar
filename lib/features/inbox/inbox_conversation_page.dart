@@ -15,6 +15,7 @@ import 'conversation_user.dart';
 import '../invites/event_invite_details_page.dart';
 import '../profile/profile_page.dart';
 import '../../services/session_resume_service.dart';
+import '../../widgets/profile_avatar.dart';
 
 class InboxConversationPage extends StatefulWidget {
   final String otherUserId;
@@ -79,6 +80,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
           'displayName': widget.otherProfile.displayName,
           'handle': widget.otherProfile.handle,
           'avatarUrl': widget.otherProfile.avatarUrl,
+          'avatarGlyphIds': widget.otherProfile.avatarGlyphIds,
           'draftText': _messageController.text,
         },
       ),
@@ -297,28 +299,16 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
         ),
         title: Row(
           children: [
-            CircleAvatar(
+            ProfileAvatar(
               radius: 16,
+              displayName:
+                  widget.otherProfile.displayName ??
+                  widget.otherProfile.handle ??
+                  'User',
+              avatarUrl: widget.otherProfile.avatarUrl,
+              avatarGlyphIds: widget.otherProfile.avatarGlyphIds,
               backgroundColor: KemeticGold.base.withOpacity(0.2),
-              backgroundImage: widget.otherProfile.avatarUrl != null
-                  ? NetworkImage(widget.otherProfile.avatarUrl!)
-                  : null,
-              child: widget.otherProfile.avatarUrl == null
-                  ? Text(
-                      (widget.otherProfile.displayName ??
-                              widget.otherProfile.handle ??
-                              '?')
-                          .characters
-                          .take(2)
-                          .toString()
-                          .toUpperCase(),
-                      style: const TextStyle(
-                        color: KemeticGold.base,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    )
-                  : null,
+              foregroundColor: KemeticGold.base,
             ),
             const SizedBox(width: 8),
             Text(
