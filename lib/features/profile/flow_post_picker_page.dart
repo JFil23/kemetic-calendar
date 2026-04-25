@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile/services/app_haptics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
@@ -62,8 +64,25 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
       _flows.where((f) => f.isSaved && !f.isHidden).toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
+  void _showDebugHapticsSnackBar(AppHapticResult result) {
+    if (!kDebugMode || !mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Haptics: ${result.debugSummary}'),
+          duration: const Duration(milliseconds: 900),
+        ),
+      );
+  }
+
   Future<void> _postFlow(int flowId) async {
     if (_posting) return;
+    final hapticResult = await AppHaptics.productiveAction(
+      reason: 'profile_flow_post',
+    );
+    if (!mounted) return;
+    _showDebugHapticsSnackBar(hapticResult);
     setState(() => _posting = true);
     final created = await _profileRepo.postFlow(flowId);
     if (!mounted) return;
@@ -145,8 +164,9 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
                       }
                     },
                     style: ButtonStyle(
-                      backgroundColor:
-                          WidgetStateProperty.all(const Color(0xFF111111)),
+                      backgroundColor: WidgetStateProperty.all(
+                        const Color(0xFF111111),
+                      ),
                       foregroundColor: WidgetStateProperty.all(Colors.white),
                       side: WidgetStateProperty.all(
                         const BorderSide(color: Colors.white24),
@@ -162,8 +182,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
                   child: flows.isEmpty
                       ? _buildEmpty()
                       : ListView.separated(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                           itemCount: flows.length,
                           separatorBuilder: (context, index) =>
                               const Divider(height: 12, color: Colors.white10),
@@ -211,10 +230,8 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
       FlowPostTab.saved => 'No saved flows',
     };
     final hint = switch (_tab) {
-      FlowPostTab.active =>
-          'Create a flow in Flow Studio to post it here.',
-      FlowPostTab.saved =>
-          'Save a flow first, then you can post it here.',
+      FlowPostTab.active => 'Create a flow in Flow Studio to post it here.',
+      FlowPostTab.saved => 'Save a flow first, then you can post it here.',
     };
     return Center(
       child: Padding(

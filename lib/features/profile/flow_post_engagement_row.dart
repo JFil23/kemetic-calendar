@@ -1,7 +1,11 @@
 // lib/features/profile/flow_post_engagement_row.dart
 
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/core/touch_targets.dart';
+import 'package:mobile/services/app_haptics.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -209,6 +213,18 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
   bool get _likeButtonEnabled =>
       !_engagementUnavailable && !_likesLoading && !_likeUpdating;
 
+  void _showDebugHapticsSnackBar(AppHapticResult result) {
+    if (!kDebugMode || !mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Haptics: ${result.debugSummary}'),
+          duration: const Duration(milliseconds: 900),
+        ),
+      );
+  }
+
   Future<void> _toggleLike() async {
     if (_engagementUnavailable) {
       _showMigrationNeeded();
@@ -222,35 +238,48 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
     if (_likeUpdating) return;
 
     final target = !_likedByMe;
+    AppHapticResult? hapticResult;
+    if (target) {
+      hapticResult = await AppHaptics.productiveAction(
+        reason: 'flow_post_like',
+      );
+      if (!mounted) return;
+      _showDebugHapticsSnackBar(hapticResult);
+    }
     setState(() => _likeUpdating = true);
     try {
       final ok = await _repo.setFlowPostLike(widget.post.id, like: target);
       if (!mounted) return;
+      var shouldSendLikePush = false;
       setState(() {
         _likeUpdating = false;
         if (ok) {
           _likedByMe = target;
           _likesCount += target ? 1 : -1;
           if (_likesCount < 0) _likesCount = 0;
-          if (target) {
-            _repo.sendFlowPostPush(
-              targetUserId: widget.post.userId,
-              title: 'New like on your flow',
-              body: widget.post.name,
-              data: {
-                'type': 'flow_like',
-                'flow_post_id': widget.post.id,
-                'flow_name': widget.post.name,
-              },
-            );
-          }
-        } else {
-          _showErrorSnackBar(
-            context,
-            'Could not update like. Please try again.',
-          );
+          shouldSendLikePush = target;
         }
       });
+
+      if (!ok) {
+        _showErrorSnackBar(context, 'Could not update like. Please try again.');
+        return;
+      }
+
+      if (shouldSendLikePush) {
+        unawaited(
+          _repo.sendFlowPostPush(
+            targetUserId: widget.post.userId,
+            title: 'New like on your flow',
+            body: widget.post.name,
+            data: {
+              'type': 'flow_like',
+              'flow_post_id': widget.post.id,
+              'flow_name': widget.post.name,
+            },
+          ),
+        );
+      }
     } on FlowPostEngagementUnavailable {
       if (!mounted) return;
       setState(() {

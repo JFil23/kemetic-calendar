@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile/services/app_haptics.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
@@ -225,6 +226,14 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
     if (_messageLikeUpdatingIds.contains(share.shareId)) return;
 
     final target = !_messageLikedByMeIds.contains(share.shareId);
+    AppHapticResult? hapticResult;
+    if (target) {
+      hapticResult = await AppHaptics.productiveAction(
+        reason: 'dm_message_like',
+      );
+      if (!mounted) return;
+      _showDebugHapticsSnackBar(hapticResult);
+    }
     setState(() => _messageLikeUpdatingIds.add(share.shareId));
 
     try {
@@ -275,6 +284,18 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
     _showError(
       'Message likes need the latest update. Please apply the new Supabase migration.',
     );
+  }
+
+  void _showDebugHapticsSnackBar(AppHapticResult result) {
+    if (!kDebugMode || !mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Haptics: ${result.debugSummary}'),
+          duration: const Duration(milliseconds: 900),
+        ),
+      );
   }
 
   void _showError(String message) {

@@ -17,6 +17,7 @@ import 'package:mobile/features/profile/profile_page.dart';
 import 'package:mobile/features/rhythm/rhythm_telemetry.dart';
 import 'package:mobile/features/rhythm/todo_day_window.dart';
 import 'package:mobile/features/rhythm/rhythm_user_messages.dart';
+import 'package:mobile/services/app_haptics.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/inbox_icon_with_badge.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
@@ -445,6 +446,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       return;
     }
 
+    if (state == RhythmItemState.done && prev != RhythmItemState.done) {
+      unawaited(AppHaptics.productiveAction());
+    }
+
     var synced = false;
     try {
       await _plannerBadgeRepo.syncTodoState(
@@ -730,6 +735,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         ? RhythmItemState.pending
         : RhythmItemState.done;
     await _setNutritionItemState(item, date: targetDate, state: nextState);
+    if (nextState == RhythmItemState.done) {
+      unawaited(AppHaptics.productiveAction());
+    }
   }
 
   /// Resolves the Kemetic day key for the nutrition pager's active decan day.

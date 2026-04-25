@@ -23,6 +23,7 @@ import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
 import '../../data/user_events_repo.dart';
 import '../journal/journal_event_badge.dart';
+import '../../services/app_haptics.dart';
 import '../../utils/external_link_utils.dart';
 
 const double _kMinEventBlockHeight = 64.0; // was 32.0
@@ -3794,6 +3795,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     final token = _buildBadgeToken(event, ky: ky, km: km, kd: kd);
     try {
       await cb('$token ');
+      unawaited(AppHaptics.productiveAction());
     } catch (_) {
       // ignore errors silently to avoid blocking UI
     }
