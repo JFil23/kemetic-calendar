@@ -17,6 +17,7 @@ import 'package:flutter/gestures.dart';
 import '../profile/flow_post_detail_page.dart';
 import '../profile/profile_page.dart';
 import '../profile/profile_search_page.dart';
+import '../invites/event_invite_details_page.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../services/session_resume_service.dart';
 import '../../widgets/profile_avatar.dart';
@@ -44,8 +45,10 @@ class _InboxPageState extends State<InboxPage> {
   late final InboxRepo _inboxRepo;
   late final ShareRepo _shareRepo;
   StreamSubscription<Map<String, List<InboxShareItem>>>? _convSub;
+  StreamSubscription<List<InboxShareItem>>? _inboxItemsSub;
   StreamSubscription<InboxUnreadState>? _unreadStateSub;
   Map<String, List<InboxShareItem>> _latestThreads = const {};
+  List<InboxShareItem> _latestEventInvites = const [];
   List<_UnifiedInboxItem> _unified = const [];
   final Set<String> _optimisticReadShareIds = <String>{};
   bool _loading = true;
@@ -65,6 +68,26 @@ class _InboxPageState extends State<InboxPage> {
     _convSub = _inboxRepo.watchConversations().listen((threads) {
       _latestThreads = threads;
       _reconcileOptimisticReadState();
+      if (mounted) {
+        setState(() {
+          _unified = _buildUnifiedItems();
+        });
+      }
+    });
+    _inboxItemsSub = _inboxRepo.watchInbox().listen((items) {
+      final currentUserId = _inboxRepo.currentUserId;
+      final invites = currentUserId == null
+          ? const <InboxShareItem>[]
+          : (items
+                .where(
+                  (item) =>
+                      item.isEvent &&
+                      !item.isDeleted &&
+                      item.recipientId == currentUserId,
+                )
+                .toList()
+              ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+      _latestEventInvites = invites;
       if (mounted) {
         setState(() {
           _unified = _buildUnifiedItems();
@@ -116,6 +139,7 @@ class _InboxPageState extends State<InboxPage> {
   @override
   void dispose() {
     _convSub?.cancel();
+    _inboxItemsSub?.cancel();
     _unreadStateSub?.cancel();
     super.dispose();
   }
@@ -285,6 +309,8 @@ class _InboxPageState extends State<InboxPage> {
                           hasUnread: item.hasUnread ?? false,
                           items: item.items!,
                         );
+                      } else if (item.kind == _UnifiedKind.eventInvite) {
+                        return _buildEventInviteRow(item.invite!);
                       } else {
                         return _buildActivityRow(item.activity!);
                       }
@@ -345,7 +371,16 @@ class _InboxPageState extends State<InboxPage> {
       );
     });
 
-    return [...messageItems]
+    final inviteItems = _latestEventInvites
+        .map(
+          (invite) => _UnifiedInboxItem.eventInvite(
+            createdAt: invite.createdAt,
+            invite: invite,
+          ),
+        )
+        .toList(growable: false);
+
+    return [...inviteItems, ...messageItems]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
@@ -546,6 +581,83 @@ class _InboxPageState extends State<InboxPage> {
     await _markItemsViewed(items);
   }
 
+  Widget _buildEventInviteRow(InboxShareItem invite) {
+    final payload = invite.eventPayload;
+    final senderName = invite.senderName?.trim().isNotEmpty == true
+        ? invite.senderName!.trim()
+        : (invite.senderHandle?.trim().isNotEmpty == true
+              ? '@${invite.senderHandle!.trim()}'
+              : 'Someone');
+    final whenText = _eventInviteWhenText(invite);
+    final statusLabel = _eventInviteStatusLabel(invite);
+    final statusColor = _eventInviteStatusColor(invite);
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      leading: CircleAvatar(
+        backgroundColor: statusColor.withValues(alpha: 0.14),
+        child: Icon(Icons.event_available_outlined, color: statusColor),
+      ),
+      title: Text(
+        payload?.title ?? invite.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: invite.isUnread ? FontWeight.bold : FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        whenText.isEmpty ? 'From $senderName' : 'From $senderName • $whenText',
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.7),
+          fontSize: 14,
+        ),
+      ),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              statusLabel,
+              style: TextStyle(
+                color: statusColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (invite.isUnread) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: _gold,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ],
+        ],
+      ),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => EventInviteDetailsPage(share: invite),
+          ),
+        );
+      },
+    );
+  }
+
   String _conversationPreviewText(InboxShareItem item) {
     if (!item.isEvent) return item.title;
     final status = item.responseStatus;
@@ -553,6 +665,51 @@ class _InboxPageState extends State<InboxPage> {
       return item.title;
     }
     return '${item.title} • ${status.label}';
+  }
+
+  String _eventInviteWhenText(InboxShareItem invite) {
+    final payload = invite.eventPayload;
+    final when = payload?.startsAt ?? invite.eventDate;
+    if (when == null) return '';
+
+    final local = when.toLocal();
+    final month = local.month.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
+    if (payload?.allDay ?? false) {
+      return '$month/$day • All day';
+    }
+
+    final minute = local.minute.toString().padLeft(2, '0');
+    final hour24 = local.hour;
+    final period = hour24 >= 12 ? 'PM' : 'AM';
+    final hour12 = hour24 == 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
+    return '$month/$day • $hour12:$minute $period';
+  }
+
+  String _eventInviteStatusLabel(InboxShareItem invite) {
+    switch (invite.responseStatus) {
+      case EventInviteResponseStatus.accepted:
+        return 'Yes';
+      case EventInviteResponseStatus.declined:
+        return 'No';
+      case EventInviteResponseStatus.maybe:
+        return 'Maybe';
+      case EventInviteResponseStatus.noResponse:
+        return invite.viewedAt != null ? 'Opened' : 'Pending';
+    }
+  }
+
+  Color _eventInviteStatusColor(InboxShareItem invite) {
+    switch (invite.responseStatus) {
+      case EventInviteResponseStatus.accepted:
+        return Colors.greenAccent;
+      case EventInviteResponseStatus.declined:
+        return Colors.redAccent;
+      case EventInviteResponseStatus.maybe:
+        return Colors.orangeAccent;
+      case EventInviteResponseStatus.noResponse:
+        return Colors.white70;
+    }
   }
 
   void _openProfile(String userId) {
@@ -868,7 +1025,7 @@ class _InboxPageState extends State<InboxPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Shared flows and messages will appear here',
+            'Shared flows, messages, and invites will appear here',
             style: TextStyle(
               color: Colors.white.withOpacity(0.5),
               fontSize: 14,
@@ -880,7 +1037,7 @@ class _InboxPageState extends State<InboxPage> {
   }
 }
 
-enum _UnifiedKind { message, activity }
+enum _UnifiedKind { message, eventInvite, activity }
 
 class _UnifiedInboxItem {
   _UnifiedInboxItem.message({
@@ -890,6 +1047,7 @@ class _UnifiedInboxItem {
     required this.items,
     required this.hasUnread,
   }) : kind = _UnifiedKind.message,
+       invite = null,
        activity = null;
 
   _UnifiedInboxItem.activity({required this.createdAt, required this.activity})
@@ -897,7 +1055,16 @@ class _UnifiedInboxItem {
       otherUserId = null,
       otherProfile = null,
       items = null,
-      hasUnread = null;
+      hasUnread = null,
+      invite = null;
+
+  _UnifiedInboxItem.eventInvite({required this.createdAt, required this.invite})
+    : kind = _UnifiedKind.eventInvite,
+      otherUserId = null,
+      otherProfile = null,
+      items = null,
+      hasUnread = null,
+      activity = null;
 
   final _UnifiedKind kind;
   final DateTime createdAt;
@@ -907,6 +1074,7 @@ class _UnifiedInboxItem {
   final ConversationUser? otherProfile;
   final List<InboxShareItem>? items;
   final bool? hasUnread;
+  final InboxShareItem? invite;
 
   // Activity fields
   final InboxActivityItem? activity;

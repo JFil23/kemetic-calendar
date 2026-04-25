@@ -1386,6 +1386,13 @@ class ShareRepo {
       );
     }
 
+    if (!ok) {
+      ok = await _confirmEventInviteResponse(
+        shareId: shareId,
+        responseStatus: responseStatus,
+      );
+    }
+
     if (ok) {
       try {
         await syncAcceptedInviteCalendarImports();
@@ -1398,6 +1405,38 @@ class ShareRepo {
     }
 
     return ok;
+  }
+
+  Future<bool> _confirmEventInviteResponse({
+    required String shareId,
+    required EventInviteResponseStatus responseStatus,
+  }) async {
+    final currentUserId = _client.auth.currentUser?.id;
+    if (currentUserId == null || currentUserId.isEmpty) {
+      return false;
+    }
+
+    try {
+      final row = await _client
+          .from('event_shares')
+          .select('response_status')
+          .eq('id', shareId)
+          .eq('recipient_id', currentUserId)
+          .maybeSingle();
+      if (row is! Map<String, dynamic>) {
+        return false;
+      }
+      return EventInviteResponseStatus.fromDbValue(
+            row['response_status'] as String?,
+          ) ==
+          responseStatus;
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[ShareRepo] Error confirming invite response: $e');
+        debugPrint('$st');
+      }
+      return false;
+    }
   }
 
   Future<bool> _respondToEventInviteDirect({

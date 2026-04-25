@@ -7365,9 +7365,11 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
-  void _pruneReminderNotes(String ruleId, {DateTime? fromDate}) {
+  bool _pruneReminderNotes(String ruleId, {DateTime? fromDate}) {
+    var changed = false;
     final keysToRemove = <String>[];
     _notes.forEach((k, list) {
+      final before = list.length;
       list.removeWhere((n) {
         final isTarget = n.isReminder && n.reminderId == ruleId;
         final isOverride =
@@ -7387,18 +7389,27 @@ class _CalendarPageState extends State<CalendarPage>
           return true;
         }
       });
+      if (list.length != before) {
+        changed = true;
+      }
       if (list.isEmpty) keysToRemove.add(k);
     });
     for (final k in keysToRemove) {
       _notes.remove(k);
     }
+    if (keysToRemove.isNotEmpty) {
+      changed = true;
+    }
+    return changed;
   }
 
-  void _materializeReminderLocally({
+  bool _materializeReminderLocally({
     required ReminderRule rule,
     required List<DateTime> occurrences,
     int? flowId,
+    bool notify = true,
   }) {
+    var changed = false;
     for (final day in occurrences) {
       final k = KemeticMath.fromGregorian(day);
       final cidDate =
@@ -7437,24 +7448,32 @@ class _CalendarPageState extends State<CalendarPage>
           }
         }
       }
-      _addNote(
-        k.kYear,
-        k.kMonth,
-        k.kDay,
-        rule.title,
-        null,
-        clientEventId: clientEventId,
-        allDay: rule.allDay,
-        start: startTime,
-        end: endTime,
-        manualColor: rule.color,
-        category: rule.category,
-        isReminder: true,
-        reminderId: rule.id,
-        flowId: flowId,
-        alertOffsetMinutes: rule.alertOffsetMinutes,
-      );
+      changed =
+          _addNote(
+            k.kYear,
+            k.kMonth,
+            k.kDay,
+            rule.title,
+            null,
+            clientEventId: clientEventId,
+            allDay: rule.allDay,
+            start: startTime,
+            end: endTime,
+            manualColor: rule.color,
+            category: rule.category,
+            isReminder: true,
+            reminderId: rule.id,
+            flowId: flowId,
+            alertOffsetMinutes: rule.alertOffsetMinutes,
+            notify: false,
+          ) ||
+          changed;
     }
+
+    if (changed && notify) {
+      _refreshNoteCacheUi();
+    }
+    return changed;
   }
 
   Future<void> _syncReminderEvents({bool refreshUi = false}) async {
@@ -7464,6 +7483,7 @@ class _CalendarPageState extends State<CalendarPage>
     final today = DateUtils.dateOnly(DateTime.now());
 
     final windowEnd = _reminderWindowEnd(today, _reminderRules);
+    var localCacheChanged = false;
 
     for (final rule in _reminderRules) {
       // Persist meta before generating occurrences to keep server source-of-truth in sync.
@@ -7535,15 +7555,19 @@ class _CalendarPageState extends State<CalendarPage>
 
       final occurrences = _generateReminderOccurrences(rule, today, windowEnd);
       // Update local cache first so UI reflects immediately even if network fails.
-      _pruneReminderNotes(rule.id, fromDate: today);
+      localCacheChanged =
+          _pruneReminderNotes(rule.id, fromDate: today) || localCacheChanged;
       final flowIdForReminder = await _findFlowIdByReminderUuid(
         rule.id,
       ); // may be null/nonexistent
-      _materializeReminderLocally(
-        rule: rule,
-        occurrences: occurrences,
-        flowId: flowIdForReminder,
-      );
+      localCacheChanged =
+          _materializeReminderLocally(
+            rule: rule,
+            occurrences: occurrences,
+            flowId: flowIdForReminder,
+            notify: false,
+          ) ||
+          localCacheChanged;
 
       if (!rule.id.startsWith('nutrition:')) {
         for (final day in occurrences) {
@@ -7637,6 +7661,8 @@ class _CalendarPageState extends State<CalendarPage>
 
     if (refreshUi) {
       await _loadFromDisk();
+    } else if (localCacheChanged) {
+      _refreshNoteCacheUi();
     }
   }
 
@@ -7666,30 +7692,48 @@ class _CalendarPageState extends State<CalendarPage>
     DateTime windowEnd,
   ) async {
     // Show new/edited reminder immediately in list + calendar while sync completes.
-    _pruneReminderNotes(rule.id, fromDate: today);
+    var changed = _pruneReminderNotes(rule.id, fromDate: today);
     final occurrences = _generateReminderOccurrences(rule, today, windowEnd);
     final flowId = await _findFlowIdByReminderUuid(rule.id);
-    _materializeReminderLocally(
-      rule: rule,
-      occurrences: occurrences,
-      flowId: flowId,
-    );
+    changed =
+        _materializeReminderLocally(
+          rule: rule,
+          occurrences: occurrences,
+          flowId: flowId,
+          notify: false,
+        ) ||
+        changed;
+    if (changed) {
+      _refreshNoteCacheUi();
+    }
   }
 
-  Future<void> _regenReminderNotes() async {
+  Future<bool> _regenReminderNotes({bool notify = true}) async {
     await _loadReminderRules();
-    if (_reminderRules.isEmpty) return;
+    if (_reminderRules.isEmpty) return false;
     final today = DateUtils.dateOnly(DateTime.now());
     final windowEnd = _reminderWindowEnd(today, _reminderRules);
+    var changed = false;
     // Clear existing reminder notes
     for (final r in _reminderRules) {
-      _pruneReminderNotes(r.id, fromDate: null);
+      changed = _pruneReminderNotes(r.id, fromDate: null) || changed;
     }
     for (final r in _reminderRules) {
       final occs = _generateReminderOccurrences(r, today, windowEnd);
       final flowId = await _findFlowIdByReminderUuid(r.id);
-      _materializeReminderLocally(rule: r, occurrences: occs, flowId: flowId);
+      changed =
+          _materializeReminderLocally(
+            rule: r,
+            occurrences: occs,
+            flowId: flowId,
+            notify: false,
+          ) ||
+          changed;
     }
+    if (changed && notify) {
+      _refreshNoteCacheUi();
+    }
+    return changed;
   }
 
   void _rebuildReminderRulesFromFlowsIfMissing() {
@@ -8633,7 +8677,13 @@ class _CalendarPageState extends State<CalendarPage>
     return flowIndex;
   }
 
-  void _addNote(
+  void _refreshNoteCacheUi() {
+    if (!mounted) return;
+    setState(() {});
+    _notifyDayViewDataChanged();
+  }
+
+  bool _addNote(
     int kYear,
     int kMonth,
     int kDay,
@@ -8651,6 +8701,7 @@ class _CalendarPageState extends State<CalendarPage>
     bool isReminder = false,
     String? reminderId,
     int? alertOffsetMinutes,
+    bool notify = true,
   }) {
     final shouldSkip =
         _isPendingDelete(
@@ -8671,7 +8722,7 @@ class _CalendarPageState extends State<CalendarPage>
           '[_addNote] skip add for title="$title" cid=${clientEventId ?? '<none>'} pending/tombstoned',
         );
       }
-      return;
+      return false;
     }
 
     final k = _kKey(kYear, kMonth, kDay);
@@ -8697,8 +8748,10 @@ class _CalendarPageState extends State<CalendarPage>
       ),
     );
     // Do not schedule notifications here; scheduling is handled by the caller.
-    setState(() {});
-    _notifyDayViewDataChanged();
+    if (notify) {
+      _refreshNoteCacheUi();
+    }
+    return true;
   }
 
   _Note? _removeLocalNoteOnly(int kYear, int kMonth, int kDay, int index) {
@@ -15596,9 +15649,8 @@ class _CalendarPageState extends State<CalendarPage>
 
       _rebuildReminderRulesFromFlowsIfMissing();
 
-      setState(() {});
+      await _regenReminderNotes(notify: false);
       _bumpDataVersion();
-      await _regenReminderNotes();
     } catch (e, stackTrace) {
       print('Supabase sync FAILED: $e');
       print('Stack: $stackTrace');
