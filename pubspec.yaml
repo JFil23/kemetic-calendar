@@ -61,11 +61,6 @@ dependencies:
   flutter_tts: ^4.0.2
   shared_preferences: ^2.5.3
   
-  # Profile image picker
-  image_picker: ^1.0.0
-
-
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -98,6 +93,11 @@ flutter:
   assets:
     - env/dev.json
     - assets/ma_at_flows/
+    - assets/profile/
+    - assets/profile/day_cycle/
+    - assets/profile/day_cycle_processed/
+    - assets/profile/day_cycle_registered/
+    - assets/profile/day_cycle_registered_v3/
 
   # Using GoogleFonts package for all typography
   # Includes support for Egyptological transliteration characters

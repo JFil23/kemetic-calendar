@@ -378,6 +378,7 @@ class ProfileRepo {
     String? handle,
     String? displayName,
     String? avatarUrl,
+    bool clearAvatarUrl = false,
     List<String>? avatarGlyphIds,
     String? bio,
     String? location,
@@ -391,6 +392,9 @@ class ProfileRepo {
       final updates = <String, dynamic>{};
       if (handle != null) updates['handle'] = handle;
       if (displayName != null) updates['display_name'] = displayName;
+      if (clearAvatarUrl) {
+        updates['avatar_url'] = null;
+      }
       if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
       if (avatarGlyphIds != null) {
         updates['avatar_glyphs'] = normalizeProfileAvatarGlyphIds(
@@ -994,14 +998,11 @@ class ProfileRepo {
           );
         }
         try {
-          final inserted = await _insertFlowPostCommentRow(
-            {
-              'flow_post_id': postId,
-              'user_id': _client.auth.currentUser?.id,
-              'body': body.trim(),
-            },
-            includeParentCommentId: false,
-          );
+          final inserted = await _insertFlowPostCommentRow({
+            'flow_post_id': postId,
+            'user_id': _client.auth.currentUser?.id,
+            'body': body.trim(),
+          }, includeParentCommentId: false);
           return FlowPostComment.fromJson(inserted);
         } catch (fallbackError) {
           if (_isMissingTable(fallbackError, 'flow_post_comments')) {

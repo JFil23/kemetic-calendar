@@ -1,6 +1,7 @@
 // lib/features/profile/profile_page.dart
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:mobile/core/page_navigation_swipe.dart';
@@ -11,7 +12,6 @@ import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../../data/flow_post_model.dart';
 import '../../utils/detail_sanitizer.dart';
-import '../../widgets/profile_avatar.dart';
 import 'edit_profile_page.dart';
 import 'profile_search_page.dart';
 import 'flow_post_picker_page.dart';
@@ -22,6 +22,126 @@ import '../calendar/calendar_page.dart';
 import 'flow_post_engagement_row.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../widgets/inbox_icon_with_badge.dart';
+
+const Color _profileGoldLight = Color(0xFFF7E09A);
+const Color _profileGoldMid = Color(0xFFE8BE54);
+const Color _profileGoldBase = Color(0xFFCA9221);
+const Color _profileGoldDeep = Color(0xFF7A5310);
+const Color _profileGoldText = Color(0xFFF1CF7A);
+
+const Gradient _profileGoldGradient = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    _profileGoldBase,
+    _profileGoldLight,
+    _profileGoldMid,
+    _profileGoldDeep,
+  ],
+  stops: [0.0, 0.42, 0.74, 1.0],
+);
+
+const String _profileBackdropAssetDirectory =
+    'assets/profile/day_cycle_registered_v3';
+
+const List<_ProfileBackdropFrame> _profileBackdropFrames = [
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/12am.png',
+    minuteOfDay: 0,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/1am.png',
+    minuteOfDay: 60,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/2am.png',
+    minuteOfDay: 120,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/3am.png',
+    minuteOfDay: 180,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/4am.png',
+    minuteOfDay: 240,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/5am.png',
+    minuteOfDay: 300,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/6am.png',
+    minuteOfDay: 360,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/7am.png',
+    minuteOfDay: 420,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/8am.png',
+    minuteOfDay: 480,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/9am.png',
+    minuteOfDay: 540,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/10am.png',
+    minuteOfDay: 600,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/11am.png',
+    minuteOfDay: 660,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/12pm.png',
+    minuteOfDay: 720,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/1pm.png',
+    minuteOfDay: 780,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/2pm.png',
+    minuteOfDay: 840,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/3pm.png',
+    minuteOfDay: 900,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/4pm.png',
+    minuteOfDay: 960,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/5pm.png',
+    minuteOfDay: 1020,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/6pm.png',
+    minuteOfDay: 1080,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/7pm.png',
+    minuteOfDay: 1140,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/8pm.png',
+    minuteOfDay: 1200,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/9pm.png',
+    minuteOfDay: 1260,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/10pm.png',
+    minuteOfDay: 1320,
+  ),
+  _ProfileBackdropFrame(
+    assetPath: '$_profileBackdropAssetDirectory/11pm.png',
+    minuteOfDay: 1380,
+  ),
+];
 
 class ProfilePage extends StatefulWidget {
   final String userId;
@@ -200,10 +320,11 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final canRevealCalendar =
         widget.openedFromCalendar && Navigator.of(context).canPop();
+    final showBackdrop = !_loading && _profile != null;
     final body = _loading
         ? const Center(
             child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+              valueColor: AlwaysStoppedAnimation<Color>(_profileGoldMid),
             ),
           )
         : _profile == null
@@ -211,15 +332,20 @@ class _ProfilePageState extends State<ProfilePage> {
         : _buildProfile();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF000000), // True black
+      backgroundColor: const Color(0xFF000000),
+      extendBodyBehindAppBar: showBackdrop,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF000000),
+        backgroundColor: showBackdrop
+            ? Colors.transparent
+            : const Color(0xFF000000),
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         automaticallyImplyLeading: false,
         leading: widget.openedFromCalendarSwipe
             ? null
             : IconButton(
-                icon: KemeticGold.icon(Icons.close), // Gold
+                icon: _profileGoldIcon(Icons.close),
                 onPressed: () => Navigator.pop(context),
               ),
         title: Text(
@@ -233,35 +359,75 @@ class _ProfilePageState extends State<ProfilePage> {
         actions: [
           IconButton(
             tooltip: 'New note',
-            icon: const GlossyIcon(icon: Icons.add, gradient: goldGloss),
+            icon: _profileGoldIcon(Icons.add),
             onPressed: () {
               unawaited(_openCalendarQuickAdd());
             },
           ),
           IconButton(
             tooltip: 'Today',
-            icon: const GlossyIcon(icon: Icons.today, gradient: goldGloss),
+            icon: _profileGoldIcon(Icons.today),
             onPressed: () => CalendarPage.openMainCalendarAtToday(context),
           ),
           Builder(
             builder: (btnCtx) => IconButton(
               tooltip: 'Menu',
-              icon: const InboxUnreadDotOverlay(
-                child: GlossyIcon(icon: Icons.apps, gradient: goldGloss),
-              ),
+              icon: InboxUnreadDotOverlay(child: _profileGoldIcon(Icons.apps)),
               onPressed: () => _openCalendarMenu(btnCtx),
             ),
           ),
           if (!_isViewingOwnProfile)
             IconButton(
               tooltip: 'My Profile',
-              icon: const GlossyIcon(icon: Icons.person, gradient: goldGloss),
+              icon: _profileGoldIcon(Icons.person),
               onPressed: _openMyProfileAction,
             ),
         ],
       ),
       body: Stack(
         children: [
+          if (showBackdrop) ...[
+            const Positioned.fill(child: _ProfileBackdrop()),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.3),
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.45),
+                        const Color(0xFF000000),
+                      ],
+                      stops: const [0.0, 0.22, 0.58, 0.8],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: MediaQuery.paddingOf(context).top + kToolbarHeight + 24,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.72),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
           body,
           if (canRevealCalendar) _buildCalendarRevealSwipeGate(),
         ],
@@ -294,42 +460,167 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildProfile() {
     final profile = _profile!;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          // Avatar
-          _buildAvatar(profile),
-          const SizedBox(height: 24),
+    final topInset = MediaQuery.paddingOf(context).top + kToolbarHeight;
+    final height = MediaQuery.sizeOf(context).height;
+    final heroHeight = (height * 0.54).clamp(420.0, 560.0);
+    final bio = profile.bio?.trim() ?? '';
 
-          // Display name / Handle
-          Text(
-            profile.effectiveName,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildHeroSection(profile, topInset: topInset, height: heroHeight),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (bio.isNotEmpty) ...[
+                  Text(
+                    bio,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.86),
+                      fontSize: 15,
+                      height: 1.48,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                ],
+                _buildStats(profile),
+                const SizedBox(height: 18),
+                _buildActionCluster(),
+                const SizedBox(height: 28),
+                Container(
+                  padding: const EdgeInsets.only(top: 18),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: _profileGoldMid.withValues(alpha: 0.18),
+                      ),
+                    ),
+                  ),
+                  child: _buildPostsSection(),
+                ),
+              ],
             ),
           ),
-          if (profile.handle != null) ...[
-            const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroSection(
+    UserProfile profile, {
+    required double topInset,
+    required double height,
+  }) {
+    return SizedBox(
+      height: height,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, topInset + 20, 20, 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
             Text(
-              '@${profile.handle}',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
-                fontSize: 15,
+              profile.effectiveName,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 34,
+                fontWeight: FontWeight.w700,
+                height: 1.02,
+                shadows: [
+                  Shadow(
+                    color: Colors.black87,
+                    blurRadius: 18,
+                    offset: Offset(0, 4),
+                  ),
+                ],
               ),
             ),
+            if (profile.handle != null &&
+                profile.handle!.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                '@${profile.handle}',
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.78),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            if (profile.avatarGlyphIds.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _buildGlyphSignature(profile),
+            ],
           ],
-          if (profile.avatarGlyphIds.isNotEmpty) ...[
-            const SizedBox(height: 10),
+        ),
+      ),
+    );
+  }
+
+  Widget _profileGoldTextWidget(
+    String text, {
+    required TextStyle style,
+    int? maxLines,
+    TextOverflow? overflow,
+    bool? softWrap,
+    TextAlign? textAlign,
+  }) {
+    return GlossyText(
+      text: text,
+      style: style,
+      gradient: _profileGoldGradient,
+      maxLines: maxLines,
+      overflow: overflow,
+      softWrap: softWrap,
+      textAlign: textAlign,
+    );
+  }
+
+  Widget _profileGoldIcon(IconData icon, {double? size}) {
+    return GlossyIcon(icon: icon, gradient: _profileGoldGradient, size: size);
+  }
+
+  Widget _buildGlyphSignature(UserProfile profile) {
+    final glyphs = profileGlyphPhraseGlyphs(profile.avatarGlyphIds);
+    final meaning = profileGlyphPhraseMeaning(profile.avatarGlyphIds);
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 420),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.46),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: _profileGoldMid.withValues(alpha: 0.26)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.28),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
             Text(
-              profileGlyphPhraseGlyphs(profile.avatarGlyphIds),
+              glyphs,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: KemeticGold.base,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+                color: _profileGoldText,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                height: 1.1,
                 fontFamily: 'GentiumPlus',
                 fontFamilyFallback: [
                   'Noto Sans Egyptian Hieroglyphs',
@@ -340,69 +631,21 @@ class _ProfilePageState extends State<ProfilePage> {
                 ],
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              profileGlyphPhraseMeaning(profile.avatarGlyphIds),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.68),
-                fontSize: 13,
-                height: 1.3,
+            if (meaning.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                meaning,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.78),
+                  fontSize: 13,
+                  height: 1.3,
+                ),
               ),
-            ),
+            ],
           ],
-
-          // Bio
-          if (profile.bio != null && profile.bio!.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(
-              profile.bio!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                height: 1.4,
-              ),
-            ),
-          ],
-
-          // Stats
-          const SizedBox(height: 32),
-          _buildStats(profile),
-
-          if (!_isViewingOwnProfile) ...[
-            const SizedBox(height: 24),
-            _buildFollowButton(),
-          ],
-
-          // Edit/find buttons (only for own profile)
-          if (_isViewingOwnProfile) ...[
-            const SizedBox(height: 24),
-            _buildEditButton(),
-            const SizedBox(height: 12),
-            _buildFindPeopleButton(),
-            const SizedBox(height: 24),
-            _buildPostFlowButton(),
-          ],
-
-          const SizedBox(height: 24),
-          _buildPostsSection(),
-        ],
+        ),
       ),
-    );
-  }
-
-  Widget _buildAvatar(UserProfile profile) {
-    return ProfileAvatar(
-      radius: 50,
-      displayName: profile.effectiveName,
-      avatarUrl: profile.avatarUrl,
-      avatarGlyphIds: profile.avatarGlyphIds,
-      borderColor: KemeticGold.base,
-      borderWidth: 2,
-      foregroundColor: KemeticGold.base,
-      backgroundColor: const Color(0xFF0D0D0F),
-      maxInitialCharacters: 1,
     );
   }
 
@@ -436,24 +679,27 @@ class _ProfilePageState extends State<ProfilePage> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 360;
-        final spacing = compact ? 8.0 : 16.0;
+        final compact = constraints.maxWidth < 460;
+        final spacing = 10.0;
+        final columns = compact ? 2 : 4;
+        final itemWidth =
+            (constraints.maxWidth - (spacing * (columns - 1))) / columns;
 
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
           children: [
-            for (int i = 0; i < stats.length; i++) ...[
-              if (i > 0) SizedBox(width: spacing),
-              Expanded(
+            for (final stat in stats)
+              SizedBox(
+                width: itemWidth,
                 child: _buildStatItem(
-                  label: stats[i].label,
-                  value: stats[i].value,
-                  onTap: stats[i].onTap,
-                  enabled: stats[i].enabled,
+                  label: stat.label,
+                  value: stat.value,
+                  onTap: stat.onTap,
+                  enabled: stat.enabled,
                   compact: compact,
                 ),
               ),
-            ],
           ],
         );
       },
@@ -468,25 +714,32 @@ class _ProfilePageState extends State<ProfilePage> {
     bool compact = false,
   }) {
     final numberColor = enabled
-        ? KemeticGold.base
-        : KemeticGold.base.withValues(alpha: 0.6);
+        ? _profileGoldText
+        : _profileGoldBase.withValues(alpha: 0.6);
     final labelColor = enabled
-        ? Colors.white.withValues(alpha: 0.6)
+        ? Colors.white.withValues(alpha: 0.7)
         : Colors.white.withValues(alpha: 0.35);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: withMinimumTouchTarget(
-          context,
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? 0 : 4,
-              vertical: 4,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: enabled ? 0.34 : 0.22),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: enabled
+                  ? _profileGoldMid.withValues(alpha: 0.2)
+                  : Colors.white.withValues(alpha: 0.06),
             ),
+          ),
+          child: Container(
+            constraints: BoxConstraints(minHeight: compact ? 82 : 92),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
                   width: double.infinity,
@@ -496,26 +749,23 @@ class _ProfilePageState extends State<ProfilePage> {
                       value,
                       style: TextStyle(
                         color: numberColor,
-                        fontSize: compact ? 22 : 24,
-                        fontWeight: FontWeight.bold,
+                        fontSize: compact ? 25 : 24,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                SizedBox(
-                  width: double.infinity,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: labelColor,
-                        fontSize: compact ? 12 : 13,
-                      ),
-                    ),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: labelColor,
+                    fontSize: compact ? 12 : 13,
+                    height: 1.2,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -640,129 +890,212 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildFollowButton() {
     final isFollowing = _isFollowing;
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _followUpdating ? null : _toggleFollow,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isFollowing ? Colors.black : KemeticGold.base,
-          foregroundColor: isFollowing ? Colors.white : const Color(0xFF000000),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: KemeticGold.base,
-              width: isFollowing ? 1.5 : 0,
-            ),
-          ),
-        ),
-        child: _followUpdating
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
-                ),
-              )
-            : Text(
-                isFollowing ? 'Unfollow' : 'Follow',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-      ),
+    return _buildActionButton(
+      label: isFollowing ? 'Following' : 'Follow',
+      icon: isFollowing
+          ? Icons.check_circle_outline_rounded
+          : Icons.person_add_alt_1_rounded,
+      onPressed: _followUpdating ? null : _toggleFollow,
+      filled: !isFollowing,
+      busy: _followUpdating,
+      backgroundColor: isFollowing ? const Color(0xFF0B0B0E) : _profileGoldBase,
+      foregroundColor: isFollowing ? _profileGoldText : const Color(0xFF1C1204),
+      borderColor: _profileGoldMid,
     );
   }
 
   Widget _buildEditButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () async {
-          // Navigate to edit profile page
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => EditProfilePage(initialProfile: _profile!),
-            ),
-          );
-
-          // Reload profile data if updated
-          if (result == true) {
-            await _loadProfile();
-          }
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: KemeticGold.base, // Gold
-          foregroundColor: const Color(0xFF000000), // Black text
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+    return _buildActionButton(
+      label: 'Edit Profile',
+      icon: Icons.edit_outlined,
+      onPressed: () async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EditProfilePage(initialProfile: _profile!),
           ),
-        ),
-        child: const Text(
-          'Edit Profile',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-      ),
+        );
+
+        if (result == true) {
+          await _loadProfile();
+        }
+      },
+      filled: true,
+      backgroundColor: _profileGoldBase,
+      foregroundColor: const Color(0xFF1C1204),
+      borderColor: _profileGoldMid,
     );
   }
 
   Widget _buildFindPeopleButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton(
-        onPressed: () async {
-          final selectedUserId = await Navigator.of(context).push<String>(
-            MaterialPageRoute(builder: (_) => const ProfileSearchPage()),
-          );
+    return _buildActionButton(
+      label: 'Find People',
+      icon: Icons.people_outline_rounded,
+      onPressed: () async {
+        final selectedUserId = await Navigator.of(context).push<String>(
+          MaterialPageRoute(builder: (_) => const ProfileSearchPage()),
+        );
 
-          if (!mounted || selectedUserId == null) return;
+        if (!mounted || selectedUserId == null) return;
 
-          if (selectedUserId == widget.userId) {
-            await _loadProfile(showSpinner: false);
-            return;
-          }
+        if (selectedUserId == widget.userId) {
+          await _loadProfile(showSpinner: false);
+          return;
+        }
 
-          await _replaceWithProfile(selectedUserId);
-        },
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: KemeticGold.base),
-          foregroundColor: KemeticGold.base,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: KemeticGold.text(
-          'Find People',
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-        ),
-      ),
+        await _replaceWithProfile(selectedUserId);
+      },
+      foregroundColor: _profileGoldText,
+      borderColor: _profileGoldMid.withValues(alpha: 0.42),
     );
   }
 
   Widget _buildPostFlowButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        icon: KemeticGold.icon(Icons.upload),
-        label: KemeticGold.text(
-          'Post a Flow',
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+    return _buildActionButton(
+      label: 'Post Flow',
+      icon: Icons.upload_rounded,
+      onPressed: _openPostPicker,
+      foregroundColor: _profileGoldText,
+      borderColor: _profileGoldMid.withValues(alpha: 0.42),
+    );
+  }
+
+  Widget _buildActionCluster() {
+    final actions = _isViewingOwnProfile
+        ? <Widget>[
+            _buildEditButton(),
+            _buildFindPeopleButton(),
+            _buildPostFlowButton(),
+          ]
+        : <Widget>[_buildFollowButton()];
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 10,
+      runSpacing: 10,
+      children: actions,
+    );
+  }
+
+  Widget _buildActionButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback? onPressed,
+    bool filled = false,
+    bool busy = false,
+    Color foregroundColor = _profileGoldText,
+    Color backgroundColor = const Color(0xFF0B0B0E),
+    Color borderColor = _profileGoldMid,
+  }) {
+    final buttonHeight = useExpandedTouchTargets(context)
+        ? kMinInteractiveDimension
+        : 40.0;
+
+    final child = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (busy)
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(foregroundColor),
+            ),
+          )
+        else
+          Icon(icon, size: 17),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.fade,
+          softWrap: false,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
         ),
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: KemeticGold.base),
-          foregroundColor: KemeticGold.base,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+      ],
+    );
+
+    if (filled) {
+      final radius = BorderRadius.circular(999);
+      final interactive = Material(
+        color: Colors.transparent,
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: _profileGoldGradient,
+            borderRadius: radius,
+            border: Border.all(
+              color: _profileGoldLight.withValues(alpha: 0.52),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _profileGoldDeep.withValues(alpha: 0.34),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: InkWell(
+            borderRadius: radius,
+            onTap: onPressed,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: DefaultTextStyle(
+                style: TextStyle(color: foregroundColor),
+                child: IconTheme(
+                  data: IconThemeData(color: foregroundColor),
+                  child: child,
+                ),
+              ),
+            ),
           ),
         ),
-        onPressed: _openPostPicker,
+      );
+      return withMinimumTouchTarget(
+        context,
+        interactive,
+        alignment: Alignment.center,
+        fallback: BoxConstraints(minHeight: buttonHeight),
+      );
+    }
+
+    final radius = BorderRadius.circular(999);
+    final interactive = Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: radius,
+          border: Border.all(color: borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.24),
+              blurRadius: 12,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: InkWell(
+          borderRadius: radius,
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: DefaultTextStyle(
+              style: TextStyle(color: foregroundColor),
+              child: IconTheme(
+                data: IconThemeData(color: foregroundColor),
+                child: child,
+              ),
+            ),
+          ),
+        ),
       ),
+    );
+    return withMinimumTouchTarget(
+      context,
+      interactive,
+      alignment: Alignment.center,
+      fallback: BoxConstraints(minHeight: buttonHeight),
     );
   }
 
@@ -770,34 +1103,44 @@ class _ProfilePageState extends State<ProfilePage> {
     if (_postsLoading) {
       return const Center(
         child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+          valueColor: AlwaysStoppedAnimation<Color>(_profileGoldMid),
         ),
       );
     }
 
     if (_posts.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            _isViewingOwnProfile ? 'Nothing posted yet' : 'No posted flows yet',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0C0C0F),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: _profileGoldMid.withValues(alpha: 0.16)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              _isViewingOwnProfile
+                  ? 'Nothing posted yet'
+                  : 'No posted flows yet',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _isViewingOwnProfile
-                ? 'Post a flow to share it on your profile.'
-                : 'Check back later for posted flows.',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.6),
-              fontSize: 14,
+            const SizedBox(height: 8),
+            Text(
+              _isViewingOwnProfile
+                  ? 'Post a flow to share it on your profile.'
+                  : 'Check back later for posted flows.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 14,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
 
@@ -867,7 +1210,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   width: _activePostIndex == i ? 18 : 8,
                   decoration: BoxDecoration(
                     color: _activePostIndex == i
-                        ? KemeticGold.base
+                        ? _profileGoldMid
                         : Colors.white.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -950,7 +1293,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         const SizedBox(height: 14),
-        KemeticGold.text(
+        _profileGoldTextWidget(
           title.isEmpty ? 'Untitled Flow' : title,
           maxLines: inPager ? 4 : 3,
           overflow: TextOverflow.ellipsis,
@@ -1027,8 +1370,8 @@ class _ProfilePageState extends State<ProfilePage> {
               else
                 TextButton.icon(
                   onPressed: () => _savePost(post),
-                  icon: KemeticGold.icon(Icons.bookmark_add_outlined),
-                  label: KemeticGold.text(
+                  icon: _profileGoldIcon(Icons.bookmark_add_outlined),
+                  label: _profileGoldTextWidget(
                     'Save Flow',
                     style: const TextStyle(
                       fontSize: 15,
@@ -1038,7 +1381,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               TextButton(
                 onPressed: onTap,
-                child: KemeticGold.text(
+                child: _profileGoldTextWidget(
                   'Open',
                   style: const TextStyle(
                     fontSize: 15,
@@ -1056,7 +1399,7 @@ class _ProfilePageState extends State<ProfilePage> {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: KemeticGold.base.withValues(alpha: 0.42)),
+        border: Border.all(color: _profileGoldMid.withValues(alpha: 0.34)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.45),
@@ -1144,7 +1487,7 @@ class _ProfilePageState extends State<ProfilePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Flow saved to your flows'),
-        backgroundColor: KemeticGold.base,
+        backgroundColor: _profileGoldBase,
       ),
     );
   }
@@ -1157,5 +1500,506 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
     await _loadPosts();
+  }
+}
+
+class _ProfileBackdropFrame {
+  final String assetPath;
+  final int minuteOfDay;
+
+  const _ProfileBackdropFrame({
+    required this.assetPath,
+    required this.minuteOfDay,
+  });
+}
+
+class _ProfileBackdropBlend {
+  final _ProfileBackdropFrame current;
+  final _ProfileBackdropFrame next;
+  final _ProfileBackdropFrame upcoming;
+  final double t;
+
+  const _ProfileBackdropBlend({
+    required this.current,
+    required this.next,
+    required this.upcoming,
+    required this.t,
+  });
+
+  factory _ProfileBackdropBlend.forTime(DateTime now) {
+    final minuteOfDay =
+        (now.hour * 60) +
+        now.minute +
+        (now.second / 60) +
+        (now.millisecond / 60000);
+
+    for (var index = 0; index < _profileBackdropFrames.length; index++) {
+      final current = _profileBackdropFrames[index];
+      final next =
+          _profileBackdropFrames[(index + 1) % _profileBackdropFrames.length];
+      final nextMinute = index == _profileBackdropFrames.length - 1
+          ? next.minuteOfDay + 1440
+          : next.minuteOfDay;
+      final wrappedMinute =
+          index == _profileBackdropFrames.length - 1 &&
+              minuteOfDay < current.minuteOfDay
+          ? minuteOfDay + 1440
+          : minuteOfDay;
+
+      if (wrappedMinute >= current.minuteOfDay && wrappedMinute < nextMinute) {
+        final span = nextMinute - current.minuteOfDay;
+        final t = span <= 0
+            ? 0.0
+            : (wrappedMinute - current.minuteOfDay) / span;
+        return _ProfileBackdropBlend(
+          current: current,
+          next: next,
+          upcoming:
+              _profileBackdropFrames[(index + 2) %
+                  _profileBackdropFrames.length],
+          t: t.clamp(0.0, 1.0).toDouble(),
+        );
+      }
+    }
+
+    return _ProfileBackdropBlend(
+      current: _profileBackdropFrames.first,
+      next: _profileBackdropFrames[1],
+      upcoming: _profileBackdropFrames[2],
+      t: 0.0,
+    );
+  }
+}
+
+class _ProfileBackdrop extends StatefulWidget {
+  const _ProfileBackdrop();
+
+  @override
+  State<_ProfileBackdrop> createState() => _ProfileBackdropState();
+}
+
+class _ProfileBackdropState extends State<_ProfileBackdrop> {
+  static const Alignment _heroImageAlignment = Alignment(-0.08, -1.0);
+  static const double _heroImageOpacity = 0.9;
+
+  final Set<String> _precachedAssets = <String>{};
+  Timer? _tickTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleNextTick();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _primeAssets(_ProfileBackdropBlend.forTime(DateTime.now()));
+  }
+
+  @override
+  void dispose() {
+    _tickTimer?.cancel();
+    super.dispose();
+  }
+
+  void _primeAssets(_ProfileBackdropBlend blend) {
+    final assetsToPrime = <String>[
+      for (final assetPath in {
+        blend.current.assetPath,
+        blend.next.assetPath,
+        blend.upcoming.assetPath,
+      })
+        if (_precachedAssets.add(assetPath)) assetPath,
+    ];
+    if (assetsToPrime.isEmpty) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final assetPath in assetsToPrime) {
+        unawaited(precacheImage(AssetImage(assetPath), context));
+      }
+    });
+  }
+
+  void _scheduleNextTick() {
+    _tickTimer?.cancel();
+    final now = DateTime.now();
+    final nextMinute = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute + 1,
+    );
+    _tickTimer = Timer(nextMinute.difference(now), () {
+      if (!mounted) return;
+      setState(() {});
+      _scheduleNextTick();
+    });
+  }
+
+  Widget _buildBackdropImage(String assetPath) {
+    return Image.asset(
+      assetPath,
+      fit: BoxFit.cover,
+      alignment: _heroImageAlignment,
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.medium,
+      errorBuilder: (context, error, stackTrace) =>
+          const CustomPaint(painter: _ProfileBackdropPainter()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final blend = _ProfileBackdropBlend.forTime(DateTime.now());
+    _primeAssets(blend);
+
+    return RepaintBoundary(
+      child: SizedBox.expand(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Opacity(
+              opacity: _heroImageOpacity,
+              child: _buildBackdropImage(blend.current.assetPath),
+            ),
+            if (blend.t > 0.001)
+              Opacity(
+                opacity: _heroImageOpacity * blend.t,
+                child: _buildBackdropImage(blend.next.assetPath),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileBackdropPainter extends CustomPainter {
+  const _ProfileBackdropPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bounds = Offset.zero & size;
+    canvas.drawRect(
+      bounds,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF04070E), Color(0xFF070A10), Color(0xFF070707)],
+          stops: [0.0, 0.6, 1.0],
+        ).createShader(bounds),
+    );
+
+    _paintMilkyWay(canvas, size);
+    _paintStars(canvas, size);
+    _paintGround(canvas, size);
+    _paintPyramid(canvas, size);
+    _paintStructures(canvas, size);
+  }
+
+  void _paintMilkyWay(Canvas canvas, Size size) {
+    final center = Offset(size.width * 0.52, size.height * 0.24);
+    final rect = Rect.fromCenter(
+      center: center,
+      width: size.width * 0.34,
+      height: size.height * 0.98,
+    );
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(-0.18);
+    canvas.translate(-center.dx, -center.dy);
+    canvas.drawOval(
+      rect,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            const Color(0x90D5E5FF),
+            const Color(0x5093A8D6),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.24, 1.0],
+        ).createShader(rect)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 30),
+    );
+    final coreRect = Rect.fromCenter(
+      center: center,
+      width: size.width * 0.11,
+      height: size.height * 1.04,
+    );
+    canvas.drawOval(
+      coreRect,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            const Color(0x88FAFCFF),
+            const Color(0x44C5D2F0),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.3, 1.0],
+        ).createShader(coreRect)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20),
+    );
+    canvas.restore();
+
+    final random = math.Random(11);
+    const bandStart = Offset(0.42, 0.0);
+    const bandEnd = Offset(0.61, 0.74);
+    for (var i = 0; i < 180; i++) {
+      final t = random.nextDouble();
+      final centerPoint = Offset(
+        size.width * (bandStart.dx + ((bandEnd.dx - bandStart.dx) * t)),
+        size.height * (bandStart.dy + ((bandEnd.dy - bandStart.dy) * t)),
+      );
+      final offset = Offset(
+        (random.nextDouble() - 0.5) * size.width * 0.14,
+        (random.nextDouble() - 0.5) * size.height * 0.04,
+      );
+      final radius = 0.6 + (random.nextDouble() * 1.7);
+      final alpha = 0.08 + (random.nextDouble() * 0.16);
+      canvas.drawCircle(
+        centerPoint + offset,
+        radius,
+        Paint()..color = const Color(0xFFE6EEFF).withValues(alpha: alpha),
+      );
+    }
+  }
+
+  void _paintStars(Canvas canvas, Size size) {
+    final random = math.Random(23);
+    final bigStarPaint = Paint()
+      ..color = const Color(0xFFF7FBFF)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+
+    for (var i = 0; i < 420; i++) {
+      final x = random.nextDouble() * size.width;
+      final y = random.nextDouble() * size.height * 0.72;
+      final radius = random.nextDouble() < 0.08
+          ? 1.8 + (random.nextDouble() * 1.6)
+          : 0.45 + (random.nextDouble() * 1.2);
+      final blueShift = random.nextDouble();
+      final color = blueShift < 0.18
+          ? const Color(0xFF8FB7FF)
+          : const Color(0xFFF6F7FF);
+      final alpha = 0.28 + (random.nextDouble() * 0.65);
+      canvas.drawCircle(
+        Offset(x, y),
+        radius,
+        Paint()..color = color.withValues(alpha: alpha),
+      );
+      if (radius > 2.4) {
+        canvas.drawCircle(Offset(x, y), radius + 1.4, bigStarPaint);
+      }
+    }
+  }
+
+  void _paintGround(Canvas canvas, Size size) {
+    final horizonY = size.height * 0.73;
+    final vanishingPoint = Offset(size.width * 0.62, size.height * 0.74);
+    final groundPath = Path()
+      ..moveTo(0, horizonY)
+      ..lineTo(size.width, horizonY + (size.height * 0.03))
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+
+    canvas.drawPath(
+      groundPath,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF24272D).withValues(alpha: 0.82),
+            const Color(0xFF111214).withValues(alpha: 0.96),
+            const Color(0xFF060606),
+          ],
+          stops: const [0.0, 0.52, 1.0],
+        ).createShader(Offset.zero & size),
+    );
+
+    canvas.save();
+    canvas.clipPath(groundPath);
+    final linePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.09)
+      ..strokeWidth = 1.0;
+    for (final x in <double>[
+      -size.width * 0.05,
+      size.width * 0.14,
+      size.width * 0.29,
+      size.width * 0.45,
+      size.width * 0.68,
+      size.width * 0.9,
+    ]) {
+      canvas.drawLine(Offset(x, size.height), vanishingPoint, linePaint);
+    }
+    for (var i = 0; i < 6; i++) {
+      final y = horizonY + ((size.height * 0.04) * i * 1.4);
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y + ((size.height * 0.02) * i * 0.2)),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.06)
+          ..strokeWidth = 1.0,
+      );
+    }
+    canvas.restore();
+  }
+
+  void _paintPyramid(Canvas canvas, Size size) {
+    final apex = Offset(size.width * 0.17, size.height * 0.05);
+    final ridgeBase = Offset(size.width * 0.28, size.height * 0.79);
+    final litBase = Offset(size.width * 0.58, size.height * 0.76);
+    final leftShadowBase = Offset(-size.width * 0.02, size.height * 0.87);
+    final leftShadowTop = Offset(-size.width * 0.02, size.height * 0.24);
+
+    final shadowFace = Path()
+      ..moveTo(leftShadowTop.dx, leftShadowTop.dy)
+      ..lineTo(apex.dx, apex.dy)
+      ..lineTo(ridgeBase.dx, ridgeBase.dy)
+      ..lineTo(leftShadowBase.dx, leftShadowBase.dy)
+      ..close();
+    canvas.drawPath(
+      shadowFace,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            const Color(0xFF111418),
+            const Color(0xFF090A0D),
+            const Color(0xFF040404),
+          ],
+        ).createShader(Offset.zero & size),
+    );
+
+    final litFace = Path()
+      ..moveTo(apex.dx, apex.dy)
+      ..lineTo(litBase.dx, litBase.dy)
+      ..lineTo(ridgeBase.dx, ridgeBase.dy)
+      ..close();
+    canvas.drawPath(
+      litFace,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFFB8B6B1),
+            const Color(0xFF7D7E80),
+            const Color(0xFF4F5255),
+          ],
+          stops: const [0.0, 0.52, 1.0],
+        ).createShader(Offset.zero & size),
+    );
+
+    canvas.save();
+    canvas.clipPath(litFace);
+    final seamPaint = Paint()
+      ..color = const Color(0xFF2B2D31).withValues(alpha: 0.34)
+      ..strokeWidth = 0.9;
+    for (var i = 0; i < 32; i++) {
+      final y = (size.height * 0.12) + (i * size.height * 0.023);
+      canvas.drawLine(
+        Offset(size.width * 0.14, y),
+        Offset(size.width * 0.61, y - (size.height * 0.018)),
+        seamPaint,
+      );
+    }
+    for (var i = 0; i < 7; i++) {
+      final x = (size.width * 0.24) + (i * size.width * 0.045);
+      canvas.drawLine(
+        Offset(x, size.height * 0.15),
+        Offset(x + (size.width * 0.02), size.height * 0.79),
+        Paint()
+          ..color = const Color(0xFF34373A).withValues(alpha: 0.12)
+          ..strokeWidth = 0.8,
+      );
+    }
+    canvas.restore();
+
+    canvas.drawPath(
+      litFace,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.06)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+    canvas.drawLine(
+      apex,
+      ridgeBase,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.14)
+        ..strokeWidth = 1.2,
+    );
+  }
+
+  void _paintStructures(Canvas canvas, Size size) {
+    final structurePaint = Paint()
+      ..color = const Color(0xFF23262A).withValues(alpha: 0.82);
+    final edgePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.08)
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    final temple = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        size.width * 0.53,
+        size.height * 0.68,
+        size.width * 0.08,
+        size.height * 0.12,
+      ),
+      const Radius.circular(1),
+    );
+    canvas.drawRRect(temple, structurePaint);
+    canvas.drawRRect(temple, edgePaint);
+
+    final rightMass = Path()
+      ..moveTo(size.width * 0.72, size.height * 0.76)
+      ..lineTo(size.width, size.height * 0.79)
+      ..lineTo(size.width, size.height)
+      ..lineTo(size.width * 0.64, size.height)
+      ..close();
+    canvas.drawPath(
+      rightMass,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF2A2E33).withValues(alpha: 0.55),
+            const Color(0xFF0B0C0D),
+          ],
+        ).createShader(Offset.zero & size),
+    );
+
+    for (final rect in <Rect>[
+      Rect.fromLTWH(
+        size.width * 0.79,
+        size.height * 0.73,
+        size.width * 0.055,
+        size.height * 0.045,
+      ),
+      Rect.fromLTWH(
+        size.width * 0.89,
+        size.height * 0.74,
+        size.width * 0.07,
+        size.height * 0.038,
+      ),
+    ]) {
+      canvas.drawRect(
+        rect,
+        Paint()..color = const Color(0xFF27292C).withValues(alpha: 0.76),
+      );
+      canvas.drawRect(rect, edgePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ProfileBackdropPainter oldDelegate) {
+    return false;
   }
 }
