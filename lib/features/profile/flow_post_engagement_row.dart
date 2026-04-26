@@ -754,7 +754,7 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
   @override
   Widget build(BuildContext context) {
     return FractionallySizedBox(
-      heightFactor: 0.8,
+      heightFactor: 0.46,
       child: Padding(
         padding: EdgeInsets.only(
           left: 16,
