@@ -484,11 +484,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       return;
     }
-    if (!result.data) return;
+    final savedTodo = result.data;
+    if (savedTodo == null) return;
     _commitmentInputController.clear();
-    setState(() {
-      _future = _load();
-    });
+    _appendTodoToDay(savedTodo);
   }
 
   String _prefsKeyForUser(String? uid) =>
@@ -864,6 +863,12 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         _todos = updated;
       }
     });
+  }
+
+  void _appendTodoToDay(RhythmTodo todo) {
+    final targetDay = _normalizeDate(todo.dueDate ?? _todayLocal);
+    final current = _todosByDay[targetDay] ?? const <RhythmTodo>[];
+    _updateTodosForDay(targetDay, [...current, todo]);
   }
 
   void _scheduleMidnightRefresh() {

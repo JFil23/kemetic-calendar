@@ -33,7 +33,8 @@ class RhythmRepo {
   }
 
   String? get _userId => _client.auth.currentUser?.id;
-  String get _projectRef => Uri.tryParse(_supabaseUrl)?.host.split('.').first ?? '';
+  String get _projectRef =>
+      Uri.tryParse(_supabaseUrl)?.host.split('.').first ?? '';
 
   void _logNoteAction(
     String action, {
@@ -44,7 +45,9 @@ class RhythmRepo {
   }) {
     final uid = _userId ?? '<null>';
     final url = _supabaseUrl;
-    final buf = StringBuffer('[planner-notes] $action uid=$uid url=$url ref=$_projectRef');
+    final buf = StringBuffer(
+      '[planner-notes] $action uid=$uid url=$url ref=$_projectRef',
+    );
     if (missingTables != null) buf.write(' missingTables=$missingTables');
     if (friendlyError != null) buf.write(' friendlyError="$friendlyError"');
     if (error != null) {
@@ -68,14 +71,16 @@ class RhythmRepo {
       final fields = await _client
           .from('cycle_fields')
           .select(
-              'id, title, description, slug, checklist_enabled, reminder_enabled, tracker_enabled, metadata, value_json')
+            'id, title, description, slug, checklist_enabled, reminder_enabled, tracker_enabled, metadata, value_json',
+          )
           .eq('user_id', uid)
           .order('created_at', ascending: true);
 
       final rules = await _client
           .from('cycle_schedule_rules')
           .select(
-              'id, field_id, title, days_of_week, all_day, start_time_local, end_time_local, reminder_offset_minutes, is_optional')
+            'id, field_id, title, days_of_week, all_day, start_time_local, end_time_local, reminder_offset_minutes, is_optional',
+          )
           .eq('user_id', uid)
           .order('created_at', ascending: true);
 
@@ -83,14 +88,19 @@ class RhythmRepo {
       for (final r in rules) {
         final fieldId = r['field_id'] as String?;
         if (fieldId == null) continue;
-        ruleByField.putIfAbsent(fieldId, () => []).add(Map<String, dynamic>.from(r));
+        ruleByField
+            .putIfAbsent(fieldId, () => [])
+            .add(Map<String, dynamic>.from(r));
       }
 
       final sections = _groupFieldsIntoSections(fields, ruleByField);
       return RhythmRepoResult(data: sections);
     } catch (e) {
       if (_isMissingTable(e)) {
-        return const RhythmRepoResult(data: <RhythmSection>[], missingTables: true);
+        return const RhythmRepoResult(
+          data: <RhythmSection>[],
+          missingTables: true,
+        );
       }
       return RhythmRepoResult(
         data: const [],
@@ -107,13 +117,15 @@ class RhythmRepo {
     }
     try {
       final today = DateTime.now();
-      final todayIso = DateFormat('yyyy-MM-dd').format(
-        DateTime(today.year, today.month, today.day),
-      );
+      final todayIso = DateFormat(
+        'yyyy-MM-dd',
+      ).format(DateTime(today.year, today.month, today.day));
 
       final fields = await _client
           .from('cycle_fields')
-          .select('id, title, description, slug, checklist_enabled, reminder_enabled, tracker_enabled, metadata, value_json')
+          .select(
+            'id, title, description, slug, checklist_enabled, reminder_enabled, tracker_enabled, metadata, value_json',
+          )
           .eq('user_id', uid)
           .eq('checklist_enabled', true);
 
@@ -126,7 +138,8 @@ class RhythmRepo {
             .eq('local_date', todayIso);
         statusByFieldId = {
           for (final row in checklistRows)
-            if (row['field_id'] != null) row['field_id'] as String: row['status'] as String
+            if (row['field_id'] != null)
+              row['field_id'] as String: row['status'] as String,
         };
       } catch (e) {
         // Missing checklist table is acceptable; leave empty.
@@ -156,9 +169,15 @@ class RhythmRepo {
       return RhythmRepoResult(data: items);
     } catch (e) {
       if (_isMissingTable(e)) {
-        return const RhythmRepoResult(data: <RhythmItem>[], missingTables: true);
+        return const RhythmRepoResult(
+          data: <RhythmItem>[],
+          missingTables: true,
+        );
       }
-      return RhythmRepoResult(data: const [], friendlyError: _friendlyMessage(e));
+      return RhythmRepoResult(
+        data: const [],
+        friendlyError: _friendlyMessage(e),
+      );
     }
   }
 
@@ -169,79 +188,100 @@ class RhythmRepo {
       final rows = await _client
           .from('todos')
           .select(
-              'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status')
+            'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
+          )
           .eq('user_id', uid)
           .order('created_at', ascending: true);
 
-      final todos = rows.map<RhythmTodo>((row) {
-        final dueDate = row['due_date'] != null ? DateTime.parse(row['due_date'] as String) : null;
-        final dueTimeStr = row['due_time'] as String?;
-        final time = dueTimeStr != null ? _parseTime(dueTimeStr) : null;
-        return RhythmTodo(
-          id: row['id'] as String? ?? '',
-          title: row['title'] as String? ?? 'Task',
-          notes: row['notes'] as String?,
-          dueDate: dueDate,
-          dueTime: time,
-          isChecklist: (row['show_on_checklist'] as bool?) ?? true,
-          isCalendar: (row['show_on_calendar'] as bool?) ?? true,
-          state: _statusToState(row['status'] as String?),
-        );
-      }).toList();
+      final todos = rows
+          .map<RhythmTodo>(
+            (row) => _todoFromRow(Map<String, dynamic>.from(row)),
+          )
+          .toList();
       return RhythmRepoResult(data: todos);
     } catch (e) {
       if (_isMissingTable(e)) {
-        return const RhythmRepoResult(data: <RhythmTodo>[], missingTables: true);
+        return const RhythmRepoResult(
+          data: <RhythmTodo>[],
+          missingTables: true,
+        );
       }
-      return RhythmRepoResult(data: const [], friendlyError: _friendlyMessage(e));
+      return RhythmRepoResult(
+        data: const [],
+        friendlyError: _friendlyMessage(e),
+      );
     }
   }
 
-  /// Quick-add from Today's Alignment: title only, due today, on checklist.
-  Future<RhythmRepoResult<bool>> insertTodaysCommitment(
+  /// Quick-add from Today's Alignment and return the saved row so the page
+  /// can update locally without a full reload.
+  Future<RhythmRepoResult<RhythmTodo?>> insertTodaysCommitment(
     String title, {
     DateTime? dueDate,
   }) async {
     final uid = _userId;
     if (uid == null) {
-      return const RhythmRepoResult(data: false, friendlyError: 'Not signed in');
+      return const RhythmRepoResult(data: null, friendlyError: 'Not signed in');
     }
     final trimmed = title.trim();
     if (trimmed.isEmpty) {
-      return const RhythmRepoResult(data: false);
+      return const RhythmRepoResult(data: null);
     }
     final target = DateUtils.dateOnly(dueDate ?? DateTime.now());
     final todayIso = DateFormat('yyyy-MM-dd').format(target);
     try {
-      await _client.from('todos').insert({
-        'user_id': uid,
-        'title': trimmed,
-        'due_date': todayIso,
-        'show_on_checklist': true,
-        'show_on_calendar': true,
-        'status': 'pending',
-      });
-      return const RhythmRepoResult(data: true);
+      final row = await _client
+          .from('todos')
+          .insert({
+            'user_id': uid,
+            'title': trimmed,
+            'due_date': todayIso,
+            'show_on_checklist': true,
+            'show_on_calendar': true,
+            'status': 'pending',
+          })
+          .select(
+            'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
+          )
+          .maybeSingle();
+      if (row == null) {
+        return const RhythmRepoResult(data: null);
+      }
+      return RhythmRepoResult(
+        data: _todoFromRow(Map<String, dynamic>.from(row)),
+      );
     } catch (e) {
       if (_isMissingTable(e)) {
-        return const RhythmRepoResult(data: false, missingTables: true);
+        return const RhythmRepoResult(data: null, missingTables: true);
       }
-      return RhythmRepoResult(data: false, friendlyError: _friendlyMessage(e));
+      return RhythmRepoResult(data: null, friendlyError: _friendlyMessage(e));
     }
   }
 
-  Future<RhythmRepoResult<bool>> updateTodoState(String todoId, RhythmItemState state) async {
+  Future<RhythmRepoResult<bool>> updateTodoState(
+    String todoId,
+    RhythmItemState state,
+  ) async {
     final uid = _userId;
     if (uid == null) {
-      return const RhythmRepoResult(data: false, friendlyError: 'Not signed in');
+      return const RhythmRepoResult(
+        data: false,
+        friendlyError: 'Not signed in',
+      );
     }
     final status = _stateToDbString(state);
     final payload = <String, dynamic>{
       'status': status,
-      'completed_at': state == RhythmItemState.done ? DateTime.now().toUtc().toIso8601String() : null,
+      'completed_at': state == RhythmItemState.done
+          ? DateTime.now().toUtc().toIso8601String()
+          : null,
     };
     try {
-      await _client.from('todos').update(payload).eq('id', todoId).eq('user_id', uid);
+      await _client
+          .from('todos')
+          .update(payload)
+          .eq('id', todoId)
+          .eq('user_id', uid);
       return const RhythmRepoResult(data: true);
     } catch (e) {
       if (_isMissingTable(e)) {
@@ -273,23 +313,25 @@ class RhythmRepo {
     try {
       final fields = await _client
           .from('cycle_fields')
-          .select('id, title, tracker_enabled, reminder_enabled, checklist_enabled')
+          .select(
+            'id, title, tracker_enabled, reminder_enabled, checklist_enabled',
+          )
           .eq('user_id', uid)
           .eq('tracker_enabled', true);
 
       final today = DateTime.now();
-      final todayStr = DateFormat('yyyy-MM-dd').format(
-        DateTime(today.year, today.month, today.day),
-      );
+      final todayStr = DateFormat(
+        'yyyy-MM-dd',
+      ).format(DateTime(today.year, today.month, today.day));
       final daysBack = switch (scope) {
         'Weekly' => 6,
         'Monthly' => 29,
         _ => 364,
       };
       final start = today.subtract(Duration(days: daysBack));
-      final startStr = DateFormat('yyyy-MM-dd').format(
-        DateTime(start.year, start.month, start.day),
-      );
+      final startStr = DateFormat(
+        'yyyy-MM-dd',
+      ).format(DateTime(start.year, start.month, start.day));
       List<Map<String, dynamic>> checklist = [];
       try {
         checklist = await _client
@@ -314,11 +356,16 @@ class RhythmRepo {
       final snapshots = fields.map<ContinuitySnapshot>((f) {
         final fieldId = f['id'] as String? ?? '';
         final raw = byField[fieldId] ?? const [];
-        final completed = raw.where((b) => b == ContinuityBlockState.done).length;
+        final completed = raw
+            .where((b) => b == ContinuityBlockState.done)
+            .length;
         final planned = raw.isEmpty ? slotCount : raw.length;
         final percent = planned == 0 ? 0.0 : completed / planned;
         final blocks = raw.isEmpty
-            ? List<ContinuityBlockState>.filled(slotCount, ContinuityBlockState.unscheduled)
+            ? List<ContinuityBlockState>.filled(
+                slotCount,
+                ContinuityBlockState.unscheduled,
+              )
             : raw;
         return ContinuitySnapshot(
           title: f['title'] as String? ?? 'Rhythm item',
@@ -332,9 +379,15 @@ class RhythmRepo {
       return RhythmRepoResult(data: snapshots);
     } catch (e) {
       if (_isMissingTable(e)) {
-        return const RhythmRepoResult(data: <ContinuitySnapshot>[], missingTables: true);
+        return const RhythmRepoResult(
+          data: <ContinuitySnapshot>[],
+          missingTables: true,
+        );
       }
-      return RhythmRepoResult(data: const [], friendlyError: _friendlyMessage(e));
+      return RhythmRepoResult(
+        data: const [],
+        friendlyError: _friendlyMessage(e),
+      );
     }
   }
 
@@ -377,13 +430,21 @@ class RhythmRepo {
             .maybeSingle();
         fieldId = (res?['id'] as String?) ?? existingId;
       } else {
-        final res = await _client.from('cycle_fields').insert(payload).select('id').maybeSingle();
+        final res = await _client
+            .from('cycle_fields')
+            .insert(payload)
+            .select('id')
+            .maybeSingle();
         fieldId = res?['id'] as String? ?? '';
       }
 
       // Replace schedule rules for this field based on patterns.
       try {
-        await _client.from('cycle_schedule_rules').delete().eq('field_id', fieldId).eq('user_id', uid);
+        await _client
+            .from('cycle_schedule_rules')
+            .delete()
+            .eq('field_id', fieldId)
+            .eq('user_id', uid);
         if (draft.patterns.isNotEmpty) {
           final rows = draft.patterns.map((p) {
             return {
@@ -435,7 +496,8 @@ class RhythmRepo {
           id: r['id'] as String? ?? '',
           text: r['body'] as String? ?? '',
           position: (r['position'] as num?)?.toInt() ?? 0,
-          createdAt: DateTime.tryParse(r['created_at'] as String? ?? '') ??
+          createdAt:
+              DateTime.tryParse(r['created_at'] as String? ?? '') ??
               DateTime.now(),
         );
       }).toList();
@@ -465,10 +527,7 @@ class RhythmRepo {
         friendlyError: friendly,
         error: e,
       );
-      return RhythmRepoResult(
-        data: const [],
-        friendlyError: friendly,
-      );
+      return RhythmRepoResult(data: const [], friendlyError: friendly);
     }
   }
 
@@ -483,27 +542,17 @@ class RhythmRepo {
         friendlyError: 'Not signed in',
         detail: 'skipped Supabase insert (uid missing)',
       );
-      return const RhythmRepoResult(
-        data: null,
-        friendlyError: 'Not signed in',
-      );
+      return const RhythmRepoResult(data: null, friendlyError: 'Not signed in');
     }
     final trimmed = text.trim();
     if (trimmed.isEmpty) {
       return const RhythmRepoResult(data: null);
     }
-    _logNoteAction(
-      'insert_alignment_note:start',
-      detail: 'position=$position',
-    );
+    _logNoteAction('insert_alignment_note:start', detail: 'position=$position');
     try {
       final row = await _client
           .from('alignment_notes')
-          .insert({
-            'user_id': uid,
-            'body': trimmed,
-            'position': position,
-          })
+          .insert({'user_id': uid, 'body': trimmed, 'position': position})
           .select('id, body, position, created_at')
           .maybeSingle();
 
@@ -519,7 +568,8 @@ class RhythmRepo {
           id: row['id'] as String? ?? '',
           text: row['body'] as String? ?? trimmed,
           position: (row['position'] as num?)?.toInt() ?? position,
-          createdAt: DateTime.tryParse(row['created_at'] as String? ?? '') ??
+          createdAt:
+              DateTime.tryParse(row['created_at'] as String? ?? '') ??
               DateTime.now(),
         ),
       );
@@ -539,10 +589,7 @@ class RhythmRepo {
         friendlyError: friendly,
         error: e,
       );
-      return RhythmRepoResult(
-        data: null,
-        friendlyError: friendly,
-      );
+      return RhythmRepoResult(data: null, friendlyError: friendly);
     }
   }
 
@@ -557,12 +604,12 @@ class RhythmRepo {
         friendlyError: 'Not signed in',
         detail: 'skipped Supabase update (uid missing) noteId=$noteId',
       );
-      return const RhythmRepoResult(data: false, friendlyError: 'Not signed in');
+      return const RhythmRepoResult(
+        data: false,
+        friendlyError: 'Not signed in',
+      );
     }
-    _logNoteAction(
-      'update_alignment_note:start',
-      detail: 'noteId=$noteId',
-    );
+    _logNoteAction('update_alignment_note:start', detail: 'noteId=$noteId');
     try {
       await _client
           .from('alignment_notes')
@@ -603,12 +650,12 @@ class RhythmRepo {
         friendlyError: 'Not signed in',
         detail: 'skipped Supabase delete (uid missing) noteId=$noteId',
       );
-      return const RhythmRepoResult(data: false, friendlyError: 'Not signed in');
+      return const RhythmRepoResult(
+        data: false,
+        friendlyError: 'Not signed in',
+      );
     }
-    _logNoteAction(
-      'delete_alignment_note:start',
-      detail: 'noteId=$noteId',
-    );
+    _logNoteAction('delete_alignment_note:start', detail: 'noteId=$noteId');
     try {
       await _client
           .from('alignment_notes')
@@ -651,7 +698,10 @@ class RhythmRepo {
         friendlyError: 'Not signed in',
         detail: 'skipped Supabase reorder (uid missing)',
       );
-      return const RhythmRepoResult(data: false, friendlyError: 'Not signed in');
+      return const RhythmRepoResult(
+        data: false,
+        friendlyError: 'Not signed in',
+      );
     }
     if (notes.isEmpty) return const RhythmRepoResult(data: true);
     _logNoteAction(
@@ -661,12 +711,7 @@ class RhythmRepo {
     try {
       final payload = [
         for (final n in notes)
-          {
-            'id': n.id,
-            'user_id': uid,
-            'position': n.position,
-            'body': n.text,
-          },
+          {'id': n.id, 'user_id': uid, 'position': n.position, 'body': n.text},
       ];
       await _client.from('alignment_notes').upsert(payload);
       _logNoteAction(
@@ -745,10 +790,14 @@ class RhythmRepo {
       final itemRules = rules[id] ?? const [];
       final pattern = itemRules.isEmpty ? null : _describeRules(itemRules);
 
-      grouped.putIfAbsent(category, () => []).add(
+      grouped
+          .putIfAbsent(category, () => [])
+          .add(
             RhythmItem(
               title: title,
-              summary: description.isEmpty ? 'Keep this beat gentle.' : description,
+              summary: description.isEmpty
+                  ? 'Keep this beat gentle.'
+                  : description,
               pattern: pattern,
               chips: _chipsForFlags(
                 checklist: (f['checklist_enabled'] as bool?) ?? false,
@@ -826,7 +875,10 @@ class RhythmRepo {
     return value
         .split(RegExp(r'[\s_]+'))
         .where((s) => s.isNotEmpty)
-        .map((w) => '${w[0].toUpperCase()}${w.length > 1 ? w.substring(1).toLowerCase() : ''}')
+        .map(
+          (w) =>
+              '${w[0].toUpperCase()}${w.length > 1 ? w.substring(1).toLowerCase() : ''}',
+        )
         .join(' ');
   }
 
@@ -888,6 +940,24 @@ class RhythmRepo {
     final m = int.tryParse(parts[1]);
     if (h == null || m == null) return null;
     return TimeOfDay(hour: h, minute: m);
+  }
+
+  RhythmTodo _todoFromRow(Map<String, dynamic> row) {
+    final dueDate = row['due_date'] != null
+        ? DateTime.parse(row['due_date'] as String)
+        : null;
+    final dueTimeStr = row['due_time'] as String?;
+    final time = dueTimeStr != null ? _parseTime(dueTimeStr) : null;
+    return RhythmTodo(
+      id: row['id'] as String? ?? '',
+      title: row['title'] as String? ?? 'Task',
+      notes: row['notes'] as String?,
+      dueDate: dueDate,
+      dueTime: time,
+      isChecklist: (row['show_on_checklist'] as bool?) ?? true,
+      isCalendar: (row['show_on_calendar'] as bool?) ?? true,
+      state: _statusToState(row['status'] as String?),
+    );
   }
 
   bool _listEquals(List<int> a, List<int> b) {
