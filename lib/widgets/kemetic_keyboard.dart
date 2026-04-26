@@ -186,7 +186,9 @@ class KemeticKeyboardController extends ChangeNotifier {
       target.widget.focusNode.requestFocus();
     }
     target.userUpdateTextEditingValue(newValue, SelectionChangedCause.keyboard);
-    target.bringIntoView(newValue.selection.extent);
+    try {
+      target.bringIntoView(newValue.selection.extent);
+    } catch (_) {}
     attachEditable(target);
   }
 
@@ -365,13 +367,18 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
         );
       } catch (_) {}
 
-      Scrollable.ensureVisible(
-        editable.context,
-        alignment: 1.0,
-        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-      );
+      final scrollable = Scrollable.maybeOf(editable.context);
+      if (scrollable == null) return;
+
+      try {
+        Scrollable.ensureVisible(
+          editable.context,
+          alignment: 1.0,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+        );
+      } catch (_) {}
     });
   }
 

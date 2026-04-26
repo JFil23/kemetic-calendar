@@ -12,6 +12,8 @@ import 'profile_avatar_glyphs.dart';
 import 'profile_model.dart';
 import 'share_models.dart';
 import 'flow_post_model.dart';
+import 'insight_post_model.dart';
+import 'profile_feed_item_model.dart';
 import 'flows_repo.dart';
 import 'user_events_repo.dart';
 import 'flow_post_comment_model.dart';
@@ -546,6 +548,27 @@ class ProfileRepo {
     }
   }
 
+  /// List posted insight snapshots for a given user (newest first).
+  Future<List<InsightPost>> getInsightPosts(String userId) async {
+    try {
+      final rows = await _client
+          .from('insight_posts')
+          .select(
+            'id, user_id, insight_entry_id, node_id, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles(handle, display_name, avatar_url, avatar_glyphs)',
+          )
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      return (rows as List)
+          .cast<Map<String, dynamic>>()
+          .map(InsightPost.fromJson)
+          .toList();
+    } catch (e) {
+      _log('[ProfileRepo] Error fetching insight posts: $e');
+      return const [];
+    }
+  }
+
   /// Fetch a ranked community feed of posted flows.
   Future<List<FlowPost>> getFlowFeed({int limit = 24, int offset = 0}) async {
     try {
@@ -561,6 +584,29 @@ class ProfileRepo {
     } catch (e) {
       _log('[ProfileRepo] Error fetching flow feed: $e');
       return _getFlowFeedFallback(limit: limit, offset: offset);
+    }
+  }
+
+  /// Fetch a ranked community feed of posted flows and insights.
+  Future<List<ProfileFeedItem>> getProfileFeed({
+    int limit = 24,
+    int offset = 0,
+  }) async {
+    try {
+      final response = await _client.rpc(
+        'get_profile_feed',
+        params: {'p_limit': limit, 'p_offset': offset},
+      );
+      final rows = (response as List<dynamic>?) ?? const [];
+      return rows
+          .whereType<Map>()
+          .map(
+            (row) => ProfileFeedItem.fromJson(Map<String, dynamic>.from(row)),
+          )
+          .toList();
+    } catch (e) {
+      _log('[ProfileRepo] Error fetching profile feed: $e');
+      return _getProfileFeedFallback(limit: limit, offset: offset);
     }
   }
 
@@ -665,12 +711,57 @@ class ProfileRepo {
     }
   }
 
+  /// Create or refresh an insight post for the current user from an insight entry.
+  Future<InsightPost?> postInsightEntry(String entryId) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return null;
+
+      final entry = await _client
+          .from('node_insight_entries')
+          .select('id, user_id, node_id, body_text, entry_date')
+          .eq('id', entryId)
+          .eq('user_id', userId)
+          .maybeSingle();
+      if (entry == null) return null;
+
+      final inserted = await _client
+          .from('insight_posts')
+          .upsert({
+            'user_id': userId,
+            'insight_entry_id': entry['id'],
+            'node_id': entry['node_id'],
+            'body_text': entry['body_text'],
+            'entry_date': entry['entry_date'],
+          }, onConflict: 'user_id,insight_entry_id')
+          .select(
+            'id, user_id, insight_entry_id, node_id, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles(handle, display_name, avatar_url, avatar_glyphs)',
+          )
+          .single();
+
+      return InsightPost.fromJson(Map<String, dynamic>.from(inserted as Map));
+    } catch (e) {
+      _log('[ProfileRepo] Error creating insight post: $e');
+      return null;
+    }
+  }
+
   Future<bool> deleteFlowPost(String postId) async {
     try {
       await _client.from('flow_posts').delete().eq('id', postId);
       return true;
     } catch (e) {
       _log('[ProfileRepo] Error deleting flow post: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteInsightPost(String postId) async {
+    try {
+      await _client.from('insight_posts').delete().eq('id', postId);
+      return true;
+    } catch (e) {
+      _log('[ProfileRepo] Error deleting insight post: $e');
       return false;
     }
   }
@@ -1141,6 +1232,57 @@ class ProfileRepo {
           .toList();
     } catch (e) {
       _log('[ProfileRepo] Flow feed fallback failed: $e');
+      return const [];
+    }
+  }
+
+  Future<List<ProfileFeedItem>> _getProfileFeedFallback({
+    required int limit,
+    required int offset,
+  }) async {
+    try {
+      final flowRowsFuture = _client
+          .from('flow_posts')
+          .select(
+            'id, user_id, flow_id, name, color, notes, rules, start_date, end_date, is_hidden, ai_metadata, created_at, profiles(handle, display_name, avatar_url, avatar_glyphs)',
+          )
+          .eq('is_hidden', false)
+          .order('created_at', ascending: false)
+          .range(0, (limit * 2) - 1);
+
+      final insightRowsFuture = _client
+          .from('insight_posts')
+          .select(
+            'id, user_id, insight_entry_id, node_id, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles(handle, display_name, avatar_url, avatar_glyphs)',
+          )
+          .eq('is_hidden', false)
+          .order('created_at', ascending: false)
+          .range(0, (limit * 2) - 1);
+
+      final results = await Future.wait([flowRowsFuture, insightRowsFuture]);
+      final flowItems = ((results[0] as List<dynamic>?) ?? const [])
+          .whereType<Map>()
+          .map(
+            (row) => ProfileFeedItem.flow(
+              FlowPost.fromJson(Map<String, dynamic>.from(row)),
+            ),
+          );
+      final insightItems = ((results[1] as List<dynamic>?) ?? const [])
+          .whereType<Map>()
+          .map(
+            (row) => ProfileFeedItem.insight(
+              InsightPost.fromJson(Map<String, dynamic>.from(row)),
+            ),
+          );
+
+      final merged = [...flowItems, ...insightItems].toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      if (offset >= merged.length) return const [];
+      final end = (offset + limit).clamp(0, merged.length);
+      return merged.sublist(offset, end);
+    } catch (e) {
+      _log('[ProfileRepo] Profile feed fallback failed: $e');
       return const [];
     }
   }

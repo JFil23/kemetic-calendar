@@ -544,16 +544,38 @@ class InsightLinkRepo {
         }
       }
 
-      final nodeContentRows = nodeSourceContentIds.isEmpty
+      final nodeEntryRows = nodeSourceContentIds.isEmpty
           ? const <_JsonMap>[]
           : ((await client
-                  .from('node_user_content')
+                  .from('node_insight_entries')
                   .select('id,node_id')
                   .inFilter('id', nodeSourceContentIds.toList())) as List)
               .cast<_JsonMap>();
 
+      final nodeEntryIds = nodeEntryRows
+          .map((row) => row['id'] as String?)
+          .whereType<String>()
+          .toSet();
+
+      final legacyNodeContentRows = nodeSourceContentIds.isEmpty
+          ? const <_JsonMap>[]
+          : ((await client
+                  .from('node_user_content')
+                  .select('id,node_id')
+                  .inFilter(
+                    'id',
+                    nodeSourceContentIds
+                        .where((id) => !nodeEntryIds.contains(id))
+                        .toList(),
+                  )) as List)
+              .cast<_JsonMap>();
+
       final nodeIdsForSlugLookup = <String>{...nodeTargetIds};
-      for (final row in nodeContentRows) {
+      for (final row in nodeEntryRows) {
+        final nodeId = row['node_id'] as String?;
+        if (nodeId != null) nodeIdsForSlugLookup.add(nodeId);
+      }
+      for (final row in legacyNodeContentRows) {
         final nodeId = row['node_id'] as String?;
         if (nodeId != null) nodeIdsForSlugLookup.add(nodeId);
       }
@@ -567,13 +589,22 @@ class InsightLinkRepo {
         journalSourceIds,
       );
 
-      final nodeSourceIdToSlug = <String, String>{};
-      for (final row in nodeContentRows) {
+      final entrySourceIdToSlug = <String, String>{};
+      for (final row in nodeEntryRows) {
         final contentId = row['id'] as String?;
         final nodeId = row['node_id'] as String?;
         final slug = nodeId == null ? null : nodeUuidToSlug[nodeId];
         if (contentId == null || slug == null) continue;
-        nodeSourceIdToSlug[contentId] = slug;
+        entrySourceIdToSlug[contentId] = slug;
+      }
+
+      final legacyNodeSourceIdToSlug = <String, String>{};
+      for (final row in legacyNodeContentRows) {
+        final contentId = row['id'] as String?;
+        final nodeId = row['node_id'] as String?;
+        final slug = nodeId == null ? null : nodeUuidToSlug[nodeId];
+        if (contentId == null || slug == null) continue;
+        legacyNodeSourceIdToSlug[contentId] = slug;
       }
 
       final links = <InsightLink>[];
@@ -588,8 +619,12 @@ class InsightLinkRepo {
         String? localSourceId;
         switch (sourceType) {
           case InsightSourceType.nodeUserText:
-            final slug = nodeSourceIdToSlug[rawSourceId];
-            if (slug != null) localSourceId = _nodeSourceId(slug);
+            if (entrySourceIdToSlug.containsKey(rawSourceId)) {
+              localSourceId = rawSourceId;
+            } else {
+              final slug = legacyNodeSourceIdToSlug[rawSourceId];
+              if (slug != null) localSourceId = _nodeSourceId(slug);
+            }
             break;
           case InsightSourceType.journalEntry:
             final gregDate = journalIdToDate[rawSourceId];
@@ -656,11 +691,15 @@ class InsightLinkRepo {
     String? remoteSourceId;
     switch (link.sourceType) {
       case InsightSourceType.nodeUserText:
-        final slug = _slugFromNodeSourceId(link.sourceId);
-        if (slug == null) return null;
-        final nodeIds = await _fetchNodeIdMapBySlug(client, <String>[slug]);
-        final contentIds = await _ensureNodeContentIds(client, userId, nodeIds);
-        remoteSourceId = contentIds[slug];
+        if (_looksLikeUuid(link.sourceId)) {
+          remoteSourceId = link.sourceId;
+        } else {
+          final slug = _slugFromNodeSourceId(link.sourceId);
+          if (slug == null) return null;
+          final nodeIds = await _fetchNodeIdMapBySlug(client, <String>[slug]);
+          final contentIds = await _ensureNodeContentIds(client, userId, nodeIds);
+          remoteSourceId = contentIds[slug];
+        }
         break;
       case InsightSourceType.journalEntry:
         if (_looksLikeUuid(link.sourceId)) {

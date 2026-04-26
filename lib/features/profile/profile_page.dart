@@ -11,11 +11,16 @@ import '../../data/profile_avatar_glyphs.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../../data/flow_post_model.dart';
+import '../../data/insight_post_model.dart';
+import '../../data/profile_feed_item_model.dart';
 import '../../utils/detail_sanitizer.dart';
+import '../../utils/kemetic_date_format.dart';
 import 'edit_profile_page.dart';
 import 'profile_search_page.dart';
 import 'flow_post_picker_page.dart';
 import 'flow_post_detail_page.dart';
+import 'insight_post_picker_page.dart';
+import 'insight_post_detail_page.dart';
 import '_post_glossy_helper.dart';
 import 'follow_list_page.dart';
 import '../calendar/calendar_page.dart';
@@ -177,8 +182,10 @@ class _ProfilePageState extends State<ProfilePage>
   bool _isFollowing = false;
   bool _followUpdating = false;
   List<FlowPost> _posts = const [];
-  List<FlowPost> _feedPosts = const [];
+  List<InsightPost> _insightPosts = const [];
+  List<ProfileFeedItem> _feedItems = const [];
   bool _postsLoading = true;
+  bool _insightPostsLoading = true;
   bool _feedRevealed = false;
   bool _feedLoading = false;
   bool _feedLoadingMore = false;
@@ -196,6 +203,11 @@ class _ProfilePageState extends State<ProfilePage>
   String? get _currentUserId => Supabase.instance.client.auth.currentUser?.id;
 
   bool _ownsPost(FlowPost post) {
+    final currentUserId = _currentUserId;
+    return currentUserId != null && currentUserId == post.userId;
+  }
+
+  bool _ownsInsightPost(InsightPost post) {
     final currentUserId = _currentUserId;
     return currentUserId != null && currentUserId == post.userId;
   }
@@ -238,6 +250,7 @@ class _ProfilePageState extends State<ProfilePage>
         ? Future<bool>.value(false)
         : _repo.isFollowing(widget.userId);
     final postsFuture = _repo.getFlowPosts(widget.userId);
+    final insightPostsFuture = _repo.getInsightPosts(widget.userId);
     final countsFuture = _repo.computeFlowCountsForUser(widget.userId);
 
     final profile = await profileFuture;
@@ -270,6 +283,12 @@ class _ProfilePageState extends State<ProfilePage>
       if (!mounted || loadSerial != _profileLoadSerial) return;
       _applyPosts(posts);
     }());
+
+    unawaited(() async {
+      final posts = await insightPostsFuture;
+      if (!mounted || loadSerial != _profileLoadSerial) return;
+      _applyInsightPosts(posts);
+    }());
   }
 
   Future<void> _loadPosts() async {
@@ -298,6 +317,28 @@ class _ProfilePageState extends State<ProfilePage>
       if (!mounted) return;
       _maybeRevealFeedFromViewport();
     });
+  }
+
+  Future<void> _loadInsightPosts() async {
+    setState(() => _insightPostsLoading = true);
+    final posts = await _repo.getInsightPosts(widget.userId);
+    if (!mounted) return;
+    _applyInsightPosts(posts);
+  }
+
+  void _applyInsightPosts(List<InsightPost> posts) {
+    setState(() {
+      _insightPosts = posts;
+      _insightPostsLoading = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _maybeRevealFeedFromViewport();
+    });
+  }
+
+  Future<void> _reloadPostedContent() async {
+    await Future.wait<void>([_loadPosts(), _loadInsightPosts()]);
   }
 
   void _handleProfileScroll() {
@@ -343,7 +384,7 @@ class _ProfilePageState extends State<ProfilePage>
     if (_feedLoading || _feedLoadingMore) return;
     if (!reset && !_feedHasMore) return;
 
-    final nextOffset = reset ? 0 : _feedPosts.length;
+    final nextOffset = reset ? 0 : _feedItems.length;
     if (reset) {
       setState(() {
         _feedLoading = true;
@@ -353,22 +394,27 @@ class _ProfilePageState extends State<ProfilePage>
       setState(() => _feedLoadingMore = true);
     }
 
-    final loaded = await _repo.getFlowFeed(
+    final loaded = await _repo.getProfileFeed(
       limit: _profileFeedPageSize,
       offset: nextOffset,
     );
     if (!mounted) return;
 
-    final merged = reset ? <FlowPost>[] : List<FlowPost>.from(_feedPosts);
-    final seenIds = merged.map((post) => post.id).toSet();
-    for (final post in loaded) {
-      if (seenIds.add(post.id)) {
-        merged.add(post);
+    final merged = reset
+        ? <ProfileFeedItem>[]
+        : List<ProfileFeedItem>.from(_feedItems);
+    final seenIds = merged
+        .map((item) => '${item.kind.name}:${item.id}')
+        .toSet();
+    for (final item in loaded) {
+      final key = '${item.kind.name}:${item.id}';
+      if (seenIds.add(key)) {
+        merged.add(item);
       }
     }
 
     setState(() {
-      _feedPosts = merged;
+      _feedItems = merged;
       _feedLoading = false;
       _feedLoadingMore = false;
       _feedHasMore = loaded.length >= _profileFeedPageSize;
@@ -1152,12 +1198,23 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
+  Widget _buildPostInsightButton() {
+    return _buildActionButton(
+      label: 'Post Insight',
+      icon: Icons.auto_stories_outlined,
+      onPressed: _openInsightPostPicker,
+      foregroundColor: _profileGoldText,
+      borderColor: _profileGoldMid.withValues(alpha: 0.42),
+    );
+  }
+
   Widget _buildActionCluster() {
     final actions = _isViewingOwnProfile
         ? <Widget>[
             _buildEditButton(),
             _buildFindPeopleButton(),
             _buildPostFlowButton(),
+            _buildPostInsightButton(),
           ]
         : <Widget>[_buildFollowButton()];
 
@@ -1320,8 +1377,81 @@ class _ProfilePageState extends State<ProfilePage>
         ),
         const SizedBox(height: 12),
         _buildPostedFlowPreview(),
-        const SizedBox(height: 16),
+        const SizedBox(height: 22),
+        _buildPostedInsightsSection(),
+        const SizedBox(height: 18),
         _buildFeedRevealHint(),
+      ],
+    );
+  }
+
+  Widget _buildPostedInsightsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Posted Insights',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (_insightPostsLoading)
+          const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(_profileGoldMid),
+            ),
+          )
+        else if (_insightPosts.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0C0C0F),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: _profileGoldMid.withValues(alpha: 0.16),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  _isViewingOwnProfile
+                      ? 'No posted insights yet'
+                      : 'No posted insights yet',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _isViewingOwnProfile
+                      ? 'Write an insight inside a node page, then post it here.'
+                      : 'Check back later for posted insights.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Column(
+            children: [
+              for (int i = 0; i < _insightPosts.length; i++) ...[
+                _buildInsightPostCard(
+                  _insightPosts[i],
+                  onReadMore: () => _openInsightPost(_insightPosts[i]),
+                ),
+                if (i != _insightPosts.length - 1) const SizedBox(height: 12),
+              ],
+            ],
+          ),
       ],
     );
   }
@@ -1488,7 +1618,7 @@ class _ProfilePageState extends State<ProfilePage>
         ),
         const SizedBox(height: 4),
         Text(
-          'Flows from the people you follow, plus the wider field.',
+          'Flows and insights from the people you follow, plus the wider field.',
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.62),
             fontSize: 13,
@@ -1572,7 +1702,7 @@ class _ProfilePageState extends State<ProfilePage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (_feedLoading && _feedPosts.isEmpty)
+              if (_feedLoading && _feedItems.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 40),
                   child: Center(
@@ -1583,7 +1713,7 @@ class _ProfilePageState extends State<ProfilePage>
                     ),
                   ),
                 )
-              else if (_feedPosts.isEmpty)
+              else if (_feedItems.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 28),
                   child: Column(
@@ -1604,7 +1734,7 @@ class _ProfilePageState extends State<ProfilePage>
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'As more flows get posted, they will surface here.',
+                        'As more flows and insights get posted, they will surface here.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.58),
@@ -1615,7 +1745,7 @@ class _ProfilePageState extends State<ProfilePage>
                   ),
                 )
               else
-                _buildFeedGrid(_feedPosts),
+                _buildFeedGrid(_feedItems),
               if (_feedLoadingMore) ...[
                 const SizedBox(height: 12),
                 const Center(
@@ -1658,11 +1788,11 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  Widget _buildFeedGrid(List<FlowPost> posts) {
+  Widget _buildFeedGrid(List<ProfileFeedItem> items) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final columnWidth = (constraints.maxWidth - _profileFeedColumnGap) / 2;
-        final (left, right) = _splitFeedPosts(posts, columnWidth);
+        final (left, right) = _splitFeedItems(items, columnWidth);
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1675,34 +1805,34 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  Widget _buildFeedColumn(List<FlowPost> posts) {
+  Widget _buildFeedColumn(List<ProfileFeedItem> items) {
     return Column(
       children: [
-        for (int i = 0; i < posts.length; i++) ...[
-          _buildFeedPostTile(posts[i]),
-          if (i != posts.length - 1)
+        for (int i = 0; i < items.length; i++) ...[
+          _buildFeedItemTile(items[i]),
+          if (i != items.length - 1)
             const SizedBox(height: _profileFeedColumnGap),
         ],
       ],
     );
   }
 
-  (List<FlowPost>, List<FlowPost>) _splitFeedPosts(
-    List<FlowPost> posts,
+  (List<ProfileFeedItem>, List<ProfileFeedItem>) _splitFeedItems(
+    List<ProfileFeedItem> items,
     double columnWidth,
   ) {
-    final left = <FlowPost>[];
-    final right = <FlowPost>[];
+    final left = <ProfileFeedItem>[];
+    final right = <ProfileFeedItem>[];
     var leftHeight = 0.0;
     var rightHeight = 0.0;
 
-    for (final post in posts) {
-      final estimatedHeight = _estimateFeedTileHeight(post, columnWidth);
+    for (final item in items) {
+      final estimatedHeight = _estimateFeedTileHeight(item, columnWidth);
       if (leftHeight <= rightHeight) {
-        left.add(post);
+        left.add(item);
         leftHeight += estimatedHeight + _profileFeedColumnGap;
       } else {
-        right.add(post);
+        right.add(item);
         rightHeight += estimatedHeight + _profileFeedColumnGap;
       }
     }
@@ -1710,7 +1840,11 @@ class _ProfilePageState extends State<ProfilePage>
     return (left, right);
   }
 
-  double _estimateFeedTileHeight(FlowPost post, double cardWidth) {
+  double _estimateFeedTileHeight(ProfileFeedItem item, double cardWidth) {
+    if (item.kind == ProfileFeedItemKind.insight) {
+      return _estimateInsightFeedTileHeight(item.insightPost!, cardWidth);
+    }
+    final post = item.flowPost!;
     final direction = Directionality.of(context);
     final title = cleanFlowTitle(post.name);
     final titlePainter = TextPainter(
@@ -1728,7 +1862,42 @@ class _ProfilePageState extends State<ProfilePage>
     return 214 + titlePainter.size.height;
   }
 
-  Widget _buildFeedPostTile(FlowPost post) {
+  double _estimateInsightFeedTileHeight(InsightPost post, double cardWidth) {
+    final direction = Directionality.of(context);
+    final headingPainter = TextPainter(
+      text: TextSpan(
+        text: post.nodeTitle,
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          height: 1.08,
+        ),
+      ),
+      maxLines: 4,
+      textDirection: direction,
+    )..layout(maxWidth: math.max(0, cardWidth - 28));
+    final bodyPainter = TextPainter(
+      text: TextSpan(
+        text: _insightPreviewText(post.bodyText),
+        style: const TextStyle(fontSize: 14, height: 1.35),
+      ),
+      maxLines: 7,
+      ellipsis: '…',
+      textDirection: direction,
+    )..layout(maxWidth: math.max(0, cardWidth - 28));
+    return 248 + headingPainter.size.height + bodyPainter.size.height;
+  }
+
+  Widget _buildFeedItemTile(ProfileFeedItem item) {
+    switch (item.kind) {
+      case ProfileFeedItemKind.flow:
+        return _buildFeedFlowTile(item.flowPost!);
+      case ProfileFeedItemKind.insight:
+        return _buildFeedInsightTile(item.insightPost!);
+    }
+  }
+
+  Widget _buildFeedFlowTile(FlowPost post) {
     final accent = Color(0xFF000000 | (post.color & 0x00FFFFFF));
     final title = cleanFlowTitle(post.name);
     final label = _ownsPost(post)
@@ -1874,7 +2043,7 @@ class _ProfilePageState extends State<ProfilePage>
                         const SizedBox(width: 7),
                         Expanded(
                           child: Text(
-                            'Posted ${_formatDate(post.createdAt)}',
+                            'Posted ${_formatPostDate(post.createdAt, compact: true)}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -1906,6 +2075,191 @@ class _ProfilePageState extends State<ProfilePage>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeedInsightTile(InsightPost post) {
+    final label = _ownsInsightPost(post)
+        ? 'Your Insight'
+        : post.isFollowingAuthor
+        ? 'Following'
+        : 'Community';
+    final authorHandle = post.authorHandle?.trim();
+    final authorDisplayName = post.authorDisplayName?.trim();
+    final showHandle =
+        authorHandle != null &&
+        authorHandle.isNotEmpty &&
+        authorDisplayName != null &&
+        authorDisplayName.isNotEmpty &&
+        authorHandle.toLowerCase() != authorDisplayName.toLowerCase();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.045),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _profileGoldMid.withValues(alpha: 0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.34),
+            blurRadius: 20,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: _profileGoldBase.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _profileGoldMid.withValues(alpha: 0.28),
+                  ),
+                ),
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: _profileGoldText,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  ProfileAvatar(
+                    displayName: post.authorLabel,
+                    avatarUrl: post.authorAvatarUrl,
+                    avatarGlyphIds: post.authorAvatarGlyphIds,
+                    radius: 14,
+                    foregroundColor: _profileGoldText,
+                    backgroundColor: const Color(0xFF111115),
+                    borderColor: _profileGoldMid.withValues(alpha: 0.24),
+                    borderWidth: 1,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          post.authorLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (showHandle)
+                          Text(
+                            '@$authorHandle',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.56),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if ((post.nodeGlyph?.trim().isNotEmpty ?? false))
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Text(
+                        post.nodeGlyph!,
+                        style: const TextStyle(
+                          color: _profileGoldText,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: _profileGoldTextWidget(
+                      post.nodeTitle,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        height: 1.08,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _insightPreviewText(post.bodyText),
+                maxLines: 7,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.88),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Dated ${formatKemeticDate(post.entryDate, includeGregorianYear: false)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.56),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Posted ${formatKemeticDate(post.createdAt, includeGregorianYear: false)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => _openInsightPost(post),
+                  child: _profileGoldTextWidget(
+                    'Read more',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1973,7 +2327,7 @@ class _ProfilePageState extends State<ProfilePage>
             ),
             const SizedBox(width: 8),
             Text(
-              'Posted ${_formatDate(post.createdAt)}',
+              'Posted ${_formatPostDate(post.createdAt)}',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.54),
                 fontSize: 13,
@@ -2107,6 +2461,155 @@ class _ProfilePageState extends State<ProfilePage>
     return SizedBox.expand(child: card);
   }
 
+  Widget _buildInsightPostCard(
+    InsightPost post, {
+    required VoidCallback onReadMore,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _profileGoldMid.withValues(alpha: 0.34)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 18,
+            spreadRadius: 1,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: _profileGoldBase.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: _profileGoldMid.withValues(alpha: 0.28),
+                  ),
+                ),
+                child: Text(
+                  'Posted Insight',
+                  style: TextStyle(
+                    color: _profileGoldText.withValues(alpha: 0.96),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if ((post.nodeGlyph?.trim().isNotEmpty ?? false))
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: Text(
+                        post.nodeGlyph!,
+                        style: const TextStyle(
+                          color: _profileGoldText,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: _profileGoldTextWidget(
+                      post.nodeTitle,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        height: 1.12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Dated ${_formatPostDate(post.entryDate)}',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.58),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _insightPreviewText(post.bodyText),
+                maxLines: 6,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.88),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Posted ${_formatPostDate(post.createdAt)}',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    if (_isViewingOwnProfile)
+                      TextButton.icon(
+                        onPressed: () => _removeInsightPost(post.id),
+                        icon: const Icon(
+                          Icons.remove_circle_outline,
+                          color: Colors.redAccent,
+                          size: 18,
+                        ),
+                        label: const Text(
+                          'Remove',
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    TextButton(
+                      onPressed: onReadMore,
+                      child: _profileGoldTextWidget(
+                        'Read more',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _openFeedPost(FlowPost post) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -2115,15 +2618,35 @@ class _ProfilePageState extends State<ProfilePage>
       ),
     );
     if (changed == true) {
-      await _loadPosts();
+      await _reloadPostedContent();
       if (_feedRevealed) {
         await _loadFeedPage(reset: true);
       }
     }
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.month}/${date.day}/${date.year}';
+  Future<void> _openInsightPost(InsightPost post) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            InsightPostDetailPage(post: post, isOwner: _ownsInsightPost(post)),
+      ),
+    );
+    if (changed == true) {
+      await _loadInsightPosts();
+      if (_feedRevealed) {
+        await _loadFeedPage(reset: true);
+      }
+    }
+  }
+
+  String _formatPostDate(DateTime date, {bool compact = false}) {
+    return formatKemeticDate(date, includeGregorianYear: !compact);
+  }
+
+  String _insightPreviewText(String value) {
+    final normalized = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return normalized.isEmpty ? 'Untitled insight' : normalized;
   }
 
   Future<void> _openPostDetails(int initialIndex) async {
@@ -2152,6 +2675,15 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
+  Future<void> _openInsightPostPicker() async {
+    final posted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const InsightPostPickerPage()),
+    );
+    if (posted == true) {
+      await _loadInsightPosts();
+    }
+  }
+
   Future<void> _savePost(FlowPost post) async {
     final flowId = await _repo.saveFlowPostToMyFlows(post);
     if (!mounted) return;
@@ -2175,6 +2707,16 @@ class _ProfilePageState extends State<ProfilePage>
       return;
     }
     await _loadPosts();
+  }
+
+  Future<void> _removeInsightPost(String postId) async {
+    final ok = await _repo.deleteInsightPost(postId);
+    if (!mounted) return;
+    if (!ok) {
+      _showError('Unable to remove insight. Please try again.');
+      return;
+    }
+    await _loadInsightPosts();
   }
 }
 
