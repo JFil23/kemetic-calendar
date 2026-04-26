@@ -16,6 +16,9 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = ROOT / "assets/profile/day_cycle"
 OUTPUT_DIR = ROOT / "assets/profile/day_cycle_registered_v3"
+JPEG_OUTPUT_DIR = ROOT / "assets/profile/day_cycle_registered_v3_jpg"
+PRIMARY_NIGHT_DIR = ROOT / "assets/profile/PRIMARY"
+PRIMARY_NIGHT_IMAGE_NAME = "primary_night_pyramid.png"
 ANCHOR_NAME = "12am.png"
 
 FRAME_ORDER = [
@@ -64,6 +67,7 @@ NIGHT_PYRAMID_FRAMES = {
     "2am.png",
     "3am.png",
     "4am.png",
+    "5am.png",
 }
 
 EARLY_NIGHT_STAR_BLEND = {
@@ -272,15 +276,37 @@ def composite_with_mask(
     return Image.composite(overlay.convert("RGB"), base.convert("RGB"), mask)
 
 
+def resolve_primary_night_image_path() -> Path | None:
+    preferred = PRIMARY_NIGHT_DIR / PRIMARY_NIGHT_IMAGE_NAME
+    if preferred.exists():
+        return preferred
+
+    candidates: list[Path] = []
+    for pattern in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
+        candidates.extend(sorted(PRIMARY_NIGHT_DIR.glob(pattern)))
+    if not candidates:
+        return None
+    return candidates[0]
+
+
 def main() -> None:
     anchor_image = Image.open(SOURCE_DIR / ANCHOR_NAME).convert("RGB")
     target_size = anchor_image.size
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    JPEG_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     sky_mask = build_sky_mask(target_size)
     pyramid_mask = build_pyramid_mask(target_size)
     alignment_mask = build_alignment_mask(target_size)
+    primary_night_path = resolve_primary_night_image_path()
+    primary_night_image = anchor_image
+    if primary_night_path is not None:
+        primary_night_image = align_to_anchor(
+            fit_to_anchor(Image.open(primary_night_path), target_size, primary_night_path.name),
+            anchor_image,
+            alignment_mask,
+        )
     twilight_fade = gradient_mask(
         target_size,
         start_y=0.0,
@@ -290,7 +316,7 @@ def main() -> None:
     )
     star_mask = multiply_masks(sky_mask, twilight_fade)
     early_night_star_mask = build_upper_right_sky_mask(target_size, sky_mask)
-    anchor_star_field = build_star_field_overlay(anchor_image)
+    primary_night_star_field = build_star_field_overlay(primary_night_image)
 
     processed_cache: dict[str, Image.Image] = {}
     aligned_cache: dict[str, Image.Image] = {}
@@ -305,17 +331,17 @@ def main() -> None:
     for frame_name, processed in aligned_cache.items():
         output_image = processed
 
-        if frame_name in NIGHT_PYRAMID_FRAMES and frame_name != ANCHOR_NAME:
+        if frame_name in NIGHT_PYRAMID_FRAMES:
             output_image = composite_with_mask(
                 output_image,
-                anchor_image,
+                primary_night_image,
                 pyramid_mask,
             )
 
         if frame_name in EARLY_NIGHT_STAR_BLEND:
             output_image = screen_blend(
                 output_image,
-                anchor_star_field,
+                primary_night_star_field,
                 early_night_star_mask.point(
                     lambda value, alpha=EARLY_NIGHT_STAR_BLEND[frame_name]: int(value * alpha)
                 ),
@@ -331,6 +357,14 @@ def main() -> None:
     for frame_name, processed in processed_cache.items():
         output_path = OUTPUT_DIR / frame_name
         processed.save(output_path, format="PNG", optimize=True)
+        jpg_output_path = JPEG_OUTPUT_DIR / f"{Path(frame_name).stem}.jpg"
+        processed.save(
+            jpg_output_path,
+            format="JPEG",
+            quality=96,
+            subsampling=0,
+            optimize=True,
+        )
         print(output_path.relative_to(ROOT))
 
 

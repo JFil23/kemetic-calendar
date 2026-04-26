@@ -433,7 +433,7 @@ class _SettingsPageState extends State<SettingsPage> {
             style: TextStyle(color: Colors.white),
           ),
           content: const Text(
-            'This removes imported Apple/Google calendar events from Kemetic, removes Kemetic-tagged events from the device calendar, clears sync link state, and turns automatic calendar sync off until you re-enable it.',
+            'This removes imported Apple/Google calendar events from Kemetic, clears sync state, and turns automatic calendar sync off until you re-enable it. If older hAw exports still exist on the device calendar, the cleanup also removes those legacy copies.',
             style: TextStyle(color: Colors.white70, height: 1.4),
           ),
           actions: [
@@ -483,14 +483,14 @@ class _SettingsPageState extends State<SettingsPage> {
         if (result.removedImportedEvents > 0)
           'removed ${result.removedImportedEvents} imported device-calendar events from Kemetic',
         if (result.removedNativeEvents > 0)
-          'removed ${result.removedNativeEvents} Kemetic events from the device calendar',
+          'removed ${result.removedNativeEvents} legacy hAw exports from the device calendar',
       ];
       final summary = parts.isEmpty
-          ? 'Calendar sync links were cleared and automatic sync was turned off.'
+          ? 'Calendar import state was cleared and automatic sync was turned off.'
           : '${parts.join('; ')}. Automatic sync is now off.';
       final suffix = result.permissionGranted
           ? ''
-          : ' Grant calendar access and run this again if device-calendar events still remain.';
+          : ' Grant calendar access and run this again if older exported hAw copies still remain on the device calendar.';
 
       messenger.showSnackBar(
         SnackBar(
@@ -523,7 +523,7 @@ class _SettingsPageState extends State<SettingsPage> {
       case CalendarSyncRunState.synced:
         messenger.showSnackBar(
           SnackBar(
-            content: const Text('Calendar sync completed on this device.'),
+            content: const Text('Calendar import completed on this device.'),
             backgroundColor: Colors.green.shade700,
           ),
         );
@@ -532,7 +532,7 @@ class _SettingsPageState extends State<SettingsPage> {
         messenger.showSnackBar(
           SnackBar(
             content: const Text(
-              'Synced calendar data was cleared. Re-enable sync only when you want to link calendars again.',
+              'Imported device-calendar data was cleared. Re-enable sync when you want Kemetic to import again.',
             ),
             backgroundColor: Colors.orange.shade700,
           ),
@@ -706,8 +706,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
     lines.add(
       _autoCalendarSync
-          ? 'Automatic sync is on. The app keeps trying in the background after sign-in.'
-          : 'Automatic sync is off. Use Sync now whenever you want to refresh.',
+          ? 'Automatic sync is on. The app keeps importing device-calendar changes after sign-in.'
+          : 'Automatic sync is off. Use Sync now whenever you want to import again.',
     );
 
     final lastSync = _calendarSyncStatus?.lastSyncAt?.toLocal();
@@ -931,12 +931,12 @@ class _SettingsPageState extends State<SettingsPage> {
             _sectionCard(
               title: 'Calendar Sync',
               description:
-                  'Device calendar sync can import external events and push app-owned calendar items back out. Use the unlink cleanup if you need to clear both directions without removing the feature.',
+                  'Device calendar sync only imports external events into Kemetic. Events you create in Kemetic stay in Kemetic.',
               children: [
                 _settingSwitch(
                   title: 'Keep device calendar synced automatically',
                   subtitle: _nativeCalendarSyncAvailable
-                      ? 'Runs after sign-in and keeps trying in the background.'
+                      ? 'Runs after sign-in and keeps importing device-calendar changes in the background.'
                       : 'Native calendar sync is not available in web builds.',
                   value: _autoCalendarSync,
                   onChanged: !_nativeCalendarSyncAvailable || _calendarBusy

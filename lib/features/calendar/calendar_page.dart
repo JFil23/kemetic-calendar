@@ -8783,6 +8783,27 @@ class _CalendarPageState extends State<CalendarPage>
     return 2;
   }
 
+  String? _editableStandaloneCategory({
+    required bool detachImportedDeviceEvent,
+    String? category,
+  }) {
+    final trimmed = category?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    if (detachImportedDeviceEvent && trimmed.toLowerCase() == 'native_sync') {
+      return null;
+    }
+    return trimmed;
+  }
+
+  Future<void> _suppressImportedDeviceEventSource(String? clientEventId) async {
+    final trimmed = clientEventId?.trim();
+    if (trimmed == null || trimmed.isEmpty) return;
+    if (!isImportedDeviceCalendarEvent(clientEventId: trimmed)) return;
+    await sharedCalendarSyncService(
+      Supabase.instance.client,
+    ).recordDeletedInApp(trimmed);
+  }
+
   bool _isManualCid(String? cid, {int? flowId}) {
     final trimmed = cid?.trim() ?? '';
     if (trimmed.startsWith('reminder:') ||
@@ -9972,8 +9993,86 @@ class _CalendarPageState extends State<CalendarPage>
       );
 
       final repo = UserEventsRepo(Supabase.instance.client);
+      final importedDeviceEvent = isImportedDeviceCalendarEvent(
+        clientEventId: rawClientId,
+        category: evt.category,
+      );
+      final effectiveCategory = _editableStandaloneCategory(
+        detachImportedDeviceEvent: importedDeviceEvent,
+        category: evt.category,
+      );
+      final detailToPersist = isReminderOccurrence
+          ? detailWithOverrideMarker
+          : evt.detail;
       UserEvent updated;
-      if (rawId != null && rawId.isNotEmpty) {
+      if (importedDeviceEvent) {
+        final detachedCid = _buildCid(
+          ky: ky,
+          km: km,
+          kd: kd,
+          title: evt.title,
+          startHour: clampedStart ~/ 60,
+          startMinute: clampedStart % 60,
+          allDay: evt.allDay,
+          flowId: -1,
+        );
+        if (kDebugMode) {
+          debugPrint(
+            '[DayView] move persist: detaching imported device event oldCid=$rawClientId newCid=$detachedCid start=${startLocal.toUtc()} end=${endLocal.toUtc()}',
+          );
+        }
+        if (rawId != null && rawId.isNotEmpty) {
+          updated = await repo.replace(
+            id: rawId,
+            clientEventId: detachedCid,
+            title: evt.title,
+            detail: detailToPersist,
+            location: evt.location,
+            allDay: evt.allDay,
+            startsAt: startLocal,
+            endsAt: endLocal,
+            category: effectiveCategory,
+          );
+        } else {
+          final persisted = rawClientId == null
+              ? null
+              : await repo.getEventByClientEventId(rawClientId);
+          if (persisted != null) {
+            updated = await repo.replace(
+              id: persisted.id,
+              clientEventId: detachedCid,
+              title: evt.title,
+              detail: detailToPersist,
+              location: evt.location,
+              allDay: evt.allDay,
+              startsAt: startLocal,
+              endsAt: endLocal,
+              category: effectiveCategory,
+            );
+          } else {
+            updated = await repo.upsertByClientId(
+              clientEventId: detachedCid,
+              title: evt.title,
+              startsAtUtc: startLocal.toUtc(),
+              detail: detailToPersist,
+              location: evt.location,
+              allDay: evt.allDay,
+              endsAtUtc: endLocal.toUtc(),
+              flowLocalId: null,
+              category: effectiveCategory,
+              caller: 'move_event_detach',
+            );
+          }
+          if (rawClientId != null && rawClientId != detachedCid) {
+            try {
+              await repo.deleteByClientId(rawClientId);
+            } catch (_) {
+              // Best-effort cleanup for a stale imported row.
+            }
+          }
+        }
+        await _suppressImportedDeviceEventSource(rawClientId);
+      } else if (rawId != null && rawId.isNotEmpty) {
         if (kDebugMode) {
           debugPrint(
             '[DayView] move persist: update by id=$rawId start=${startLocal.toUtc()} end=${endLocal.toUtc()}',
@@ -9995,12 +10094,12 @@ class _CalendarPageState extends State<CalendarPage>
           clientEventId: rawClientId!,
           title: evt.title,
           startsAtUtc: startLocal.toUtc(),
-          detail: isReminderOccurrence ? detailWithOverrideMarker : evt.detail,
+          detail: detailToPersist,
           location: evt.location,
           allDay: evt.allDay,
           endsAtUtc: endLocal.toUtc(),
           flowLocalId: evt.flowId,
-          category: evt.category,
+          category: effectiveCategory,
           caller: 'move_event',
         );
       }
@@ -10042,6 +10141,7 @@ class _CalendarPageState extends State<CalendarPage>
           detail: cleanedDetail,
           start: updatedStart,
           end: updatedEnd,
+          category: updated.category,
           alertOffsetMinutes:
               existing.alertOffsetMinutes ??
               updatedMeta.alertMinutes ??
@@ -16386,6 +16486,14 @@ class _CalendarPageState extends State<CalendarPage>
     );
 
     final repo = UserEventsRepo(Supabase.instance.client);
+    final importedDeviceEvent = isImportedDeviceCalendarEvent(
+      clientEventId: previousClientEventId,
+      category: category,
+    );
+    final effectiveCategory = _editableStandaloneCategory(
+      detachImportedDeviceEvent: importedDeviceEvent,
+      category: category,
+    );
     final endsAtUtc = (allDay || endTime == null)
         ? null
         : DateTime(
@@ -16405,7 +16513,7 @@ class _CalendarPageState extends State<CalendarPage>
       allDay: allDay,
       startsAt: startLocal,
       endsAt: endsAtUtc,
-      category: category,
+      category: effectiveCategory,
     );
 
     final savedClientEventId = updated.clientEventId ?? unifiedCid;
@@ -16414,6 +16522,9 @@ class _CalendarPageState extends State<CalendarPage>
       try {
         await Notify.cancelNotificationForEvent(previousClientEventId);
       } catch (_) {}
+    }
+    if (importedDeviceEvent) {
+      await _suppressImportedDeviceEventSource(previousClientEventId);
     }
 
     _addNote(
@@ -16429,7 +16540,7 @@ class _CalendarPageState extends State<CalendarPage>
       start: startTime,
       end: endTime,
       manualColor: color,
-      category: category,
+      category: effectiveCategory,
       alertOffsetMinutes: alertMinutesBefore,
     );
 

@@ -2,6 +2,38 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/services/calendar_sync_service.dart';
 
 void main() {
+  group('isImportedDeviceCalendarEvent', () {
+    test('detects native cid imports', () {
+      expect(
+        isImportedDeviceCalendarEvent(
+          clientEventId: 'native:ios:abc123',
+          category: null,
+        ),
+        isTrue,
+      );
+    });
+
+    test('detects legacy native_sync category imports', () {
+      expect(
+        isImportedDeviceCalendarEvent(
+          clientEventId: 'ky=1-km=1-kd=1|s=540|t=test|f=-1',
+          category: 'native_sync',
+        ),
+        isTrue,
+      );
+    });
+
+    test('does not treat app-owned events as imported device events', () {
+      expect(
+        isImportedDeviceCalendarEvent(
+          clientEventId: 'ky=1-km=1-kd=1|s=540|t=test|f=-1',
+          category: null,
+        ),
+        isFalse,
+      );
+    });
+  });
+
   group('parseCalendarSyncTimestamp', () {
     test('parses stored ISO timestamps', () {
       final parsed = parseCalendarSyncTimestamp('2026-04-15T12:34:56.000Z');
