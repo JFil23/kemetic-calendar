@@ -248,8 +248,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
   Future<void> _load() async {
     try {
-      final items = await _repo.fetchTodaysAlignment();
-      final todos = await _repo.fetchTodos();
+      final itemsFuture = _repo.fetchTodaysAlignment();
+      final todosFuture = _repo.fetchTodos();
+      final items = await itemsFuture;
+      final todos = await todosFuture;
       if (!mounted) return;
       final focusDay = _sameDay(_currentTodoWindowAnchorDay(), _todayLocal)
           ? _activeTodoDay
@@ -607,16 +609,19 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   Future<void> _loadNutritionStates() async {
-    final localStates = await _loadNutritionStatesFromPrefs();
     final range = _currentNutritionDecanRange();
-    final migrated = await _hasMigratedNutritionBadgeState();
+    final localStatesFuture = _loadNutritionStatesFromPrefs();
+    final migratedFuture = _hasMigratedNutritionBadgeState();
+    final remoteStatesFuture = _plannerBadgeRepo.fetchNutritionStateMap(
+      start: range.start,
+      end: range.end,
+    );
+    final localStates = await localStatesFuture;
+    final migrated = await migratedFuture;
     Map<String, RhythmItemState> remoteStates = const {};
     var remoteLoaded = false;
     try {
-      remoteStates = await _plannerBadgeRepo.fetchNutritionStateMap(
-        start: range.start,
-        end: range.end,
-      );
+      remoteStates = await remoteStatesFuture;
       remoteLoaded = true;
     } catch (_) {
       remoteStates = const {};
@@ -1220,11 +1225,13 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   Future<void> _loadNotes() async {
-    final result = await _repo.fetchAlignmentNotes();
     final uid = _currentUserId;
+    final resultFuture = _repo.fetchAlignmentNotes();
+    final cachedFuture = _loadNotesFromPrefs(uid);
+    final result = await resultFuture;
     if (!mounted) return;
 
-    final cached = await _loadNotesFromPrefs(uid);
+    final cached = await cachedFuture;
 
     final useLocalOnly =
         result.missingTables || result.friendlyError != null || uid == null;

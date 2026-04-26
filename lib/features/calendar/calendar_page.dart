@@ -6382,12 +6382,10 @@ class _CalendarPageState extends State<CalendarPage>
   void _scheduleInitialViewportRestore() {
     if (_initialJumpScheduled) return;
     _initialJumpScheduled = true;
-    WidgetsBinding.instance.deferFirstFrame();
 
     void finishRestore() {
       _initialViewportSettled = true;
       _initialJumpScheduled = false;
-      WidgetsBinding.instance.allowFirstFrame();
     }
 
     void attemptRestore(int tries) {

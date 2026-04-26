@@ -42,103 +42,103 @@ const Gradient _profileGoldGradient = LinearGradient(
 );
 
 const String _profileBackdropAssetDirectory =
-    'assets/profile/day_cycle_registered_v3';
+    'assets/profile/day_cycle_registered_v3_jpg';
 
 const List<_ProfileBackdropFrame> _profileBackdropFrames = [
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/12am.png',
+    assetPath: '$_profileBackdropAssetDirectory/12am.jpg',
     minuteOfDay: 0,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/1am.png',
+    assetPath: '$_profileBackdropAssetDirectory/1am.jpg',
     minuteOfDay: 60,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/2am.png',
+    assetPath: '$_profileBackdropAssetDirectory/2am.jpg',
     minuteOfDay: 120,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/3am.png',
+    assetPath: '$_profileBackdropAssetDirectory/3am.jpg',
     minuteOfDay: 180,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/4am.png',
+    assetPath: '$_profileBackdropAssetDirectory/4am.jpg',
     minuteOfDay: 240,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/5am.png',
+    assetPath: '$_profileBackdropAssetDirectory/5am.jpg',
     minuteOfDay: 300,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/6am.png',
+    assetPath: '$_profileBackdropAssetDirectory/6am.jpg',
     minuteOfDay: 360,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/7am.png',
+    assetPath: '$_profileBackdropAssetDirectory/7am.jpg',
     minuteOfDay: 420,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/8am.png',
+    assetPath: '$_profileBackdropAssetDirectory/8am.jpg',
     minuteOfDay: 480,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/9am.png',
+    assetPath: '$_profileBackdropAssetDirectory/9am.jpg',
     minuteOfDay: 540,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/10am.png',
+    assetPath: '$_profileBackdropAssetDirectory/10am.jpg',
     minuteOfDay: 600,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/11am.png',
+    assetPath: '$_profileBackdropAssetDirectory/11am.jpg',
     minuteOfDay: 660,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/12pm.png',
+    assetPath: '$_profileBackdropAssetDirectory/12pm.jpg',
     minuteOfDay: 720,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/1pm.png',
+    assetPath: '$_profileBackdropAssetDirectory/1pm.jpg',
     minuteOfDay: 780,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/2pm.png',
+    assetPath: '$_profileBackdropAssetDirectory/2pm.jpg',
     minuteOfDay: 840,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/3pm.png',
+    assetPath: '$_profileBackdropAssetDirectory/3pm.jpg',
     minuteOfDay: 900,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/4pm.png',
+    assetPath: '$_profileBackdropAssetDirectory/4pm.jpg',
     minuteOfDay: 960,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/5pm.png',
+    assetPath: '$_profileBackdropAssetDirectory/5pm.jpg',
     minuteOfDay: 1020,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/6pm.png',
+    assetPath: '$_profileBackdropAssetDirectory/6pm.jpg',
     minuteOfDay: 1080,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/7pm.png',
+    assetPath: '$_profileBackdropAssetDirectory/7pm.jpg',
     minuteOfDay: 1140,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/8pm.png',
+    assetPath: '$_profileBackdropAssetDirectory/8pm.jpg',
     minuteOfDay: 1200,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/9pm.png',
+    assetPath: '$_profileBackdropAssetDirectory/9pm.jpg',
     minuteOfDay: 1260,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/10pm.png',
+    assetPath: '$_profileBackdropAssetDirectory/10pm.jpg',
     minuteOfDay: 1320,
   ),
   _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/11pm.png',
+    assetPath: '$_profileBackdropAssetDirectory/11pm.jpg',
     minuteOfDay: 1380,
   ),
 ];
@@ -172,6 +172,7 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _postsLoading = true;
   int _activePostIndex = 0;
   bool _calendarRevealNavigationInFlight = false;
+  int _profileLoadSerial = 0;
 
   bool get _isViewingOwnProfile {
     final currentId = Supabase.instance.client.auth.currentUser?.id;
@@ -193,6 +194,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadProfile({bool showSpinner = true}) async {
+    final loadSerial = ++_profileLoadSerial;
     if (showSpinner) {
       setState(() => _loading = true);
     }
@@ -201,32 +203,49 @@ class _ProfilePageState extends State<ProfilePage> {
     final followFuture = _isViewingOwnProfile
         ? Future<bool>.value(false)
         : _repo.isFollowing(widget.userId);
+    final postsFuture = _repo.getFlowPosts(widget.userId);
+    final countsFuture = _repo.computeFlowCountsForUser(widget.userId);
 
     final profile = await profileFuture;
     final isFollowing = await followFuture;
 
-    UserProfile? adjusted = profile;
-    if (profile != null) {
-      final counts = await _repo.computeFlowCountsForUser(widget.userId);
-      adjusted = profile.copyWith(
-        activeFlowsCount: counts.$1,
-        totalFlowEventsCount: counts.$2,
-      );
-    }
-    if (mounted) {
+    if (!mounted || loadSerial != _profileLoadSerial) return;
+    setState(() {
+      _profile = profile;
+      _isFollowing = isFollowing;
+      _loading = false;
+    });
+
+    if (profile == null) return;
+
+    unawaited(() async {
+      final counts = await countsFuture;
+      if (!mounted || loadSerial != _profileLoadSerial) return;
+      final current = _profile;
+      if (current == null) return;
       setState(() {
-        _profile = adjusted;
-        _isFollowing = isFollowing;
-        _loading = false;
+        _profile = current.copyWith(
+          activeFlowsCount: counts.$1,
+          totalFlowEventsCount: counts.$2,
+        );
       });
-      _loadPosts();
-    }
+    }());
+
+    unawaited(() async {
+      final posts = await postsFuture;
+      if (!mounted || loadSerial != _profileLoadSerial) return;
+      _applyPosts(posts);
+    }());
   }
 
   Future<void> _loadPosts() async {
     setState(() => _postsLoading = true);
     final posts = await _repo.getFlowPosts(widget.userId);
     if (!mounted) return;
+    _applyPosts(posts);
+  }
+
+  void _applyPosts(List<FlowPost> posts) {
     final activeIndex = _clampPostIndex(posts.length);
     setState(() {
       _posts = posts;
@@ -1581,6 +1600,7 @@ class _ProfileBackdrop extends StatefulWidget {
 class _ProfileBackdropState extends State<_ProfileBackdrop> {
   static const Alignment _heroImageAlignment = Alignment(-0.08, -1.0);
   static const double _heroImageOpacity = 0.9;
+  static const int _backdropSourceWidth = 1672;
 
   final Set<String> _precachedAssets = <String>{};
   Timer? _tickTimer;
@@ -1605,11 +1625,7 @@ class _ProfileBackdropState extends State<_ProfileBackdrop> {
 
   void _primeAssets(_ProfileBackdropBlend blend) {
     final assetsToPrime = <String>[
-      for (final assetPath in {
-        blend.current.assetPath,
-        blend.next.assetPath,
-        blend.upcoming.assetPath,
-      })
+      for (final assetPath in {blend.current.assetPath, blend.next.assetPath})
         if (_precachedAssets.add(assetPath)) assetPath,
     ];
     if (assetsToPrime.isEmpty) return;
@@ -1617,9 +1633,20 @@ class _ProfileBackdropState extends State<_ProfileBackdrop> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       for (final assetPath in assetsToPrime) {
-        unawaited(precacheImage(AssetImage(assetPath), context));
+        unawaited(precacheImage(_backdropImageProvider(assetPath), context));
       }
     });
+  }
+
+  ImageProvider<Object> _backdropImageProvider(String assetPath) {
+    final mediaQuery = MediaQuery.maybeOf(context);
+    final devicePixelRatio = mediaQuery?.devicePixelRatio ?? 1.0;
+    final logicalWidth = mediaQuery?.size.width ?? 1024.0;
+    final targetWidth = math.min(
+      _backdropSourceWidth,
+      math.max(1, (logicalWidth * devicePixelRatio).round()),
+    );
+    return ResizeImage.resizeIfNeeded(targetWidth, null, AssetImage(assetPath));
   }
 
   void _scheduleNextTick() {
@@ -1640,12 +1667,12 @@ class _ProfileBackdropState extends State<_ProfileBackdrop> {
   }
 
   Widget _buildBackdropImage(String assetPath) {
-    return Image.asset(
-      assetPath,
+    return Image(
+      image: _backdropImageProvider(assetPath),
       fit: BoxFit.cover,
       alignment: _heroImageAlignment,
       gaplessPlayback: true,
-      filterQuality: FilterQuality.medium,
+      filterQuality: FilterQuality.low,
       errorBuilder: (context, error, stackTrace) =>
           const CustomPaint(painter: _ProfileBackdropPainter()),
     );

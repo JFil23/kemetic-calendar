@@ -12,6 +12,12 @@ import 'share_models.dart';
 import 'user_events_repo.dart';
 import '../utils/event_cid_util.dart';
 
+bool isExternalInboxActivityActor(String? actorId, String currentUserId) {
+  if (currentUserId.isEmpty) return false;
+  if (actorId == null || actorId.isEmpty) return false;
+  return actorId != currentUserId;
+}
+
 class ShareRepo {
   static const String _activitySeenPrefKey = 'inbox:activity_seen_at:v1';
   static final StreamController<void> _activitySeenChangedController =
@@ -86,6 +92,7 @@ class ShareRepo {
               .select(
                 'created_at, user_id, flow_post_id, profiles(display_name, handle, avatar_url), flow_posts!inner(name, user_id)',
               )
+              .neq('user_id', uid)
               .eq('flow_posts.user_id', uid)
               .order('created_at', ascending: false)
               .limit(limit),
@@ -97,6 +104,7 @@ class ShareRepo {
               .select(
                 'created_at, user_id, body, flow_post_id, profiles(display_name, handle, avatar_url), flow_posts!inner(name, user_id)',
               )
+              .neq('user_id', uid)
               .eq('flow_posts.user_id', uid)
               .order('created_at', ascending: false)
               .limit(limit),
@@ -120,13 +128,15 @@ class ShareRepo {
       final items = <InboxActivityItem>[];
 
       for (final row in likes) {
+        final actorId = row['user_id'] as String?;
+        if (!isExternalInboxActivityActor(actorId, uid)) continue;
         final profile = row['profiles'] as Map<String, dynamic>?;
         final createdAt = DateTime.parse(row['created_at'] as String);
         items.add(
           InboxActivityItem(
             type: InboxActivityType.like,
             createdAt: createdAt,
-            actorId: row['user_id'] as String?,
+            actorId: actorId,
             actorHandle: profile?['handle'] as String?,
             actorName: profile?['display_name'] as String?,
             actorAvatar: profile?['avatar_url'] as String?,
@@ -137,13 +147,15 @@ class ShareRepo {
       }
 
       for (final row in comments) {
+        final actorId = row['user_id'] as String?;
+        if (!isExternalInboxActivityActor(actorId, uid)) continue;
         final profile = row['profiles'] as Map<String, dynamic>?;
         final createdAt = DateTime.parse(row['created_at'] as String);
         items.add(
           InboxActivityItem(
             type: InboxActivityType.comment,
             createdAt: createdAt,
-            actorId: row['user_id'] as String?,
+            actorId: actorId,
             actorHandle: profile?['handle'] as String?,
             actorName: profile?['display_name'] as String?,
             actorAvatar: profile?['avatar_url'] as String?,
