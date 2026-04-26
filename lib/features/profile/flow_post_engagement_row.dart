@@ -17,11 +17,15 @@ import '../../widgets/profile_avatar.dart';
 class FlowPostEngagementRow extends StatefulWidget {
   final FlowPost post;
   final bool autoOpenComments;
+  final bool lazyComments;
+  final bool compact;
 
   const FlowPostEngagementRow({
     super.key,
     required this.post,
     this.autoOpenComments = false,
+    this.lazyComments = false,
+    this.compact = false,
   });
 
   @override
@@ -36,6 +40,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
   int _likesCount = 0;
   bool _likedByMe = false;
   bool _commentsLoading = true;
+  int _commentsCount = 0;
   bool _engagementUnavailable = false;
   List<FlowPostComment> _comments = const [];
   bool _didAutoOpenComments = false;
@@ -43,6 +48,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
   @override
   void initState() {
     super.initState();
+    _seedStateFromPost();
     _loadEngagement();
   }
 
@@ -52,18 +58,41 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
     if (oldWidget.post.id == widget.post.id) return;
     _didAutoOpenComments = false;
     _engagementUnavailable = false;
-    _likesLoading = true;
     _likeUpdating = false;
-    _likesCount = 0;
-    _likedByMe = false;
-    _commentsLoading = true;
-    _comments = const [];
+    _seedStateFromPost();
     _loadEngagement();
   }
 
+  bool get _hasLikeCountSnapshot => widget.post.hasLikesCount;
+  bool get _hasLikeStateSnapshot => widget.post.hasLikedByMe;
+  bool get _hasCommentCountSnapshot => widget.post.hasCommentsCount;
+
+  void _seedStateFromPost() {
+    _likesCount = _hasLikeCountSnapshot ? widget.post.likesCount : 0;
+    _likedByMe = _hasLikeStateSnapshot
+        ? (widget.post.likedByMe ?? false)
+        : false;
+    _likesLoading = !_hasLikeStateSnapshot;
+    _commentsCount = _hasCommentCountSnapshot ? widget.post.commentsCount : 0;
+    _commentsLoading = !_hasCommentCountSnapshot;
+    _comments = const [];
+  }
+
   Future<void> _loadEngagement() async {
+    final loads = <Future<void>>[];
+    if (!_hasLikeStateSnapshot) {
+      loads.add(_loadLikes());
+    }
+    if (!widget.lazyComments || !_hasCommentCountSnapshot) {
+      loads.add(_loadComments(showSpinner: !_hasCommentCountSnapshot));
+    }
+    if (loads.isEmpty) {
+      _maybeAutoOpenComments();
+      return;
+    }
+
     try {
-      await Future.wait([_loadLikes(), _loadComments()]);
+      await Future.wait(loads);
       _maybeAutoOpenComments();
     } catch (_) {
       if (!mounted) return;
@@ -89,7 +118,9 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
   }
 
   Future<void> _loadLikes() async {
-    setState(() => _likesLoading = true);
+    if (mounted) {
+      setState(() => _likesLoading = true);
+    }
     try {
       final result = await _repo.getFlowPostLikeState(widget.post.id);
       if (!mounted) return;
@@ -107,13 +138,16 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
     }
   }
 
-  Future<void> _loadComments() async {
-    setState(() => _commentsLoading = true);
+  Future<void> _loadComments({bool showSpinner = true}) async {
+    if (showSpinner && mounted) {
+      setState(() => _commentsLoading = true);
+    }
     try {
       final comments = await _repo.getFlowPostComments(widget.post.id);
       if (!mounted) return;
       setState(() {
         _comments = comments;
+        _commentsCount = comments.length;
         _commentsLoading = false;
       });
     } on FlowPostEngagementUnavailable {
@@ -127,91 +161,124 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle = TextStyle(
-      color: Colors.white.withValues(alpha: 0.85),
-      fontWeight: FontWeight.w600,
-    );
-    final actionMinHeight = useExpandedTouchTargets(context)
-        ? kMinInteractiveDimension
-        : 0.0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = widget.compact || constraints.maxWidth < 260;
+        final labelStyle = TextStyle(
+          color: Colors.white.withValues(alpha: 0.85),
+          fontWeight: FontWeight.w600,
+          fontSize: compact ? 12 : 14,
+        );
+        final actionMinHeight = useExpandedTouchTargets(context)
+            ? kMinInteractiveDimension
+            : 0.0;
+        final iconSize = compact ? 22.0 : 24.0;
+        final spacing = compact ? 4.0 : 6.0;
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 10, bottom: 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: _likeButtonEnabled ? _toggleLike : null,
-              borderRadius: BorderRadius.circular(10),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: actionMinHeight),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _likeUpdating
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                KemeticGold.base,
-                              ),
-                            ),
-                          )
-                        : (_likedByMe
-                              ? const Icon(
-                                  Icons.favorite,
-                                  color: Colors.redAccent,
-                                )
-                              : KemeticGold.icon(Icons.favorite_border)),
-                    const SizedBox(width: 6),
-                    Text(
-                      _engagementUnavailable
-                          ? 'Unavailable'
-                          : _likesLoading
-                          ? 'Like'
-                          : '$_likesCount Likes',
-                      style: labelStyle,
+        return Padding(
+          padding: EdgeInsets.only(top: compact ? 6 : 10, bottom: 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: _likeButtonEnabled ? _toggleLike : null,
+                  borderRadius: BorderRadius.circular(10),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: actionMinHeight),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildLikeIcon(iconSize),
+                        SizedBox(width: spacing),
+                        Flexible(
+                          child: Text(
+                            _likeLabel(compact: compact),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                            style: labelStyle,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
-          Expanded(
-            child: InkWell(
-              onTap: _engagementUnavailable
-                  ? _showMigrationNeeded
-                  : _openCommentsSheet,
-              borderRadius: BorderRadius.circular(10),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: actionMinHeight),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    KemeticGold.icon(Icons.chat_bubble_outline),
-                    const SizedBox(width: 6),
-                    Text(
-                      _engagementUnavailable
-                          ? 'Unavailable'
-                          : _commentsLoading
-                          ? 'Comments'
-                          : '${_comments.length} Comments',
-                      style: labelStyle,
+              Expanded(
+                child: InkWell(
+                  onTap: _engagementUnavailable
+                      ? _showMigrationNeeded
+                      : _openCommentsSheet,
+                  borderRadius: BorderRadius.circular(10),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: actionMinHeight),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline,
+                          size: iconSize,
+                          color: KemeticGold.base,
+                        ),
+                        SizedBox(width: spacing),
+                        Flexible(
+                          child: Text(
+                            _commentLabel(compact: compact),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                            style: labelStyle,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   bool get _likeButtonEnabled =>
       !_engagementUnavailable && !_likesLoading && !_likeUpdating;
+
+  Widget _buildLikeIcon(double iconSize) {
+    if (_likeUpdating) {
+      return SizedBox(
+        width: iconSize,
+        height: iconSize,
+        child: const CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+        ),
+      );
+    }
+
+    return Icon(
+      _likedByMe ? Icons.favorite : Icons.favorite_border,
+      size: iconSize,
+      color: _likedByMe ? Colors.redAccent : KemeticGold.base,
+    );
+  }
+
+  String _likeLabel({required bool compact}) {
+    if (_engagementUnavailable) return compact ? 'Off' : 'Unavailable';
+    if (_likesLoading && !_hasLikeCountSnapshot) {
+      return 'Like';
+    }
+    return compact ? '$_likesCount' : '$_likesCount Likes';
+  }
+
+  String _commentLabel({required bool compact}) {
+    if (_engagementUnavailable) return compact ? 'Off' : 'Unavailable';
+    if (_commentsLoading && !_hasCommentCountSnapshot) {
+      return compact ? 'Chat' : 'Comments';
+    }
+    return compact ? '$_commentsCount' : '$_commentsCount Comments';
+  }
 
   void _showDebugHapticsSnackBar(AppHapticResult result) {
     if (!kDebugMode || !mounted) return;
@@ -313,7 +380,7 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
     );
 
     if (!mounted || _engagementUnavailable) return;
-    await _loadComments();
+    await _loadComments(showSpinner: false);
   }
 
   void _showAuthError() {

@@ -22,12 +22,15 @@ import '../calendar/calendar_page.dart';
 import 'flow_post_engagement_row.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../widgets/inbox_icon_with_badge.dart';
+import '../../widgets/profile_avatar.dart';
 
 const Color _profileGoldLight = Color(0xFFF7E09A);
 const Color _profileGoldMid = Color(0xFFE8BE54);
 const Color _profileGoldBase = Color(0xFFCA9221);
 const Color _profileGoldDeep = Color(0xFF7A5310);
 const Color _profileGoldText = Color(0xFFF1CF7A);
+const int _profileFeedPageSize = 18;
+const double _profileFeedColumnGap = 12;
 
 const Gradient _profileGoldGradient = LinearGradient(
   begin: Alignment.centerLeft,
@@ -161,15 +164,25 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _ProfilePageState extends State<ProfilePage>
+    with SingleTickerProviderStateMixin {
   final _repo = ProfileRepo(Supabase.instance.client);
   late final PageController _postPageController;
+  late final ScrollController _profileScrollController;
+  late final ScrollController _feedScrollController;
+  late final AnimationController _feedBloomController;
+  final GlobalKey _feedRevealHintKey = GlobalKey();
   UserProfile? _profile;
   bool _loading = true;
   bool _isFollowing = false;
   bool _followUpdating = false;
   List<FlowPost> _posts = const [];
+  List<FlowPost> _feedPosts = const [];
   bool _postsLoading = true;
+  bool _feedRevealed = false;
+  bool _feedLoading = false;
+  bool _feedLoadingMore = false;
+  bool _feedHasMore = true;
   int _activePostIndex = 0;
   bool _calendarRevealNavigationInFlight = false;
   int _profileLoadSerial = 0;
@@ -180,15 +193,36 @@ class _ProfilePageState extends State<ProfilePage> {
         (currentId != null && currentId == widget.userId);
   }
 
+  String? get _currentUserId => Supabase.instance.client.auth.currentUser?.id;
+
+  bool _ownsPost(FlowPost post) {
+    final currentUserId = _currentUserId;
+    return currentUserId != null && currentUserId == post.userId;
+  }
+
   @override
   void initState() {
     super.initState();
     _postPageController = PageController(viewportFraction: 0.96);
+    _profileScrollController = ScrollController()
+      ..addListener(_handleProfileScroll);
+    _feedScrollController = ScrollController()..addListener(_maybeLoadMoreFeed);
+    _feedBloomController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 720),
+    );
     _loadProfile();
   }
 
   @override
   void dispose() {
+    _feedBloomController.dispose();
+    _profileScrollController
+      ..removeListener(_handleProfileScroll)
+      ..dispose();
+    _feedScrollController
+      ..removeListener(_maybeLoadMoreFeed)
+      ..dispose();
     _postPageController.dispose();
     super.dispose();
   }
@@ -260,6 +294,98 @@ class _ProfilePageState extends State<ProfilePage> {
         _postPageController.jumpToPage(activeIndex);
       }
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _maybeRevealFeedFromViewport();
+    });
+  }
+
+  void _handleProfileScroll() {
+    if (!_feedRevealed) {
+      _maybeRevealFeedFromViewport();
+    }
+    if (_feedRevealed) {
+      _maybeLoadMoreFeed();
+    }
+  }
+
+  void _maybeRevealFeedFromViewport() {
+    if (_feedRevealed) return;
+    final revealContext = _feedRevealHintKey.currentContext;
+    if (revealContext == null) return;
+    final renderObject = revealContext.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return;
+
+    final center = renderObject.localToGlobal(
+      Offset(0, renderObject.size.height / 2),
+    );
+    final viewportHeight = MediaQuery.sizeOf(context).height;
+    final revealLine = viewportHeight * 0.67;
+    if (center.dy <= revealLine) {
+      _revealFeed();
+    }
+  }
+
+  Future<void> _revealFeed() async {
+    if (_feedRevealed) return;
+    setState(() => _feedRevealed = true);
+    _feedBloomController.forward(from: 0);
+    await _loadFeedPage(reset: true);
+  }
+
+  void _closeFeed() {
+    if (!_feedRevealed) return;
+    _feedBloomController.reset();
+    setState(() => _feedRevealed = false);
+  }
+
+  Future<void> _loadFeedPage({bool reset = false}) async {
+    if (_feedLoading || _feedLoadingMore) return;
+    if (!reset && !_feedHasMore) return;
+
+    final nextOffset = reset ? 0 : _feedPosts.length;
+    if (reset) {
+      setState(() {
+        _feedLoading = true;
+        _feedHasMore = true;
+      });
+    } else {
+      setState(() => _feedLoadingMore = true);
+    }
+
+    final loaded = await _repo.getFlowFeed(
+      limit: _profileFeedPageSize,
+      offset: nextOffset,
+    );
+    if (!mounted) return;
+
+    final merged = reset ? <FlowPost>[] : List<FlowPost>.from(_feedPosts);
+    final seenIds = merged.map((post) => post.id).toSet();
+    for (final post in loaded) {
+      if (seenIds.add(post.id)) {
+        merged.add(post);
+      }
+    }
+
+    setState(() {
+      _feedPosts = merged;
+      _feedLoading = false;
+      _feedLoadingMore = false;
+      _feedHasMore = loaded.length >= _profileFeedPageSize;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _maybeLoadMoreFeed();
+    });
+  }
+
+  void _maybeLoadMoreFeed() {
+    if (!_feedRevealed || _feedLoading || _feedLoadingMore || !_feedHasMore) {
+      return;
+    }
+    if (!_feedScrollController.hasClients) return;
+    if (_feedScrollController.position.extentAfter > 720) return;
+    unawaited(_loadFeedPage());
   }
 
   int _clampPostIndex(int length, [int? desired]) {
@@ -340,15 +466,36 @@ class _ProfilePageState extends State<ProfilePage> {
     final canRevealCalendar =
         widget.openedFromCalendar && Navigator.of(context).canPop();
     final showBackdrop = !_loading && _profile != null;
-    final body = _loading
-        ? const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(_profileGoldMid),
-            ),
-          )
-        : _profile == null
-        ? _buildNoProfile()
-        : _buildProfile();
+    final title = _feedRevealed
+        ? 'Community Feed'
+        : (_profile?.handle ?? 'Profile');
+    final body = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 260),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      child: KeyedSubtree(
+        key: ValueKey<Object>(
+          _loading
+              ? 'profile_loading'
+              : _profile == null
+              ? 'profile_missing'
+              : _feedRevealed
+              ? 'profile_feed_mode'
+              : 'profile_mode',
+        ),
+        child: _loading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(_profileGoldMid),
+                ),
+              )
+            : _profile == null
+            ? _buildNoProfile()
+            : _feedRevealed
+            ? _buildFeedMode()
+            : _buildProfile(),
+      ),
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
@@ -368,7 +515,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 onPressed: () => Navigator.pop(context),
               ),
         title: Text(
-          _profile?.handle ?? 'Profile',
+          title,
           style: const TextStyle(
             color: Colors.white,
             fontSize: 17,
@@ -395,7 +542,13 @@ class _ProfilePageState extends State<ProfilePage> {
               onPressed: () => _openCalendarMenu(btnCtx),
             ),
           ),
-          if (!_isViewingOwnProfile)
+          if (_feedRevealed)
+            IconButton(
+              tooltip: 'Profile',
+              icon: _profileGoldIcon(Icons.person),
+              onPressed: _closeFeed,
+            )
+          else if (!_isViewingOwnProfile)
             IconButton(
               tooltip: 'My Profile',
               icon: _profileGoldIcon(Icons.person),
@@ -485,6 +638,8 @@ class _ProfilePageState extends State<ProfilePage> {
     final bio = profile.bio?.trim() ?? '';
 
     return SingleChildScrollView(
+      controller: _profileScrollController,
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -525,6 +680,24 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeedMode() {
+    final topInset = MediaQuery.paddingOf(context).top + kToolbarHeight;
+
+    return SingleChildScrollView(
+      controller: _feedScrollController,
+      physics: const BouncingScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(20, topInset + 18, 20, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildFeedHeader(),
+          const SizedBox(height: 18),
+          _buildFeedBloomPanel(),
         ],
       ),
     );
@@ -1119,6 +1292,41 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildPostsSection() {
+    final hasMultiplePosts = _posts.length > 1;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'Posted Flows',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const Spacer(),
+            if (!_postsLoading && hasMultiplePosts)
+              Text(
+                '${_activePostIndex + 1} / ${_posts.length}',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _buildPostedFlowPreview(),
+        const SizedBox(height: 16),
+        _buildFeedRevealHint(),
+      ],
+    );
+  }
+
+  Widget _buildPostedFlowPreview() {
     if (_postsLoading) {
       return const Center(
         child: CircularProgressIndicator(
@@ -1164,88 +1372,55 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     final hasMultiplePosts = _posts.length > 1;
+    if (!hasMultiplePosts) {
+      return _buildPostCard(_posts.first, onTap: () => _openPostDetails(0));
+    }
+
     final pagerHeight = _postPagerHeight(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        SizedBox(
+          height: pagerHeight,
+          child: PageView.builder(
+            controller: _postPageController,
+            physics: const BouncingScrollPhysics(),
+            itemCount: _posts.length,
+            onPageChanged: (index) {
+              setState(() {
+                _activePostIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: _buildPostCard(
+                  _posts[index],
+                  onTap: () => _openPostDetails(index),
+                  inPager: true,
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 10),
         Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Posted Flows',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const Spacer(),
-            if (hasMultiplePosts)
-              Text(
-                '${_activePostIndex + 1} / ${_posts.length}',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+            for (int i = 0; i < _posts.length; i++)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                height: 8,
+                width: _activePostIndex == i ? 18 : 8,
+                decoration: BoxDecoration(
+                  color: _activePostIndex == i
+                      ? _profileGoldMid
+                      : Colors.white.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
           ],
         ),
-        const SizedBox(height: 12),
-        if (!hasMultiplePosts)
-          _buildPostCard(_posts.first, onTap: () => _openPostDetails(0))
-        else ...[
-          SizedBox(
-            height: pagerHeight,
-            child: PageView.builder(
-              controller: _postPageController,
-              physics: const BouncingScrollPhysics(),
-              itemCount: _posts.length,
-              onPageChanged: (index) {
-                setState(() {
-                  _activePostIndex = index;
-                });
-              },
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: _buildPostCard(
-                    _posts[index],
-                    onTap: () => _openPostDetails(index),
-                    inPager: true,
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (int i = 0; i < _posts.length; i++)
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  height: 8,
-                  width: _activePostIndex == i ? 18 : 8,
-                  decoration: BoxDecoration(
-                    color: _activePostIndex == i
-                        ? _profileGoldMid
-                        : Colors.white.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Swipe left or right to browse posted flows.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.54),
-              fontSize: 12,
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -1268,6 +1443,472 @@ class _ProfilePageState extends State<ProfilePage> {
     if (textScale > 1.05) height += 18;
     if (textScale > 1.15) height += 18;
     return height;
+  }
+
+  Widget _buildFeedRevealHint() {
+    return GestureDetector(
+      key: _feedRevealHintKey,
+      onTap: () {
+        unawaited(_revealFeed());
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          children: [
+            Icon(
+              Icons.keyboard_arrow_up_rounded,
+              color: _profileGoldText.withValues(alpha: 0.8),
+              size: 20,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Swipe up to reveal feed',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.62),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeedHeader() {
+    return Column(
+      key: const ValueKey('feed_header'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _profileGoldTextWidget(
+          'Community Feed',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Flows from the people you follow, plus the wider field.',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.62),
+            fontSize: 13,
+            height: 1.3,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFeedBloomPanel() {
+    final opacityCurve = CurvedAnimation(
+      parent: _feedBloomController,
+      curve: const Interval(0.0, 0.78, curve: Curves.easeOutCubic),
+    );
+    final scaleCurve = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(
+          begin: 0.92,
+          end: 1.035,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 44,
+      ),
+      TweenSequenceItem(
+        tween: Tween(
+          begin: 1.035,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+        weight: 56,
+      ),
+    ]).animate(_feedBloomController);
+
+    final panelChild = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          top: -92,
+          left: -28,
+          right: -28,
+          height: 220,
+          child: IgnorePointer(
+            child: AnimatedBuilder(
+              animation: _feedBloomController,
+              builder: (context, child) {
+                final scale = 0.84 + (_feedBloomController.value * 0.44);
+                return Transform.scale(scale: scale, child: child);
+              },
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.topCenter,
+                    radius: 1.25,
+                    colors: [
+                      _profileGoldLight.withValues(alpha: 0.22),
+                      _profileGoldMid.withValues(alpha: 0.14),
+                      _profileGoldDeep.withValues(alpha: 0.09),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.34, 0.58, 1.0],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(14, 16, 14, 12),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.26),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: _profileGoldMid.withValues(alpha: 0.26)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.34),
+                blurRadius: 24,
+                spreadRadius: 1,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_feedLoading && _feedPosts.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        _profileGoldMid,
+                      ),
+                    ),
+                  ),
+                )
+              else if (_feedPosts.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 28),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.auto_awesome_motion_rounded,
+                        color: _profileGoldText.withValues(alpha: 0.72),
+                        size: 28,
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'No feed posts available yet',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'As more flows get posted, they will surface here.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.58),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                _buildFeedGrid(_feedPosts),
+              if (_feedLoadingMore) ...[
+                const SizedBox(height: 12),
+                const Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        _profileGoldMid,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+
+    return AnimatedBuilder(
+      animation: _feedBloomController,
+      builder: (context, child) {
+        final opacity = opacityCurve.value.clamp(0.0, 1.0);
+        final y = (1 - opacity) * 28;
+        return Opacity(
+          opacity: opacity,
+          child: Transform.translate(
+            offset: Offset(0, y),
+            child: Transform.scale(
+              scale: scaleCurve.value,
+              alignment: Alignment.topCenter,
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: panelChild,
+    );
+  }
+
+  Widget _buildFeedGrid(List<FlowPost> posts) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columnWidth = (constraints.maxWidth - _profileFeedColumnGap) / 2;
+        final (left, right) = _splitFeedPosts(posts, columnWidth);
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _buildFeedColumn(left)),
+            const SizedBox(width: _profileFeedColumnGap),
+            Expanded(child: _buildFeedColumn(right)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFeedColumn(List<FlowPost> posts) {
+    return Column(
+      children: [
+        for (int i = 0; i < posts.length; i++) ...[
+          _buildFeedPostTile(posts[i]),
+          if (i != posts.length - 1)
+            const SizedBox(height: _profileFeedColumnGap),
+        ],
+      ],
+    );
+  }
+
+  (List<FlowPost>, List<FlowPost>) _splitFeedPosts(
+    List<FlowPost> posts,
+    double columnWidth,
+  ) {
+    final left = <FlowPost>[];
+    final right = <FlowPost>[];
+    var leftHeight = 0.0;
+    var rightHeight = 0.0;
+
+    for (final post in posts) {
+      final estimatedHeight = _estimateFeedTileHeight(post, columnWidth);
+      if (leftHeight <= rightHeight) {
+        left.add(post);
+        leftHeight += estimatedHeight + _profileFeedColumnGap;
+      } else {
+        right.add(post);
+        rightHeight += estimatedHeight + _profileFeedColumnGap;
+      }
+    }
+
+    return (left, right);
+  }
+
+  double _estimateFeedTileHeight(FlowPost post, double cardWidth) {
+    final direction = Directionality.of(context);
+    final title = cleanFlowTitle(post.name);
+    final titlePainter = TextPainter(
+      text: TextSpan(
+        text: title.isEmpty ? 'Untitled Flow' : title,
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          height: 1.08,
+        ),
+      ),
+      maxLines: 6,
+      textDirection: direction,
+    )..layout(maxWidth: math.max(0, cardWidth - 28));
+    return 214 + titlePainter.size.height;
+  }
+
+  Widget _buildFeedPostTile(FlowPost post) {
+    final accent = Color(0xFF000000 | (post.color & 0x00FFFFFF));
+    final title = cleanFlowTitle(post.name);
+    final label = _ownsPost(post)
+        ? 'Your Flow'
+        : post.isFollowingAuthor
+        ? 'Following'
+        : 'Community';
+    final authorHandle = post.authorHandle?.trim();
+    final authorDisplayName = post.authorDisplayName?.trim();
+    final showHandle =
+        authorHandle != null &&
+        authorHandle.isNotEmpty &&
+        authorDisplayName != null &&
+        authorDisplayName.isNotEmpty &&
+        authorHandle.toLowerCase() != authorDisplayName.toLowerCase();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.045),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _profileGoldMid.withValues(alpha: 0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.34),
+            blurRadius: 20,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(22),
+              ),
+              onTap: () => _openFeedPost(post),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: accent.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: glossFromColor(post.color),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            label,
+                            style: TextStyle(
+                              color: accent.withValues(alpha: 0.95),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        ProfileAvatar(
+                          displayName: post.authorLabel,
+                          avatarUrl: post.authorAvatarUrl,
+                          avatarGlyphIds: post.authorAvatarGlyphIds,
+                          radius: 14,
+                          foregroundColor: _profileGoldText,
+                          backgroundColor: const Color(0xFF111115),
+                          borderColor: _profileGoldMid.withValues(alpha: 0.24),
+                          borderWidth: 1,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                post.authorLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (showHandle)
+                                Text(
+                                  '@$authorHandle',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.56),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    _profileGoldTextWidget(
+                      title.isEmpty ? 'Untitled Flow' : title,
+                      maxLines: 6,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        height: 1.08,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.schedule_outlined,
+                          size: 14,
+                          color: Colors.white.withValues(alpha: 0.42),
+                        ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            'Posted ${_formatDate(post.createdAt)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.54),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.north_east_rounded,
+                          size: 18,
+                          color: _profileGoldText.withValues(alpha: 0.86),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+              child: FlowPostEngagementRow(
+                key: ValueKey('feed_${post.id}'),
+                post: post,
+                lazyComments: true,
+                compact: true,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildPostCard(
@@ -1464,6 +2105,21 @@ class _ProfilePageState extends State<ProfilePage> {
     );
     if (!inPager) return card;
     return SizedBox.expand(child: card);
+  }
+
+  Future<void> _openFeedPost(FlowPost post) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            FlowPostDetailPage(post: post, isOwner: _ownsPost(post)),
+      ),
+    );
+    if (changed == true) {
+      await _loadPosts();
+      if (_feedRevealed) {
+        await _loadFeedPage(reset: true);
+      }
+    }
   }
 
   String _formatDate(DateTime date) {

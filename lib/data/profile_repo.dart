@@ -546,6 +546,24 @@ class ProfileRepo {
     }
   }
 
+  /// Fetch a ranked community feed of posted flows.
+  Future<List<FlowPost>> getFlowFeed({int limit = 24, int offset = 0}) async {
+    try {
+      final response = await _client.rpc(
+        'get_flow_post_feed',
+        params: {'p_limit': limit, 'p_offset': offset},
+      );
+      final rows = (response as List<dynamic>?) ?? const [];
+      return rows
+          .whereType<Map>()
+          .map((row) => FlowPost.fromJson(Map<String, dynamic>.from(row)))
+          .toList();
+    } catch (e) {
+      _log('[ProfileRepo] Error fetching flow feed: $e');
+      return _getFlowFeedFallback(limit: limit, offset: offset);
+    }
+  }
+
   /// Fetch a single flow post by id.
   Future<FlowPost?> getFlowPostById(String postId) async {
     try {
@@ -576,7 +594,7 @@ class ProfileRepo {
 
       final events = await UserEventsRepo(_client).getEventsForFlow(flow.id);
       final startDate = flow.startDate;
-      Map<String, dynamic> _eventToPayload(e) {
+      Map<String, dynamic> eventToPayload(e) {
         int offset = 0;
         if (startDate != null) {
           offset = DateUtils.dateOnly(
@@ -584,7 +602,7 @@ class ProfileRepo {
           ).difference(DateUtils.dateOnly(startDate)).inDays;
         }
 
-        String _fmtTime(DateTime dt) {
+        String formatTime(DateTime dt) {
           final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
           final m = dt.minute.toString().padLeft(2, '0');
           final mer = dt.hour >= 12 ? 'PM' : 'AM';
@@ -603,8 +621,10 @@ class ProfileRepo {
           'detail': detail,
           'location': location == null || location.isEmpty ? null : location,
           'all_day': e.allDay,
-          'start_time': e.allDay ? null : _fmtTime(startLocal),
-          'end_time': e.allDay || endLocal == null ? null : _fmtTime(endLocal),
+          'start_time': e.allDay ? null : formatTime(startLocal),
+          'end_time': e.allDay || endLocal == null
+              ? null
+              : formatTime(endLocal),
         };
       }
 
@@ -613,7 +633,7 @@ class ProfileRepo {
         'color': flow.color,
         'notes': flow.notes,
         'rules': flow.rules,
-        'events': events.map(_eventToPayload).toList(),
+        'events': events.map(eventToPayload).toList(),
         'start_date': startDate?.toIso8601String(),
         'end_date': flow.endDate?.toIso8601String(),
       };
@@ -664,7 +684,7 @@ class ProfileRepo {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return null;
 
-      DateTime? _parseDate(String? raw) {
+      DateTime? parseDate(String? raw) {
         if (raw == null) return null;
         try {
           return DateTime.tryParse(raw);
@@ -673,13 +693,13 @@ class ProfileRepo {
         }
       }
 
-      DateTime _dateOnly(DateTime d) => DateUtils.dateOnly(d);
-      final today = _dateOnly(DateTime.now());
-      final payloadStart = _parseDate(
+      DateTime dateOnly(DateTime dateTime) => DateUtils.dateOnly(dateTime);
+      final today = dateOnly(DateTime.now());
+      final payloadStart = parseDate(
         post.payloadJson?['start_date'] as String?,
       );
       final rawStart = startDateOverride ?? post.startDate ?? payloadStart;
-      final normalizedStart = rawStart == null ? null : _dateOnly(rawStart);
+      final normalizedStart = rawStart == null ? null : dateOnly(rawStart);
       final effectiveStart = (normalizedStart == null)
           ? today
           : (startDateOverride == null && normalizedStart.isBefore(today))
@@ -689,11 +709,11 @@ class ProfileRepo {
       DateTime? effectiveEnd;
       if (post.endDate != null) {
         final originalStart = post.startDate ?? payloadStart;
-        final endOnly = _dateOnly(post.endDate!);
+        final endOnly = dateOnly(post.endDate!);
         if (originalStart != null) {
-          final startOnly = _dateOnly(originalStart);
+          final startOnly = dateOnly(originalStart);
           final span = endOnly.difference(startOnly);
-          effectiveEnd = _dateOnly(effectiveStart.add(span));
+          effectiveEnd = dateOnly(effectiveStart.add(span));
         } else {
           effectiveEnd = endOnly.isBefore(effectiveStart)
               ? effectiveStart
@@ -753,7 +773,7 @@ class ProfileRepo {
     final events = payload?['events'] as List<dynamic>?;
     if (events == null || events.isEmpty) return;
 
-    (int hour, int minute)? _parseTime(String? raw) {
+    (int hour, int minute)? parseTime(String? raw) {
       if (raw == null) return null;
       final match = RegExp(
         r'^\s*(\d{1,2}):(\d{2})\s*(am|pm)?\s*$',
@@ -791,8 +811,8 @@ class ProfileRepo {
           ? null
           : locationRaw;
 
-      final parsedStart = _parseTime(e['start_time'] as String?);
-      final parsedEnd = _parseTime(e['end_time'] as String?);
+      final parsedStart = parseTime(e['start_time'] as String?);
+      final parsedEnd = parseTime(e['end_time'] as String?);
 
       final startHour = parsedStart?.$1 ?? 9;
       final startMinute = parsedStart?.$2 ?? 0;
@@ -1100,6 +1120,29 @@ class ProfileRepo {
   String _postgrestText(PostgrestException e) {
     return '${e.code} ${e.message} ${e.details ?? ''} ${e.hint ?? ''}'
         .toLowerCase();
+  }
+
+  Future<List<FlowPost>> _getFlowFeedFallback({
+    required int limit,
+    required int offset,
+  }) async {
+    try {
+      final rows = await _client
+          .from('flow_posts')
+          .select(
+            'id, user_id, flow_id, name, color, notes, rules, start_date, end_date, is_hidden, ai_metadata, created_at, profiles(handle, display_name, avatar_url)',
+          )
+          .eq('is_hidden', false)
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+      return ((rows as List<dynamic>?) ?? const [])
+          .whereType<Map>()
+          .map((row) => FlowPost.fromJson(Map<String, dynamic>.from(row)))
+          .toList();
+    } catch (e) {
+      _log('[ProfileRepo] Flow feed fallback failed: $e');
+      return const [];
+    }
   }
 
   Future<dynamic> _selectFlowPostCommentsRows(String postId) async {
