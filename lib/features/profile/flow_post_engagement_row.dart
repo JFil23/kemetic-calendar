@@ -753,55 +753,57 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return FractionallySizedBox(
-      heightFactor: 0.46,
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 12,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 12,
-        ),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
+    final media = MediaQuery.of(context);
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: FractionallySizedBox(
+          heightFactor: 0.46,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + media.padding.bottom),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Comments',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Comments',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  Text(
-                    '${_comments.length} total',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 13,
+                    Text(
+                      '${_comments.length} total',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 13,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Expanded(child: _buildCommentsBody()),
-              const SizedBox(height: 12),
-              _buildCommentComposer(),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Expanded(child: _buildCommentsBody()),
+                const SizedBox(height: 12),
+                _buildCommentComposer(),
+              ],
+            ),
           ),
         ),
       ),
@@ -1033,6 +1035,7 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
 
   Widget _buildCommentComposer() {
     final replyTarget = _replyTarget;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1081,6 +1084,7 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
                 focusNode: _commentFocusNode,
                 maxLines: 3,
                 maxLength: 150,
+                scrollPadding: EdgeInsets.only(bottom: bottomInset + 32),
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: replyTarget == null

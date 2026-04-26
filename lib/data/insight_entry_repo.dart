@@ -80,8 +80,8 @@ class InsightEntryRepo {
         .select('body_text, entry_date, created_at')
         .eq('user_id', userId)
         .eq('node_id', nodeUuid)
-        .order('entry_date', ascending: false)
-        .order('created_at', ascending: false);
+        .order('entry_date', ascending: true)
+        .order('created_at', ascending: true);
 
     final entries = (rows as List<dynamic>?) ?? const [];
     final mergedText = entries
@@ -127,8 +127,8 @@ class InsightEntryRepo {
           )
           .eq('user_id', userId)
           .eq('node_id', nodeUuid)
-          .order('entry_date', ascending: false)
-          .order('created_at', ascending: false);
+          .order('entry_date', ascending: true)
+          .order('created_at', ascending: true);
 
       return (rows as List<dynamic>)
           .cast<Map<String, dynamic>>()

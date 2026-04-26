@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../data/decan_reflection_repo.dart';
 import '../../data/insight_entry_model.dart';
 import '../../data/insight_entry_repo.dart';
 import '../../data/insight_link_model.dart';
 import '../../data/insight_link_repo.dart';
-import '../../data/journal_repo.dart';
+import '../../data/insight_link_utils.dart';
 import '../../data/profile_repo.dart';
 import '../../shared/glossy_text.dart';
 import '../../utils/kemetic_date_format.dart';
 import '../../widgets/kemetic_date_picker.dart';
+import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/insight_link_text.dart';
+import 'kemetic_node_library.dart';
+import 'node_link_picker_sheet.dart';
 import 'kemetic_node_model.dart';
 
 class NodeUserInsightsSection extends StatefulWidget {
@@ -41,9 +43,15 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
 
   Future<void> _load() async {
     final entries = await _entryRepo.fetchEntriesForNode(widget.node.id);
+    final ordered = List<InsightEntry>.from(entries)
+      ..sort((a, b) {
+        final byDate = a.entryDate.compareTo(b.entryDate);
+        if (byDate != 0) return byDate;
+        return a.createdAt.compareTo(b.createdAt);
+      });
     if (!mounted) return;
     setState(() {
-      _entries = entries;
+      _entries = ordered;
       _loading = false;
     });
   }
@@ -219,24 +227,15 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
             ),
           )
         else
-          Column(
-            children: [
-              for (int i = 0; i < _entries.length; i++) ...[
-                _buildEntryCard(_entries[i]),
-                if (i != _entries.length - 1) const SizedBox(height: 12),
-              ],
-            ],
-          ),
+          _buildChronologicalEntries(),
       ],
     );
   }
 
-  Widget _buildEntryCard(InsightEntry entry) {
-    final posting = _postingEntryIds.contains(entry.id);
-
+  Widget _buildChronologicalEntries() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.045),
         borderRadius: BorderRadius.circular(16),
@@ -245,63 +244,81 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  formatKemeticDate(entry.entryDate),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () => _openEditor(entry: entry),
-                child: const Text('Edit'),
-              ),
-              TextButton(
-                onPressed: posting ? null : () => _postEntry(entry),
-                child: posting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Post'),
-              ),
-              PopupMenuButton<_InsightEntryCardAction>(
-                icon: const Icon(Icons.more_horiz, color: Colors.white70),
-                color: const Color(0xFF141414),
-                onSelected: (action) {
-                  switch (action) {
-                    case _InsightEntryCardAction.delete:
-                      _deleteEntry(entry);
-                  }
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: _InsightEntryCardAction.delete,
-                    child: Text('Delete'),
-                  ),
-                ],
-              ),
+          for (int i = 0; i < _entries.length; i++) ...[
+            _buildEntrySegment(_entries[i]),
+            if (i != _entries.length - 1) ...[
+              const SizedBox(height: 12),
+              Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
+              const SizedBox(height: 12),
             ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            entry.bodyText.trim(),
-            maxLines: 6,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              height: 1.45,
-            ),
-          ),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildEntrySegment(InsightEntry entry) {
+    final posting = _postingEntryIds.contains(entry.id);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          formatKemeticDate(entry.entryDate),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.7),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          entry.bodyText.trim(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 15,
+            height: 1.52,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: [
+            TextButton(
+              onPressed: () => _openEditor(entry: entry),
+              child: const Text('Edit'),
+            ),
+            TextButton(
+              onPressed: posting ? null : () => _postEntry(entry),
+              child: posting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Post'),
+            ),
+            PopupMenuButton<_InsightEntryCardAction>(
+              icon: const Icon(Icons.more_horiz, color: Colors.white70),
+              color: const Color(0xFF141414),
+              onSelected: (action) {
+                switch (action) {
+                  case _InsightEntryCardAction.delete:
+                    _deleteEntry(entry);
+                }
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: _InsightEntryCardAction.delete,
+                  child: Text('Delete'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -407,135 +424,78 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
     await _saveLinks();
   }
 
-  Future<void> _startLinkToEntry(InsightTargetType targetType) async {
+  Future<void> _startLinkFlow() async {
     final sourceId = _entryId;
     if (sourceId == null) {
       _showMessage('Save this insight once before linking phrases.');
       return;
     }
 
-    final selection = _textCtrl.selection;
-    if (!selection.isValid || selection.isCollapsed) {
+    final selection = normalizeInsightSelection(
+      text: _textCtrl.text,
+      selection: _textCtrl.selection,
+    );
+    if (selection == null) {
       _showMessage('Select a phrase first.');
       return;
     }
 
-    final selected = _textCtrl.text
-        .substring(selection.start, selection.end)
-        .trim();
-    if (selected.isEmpty) {
-      _showMessage('Select a phrase first.');
+    final existingLink = findInsightLinkForSelection(
+      links: _links,
+      selection: selection,
+    );
+    final currentNode = existingLink == null
+        ? null
+        : KemeticNodeLibrary.resolve(existingLink.targetId);
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    final result = await showNodeLinkPickerSheet(
+      context: context,
+      selectedText: selectedInsightText(
+        text: _textCtrl.text,
+        selection: selection,
+      ),
+      currentNode: currentNode,
+    );
+    if (!mounted || result == null) return;
+
+    final remaining = removeInsightLinksForSelection(
+      links: _links,
+      selection: selection,
+    );
+    if (result.action == NodeLinkPickerAction.unlink) {
+      setState(() {
+        _links = remaining;
+      });
+      await _saveLinks();
       return;
     }
 
-    final targetChoice = await _pickTarget(targetType);
-    if (!mounted || targetChoice == null) return;
+    final targetNode = result.node;
+    if (targetNode == null) return;
 
     final now = DateTime.now();
     final link = InsightLink(
-      id: 'link-${now.microsecondsSinceEpoch}',
+      id: existingLink?.id ?? 'link-${now.microsecondsSinceEpoch}',
       userId: Supabase.instance.client.auth.currentUser?.id ?? 'local',
       sourceType: InsightSourceType.nodeUserText,
       sourceId: sourceId,
       start: selection.start,
       end: selection.end,
-      selectedText: selected,
-      targetType: targetType,
-      targetId: targetChoice.id,
-      createdAt: now,
+      selectedText: selectedInsightText(
+        text: _textCtrl.text,
+        selection: selection,
+      ),
+      targetType: InsightTargetType.node,
+      targetId: targetNode.id,
+      createdAt: existingLink?.createdAt ?? now,
       updatedAt: now,
     );
 
     setState(() {
-      _links = [..._links, link];
+      _links = [...remaining, link]..sort((a, b) => a.start.compareTo(b.start));
     });
     await _saveLinks();
-  }
-
-  Future<_InsightTargetChoice?> _pickTarget(
-    InsightTargetType targetType,
-  ) async {
-    if (targetType == InsightTargetType.journalEntry) {
-      final repo = JournalRepo(Supabase.instance.client);
-      final entries = await repo.listRecent(days: 90);
-      if (!mounted || entries.isEmpty) return null;
-
-      return showModalBottomSheet<_InsightTargetChoice>(
-        context: context,
-        backgroundColor: Colors.black,
-        builder: (ctx) {
-          final controller = TextEditingController();
-          return SafeArea(
-            child: StatefulBuilder(
-              builder: (context, setSheet) {
-                final query = controller.text.toLowerCase();
-                final filtered = entries.where((entry) {
-                  return entry.body.toLowerCase().contains(query) ||
-                      entry.category?.toLowerCase().contains(query) == true;
-                }).toList();
-
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: TextField(
-                        controller: controller,
-                        autofocus: true,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(
-                          hintText: 'Search journal…',
-                          hintStyle: TextStyle(color: Colors.white54),
-                          border: OutlineInputBorder(),
-                        ),
-                        onChanged: (_) => setSheet(() {}),
-                      ),
-                    ),
-                    Flexible(
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          final entry = filtered[index];
-                          return ListTile(
-                            title: Text(
-                              entry.body.trim().isEmpty
-                                  ? '(empty entry)'
-                                  : entry.body.trim().split('\n').first,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            subtitle: Text(
-                              formatKemeticDate(entry.gregDate),
-                              style: const TextStyle(color: Colors.white54),
-                            ),
-                            onTap: () {
-                              Navigator.of(
-                                context,
-                              ).pop(_InsightTargetChoice(entry.id));
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          );
-        },
-      );
-    }
-
-    if (targetType == InsightTargetType.reflectionEntry) {
-      final repo = DecanReflectionRepo(Supabase.instance.client);
-      final latest = await repo.getLatest();
-      if (latest == null) return null;
-      return _InsightTargetChoice(latest.id);
-    }
-
-    return null;
   }
 
   Future<void> _pickDate() async {
@@ -582,200 +542,190 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return FractionallySizedBox(
-      heightFactor: 0.82,
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 12,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-        ),
-        child: SafeArea(
-          child: _loading
-              ? const Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation(KemeticGold.base),
-                  ),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                      ),
+    final media = MediaQuery.of(context);
+    final keyboardScope = KemeticKeyboardScope.maybeOf(context);
+    final customKeyboardVisible =
+        keyboardScope?.isCustomKeyboardVisible ?? false;
+    final outerBottomInset = customKeyboardVisible
+        ? 0.0
+        : media.viewInsets.bottom;
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: outerBottomInset),
+      child: SafeArea(
+        top: false,
+        child: FractionallySizedBox(
+          heightFactor: 0.82,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + media.padding.bottom),
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(KemeticGold.base),
                     ),
-                    Text(
-                      widget.initialEntry == null
-                          ? 'New ${widget.node.title} Insight'
-                          : 'Edit ${widget.node.title} Insight',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    TextButton.icon(
-                      onPressed: _pickDate,
-                      style: TextButton.styleFrom(
-                        alignment: Alignment.centerLeft,
-                        padding: EdgeInsets.zero,
-                        foregroundColor: KemeticGold.base,
-                      ),
-                      icon: const Icon(Icons.event_note_outlined, size: 18),
-                      label: Text(
-                        formatKemeticDate(_entryDate),
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _textCtrl,
-                                onChanged: _onTextChanged,
-                                maxLines: null,
-                                expands: true,
-                                textAlignVertical: TextAlignVertical.top,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  height: 1.4,
-                                ),
-                                decoration: const InputDecoration(
-                                  border: InputBorder.none,
-                                  hintText:
-                                      'Add your insight for this node. You can date it like a journal entry.',
-                                  hintStyle: TextStyle(color: Colors.white54),
-                                ),
-                              ),
-                            ),
-                            if (_links.isNotEmpty) ...[
-                              const SizedBox(height: 10),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
-                                  children: _links
-                                      .map(
-                                        (link) => InputChip(
-                                          label: Text(
-                                            link.selectedText.isNotEmpty
-                                                ? link.selectedText
-                                                : (link.targetType ==
-                                                          InsightTargetType
-                                                              .journalEntry
-                                                      ? 'Journal link'
-                                                      : 'Reflection link'),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          deleteIcon: const Icon(
-                                            Icons.close,
-                                            size: 16,
-                                          ),
-                                          onDeleted: () => _removeLink(link),
-                                          backgroundColor: Colors.white
-                                              .withValues(alpha: 0.08),
-                                          labelStyle: const TextStyle(
-                                            color: Colors.white70,
-                                          ),
-                                        ),
-                                      )
-                                      .toList(),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        TextButton.icon(
-                          onPressed: () =>
-                              _startLinkToEntry(InsightTargetType.journalEntry),
-                          icon: const Icon(
-                            Icons.book_outlined,
-                            size: 18,
-                            color: Colors.white70,
-                          ),
-                          label: const Text(
-                            'Link to Journal',
-                            style: TextStyle(color: Colors.white),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(99),
                           ),
                         ),
-                        TextButton.icon(
-                          onPressed: () => _startLinkToEntry(
-                            InsightTargetType.reflectionEntry,
-                          ),
-                          icon: const Icon(
-                            Icons.auto_awesome_outlined,
-                            size: 18,
-                            color: Colors.white70,
-                          ),
-                          label: const Text(
-                            'Link to Reflection',
-                            style: TextStyle(color: Colors.white),
-                          ),
+                      ),
+                      Text(
+                        widget.initialEntry == null
+                            ? 'New ${widget.node.title} Insight'
+                            : 'Edit ${widget.node.title} Insight',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton(
-                        onPressed: _saving ? null : _saveEntry,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: KemeticGold.base,
-                          foregroundColor: Colors.black,
+                      ),
+                      const SizedBox(height: 6),
+                      TextButton.icon(
+                        onPressed: _pickDate,
+                        style: TextButton.styleFrom(
+                          alignment: Alignment.centerLeft,
+                          padding: EdgeInsets.zero,
+                          foregroundColor: KemeticGold.base,
                         ),
-                        child: _saving
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.black,
+                        icon: const Icon(Icons.event_note_outlined, size: 18),
+                        label: Text(
+                          formatKemeticDate(_entryDate),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.white12),
+                          ),
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _textCtrl,
+                                  onChanged: _onTextChanged,
+                                  maxLines: null,
+                                  expands: true,
+                                  scrollPadding: EdgeInsets.only(
+                                    bottom: media.viewInsets.bottom + 48,
+                                  ),
+                                  textAlignVertical: TextAlignVertical.top,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    height: 1.4,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    border: InputBorder.none,
+                                    hintText:
+                                        'Add your insight for this node. You can date it like a journal entry.',
+                                    hintStyle: TextStyle(color: Colors.white54),
                                   ),
                                 ),
-                              )
-                            : const Text('Save Insight'),
+                              ),
+                              if (_links.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: _links
+                                        .map(
+                                          (link) => InputChip(
+                                            label: Text(
+                                              link.selectedText.isNotEmpty
+                                                  ? link.selectedText
+                                                  : (link.targetType ==
+                                                            InsightTargetType
+                                                                .journalEntry
+                                                        ? 'Journal link'
+                                                        : 'Reflection link'),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            deleteIcon: const Icon(
+                                              Icons.close,
+                                              size: 16,
+                                            ),
+                                            onDeleted: () => _removeLink(link),
+                                            backgroundColor: Colors.white
+                                                .withValues(alpha: 0.08),
+                                            labelStyle: const TextStyle(
+                                              color: Colors.white70,
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          TextButton.icon(
+                            onPressed: _startLinkFlow,
+                            icon: const Icon(
+                              Icons.link,
+                              size: 18,
+                              color: Colors.white70,
+                            ),
+                            label: const Text(
+                              'Link Insight',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton(
+                          onPressed: _saving ? null : _saveEntry,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: KemeticGold.base,
+                            foregroundColor: Colors.black,
+                          ),
+                          child: _saving
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.black,
+                                    ),
+                                  ),
+                                )
+                              : const Text('Save Insight'),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
         ),
       ),
     );
   }
-}
-
-class _InsightTargetChoice {
-  final String id;
-
-  const _InsightTargetChoice(this.id);
 }
 
 enum _InsightEntryCardAction { delete }

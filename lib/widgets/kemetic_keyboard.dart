@@ -10,6 +10,28 @@ import 'kemetic_web_keyboard_input.dart'
 
 enum KeyboardMode { system, custom }
 
+class KemeticKeyboardScope extends InheritedWidget {
+  final bool isCustomKeyboardVisible;
+  final double customKeyboardInset;
+
+  const KemeticKeyboardScope({
+    super.key,
+    required super.child,
+    required this.isCustomKeyboardVisible,
+    required this.customKeyboardInset,
+  });
+
+  static KemeticKeyboardScope? maybeOf(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<KemeticKeyboardScope>();
+  }
+
+  @override
+  bool updateShouldNotify(covariant KemeticKeyboardScope oldWidget) {
+    return isCustomKeyboardVisible != oldWidget.isCustomKeyboardVisible ||
+        customKeyboardInset != oldWidget.customKeyboardInset;
+  }
+}
+
 /// ChangeNotifier that tracks the currently focused editable field and whether
 /// the Medu Neter keyboard is open.
 class KemeticKeyboardController extends ChangeNotifier {
@@ -496,9 +518,13 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost> {
       onPointerDown: _handlePointerDown,
       child: Stack(
         children: [
-          MediaQuery(
-            data: media.copyWith(viewInsets: effectiveViewInsets),
-            child: widget.child,
+          KemeticKeyboardScope(
+            isCustomKeyboardVisible: _controller.shouldShowPanel,
+            customKeyboardInset: _customKeyboardInset(media),
+            child: MediaQuery(
+              data: media.copyWith(viewInsets: effectiveViewInsets),
+              child: widget.child,
+            ),
           ),
           _KeyboardToggle(
             controller: _controller,

@@ -171,8 +171,10 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage>
     with SingleTickerProviderStateMixin {
+  static const double _feedRevealViewportThreshold = 0.74;
   final _repo = ProfileRepo(Supabase.instance.client);
   late final PageController _postPageController;
+  late final PageController _insightPostPageController;
   late final ScrollController _profileScrollController;
   late final ScrollController _feedScrollController;
   late final AnimationController _feedBloomController;
@@ -191,6 +193,7 @@ class _ProfilePageState extends State<ProfilePage>
   bool _feedLoadingMore = false;
   bool _feedHasMore = true;
   int _activePostIndex = 0;
+  int _activeInsightPostIndex = 0;
   bool _calendarRevealNavigationInFlight = false;
   int _profileLoadSerial = 0;
 
@@ -216,6 +219,7 @@ class _ProfilePageState extends State<ProfilePage>
   void initState() {
     super.initState();
     _postPageController = PageController(viewportFraction: 0.96);
+    _insightPostPageController = PageController(viewportFraction: 0.96);
     _profileScrollController = ScrollController()
       ..addListener(_handleProfileScroll);
     _feedScrollController = ScrollController()..addListener(_maybeLoadMoreFeed);
@@ -236,6 +240,7 @@ class _ProfilePageState extends State<ProfilePage>
       ..removeListener(_maybeLoadMoreFeed)
       ..dispose();
     _postPageController.dispose();
+    _insightPostPageController.dispose();
     super.dispose();
   }
 
@@ -327,9 +332,21 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   void _applyInsightPosts(List<InsightPost> posts) {
+    final activeIndex = _clampInsightPostIndex(posts.length);
     setState(() {
       _insightPosts = posts;
       _insightPostsLoading = false;
+      _activeInsightPostIndex = activeIndex;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || posts.isEmpty || !_insightPostPageController.hasClients) {
+        return;
+      }
+      final currentPage =
+          (_insightPostPageController.page ?? activeIndex.toDouble()).round();
+      if (currentPage != activeIndex) {
+        _insightPostPageController.jumpToPage(activeIndex);
+      }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -361,7 +378,7 @@ class _ProfilePageState extends State<ProfilePage>
       Offset(0, renderObject.size.height / 2),
     );
     final viewportHeight = MediaQuery.sizeOf(context).height;
-    final revealLine = viewportHeight * 0.67;
+    final revealLine = viewportHeight * _feedRevealViewportThreshold;
     if (center.dy <= revealLine) {
       _revealFeed();
     }
@@ -437,6 +454,14 @@ class _ProfilePageState extends State<ProfilePage>
   int _clampPostIndex(int length, [int? desired]) {
     if (length == 0) return 0;
     final target = desired ?? _activePostIndex;
+    if (target < 0) return 0;
+    if (target >= length) return length - 1;
+    return target;
+  }
+
+  int _clampInsightPostIndex(int length, [int? desired]) {
+    if (length == 0) return 0;
+    final target = desired ?? _activeInsightPostIndex;
     if (target < 0) return 0;
     if (target >= length) return length - 1;
     return target;
@@ -1386,72 +1411,34 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildPostedInsightsSection() {
+    final hasMultiplePosts = _insightPosts.length > 1;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Posted Insights',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (_insightPostsLoading)
-          const Center(
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(_profileGoldMid),
-            ),
-          )
-        else if (_insightPosts.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0C0C0F),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: _profileGoldMid.withValues(alpha: 0.16),
+        Row(
+          children: [
+            const Text(
+              'Posted Insights',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  _isViewingOwnProfile
-                      ? 'No posted insights yet'
-                      : 'No posted insights yet',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+            const Spacer(),
+            if (!_insightPostsLoading && hasMultiplePosts)
+              Text(
+                '${_activeInsightPostIndex + 1} / ${_insightPosts.length}',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  _isViewingOwnProfile
-                      ? 'Write an insight inside a node page, then post it here.'
-                      : 'Check back later for posted insights.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          Column(
-            children: [
-              for (int i = 0; i < _insightPosts.length; i++) ...[
-                _buildInsightPostCard(
-                  _insightPosts[i],
-                  onReadMore: () => _openInsightPost(_insightPosts[i]),
-                ),
-                if (i != _insightPosts.length - 1) const SizedBox(height: 12),
-              ],
-            ],
-          ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _buildPostedInsightPreview(),
       ],
     );
   }
@@ -1573,6 +1560,107 @@ class _ProfilePageState extends State<ProfilePage>
     if (textScale > 1.05) height += 18;
     if (textScale > 1.15) height += 18;
     return height;
+  }
+
+  Widget _buildPostedInsightPreview() {
+    if (_insightPostsLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(_profileGoldMid),
+        ),
+      );
+    }
+
+    if (_insightPosts.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0C0C0F),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: _profileGoldMid.withValues(alpha: 0.16)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'No posted insights yet',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _isViewingOwnProfile
+                  ? 'Write an insight inside a node page, then post it here.'
+                  : 'Check back later for posted insights.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final hasMultiplePosts = _insightPosts.length > 1;
+    if (!hasMultiplePosts) {
+      return _buildInsightPostCard(
+        _insightPosts.first,
+        onReadMore: () => _openInsightPost(_insightPosts.first),
+      );
+    }
+
+    final pagerHeight = _postPagerHeight(context);
+    return Column(
+      children: [
+        SizedBox(
+          height: pagerHeight,
+          child: PageView.builder(
+            controller: _insightPostPageController,
+            physics: const BouncingScrollPhysics(),
+            itemCount: _insightPosts.length,
+            onPageChanged: (index) {
+              setState(() {
+                _activeInsightPostIndex = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final post = _insightPosts[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: _buildInsightPostCard(
+                  post,
+                  onReadMore: () => _openInsightPost(post),
+                  inPager: true,
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (int i = 0; i < _insightPosts.length; i++)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                height: 8,
+                width: _activeInsightPostIndex == i ? 18 : 8,
+                decoration: BoxDecoration(
+                  color: _activeInsightPostIndex == i
+                      ? _profileGoldMid
+                      : Colors.white.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
   }
 
   Widget _buildFeedRevealHint() {
@@ -2464,8 +2552,131 @@ class _ProfilePageState extends State<ProfilePage>
   Widget _buildInsightPostCard(
     InsightPost post, {
     required VoidCallback onReadMore,
+    bool inPager = false,
   }) {
-    return Container(
+    final headerContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: _profileGoldBase.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _profileGoldMid.withValues(alpha: 0.28)),
+          ),
+          child: Text(
+            'Posted Insight',
+            style: TextStyle(
+              color: _profileGoldText.withValues(alpha: 0.96),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if ((post.nodeGlyph?.trim().isNotEmpty ?? false))
+              Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Text(
+                  post.nodeGlyph!,
+                  style: const TextStyle(
+                    color: _profileGoldText,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            Expanded(
+              child: _profileGoldTextWidget(
+                post.nodeTitle,
+                maxLines: inPager ? 3 : 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  height: 1.12,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Dated ${_formatPostDate(post.entryDate)}',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.58),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          _insightPreviewText(post.bodyText),
+          maxLines: inPager ? 9 : 6,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.88),
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Posted ${_formatPostDate(post.createdAt)}',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.5),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+
+    final fixedActions = Padding(
+      padding: const EdgeInsets.fromLTRB(10, 2, 10, 8),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: [
+            if (_isViewingOwnProfile)
+              TextButton.icon(
+                onPressed: () => _removeInsightPost(post.id),
+                icon: const Icon(
+                  Icons.remove_circle_outline,
+                  color: Colors.redAccent,
+                  size: 18,
+                ),
+                label: const Text(
+                  'Remove',
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            TextButton(
+              onPressed: onReadMore,
+              child: _profileGoldTextWidget(
+                'Read more',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final card = Container(
+      margin: EdgeInsets.only(bottom: inPager ? 0 : 12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(18),
@@ -2481,133 +2692,40 @@ class _ProfilePageState extends State<ProfilePage>
       ),
       child: Material(
         color: Colors.transparent,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: _profileGoldBase.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: _profileGoldMid.withValues(alpha: 0.28),
+        child: Column(
+          mainAxisSize: inPager ? MainAxisSize.max : MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (inPager)
+              Expanded(
+                child: InkWell(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(18),
+                  ),
+                  onTap: onReadMore,
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                    child: headerContent,
                   ),
                 ),
-                child: Text(
-                  'Posted Insight',
-                  style: TextStyle(
-                    color: _profileGoldText.withValues(alpha: 0.96),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
+              )
+            else
+              InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: onReadMore,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                  child: headerContent,
                 ),
               ),
-              const SizedBox(height: 14),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if ((post.nodeGlyph?.trim().isNotEmpty ?? false))
-                    Padding(
-                      padding: const EdgeInsets.only(right: 10),
-                      child: Text(
-                        post.nodeGlyph!,
-                        style: const TextStyle(
-                          color: _profileGoldText,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  Expanded(
-                    child: _profileGoldTextWidget(
-                      post.nodeTitle,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        height: 1.12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Dated ${_formatPostDate(post.entryDate)}',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.58),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                _insightPreviewText(post.bodyText),
-                maxLines: 6,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.88),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Posted ${_formatPostDate(post.createdAt)}',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    if (_isViewingOwnProfile)
-                      TextButton.icon(
-                        onPressed: () => _removeInsightPost(post.id),
-                        icon: const Icon(
-                          Icons.remove_circle_outline,
-                          color: Colors.redAccent,
-                          size: 18,
-                        ),
-                        label: const Text(
-                          'Remove',
-                          style: TextStyle(
-                            color: Colors.redAccent,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    TextButton(
-                      onPressed: onReadMore,
-                      child: _profileGoldTextWidget(
-                        'Read more',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            fixedActions,
+          ],
         ),
       ),
     );
+    if (!inPager) return card;
+    return SizedBox.expand(child: card);
   }
 
   Future<void> _openFeedPost(FlowPost post) async {
