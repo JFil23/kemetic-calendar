@@ -34,6 +34,8 @@ const Color _profileGoldMid = Color(0xFFE8BE54);
 const Color _profileGoldBase = Color(0xFFCA9221);
 const Color _profileGoldDeep = Color(0xFF7A5310);
 const Color _profileGoldText = Color(0xFFF1CF7A);
+const Color _profileGregorianBlue = Color(0xFF4DA3FF);
+const Color _profileGregorianBlueLight = Color(0xFFBFE0FF);
 const int _profileFeedPageSize = 18;
 const double _profileFeedColumnGap = 12;
 
@@ -192,6 +194,7 @@ class _ProfilePageState extends State<ProfilePage>
   bool _feedLoading = false;
   bool _feedLoadingMore = false;
   bool _feedHasMore = true;
+  bool _showGregorianFeedDates = false;
   int _activePostIndex = 0;
   int _activeInsightPostIndex = 0;
   bool _calendarRevealNavigationInFlight = false;
@@ -397,6 +400,13 @@ class _ProfilePageState extends State<ProfilePage>
     setState(() => _feedRevealed = false);
   }
 
+  void _toggleFeedDateMode() {
+    if (!mounted) return;
+    setState(() {
+      _showGregorianFeedDates = !_showGregorianFeedDates;
+    });
+  }
+
   Future<void> _loadFeedPage({bool reset = false}) async {
     if (_feedLoading || _feedLoadingMore) return;
     if (!reset && !_feedHasMore) return;
@@ -537,9 +547,7 @@ class _ProfilePageState extends State<ProfilePage>
     final canRevealCalendar =
         widget.openedFromCalendar && Navigator.of(context).canPop();
     final showBackdrop = !_loading && _profile != null;
-    final title = _feedRevealed
-        ? 'Community Feed'
-        : (_profile?.handle ?? 'Profile');
+    final title = _profile?.handle ?? 'Profile';
     final body = AnimatedSwitcher(
       duration: const Duration(milliseconds: 260),
       switchInCurve: Curves.easeOutCubic,
@@ -578,6 +586,7 @@ class _ProfilePageState extends State<ProfilePage>
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
+        centerTitle: false,
         automaticallyImplyLeading: false,
         leading: widget.openedFromCalendarSwipe
             ? null
@@ -585,14 +594,16 @@ class _ProfilePageState extends State<ProfilePage>
                 icon: _profileGoldIcon(Icons.close),
                 onPressed: () => Navigator.pop(context),
               ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        title: _feedRevealed
+            ? _buildFeedDateModeToggle()
+            : Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
         actions: [
           IconButton(
             tooltip: 'New note',
@@ -1562,6 +1573,32 @@ class _ProfilePageState extends State<ProfilePage>
     return height;
   }
 
+  Widget _buildFeedDateModeToggle() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _toggleFeedDateMode,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 6),
+          child: GlossyText(
+            text: 'ḥꜣw',
+            gradient: _showGregorianFeedDates ? whiteGloss : goldGloss,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
+              letterSpacing: 0,
+            ),
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.fade,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPostedInsightPreview() {
     if (_insightPostsLoading) {
       return const Center(
@@ -2126,7 +2163,7 @@ class _ProfilePageState extends State<ProfilePage>
                         Icon(
                           Icons.schedule_outlined,
                           size: 14,
-                          color: Colors.white.withValues(alpha: 0.42),
+                          color: _postDateIconColor(0.42),
                         ),
                         const SizedBox(width: 7),
                         Expanded(
@@ -2135,7 +2172,7 @@ class _ProfilePageState extends State<ProfilePage>
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.54),
+                              color: _postDateTextColor(0.54),
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
@@ -2312,22 +2349,22 @@ class _ProfilePageState extends State<ProfilePage>
               ),
               const SizedBox(height: 14),
               Text(
-                'Dated ${formatKemeticDate(post.entryDate, includeGregorianYear: false)}',
+                'Dated ${_formatPostDate(post.entryDate, compact: true)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.56),
+                  color: _postDateTextColor(0.56),
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Posted ${formatKemeticDate(post.createdAt, includeGregorianYear: false)}',
+                'Posted ${_formatPostDate(post.createdAt, compact: true)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
+                  color: _postDateTextColor(0.5),
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -2411,13 +2448,13 @@ class _ProfilePageState extends State<ProfilePage>
             Icon(
               Icons.schedule_outlined,
               size: 16,
-              color: Colors.white.withValues(alpha: 0.42),
+              color: _postDateIconColor(0.42),
             ),
             const SizedBox(width: 8),
             Text(
               'Posted ${_formatPostDate(post.createdAt)}',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.54),
+                color: _postDateTextColor(0.54),
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
@@ -2607,7 +2644,7 @@ class _ProfilePageState extends State<ProfilePage>
         Text(
           'Dated ${_formatPostDate(post.entryDate)}',
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.58),
+            color: _postDateTextColor(0.58),
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -2628,7 +2665,7 @@ class _ProfilePageState extends State<ProfilePage>
         Text(
           'Posted ${_formatPostDate(post.createdAt)}',
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.5),
+            color: _postDateTextColor(0.5),
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -2758,8 +2795,45 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
+  bool get _useGregorianPostDates => _feedRevealed && _showGregorianFeedDates;
+
+  Color _postDateTextColor(double alpha) {
+    final base = _useGregorianPostDates
+        ? _profileGregorianBlueLight
+        : Colors.white;
+    return base.withValues(alpha: alpha);
+  }
+
+  Color _postDateIconColor(double alpha) {
+    final base = _useGregorianPostDates ? _profileGregorianBlue : Colors.white;
+    return base.withValues(alpha: alpha);
+  }
+
   String _formatPostDate(DateTime date, {bool compact = false}) {
-    return formatKemeticDate(date, includeGregorianYear: !compact);
+    if (!_useGregorianPostDates) {
+      return formatKemeticDate(date, includeGregorianYear: !compact);
+    }
+
+    final local = date.toLocal();
+    const shortMonths = <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final month = shortMonths[local.month - 1];
+    if (compact) {
+      return '$month ${local.day}';
+    }
+    return '$month ${local.day}, ${local.year}';
   }
 
   String _insightPreviewText(String value) {
