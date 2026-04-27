@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../features/calendar/notify.dart';
 import '../telemetry/telemetry.dart';
 
 const _kTable = 'user_events';
@@ -448,6 +449,8 @@ class UserEventsRepo {
   Future<void> deleteByClientId(String clientEventId) async {
     _log('deleteByClientId($clientEventId)');
     try {
+      await Notify.cancelNotificationsForClientEventIds([clientEventId]);
+
       final deletedRows = await _client
           .from(_kTable)
           .delete()
@@ -500,6 +503,28 @@ class UserEventsRepo {
       final user = _client.auth.currentUser;
       if (user == null) return;
 
+      var selectQuery = _client
+          .from(_kTable)
+          .select('client_event_id')
+          .eq('user_id', user.id)
+          .like('client_event_id', '$prefix%');
+      if (fromUtc != null) {
+        selectQuery = selectQuery.gte(
+          'starts_at',
+          fromUtc.toUtc().toIso8601String(),
+        );
+      }
+      final rowsToCancel = await selectQuery;
+      final cidsToCancel = (rowsToCancel as List)
+          .cast<Map<String, dynamic>>()
+          .map((row) => row['client_event_id'] as String?)
+          .whereType<String>()
+          .where((cid) => cid.trim().isNotEmpty)
+          .toSet();
+      if (cidsToCancel.isNotEmpty) {
+        await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
+      }
+
       var query = _client
           .from(_kTable)
           .delete()
@@ -539,6 +564,14 @@ class UserEventsRepo {
     try {
       final user = _client.auth.currentUser;
       if (user == null) return;
+      final cidsToCancel = rowsForLog
+          .map((row) => row.clientEventId)
+          .whereType<String>()
+          .where((cid) => cid.trim().isNotEmpty)
+          .toSet();
+      if (cidsToCancel.isNotEmpty) {
+        await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
+      }
       await _client
           .from(_kTable)
           .delete()
@@ -558,14 +591,6 @@ class UserEventsRepo {
   Future<void> deleteByFlowId(int flowId, {DateTime? fromDate}) async {
     _log('deleteByFlowId(flowId=$flowId, fromDate=$fromDate)');
     try {
-      // 1) delete events explicitly tagged with flow_local_id
-      var q1 = _client.from(_kTable).delete().eq('flow_local_id', flowId);
-      if (fromDate != null) {
-        q1 = q1.gte('starts_at', fromDate.toUtc().toIso8601String());
-      }
-      await q1;
-
-      // 2) also delete Ma'at-generated events in the flow's date window (handles legacy rows with no flow_local_id)
       DateTime? startDate;
       DateTime? endDateInclusive; // end date as stored (date at 00:00)
       final rows = await _client
@@ -591,6 +616,62 @@ class UserEventsRepo {
       ); // next day at 00:00Z
 
       final user = _client.auth.currentUser;
+      final cidsToCancel = <String>{};
+
+      try {
+        final taggedEvents = await getEventsForFlow(
+          flowId,
+          startUtc: fromDate?.toUtc(),
+        );
+        for (final event in taggedEvents) {
+          final cid = event.clientEventId?.trim();
+          if (cid != null && cid.isNotEmpty) {
+            cidsToCancel.add(cid);
+          }
+        }
+      } catch (_) {
+        // Best effort only; deletion should still proceed.
+      }
+
+      if (user != null && (windowStart != null || windowEndExclusive != null)) {
+        var legacySelect = _client
+            .from(_kTable)
+            .select('client_event_id')
+            .eq('user_id', user.id)
+            .like('client_event_id', 'maat:%');
+        if (windowStart != null) {
+          legacySelect = legacySelect.gte(
+            'starts_at',
+            windowStart.toIso8601String(),
+          );
+        }
+        if (windowEndExclusive != null) {
+          legacySelect = legacySelect.lt(
+            'starts_at',
+            windowEndExclusive.toIso8601String(),
+          );
+        }
+        final legacyRows = await legacySelect;
+        for (final row in (legacyRows as List).cast<Map<String, dynamic>>()) {
+          final cid = (row['client_event_id'] as String?)?.trim();
+          if (cid != null && cid.isNotEmpty) {
+            cidsToCancel.add(cid);
+          }
+        }
+      }
+
+      if (cidsToCancel.isNotEmpty) {
+        await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
+      }
+
+      // 1) delete events explicitly tagged with flow_local_id
+      var q1 = _client.from(_kTable).delete().eq('flow_local_id', flowId);
+      if (fromDate != null) {
+        q1 = q1.gte('starts_at', fromDate.toUtc().toIso8601String());
+      }
+      await q1;
+
+      // 2) also delete Ma'at-generated events in the flow's date window (handles legacy rows with no flow_local_id)
       if (user != null && (windowStart != null || windowEndExclusive != null)) {
         var q2 = _client
             .from(_kTable)
@@ -1697,6 +1778,20 @@ class UserEventsRepo {
   Future<void> deleteFlow(int flowId) async {
     _log('deleteFlow($flowId)');
     try {
+      try {
+        final events = await getEventsForFlow(flowId);
+        final cidsToCancel = events
+            .map((event) => event.clientEventId)
+            .whereType<String>()
+            .where((cid) => cid.trim().isNotEmpty)
+            .toSet();
+        if (cidsToCancel.isNotEmpty) {
+          await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
+        }
+      } catch (_) {
+        // Flow delete should still proceed if notification cleanup misses.
+      }
+
       final row = await _client
           .from('flows')
           .select('id, is_saved')

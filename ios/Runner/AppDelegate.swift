@@ -29,6 +29,8 @@ import EventKit
       switch call.method {
       case "requestPermissions":
         self.handleRequestPermissions(result: result)
+      case "getStableDeviceId":
+        result(self.stableDeviceId())
       case "fetchEvents":
         if let args = call.arguments as? [String: Any] {
           self.handleFetchEvents(args: args, result: result)
@@ -68,6 +70,14 @@ import EventKit
         }
       }
     }
+  }
+
+  private func stableDeviceId() -> String? {
+    guard let raw = UIDevice.current.identifierForVendor?.uuidString.trimmingCharacters(in: .whitespacesAndNewlines),
+          !raw.isEmpty else {
+      return nil
+    }
+    return "ios:\(raw)"
   }
 
   private func handleFetchEvents(args: [String: Any], result: FlutterResult) {

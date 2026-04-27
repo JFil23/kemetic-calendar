@@ -38,6 +38,17 @@ void main() {
       expect(summarizePushToken(null), 'not available');
     });
 
+    test('extractWebPushEndpoint reads endpoint from subscription json', () {
+      expect(
+        extractWebPushEndpoint(
+          '{"endpoint":"https://web.push.apple.com/example","keys":{"p256dh":"a","auth":"b"}}',
+        ),
+        'https://web.push.apple.com/example',
+      );
+      expect(extractWebPushEndpoint('not-json'), isNull);
+      expect(extractWebPushEndpoint(null), isNull);
+    });
+
     test('describePushAuthorizationStatus maps firebase statuses', () {
       expect(
         describePushAuthorizationStatus(AuthorizationStatus.authorized),

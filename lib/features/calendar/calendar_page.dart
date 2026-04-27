@@ -5909,6 +5909,7 @@ class _CalendarPageState extends State<CalendarPage>
         diagnostics.permissionGranted &&
         diagnostics.databaseRegistered) {
       await prefs.setBool(SettingsPrefs.realTimeAlertsKey, true);
+      await Notify.syncLocalDeliveryMode();
       return;
     }
 
@@ -5939,6 +5940,7 @@ class _CalendarPageState extends State<CalendarPage>
               final token = await push.requestAndRegisterToken();
               final success = token != null;
               await prefs.setBool(SettingsPrefs.realTimeAlertsKey, success);
+              await Notify.syncLocalDeliveryMode();
 
               if (!mounted || !sheetContext.mounted) return;
 
@@ -11921,32 +11923,39 @@ class _CalendarPageState extends State<CalendarPage>
                     title: 'ḥꜣw',
                     templates: kMaatFlowTemplates,
                     hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
-                    onPickTemplate: (tpl) {
-                      Navigator.of(ctx3).push(
-                        MaterialPageRoute(
-                          builder: (ctx4) => _MaatFlowTemplateDetailPage(
-                            template: tpl,
-                            addInstance:
-                                ({
-                                  required _MaatFlowTemplate template,
-                                  DateTime? startDate,
-                                  bool? useKemetic,
-                                  TrackSkyTimeZone? trackSkyTimeZone,
-                                  int? alertMinutesBefore,
-                                }) async {
-                                  final id = await _addMaatFlowInstance(
-                                    template: template,
-                                    startDate: startDate,
-                                    useKemetic: useKemetic ?? false,
-                                    trackSkyTimeZone: trackSkyTimeZone,
-                                    alertMinutesBefore:
-                                        alertMinutesBefore ?? _alertNoneMinutes,
-                                  );
-                                  return id;
-                                },
-                          ),
-                        ),
-                      );
+                    onPickTemplate: (tpl) async {
+                      final importedFlowId = await Navigator.of(ctx3)
+                          .push<int?>(
+                            MaterialPageRoute(
+                              builder: (ctx4) => _MaatFlowTemplateDetailPage(
+                                template: tpl,
+                                addInstance:
+                                    ({
+                                      required _MaatFlowTemplate template,
+                                      DateTime? startDate,
+                                      bool? useKemetic,
+                                      TrackSkyTimeZone? trackSkyTimeZone,
+                                      int? alertMinutesBefore,
+                                    }) async {
+                                      final id = await _addMaatFlowInstance(
+                                        template: template,
+                                        startDate: startDate,
+                                        useKemetic: useKemetic ?? false,
+                                        trackSkyTimeZone: trackSkyTimeZone,
+                                        alertMinutesBefore:
+                                            alertMinutesBefore ??
+                                            _alertNoneMinutes,
+                                      );
+                                      return id;
+                                    },
+                              ),
+                            ),
+                          );
+                      if (importedFlowId != null &&
+                          importedFlowId > 0 &&
+                          ctx3.mounted) {
+                        Navigator.of(ctx3).pop(importedFlowId);
+                      }
                     },
                     onCreateNew: () async {
                       final edited = await Navigator.of(innerCtx)
@@ -29979,7 +29988,7 @@ class _MaatFlowsListPage extends StatelessWidget {
   });
 
   final bool Function(String key) hasActiveForKey;
-  final void Function(_MaatFlowTemplate tpl) onPickTemplate;
+  final Future<void> Function(_MaatFlowTemplate tpl) onPickTemplate;
   final VoidCallback onCreateNew;
   final String title;
   final List<_MaatFlowTemplate> templates;
@@ -30024,7 +30033,7 @@ class _MaatFlowsListPage extends StatelessWidget {
                 final t = templates[i];
                 final added = hasActiveForKey(t.key);
                 return ListTile(
-                  onTap: () => onPickTemplate(t),
+                  onTap: () async => onPickTemplate(t),
                   leading: Container(
                     width: 18,
                     height: 18,
@@ -31206,7 +31215,7 @@ class _MaatFlowTemplateDetailPageState
                       startDate: _picked!,
                       useKemetic: _useKemetic,
                     );
-                    if (context.mounted) {
+                    if (id > 0 && context.mounted) {
                       Navigator.of(context).pop(id);
                     }
                   },

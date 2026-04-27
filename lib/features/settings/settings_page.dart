@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
 import '../calendar/calendar_page.dart';
+import '../calendar/notify.dart';
 import 'settings_prefs.dart';
 import 'us_holiday_seeder.dart';
 import '../../services/calendar_sync_service.dart';
@@ -113,6 +114,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!enabled) {
       await _save();
       await push.unregister();
+      await Notify.syncLocalDeliveryMode();
       if (!mounted) return;
       setState(() {
         _requestingPush = false;
@@ -142,6 +144,7 @@ class _SettingsPageState extends State<SettingsPage> {
           : failureMessage;
     });
     await _save();
+    await Notify.syncLocalDeliveryMode();
     await _refreshPushDiagnostics();
 
     messenger.showSnackBar(

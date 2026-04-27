@@ -6,6 +6,7 @@ import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.CalendarContract
+import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -24,6 +25,7 @@ class MainActivity : FlutterActivity() {
     MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
       when (call.method) {
         "requestPermissions" -> handleRequestPermissions(result)
+        "getStableDeviceId" -> result.success(getStableDeviceId())
         "fetchEvents" -> {
           val args = call.arguments as? Map<*, *>
           if (args == null) {
@@ -78,6 +80,13 @@ class MainActivity : FlutterActivity() {
   private fun hasCalendarPermission(): Boolean {
     val perms = arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
     return perms.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
+  }
+
+  private fun getStableDeviceId(): String? {
+    val androidId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+      ?.trim()
+      ?.takeIf { it.isNotEmpty() && it != "9774d56d682e549c" }
+    return androidId?.let { "android:$it" }
   }
 
   private fun handleRequestPermissions(result: MethodChannel.Result) {

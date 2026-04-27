@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:http/http.dart' as http;
@@ -69,6 +70,11 @@ class _PushTokenRepo {
 
     try {
       await saveWithPlatform(platform);
+      await _cleanupDuplicateTokenRows(
+        userId: uid,
+        deviceId: deviceId,
+        token: token,
+      );
       debugPrint('[push] token upsert succeeded');
       return null;
     } catch (e) {
@@ -99,6 +105,58 @@ class _PushTokenRepo {
       await _client.from('push_tokens').delete().eq('device_id', deviceId);
     } catch (_) {
       // ignore
+    }
+  }
+
+  Future<void> deactivateTokensByDeviceIds({
+    required String userId,
+    required Iterable<String> deviceIds,
+  }) async {
+    final ids = deviceIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (ids.isEmpty) return;
+    try {
+      await _client
+          .from('push_tokens')
+          .update({
+            'is_active': false,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('user_id', userId)
+          .inFilter('device_id', ids);
+    } catch (e) {
+      debugPrint('[push] deactivateTokensByDeviceIds failed: $e');
+    }
+  }
+
+  Future<void> _cleanupDuplicateTokenRows({
+    required String userId,
+    required String deviceId,
+    required String token,
+  }) async {
+    try {
+      await _client
+          .from('push_tokens')
+          .delete()
+          .eq('user_id', userId)
+          .eq('token', token)
+          .neq('device_id', deviceId);
+    } catch (e) {
+      debugPrint('[push] duplicate token cleanup failed: $e');
+    }
+
+    try {
+      await _client
+          .from('push_tokens')
+          .update({'is_active': false})
+          .eq('user_id', userId)
+          .neq('device_id', deviceId)
+          .eq('token', token);
+    } catch (e) {
+      debugPrint('[push] duplicate token deactivate failed: $e');
     }
   }
 }
@@ -175,6 +233,10 @@ class PushNotifications {
   static const _defaultWebPushPublicKey =
       'BLF5usfirDkmfJaEDDUzIVLzQOuF5XMdTEIscpYZxMpm26KvEuQ716kN2a2W6_gbVUAj7-xU7WEUWCi2ZLoUlYA';
   static const _webPushPublicKeyPref = 'push.webPushPublicKey';
+  static const _webPushEndpointPref = 'push.webPushEndpoint';
+  static const MethodChannel _deviceChannel = MethodChannel(
+    'com.kemetic.calendar/sync',
+  );
 
   void _setRegistrationError(String? message) {
     _lastRegistrationError = message?.trim();
@@ -379,6 +441,9 @@ class PushNotifications {
 
   Future<void> unregister() async {
     final deviceId = await _deviceId();
+    if (kIsWeb) {
+      await _deactivateRememberedWebPushEndpoints();
+    }
     await _repo.deleteToken(deviceId: deviceId);
     if (kIsWeb) {
       try {
@@ -387,6 +452,7 @@ class PushNotifications {
         debugPrint('[push] browser unsubscribe error: $e');
       } finally {
         await _clearRememberedWebPushPublicKey();
+        await _clearRememberedWebPushEndpoint();
       }
     } else {
       try {
@@ -720,6 +786,7 @@ class PushNotifications {
       return null;
     }
     if (kIsWeb) {
+      await _reconcileWebPushEndpoints(token);
       await _rememberWebPushPublicKey(_effectiveWebPushPublicKey);
     }
     return token;
@@ -783,12 +850,37 @@ class PushNotifications {
   }
 
   Future<String> _deviceId() async {
+    final nativeId = await _nativeStableDeviceId();
+    if (nativeId != null) {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('push.deviceId');
+      if (cached != nativeId) {
+        await prefs.setString('push.deviceId', nativeId);
+      }
+      return nativeId;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final cached = prefs.getString('push.deviceId');
     if (cached != null && cached.isNotEmpty) return cached;
     final id = const Uuid().v4();
     await prefs.setString('push.deviceId', id);
     return id;
+  }
+
+  Future<String?> _nativeStableDeviceId() async {
+    if (kIsWeb) return null;
+    try {
+      final raw = await _deviceChannel.invokeMethod<String>(
+        'getStableDeviceId',
+      );
+      final value = raw?.trim();
+      if (value == null || value.isEmpty) return null;
+      return value;
+    } catch (e) {
+      debugPrint('[push] native stable device id unavailable: $e');
+      return null;
+    }
   }
 
   Future<String?> _resolveWebPushPublicKey() async {
@@ -814,6 +906,114 @@ class PushNotifications {
     }
 
     return _defaultWebPushPublicKey;
+  }
+
+  Future<void> _reconcileWebPushEndpoints(String currentToken) async {
+    if (!kIsWeb) return;
+    final userId = _client.auth.currentUser?.id;
+    final currentEndpoint = extractWebPushEndpoint(currentToken);
+    if (userId == null || currentEndpoint == null || currentEndpoint.isEmpty) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final previousEndpoint = prefs.getString(_webPushEndpointPref)?.trim();
+    final now = DateTime.now().toUtc();
+    final staleCutoff = now.subtract(const Duration(days: 7));
+    final rowsToDeactivate = <String>{};
+
+    try {
+      final rows = await _client
+          .from('push_tokens')
+          .select('device_id, token, platform, last_seen_at, updated_at')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .inFilter('platform', ['web_push', 'unknown']);
+
+      for (final row in (rows as List).cast<Map<String, dynamic>>()) {
+        final deviceId = (row['device_id'] as String?)?.trim();
+        if (deviceId == null || deviceId.isEmpty) continue;
+
+        final endpoint = extractWebPushEndpoint(row['token'] as String?);
+        if (endpoint == null || endpoint.isEmpty) continue;
+        if (endpoint == currentEndpoint) continue;
+
+        if (previousEndpoint != null &&
+            previousEndpoint.isNotEmpty &&
+            endpoint == previousEndpoint) {
+          rowsToDeactivate.add(deviceId);
+          continue;
+        }
+
+        final lastSeen = _tryParseTimestamp(
+          row['last_seen_at'] as String? ?? row['updated_at'] as String?,
+        );
+        if (lastSeen != null && lastSeen.isBefore(staleCutoff)) {
+          rowsToDeactivate.add(deviceId);
+        }
+      }
+    } catch (e) {
+      debugPrint('[push] web push endpoint reconciliation failed: $e');
+    }
+
+    if (rowsToDeactivate.isNotEmpty) {
+      await _repo.deactivateTokensByDeviceIds(
+        userId: userId,
+        deviceIds: rowsToDeactivate,
+      );
+    }
+
+    await _rememberWebPushEndpoint(currentEndpoint);
+  }
+
+  Future<void> _deactivateRememberedWebPushEndpoints() async {
+    if (!kIsWeb) return;
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final rememberedEndpoints = <String>{};
+    final remembered = prefs.getString(_webPushEndpointPref)?.trim();
+    if (remembered != null && remembered.isNotEmpty) {
+      rememberedEndpoints.add(remembered);
+    }
+    try {
+      final current = await getExistingBrowserPushSubscriptionJson();
+      final currentEndpoint = extractWebPushEndpoint(current);
+      if (currentEndpoint != null && currentEndpoint.isNotEmpty) {
+        rememberedEndpoints.add(currentEndpoint);
+      }
+    } catch (_) {
+      // Best effort only.
+    }
+    if (rememberedEndpoints.isEmpty) return;
+
+    try {
+      final rows = await _client
+          .from('push_tokens')
+          .select('device_id, token, platform')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .inFilter('platform', ['web_push', 'unknown']);
+
+      final rowsToDeactivate = <String>{};
+      for (final row in (rows as List).cast<Map<String, dynamic>>()) {
+        final endpoint = extractWebPushEndpoint(row['token'] as String?);
+        final deviceId = (row['device_id'] as String?)?.trim();
+        if (deviceId == null || deviceId.isEmpty) continue;
+        if (endpoint != null && rememberedEndpoints.contains(endpoint)) {
+          rowsToDeactivate.add(deviceId);
+        }
+      }
+      if (rowsToDeactivate.isNotEmpty) {
+        await _repo.deactivateTokensByDeviceIds(
+          userId: userId,
+          deviceIds: rowsToDeactivate,
+        );
+      }
+    } catch (e) {
+      debugPrint('[push] web push endpoint deactivation failed: $e');
+    }
   }
 
   String? _normalizedString(String? value) {
@@ -854,9 +1054,21 @@ class PushNotifications {
     await prefs.setString(_webPushPublicKeyPref, normalized);
   }
 
+  Future<void> _rememberWebPushEndpoint(String? endpoint) async {
+    final normalized = _normalizedString(endpoint);
+    if (normalized == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_webPushEndpointPref, normalized);
+  }
+
   Future<void> _clearRememberedWebPushPublicKey() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_webPushPublicKeyPref);
+  }
+
+  Future<void> _clearRememberedWebPushEndpoint() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_webPushEndpointPref);
   }
 }
 
@@ -947,6 +1159,31 @@ String summarizePushToken(String? token) {
     return token;
   }
   return '${token.substring(0, 8)}...${token.substring(token.length - 8)}';
+}
+
+String? extractWebPushEndpoint(String? token) {
+  final raw = token?.trim();
+  if (raw == null || raw.isEmpty || !raw.startsWith('{')) {
+    return null;
+  }
+  try {
+    final json = jsonDecode(raw);
+    if (json is Map<String, dynamic>) {
+      final endpoint = json['endpoint']?.toString().trim();
+      if (endpoint != null && endpoint.isNotEmpty) {
+        return endpoint;
+      }
+    }
+  } catch (_) {
+    // Ignore malformed rows; callers treat null as "not a web push token".
+  }
+  return null;
+}
+
+DateTime? _tryParseTimestamp(String? raw) {
+  final value = raw?.trim();
+  if (value == null || value.isEmpty) return null;
+  return DateTime.tryParse(value)?.toUtc();
 }
 
 @visibleForTesting

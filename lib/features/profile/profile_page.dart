@@ -28,6 +28,7 @@ import 'flow_post_engagement_row.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../widgets/inbox_icon_with_badge.dart';
 import '../../widgets/profile_avatar.dart';
+import 'profile_backdrop_timeline.dart';
 
 const Color _profileGoldLight = Color(0xFFF7E09A);
 const Color _profileGoldMid = Color(0xFFE8BE54);
@@ -50,108 +51,6 @@ const Gradient _profileGoldGradient = LinearGradient(
   ],
   stops: [0.0, 0.42, 0.74, 1.0],
 );
-
-const String _profileBackdropAssetDirectory =
-    'assets/profile/day_cycle_registered_v3_jpg';
-
-const List<_ProfileBackdropFrame> _profileBackdropFrames = [
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/12am.jpg',
-    minuteOfDay: 0,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/1am.jpg',
-    minuteOfDay: 60,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/2am.jpg',
-    minuteOfDay: 120,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/3am.jpg',
-    minuteOfDay: 180,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/4am.jpg',
-    minuteOfDay: 240,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/5am.jpg',
-    minuteOfDay: 300,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/6am.jpg',
-    minuteOfDay: 360,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/7am.jpg',
-    minuteOfDay: 420,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/8am.jpg',
-    minuteOfDay: 480,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/9am.jpg',
-    minuteOfDay: 540,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/10am.jpg',
-    minuteOfDay: 600,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/11am.jpg',
-    minuteOfDay: 660,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/12pm.jpg',
-    minuteOfDay: 720,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/1pm.jpg',
-    minuteOfDay: 780,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/2pm.jpg',
-    minuteOfDay: 840,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/3pm.jpg',
-    minuteOfDay: 900,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/4pm.jpg',
-    minuteOfDay: 960,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/5pm.jpg',
-    minuteOfDay: 1020,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/6pm.jpg',
-    minuteOfDay: 1080,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/7pm.jpg',
-    minuteOfDay: 1140,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/8pm.jpg',
-    minuteOfDay: 1200,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/9pm.jpg',
-    minuteOfDay: 1260,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/10pm.jpg',
-    minuteOfDay: 1320,
-  ),
-  _ProfileBackdropFrame(
-    assetPath: '$_profileBackdropAssetDirectory/11pm.jpg',
-    minuteOfDay: 1380,
-  ),
-];
 
 class ProfilePage extends StatefulWidget {
   final String userId;
@@ -2912,74 +2811,6 @@ class _ProfilePageState extends State<ProfilePage>
   }
 }
 
-class _ProfileBackdropFrame {
-  final String assetPath;
-  final int minuteOfDay;
-
-  const _ProfileBackdropFrame({
-    required this.assetPath,
-    required this.minuteOfDay,
-  });
-}
-
-class _ProfileBackdropBlend {
-  final _ProfileBackdropFrame current;
-  final _ProfileBackdropFrame next;
-  final _ProfileBackdropFrame upcoming;
-  final double t;
-
-  const _ProfileBackdropBlend({
-    required this.current,
-    required this.next,
-    required this.upcoming,
-    required this.t,
-  });
-
-  factory _ProfileBackdropBlend.forTime(DateTime now) {
-    final minuteOfDay =
-        (now.hour * 60) +
-        now.minute +
-        (now.second / 60) +
-        (now.millisecond / 60000);
-
-    for (var index = 0; index < _profileBackdropFrames.length; index++) {
-      final current = _profileBackdropFrames[index];
-      final next =
-          _profileBackdropFrames[(index + 1) % _profileBackdropFrames.length];
-      final nextMinute = index == _profileBackdropFrames.length - 1
-          ? next.minuteOfDay + 1440
-          : next.minuteOfDay;
-      final wrappedMinute =
-          index == _profileBackdropFrames.length - 1 &&
-              minuteOfDay < current.minuteOfDay
-          ? minuteOfDay + 1440
-          : minuteOfDay;
-
-      if (wrappedMinute >= current.minuteOfDay && wrappedMinute < nextMinute) {
-        final span = nextMinute - current.minuteOfDay;
-        final t = span <= 0
-            ? 0.0
-            : (wrappedMinute - current.minuteOfDay) / span;
-        return _ProfileBackdropBlend(
-          current: current,
-          next: next,
-          upcoming:
-              _profileBackdropFrames[(index + 2) %
-                  _profileBackdropFrames.length],
-          t: t.clamp(0.0, 1.0).toDouble(),
-        );
-      }
-    }
-
-    return _ProfileBackdropBlend(
-      current: _profileBackdropFrames.first,
-      next: _profileBackdropFrames[1],
-      upcoming: _profileBackdropFrames[2],
-      t: 0.0,
-    );
-  }
-}
-
 class _ProfileBackdrop extends StatefulWidget {
   const _ProfileBackdrop();
 
@@ -2987,33 +2818,43 @@ class _ProfileBackdrop extends StatefulWidget {
   State<_ProfileBackdrop> createState() => _ProfileBackdropState();
 }
 
-class _ProfileBackdropState extends State<_ProfileBackdrop> {
+class _ProfileBackdropState extends State<_ProfileBackdrop>
+    with WidgetsBindingObserver {
   static const Alignment _heroImageAlignment = Alignment(-0.08, -1.0);
   static const double _heroImageOpacity = 0.9;
   static const int _backdropSourceWidth = 1672;
 
   final Set<String> _precachedAssets = <String>{};
   Timer? _tickTimer;
+  DateTime _visibleNow = profileBackdropPhoneLocalNow();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scheduleNextTick();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _primeAssets(_ProfileBackdropBlend.forTime(DateTime.now()));
+    _primeAssets(ProfileBackdropBlend.forTime(_visibleNow));
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tickTimer?.cancel();
     super.dispose();
   }
 
-  void _primeAssets(_ProfileBackdropBlend blend) {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    _refreshVisibleTime();
+  }
+
+  void _primeAssets(ProfileBackdropBlend blend) {
     final assetsToPrime = <String>[
       for (final assetPath in {blend.current.assetPath, blend.next.assetPath})
         if (_precachedAssets.add(assetPath)) assetPath,
@@ -3039,20 +2880,21 @@ class _ProfileBackdropState extends State<_ProfileBackdrop> {
     return ResizeImage.resizeIfNeeded(targetWidth, null, AssetImage(assetPath));
   }
 
+  void _refreshVisibleTime() {
+    final now = profileBackdropPhoneLocalNow();
+    _primeAssets(ProfileBackdropBlend.forTime(now));
+    setState(() {
+      _visibleNow = now;
+    });
+    _scheduleNextTick();
+  }
+
   void _scheduleNextTick() {
     _tickTimer?.cancel();
-    final now = DateTime.now();
-    final nextMinute = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      now.hour,
-      now.minute + 1,
-    );
-    _tickTimer = Timer(nextMinute.difference(now), () {
+    final now = profileBackdropPhoneLocalNow();
+    _tickTimer = Timer(profileBackdropDelayUntilNextFrameChange(now), () {
       if (!mounted) return;
-      setState(() {});
-      _scheduleNextTick();
+      _refreshVisibleTime();
     });
   }
 
@@ -3070,24 +2912,16 @@ class _ProfileBackdropState extends State<_ProfileBackdrop> {
 
   @override
   Widget build(BuildContext context) {
-    final blend = _ProfileBackdropBlend.forTime(DateTime.now());
+    final blend = ProfileBackdropBlend.forTime(_visibleNow);
     _primeAssets(blend);
 
     return RepaintBoundary(
       child: SizedBox.expand(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Opacity(
-              opacity: _heroImageOpacity,
-              child: _buildBackdropImage(blend.current.assetPath),
-            ),
-            if (blend.t > 0.001)
-              Opacity(
-                opacity: _heroImageOpacity * blend.t,
-                child: _buildBackdropImage(blend.next.assetPath),
-              ),
-          ],
+        child: Opacity(
+          opacity: _heroImageOpacity,
+          // These hourly plates are not pixel-registered enough for a live
+          // crossfade; blending them creates doubled landmarks in-app.
+          child: _buildBackdropImage(blend.current.assetPath),
         ),
       ),
     );
