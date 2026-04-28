@@ -6,9 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/user_events_repo.dart';
-import '../../data/flow_activation_utils.dart';
 import '../../data/flows_repo.dart';
-import '../../data/flow_progress_repo.dart';
+import '../../data/shared_calendar_models.dart';
+import '../../data/shared_calendars_repo.dart';
 import 'package:mobile/features/calendar/notify.dart';
 import 'package:flutter/rendering.dart';
 import '../../data/note_category.dart';
@@ -29,8 +29,10 @@ import '../../main.dart' show routeObserver, Events;
 import '../sharing/share_flow_sheet.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
+import '../../widgets/inbox_icon_with_badge.dart';
 import '../ai_generation/ai_flow_generation_modal.dart';
 import '../ai_generation/ai_flow_import_payload.dart';
+import '../../services/ai_flow_generation_service.dart';
 import '../../models/ai_flow_generation_response.dart';
 import '../../services/ai_reflection_service.dart';
 import '../../data/decan_reflection_repo.dart';
@@ -77,6 +79,7 @@ import '../inbox/inbox_page.dart';
 import '../reflections/decan_reflection_archive_page.dart';
 import '../settings/settings_page.dart';
 import '../settings/settings_prefs.dart';
+import '../calendars/shared_calendars_sheet.dart';
 import '../nodes/kemetic_node_list_page.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/kemetic_node_model.dart';
@@ -88,8 +91,6 @@ import '../onboarding/onboarding_overlay.dart';
 import '../onboarding/onboarding_storage.dart';
 import '../rhythm/data/planner_badge_repo.dart';
 import '../rhythm/pages/todays_alignment_page.dart';
-import '../rhythm/theme/rhythm_theme.dart';
-import '../rhythm/widgets/flow_tracker_card.dart';
 
 typedef _QuickAddParse = ({
   DateTime date,
@@ -3965,6 +3966,7 @@ class _RuleDates extends FlowRule {
 /// A Flow (routine). Occurrences are computed on demand from rules.
 class _Flow {
   int id; // assigned by app
+  String? calendarId;
   String name;
   Color color;
   bool active;
@@ -3979,6 +3981,7 @@ class _Flow {
   String? reminderUuid;
   _Flow({
     required this.id,
+    this.calendarId,
     required this.name,
     required this.color,
     required this.active,
@@ -4013,19 +4016,23 @@ class _CandidateEvent {
   final String title;
   final DateTime startsAtUtc;
   final DateTime? endsAtUtc;
+  final String? calendarId;
   final String? detail;
   final String? location;
   final bool allDay;
   final int flowLocalId;
+  final String? category;
   const _CandidateEvent({
     required this.clientEventId,
     required this.title,
     required this.startsAtUtc,
     this.endsAtUtc,
+    this.calendarId,
     this.detail,
     this.location,
     required this.allDay,
     required this.flowLocalId,
+    this.category,
   });
 }
 
@@ -4325,6 +4332,30 @@ class CalendarPage extends StatefulWidget {
     await state._shareFlowFromEventItem(event);
   }
 
+  static String detailSheetCalendarButtonLabel(EventItem event) {
+    final state = globalKey.currentState;
+    if (state == null || !state.mounted) return 'Calendar';
+    return state._detailSheetCalendarButtonLabel(event);
+  }
+
+  static bool canChangeDetailSheetCalendar(EventItem event) {
+    final state = globalKey.currentState;
+    if (state == null || !state.mounted) return false;
+    return state._canReassignDetailTargetCalendar(event);
+  }
+
+  static Future<DayViewSheetEventTarget?> showDetailSheetCalendarPicker({
+    required BuildContext context,
+    required DayViewSheetEventTarget target,
+  }) async {
+    final state = globalKey.currentState;
+    if (state == null || !state.mounted) return null;
+    return state._showDetailSheetCalendarPicker(
+      context: context,
+      target: target,
+    );
+  }
+
   static void openMainCalendarAtToday(
     BuildContext context, {
     bool animate = true,
@@ -4420,6 +4451,7 @@ class CalendarPage extends StatefulWidget {
       name: f.name,
       color: f.color.value,
       active: f.active,
+      calendarId: f.calendarId,
       startDate: f.start,
       endDate: f.end,
       notes: f.notes,
@@ -4491,7 +4523,9 @@ class CalendarPage extends StatefulWidget {
           location: (n.location ?? '').trim().isEmpty ? null : n.location,
           allDay: n.allDay,
           endsAtUtc: endsAt?.toUtc(),
+          calendarId: f.calendarId,
           flowLocalId: savedId,
+          category: n.category,
           caller: 'flow_save_notes',
         );
       }
@@ -4736,9 +4770,6 @@ class _CalendarPageState extends State<CalendarPage>
   late final DecanReflectionRepo _decanReflectionRepo = DecanReflectionRepo(
     Supabase.instance.client,
   );
-  late final FlowProgressRepo _flowProgressRepo = FlowProgressRepo(
-    Supabase.instance.client,
-  );
   late final AIReflectionService _aiReflectionService = AIReflectionService(
     Supabase.instance.client,
   );
@@ -4757,6 +4788,14 @@ class _CalendarPageState extends State<CalendarPage>
   final List<ReminderRule> _reminderRules = [];
   bool _reminderRulesLoaded = false;
   bool _noteSheetShowReminders = false;
+  late final SharedCalendarsRepo _sharedCalendarsRepo = SharedCalendarsRepo(
+    Supabase.instance.client,
+  );
+  Map<String, SharedCalendarSummary> _calendarSummariesById =
+      <String, SharedCalendarSummary>{};
+  Set<String> _hiddenCalendarIds = <String>{};
+  String? _personalCalendarId;
+  bool _calendarStateLoaded = false;
   static const _endedReminderPrefsKey = 'reminder:ended_ids';
   static const String _kReminderManualOverrideMarker =
       'kemet_cid:manual_override';
@@ -4795,10 +4834,11 @@ class _CalendarPageState extends State<CalendarPage>
     int? startMinute,
     bool allDay = false,
     required int flowId,
+    String? calendarScopeToken,
   }) {
     final int sHour = (allDay || startHour == null) ? 9 : startHour;
     final int sMinute = (allDay || startMinute == null) ? 0 : startMinute;
-    return EventCidUtil.buildClientEventId(
+    final baseCid = EventCidUtil.buildClientEventId(
       ky: ky,
       km: km,
       kd: kd,
@@ -4807,6 +4847,753 @@ class _CalendarPageState extends State<CalendarPage>
       startMinute: sMinute,
       allDay: allDay,
       flowId: flowId,
+    );
+    final scopeToken = calendarScopeToken?.trim();
+    if (scopeToken == null || scopeToken.isEmpty) return baseCid;
+    return '$baseCid|cal=$scopeToken';
+  }
+
+  String? _calendarScopeToken(String? calendarId) {
+    final trimmed = calendarId?.trim();
+    if (trimmed == null ||
+        trimmed.isEmpty ||
+        trimmed == _personalCalendarId ||
+        trimmed.length < 8) {
+      return null;
+    }
+    return trimmed.substring(0, 8);
+  }
+
+  bool _isCalendarVisible(String? calendarId) {
+    final trimmed = calendarId?.trim();
+    if (!_calendarStateLoaded || trimmed == null || trimmed.isEmpty) {
+      return true;
+    }
+    return !_hiddenCalendarIds.contains(trimmed);
+  }
+
+  Future<void> _loadCalendarState() async {
+    final snapshot = await _sharedCalendarsRepo.loadSnapshot();
+    if (!mounted) return;
+    setState(() {
+      _calendarSummariesById = <String, SharedCalendarSummary>{
+        for (final calendar in snapshot.calendars) calendar.id: calendar,
+      };
+      _hiddenCalendarIds = Set<String>.from(snapshot.hiddenCalendarIds);
+      _personalCalendarId = snapshot.personalCalendarId;
+      _calendarStateLoaded = true;
+    });
+  }
+
+  Future<void> _openSharedCalendarsSheet() async {
+    final changed = await SharedCalendarsSheet.show(
+      context,
+      repo: _sharedCalendarsRepo,
+    );
+    await _loadCalendarState();
+    if (changed == true) {
+      await _loadFromDisk();
+    } else {
+      _refreshNoteCacheUi();
+    }
+  }
+
+  String? _normalizeCalendarId(String? calendarId) {
+    final trimmed = calendarId?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed;
+  }
+
+  SharedCalendarSummary? _calendarSummary(String? calendarId) {
+    final trimmed = _normalizeCalendarId(calendarId);
+    if (trimmed == null) return null;
+    return _calendarSummariesById[trimmed];
+  }
+
+  String _calendarDisplayName(
+    String? calendarId, {
+    String fallback = 'My Calendar',
+  }) {
+    final summary = _calendarSummary(calendarId);
+    final name = summary?.name.trim();
+    if (name != null && name.isNotEmpty) return name;
+    return fallback;
+  }
+
+  bool _calendarCanEdit(String? calendarId) {
+    final summary = _calendarSummary(calendarId);
+    return summary?.canEdit ?? true;
+  }
+
+  List<SharedCalendarSummary> _detailSheetCalendarOptions() {
+    final calendars = _calendarSummariesById.values.toList();
+    calendars.sort((a, b) {
+      if (a.isPersonal != b.isPersonal) {
+        return a.isPersonal ? -1 : 1;
+      }
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return calendars;
+  }
+
+  String _detailSheetCalendarActionLabel(SharedCalendarSummary calendar) {
+    if (calendar.isPersonal) return 'Calendar';
+    final name = calendar.name.trim();
+    return name.isEmpty ? 'Calendar' : name;
+  }
+
+  String _detailSheetCalendarButtonLabel(EventItem event) {
+    final calendarId = _normalizeCalendarId(event.calendarId);
+    final personalCalendarId = _normalizeCalendarId(_personalCalendarId);
+    if (calendarId == null || calendarId == personalCalendarId) {
+      return 'Calendar';
+    }
+    final summary = _calendarSummary(calendarId);
+    final eventName = event.calendarName?.trim();
+    if (eventName != null && eventName.isNotEmpty) {
+      return eventName;
+    }
+    if (summary != null) {
+      return _detailSheetCalendarActionLabel(summary);
+    }
+    return 'Calendar';
+  }
+
+  String? _detailSheetCalendarEventName(String? calendarId) {
+    final summary = _calendarSummary(calendarId);
+    final name = summary?.name.trim();
+    if (name == null || name.isEmpty) return null;
+    return name;
+  }
+
+  EventItem _detailSheetEventWithCalendar(EventItem event, String calendarId) {
+    return EventItem(
+      id: event.id,
+      clientEventId: event.clientEventId,
+      calendarId: calendarId,
+      calendarName: _detailSheetCalendarEventName(calendarId),
+      title: event.title,
+      detail: event.detail,
+      location: event.location,
+      startMin: event.startMin,
+      endMin: event.endMin,
+      flowId: event.flowId,
+      color: event.color,
+      manualColor: event.manualColor,
+      allDay: event.allDay,
+      category: event.category,
+      isReminder: event.isReminder,
+      reminderId: event.reminderId,
+    );
+  }
+
+  DayViewSheetEventTarget _detailSheetTargetWithCalendar(
+    DayViewSheetEventTarget target,
+    String calendarId,
+  ) {
+    return DayViewSheetEventTarget(
+      ky: target.ky,
+      km: target.km,
+      kd: target.kd,
+      event: _detailSheetEventWithCalendar(target.event, calendarId),
+    );
+  }
+
+  bool _detailSheetTargetUsesCalendar(
+    DayViewSheetEventTarget? target,
+    String calendarId,
+  ) {
+    return _normalizeCalendarId(target?.event.calendarId) ==
+        _normalizeCalendarId(calendarId);
+  }
+
+  bool _noteMatchesDetailSheetTarget(
+    _Note note,
+    DayViewSheetEventTarget target,
+  ) {
+    final flowId = target.event.flowId;
+    if (flowId != null && flowId > 0) {
+      return note.flowId == flowId;
+    }
+
+    final reminderId = target.event.reminderId?.trim();
+    if (target.event.isReminder &&
+        reminderId != null &&
+        reminderId.isNotEmpty) {
+      return note.reminderId?.trim() == reminderId;
+    }
+
+    final eventId = target.event.id?.trim();
+    if (eventId != null && eventId.isNotEmpty) {
+      return note.id?.trim() == eventId;
+    }
+
+    final clientEventId = target.event.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      return note.clientEventId?.trim() == clientEventId;
+    }
+
+    final noteStartMin = note.allDay
+        ? 9 * 60
+        : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
+    final noteEndMin = note.allDay
+        ? 17 * 60
+        : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
+    return note.title.trim().toLowerCase() ==
+            target.event.title.trim().toLowerCase() &&
+        note.allDay == target.event.allDay &&
+        noteStartMin == target.event.startMin &&
+        noteEndMin == target.event.endMin;
+  }
+
+  void _applyDetailSheetCalendarToCache(
+    DayViewSheetEventTarget target,
+    String calendarId,
+  ) {
+    final calendarName = _detailSheetCalendarEventName(calendarId);
+    var changed = false;
+    for (final bucket in _notes.values) {
+      for (int i = 0; i < bucket.length; i++) {
+        final note = bucket[i];
+        if (!_noteMatchesDetailSheetTarget(note, target)) continue;
+        if (_normalizeCalendarId(note.calendarId) == calendarId &&
+            note.calendarName == calendarName) {
+          continue;
+        }
+        bucket[i] = note.copyWith(
+          calendarId: calendarId,
+          calendarName: calendarName,
+        );
+        changed = true;
+      }
+    }
+    if (changed) {
+      _bumpDataVersion();
+    }
+  }
+
+  bool _canReassignDetailTargetCalendar(EventItem event) {
+    final calendars = _detailSheetCalendarOptions();
+    if (calendars.isEmpty) return false;
+    final fallbackCalendarId =
+        _normalizeCalendarId(_personalCalendarId) ??
+        (calendars.isNotEmpty ? calendars.first.id : null);
+    final currentCalendarId =
+        _normalizeCalendarId(event.calendarId) ?? fallbackCalendarId;
+    if (currentCalendarId == null || !_calendarCanEdit(currentCalendarId)) {
+      return false;
+    }
+    return calendars.any(
+      (calendar) => calendar.canEdit || calendar.id == currentCalendarId,
+    );
+  }
+
+  Future<DayViewSheetEventTarget?> _showDetailSheetCalendarPicker({
+    required BuildContext context,
+    required DayViewSheetEventTarget target,
+  }) async {
+    final calendars = _detailSheetCalendarOptions();
+    if (calendars.isEmpty) return null;
+    final fallbackCalendarId =
+        _normalizeCalendarId(_personalCalendarId) ??
+        (calendars.isNotEmpty ? calendars.first.id : null);
+    final currentCalendarId =
+        _normalizeCalendarId(target.event.calendarId) ?? fallbackCalendarId;
+    if (currentCalendarId == null || !_calendarCanEdit(currentCalendarId)) {
+      return null;
+    }
+
+    final options = calendars
+        .where(
+          (calendar) => calendar.canEdit || calendar.id == currentCalendarId,
+        )
+        .toList(growable: false);
+    if (options.isEmpty) return null;
+
+    final selectedId = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (popupCtx) {
+        final width = MediaQuery.sizeOf(popupCtx).width;
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(12, 12, 12, width < 380 ? 12 : 18),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: const Color(0xFF8D6A16), width: 1.15),
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF181716), Color(0xFF0C0B0A)],
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x55000000),
+                    blurRadius: 28,
+                    offset: Offset(0, -8),
+                  ),
+                  BoxShadow(
+                    color: Color(0x33D0A02A),
+                    blurRadius: 22,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 46,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFF9E771D),
+                              width: 1,
+                            ),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFF2E2412), Color(0xFF15110B)],
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.calendar_month_rounded,
+                            color: Color(0xFFE2BF63),
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              GlossyText(
+                                text: 'Calendar',
+                                gradient: silverGloss,
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'GentiumPlus',
+                                  fontFamilyFallback: [
+                                    'NotoSans',
+                                    'Roboto',
+                                    'Arial',
+                                    'sans-serif',
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Choose where this event lives.',
+                                style: TextStyle(
+                                  color: Color(0xFFB8B1A3),
+                                  fontSize: 13,
+                                  height: 1.25,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.of(popupCtx).pop(),
+                          icon: const Icon(Icons.close_rounded),
+                          color: const Color(0xFFD4CDBD),
+                          splashRadius: 18,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    for (final calendar in options) ...[
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(22),
+                          onTap: () => Navigator.of(popupCtx).pop(calendar.id),
+                          child: Ink(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(22),
+                              border: Border.all(
+                                color: calendar.id == currentCalendarId
+                                    ? const Color(0xFFD1A53A)
+                                    : const Color(0xFF2E2820),
+                                width: calendar.id == currentCalendarId
+                                    ? 1.35
+                                    : 1,
+                              ),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: calendar.id == currentCalendarId
+                                    ? const [
+                                        Color(0xFF231B10),
+                                        Color(0xFF13100D),
+                                      ]
+                                    : const [
+                                        Color(0xFF141414),
+                                        Color(0xFF0D0D0D),
+                                      ],
+                              ),
+                              boxShadow: calendar.id == currentCalendarId
+                                  ? const [
+                                      BoxShadow(
+                                        color: Color(0x1FD4A53C),
+                                        blurRadius: 18,
+                                        spreadRadius: 1,
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 14,
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 42,
+                                    height: 42,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: calendar.color.withOpacity(0.16),
+                                      border: Border.all(
+                                        color: calendar.color.withOpacity(0.55),
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      calendar.isPersonal
+                                          ? Icons.lock_clock_rounded
+                                          : Icons.groups_2_rounded,
+                                      color: calendar.color,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _detailSheetCalendarActionLabel(
+                                            calendar,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                            fontFamily: 'GentiumPlus',
+                                            fontFamilyFallback: [
+                                              'NotoSans',
+                                              'Roboto',
+                                              'Arial',
+                                              'sans-serif',
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          calendar.isPersonal
+                                              ? 'Private to you'
+                                              : '${calendar.roleLabel} • ${calendar.memberCount} ${calendar.memberCount == 1 ? 'member' : 'members'}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Color(0xFFACA390),
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: calendar.id == currentCalendarId
+                                          ? const Color(0xFFE0B95A)
+                                          : Colors.transparent,
+                                      border: Border.all(
+                                        color: calendar.id == currentCalendarId
+                                            ? const Color(0xFFE0B95A)
+                                            : const Color(0xFF6D665D),
+                                        width: 1.15,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.check_rounded,
+                                      size: 16,
+                                      color: calendar.id == currentCalendarId
+                                          ? Colors.black
+                                          : Colors.transparent,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (calendar != options.last) const SizedBox(height: 10),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || selectedId == null || selectedId == currentCalendarId) {
+      return null;
+    }
+    return _reassignDetailTargetCalendar(target, selectedId);
+  }
+
+  void _showCalendarActionMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  ReminderRule? _findReminderRuleForDetail(String reminderId) {
+    final trimmed = reminderId.trim();
+    if (trimmed.isEmpty) return null;
+    for (final rule in _reminderRules) {
+      if (rule.id == trimmed) return rule;
+    }
+    final dbUuid = _dbReminderUuidFromRuleId(trimmed);
+    if (dbUuid == null) return null;
+    for (final flow in _flows) {
+      if (!flow.isReminder || flow.reminderUuid != dbUuid) continue;
+      return _reminderRuleFromFlow(flow);
+    }
+    return null;
+  }
+
+  Future<DayViewSheetEventTarget?> _refreshDetailTargetAfterCalendarChange(
+    DayViewSheetEventTarget target, {
+    required String source,
+  }) async {
+    await _loadFromDisk(source: source);
+    if (!mounted) return null;
+    return _resolveCalendarCurrentEventTarget(target);
+  }
+
+  Future<DayViewSheetEventTarget?> _moveStandaloneEventToCalendar(
+    DayViewSheetEventTarget target,
+    String calendarId,
+  ) async {
+    final repo = UserEventsRepo(Supabase.instance.client);
+    var eventId = target.event.id?.trim();
+    final clientEventId = target.event.clientEventId?.trim();
+    if ((eventId == null || eventId.isEmpty) &&
+        clientEventId != null &&
+        clientEventId.isNotEmpty) {
+      final persisted = await repo.getEventByClientEventId(clientEventId);
+      eventId = persisted?.id.trim();
+    }
+    if (eventId == null || eventId.isEmpty) {
+      _showCalendarActionMessage(
+        'Save this event first, then change its calendar.',
+      );
+      return null;
+    }
+
+    await repo.update(id: eventId, calendarId: calendarId);
+    final optimisticTarget = _detailSheetTargetWithCalendar(target, calendarId);
+    _applyDetailSheetCalendarToCache(target, calendarId);
+    await _notifySharedCalendarMembers(
+      calendarId: calendarId,
+      title: _calendarDisplayName(calendarId),
+      body: 'Updated event: ${target.event.title}',
+      clientEventId: clientEventId,
+      data: <String, dynamic>{'event_id': eventId},
+    );
+    final refreshed = await _refreshDetailTargetAfterCalendarChange(
+      optimisticTarget,
+      source: 'detail_calendar_move_note',
+    );
+    return _detailSheetTargetUsesCalendar(refreshed, calendarId)
+        ? refreshed
+        : optimisticTarget;
+  }
+
+  Future<DayViewSheetEventTarget?> _moveFlowEventToCalendar(
+    DayViewSheetEventTarget target,
+    int flowId,
+    String calendarId,
+  ) async {
+    await _flowsRepo.updateCalendar(id: flowId, calendarId: calendarId);
+    await UserEventsRepo(
+      Supabase.instance.client,
+    ).updateCalendarForFlowEvents(flowId: flowId, calendarId: calendarId);
+
+    String flowName = target.event.title;
+    for (final flow in _flows) {
+      if (flow.id != flowId) continue;
+      flow.calendarId = calendarId;
+      flowName = flow.name;
+      break;
+    }
+    final optimisticTarget = _detailSheetTargetWithCalendar(target, calendarId);
+    _applyDetailSheetCalendarToCache(target, calendarId);
+
+    await _notifySharedCalendarMembers(
+      calendarId: calendarId,
+      title: _calendarDisplayName(calendarId),
+      body: 'Flow updated: $flowName',
+      clientEventId: target.event.clientEventId,
+      data: <String, dynamic>{'flow_id': flowId},
+    );
+    final refreshed = await _refreshDetailTargetAfterCalendarChange(
+      optimisticTarget,
+      source: 'detail_calendar_move_flow',
+    );
+    return _detailSheetTargetUsesCalendar(refreshed, calendarId)
+        ? refreshed
+        : optimisticTarget;
+  }
+
+  Future<DayViewSheetEventTarget?> _moveReminderEventToCalendar(
+    DayViewSheetEventTarget target,
+    String calendarId,
+  ) async {
+    final reminderId = target.event.reminderId?.trim();
+    if (reminderId == null || reminderId.isEmpty) {
+      _showCalendarActionMessage('Unable to locate that reminder.');
+      return null;
+    }
+    final rule = _findReminderRuleForDetail(reminderId);
+    if (rule == null) {
+      _showCalendarActionMessage('Unable to load that reminder.');
+      return null;
+    }
+
+    await _upsertReminderRule(rule.copyWith(calendarId: calendarId));
+    final optimisticTarget = _detailSheetTargetWithCalendar(target, calendarId);
+    _applyDetailSheetCalendarToCache(target, calendarId);
+    if (!mounted) return null;
+    final refreshed = _resolveCalendarCurrentEventTarget(optimisticTarget);
+    return _detailSheetTargetUsesCalendar(refreshed, calendarId)
+        ? refreshed
+        : optimisticTarget;
+  }
+
+  Future<DayViewSheetEventTarget?> _reassignDetailTargetCalendar(
+    DayViewSheetEventTarget target,
+    String calendarId,
+  ) async {
+    final nextCalendarId =
+        _normalizeCalendarId(calendarId) ??
+        _normalizeCalendarId(_personalCalendarId);
+    if (nextCalendarId == null) return null;
+
+    final currentCalendarId =
+        _normalizeCalendarId(target.event.calendarId) ??
+        _normalizeCalendarId(_personalCalendarId);
+    if (currentCalendarId == nextCalendarId) {
+      return _resolveCalendarCurrentEventTarget(target);
+    }
+    if (!_calendarCanEdit(currentCalendarId)) {
+      _showCalendarActionMessage(
+        'You can view this calendar, but you cannot edit it.',
+      );
+      return null;
+    }
+    if (!_calendarCanEdit(nextCalendarId)) {
+      _showCalendarActionMessage(
+        'You can view that calendar, but you cannot save events to it.',
+      );
+      return null;
+    }
+
+    try {
+      if (target.event.isReminder) {
+        return await _moveReminderEventToCalendar(target, nextCalendarId);
+      }
+      final flowId = target.event.flowId;
+      if (flowId != null && flowId > 0) {
+        return await _moveFlowEventToCalendar(target, flowId, nextCalendarId);
+      }
+      return await _moveStandaloneEventToCalendar(target, nextCalendarId);
+    } catch (e) {
+      _showCalendarActionMessage('Unable to change calendar: $e');
+      return null;
+    }
+  }
+
+  Future<void> _notifySharedCalendarMembers({
+    required String? calendarId,
+    required String title,
+    String? body,
+    String? clientEventId,
+    Map<String, dynamic>? data,
+  }) async {
+    final trimmedCalendarId = _normalizeCalendarId(calendarId);
+    if (trimmedCalendarId == null) return;
+
+    final summary = _calendarSummary(trimmedCalendarId);
+    if (summary == null || summary.isPersonal) return;
+
+    final memberIds = await _sharedCalendarsRepo.getAcceptedMemberIds(
+      trimmedCalendarId,
+    );
+    if (memberIds.isEmpty) return;
+
+    final payload = <String, dynamic>{
+      'kind': 'calendar_event',
+      'calendar_id': trimmedCalendarId,
+      'calendar_name': summary.name,
+      'calendar_color': summary.colorValue,
+      if (clientEventId != null && clientEventId.trim().isNotEmpty)
+        'client_event_id': clientEventId.trim(),
+      if (data != null) ...data,
+    };
+
+    await _sharedCalendarsRepo.createCalendarNotifications(
+      calendarId: trimmedCalendarId,
+      userIds: memberIds,
+      kind: 'calendar_event',
+      title: title,
+      body: body,
+      data: payload,
+    );
+
+    await _sharedCalendarsRepo.sendCalendarPush(
+      userIds: memberIds,
+      title: title,
+      body: body,
+      data: payload,
     );
   }
 
@@ -4889,6 +5676,7 @@ class _CalendarPageState extends State<CalendarPage>
             startMinute: note.start?.minute,
             allDay: note.allDay,
             flowId: fid,
+            calendarScopeToken: _calendarScopeToken(note.calendarId),
           );
           if (_isTombstoned(unifiedCid)) {
             if (kDebugMode) {
@@ -5226,17 +6014,31 @@ class _CalendarPageState extends State<CalendarPage>
 
   /// ✅ FIX 4: Compute centered month precisely using getOffsetToReveal
   (int, int) _computeCenteredMonthPrecisely() {
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null) {
-      return (_lastViewKy ?? _today.kYear, _lastViewKm ?? _today.kMonth);
+    final fallback = (
+      _lastViewKy ?? _today.kYear,
+      _lastViewKm ?? _today.kMonth,
+    );
+    if (!_scrollCtrl.hasClients) {
+      return fallback;
     }
 
-    final vp = RenderAbstractViewport.of(box);
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.attached) {
+      return fallback;
+    }
+
+    final notificationContext =
+        _scrollCtrl.position.context.notificationContext;
+    final viewportObject = notificationContext?.findRenderObject();
+    final viewportBox = viewportObject is RenderBox && viewportObject.attached
+        ? viewportObject
+        : box;
+    final vp = RenderAbstractViewport.maybeOf(viewportBox);
     if (vp == null) {
-      return (_lastViewKy ?? _today.kYear, _lastViewKm ?? _today.kMonth);
+      return fallback;
     }
 
-    final viewportCenter = _scrollCtrl.offset + (box.size.height / 2);
+    final viewportCenter = _scrollCtrl.offset + (viewportBox.size.height / 2);
 
     // Search ±2 years around last known position
     var bestKy = _lastViewKy ?? _today.kYear;
@@ -5250,7 +6052,7 @@ class _CalendarPageState extends State<CalendarPage>
         if (ctx == null) continue;
 
         final ro = ctx.findRenderObject();
-        if (ro == null || ro is! RenderBox) continue;
+        if (ro == null || ro is! RenderBox || !ro.attached) continue;
 
         // ✅ Use getOffsetToReveal for precision
         final revealResult = vp.getOffsetToReveal(ro, 0.5);
@@ -5429,6 +6231,7 @@ class _CalendarPageState extends State<CalendarPage>
           event == AuthChangeEvent.signedIn ||
           event == AuthChangeEvent.tokenRefreshed) {
         if (!mounted) return;
+        unawaited(_loadCalendarState());
         _requestStartupRun(reason: 'auth:${event.name}');
       }
     });
@@ -5441,6 +6244,7 @@ class _CalendarPageState extends State<CalendarPage>
         _maybeLoadDecanReflectionPrompt();
       }
     });
+    unawaited(_loadCalendarState());
   }
 
   List<OnboardingSlide> _buildOnboardingSlides() {
@@ -6802,13 +7606,7 @@ class _CalendarPageState extends State<CalendarPage>
       // With flow-backed reminders, hydrate from flows instead of reminder meta events.
       final repo = UserEventsRepo(Supabase.instance.client);
       final flows = await repo.getAllFlows();
-      final reminderFlows = flows.where((f) {
-        return looksLikeReminderMetadata(
-          f.notes,
-          isReminder: f.isReminder,
-          reminderUuid: f.reminderUuid,
-        );
-      }).toList();
+      final reminderFlows = flows.where((f) => f.isReminder).toList();
       if (reminderFlows.isEmpty) return const [];
 
       final List<ReminderRule> rebuilt = [];
@@ -6819,7 +7617,10 @@ class _CalendarPageState extends State<CalendarPage>
         try {
           final decoded = jsonDecode(rawNotes);
           final map = Map<String, dynamic>.from(decoded as Map);
-          final rule = ReminderRule.fromJson(map);
+          final parsed = ReminderRule.fromJson(map);
+          final rule = parsed.calendarId == null && f.calendarId != null
+              ? parsed.copyWith(calendarId: f.calendarId)
+              : parsed;
           if (_endedReminderIds.contains(rule.id)) continue;
           rebuilt.add(rule);
         } catch (_) {
@@ -6966,6 +7767,12 @@ class _CalendarPageState extends State<CalendarPage>
     ReminderRule rule, {
     bool refresh = true,
   }) async {
+    final effectiveCalendarId =
+        _normalizeCalendarId(rule.calendarId) ??
+        _normalizeCalendarId(_personalCalendarId);
+    final effectiveRule = effectiveCalendarId == null
+        ? rule
+        : rule.copyWith(calendarId: effectiveCalendarId);
     final dbUuid = _dbReminderUuidFromRuleId(rule.id);
     if (rule.id.startsWith('nutrition:') && dbUuid == null) {
       throw StateError(
@@ -6990,24 +7797,26 @@ class _CalendarPageState extends State<CalendarPage>
         if (existingId != null) {
           saved = await flowsRepo.upsert(
             id: existingId,
-            name: rule.title,
-            color: rule.color.value & 0x00FFFFFF,
-            active: rule.active,
-            startDate: DateUtils.dateOnly(rule.startLocal),
+            name: effectiveRule.title,
+            color: effectiveRule.color.value & 0x00FFFFFF,
+            active: effectiveRule.active,
+            calendarId: effectiveCalendarId,
+            startDate: DateUtils.dateOnly(effectiveRule.startLocal),
             endDate: null,
-            notes: jsonEncode(rule.toJson()),
+            notes: jsonEncode(effectiveRule.toJson()),
             rulesJson: rulesJson,
             isReminder: true,
             reminderUuid: dbUuid,
           );
         } else {
           saved = await flowsRepo.upsert(
-            name: rule.title,
-            color: rule.color.value & 0x00FFFFFF,
-            active: rule.active,
-            startDate: DateUtils.dateOnly(rule.startLocal),
+            name: effectiveRule.title,
+            color: effectiveRule.color.value & 0x00FFFFFF,
+            active: effectiveRule.active,
+            calendarId: effectiveCalendarId,
+            startDate: DateUtils.dateOnly(effectiveRule.startLocal),
             endDate: null,
-            notes: jsonEncode(rule.toJson()),
+            notes: jsonEncode(effectiveRule.toJson()),
             rulesJson: rulesJson,
             isReminder: true,
             reminderUuid: dbUuid,
@@ -7015,12 +7824,13 @@ class _CalendarPageState extends State<CalendarPage>
         }
       } else {
         saved = await flowsRepo.upsert(
-          name: rule.title,
-          color: rule.color.value & 0x00FFFFFF,
-          active: rule.active,
-          startDate: DateUtils.dateOnly(rule.startLocal),
+          name: effectiveRule.title,
+          color: effectiveRule.color.value & 0x00FFFFFF,
+          active: effectiveRule.active,
+          calendarId: effectiveCalendarId,
+          startDate: DateUtils.dateOnly(effectiveRule.startLocal),
           endDate: null,
-          notes: jsonEncode(rule.toJson()),
+          notes: jsonEncode(effectiveRule.toJson()),
           rulesJson: rulesJson,
           isReminder: true,
           reminderUuid: dbUuid,
@@ -7029,9 +7839,9 @@ class _CalendarPageState extends State<CalendarPage>
       // Keep local copy in sync
       final idx = _reminderRules.indexWhere((r) => r.id == rule.id);
       if (idx >= 0) {
-        _reminderRules[idx] = rule;
+        _reminderRules[idx] = effectiveRule;
       } else {
-        _reminderRules.add(rule);
+        _reminderRules.add(effectiveRule);
       }
       await _saveReminderRules();
       if (mounted) setState(() {});
@@ -7039,6 +7849,32 @@ class _CalendarPageState extends State<CalendarPage>
       await _syncReminderEvents(refreshUi: false);
       // Refresh flows/reminders
       await _loadFromDisk();
+      if (effectiveCalendarId != null) {
+        final windowStart = DateUtils.dateOnly(DateTime.now());
+        final windowEnd = _reminderWindowEnd(windowStart, [effectiveRule]);
+        final occurrences = _generateReminderOccurrences(
+          effectiveRule,
+          windowStart,
+          windowEnd,
+        );
+        String? clientEventId;
+        if (occurrences.isNotEmpty) {
+          final firstDate = occurrences.first;
+          final cidDate =
+              '${firstDate.year.toString().padLeft(4, '0')}-${firstDate.month.toString().padLeft(2, '0')}-${firstDate.day.toString().padLeft(2, '0')}';
+          clientEventId = 'reminder:${effectiveRule.id}:$cidDate';
+        }
+        await _notifySharedCalendarMembers(
+          calendarId: effectiveCalendarId,
+          title: _calendarDisplayName(effectiveCalendarId),
+          body: 'Reminder updated: ${effectiveRule.title}',
+          clientEventId: clientEventId,
+          data: <String, dynamic>{
+            'reminder_id': effectiveRule.id,
+            'flow_id': saved.id,
+          },
+        );
+      }
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint(
@@ -7205,6 +8041,7 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     return local.copyWith(
+      calendarId: remote.calendarId ?? local.calendarId,
       repeat: pickRepeat(),
       // Prefer remote fields so cross-device edits propagate.
       title: remote.title.isNotEmpty ? remote.title : local.title,
@@ -7421,6 +8258,7 @@ class _CalendarPageState extends State<CalendarPage>
     bool notify = true,
   }) {
     var changed = false;
+    final calendarName = _calendarSummary(rule.calendarId)?.name;
     for (final day in occurrences) {
       final k = KemeticMath.fromGregorian(day);
       final cidDate =
@@ -7467,6 +8305,8 @@ class _CalendarPageState extends State<CalendarPage>
             rule.title,
             null,
             clientEventId: clientEventId,
+            calendarId: rule.calendarId,
+            calendarName: calendarName,
             allDay: rule.allDay,
             start: startTime,
             end: endTime,
@@ -7633,6 +8473,7 @@ class _CalendarPageState extends State<CalendarPage>
               location: null,
               allDay: rule.allDay,
               endsAtUtc: end?.toUtc(),
+              calendarId: rule.calendarId,
               category: rule.category,
               flowLocalId: (flowIdForReminder != null && flowIdForReminder > 0)
                   ? flowIdForReminder
@@ -7642,6 +8483,8 @@ class _CalendarPageState extends State<CalendarPage>
 
             final cleanedDetail = _cleanDetail(encodedDetail);
             final note = _Note(
+              calendarId: rule.calendarId,
+              calendarName: _calendarSummary(rule.calendarId)?.name,
               title: rule.title,
               detail: cleanedDetail.isEmpty ? null : cleanedDetail,
               location: null,
@@ -7798,6 +8641,18 @@ class _CalendarPageState extends State<CalendarPage>
     await _loadReminderRules();
     final now = DateTime.now();
     final defaultStart = DateTime(now.year, now.month, now.day, now.hour, 0);
+    final availableCalendars =
+        _calendarSummariesById.values
+            .where(
+              (calendar) =>
+                  calendar.canEdit || existing?.calendarId == calendar.id,
+            )
+            .toList()
+          ..sort((a, b) {
+            if (a.isPersonal && !b.isPersonal) return -1;
+            if (!a.isPersonal && b.isPersonal) return 1;
+            return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+          });
     final titleCtrl = TextEditingController(text: existing?.title ?? '');
     DateTime startLocal = existing?.startLocal ?? defaultStart;
     bool allDay = existing?.allDay ?? false;
@@ -7809,6 +8664,10 @@ class _CalendarPageState extends State<CalendarPage>
     ReminderRepeat repeat = existing?.repeat ?? const ReminderRepeat();
     bool active = existing?.active ?? true;
     int alertMinutesBefore = existing?.alertOffsetMinutes ?? _alertNoneMinutes;
+    String? selectedCalendarId =
+        existing?.calendarId ??
+        _personalCalendarId ??
+        (availableCalendars.isNotEmpty ? availableCalendars.first.id : null);
 
     if (!mounted) {
       return false;
@@ -7835,6 +8694,13 @@ class _CalendarPageState extends State<CalendarPage>
             ),
             child: StatefulBuilder(
               builder: (sheetCtx, setModalState) {
+                final selectedCalendar = _calendarSummary(selectedCalendarId);
+                final selectedCalendarLabel = _calendarDisplayName(
+                  selectedCalendarId,
+                );
+                final canEditSelectedCalendar =
+                    selectedCalendar?.canEdit ?? true;
+
                 String dateLabel(DateTime d) =>
                     '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
                 String timeLabel(TimeOfDay t) {
@@ -8057,6 +8923,106 @@ class _CalendarPageState extends State<CalendarPage>
                         ),
                         style: const TextStyle(color: Colors.white),
                       ),
+                      const SizedBox(height: 12),
+                      InkWell(
+                        onTap:
+                            availableCalendars.isEmpty ||
+                                !canEditSelectedCalendar
+                            ? null
+                            : () async {
+                                final chosenId =
+                                    await showCupertinoModalPopup<String>(
+                                      context: sheetCtx,
+                                      builder: (popupCtx) {
+                                        return CupertinoActionSheet(
+                                          title: const GlossyText(
+                                            text: 'Calendar',
+                                            gradient: silverGloss,
+                                            style: TextStyle(fontSize: 18),
+                                          ),
+                                          actions: [
+                                            for (final calendar
+                                                in availableCalendars)
+                                              CupertinoActionSheetAction(
+                                                onPressed: () {
+                                                  Navigator.of(
+                                                    popupCtx,
+                                                  ).pop(calendar.id);
+                                                },
+                                                child: Text(
+                                                  calendar.name,
+                                                  style: TextStyle(
+                                                    color: calendar.color,
+                                                    fontSize: 17,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                          cancelButton:
+                                              CupertinoActionSheetAction(
+                                                isDestructiveAction: true,
+                                                onPressed: () => Navigator.of(
+                                                  popupCtx,
+                                                ).pop(),
+                                                child: const Text('Cancel'),
+                                              ),
+                                        );
+                                      },
+                                    );
+                                if (chosenId == null) return;
+                                setModalState(() {
+                                  selectedCalendarId = chosenId;
+                                });
+                              },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white24),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Calendar',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  Text(
+                                    selectedCalendarLabel,
+                                    style: TextStyle(
+                                      color: selectedCalendar?.color ?? _gold,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.chevron_right,
+                                    color: Colors.white54,
+                                    size: 20,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (!canEditSelectedCalendar) ...[
+                        const SizedBox(height: 6),
+                        const Text(
+                          'You can view this calendar, but you cannot edit it.',
+                          style: TextStyle(color: Colors.white54, fontSize: 12),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -8453,9 +9419,20 @@ class _CalendarPageState extends State<CalendarPage>
                           onPressed: () async {
                             final title = titleCtrl.text.trim();
                             if (title.isEmpty) return;
+                            if (!canEditSelectedCalendar) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'You can view this calendar, but you cannot edit it.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
                             final id = existing?.id ?? const Uuid().v4();
                             final rule = ReminderRule(
                               id: id,
+                              calendarId: selectedCalendarId,
                               title: title,
                               startLocal: startLocal,
                               allDay: allDay,
@@ -8597,7 +9574,10 @@ class _CalendarPageState extends State<CalendarPage>
   List<_Note> _getNotes(int kYear, int kMonth, int kDay) {
     final key = _kKey(kYear, kMonth, kDay);
     final result = _notes[key] ?? const [];
-    return result;
+    if (!_calendarStateLoaded) return result;
+    return result
+        .where((note) => _isCalendarVisible(note.calendarId))
+        .toList(growable: false);
   }
 
   ReminderRule? _reminderRuleFromFlow(_Flow f) {
@@ -8605,7 +9585,11 @@ class _CalendarPageState extends State<CalendarPage>
     try {
       final decoded = jsonDecode(f.notes!.trim());
       final map = Map<String, dynamic>.from(decoded as Map);
-      return ReminderRule.fromJson(map);
+      final rule = ReminderRule.fromJson(map);
+      if (rule.calendarId == null && f.calendarId != null) {
+        return rule.copyWith(calendarId: f.calendarId);
+      }
+      return rule;
     } catch (_) {
       return null;
     }
@@ -8702,6 +9686,8 @@ class _CalendarPageState extends State<CalendarPage>
     String? detail, {
     String? id,
     String? clientEventId,
+    String? calendarId,
+    String? calendarName,
     String? location,
     bool allDay = false,
     TimeOfDay? start,
@@ -8742,6 +9728,8 @@ class _CalendarPageState extends State<CalendarPage>
       _Note(
         id: id,
         clientEventId: clientEventId,
+        calendarId: calendarId,
+        calendarName: calendarName,
         title: title.trim(),
         detail: detail?.trim(),
         location: (location == null || location.trim().isEmpty)
@@ -8785,7 +9773,7 @@ class _CalendarPageState extends State<CalendarPage>
     final endMin = note.end == null
         ? -1
         : (note.end!.hour * 60 + note.end!.minute);
-    return '$normalizedTitle|${note.allDay}|$startMin|$endMin';
+    return '${note.calendarId ?? ''}|$normalizedTitle|${note.allDay}|$startMin|$endMin';
   }
 
   int _standalonePriority(String? cid) {
@@ -8849,6 +9837,7 @@ class _CalendarPageState extends State<CalendarPage>
         startMinute: note.start?.minute,
         allDay: note.allDay,
         flowId: -1,
+        calendarScopeToken: _calendarScopeToken(note.calendarId),
       );
     }
     return null;
@@ -9860,6 +10849,8 @@ class _CalendarPageState extends State<CalendarPage>
     return EventItem(
       id: note.id,
       clientEventId: note.clientEventId,
+      calendarId: note.calendarId,
+      calendarName: note.calendarName,
       title: note.title,
       detail: note.detail,
       location: note.location,
@@ -10171,8 +11162,10 @@ class _CalendarPageState extends State<CalendarPage>
           );
         }
         reminderNote = _Note(
-          id: updated.id?.trim(),
+          id: updated.id.trim(),
           clientEventId: updated.clientEventId?.trim(),
+          calendarId: updated.calendarId?.trim(),
+          calendarName: updated.calendarName?.trim(),
           title: updated.title.trim().isNotEmpty ? updated.title : evt.title,
           detail: cleanedDetail,
           location: updated.location,
@@ -10180,7 +11173,13 @@ class _CalendarPageState extends State<CalendarPage>
           start: updatedStart,
           end: updatedEnd,
           flowId: updated.flowLocalId,
-          manualColor: evt.manualColor,
+          manualColor:
+              evt.manualColor ??
+              (updated.calendarIsPersonal
+                  ? null
+                  : (updated.calendarColor != null
+                        ? Color(updated.calendarColor!)
+                        : null)),
           category: updated.category,
           isReminder: evt.isReminder,
           reminderId: evt.reminderId,
@@ -10298,6 +11297,7 @@ class _CalendarPageState extends State<CalendarPage>
         name: flow.name,
         color: flow.color.value,
         active: flow.active,
+        calendarId: flow.calendarId,
         startDate: flow.start,
         endDate: flow.end,
         notes: flow.notes,
@@ -10314,6 +11314,7 @@ class _CalendarPageState extends State<CalendarPage>
 
       final persisted = _Flow(
         id: savedId,
+        calendarId: flow.calendarId,
         name: flow.name,
         color: flow.color,
         active: flow.active,
@@ -10486,6 +11487,7 @@ class _CalendarPageState extends State<CalendarPage>
             name: f.name,
             color: f.color.value,
             active: active,
+            calendarId: f.calendarId,
             startDate: f.start,
             endDate: f.end,
             notes: f.notes,
@@ -10528,6 +11530,7 @@ class _CalendarPageState extends State<CalendarPage>
         final f = _flows[idx];
         _flows[idx] = _Flow(
           id: f.id,
+          calendarId: f.calendarId,
           name: f.name,
           color: f.color,
           active: false,
@@ -10558,6 +11561,7 @@ class _CalendarPageState extends State<CalendarPage>
             name: flow.name,
             color: flow.color.value,
             active: false,
+            calendarId: flow.calendarId,
             startDate: flow.start,
             endDate: flow.end,
             notes: flow.notes,
@@ -11051,6 +12055,12 @@ class _CalendarPageState extends State<CalendarPage>
         onSelected: _openInboxFromMenu,
       ),
       _CalendarAction(
+        icon: Icons.calendar_month_outlined,
+        gradient: goldGloss,
+        label: 'Calendars',
+        onSelected: _openSharedCalendarsSheet,
+      ),
+      _CalendarAction(
         icon: Icons.psychology_alt_outlined,
         gradient: goldGloss,
         label: 'Reflections',
@@ -11384,16 +12394,6 @@ class _CalendarPageState extends State<CalendarPage>
 
   Future<void> openQuickAddFromOutside() => _openQuickAddSheet();
 
-  Future<void> openJournalFromOutside() => _openJournalFromAppBar();
-
-  Future<void> refreshCalendarDataFromOutside() async {
-    await _loadFromDisk();
-    if (mounted) {
-      setState(() {});
-      _notifyDayViewDataChanged();
-    }
-  }
-
   void jumpToTodayFromOutside({bool animate = true}) =>
       _scrollToToday(animate: animate);
 
@@ -11540,6 +12540,9 @@ class _CalendarPageState extends State<CalendarPage>
     int? finalFlowId; // <-- NEW: ensure we know the actual flow id to tag notes
     bool notesAlreadyPersisted =
         false; // When true, skip duplicate planned-note persistence
+    final flowCalendarId = edited.savedFlow?.calendarId;
+    final flowCalendarName = _calendarSummary(flowCalendarId)?.name;
+    String? firstClientEventId;
 
     final deleteId = edited.deleteFlowId;
     if (deleteId != null) {
@@ -11581,6 +12584,8 @@ class _CalendarPageState extends State<CalendarPage>
           p.kd,
           persisted.title,
           persisted.detail,
+          calendarId: flowCalendarId,
+          calendarName: flowCalendarName,
           location: persisted.location,
           allDay: persisted.allDay,
           start: persisted.start,
@@ -11640,13 +12645,18 @@ class _CalendarPageState extends State<CalendarPage>
                 : persisted.location!.trim(),
             allDay: persisted.allDay,
             endsAtUtc: endsAt?.toUtc(),
+            calendarId: flowCalendarId,
             flowLocalId: noteFlowId >= 0 ? noteFlowId : null,
             category: persisted.category,
             caller: 'persist_flow_planned',
           );
+          firstClientEventId ??= savedEvent.clientEventId ?? cid;
 
           await _scheduleAlertForEvent(
-            note: persisted,
+            note: persisted.copyWith(
+              calendarId: flowCalendarId,
+              calendarName: flowCalendarName,
+            ),
             ky: p.ky,
             km: p.km,
             kd: p.kd,
@@ -11657,6 +12667,18 @@ class _CalendarPageState extends State<CalendarPage>
           debugPrint('persist planned notes (apply) failed: $e');
         }
       }
+    }
+
+    if (!notesAlreadyPersisted &&
+        edited.savedFlow != null &&
+        finalFlowId != null) {
+      await _notifySharedCalendarMembers(
+        calendarId: flowCalendarId,
+        title: _calendarDisplayName(flowCalendarId),
+        body: 'Flow updated: ${edited.savedFlow!.name}',
+        clientEventId: firstClientEventId,
+        data: <String, dynamic>{'flow_id': finalFlowId},
+      );
     }
   }
 
@@ -11767,29 +12789,10 @@ class _CalendarPageState extends State<CalendarPage>
     UiGuards.enableJournalSwipe();
   }
 
-  Future<void> _prepareMyFlowsViewerData() async {
-    if (_flows.isEmpty && !_isLoadingFromDisk) {
-      await _loadFromDisk();
-    }
-    try {
-      await _flowProgressRepo.loadActiveTrackers();
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('[MyFlows] tracker prewarm failed: $e');
-        debugPrint('$st');
-      }
-    }
-  }
-
   // Directly open My Flows list (no Flow Hub chooser).
-  Future<void> _openMyFlowsList({int? initialFlowId}) async {
-    if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      unawaited(_prepareMyFlowsViewerData());
-    });
+  void _openMyFlowsList({int? initialFlowId}) {
     final isTab = _isTablet(context);
-    await showModalBottomSheet(
+    showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -11823,13 +12826,7 @@ class _CalendarPageState extends State<CalendarPage>
                       }
 
                       return _FlowsViewerPage(
-                        getFlows: () => _flows,
-                        getNoteBuckets: () => _notes,
-                        dataVersionListenable: _dayViewDataVersion,
-                        maatTemplates: kMaatFlowTemplates,
-                        hasActiveMaatForKey: _hasActiveMaatInstanceFor,
-                        onPickMaatTemplate: (tpl) =>
-                            _pushMaatTemplateDetail(nav: nav, template: tpl),
+                        flows: _flows,
                         fmtGregorian: (d) => d == null
                             ? '--'
                             : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
@@ -11880,28 +12877,12 @@ class _CalendarPageState extends State<CalendarPage>
 
   /// Public entrypoint so other screens (e.g., Profile) can open Flow Studio's
   /// "My Flows" viewer without duplicating UI.
-  Future<void> openMyFlowsFromOutside({int? initialFlowId}) async {
-    if (initialFlowId != null) {
-      _openFlowEditorDirectly(initialFlowId);
-      return;
-    }
-    await _openMyFlowsList();
-  }
-
-  Future<void> shareFlowFromOutside(int flowId) async {
+  Future<void> openMyFlowsFromOutside() async {
     if (_flows.isEmpty && !_isLoadingFromDisk) {
       await _loadFromDisk();
     }
     if (!mounted) return;
-    final matches = _flows.where((flow) => flow.id == flowId);
-    if (matches.isEmpty) return;
-    final flow = matches.first;
-    await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ShareFlowSheet(flowId: flow.id, flowTitle: flow.name),
-    );
+    _openMyFlowsList();
   }
 
   // Manage Flows callback: jump straight to My Flows (or specific flow editor if id provided).
@@ -11912,18 +12893,140 @@ class _CalendarPageState extends State<CalendarPage>
         _openFlowEditorDirectly(flowId);
         return;
       }
-      unawaited(_openMyFlowsList());
+      _openMyFlowsList();
     };
   }
 
-  // Flow Studio callback that lands directly on My Flows.
+  // Flow Studio callback that opens the Flow Hub (same as main calendar)
   void Function(int? flowId) _getFlowStudioCallback() {
     return (int? flowId) {
+      // If flowId provided, go directly to that flow
       if (flowId != null) {
         _openFlowEditorDirectly(flowId);
         return;
       }
-      unawaited(_openMyFlowsList());
+
+      // Otherwise open Flow Hub as before
+      _openFlowStudioSheet(
+        rootBuilder: (innerCtx) {
+          return _FlowHubPage(
+            openMyFlows: () {
+              Navigator.of(innerCtx).push(
+                MaterialPageRoute(
+                  builder: (ctx2) => _FlowsViewerPage(
+                    flows: _flows,
+                    fmtGregorian: (d) => d == null
+                        ? '--'
+                        : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
+                    onCreateNew: () async {
+                      final edited = await Navigator.of(innerCtx)
+                          .push<_FlowStudioResult>(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  _FlowStudioPage(existingFlows: _flows),
+                            ),
+                          );
+                      if (edited != null)
+                        await _persistFlowStudioResult(edited);
+                      // ✅ Refresh calendar data after flow operations
+                      await _loadFromDisk();
+                    },
+                    onEditFlow: (id) async {
+                      final edited = await Navigator.of(innerCtx)
+                          .push<_FlowStudioResult>(
+                            MaterialPageRoute(
+                              builder: (_) => _FlowStudioPage(
+                                existingFlows: _flows,
+                                editFlowId: id,
+                              ),
+                            ),
+                          );
+                      if (edited != null)
+                        await _persistFlowStudioResult(edited);
+                      // ✅ Refresh calendar data after flow operations
+                      await _loadFromDisk();
+                    },
+                    onEndFlow: (id) => _endFlow(id),
+                    onImportFlow: (importedFlowId) async {
+                      if (importedFlowId != null) {
+                        await _loadFromDisk();
+                      }
+                    },
+                    onAppendToJournal: _journalInitialized
+                        ? (text) => _journalController.appendToToday(text)
+                        : null,
+                  ),
+                ),
+              );
+            },
+            openMaatFlows: () {
+              Navigator.of(innerCtx).push(
+                MaterialPageRoute(
+                  builder: (ctx3) => _MaatFlowsListPage(
+                    title: 'ḥꜣw',
+                    templates: kMaatFlowTemplates,
+                    hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
+                    onPickTemplate: (tpl) async {
+                      final importedFlowId = await Navigator.of(ctx3)
+                          .push<int?>(
+                            MaterialPageRoute(
+                              builder: (ctx4) => _MaatFlowTemplateDetailPage(
+                                template: tpl,
+                                addInstance:
+                                    ({
+                                      required _MaatFlowTemplate template,
+                                      DateTime? startDate,
+                                      bool? useKemetic,
+                                      TrackSkyTimeZone? trackSkyTimeZone,
+                                      int? alertMinutesBefore,
+                                    }) async {
+                                      final id = await _addMaatFlowInstance(
+                                        template: template,
+                                        startDate: startDate,
+                                        useKemetic: useKemetic ?? false,
+                                        trackSkyTimeZone: trackSkyTimeZone,
+                                        alertMinutesBefore:
+                                            alertMinutesBefore ??
+                                            _alertNoneMinutes,
+                                      );
+                                      return id;
+                                    },
+                              ),
+                            ),
+                          );
+                      if (importedFlowId != null &&
+                          importedFlowId > 0 &&
+                          ctx3.mounted) {
+                        Navigator.of(ctx3).pop(importedFlowId);
+                      }
+                    },
+                    onCreateNew: () async {
+                      final edited = await Navigator.of(innerCtx)
+                          .push<_FlowStudioResult>(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  _FlowStudioPage(existingFlows: _flows),
+                            ),
+                          );
+                      if (edited != null)
+                        await _persistFlowStudioResult(edited);
+                    },
+                  ),
+                ),
+              );
+            },
+            onCreateNew: () async {
+              final edited = await Navigator.of(innerCtx)
+                  .push<_FlowStudioResult>(
+                    MaterialPageRoute(
+                      builder: (_) => _FlowStudioPage(existingFlows: _flows),
+                    ),
+                  );
+              if (edited != null) await _persistFlowStudioResult(edited);
+            },
+          );
+        },
+      );
     };
   }
 
@@ -11943,15 +13046,7 @@ class _CalendarPageState extends State<CalendarPage>
     _openFlowStudioSheet(
       rootBuilder: (innerCtx) {
         return _FlowsViewerPage(
-          getFlows: () => _flows,
-          getNoteBuckets: () => _notes,
-          dataVersionListenable: _dayViewDataVersion,
-          maatTemplates: kMaatFlowTemplates,
-          hasActiveMaatForKey: _hasActiveMaatInstanceFor,
-          onPickMaatTemplate: (tpl) => _pushMaatTemplateDetail(
-            nav: Navigator.of(innerCtx),
-            template: tpl,
-          ),
+          flows: _flows,
           fmtGregorian: (d) => d == null
               ? '--'
               : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
@@ -11991,36 +13086,6 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   /* ─────────── Ma’at Flows helpers ─────────── */
-
-  Future<int?> _pushMaatTemplateDetail({
-    required NavigatorState nav,
-    required _MaatFlowTemplate template,
-  }) {
-    return nav.push<int?>(
-      MaterialPageRoute(
-        builder: (_) => _MaatFlowTemplateDetailPage(
-          template: template,
-          addInstance:
-              ({
-                required _MaatFlowTemplate template,
-                DateTime? startDate,
-                bool? useKemetic,
-                TrackSkyTimeZone? trackSkyTimeZone,
-                int? alertMinutesBefore,
-              }) async {
-                final id = await _addMaatFlowInstance(
-                  template: template,
-                  startDate: startDate,
-                  useKemetic: useKemetic ?? false,
-                  trackSkyTimeZone: trackSkyTimeZone,
-                  alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
-                );
-                return id;
-              },
-        ),
-      ),
-    );
-  }
 
   /// True if there is at least one *active* instance of template [tplKey]
   /// with any remaining day today or in the future.
@@ -12075,6 +13140,7 @@ class _CalendarPageState extends State<CalendarPage>
 
       final flow = _Flow(
         id: -1,
+        calendarId: _personalCalendarId,
         name: template.title,
         color: template.color,
         active: true,
@@ -12207,6 +13273,7 @@ class _CalendarPageState extends State<CalendarPage>
     // 2) Build the flow object (RuleDates over those 10 days).
     final flow = _Flow(
       id: -1, // assigned on save
+      calendarId: _personalCalendarId,
       name: template.title,
       color: template.color,
       active: true,
@@ -12349,6 +13416,7 @@ class _CalendarPageState extends State<CalendarPage>
       final f = _flows[idx];
       _flows[idx] = _Flow(
         id: f.id,
+        calendarId: f.calendarId,
         name: f.name,
         color: f.color,
         active: false,
@@ -12376,6 +13444,7 @@ class _CalendarPageState extends State<CalendarPage>
           name: f.name,
           color: f.color.value,
           active: false,
+          calendarId: f.calendarId,
           startDate: f.start,
           endDate: f.end,
           notes: f.notes,
@@ -12499,6 +13568,8 @@ class _CalendarPageState extends State<CalendarPage>
             (n) => NoteData(
               id: n.id?.toString(),
               clientEventId: n.clientEventId,
+              calendarId: n.calendarId,
+              calendarName: n.calendarName,
               title: n.title,
               detail: n.detail,
               location: n.location,
@@ -12767,30 +13838,12 @@ class _CalendarPageState extends State<CalendarPage>
     required DateTime completedOnDate,
   }) async {
     final repo = UserEventsRepo(Supabase.instance.client);
-    final progressRepo = FlowProgressRepo(Supabase.instance.client);
     try {
       await repo.recordEventCompletion(
         clientEventId: clientEventId,
         flowId: flowId,
         completedOnDate: completedOnDate,
       );
-      final event = await repo.getEventByClientEventId(clientEventId);
-      final category = event?.category?.trim().toLowerCase() ?? '';
-      final title = event?.title.trim().toLowerCase() ?? '';
-      final detail = event?.detail?.trim().toLowerCase() ?? '';
-      final reflectionEvent =
-          category == 'reflection' ||
-          (category != 'flow_action' &&
-              (title.contains('reflection') ||
-                  title.contains('journal') ||
-                  detail.contains('reflection') ||
-                  detail.contains('seal the day in your journal')));
-      if (!reflectionEvent) {
-        await progressRepo.markPrimaryEventCompleted(
-          flowId: flowId,
-          completedOnDate: completedOnDate,
-        );
-      }
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[DayView] recordEventCompletion failed: $e');
@@ -12892,6 +13945,26 @@ class _CalendarPageState extends State<CalendarPage>
       initialItem: (kMonth - 1).clamp(0, 12).toInt(),
     );
     final dayCtrl = FixedExtentScrollController(initialItem: (kDay - 1));
+    final initialEditingBucketKey = _kKey(kYear, kMonth, kDay);
+    final initialEditingNote =
+        editingIndex != null &&
+            _notes[initialEditingBucketKey] != null &&
+            editingIndex! < _notes[initialEditingBucketKey]!.length
+        ? _notes[initialEditingBucketKey]![editingIndex!]
+        : null;
+    final availableCalendars =
+        _calendarSummariesById.values
+            .where(
+              (calendar) =>
+                  calendar.canEdit ||
+                  initialEditingNote?.calendarId == calendar.id,
+            )
+            .toList()
+          ..sort((a, b) {
+            if (a.isPersonal && !b.isPersonal) return -1;
+            if (!a.isPersonal && b.isPersonal) return 1;
+            return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+          });
 
     final rawInitialDetail = initialDetail ?? '';
     final strippedInitialDetail = _stripCidLines(rawInitialDetail);
@@ -12909,6 +13982,13 @@ class _CalendarPageState extends State<CalendarPage>
     TimeOfDay? endTime = initialEndTime ?? const TimeOfDay(hour: 13, minute: 0);
     String? selectedCategory = initialCategory;
     int alertMinutesBefore = initialAlertMinutes ?? _alertNoneMinutes;
+    String? selectedCalendarId =
+        initialEditingNote?.calendarId ??
+        _personalCalendarId ??
+        (availableCalendars.isNotEmpty ? availableCalendars.first.id : null);
+    String? selectedCalendarName =
+        initialEditingNote?.calendarName ??
+        _calendarSummariesById[selectedCalendarId]?.name;
 
     // Repeat state
     NoteRepeatOption repeatOption = NoteRepeatOption.never;
@@ -12923,6 +14003,8 @@ class _CalendarPageState extends State<CalendarPage>
         ? _flowPalette.indexWhere((c) => c.value == initialColor.value)
         : 0;
     if (selectedColorIndex < 0) selectedColorIndex = 0;
+    bool sheetClosing = false;
+    bool sheetControllersDisposed = false;
 
     Map<String, dynamic> daySheetSessionPayload() {
       return <String, dynamic>{
@@ -12941,11 +14023,13 @@ class _CalendarPageState extends State<CalendarPage>
         'colorValue': _flowPalette[selectedColorIndex].value,
         'category': selectedCategory,
         'alertMinutesBefore': alertMinutesBefore,
+        'calendarId': selectedCalendarId,
         'editingIndex': editingIndex,
       };
     }
 
     void persistDaySheetSession() {
+      if (sheetClosing || sheetControllersDisposed) return;
       unawaited(
         SessionResumeService.saveResumeEntry(
           baseRoute: '/',
@@ -12959,6 +14043,29 @@ class _CalendarPageState extends State<CalendarPage>
     controllerLocation.addListener(persistDaySheetSession);
     controllerDetail.addListener(persistDaySheetSession);
     persistDaySheetSession();
+
+    void disposeDaySheetControllers() {
+      if (sheetControllersDisposed) return;
+      sheetControllersDisposed = true;
+      controllerTitle.removeListener(persistDaySheetSession);
+      controllerLocation.removeListener(persistDaySheetSession);
+      controllerDetail.removeListener(persistDaySheetSession);
+      controllerTitle.dispose();
+      controllerLocation.dispose();
+      controllerDetail.dispose();
+      yearCtrl.dispose();
+      monthCtrl.dispose();
+      dayCtrl.dispose();
+    }
+
+    void scheduleDayPickerJump() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (sheetClosing || sheetControllersDisposed || !dayCtrl.hasClients) {
+          return;
+        }
+        dayCtrl.jumpToItem(selDay - 1);
+      });
+    }
 
     try {
       debugPrint('🚀 Attempting to show modal bottom sheet...');
@@ -12990,7 +14097,7 @@ class _CalendarPageState extends State<CalendarPage>
           );
           bool showReminders = _noteSheetShowReminders;
 
-          return StatefulBuilder(
+          final daySheetContent = StatefulBuilder(
             builder: (sheetCtx, setSheetState) {
               const double _detailFontSize = 12.0;
               const double _detailLineHeight = 1.35;
@@ -13002,9 +14109,7 @@ class _CalendarPageState extends State<CalendarPage>
               if (selDay > dayCount) {
                 selDay = dayCount;
                 if (allowDateChange && dayCtrl.hasClients) {
-                  WidgetsBinding.instance.addPostFrameCallback(
-                    (_) => dayCtrl.jumpToItem(selDay - 1),
-                  );
+                  scheduleDayPickerJump();
                 }
               }
 
@@ -13025,6 +14130,13 @@ class _CalendarPageState extends State<CalendarPage>
                       editingIndex! < _notes[editingBucketKey]!.length
                   ? _notes[editingBucketKey]![editingIndex!]
                   : null;
+              final selectedCalendar = selectedCalendarId == null
+                  ? null
+                  : _calendarSummariesById[selectedCalendarId];
+              final selectedCalendarLabel =
+                  selectedCalendar?.name ??
+                  selectedCalendarName ??
+                  'My Calendar';
 
               Future<void> pickStart() async {
                 final t = await showTimePicker(
@@ -13142,11 +14254,7 @@ class _CalendarPageState extends State<CalendarPage>
                                   if (selDay > max) {
                                     selDay = max;
                                     if (dayCtrl.hasClients) {
-                                      WidgetsBinding.instance
-                                          .addPostFrameCallback(
-                                            (_) =>
-                                                dayCtrl.jumpToItem(selDay - 1),
-                                          );
+                                      scheduleDayPickerJump();
                                     }
                                   }
                                 });
@@ -13209,11 +14317,7 @@ class _CalendarPageState extends State<CalendarPage>
                                   if (selDay > max) {
                                     selDay = max;
                                     if (dayCtrl.hasClients) {
-                                      WidgetsBinding.instance
-                                          .addPostFrameCallback(
-                                            (_) =>
-                                                dayCtrl.jumpToItem(selDay - 1),
-                                          );
+                                      scheduleDayPickerJump();
                                     }
                                   }
                                 });
@@ -13955,6 +15059,105 @@ class _CalendarPageState extends State<CalendarPage>
 
                             const SizedBox(height: 12),
 
+                            InkWell(
+                              onTap: availableCalendars.isEmpty
+                                  ? null
+                                  : () async {
+                                      final chosenId =
+                                          await showCupertinoModalPopup<String>(
+                                            context: sheetCtx,
+                                            builder: (popupCtx) {
+                                              return CupertinoActionSheet(
+                                                title: const GlossyText(
+                                                  text: 'Calendar',
+                                                  gradient: silverGloss,
+                                                  style: TextStyle(
+                                                    fontSize: 18,
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  for (final calendar
+                                                      in availableCalendars)
+                                                    CupertinoActionSheetAction(
+                                                      onPressed: () {
+                                                        Navigator.of(
+                                                          popupCtx,
+                                                        ).pop(calendar.id);
+                                                      },
+                                                      child: Text(
+                                                        calendar.name,
+                                                        style: TextStyle(
+                                                          color: calendar.color,
+                                                          fontSize: 17,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                                cancelButton:
+                                                    CupertinoActionSheetAction(
+                                                      isDestructiveAction: true,
+                                                      onPressed: () =>
+                                                          Navigator.of(
+                                                            popupCtx,
+                                                          ).pop(),
+                                                      child: const Text(
+                                                        'Cancel',
+                                                      ),
+                                                    ),
+                                              );
+                                            },
+                                          );
+                                      if (chosenId == null) return;
+                                      setSheetState(() {
+                                        selectedCalendarId = chosenId;
+                                        selectedCalendarName =
+                                            _calendarSummariesById[chosenId]
+                                                ?.name;
+                                      });
+                                      persistDaySheetSession();
+                                    },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const GlossyText(
+                                      text: 'Calendar',
+                                      gradient: silverGloss,
+                                      style: TextStyle(fontSize: 14),
+                                    ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          selectedCalendarLabel,
+                                          style: TextStyle(
+                                            color:
+                                                selectedCalendar?.color ??
+                                                _gold,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                          Icons.chevron_right,
+                                          size: 18,
+                                          color: Colors.white54,
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(height: 8),
+
                             // Alert row
                             InkWell(
                               onTap: () async {
@@ -14537,6 +15740,10 @@ class _CalendarPageState extends State<CalendarPage>
                                                   existingNote.start?.minute,
                                               allDay: existingNote.allDay,
                                               flowId: -1,
+                                              calendarScopeToken:
+                                                  _calendarScopeToken(
+                                                    existingNote.calendarId,
+                                                  ),
                                             )
                                           : null);
 
@@ -14544,6 +15751,20 @@ class _CalendarPageState extends State<CalendarPage>
                                     ({String clientEventId, String eventId})?
                                     saveResult;
                                     var updatedExistingStandalone = false;
+
+                                    if (selectedCalendar != null &&
+                                        !selectedCalendar.canEdit) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'You can view this calendar, but you cannot edit it.',
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
 
                                     if (!isRepeating) {
                                       final canUpdateExisting =
@@ -14568,6 +15789,9 @@ class _CalendarPageState extends State<CalendarPage>
                                               location: loc.isEmpty
                                                   ? null
                                                   : loc,
+                                              calendarId: selectedCalendarId,
+                                              calendarName:
+                                                  selectedCalendarLabel,
                                               allDay: allDay,
                                               startTime: startTime,
                                               endTime: endTime,
@@ -14586,6 +15810,8 @@ class _CalendarPageState extends State<CalendarPage>
                                               ? null
                                               : detailForSave,
                                           location: loc.isEmpty ? null : loc,
+                                          calendarId: selectedCalendarId,
+                                          calendarName: selectedCalendarLabel,
                                           allDay: allDay,
                                           startTime: startTime,
                                           endTime: endTime,
@@ -14606,6 +15832,8 @@ class _CalendarPageState extends State<CalendarPage>
                                             ? null
                                             : detailForSave,
                                         location: loc.isEmpty ? null : loc,
+                                        calendarId: selectedCalendarId,
+                                        calendarName: selectedCalendarLabel,
                                         allDay: allDay,
                                         startTime: startTime,
                                         endTime: endTime,
@@ -14694,17 +15922,13 @@ class _CalendarPageState extends State<CalendarPage>
               );
             },
           );
+          return _DaySheetControllerDisposalScope(
+            onDispose: disposeDaySheetControllers,
+            child: daySheetContent,
+          );
         },
       ).then((_) {
-        controllerTitle.removeListener(persistDaySheetSession);
-        controllerLocation.removeListener(persistDaySheetSession);
-        controllerDetail.removeListener(persistDaySheetSession);
-        controllerTitle.dispose();
-        controllerLocation.dispose();
-        controllerDetail.dispose();
-        yearCtrl.dispose();
-        monthCtrl.dispose();
-        dayCtrl.dispose();
+        sheetClosing = true;
         unawaited(
           SessionResumeService.clearResumeEntry(
             kind: _kSessionResumeKindDaySheet,
@@ -14720,15 +15944,8 @@ class _CalendarPageState extends State<CalendarPage>
       debugPrint('Error: $e');
       debugPrint('Stack trace: $stackTrace');
       debugPrint('');
-      controllerTitle.removeListener(persistDaySheetSession);
-      controllerLocation.removeListener(persistDaySheetSession);
-      controllerDetail.removeListener(persistDaySheetSession);
-      controllerTitle.dispose();
-      controllerLocation.dispose();
-      controllerDetail.dispose();
-      yearCtrl.dispose();
-      monthCtrl.dispose();
-      dayCtrl.dispose();
+      sheetClosing = true;
+      disposeDaySheetControllers();
       unawaited(
         SessionResumeService.clearResumeEntry(
           kind: _kSessionResumeKindDaySheet,
@@ -15091,13 +16308,13 @@ class _CalendarPageState extends State<CalendarPage>
       // 1) Load reminder rules + schedule their instances, then load flows/events
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
-        _requestStartupRun(reason: 'init').then((_) async {
+        _requestStartupRun(reason: 'init').then((_) {
           final targetFlowId = widget.initialFlowIdToEdit;
           if (!mounted) return;
           if (targetFlowId != null) {
             _openFlowEditorDirectly(targetFlowId);
           } else if (widget.openMyFlowsOnLaunch) {
-            await _openMyFlowsList();
+            _openMyFlowsList();
           }
         });
       } else {
@@ -15118,9 +16335,7 @@ class _CalendarPageState extends State<CalendarPage>
     } else if (widget.openMyFlowsOnLaunch) {
       // If already initialized and caller requested My Flows, honor it.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          unawaited(_openMyFlowsList());
-        }
+        if (mounted) _openMyFlowsList();
       });
     }
 
@@ -15210,23 +16425,25 @@ class _CalendarPageState extends State<CalendarPage>
         debugPrint('[loadFromDisk] getAllFlows count: ${serverFlows.length}');
       }
       for (final f in serverFlows) {
-        final classification = classifyFlowMetadata(
-          isReminder: f.isReminder,
-          isHidden: f.isHidden,
-          reminderUuid: f.reminderUuid,
-          notes: f.notes,
-        );
-        final derivedHidden = classification.isRepeatingNote;
-        final derivedReminder = classification.isReminder;
+        final repMeta = _decodeRepeatingNoteMetadata(f.notes);
+        final derivedHidden =
+            f.isHidden ||
+            repMeta.detail != null ||
+            repMeta.location != null ||
+            repMeta.category != null;
         if (kDebugMode && derivedHidden) {
           final fromDb = f.isHidden;
-          final fromRepMeta = looksLikeRepeatingNoteMetadata(f.notes);
+          final fromRepMeta =
+              repMeta.detail != null ||
+              repMeta.location != null ||
+              repMeta.category != null;
           debugPrint(
             '[loadFromDisk] hidden flow id=${f.id} name="${f.name}" fromDb=$fromDb fromRepMeta=$fromRepMeta',
           );
         }
         final flow = _Flow(
           id: f.id,
+          calendarId: f.calendarId,
           name: f.name,
           color: Color(rgbToArgb(f.color)),
           active: f.active,
@@ -15237,7 +16454,7 @@ class _CalendarPageState extends State<CalendarPage>
           notes: f.notes,
           shareId: f.shareId, // NEW: Load share_id
           isHidden: derivedHidden,
-          isReminder: derivedReminder,
+          isReminder: f.isReminder,
           reminderUuid: f.reminderUuid,
         );
         newFlows.add(flow);
@@ -15422,6 +16639,8 @@ class _CalendarPageState extends State<CalendarPage>
             final note = _Note(
               id: evt.id,
               clientEventId: evt.clientEventId,
+              calendarId: evt.calendarId,
+              calendarName: evt.calendarName,
               title: _cleanTitle(evt.title),
               detail: cleanedDetail, // Clean the flowLocalId prefix
               location: evt.location,
@@ -15597,6 +16816,8 @@ class _CalendarPageState extends State<CalendarPage>
             final note = _Note(
               id: evt.id,
               clientEventId: evt.clientEventId,
+              calendarId: evt.calendarId,
+              calendarName: evt.calendarName,
               title: _cleanTitle(evt.title),
               detail: cleanedDetail,
               location: evt.location,
@@ -15604,7 +16825,13 @@ class _CalendarPageState extends State<CalendarPage>
               start: startTime,
               end: endTime,
               flowId: -1, // Standalone notes have flowId = -1
-              manualColor: decoded.color,
+              manualColor:
+                  decoded.color ??
+                  (evt.calendarIsPersonal
+                      ? null
+                      : (evt.calendarColor != null
+                            ? Color(evt.calendarColor!)
+                            : null)),
               category: evt.category,
               isReminder: isReminderEvent,
               reminderId: reminderRuleId,
@@ -15755,7 +16982,6 @@ class _CalendarPageState extends State<CalendarPage>
 
       await _regenReminderNotes(notify: false);
       _bumpDataVersion();
-      unawaited(_flowProgressRepo.loadActiveTrackers());
     } catch (e, stackTrace) {
       print('Supabase sync FAILED: $e');
       print('Stack: $stackTrace');
@@ -15994,6 +17220,7 @@ class _CalendarPageState extends State<CalendarPage>
         name: r.savedFlow!.name,
         color: r.savedFlow!.color.value,
         active: r.savedFlow!.active,
+        calendarId: r.savedFlow!.calendarId,
         startDate: r.savedFlow!.start,
         endDate: r.savedFlow!.end,
         notes: r.savedFlow!.notes,
@@ -16008,6 +17235,7 @@ class _CalendarPageState extends State<CalendarPage>
 
       saved = _Flow(
         id: savedId,
+        calendarId: r.savedFlow!.calendarId,
         name: r.savedFlow!.name,
         color: r.savedFlow!.color,
         active: r.savedFlow!.active,
@@ -16052,10 +17280,13 @@ class _CalendarPageState extends State<CalendarPage>
 
     // 3) Apply planned notes locally
     final flowId = saved?.id ?? r.savedFlow?.id ?? -1;
+    final flowCalendarId = saved?.calendarId ?? r.savedFlow?.calendarId;
+    final flowCalendarName = _calendarSummary(flowCalendarId)?.name;
     final aiGenerated = oldFlowRow?.aiMetadata == null
         ? null
         : oldFlowRow!.aiMetadata?['generated'];
     final isAIFlow = aiGenerated is bool && aiGenerated;
+    String? firstClientEventId;
 
     if (r.plannedNotes.isNotEmpty) {
       final repo2 = UserEventsRepo(Supabase.instance.client);
@@ -16080,7 +17311,7 @@ class _CalendarPageState extends State<CalendarPage>
 
       for (final p in r.plannedNotes) {
         final n = p.note;
-        final noteFlowId = (n.flowId ?? flowId) ?? -1;
+        final noteFlowId = n.flowId ?? flowId;
 
         // Add to in-memory notes
         _addNote(
@@ -16089,6 +17320,8 @@ class _CalendarPageState extends State<CalendarPage>
           p.kd,
           n.title,
           n.detail,
+          calendarId: flowCalendarId,
+          calendarName: flowCalendarName,
           location: n.location,
           allDay: n.allDay,
           start: n.start,
@@ -16148,13 +17381,18 @@ class _CalendarPageState extends State<CalendarPage>
           location: (n.location ?? '').trim().isEmpty ? null : n.location,
           allDay: n.allDay,
           endsAtUtc: endsAt?.toUtc(),
+          calendarId: flowCalendarId,
           flowLocalId: noteFlowId >= 0 ? noteFlowId : null,
           category: n.category,
           caller: 'persist_flow_studio',
         );
+        firstClientEventId ??= savedEvent.clientEventId ?? cid;
 
         await _scheduleAlertForEvent(
-          note: n,
+          note: n.copyWith(
+            calendarId: flowCalendarId,
+            calendarName: flowCalendarName,
+          ),
           ky: p.ky,
           km: p.km,
           kd: p.kd,
@@ -16231,6 +17469,14 @@ class _CalendarPageState extends State<CalendarPage>
                 '[persistFlowStudio] ✅ Scheduled recurring notes for flow ${saved.id}',
               );
             }
+            if (firstClientEventId == null) {
+              try {
+                final events = await repo.getEventsForFlow(saved.id);
+                if (events.isNotEmpty) {
+                  firstClientEventId = events.first.clientEventId;
+                }
+              } catch (_) {}
+            }
           }
 
           // TODO: Add analytics once analytics service is integrated
@@ -16254,6 +17500,16 @@ class _CalendarPageState extends State<CalendarPage>
       }
     }
 
+    if (saved != null) {
+      await _notifySharedCalendarMembers(
+        calendarId: saved.calendarId,
+        title: _calendarDisplayName(saved.calendarId),
+        body: 'Flow updated: ${saved.name}',
+        clientEventId: firstClientEventId,
+        data: <String, dynamic>{'flow_id': saved.id},
+      );
+    }
+
     setState(() {});
     _notifyDayViewDataChanged();
     return saved?.id;
@@ -16269,6 +17525,8 @@ class _CalendarPageState extends State<CalendarPage>
     required String title,
     String? detail,
     String? location,
+    String? calendarId,
+    String? calendarName,
     required bool allDay,
     TimeOfDay? startTime,
     TimeOfDay? endTime,
@@ -16288,6 +17546,8 @@ class _CalendarPageState extends State<CalendarPage>
             startTime!.minute,
           );
     final note = _Note(
+      calendarId: calendarId,
+      calendarName: calendarName,
       title: title,
       detail: detail,
       location: location,
@@ -16300,20 +17560,6 @@ class _CalendarPageState extends State<CalendarPage>
       alertOffsetMinutes: alertMinutesBefore,
     );
 
-    final alertAt = _alertDateTimeLocal(
-      note: note,
-      kYear: selYear,
-      kMonth: selMonth,
-      kDay: selDay,
-    );
-
-    // Build a simple text body: Location (if any) + Details (if any)
-    final bodyLines = <String>[
-      if (location != null && location.isNotEmpty) location,
-      if (detail != null && detail.isNotEmpty) detail,
-    ];
-    final body = bodyLines.isEmpty ? null : bodyLines.join('\n');
-
     // Build canonical clientEventId for this manual note
     final String unifiedCid = _buildCid(
       ky: selYear,
@@ -16324,6 +17570,7 @@ class _CalendarPageState extends State<CalendarPage>
       startMinute: (allDay || startTime == null) ? null : startTime!.minute,
       allDay: allDay,
       flowId: -1,
+      calendarScopeToken: _calendarScopeToken(calendarId),
     );
 
     await _ensureManualDeleteTombstonesLoaded();
@@ -16357,6 +17604,7 @@ class _CalendarPageState extends State<CalendarPage>
         allDay: allDay,
         endsAtUtc: endsAtUtc,
         category: category,
+        calendarId: calendarId,
         caller: 'save_single',
       );
 
@@ -16374,6 +17622,8 @@ class _CalendarPageState extends State<CalendarPage>
         detail,
         id: updated.id,
         clientEventId: savedClientEventId,
+        calendarId: calendarId,
+        calendarName: calendarName,
         location: location,
         allDay: allDay,
         start: startTime,
@@ -16387,12 +17637,22 @@ class _CalendarPageState extends State<CalendarPage>
         note: note.copyWith(
           id: updated.id,
           clientEventId: updated.clientEventId,
+          calendarId: calendarId,
+          calendarName: calendarName,
         ),
         ky: selYear,
         km: selMonth,
         kd: selDay,
         clientEventId: updated.clientEventId ?? unifiedCid,
         eventId: updated.id,
+      );
+
+      await _notifySharedCalendarMembers(
+        calendarId: calendarId,
+        title: _calendarDisplayName(calendarId),
+        body: 'New event: $title',
+        clientEventId: savedClientEventId,
+        data: <String, dynamic>{'event_id': updated.id},
       );
 
       // Also log to app_events for analytics
@@ -16440,6 +17700,8 @@ class _CalendarPageState extends State<CalendarPage>
     required String title,
     String? detail,
     String? location,
+    String? calendarId,
+    String? calendarName,
     required bool allDay,
     TimeOfDay? startTime,
     TimeOfDay? endTime,
@@ -16460,6 +17722,8 @@ class _CalendarPageState extends State<CalendarPage>
     final note = _Note(
       id: existingEventId,
       clientEventId: previousClientEventId,
+      calendarId: calendarId,
+      calendarName: calendarName,
       title: title,
       detail: detail,
       location: location,
@@ -16471,6 +17735,10 @@ class _CalendarPageState extends State<CalendarPage>
       category: category,
       alertOffsetMinutes: alertMinutesBefore,
     );
+    final bodyLines = <String>[
+      if (location != null && location.isNotEmpty) location,
+      if (detail != null && detail.isNotEmpty) detail,
+    ];
 
     final unifiedCid = _buildCid(
       ky: selYear,
@@ -16481,6 +17749,7 @@ class _CalendarPageState extends State<CalendarPage>
       startMinute: (allDay || startTime == null) ? null : startTime.minute,
       allDay: allDay,
       flowId: -1,
+      calendarScopeToken: _calendarScopeToken(calendarId),
     );
 
     await _ensureManualDeleteTombstonesLoaded();
@@ -16514,6 +17783,7 @@ class _CalendarPageState extends State<CalendarPage>
     final updated = await repo.replace(
       id: existingEventId,
       clientEventId: unifiedCid,
+      calendarId: calendarId,
       title: title,
       detail: encodedDetail,
       location: location,
@@ -16542,6 +17812,8 @@ class _CalendarPageState extends State<CalendarPage>
       detail,
       id: updated.id,
       clientEventId: savedClientEventId,
+      calendarId: calendarId,
+      calendarName: calendarName,
       location: location,
       allDay: allDay,
       start: startTime,
@@ -16560,6 +17832,17 @@ class _CalendarPageState extends State<CalendarPage>
       eventId: updated.id,
     );
 
+    await _notifySharedCalendarMembers(
+      calendarId: calendarId,
+      title: _calendarDisplayName(calendarId),
+      body: 'Updated event: $title',
+      clientEventId: savedClientEventId,
+      data: <String, dynamic>{
+        'event_id': updated.id,
+        if (bodyLines.isNotEmpty) 'preview': bodyLines.join('\n'),
+      },
+    );
+
     return (clientEventId: savedClientEventId, eventId: updated.id);
   }
 
@@ -16571,6 +17854,8 @@ class _CalendarPageState extends State<CalendarPage>
     required String title,
     String? detail,
     String? location,
+    String? calendarId,
+    String? calendarName,
     required bool allDay,
     required TimeOfDay? startTime,
     required TimeOfDay? endTime,
@@ -16590,8 +17875,6 @@ class _CalendarPageState extends State<CalendarPage>
       selMonth,
       selDay,
     );
-
-    final DateTime now = DateUtils.dateOnly(DateTime.now());
 
     // 2. Determine horizon for recurrence generation and flow.end.
     late final DateTime horizonEnd;
@@ -16634,11 +17917,14 @@ class _CalendarPageState extends State<CalendarPage>
         title: title,
         detail: detail,
         location: location,
+        calendarId: calendarId,
+        calendarName: calendarName,
         allDay: allDay,
         startTime: startTime,
         endTime: endTime,
         color: color,
         category: category,
+        alertMinutesBefore: alertMinutesBefore,
       );
       return;
     }
@@ -16646,6 +17932,7 @@ class _CalendarPageState extends State<CalendarPage>
     // 5. Create a hidden flow object in memory (micro-flow just for this note pattern).
     final flow = _Flow(
       id: -1, // Will be replaced by DB id
+      calendarId: calendarId,
       name: title,
       color: color, // Use selected color
       active: true,
@@ -16672,6 +17959,7 @@ class _CalendarPageState extends State<CalendarPage>
       name: flow.name,
       color: flow.color.value,
       active: flow.active,
+      calendarId: flow.calendarId,
       startDate: flow.start,
       endDate: flow.end,
       notes: flow.notes,
@@ -16682,6 +17970,7 @@ class _CalendarPageState extends State<CalendarPage>
     // 7. Insert into in-memory _flows list with correct ID.
     final savedFlow = _Flow(
       id: flowId,
+      calendarId: flow.calendarId,
       name: flow.name,
       color: flow.color,
       active: flow.active,
@@ -16700,6 +17989,22 @@ class _CalendarPageState extends State<CalendarPage>
 
     // 8. Trigger materialization of events into user_events via the shared engine.
     await _triggerFlowSchedule(flowId);
+
+    String? firstClientEventId;
+    try {
+      final events = await repo.getEventsForFlow(flowId);
+      if (events.isNotEmpty) {
+        firstClientEventId = events.first.clientEventId;
+      }
+    } catch (_) {}
+
+    await _notifySharedCalendarMembers(
+      calendarId: flow.calendarId,
+      title: _calendarDisplayName(flow.calendarId),
+      body: 'Repeating note updated: $title',
+      clientEventId: firstClientEventId,
+      data: <String, dynamic>{'flow_id': flowId},
+    );
 
     // 9. Refresh local caches so the new repeating note series shows up immediately.
     unawaited(_loadFromDisk(source: 'repeat_note_save'));
@@ -17238,8 +18543,11 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     String noteTitle = flow?.name ?? 'Flow Event';
+    final flowCalendarId = flow?.calendarId;
+    final flowCalendarName = _calendarSummary(flowCalendarId)?.name;
     String? noteDetail;
     String? noteLocation;
+    String? noteCategory;
     int? noteAlertMinutes;
 
     // Decode flow.notes to extract detail and location for repeating notes
@@ -17250,6 +18558,7 @@ class _CalendarPageState extends State<CalendarPage>
         if (meta['kind'] == 'repeating_note') {
           noteDetail = (meta['detail'] as String?)?.trim();
           noteLocation = (meta['location'] as String?)?.trim();
+          noteCategory = (meta['category'] as String?)?.trim();
           noteAlertMinutes = (meta['alertMinutes'] as num?)?.toInt();
         } else {
           // Legacy flowNotes format - try notesDecode
@@ -17340,10 +18649,12 @@ class _CalendarPageState extends State<CalendarPage>
                 title: noteTitle,
                 startsAtUtc: startsAt.toUtc(),
                 endsAtUtc: endsAt?.toUtc(),
+                calendarId: flowCalendarId,
                 detail: detailWithMeta ?? noteDetail,
                 location: noteLocation,
                 allDay: rule.allDay,
                 flowLocalId: flowId,
+                category: noteCategory,
               ),
             );
           }
@@ -17387,7 +18698,9 @@ class _CalendarPageState extends State<CalendarPage>
           location: ev.location,
           allDay: ev.allDay,
           endsAtUtc: ev.endsAtUtc,
+          calendarId: ev.calendarId,
           flowLocalId: ev.flowLocalId,
+          category: ev.category,
           caller: 'schedule_flow_notes',
         );
 
@@ -17395,6 +18708,8 @@ class _CalendarPageState extends State<CalendarPage>
         final localStart = ev.startsAtUtc.toLocal();
         final kDate = KemeticMath.fromGregorian(localStart);
         final note = _Note(
+          calendarId: flowCalendarId,
+          calendarName: flowCalendarName,
           title: ev.title,
           detail: decodedMeta.detail ?? ev.detail,
           location: ev.location,
@@ -17404,6 +18719,7 @@ class _CalendarPageState extends State<CalendarPage>
               ? null
               : TimeOfDay.fromDateTime(ev.endsAtUtc!.toLocal()),
           flowId: ev.flowLocalId,
+          category: ev.category,
           alertOffsetMinutes: decodedMeta.alertMinutes ?? _alertNoneMinutes,
         );
 
@@ -17528,6 +18844,8 @@ class _CalendarPageState extends State<CalendarPage>
                   (n) => NoteData(
                     id: n.id?.toString(),
                     clientEventId: n.clientEventId,
+                    calendarId: n.calendarId,
+                    calendarName: n.calendarName,
                     title: n.title,
                     detail: n.detail,
                     location: n.location,
@@ -17757,18 +19075,6 @@ class _CalendarPageState extends State<CalendarPage>
   void _showReflectionSheet() {
     final prompt = _reflectionPrompt;
     if (prompt == null) return;
-    unawaited(
-      UserEventsRepo(Supabase.instance.client).track(
-        event: 'decan_reflection_opened',
-        properties: {
-          'decan_name': prompt.decanName,
-          'decan_start': _formatDateOnlyLocal(prompt.decanStart),
-          'decan_end': _formatDateOnlyLocal(prompt.decanEnd),
-          'badge_count': prompt.badgeCount,
-          'persisted': prompt.persisted,
-        },
-      ),
-    );
     final dateRange =
         '${_formatDateOnlyLocal(prompt.decanStart)} → ${_formatDateOnlyLocal(prompt.decanEnd)}';
 
@@ -18101,30 +19407,8 @@ class _CalendarPageState extends State<CalendarPage>
     return badges;
   }
 
-  String _buildReflectionFromBadges(
-    List<EventBadgeToken> badges, [
-    List<FlowReflectionEvidence> flowEvidence = const [],
-  ]) {
-    final primaryFlow = flowEvidence.isNotEmpty ? flowEvidence.first : null;
+  String _buildReflectionFromBadges(List<EventBadgeToken> badges) {
     if (badges.isEmpty) {
-      if (primaryFlow != null) {
-        final domain = primaryFlow.domain?.trim();
-        final anchor = domain != null && domain.isNotEmpty
-            ? domain
-            : primaryFlow.title.trim();
-        final badgeLine = primaryFlow.badgeCount > 0
-            ? '${primaryFlow.badgeCount} badge${primaryFlow.badgeCount == 1 ? '' : 's'}'
-            : 'no badges';
-        final reflectionLine = primaryFlow.reflectionCount > 0
-            ? '${primaryFlow.reflectionCount} reflection${primaryFlow.reflectionCount == 1 ? '' : 's'}'
-            : 'no reflections yet';
-        return [
-          '${primaryFlow.title} held the center of this decan.',
-          '${primaryFlow.daysWithProgress} of ${primaryFlow.overlapDays} flow days carried measurable movement, with ${primaryFlow.fullDays} fully recorded and ${primaryFlow.missedDays} left quiet.',
-          '${primaryFlow.vowText} The record shows $badgeLine and $reflectionLine around that practice.',
-          'As the next decan opens, keep $anchor under witness and return before the thread loosens.',
-        ].join('\n\n');
-      }
       return 'Time moved quietly this decan. Silence is still a shape—space held open for whatever wants to speak next.';
     }
 
@@ -18187,9 +19471,6 @@ class _CalendarPageState extends State<CalendarPage>
         ? 'Most frequent: “${sorted.first.key}”. '
         : '';
     final badgesLine = 'Badges logged: $total. ${dominantTitle.trim()}';
-    final flowLine = primaryFlow == null
-        ? null
-        : '${primaryFlow.title} carried ${primaryFlow.daysWithProgress}/${primaryFlow.overlapDays} tracked days, ${primaryFlow.badgeCount} badge${primaryFlow.badgeCount == 1 ? '' : 's'}, and ${primaryFlow.reflectionCount} reflection${primaryFlow.reflectionCount == 1 ? '' : 's'}.';
 
     return [
       opening,
@@ -18197,7 +19478,6 @@ class _CalendarPageState extends State<CalendarPage>
       rhythm,
       silence,
       badgesLine,
-      if (flowLine != null && flowLine.trim().isNotEmpty) flowLine,
       invitation,
       closing,
     ].join('\n\n');
@@ -18270,11 +19550,6 @@ class _CalendarPageState extends State<CalendarPage>
             },
           )
           .toList();
-      final flowEvidence = await FlowProgressRepo(Supabase.instance.client)
-          .loadReflectionEvidenceForWindow(
-            startDate: window.start,
-            endDate: window.end,
-          );
 
       String reflectionText = '';
       int badgeCount = decanBadges.length;
@@ -18292,7 +19567,6 @@ class _CalendarPageState extends State<CalendarPage>
           useKnowledgeGraph: true,
           useDecisionMatrix: true,
           badges: payloadBadges,
-          flowEvidence: flowEvidence,
         );
         if (response.success &&
             (response.reflection?.trim().isNotEmpty ?? false)) {
@@ -18314,7 +19588,6 @@ class _CalendarPageState extends State<CalendarPage>
       if (reflectionText.trim().isEmpty) {
         reflectionText = _buildReflectionFromBadges(
           decanBadges.map((b) => b.token).toList(),
-          flowEvidence,
         );
       }
 
@@ -18335,18 +19608,6 @@ class _CalendarPageState extends State<CalendarPage>
           persisted: reflectionId != null,
         );
       });
-      unawaited(
-        UserEventsRepo(Supabase.instance.client).track(
-          event: 'decan_reflection_prompt_seen',
-          properties: {
-            'decan_name': window.decanName,
-            'decan_start': _formatDateOnlyLocal(window.start),
-            'decan_end': _formatDateOnlyLocal(window.end),
-            'badge_count': badgeCount,
-            'flow_evidence_count': flowEvidence.length,
-          },
-        ),
-      );
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[DecanReflection] prompt load failed: $e');
@@ -18602,6 +19863,8 @@ class _CalendarPageState extends State<CalendarPage>
     return EventItem(
       id: note.id,
       clientEventId: note.clientEventId,
+      calendarId: note.calendarId,
+      calendarName: note.calendarName,
       title: note.title,
       detail: note.detail,
       location: note.location,
@@ -20340,6 +21603,8 @@ class _DayChip extends StatelessWidget {
     return EventItem(
       id: note.id,
       clientEventId: note.clientEventId,
+      calendarId: note.calendarId,
+      calendarName: note.calendarName,
       title: note.title,
       detail: note.detail,
       location: note.location,
@@ -23573,6 +24838,7 @@ class _DraftNoteData {
 class _FlowStudioDraft {
   final int? editingFlowId;
   final bool editingIsHidden;
+  final String? calendarId;
   final String name;
   final bool active;
   final int selectedColorIndex;
@@ -23594,6 +24860,7 @@ class _FlowStudioDraft {
   const _FlowStudioDraft({
     required this.editingFlowId,
     required this.editingIsHidden,
+    required this.calendarId,
     required this.name,
     required this.active,
     required this.selectedColorIndex,
@@ -23698,8 +24965,6 @@ class _FlowStudioResult {
   });
 }
 
-enum _FlowStudioCreationTab { add, generate }
-
 /* ---------------------------------- page ---------------------------------- */
 
 class _FlowStudioPage extends StatefulWidget {
@@ -23722,7 +24987,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   static _FlowStudioDraft? _sessionDraft;
   bool _suppressDraftSave = false;
   _Flow? _editing;
-  _FlowStudioCreationTab _creationTab = _FlowStudioCreationTab.add;
 
   // basic
   late final TextEditingController _nameCtrl;
@@ -23771,9 +25035,59 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   final GlobalKey _editorsAnchorKey = GlobalKey();
   int _flowAlertMinutesBefore = _alertNoneMinutes;
   bool _flowAlertMixed = false;
+  String? _selectedCalendarId;
 
   // analytics
   int _originalEventCount = 0; // Store count of AI-generated events
+
+  _CalendarPageState? get _calendarPageState =>
+      CalendarPage.globalKey.currentState;
+
+  List<SharedCalendarSummary> get _editableCalendars {
+    final pageState = _calendarPageState;
+    if (pageState == null) return const <SharedCalendarSummary>[];
+    final currentCalendarId = _selectedCalendarId ?? _editing?.calendarId;
+    final calendars = pageState._calendarSummariesById.values
+        .where(
+          (calendar) => calendar.canEdit || currentCalendarId == calendar.id,
+        )
+        .toList(growable: false);
+    calendars.sort((a, b) {
+      if (a.isPersonal && !b.isPersonal) return -1;
+      if (!a.isPersonal && b.isPersonal) return 1;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return calendars;
+  }
+
+  String? _defaultCalendarId() {
+    final pageState = _calendarPageState;
+    final personalCalendarId = pageState?._personalCalendarId;
+    if (personalCalendarId != null && personalCalendarId.isNotEmpty) {
+      return personalCalendarId;
+    }
+    final calendars = _editableCalendars;
+    if (calendars.isNotEmpty) {
+      return calendars.first.id;
+    }
+    return null;
+  }
+
+  String _calendarLabelFor(String? calendarId) {
+    final trimmed = calendarId?.trim();
+    if (trimmed == null || trimmed.isEmpty) return 'My Calendar';
+    final summary = _calendarPageState?._calendarSummariesById[trimmed];
+    final name = summary?.name.trim();
+    if (name != null && name.isNotEmpty) return name;
+    return 'My Calendar';
+  }
+
+  bool _canEditCalendar(String? calendarId) {
+    final trimmed = calendarId?.trim();
+    if (trimmed == null || trimmed.isEmpty) return true;
+    final summary = _calendarPageState?._calendarSummariesById[trimmed];
+    return summary?.canEdit ?? true;
+  }
 
   void _scrollEditorsIntoView() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -23825,46 +25139,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     final month = getMonthById(k.kMonth).displayFull;
     final y = _gregYearLabelFor(k.kYear, k.kMonth);
     return '$month ${k.kDay} • $y';
-  }
-
-  bool get _showsCreationTabs =>
-      widget.editFlowId == null && widget.importData == null;
-
-  Future<void> _handleInlineAiGenerated(AIFlowGenerationResponse result) async {
-    if (!mounted) return;
-
-    _FlowStudioResult? edited;
-
-    if (result.flowId != null) {
-      edited = await Navigator.of(context).push<_FlowStudioResult>(
-        MaterialPageRoute(
-          builder: (_) => _FlowStudioPage(
-            existingFlows: widget.existingFlows,
-            editFlowId: result.flowId,
-          ),
-        ),
-      );
-    } else {
-      final baseStart =
-          result.requestedStartDate ?? _startDate ?? DateTime.now();
-      final importData = _aiImportDataFromResponse(result, baseStart);
-      if (importData == null) return;
-
-      edited = await Navigator.of(context).push<_FlowStudioResult>(
-        MaterialPageRoute(
-          builder: (_) => _FlowStudioPage(
-            existingFlows: widget.existingFlows,
-            importData: importData,
-          ),
-        ),
-      );
-    }
-
-    if (!mounted || edited == null) return;
-
-    _clearSessionDraft();
-    _suppressDraftSave = true;
-    Navigator.of(context, rootNavigator: true).pop(edited);
   }
 
   Iterable<_NoteDraft> _allDrafts() sync* {
@@ -23989,6 +25263,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     return _FlowStudioDraft(
       editingFlowId: _editing?.id,
       editingIsHidden: _editing?.isHidden ?? false,
+      calendarId: _selectedCalendarId ?? _editing?.calendarId,
       name: _nameCtrl.text,
       active: _active,
       selectedColorIndex: _selectedColorIndex,
@@ -24019,6 +25294,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         );
         _editing = _Flow(
           id: draft.editingFlowId!,
+          calendarId: draft.calendarId,
           name: draft.name.isEmpty ? '' : draft.name,
           color: _flowPalette[colorIdx],
           active: draft.active,
@@ -24032,6 +25308,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       } else {
         _editing = null;
       }
+
+      _selectedCalendarId = draft.calendarId;
 
       _nameCtrl.text = draft.name;
       _active = draft.active;
@@ -25269,12 +26547,70 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
   // ---------- save/delete ----------
 
+  /// Show AI Flow Generation Modal
+  Future<void> _showAIGenerationModal() async {
+    final result = await showModalBottomSheet<AIFlowGenerationResponse>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const AIFlowGenerationModal(),
+    );
+
+    if (!mounted || result == null) return;
+
+    _FlowStudioResult? edited;
+
+    // Prefer DB-loaded flow if flowId is present
+    if (result.flowId != null) {
+      edited = await Navigator.of(context).push<_FlowStudioResult>(
+        MaterialPageRoute(
+          builder: (_) => _FlowStudioPage(
+            existingFlows: widget.existingFlows,
+            editFlowId: result.flowId,
+          ),
+        ),
+      );
+    } else {
+      // Fallback: seed Flow Studio directly from AI response (no DB flowId)
+      final baseStart =
+          result.requestedStartDate ?? _startDate ?? DateTime.now();
+      final importData = _aiImportDataFromResponse(result, baseStart);
+      if (importData == null) return;
+
+      edited = await Navigator.of(context).push<_FlowStudioResult>(
+        MaterialPageRoute(
+          builder: (_) => _FlowStudioPage(
+            existingFlows: widget.existingFlows,
+            editFlowId: null,
+            importData: importData,
+          ),
+        ),
+      );
+    }
+
+    if (!mounted || edited == null) return;
+
+    _clearSessionDraft();
+    _suppressDraftSave = true;
+    Navigator.of(context, rootNavigator: true).pop(edited);
+  }
+
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Give your flow a name.')));
+      return;
+    }
+    final selectedCalendarId =
+        _selectedCalendarId ?? _editing?.calendarId ?? _defaultCalendarId();
+    if (!_canEditCalendar(selectedCalendarId)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You can view this calendar, but you cannot edit it.'),
+        ),
+      );
       return;
     }
 
@@ -25444,6 +26780,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
     final flow = _Flow(
       id: _editing?.id ?? -1,
+      calendarId: selectedCalendarId,
       name: name,
       color: _flowPalette[_selectedColorIndex],
       active: _active,
@@ -25674,6 +27011,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   void _clearEditorForNew() {
     setState(() {
       _editing = null;
+      _selectedCalendarId = _defaultCalendarId();
       _nameCtrl.text = '';
       _active = true;
       _selectedColorIndex = 0;
@@ -25720,6 +27058,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
     setState(() {
       _editing = f;
+      _selectedCalendarId = f.calendarId ?? _defaultCalendarId();
       _nameCtrl.text = f.name;
       _active = f.active;
 
@@ -25810,6 +27149,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       // 2. Convert FlowRow to _Flow
       final flowObj = _Flow(
         id: flow.id,
+        calendarId: flow.calendarId,
         name: flow.name,
         color: Color(rgbToArgb(flow.color)),
         active: flow.active,
@@ -25901,6 +27241,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         // Manual hydration of header fields (no _loadFlowForEdit call)
         setState(() {
           _editing = flowObj;
+          _selectedCalendarId = flowObj.calendarId ?? _defaultCalendarId();
           _nameCtrl.text = flowObj.name;
           _active = flowObj.active;
 
@@ -25954,6 +27295,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       // 10. 🔑 CRITICAL: Manually hydrate header fields WITHOUT calling _loadFlowForEdit()
       setState(() {
         _editing = flowObj;
+        _selectedCalendarId = flowObj.calendarId ?? _defaultCalendarId();
 
         // Header fields only
         _nameCtrl.text = flowObj.name;
@@ -26080,6 +27422,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
       final f = _Flow(
         id: flowRow.id,
+        calendarId: flowRow.calendarId,
         name: flowRow.name,
         color: Color(rgbToArgb(flowRow.color)),
         active: flowRow.active,
@@ -26122,6 +27465,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
     final f = _Flow(
       id: flowRow.id,
+      calendarId: flowRow.calendarId,
       name: flowRow.name,
       color: Color(rgbToArgb(flowRow.color)),
       active: flowRow.active,
@@ -26256,6 +27600,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
     setState(() {
       _editing = f;
+      _selectedCalendarId = f.calendarId ?? _defaultCalendarId();
       _nameCtrl.text = f.name;
       _active = f.active;
 
@@ -26415,6 +27760,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       draft.alertMinutesBefore =
           decodedDetail.alertMinutes ?? _alertNoneMinutes; // default to none
       draft.usesFlowAlertDefault = false;
+      draft.category = event.category;
 
       // Set times
       final hasExplicitTime =
@@ -26460,6 +27806,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   /// Initialize Flow Studio from inbox import data
   Future<void> _initializeFromImport(ImportFlowData data) async {
     _nameCtrl = TextEditingController(text: data.name);
+    _selectedCalendarId = _defaultCalendarId();
     _active = true;
     _isLoadingFlow = true;
     setState(() {});
@@ -26680,6 +28027,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       // Initialize for new flow creation
       _editing = null;
       _nameCtrl = TextEditingController();
+      _selectedCalendarId = _defaultCalendarId();
       _active = true;
       _useKemetic = false;
       _splitByPeriod = true;
@@ -27186,13 +28534,12 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   Future<void> _handleClose() async {
     // ✅ FIX: Check if we can actually pop
     if (!Navigator.of(context).canPop()) {
-      print('[FlowStudio] ⚠️ Cannot pop - navigation stack empty');
+      debugPrint('[FlowStudio] ⚠️ Cannot pop - navigation stack empty');
       return;
     }
 
     // Check if this is an AI-generated flow that hasn't been saved yet
-    final shouldDelete =
-        _isAIGeneratedFlow && _editing != null && _editing!.id != null;
+    final shouldDelete = _isAIGeneratedFlow && _editing != null;
 
     if (shouldDelete) {
       // Confirm deletion
@@ -27263,142 +28610,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     }
   }
 
-  Widget _buildCreationTabBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: SegmentedButton<_FlowStudioCreationTab>(
-        showSelectedIcon: false,
-        segments: const [
-          ButtonSegment(
-            value: _FlowStudioCreationTab.add,
-            label: Text('Add Flow'),
-          ),
-          ButtonSegment(
-            value: _FlowStudioCreationTab.generate,
-            label: Text('Generate Flow'),
-          ),
-        ],
-        selected: <_FlowStudioCreationTab>{_creationTab},
-        onSelectionChanged: (selection) {
-          if (selection.isEmpty) return;
-          setState(() {
-            _creationTab = selection.first;
-          });
-        },
-        style: ButtonStyle(
-          textStyle: WidgetStateProperty.all(
-            const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
-          ),
-          backgroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return gold.withValues(alpha: 0.1);
-            }
-            return const Color(0xFF111111);
-          }),
-          foregroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) {
-              return const Color(0xFFF3D27A);
-            }
-            return Colors.white.withValues(alpha: 0.88);
-          }),
-          side: WidgetStateProperty.resolveWith((states) {
-            return BorderSide(
-              color: states.contains(WidgetState.selected)
-                  ? gold.withValues(alpha: 0.54)
-                  : gold.withValues(alpha: 0.28),
-              width: 0.8,
-            );
-          }),
-          shape: WidgetStateProperty.all(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          ),
-          padding: WidgetStateProperty.all(
-            const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGenerateFlowTab() {
-    return AIFlowGenerationPanel(
-      showHeader: false,
-      initialStartDate: _startDate,
-      initialEndDate: _endDate,
-      onGenerated: _handleInlineAiGenerated,
-    );
-  }
-
-  Widget _buildManualStudioBody() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      child: ListView(
-        children: [
-          const Text('Name', style: TextStyle(color: _silver, fontSize: 12)),
-          const SizedBox(height: 6),
-          TextField(
-            controller: _nameCtrl,
-            style: const TextStyle(color: Colors.white),
-            decoration: _darkInput('Flow name'),
-          ),
-          const SizedBox(height: 8),
-          if (_overviewCtrl.text.trim().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Text(
-                _overviewCtrl.text.trim(),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-            ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _active,
-            onChanged: (v) => setState(() => _active = v),
-            title: const Text('Active', style: TextStyle(color: Colors.white)),
-            activeThumbColor: _gold,
-          ),
-          const SizedBox(height: 8),
-          const GlossyText(
-            text: 'Color',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            gradient: silverGloss,
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 36,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _flowPalette.length,
-              itemBuilder: (_, i) => _colorDot(i),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _modeToggle(),
-          const SizedBox(height: 12),
-          _dateRangeSection(),
-          const SizedBox(height: 6),
-          if (!_hasFullRange)
-            _preRulesHint()
-          else if (_useKemetic)
-            (_splitByPeriod ? _kemeticPerDecan() : _kemeticSingleRow())
-          else
-            (_splitByPeriod ? _gregorianPerWeek() : _gregorianSingleRow()),
-          SizedBox(key: _editorsAnchorKey, height: 0),
-          _notesEditorsPanel(),
-        ],
-      ),
-    );
-  }
-
   // ---------- build ----------
 
   @override
   Widget build(BuildContext context) {
-    final manualTabActive =
-        !_showsCreationTabs || _creationTab == _FlowStudioCreationTab.add;
-
     // ✅ Show loading indicator while loading flow from DB
     if (_isLoadingFlow) {
       return Scaffold(
@@ -27420,6 +28635,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       );
     }
 
+    final selectedCalendarId =
+        _selectedCalendarId ?? _editing?.calendarId ?? _defaultCalendarId();
+    final selectedCalendar = selectedCalendarId == null
+        ? null
+        : _calendarPageState?._calendarSummariesById[selectedCalendarId];
+    final canEditSelectedCalendar = _canEditCalendar(selectedCalendarId);
+
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -27432,7 +28654,14 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         ),
         title: const Text('Flow Studio', style: TextStyle(color: Colors.white)),
         actions: [
-          if (manualTabActive && widget.existingFlows.isNotEmpty)
+          // ✨ NEW: AI Generation Button
+          IconButton(
+            icon: KemeticGold.icon(Icons.auto_awesome),
+            onPressed: _showAIGenerationModal,
+            tooltip: 'Generate with AI',
+          ),
+          // Only show the dropdown when there's at least one existing flow
+          if (widget.existingFlows.isNotEmpty)
             PopupMenuButton<int>(
               tooltip: 'Flows menu',
               icon: const Icon(Icons.more_vert, color: _silver),
@@ -27446,7 +28675,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                   value: 1,
                   child: ListTile(
                     leading: Icon(Icons.search),
-                    title: Text('Edit existing flow…'),
+                    title: Text('Find / Edit flows…'),
                   ),
                 ),
                 PopupMenuItem(
@@ -27465,33 +28694,171 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                 ),
               ],
             ),
-          if (manualTabActive && _editing != null)
+          if (_editing != null)
             IconButton(
               tooltip: 'Delete',
               icon: const Icon(Icons.delete_outline, color: _silver),
               onPressed: _delete,
             ),
-          if (manualTabActive)
-            TextButton(
-              onPressed: _save,
-              child: const Text('Save', style: TextStyle(color: Colors.white)),
-            ),
+          TextButton(
+            onPressed: _save,
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
-      body: _showsCreationTabs
-          ? Column(
-              children: [
-                _buildCreationTabBar(),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: switch (_creationTab) {
-                    _FlowStudioCreationTab.add => _buildManualStudioBody(),
-                    _FlowStudioCreationTab.generate => _buildGenerateFlowTab(),
-                  },
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        child: ListView(
+          children: [
+            const Text('Name', style: TextStyle(color: _silver, fontSize: 12)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _nameCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: _darkInput('Flow name'),
+            ),
+            const SizedBox(height: 8),
+            // quick peek at overview (one-line, optional)
+            if (_overviewCtrl.text.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Text(
+                  _overviewCtrl.text.trim(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
-              ],
-            )
-          : _buildManualStudioBody(),
+              ),
+
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _active,
+              onChanged: (v) => setState(() => _active = v),
+              title: const Text(
+                'Active',
+                style: TextStyle(color: Colors.white),
+              ),
+              activeThumbColor: _gold,
+            ),
+
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: _editableCalendars.isEmpty || !canEditSelectedCalendar
+                  ? null
+                  : () async {
+                      final chosenId = await showCupertinoModalPopup<String>(
+                        context: context,
+                        builder: (popupCtx) {
+                          return CupertinoActionSheet(
+                            title: const GlossyText(
+                              text: 'Calendar',
+                              gradient: silverGloss,
+                              style: TextStyle(fontSize: 18),
+                            ),
+                            actions: [
+                              for (final calendar in _editableCalendars)
+                                CupertinoActionSheetAction(
+                                  onPressed: () {
+                                    Navigator.of(popupCtx).pop(calendar.id);
+                                  },
+                                  child: Text(
+                                    calendar.name,
+                                    style: TextStyle(
+                                      color: calendar.color,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                            cancelButton: CupertinoActionSheetAction(
+                              isDestructiveAction: true,
+                              onPressed: () => Navigator.of(popupCtx).pop(),
+                              child: const Text('Cancel'),
+                            ),
+                          );
+                        },
+                      );
+                      if (chosenId == null) return;
+                      setState(() {
+                        _selectedCalendarId = chosenId;
+                      });
+                    },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const GlossyText(
+                      text: 'Calendar',
+                      gradient: silverGloss,
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          _calendarLabelFor(selectedCalendarId),
+                          style: TextStyle(
+                            color: selectedCalendar?.color ?? _gold,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.chevron_right,
+                          size: 18,
+                          color: Colors.white54,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (!canEditSelectedCalendar) ...[
+              const SizedBox(height: 4),
+              const Text(
+                'You can view this calendar, but you cannot edit it.',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ],
+            const SizedBox(height: 8),
+            const GlossyText(
+              text: 'Color',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              gradient: silverGloss,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 36,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _flowPalette.length,
+                itemBuilder: (_, i) => _colorDot(i),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+            _modeToggle(),
+
+            const SizedBox(height: 12),
+            _dateRangeSection(),
+
+            const SizedBox(height: 6),
+            if (!_hasFullRange)
+              _preRulesHint()
+            else if (_useKemetic)
+              (_splitByPeriod ? _kemeticPerDecan() : _kemeticSingleRow())
+            else
+              (_splitByPeriod ? _gregorianPerWeek() : _gregorianSingleRow()),
+
+            // editors (pattern in repeat mode, per-day in customize mode)
+            SizedBox(key: _editorsAnchorKey, height: 0),
+            _notesEditorsPanel(),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -27533,24 +28900,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   late final PageController _pageController;
 
   // Cache events per flow id so we don't re-query when swiping back.
-  final Map<
-    int,
-    List<
-      ({
-        String? id,
-        String? clientEventId,
-        String title,
-        String? detail,
-        String? location,
-        bool allDay,
-        DateTime startsAtUtc,
-        DateTime? endsAtUtc,
-        int? flowLocalId,
-        String? category,
-      })
-    >
-  >
-  _eventsByFlow = {};
+  final Map<int, List<FlowEventRow>> _eventsByFlow = {};
   final Map<int, Object?> _eventsErrorByFlow = {};
   final Set<int> _loadingFlowIds = {};
   DateTime? _selectedStartForSaved;
@@ -27589,52 +28939,8 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     return notesDecode(flow.notes);
   }
 
-  List<
-    ({
-      String? id,
-      String? clientEventId,
-      String title,
-      String? detail,
-      String? location,
-      bool allDay,
-      DateTime startsAtUtc,
-      DateTime? endsAtUtc,
-      int? flowLocalId,
-      String? category,
-    })
-  >
-  _dedupeEvents(
-    List<
-      ({
-        String? id,
-        String? clientEventId,
-        String title,
-        String? detail,
-        String? location,
-        bool allDay,
-        DateTime startsAtUtc,
-        DateTime? endsAtUtc,
-        int? flowLocalId,
-        String? category,
-      })
-    >
-    events,
-  ) {
-    String _canonKey(
-      ({
-        String? id,
-        String? clientEventId,
-        String title,
-        String? detail,
-        String? location,
-        bool allDay,
-        DateTime startsAtUtc,
-        DateTime? endsAtUtc,
-        int? flowLocalId,
-        String? category,
-      })
-      e,
-    ) {
+  List<FlowEventRow> _dedupeEvents(List<FlowEventRow> events) {
+    String _canonKey(FlowEventRow e) {
       final titleKey = e.title.trim().toLowerCase();
       final startKey = e.startsAtUtc.toIso8601String();
       final endKey = e.endsAtUtc?.toIso8601String() ?? 'NO_END';
@@ -27653,42 +28959,13 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       ].join('|');
     }
 
-    int _quality(
-      ({
-        String? id,
-        String? clientEventId,
-        String title,
-        String? detail,
-        String? location,
-        bool allDay,
-        DateTime startsAtUtc,
-        DateTime? endsAtUtc,
-        int? flowLocalId,
-        String? category,
-      })
-      e,
-    ) {
+    int _quality(FlowEventRow e) {
       if (e.id != null) return 3;
       if (e.clientEventId != null) return 2;
       return 1;
     }
 
-    final merged =
-        <
-          String,
-          ({
-            String? id,
-            String? clientEventId,
-            String title,
-            String? detail,
-            String? location,
-            bool allDay,
-            DateTime startsAtUtc,
-            DateTime? endsAtUtc,
-            int? flowLocalId,
-            String? category,
-          })
-        >{};
+    final merged = <String, FlowEventRow>{};
 
     for (final e in events) {
       final key = _canonKey(e);
@@ -27732,24 +29009,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     }
   }
 
-  String _buildFlowBadgeToken(
-    _Flow flow,
-    List<
-      ({
-        String? id,
-        String? clientEventId,
-        String title,
-        String? detail,
-        String? location,
-        bool allDay,
-        DateTime startsAtUtc,
-        DateTime? endsAtUtc,
-        int? flowLocalId,
-        String? category,
-      })
-    >
-    events,
-  ) {
+  String _buildFlowBadgeToken(_Flow flow, List<FlowEventRow> events) {
     DateTime start = flow.start ?? DateTime.now();
     DateTime end = flow.end ?? start.add(const Duration(hours: 1));
     if (events.isNotEmpty) {
@@ -27764,9 +29024,6 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     final id = 'badge-${DateTime.now().microsecondsSinceEpoch}';
     return EventBadgeToken.buildToken(
       id: id,
-      eventId: events.isEmpty
-          ? null
-          : (events.first.id ?? events.first.clientEventId),
       title: flow.name.isEmpty ? 'Flow block' : flow.name,
       start: start,
       end: end,
@@ -27777,21 +29034,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
 
   Future<void> _handleAddFlowToJournal(
     _Flow flow,
-    List<
-      ({
-        String? id,
-        String? clientEventId,
-        String title,
-        String? detail,
-        String? location,
-        bool allDay,
-        DateTime startsAtUtc,
-        DateTime? endsAtUtc,
-        int? flowLocalId,
-        String? category,
-      })
-    >
-    events,
+    List<FlowEventRow> events,
   ) async {
     final cb = widget.onAppendToJournal;
     if (cb == null) return;
@@ -27870,6 +29113,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       name: template.name,
       color: template.color.value,
       active: true,
+      calendarId: template.calendarId,
       startDate: targetStart,
       endDate: newEnd,
       notes: template.notes,
@@ -27940,6 +29184,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         location: (e.location ?? '').trim().isEmpty ? null : e.location,
         allDay: e.allDay,
         endsAtUtc: endDt?.toUtc(),
+        calendarId: template.calendarId,
         flowLocalId: newId,
         category: e.category,
         caller: 'saved_flow_import',
@@ -28045,7 +29290,9 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           location: noteMeta.location,
           allDay: rule.allDay,
           endsAtUtc: endsAt?.toUtc(),
+          calendarId: template.calendarId,
           flowLocalId: flowId,
+          category: noteMeta.category,
           caller: 'saved_flow_import_rules',
         );
         imported++;
@@ -28055,10 +29302,10 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     return imported;
   }
 
-  ({String? detail, String? location, int? alertMinutes})
+  ({String? detail, String? location, String? category, int? alertMinutes})
   _decodeSavedFlowImportNotes(String? rawNotes) {
     if (rawNotes == null || rawNotes.isEmpty) {
-      return (detail: null, location: null, alertMinutes: null);
+      return (detail: null, location: null, category: null, alertMinutes: null);
     }
 
     try {
@@ -28067,6 +29314,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         return (
           detail: (meta['detail'] as String?)?.trim(),
           location: (meta['location'] as String?)?.trim(),
+          category: (meta['category'] as String?)?.trim(),
           alertMinutes: (meta['alertMinutes'] as num?)?.toInt(),
         );
       }
@@ -28080,10 +29328,11 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       return (
         detail: overview.isEmpty ? null : overview,
         location: null,
+        category: null,
         alertMinutes: null,
       );
     } catch (_) {
-      return (detail: null, location: null, alertMinutes: null);
+      return (detail: null, location: null, category: null, alertMinutes: null);
     }
   }
 
@@ -28093,6 +29342,23 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     final startDate = _savedDisplayStart(flow);
     try {
       final newId = await _importSavedFlow(flow, startDate);
+      String? firstClientEventId;
+      try {
+        final events = await _userEventsRepo.getEventsForFlow(newId);
+        if (events.isNotEmpty) {
+          firstClientEventId = events.first.clientEventId;
+        }
+      } catch (_) {}
+      final pageState = CalendarPage.globalKey.currentState;
+      if (pageState != null) {
+        await pageState._notifySharedCalendarMembers(
+          calendarId: flow.calendarId,
+          title: pageState._calendarDisplayName(flow.calendarId),
+          body: 'Flow updated: ${flow.name}',
+          clientEventId: firstClientEventId,
+          data: <String, dynamic>{'flow_id': newId},
+        );
+      }
       if (!mounted) return;
       setState(() => _isImportingSaved = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -28428,21 +29694,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     required _Flow flow,
     required ({bool kemetic, bool split, String overview, String? maatKey})
     meta,
-    required List<
-      ({
-        String? id,
-        String? clientEventId,
-        String title,
-        String? detail,
-        String? location,
-        bool allDay,
-        DateTime startsAtUtc,
-        DateTime? endsAtUtc,
-        int? flowLocalId,
-        String? category,
-      })
-    >
-    events,
+    required List<FlowEventRow> events,
     required bool loading,
     required Object? error,
     ReminderRule? reminderRule,
@@ -28763,21 +30015,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     }
   }
 
-  Widget _buildEventTile(
-    ({
-      String? id,
-      String? clientEventId,
-      String title,
-      String? detail,
-      String? location,
-      bool allDay,
-      DateTime startsAtUtc,
-      DateTime? endsAtUtc,
-      int? flowLocalId,
-      String? category,
-    })
-    e,
-  ) {
+  Widget _buildEventTile(FlowEventRow e) {
     final localStart = e.startsAtUtc.toLocal();
     final localEnd = e.endsAtUtc?.toLocal();
     bool _isCidDetail(String text) {
@@ -28860,21 +30098,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
 
   Widget _buildReminderSummaryCard({
     required _Flow flow,
-    required List<
-      ({
-        String? id,
-        String? clientEventId,
-        String title,
-        String? detail,
-        String? location,
-        bool allDay,
-        DateTime startsAtUtc,
-        DateTime? endsAtUtc,
-        int? flowLocalId,
-        String? category,
-      })
-    >
-    events,
+    required List<FlowEventRow> events,
     ReminderRule? rule,
   }) {
     final first = events.isNotEmpty ? events.first : null;
@@ -29079,8 +30303,14 @@ String _formatBasicTime(DateTime dt) {
   return '$h:$m $mer';
 }
 
-ReminderRule? _reminderRuleFromFlow(_Flow f) =>
-    _tryParseReminderRuleFromNotes(f.notes);
+ReminderRule? _reminderRuleFromFlow(_Flow f) {
+  final rule = _tryParseReminderRuleFromNotes(f.notes);
+  if (rule == null) return null;
+  if (rule.calendarId == null && f.calendarId != null) {
+    return rule.copyWith(calendarId: f.calendarId);
+  }
+  return rule;
+}
 
 ReminderRepeat _decodeReminderRepeat(String? detail) {
   if (detail == null || detail.isEmpty) return const ReminderRepeat();
@@ -29705,12 +30935,7 @@ _RuleDates _buildNoteRuleDates({
 
 class _FlowsViewerPage extends StatefulWidget {
   const _FlowsViewerPage({
-    required this.getFlows,
-    required this.getNoteBuckets,
-    this.dataVersionListenable,
-    required this.maatTemplates,
-    required this.hasActiveMaatForKey,
-    required this.onPickMaatTemplate,
+    required this.flows,
     required this.fmtGregorian,
     required this.onCreateNew,
     required this.onEditFlow,
@@ -29719,12 +30944,7 @@ class _FlowsViewerPage extends StatefulWidget {
     this.onAppendToJournal,
   });
 
-  final List<_Flow> Function() getFlows;
-  final Map<String, List<_Note>> Function() getNoteBuckets;
-  final ValueListenable<int>? dataVersionListenable;
-  final List<_MaatFlowTemplate> maatTemplates;
-  final bool Function(String key) hasActiveMaatForKey;
-  final Future<int?> Function(_MaatFlowTemplate template) onPickMaatTemplate;
+  final List<_Flow> flows;
   final String Function(DateTime? d) fmtGregorian;
   final VoidCallback onCreateNew;
   final void Function(int flowId) onEditFlow;
@@ -29738,181 +30958,18 @@ class _FlowsViewerPage extends StatefulWidget {
 
 class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   FlowListTab _tab = FlowListTab.active;
-  late final FlowProgressRepo _flowProgressRepo = FlowProgressRepo(
-    Supabase.instance.client,
-  );
-  late final Stream<List<FlowTrackerSummary>> _activeTrackerStream =
-      _flowProgressRepo.watchActiveTrackers();
-
-  @override
-  void initState() {
-    super.initState();
-    widget.dataVersionListenable?.addListener(_handleExternalDataChanged);
-  }
-
-  @override
-  void didUpdateWidget(covariant _FlowsViewerPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.dataVersionListenable != widget.dataVersionListenable) {
-      oldWidget.dataVersionListenable?.removeListener(
-        _handleExternalDataChanged,
-      );
-      widget.dataVersionListenable?.addListener(_handleExternalDataChanged);
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.dataVersionListenable?.removeListener(_handleExternalDataChanged);
-    super.dispose();
-  }
-
-  void _handleExternalDataChanged() {
-    if (!mounted) return;
-    setState(() {});
-  }
-
-  Future<void> _startOnboardingFlow() async {
-    widget.onCreateNew();
-    if (!mounted) return;
-    setState(() {
-      _tab = FlowListTab.active;
-    });
-  }
-
-  bool _isTrackableFlowItem(_Flow flow) {
-    return isTrackableFlowMetadata(
-      isReminder: flow.isReminder,
-      isHidden: flow.isHidden,
-      reminderUuid: flow.reminderUuid,
-      notes: flow.notes,
-    );
-  }
 
   List<_Flow> get _activeItems =>
-      widget
-          .getFlows()
-          .where(
-            (f) =>
-                f.active &&
-                _isTrackableFlowItem(f) &&
-                _isActiveByEndDate(f.end),
-          )
+      widget.flows
+          .where((f) => f.active && !f.isHidden && _isActiveByEndDate(f.end))
           .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   // Saved flows act as templates, so they stay visible even after the user
   // removes them from the active calendar.
   List<_Flow> get _savedItems =>
-      widget
-          .getFlows()
-          .where((f) => f.isSaved && _isTrackableFlowItem(f))
-          .toList()
+      widget.flows.where((f) => f.isSaved && !f.isHidden).toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-
-  List<_MaatFlowTemplate> get _maatItems => [...widget.maatTemplates]
-    ..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
-
-  Future<void> _openActiveTrackerPreview(
-    FlowTrackerSummary summary,
-    List<FlowTrackerSummary> summaries,
-  ) async {
-    final flowById = {for (final flow in widget.getFlows()) flow.id: flow};
-    final selectedFlow = flowById[summary.flow.id];
-    if (selectedFlow == null) {
-      widget.onEditFlow(summary.flow.id);
-      if (mounted) setState(() {});
-      return;
-    }
-
-    final sequence = summaries
-        .map((item) => flowById[item.flow.id])
-        .whereType<_Flow>()
-        .toList();
-    final initialIndex = sequence.indexWhere((f) => f.id == selectedFlow.id);
-
-    final importedFlowId = await Navigator.of(context).push<int?>(
-      MaterialPageRoute(
-        builder: (_) => _FlowPreviewPage(
-          flow: selectedFlow,
-          flowSequence: sequence.isEmpty ? [selectedFlow] : sequence,
-          initialIndex: initialIndex < 0 ? 0 : initialIndex,
-          getDecanLabel: (km, di) =>
-              (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
-          fmt: widget.fmtGregorian,
-          onEdit: (flow) => widget.onEditFlow(flow.id),
-          onAppendToJournal: widget.onAppendToJournal,
-          onEndMaatFlow: (flow) {
-            widget.onEndFlow(flow.id);
-            Navigator.of(context).pop();
-          },
-        ),
-      ),
-    );
-    if (!mounted) return;
-    if (importedFlowId != null) {
-      await widget.onImportFlow?.call(importedFlowId);
-    }
-    setState(() {});
-  }
-
-  Widget _buildActiveTrackerLoadingList() {
-    Widget skeletonCard() {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-        child: Container(
-          height: 54,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.035),
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      children: [skeletonCard()],
-    );
-  }
-
-  Widget _buildActiveTrackerList(Widget emptyState) {
-    final cachedSummaries = _flowProgressRepo.cachedActiveTrackers;
-    return StreamBuilder<List<FlowTrackerSummary>>(
-      stream: _activeTrackerStream,
-      initialData: cachedSummaries,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            cachedSummaries.isEmpty &&
-            !snapshot.hasData) {
-          return _buildActiveTrackerLoadingList();
-        }
-        final summaries = snapshot.hasData
-            ? (snapshot.data ?? const <FlowTrackerSummary>[])
-            : cachedSummaries;
-        if (summaries.isEmpty) {
-          return emptyState;
-        }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          itemCount: summaries.length,
-          separatorBuilder: (_, __) =>
-              const Divider(height: 1, color: Colors.white10),
-          itemBuilder: (ctx, index) {
-            final summary = summaries[index];
-            return KeyedSubtree(
-              key: ValueKey<int>(summary.flow.id),
-              child: FlowTrackerCard(
-                summary: summary,
-                onTap: () =>
-                    unawaited(_openActiveTrackerPreview(summary, summaries)),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 
   // UI still filters by end date even though repos do, because _flows is an
   // in-memory cache that can contain stale rows until the next sync. This keeps
@@ -29926,324 +30983,89 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
     return !endDateOnly.isBefore(today);
   }
 
-  int? _savedFlowLengthDays(_Flow flow) {
-    return inferFlowLengthDays(
-      explicitLength: null,
-      startDate: flow.start,
-      endDate: flow.end,
-      rules: flow.rules.map(_CalendarPageState.ruleToJson).toList(),
-    );
-  }
-
-  String _savedFlowChipLabel(_Flow flow) {
-    final length = _savedFlowLengthDays(flow);
-    if (length != null && length > 0) {
-      return '$length-day Flow';
-    }
-    return 'Saved Flow';
-  }
-
-  String _savedFlowContextLabel(_Flow flow) {
-    final hasRange = flow.start != null || flow.end != null;
-    if (!hasRange) {
-      return 'Saved template ready to reuse.';
-    }
-    return 'Saved template • ${widget.fmtGregorian(flow.start)} → ${widget.fmtGregorian(flow.end)}';
-  }
-
-  Future<void> _openSavedFlowPreview(
-    _Flow flow,
-    List<_Flow> items,
-    int index,
-  ) async {
-    final importedFlowId = await Navigator.of(context).push<int?>(
-      MaterialPageRoute(
-        builder: (_) => _FlowPreviewPage(
-          flow: flow,
-          flowSequence: items,
-          initialIndex: index,
-          getDecanLabel: (km, di) =>
-              (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
-          fmt: widget.fmtGregorian,
-          onEdit: (selectedFlow) => widget.onEditFlow(selectedFlow.id),
-          onAppendToJournal: widget.onAppendToJournal,
-          onEndMaatFlow: (selectedFlow) {
-            widget.onEndFlow(selectedFlow.id);
-            Navigator.of(context).pop();
-          },
-        ),
-      ),
-    );
-    if (!mounted) return;
-    if (importedFlowId != null) {
-      await widget.onImportFlow?.call(importedFlowId);
-    }
-    setState(() {});
-  }
-
-  String _maatTemplateChipLabel(_MaatFlowTemplate template) {
-    if (widget.hasActiveMaatForKey(template.key)) {
-      return 'Added';
-    }
-    return template.kind == _MaatFlowTemplateKind.trackSky
-        ? 'Ongoing'
-        : '10-day Flow';
-  }
-
-  String _maatTemplateContextLabel(_MaatFlowTemplate template) {
-    final overview = template.overview.trim();
-    if (overview.isNotEmpty) {
-      return overview;
-    }
-    return template.kind == _MaatFlowTemplateKind.trackSky
-        ? 'Sky-aligned Ma’at flow.'
-        : 'Ma’at flow template.';
-  }
-
-  Future<void> _openMaatTemplatePreview(_MaatFlowTemplate template) async {
-    final importedFlowId = await widget.onPickMaatTemplate(template);
-    if (!mounted) return;
-    if (importedFlowId != null) {
-      await widget.onImportFlow?.call(importedFlowId);
-      if (!mounted) return;
-      setState(() {
-        _tab = FlowListTab.active;
-      });
-      return;
-    }
-    setState(() {});
-  }
-
-  Widget _buildMaatTemplateList(
-    List<_MaatFlowTemplate> items,
-    Widget emptyState,
-  ) {
-    if (items.isEmpty) {
-      return emptyState;
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      itemCount: items.length,
-      separatorBuilder: (_, __) =>
-          const Divider(height: 1, color: Colors.white10),
-      itemBuilder: (ctx, i) {
-        final template = items[i];
-        final accent = template.color;
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => unawaited(_openMaatTemplatePreview(template)),
-            borderRadius: BorderRadius.circular(10),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          template.title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            height: 1.15,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: accent.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: accent.withValues(alpha: 0.34),
-                              ),
-                            ),
-                            child: Text(
-                              _maatTemplateChipLabel(template),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 11.5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          const Icon(
-                            Icons.chevron_right,
-                            color: Colors.white54,
-                            size: 20,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _maatTemplateContextLabel(template),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 11.5,
-                      height: 1.3,
-                      letterSpacing: 0.15,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final savedItems = _savedItems;
-    final maatItems = _maatItems;
+    final items = _tab == FlowListTab.active ? _activeItems : _savedItems;
 
-    final activationButton = SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () => unawaited(_startOnboardingFlow()),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: RhythmTheme.aurora,
-          foregroundColor: Colors.black,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-        ),
-        child: const Text('Start a 10-Day Flow'),
-      ),
-    );
-
-    final emptyState = Padding(
-      padding: const EdgeInsets.all(24),
+    Widget emptyState = const Padding(
+      padding: EdgeInsets.all(24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            switch (_tab) {
-              FlowListTab.active => 'No active flows yet',
-              FlowListTab.maat => 'No ḥꜣw flows yet',
-              FlowListTab.saved => 'No saved flows yet',
-            },
-            style: const TextStyle(color: Colors.white70, fontSize: 16),
-            textAlign: TextAlign.center,
+            'No flows yet',
+            style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
-            switch (_tab) {
-              FlowListTab.active =>
-                'Start or import a Flow from here, then it will appear here as an active tracker.',
-              FlowListTab.maat =>
-                'Ma’at templates will appear here when they are available.',
-              FlowListTab.saved =>
-                'Saved flows stay here as templates you can reactivate later.',
-            },
-            style: const TextStyle(color: Colors.white54),
-            textAlign: TextAlign.center,
+            'Tap + to create a flow, or explore Ma’at templates.',
+            style: TextStyle(color: Colors.white54),
           ),
-          if (_tab == FlowListTab.active) ...[
-            const SizedBox(height: 16),
-            activationButton,
-          ],
         ],
       ),
     );
 
-    Widget savedList = ListView.separated(
+    Widget list = ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      itemCount: savedItems.length,
+      itemCount: items.length,
       separatorBuilder: (_, __) =>
-          const Divider(height: 1, color: Colors.white10),
+          const Divider(height: 12, color: Colors.white10),
       itemBuilder: (ctx, i) {
-        final f = savedItems[i];
-        final accent = f.color;
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => unawaited(_openSavedFlowPreview(f, savedItems, i)),
-            borderRadius: BorderRadius.circular(10),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          f.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            height: 1.15,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: accent.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: accent.withValues(alpha: 0.34),
-                              ),
-                            ),
-                            child: Text(
-                              _savedFlowChipLabel(f),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 11.5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          const Icon(
-                            Icons.chevron_right,
-                            color: Colors.white54,
-                            size: 20,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _savedFlowContextLabel(f),
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 11.5,
-                      height: 1.3,
-                      letterSpacing: 0.15,
-                    ),
-                  ),
-                ],
+        final f = items[i];
+        final meta = notesDecode(f.notes);
+        final modeLabel = meta.kemetic ? 'Kemetic' : 'Gregorian';
+        final statusLabel = _tab == FlowListTab.saved
+            ? 'Saved'
+            : (f.active ? 'Active' : 'Inactive');
+        final rangeLabel =
+            '${widget.fmtGregorian(f.start)} → ${widget.fmtGregorian(f.end)}';
+
+        return ListTile(
+          onTap: () async {
+            final importedFlowId = await Navigator.of(context).push<int?>(
+              MaterialPageRoute(
+                builder: (_) => _FlowPreviewPage(
+                  flow: f,
+                  flowSequence: items,
+                  initialIndex: i,
+                  getDecanLabel: (km, di) =>
+                      (DecanMetadata.decanNames[km] ??
+                      const ['I', 'II', 'III'])[di],
+                  fmt: widget.fmtGregorian,
+                  onEdit: (flow) => widget.onEditFlow(flow.id),
+                  onAppendToJournal: widget.onAppendToJournal,
+                  onEndMaatFlow: (flow) {
+                    widget.onEndFlow(flow.id);
+                    Navigator.of(context).pop();
+                  },
+                ),
               ),
+            );
+            if (!mounted) return;
+            if (importedFlowId != null) {
+              await widget.onImportFlow?.call(importedFlowId);
+            }
+            setState(() {});
+          },
+
+          leading: Container(
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: _glossFromColor(f.color),
             ),
           ),
+          title: Text(f.name, style: const TextStyle(color: Colors.white)),
+          subtitle: Text(
+            [
+              statusLabel,
+              modeLabel,
+              if (f.start != null || f.end != null) rangeLabel,
+            ].join(' • '),
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          trailing: const Icon(Icons.chevron_right, color: _silver),
         );
       },
     );
@@ -30255,6 +31077,10 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
         elevation: 0.5,
         title: const Text('My Flows', style: TextStyle(color: Colors.white)),
         actions: [
+          InboxIconWithBadge(
+            onRefreshSync: () => setState(() {}),
+            onImportFlow: widget.onImportFlow,
+          ),
           IconButton(
             tooltip: 'New flow',
             icon: const Icon(Icons.add, color: _silver),
@@ -30278,10 +31104,6 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
                       ButtonSegment(
                         value: FlowListTab.active,
                         label: Text('Active Flows'),
-                      ),
-                      ButtonSegment(
-                        value: FlowListTab.maat,
-                        label: Text('ḥꜣw'),
                       ),
                       ButtonSegment(
                         value: FlowListTab.saved,
@@ -30312,12 +31134,192 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
             ),
           ),
           const SizedBox(height: 8),
-          Expanded(
-            child: switch (_tab) {
-              FlowListTab.active => _buildActiveTrackerList(emptyState),
-              FlowListTab.maat => _buildMaatTemplateList(maatItems, emptyState),
-              FlowListTab.saved => savedItems.isEmpty ? emptyState : savedList,
-            },
+          Expanded(child: items.isEmpty ? emptyState : list),
+        ],
+      ),
+    );
+  }
+}
+
+enum FlowListTab { active, saved }
+
+/* ───────────────────────── Flow Hub (entry page) ───────────────────────── */
+
+class _FlowHubPage extends StatelessWidget {
+  const _FlowHubPage({
+    required this.openMyFlows,
+    required this.openMaatFlows,
+    required this.onCreateNew,
+    super.key,
+  });
+
+  final VoidCallback openMyFlows;
+  final VoidCallback openMaatFlows;
+  final VoidCallback onCreateNew;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0.5,
+        title: const Text('Flow Studio', style: TextStyle(color: Colors.white)),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton(
+              style: TextButton.styleFrom(foregroundColor: _silver),
+              onPressed: onCreateNew,
+              child: const Icon(Icons.add, size: 20),
+            ),
+          ),
+        ],
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center, // centers vertically
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              GlossyButton(
+                text: 'My Flows',
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFFB8860B),
+                    KemeticGold.base,
+                    Color(0xFFF0D879),
+                  ],
+                ),
+                borderColor: KemeticGold.base,
+                onPressed: openMyFlows, // <-- use the callback you passed in
+              ),
+              const SizedBox(height: 14),
+              GlossyButton(
+                text: "ḥꜣw",
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF7F8C8D),
+                    Color(0xFFBDC3C7),
+                    Color(0xFFEAECEE),
+                  ],
+                ),
+                borderColor: const Color(0xFFBDC3C7),
+                onPressed: openMaatFlows,
+              ),
+            ],
+          ), // Close Column
+        ), // Close Padding
+      ), // Close Center
+    ); // Close Scaffold and return
+  }
+}
+
+// ----------------- glossy button (local to this file) -----------------
+class GlossyButton extends StatelessWidget {
+  const GlossyButton({
+    super.key,
+    required this.text,
+    required this.gradient,
+    required this.borderColor,
+    required this.onPressed,
+  });
+
+  final String text;
+  final Gradient gradient;
+  final Color borderColor;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    // smaller “bubble” = shorter height + tighter radius
+    const double height = 52; // tweak 48–56 if you want
+    const double radius = 26; // half of height = soft pill
+    const double textSize = 20;
+    const FontWeight weight = FontWeight.w700;
+
+    return SizedBox(
+      height: height,
+      child: Stack(
+        children: [
+          // background with gradient + border + shadow
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: gradient,
+              borderRadius: BorderRadius.circular(radius),
+              border: Border.all(color: borderColor, width: 2),
+              boxShadow: const [
+                BoxShadow(
+                  blurRadius: 12,
+                  offset: Offset(0, 6),
+                  color: Colors.black26,
+                ),
+              ],
+            ),
+            child: const SizedBox.expand(),
+          ),
+
+          // gleam overlay (subtle diagonal shine)
+          IgnorePointer(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(radius),
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: FractionallySizedBox(
+                  widthFactor: 0.85,
+                  heightFactor: 0.55,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withOpacity(0.35),
+                          Colors.white.withOpacity(0.10),
+                          Colors.white.withOpacity(0.0),
+                        ],
+                        stops: const [0.0, 0.5, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // tap surface + label
+          Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(radius),
+              splashColor: Colors.white24,
+              highlightColor: Colors.white10,
+              onTap: onPressed,
+              child: const Center(
+                child: Text(
+                  '',
+                  // placeholder, replaced below
+                ),
+              ),
+            ),
+          ),
+          // we want the text above the gleam and centered
+          Center(
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: textSize, // bigger text
+                fontWeight: weight,
+                color: Colors.black, // contrasts on gold/silver
+                letterSpacing: 0.2,
+              ),
+            ),
           ),
         ],
       ),
@@ -30325,7 +31327,111 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   }
 }
 
-enum FlowListTab { active, maat, saved }
+/* ───────────────────────── Ma’at Flows list ───────────────────────── */
+
+class _MaatFlowsListPage extends StatelessWidget {
+  const _MaatFlowsListPage({
+    required this.hasActiveForKey,
+    required this.onPickTemplate,
+    required this.onCreateNew,
+    required this.title,
+    required this.templates,
+    super.key,
+  });
+
+  final bool Function(String key) hasActiveForKey;
+  final Future<void> Function(_MaatFlowTemplate tpl) onPickTemplate;
+  final VoidCallback onCreateNew;
+  final String title;
+  final List<_MaatFlowTemplate> templates;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0.5,
+        title: GlossyText(
+          text: title,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          gradient: goldGloss,
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'New flow',
+            icon: const Icon(Icons.add, color: _silver),
+            onPressed: onCreateNew,
+          ),
+        ],
+      ),
+      body: templates.isEmpty
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'No Ma’at flows yet.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                ),
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              itemCount: templates.length,
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 12, color: Colors.white10),
+              itemBuilder: (ctx, i) {
+                final t = templates[i];
+                final added = hasActiveForKey(t.key);
+                return ListTile(
+                  onTap: () async => onPickTemplate(t),
+                  leading: Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: _glossFromColor(t.color),
+                    ),
+                  ),
+                  title: GlossyText(
+                    text: t.title,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    gradient: goldGloss,
+                  ),
+                  subtitle: Text(
+                    '${t.kind == _MaatFlowTemplateKind.trackSky ? 'Ongoing' : '10 days'} • ${t.overview.isEmpty ? '—' : 'Tap for details'}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  trailing: added
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: _gold, width: 1.2),
+                          ),
+                          child: const GlossyText(
+                            text: 'Added',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            gradient: _maatBadgeGoldGloss,
+                          ),
+                        )
+                      : const Icon(Icons.chevron_right, color: _silver),
+                );
+              },
+            ),
+    );
+  }
+}
 
 /* ───────────────────────── Template detail (Add Flow) ───────────────────────── */
 
@@ -31997,6 +33103,8 @@ bool _isSearchWordChar(String char) => _searchWordChar.hasMatch(char);
 class _Note {
   final String? id; // optional persistent id
   final String? clientEventId;
+  final String? calendarId;
+  final String? calendarName;
   final String title;
   final String? detail;
   final String? location;
@@ -32018,6 +33126,8 @@ class _Note {
   const _Note({
     this.id,
     this.clientEventId,
+    this.calendarId,
+    this.calendarName,
     required this.title,
     this.detail,
     this.location,
@@ -32035,6 +33145,8 @@ class _Note {
   _Note copyWith({
     String? id,
     String? clientEventId,
+    String? calendarId,
+    String? calendarName,
     String? title,
     String? detail,
     String? location,
@@ -32051,6 +33163,8 @@ class _Note {
     return _Note(
       id: id ?? this.id,
       clientEventId: clientEventId ?? this.clientEventId,
+      calendarId: calendarId ?? this.calendarId,
+      calendarName: calendarName ?? this.calendarName,
       title: title ?? this.title,
       detail: detail ?? this.detail,
       location: location ?? this.location,
@@ -32337,7 +33451,33 @@ class _CustomRepeatPageState extends State<_CustomRepeatPage> {
   }
 }
 
-// Helper extension for capitalizeFirst
+// Keeps editor controllers alive until the bottom sheet subtree is unmounted.
+class _DaySheetControllerDisposalScope extends StatefulWidget {
+  const _DaySheetControllerDisposalScope({
+    required this.onDispose,
+    required this.child,
+  });
+
+  final VoidCallback onDispose;
+  final Widget child;
+
+  @override
+  State<_DaySheetControllerDisposalScope> createState() =>
+      _DaySheetControllerDisposalScopeState();
+}
+
+class _DaySheetControllerDisposalScopeState
+    extends State<_DaySheetControllerDisposalScope> {
+  @override
+  Widget build(BuildContext context) => widget.child;
+
+  @override
+  void dispose() {
+    widget.onDispose();
+    super.dispose();
+  }
+}
+
 extension _CapitalizeFirst on String {
   String capitalizeFirst() =>
       isEmpty ? this : this[0].toUpperCase() + substring(1);

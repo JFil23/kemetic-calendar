@@ -241,6 +241,7 @@ class ShareResult {
 enum InboxShareKind {
   flow,
   event,
+  calendar,
   message;
 
   static InboxShareKind? tryFromString(String raw) {
@@ -249,6 +250,8 @@ enum InboxShareKind {
         return InboxShareKind.flow;
       case 'event':
         return InboxShareKind.event;
+      case 'calendar':
+        return InboxShareKind.calendar;
       case 'message':
         return InboxShareKind.message;
       default:
@@ -270,6 +273,8 @@ enum InboxShareKind {
         return 'flow';
       case InboxShareKind.event:
         return 'event';
+      case InboxShareKind.calendar:
+        return 'calendar';
       case InboxShareKind.message:
         return 'message';
     }
@@ -521,7 +526,11 @@ class InboxShareItem {
         _nullableString(payload?['title']) ??
         _nullableString(payload?['name']) ??
         _nullableString(payload?['text']) ??
-        (kind == InboxShareKind.message ? 'Message' : 'Shared item');
+        (kind == InboxShareKind.message
+            ? 'Message'
+            : (kind == InboxShareKind.calendar
+                  ? 'Calendar update'
+                  : 'Shared item'));
 
     final result = InboxShareItem(
       shareId: shareId,
@@ -596,6 +605,7 @@ class InboxShareItem {
   // Computed properties
   bool get isFlow => kind == InboxShareKind.flow;
   bool get isEvent => kind == InboxShareKind.event;
+  bool get isCalendar => kind == InboxShareKind.calendar;
   bool get isTextMessage =>
       kind == InboxShareKind.message ||
       (payloadJson?['type'] == 'message' || payloadJson?['kind'] == 'message');
@@ -620,9 +630,54 @@ class InboxShareItem {
     }
     if (isFlow) {
       return 'Flow shared by @$handle';
+    }
+    if (isCalendar) {
+      return 'Calendar update from @$handle';
     } else {
       return 'Event shared by @$handle';
     }
+  }
+
+  String? get calendarNotificationKind {
+    return _nullableString(
+      payloadJson?['notification_kind'] ?? payloadJson?['calendar_kind'],
+    );
+  }
+
+  bool get isCalendarInviteNotification =>
+      isCalendar && calendarNotificationKind == 'calendar_invite';
+
+  bool get isCalendarInviteResponseNotification =>
+      isCalendar && calendarNotificationKind == 'calendar_invite_response';
+
+  bool get isCalendarEventNotification =>
+      isCalendar && calendarNotificationKind == 'calendar_event';
+
+  String? get calendarName {
+    return _nullableString(payloadJson?['calendar_name']);
+  }
+
+  String? get calendarBody {
+    return _nullableString(payloadJson?['body']);
+  }
+
+  String? get calendarClientEventId {
+    return _nullableString(
+      payloadJson?['client_event_id'] ?? payloadJson?['clientEventId'],
+    );
+  }
+
+  int? get calendarColorValue {
+    final raw = payloadJson?['calendar_color'];
+    if (raw is num) return raw.toInt();
+    if (raw is String) return int.tryParse(raw.trim());
+    return null;
+  }
+
+  String? get calendarInviteStatus {
+    return _nullableString(
+      payloadJson?['invite_status'] ?? payloadJson?['inviteStatus'],
+    );
   }
 
   /// Typed accessor for flow payload (parses payloadJson on-demand)

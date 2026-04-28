@@ -3,10 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../data/flow_progress_repo.dart';
 import '../../data/journal_repo.dart';
 import '../../core/feature_flags.dart';
-import 'journal_event_badge.dart';
 import 'journal_v2_document_model.dart';
 import 'journal_constants.dart';
 import 'journal_badge_utils.dart';
@@ -20,8 +18,6 @@ class JournalController {
   String _currentDraft = '';
   DateTime? _currentDate;
   bool _hasUnsavedChanges = false;
-  String? _lastFlowBadgeSyncDateKey;
-  String? _lastFlowBadgeSyncSignature;
 
   // V2 ADDITIONS
   JournalDocument? _currentDocument;
@@ -91,7 +87,6 @@ class JournalController {
 
     if (localDraft != null && localDraft.isNotEmpty) {
       _currentDraft = localDraft;
-      await _syncFlowProgressFromBadges();
       _log(
         '_loadDraftForToday: loaded from local storage (${_currentDraft.length} chars)',
       );
@@ -105,7 +100,6 @@ class JournalController {
       if (entry != null) {
         _currentDraft = entry.body;
         await _saveLocalDraft();
-        await _syncFlowProgressFromBadges();
         _log(
           '_loadDraftForToday: loaded from server (${_currentDraft.length} chars)',
         );
@@ -135,7 +129,6 @@ class JournalController {
       try {
         final docMap = jsonDecode(localDocJson) as Map<String, dynamic>;
         await _applyDocument(JournalDocument.fromJson(docMap), saveLocal: true);
-        await _syncFlowProgressFromBadges();
         _log(
           '_loadDocumentForToday: loaded from local storage (${_currentDraft.length} chars)',
         );
@@ -157,14 +150,12 @@ class JournalController {
           // It's a document
           final docMap = jsonDecode(entry.body) as Map<String, dynamic>;
           await _applyDocument(JournalDocument.fromJson(docMap));
-          await _syncFlowProgressFromBadges();
           _log(
             '_loadDocumentForToday: loaded document from server (${_currentDraft.length} chars)',
           );
         } else {
           // It's plain text - migrate to document
           await _applyDocument(JournalDocument.fromPlainText(entry.body));
-          await _syncFlowProgressFromBadges();
           _log(
             '_loadDocumentForToday: migrated plain text to document (${_currentDraft.length} chars)',
           );
@@ -341,7 +332,6 @@ class JournalController {
         body: bodyToSave,
         meta: metaToSave,
       );
-      await _syncFlowProgressFromBadges();
 
       _hasUnsavedChanges = false;
       _log('_autosave: ✓ saved to server');
@@ -364,58 +354,6 @@ class JournalController {
     if (_hasUnsavedChanges) {
       await _autosave();
     }
-  }
-
-  Future<void> _syncFlowProgressFromBadges() async {
-    final localDate = _currentDate ?? _today;
-    final badges = _extractBadgeTokensForSync();
-    final dateKey = _formatDateKey(localDate);
-    final signature = _badgeSyncSignature(badges);
-    if (_lastFlowBadgeSyncDateKey == dateKey &&
-        _lastFlowBadgeSyncSignature == signature) {
-      return;
-    }
-    try {
-      await FlowProgressRepo(
-        _client,
-      ).syncJournalBadgesForDate(localDate: localDate, badges: badges);
-      _lastFlowBadgeSyncDateKey = dateKey;
-      _lastFlowBadgeSyncSignature = signature;
-    } catch (e) {
-      _log('_syncFlowProgressFromBadges error: $e');
-    }
-  }
-
-  List<EventBadgeToken> _extractBadgeTokensForSync() {
-    if (_isDocumentMode && _currentDocument != null) {
-      return JournalBadgeUtils.tokensFromDocument(_currentDocument!);
-    }
-    return JournalBadgeUtils.extractRawTokens(_currentDraft)
-        .map(JournalBadgeUtils.parseRawToken)
-        .whereType<EventBadgeToken>()
-        .toList();
-  }
-
-  String _badgeSyncSignature(List<EventBadgeToken> badges) {
-    final parts = badges.map((badge) {
-      final start = badge.start?.toUtc().toIso8601String() ?? '';
-      final end = badge.end?.toUtc().toIso8601String() ?? '';
-      return [
-        badge.id,
-        badge.eventId ?? '',
-        badge.title.trim(),
-        start,
-        end,
-      ].join('|');
-    }).toList()..sort();
-    return parts.join('||');
-  }
-
-  String _formatDateKey(DateTime value) {
-    final yyyy = value.year.toString().padLeft(4, '0');
-    final mm = value.month.toString().padLeft(2, '0');
-    final dd = value.day.toString().padLeft(2, '0');
-    return '$yyyy-$mm-$dd';
   }
 
   /// Clear today's entry (draft/document) and persist immediately.
@@ -522,9 +460,6 @@ class JournalController {
         : '$_currentDraft\n\n$content';
 
     await updateDraft(newText);
-    if (containsBadges) {
-      await _syncFlowProgressFromBadges();
-    }
 
     _log(
       'appendToToday: appended ${content.length} chars at position $appendPosition',
@@ -553,9 +488,6 @@ class JournalController {
 
     if (cleanedContent.isEmpty) {
       await updateDocument(doc);
-      if (badgeTokens.isNotEmpty) {
-        await _syncFlowProgressFromBadges();
-      }
       return appendStart;
     }
 
@@ -589,9 +521,6 @@ class JournalController {
     );
 
     await updateDocument(newDoc);
-    if (badgeTokens.isNotEmpty) {
-      await _syncFlowProgressFromBadges();
-    }
 
     return appendStart;
   }
@@ -651,7 +580,6 @@ class JournalController {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('lastOpenDay', dateKey);
 
-      await _syncFlowProgressFromBadges();
       _hasUnsavedChanges = false;
       onDraftChanged?.call();
 

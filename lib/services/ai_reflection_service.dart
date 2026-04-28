@@ -3,8 +3,6 @@
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../data/flow_progress_repo.dart';
-
 class AIReflectionResponse {
   final bool success;
   final String? reflection;
@@ -59,7 +57,6 @@ class AIReflectionService {
     bool useKnowledgeGraph = false,
     bool useDecisionMatrix = false,
     List<Map<String, dynamic>>? badges,
-    List<FlowReflectionEvidence>? flowEvidence,
   }) async {
     final sess = _sb.auth.currentSession;
     if (sess == null) {
@@ -93,8 +90,6 @@ class AIReflectionService {
       if (useKnowledgeGraph) 'use_knowledge_graph': true,
       if (useDecisionMatrix) 'use_decision_matrix': true,
       if (badges != null) 'badges': badges,
-      if (flowEvidence != null && flowEvidence.isNotEmpty)
-        'flow_evidence': flowEvidence.map((e) => e.toJson()).toList(),
     };
 
     final res = await _sb.functions.invoke(
@@ -133,8 +128,8 @@ class AIReflectionService {
     // Normalize wrapped responses like { data: { success, reflection, ... } }
     final Map<String, dynamic> normalized =
         (raw['success'] == null && raw['data'] is Map<String, dynamic>)
-        ? raw['data'] as Map<String, dynamic>
-        : raw;
+            ? raw['data'] as Map<String, dynamic>
+            : raw;
 
     return AIReflectionResponse.fromJson(normalized);
   }

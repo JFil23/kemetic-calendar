@@ -12,14 +12,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/gestures.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'calendar_page.dart';
 import 'day_view_chrome.dart';
 import 'landscape_month_view.dart';
 import 'track_sky_flow.dart';
-import '../../data/flow_progress_repo.dart';
 import '../onboarding/day_view_date_coachmark.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
@@ -778,6 +776,8 @@ class EventLayoutEngine {
 class NoteData {
   final String? id;
   final String? clientEventId;
+  final String? calendarId;
+  final String? calendarName;
   final String title;
   final String? detail;
   final String? location;
@@ -793,6 +793,8 @@ class NoteData {
   const NoteData({
     this.id,
     this.clientEventId,
+    this.calendarId,
+    this.calendarName,
     required this.title,
     this.detail,
     this.location,
@@ -826,6 +828,8 @@ class FlowData {
 class EventItem {
   final String? id;
   final String? clientEventId;
+  final String? calendarId;
+  final String? calendarName;
   final String title;
   final String? detail;
   final String? location;
@@ -842,6 +846,8 @@ class EventItem {
   const EventItem({
     this.id,
     this.clientEventId,
+    this.calendarId,
+    this.calendarName,
     required this.title,
     this.detail,
     this.location,
@@ -940,6 +946,8 @@ EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
   return EventItem(
     id: note.id,
     clientEventId: note.clientEventId,
+    calendarId: note.calendarId,
+    calendarName: note.calendarName,
     title: note.title,
     detail: note.detail,
     location: note.location,
@@ -974,6 +982,7 @@ String _eventIdentityKey(EventItem event) {
     event.startMin,
     event.endMin,
     event.flowId ?? '',
+    event.calendarId ?? '',
     event.location?.trim().toLowerCase() ?? '',
     event.detail?.trim().toLowerCase() ?? '',
     event.allDay,
@@ -2008,10 +2017,6 @@ class DayViewGrid extends StatefulWidget {
 }
 
 class _DayViewGridState extends State<DayViewGrid> {
-  static const String _kFlowEventJournalOnboardingSeen =
-      'flow_event_journal_onboarding_seen';
-  static const String _kFlowReflectionJournalOnboardingSeen =
-      'flow_reflection_journal_onboarding_seen';
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _timelineKey = GlobalKey();
   BuildContext? _timelineCtx;
@@ -3781,7 +3786,6 @@ class _DayViewGridState extends State<DayViewGrid> {
         : cleanedDesc;
     return EventBadgeToken.buildToken(
       id: id,
-      eventId: event.id ?? event.clientEventId,
       title: event.title.isEmpty ? 'Scheduled block' : event.title,
       start: start,
       end: end,
@@ -3815,97 +3819,19 @@ class _DayViewGridState extends State<DayViewGrid> {
     required int kd,
     BuildContext? sheetContext,
   }) async {
-    await _maybeShowFlowJournalOnboarding(event);
-    if (!mounted) return;
-    if (sheetContext != null && sheetContext.mounted) {
+    if (sheetContext != null) {
       Navigator.pop(sheetContext);
     }
     await _quickAddToJournal(event, ky: ky, km: km, kd: kd);
-    if (!mounted) return;
-    final flowId = event.flowId;
-    if (flowId != null && flowId > 0) {
-      final progressRepo = FlowProgressRepo(Supabase.instance.client);
-      final localDate = DateUtils.dateOnly(KemeticMath.toGregorian(ky, km, kd));
-      final reflectionEvent = _looksLikeReflectionEvent(event);
-      await progressRepo.markJournalActivityLogged(
-        flowId: flowId,
-        localDate: localDate,
-        badgeCode: reflectionEvent ? 'reflection_logged' : 'event_logged',
-        reflectionLogged: reflectionEvent,
-        source: 'day_view',
-      );
-    }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _looksLikeReflectionEvent(event)
-                ? 'Reflection logged. Your Flow tracker has been updated.'
-                : 'Return recorded. Your Flow tracker has been updated.',
-          ),
-          backgroundColor: event.color,
+        const SnackBar(
+          content: Text('Added to journal'),
+          backgroundColor: _dayGold,
           duration: Duration(seconds: 2),
         ),
       );
     }
-  }
-
-  bool _looksLikeReflectionEvent(EventItem event) {
-    final category = event.category?.trim().toLowerCase() ?? '';
-    if (category == 'reflection') return true;
-    if (category == 'flow_action') return false;
-    final haystack = '${event.title} ${event.detail ?? ''}'
-        .toLowerCase()
-        .trim();
-    return haystack.contains('reflection') ||
-        haystack.contains('reflect') ||
-        haystack.contains('journal') ||
-        haystack.contains('review') ||
-        haystack.contains('seal the day');
-  }
-
-  Future<void> _maybeShowFlowJournalOnboarding(EventItem event) async {
-    final flowId = event.flowId;
-    if (flowId == null || flowId <= 0 || !mounted) return;
-    final reflectionEvent = _looksLikeReflectionEvent(event);
-    final key = reflectionEvent
-        ? _kFlowReflectionJournalOnboardingSeen
-        : _kFlowEventJournalOnboardingSeen;
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(key) ?? false) return;
-    if (!mounted) return;
-
-    await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF0D0D0F),
-          title: Text(
-            reflectionEvent
-                ? 'Seal the day in your journal.'
-                : 'Log the action.',
-            style: const TextStyle(color: Colors.white),
-          ),
-          content: Text(
-            reflectionEvent
-                ? 'Write your reflection so hꜣw can remember what you practiced, where you resisted, and what changed.'
-                : 'When you complete this event, add it to your journal. Your badge becomes proof of progress and helps shape your end-of-decan reflection.',
-            style: const TextStyle(color: Colors.white70, height: 1.45),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                reflectionEvent ? 'Open Journal' : 'Add to Journal',
-                style: const TextStyle(color: _dayGold),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    await prefs.setBool(key, true);
   }
 
   String _detailSheetTargetKey(DayViewSheetEventTarget target) =>
@@ -4464,7 +4390,15 @@ class _DayViewGridState extends State<DayViewGrid> {
   Widget _buildEventDetailBottomActionRow({
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
+    required ValueChanged<DayViewSheetEventTarget> onTargetChanged,
   }) {
+    final calendarLabel = CalendarPage.detailSheetCalendarButtonLabel(
+      target.event,
+    );
+    final calendarEnabled = CalendarPage.canChangeDetailSheetCalendar(
+      target.event,
+    );
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -4473,11 +4407,29 @@ class _DayViewGridState extends State<DayViewGrid> {
           target: target,
         ),
         TextButton(
-          onPressed: () => Navigator.pop(sheetContext),
-          child: KemeticGold.text(
-            'Close',
-            style: _goldHeaderStyle.copyWith(fontSize: 15),
-          ),
+          onPressed: calendarEnabled
+              ? () async {
+                  final updatedTarget =
+                      await CalendarPage.showDetailSheetCalendarPicker(
+                        context: sheetContext,
+                        target: target,
+                      );
+                  if (!sheetContext.mounted || updatedTarget == null) return;
+                  onTargetChanged(updatedTarget);
+                }
+              : null,
+          child: calendarEnabled
+              ? KemeticGold.text(
+                  calendarLabel,
+                  style: _goldHeaderStyle.copyWith(fontSize: 15),
+                )
+              : Text(
+                  calendarLabel,
+                  style: _goldHeaderStyle.copyWith(
+                    fontSize: 15,
+                    color: Colors.white24,
+                  ),
+                ),
         ),
       ],
     );
@@ -4654,6 +4606,9 @@ class _DayViewGridState extends State<DayViewGrid> {
                                 _buildEventDetailBottomActionRow(
                                   sheetContext: sheetContext,
                                   target: target,
+                                  onTargetChanged: (nextTarget) {
+                                    unawaited(moveToTarget(nextTarget));
+                                  },
                                 ),
                               ],
                             ),

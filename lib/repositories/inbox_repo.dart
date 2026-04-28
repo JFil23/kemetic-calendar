@@ -242,7 +242,7 @@ class InboxRepo {
 
       for (final item in items) {
         // ✅ Skip deleted items
-        if (item.isDeleted || item.isEvent) continue;
+        if (item.isDeleted || item.isEvent || item.isCalendar) continue;
 
         final otherId = _getOtherUserId(item, uid);
         if (otherId == null) continue;
@@ -355,7 +355,7 @@ class InboxRepo {
       final conv = items.where((item) {
         final a = item.senderId == uid && item.recipientId == otherUserId;
         final b = item.senderId == otherUserId && item.recipientId == uid;
-        return (a || b) && !item.isDeleted; // ✅ don't show deleted
+        return (a || b) && !item.isDeleted && !item.isEvent && !item.isCalendar;
       }).toList()..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
       return conv;

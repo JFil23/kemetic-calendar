@@ -3,8 +3,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/push_intent_bus.dart';
 import '../../data/share_models.dart';
+import '../../data/shared_calendar_models.dart';
 import '../../data/share_repo.dart';
+import '../../data/shared_calendars_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../repositories/inbox_repo.dart';
 import 'inbox_conversation_page.dart';
@@ -21,6 +24,7 @@ import '../invites/event_invite_details_page.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../services/session_resume_service.dart';
 import '../../widgets/profile_avatar.dart';
+import '../calendars/shared_calendars_sheet.dart';
 
 void _logInboxImport(String message) {
   if (kDebugMode) {
@@ -41,14 +45,41 @@ class _InboxPageState extends State<InboxPage> {
   static const _cardBg = Color(0xFF0D0D0F);
   static const _gold = KemeticGold.base;
   static const _silver = Color(0xFFB0B0B0);
+  static const Color _summaryGoldLight = Color(0xFFF7E09A);
+  static const Color _summaryGoldMid = Color(0xFFE8BE54);
+  static const Color _summaryGoldBase = Color(0xFFCA9221);
+  static const Color _summaryGoldDeep = Color(0xFF7A5310);
+  static const Color _summaryGoldInk = Color(0xFF1C1204);
+  static const Gradient _summaryGoldGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: <Color>[
+      _summaryGoldBase,
+      _summaryGoldLight,
+      _summaryGoldMid,
+      _summaryGoldDeep,
+    ],
+    stops: <double>[0.0, 0.42, 0.74, 1.0],
+  );
+  static const List<String> _meduFontFallback = <String>[
+    'Noto Sans Egyptian Hieroglyphs',
+    'Apple Symbols',
+    'Segoe UI Symbol',
+    'Arial Unicode MS',
+    'NotoSans',
+  ];
 
   late final InboxRepo _inboxRepo;
   late final ShareRepo _shareRepo;
+  late final SharedCalendarsRepo _sharedCalendarsRepo;
   StreamSubscription<Map<String, List<InboxShareItem>>>? _convSub;
   StreamSubscription<List<InboxShareItem>>? _inboxItemsSub;
   StreamSubscription<InboxUnreadState>? _unreadStateSub;
+  StreamSubscription<List<SharedCalendarSentInvite>>? _sentCalendarInvitesSub;
   Map<String, List<InboxShareItem>> _latestThreads = const {};
   List<InboxShareItem> _latestEventInvites = const [];
+  List<InboxShareItem> _latestCalendarNotifications = const [];
+  List<SharedCalendarSentInvite> _latestSentCalendarInvites = const [];
   List<_UnifiedInboxItem> _unified = const [];
   final Set<String> _optimisticReadShareIds = <String>{};
   bool _loading = true;
@@ -63,6 +94,7 @@ class _InboxPageState extends State<InboxPage> {
     super.initState();
     final client = Supabase.instance.client;
     _shareRepo = ShareRepo(client);
+    _sharedCalendarsRepo = SharedCalendarsRepo(client);
     _unreadState = _shareRepo.currentUnreadState;
     _inboxRepo = InboxRepo(client);
     _convSub = _inboxRepo.watchConversations().listen((threads) {
@@ -87,7 +119,19 @@ class _InboxPageState extends State<InboxPage> {
                 )
                 .toList()
               ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+      final calendarNotifications = currentUserId == null
+          ? const <InboxShareItem>[]
+          : (items
+                .where(
+                  (item) =>
+                      item.isCalendar &&
+                      !item.isDeleted &&
+                      item.recipientId == currentUserId,
+                )
+                .toList()
+              ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
       _latestEventInvites = invites;
+      _latestCalendarNotifications = calendarNotifications;
       if (mounted) {
         setState(() {
           _unified = _buildUnifiedItems();
@@ -101,6 +145,16 @@ class _InboxPageState extends State<InboxPage> {
       }
       setState(() => _unreadState = state);
     });
+    _sentCalendarInvitesSub = _sharedCalendarsRepo
+        .watchSentPendingInvites()
+        .listen((invites) {
+          _latestSentCalendarInvites = invites;
+          if (mounted) {
+            setState(() {
+              _unified = _buildUnifiedItems();
+            });
+          }
+        });
     _refreshUnified();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_resumeConversationIfNeeded());
@@ -141,6 +195,7 @@ class _InboxPageState extends State<InboxPage> {
     _convSub?.cancel();
     _inboxItemsSub?.cancel();
     _unreadStateSub?.cancel();
+    _sentCalendarInvitesSub?.cancel();
     super.dispose();
   }
 
@@ -309,6 +364,11 @@ class _InboxPageState extends State<InboxPage> {
                           hasUnread: item.hasUnread ?? false,
                           items: item.items!,
                         );
+                      } else if (item.kind ==
+                          _UnifiedKind.calendarNotification) {
+                        return _buildCalendarNotificationRow(
+                          item.calendarNotification!,
+                        );
                       } else if (item.kind == _UnifiedKind.eventInvite) {
                         return _buildEventInviteRow(item.invite!);
                       } else {
@@ -380,7 +440,17 @@ class _InboxPageState extends State<InboxPage> {
         )
         .toList(growable: false);
 
-    return [...inviteItems, ...messageItems]
+    final calendarItems = _latestCalendarNotifications
+        .where((notification) => notification.isCalendarEventNotification)
+        .map(
+          (notification) => _UnifiedInboxItem.calendarNotification(
+            createdAt: notification.createdAt,
+            calendarNotification: notification,
+          ),
+        )
+        .toList(growable: false);
+
+    return [...calendarItems, ...inviteItems, ...messageItems]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
@@ -424,9 +494,7 @@ class _InboxPageState extends State<InboxPage> {
     }
 
     final results = await Future.wait(
-      unreadItems.map(
-        (item) => _shareRepo.markViewed(item.shareId, isFlow: item.isFlow),
-      ),
+      unreadItems.map((item) => _shareRepo.markInboxItemViewed(item)),
     );
 
     final failedIds = <String>{};
@@ -658,6 +726,94 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
+  Widget _buildCalendarNotificationRow(InboxShareItem notification) {
+    final senderName = notification.senderName?.trim().isNotEmpty == true
+        ? notification.senderName!.trim()
+        : (notification.senderHandle?.trim().isNotEmpty == true
+              ? '@${notification.senderHandle!.trim()}'
+              : 'Someone');
+    final accent = notification.calendarColorValue != null
+        ? Color(notification.calendarColorValue!)
+        : _gold;
+    final title = notification.calendarName ?? notification.title;
+    final subtitle = notification.calendarBody?.trim().isNotEmpty == true
+        ? notification.calendarBody!.trim()
+        : (notification.isCalendarInviteNotification
+              ? '$senderName invited you to join this calendar.'
+              : 'Update from $senderName');
+    final statusLabel = notification.isCalendarInviteNotification
+        ? 'Invite'
+        : 'Calendar';
+    final icon = notification.isCalendarInviteNotification
+        ? Icons.person_add_alt_1_rounded
+        : Icons.calendar_month_rounded;
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      leading: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: accent.withValues(alpha: 0.14),
+          border: Border.all(color: accent.withValues(alpha: 0.32)),
+        ),
+        child: Icon(icon, color: accent),
+      ),
+      title: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: notification.isUnread ? FontWeight.bold : FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.7),
+          fontSize: 14,
+        ),
+      ),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              statusLabel,
+              style: TextStyle(
+                color: accent,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (notification.isUnread) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: _gold,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ],
+        ],
+      ),
+      onTap: () => _openCalendarNotification(notification),
+    );
+  }
+
   String _conversationPreviewText(InboxShareItem item) {
     if (!item.isEvent) return item.title;
     final status = item.responseStatus;
@@ -823,9 +979,13 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
-  bool get _hasSummaries => _latestFollow != null || _latestEngagement != null;
+  bool get _hasSummaries =>
+      _latestFollow != null || _latestEngagement != null || _hasCalendarSummary;
+  bool get _hasCalendarSummary => true;
   int get _summaryTileCount =>
-      (_latestFollow != null ? 1 : 0) + (_latestEngagement != null ? 1 : 0);
+      (_latestFollow != null ? 1 : 0) +
+      (_latestEngagement != null ? 1 : 0) +
+      (_hasCalendarSummary ? 1 : 0);
 
   Widget? _buildActivityTileUnreadDot(bool show) {
     if (!show) return null;
@@ -845,33 +1005,47 @@ class _InboxPageState extends State<InboxPage> {
         .reduce((latest, next) => next.isAfter(latest) ? next : latest);
   }
 
-  Widget _buildSummaryTile(int index) {
-    // Order: follow first, then engagement
-    if (_latestFollow != null && index == 0) {
-      final a = _latestFollow!;
-      final title =
-          '${a.actorName ?? a.actorHandle ?? 'Someone'} started following you';
-      return ListTile(
-        leading: const CircleAvatar(
-          backgroundColor: Colors.blueAccent,
-          child: Icon(Icons.person_add, color: Colors.white),
-        ),
-        title: Text(
-          'Community',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        subtitle: Text(
-          title,
-          style: TextStyle(color: Colors.white.withOpacity(0.7)),
-        ),
-        trailing: _buildActivityTileUnreadDot(_unreadState.hasUnreadCommunity),
-        onTap: _openFollowersSheet,
-      );
-    }
+  List<InboxShareItem> get _calendarSectionNotifications =>
+      _latestCalendarNotifications
+          .where(
+            (item) =>
+                item.isCalendarInviteNotification ||
+                item.isCalendarInviteResponseNotification,
+          )
+          .toList(growable: false);
 
+  bool get _hasUnreadCalendar =>
+      _calendarSectionNotifications.any((item) => item.isUnread);
+
+  Widget _buildSummaryTile(int index) {
+    final tiles = <Widget>[
+      if (_latestFollow != null) _buildCommunitySummaryTile(),
+      if (_latestEngagement != null) _buildMovementSummaryTile(),
+      if (_hasCalendarSummary) _buildCalendarSummaryTile(),
+    ];
+    return tiles[index];
+  }
+
+  Widget _buildCommunitySummaryTile() {
+    final a = _latestFollow!;
+    final title =
+        '${a.actorName ?? a.actorHandle ?? 'Someone'} started following you';
+    return ListTile(
+      leading: _buildSummaryGlyphAvatar(glyph: '𓉐', fontSize: 21),
+      title: const Text(
+        'House',
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+      ),
+      subtitle: Text(
+        title,
+        style: TextStyle(color: Colors.white.withOpacity(0.7)),
+      ),
+      trailing: _buildActivityTileUnreadDot(_unreadState.hasUnreadCommunity),
+      onTap: _openFollowersSheet,
+    );
+  }
+
+  Widget _buildMovementSummaryTile() {
     final a = _latestEngagement!;
     final who = a.actorName ?? a.actorHandle ?? 'Someone';
     final preview = a.type == InboxActivityType.comment
@@ -883,12 +1057,9 @@ class _InboxPageState extends State<InboxPage> {
     final subtitleText = preview.isNotEmpty ? '$summary - $preview' : summary;
 
     return ListTile(
-      leading: const CircleAvatar(
-        backgroundColor: Colors.pinkAccent,
-        child: Icon(Icons.favorite, color: Colors.white),
-      ),
+      leading: _buildSummaryGlyphAvatar(glyph: '𓂋𓀁', fontSize: 14),
       title: const Text(
-        'Movement',
+        'Discussions',
         style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
       ),
       subtitle: Text(
@@ -900,6 +1071,117 @@ class _InboxPageState extends State<InboxPage> {
       trailing: _buildActivityTileUnreadDot(_unreadState.hasUnreadMovement),
       onTap: _openEngagementSheet,
     );
+  }
+
+  Widget _buildSummaryGlyphAvatar({
+    required String glyph,
+    double fontSize = 20,
+  }) {
+    return SizedBox(
+      width: 44,
+      height: 40,
+      child: Center(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: _summaryGoldGradient,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: _summaryGoldLight.withValues(alpha: 0.52),
+            ),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: _summaryGoldDeep.withValues(alpha: 0.34),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Text(
+              glyph,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _summaryGoldInk,
+                fontSize: fontSize,
+                fontWeight: FontWeight.w700,
+                height: 0.95,
+                fontFamily: 'GentiumPlus',
+                fontFamilyFallback: _meduFontFallback,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCalendarSummaryTile() {
+    final latestNotification = _calendarSectionNotifications.isEmpty
+        ? null
+        : _calendarSectionNotifications.reduce(
+            (left, right) =>
+                right.createdAt.isAfter(left.createdAt) ? right : left,
+          );
+    final latestSentInvite = _latestSentCalendarInvites.isEmpty
+        ? null
+        : _latestSentCalendarInvites.reduce(
+            (left, right) =>
+                right.invitedAt.isAfter(left.invitedAt) ? right : left,
+          );
+
+    final useSentInvite =
+        latestSentInvite != null &&
+        (latestNotification == null ||
+            latestSentInvite.invitedAt.isAfter(latestNotification.createdAt));
+
+    final subtitle = useSentInvite
+        ? '${latestSentInvite!.calendarName} - waiting on ${latestSentInvite.inviteeLabel}'
+        : _calendarSummarySubtitleForNotification(latestNotification);
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: _gold.withValues(alpha: 0.16),
+        child: Icon(Icons.calendar_month_rounded, color: _gold),
+      ),
+      title: const Text(
+        'Calendar',
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+      ),
+      subtitle: Text(
+        subtitle,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: Colors.white.withOpacity(0.7)),
+      ),
+      trailing: _buildActivityTileUnreadDot(_hasUnreadCalendar),
+      onTap: _openCalendarInboxSheet,
+    );
+  }
+
+  String _calendarSummarySubtitleForNotification(InboxShareItem? notification) {
+    if (notification == null) {
+      return 'Calendar invites and responses';
+    }
+
+    final calendarName = notification.calendarName ?? notification.title;
+    final senderName = notification.senderName?.trim().isNotEmpty == true
+        ? notification.senderName!.trim()
+        : (notification.senderHandle?.trim().isNotEmpty == true
+              ? '@${notification.senderHandle!.trim()}'
+              : 'Someone');
+    final status = (notification.calendarInviteStatus ?? '').trim();
+    if (notification.isCalendarInviteResponseNotification) {
+      final verb = status == 'declined' ? 'declined' : 'accepted';
+      return '$senderName $verb your invitation to $calendarName';
+    }
+    if (status == 'accepted') {
+      return 'You accepted $calendarName';
+    }
+    if (status == 'declined') {
+      return 'You declined $calendarName';
+    }
+    return '$senderName invited you to $calendarName';
   }
 
   void _openFollowersSheet() {
@@ -1004,6 +1286,273 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
+  Future<void> _openCalendarInboxSheet() async {
+    final unreadNotifications = _calendarSectionNotifications
+        .where((item) => item.isUnread)
+        .toList(growable: false);
+    if (unreadNotifications.isNotEmpty) {
+      unawaited(
+        Future.wait(
+          unreadNotifications.map(
+            (item) => _shareRepo.markInboxItemViewed(item),
+          ),
+        ),
+      );
+    }
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: _bg,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetContext) {
+        final inviteNotifications = _calendarSectionNotifications.toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        final sentInvites = _latestSentCalendarInvites.toList()
+          ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const Text(
+                  'Calendar',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (sentInvites.isEmpty && inviteNotifications.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      'Calendar invites and responses will appear here.',
+                      style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        if (sentInvites.isNotEmpty) ...[
+                          _calendarSheetSectionTitle('Pending from you'),
+                          const SizedBox(height: 8),
+                          for (final invite in sentInvites)
+                            _buildSentCalendarInviteRow(
+                              invite,
+                              closeContext: sheetContext,
+                            ),
+                        ],
+                        if (inviteNotifications.isNotEmpty) ...[
+                          if (sentInvites.isNotEmpty)
+                            const SizedBox(height: 12),
+                          _calendarSheetSectionTitle('Invites & responses'),
+                          const SizedBox(height: 8),
+                          for (final notification in inviteNotifications)
+                            _buildCalendarInviteNotificationRow(
+                              notification,
+                              closeContext: sheetContext,
+                            ),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _calendarSheetSectionTitle(String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: 0.7),
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.3,
+      ),
+    );
+  }
+
+  Widget _buildSentCalendarInviteRow(
+    SharedCalendarSentInvite invite, {
+    BuildContext? closeContext,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      leading: ProfileAvatar(
+        radius: 22,
+        displayName: invite.inviteeLabel,
+        avatarUrl: invite.inviteeAvatarUrl,
+        backgroundColor: invite.color.withValues(alpha: 0.16),
+        foregroundColor: invite.color,
+      ),
+      title: Text(
+        invite.calendarName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        'Waiting on ${invite.inviteeLabel}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
+      ),
+      trailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: invite.color.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          'Pending',
+          style: TextStyle(
+            color: invite.color,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      onTap: () async {
+        if (closeContext != null) {
+          Navigator.of(closeContext).pop();
+        }
+        await SharedCalendarsSheet.show(context, repo: _sharedCalendarsRepo);
+      },
+    );
+  }
+
+  Widget _buildCalendarInviteNotificationRow(
+    InboxShareItem notification, {
+    BuildContext? closeContext,
+  }) {
+    final senderName = notification.senderName?.trim().isNotEmpty == true
+        ? notification.senderName!.trim()
+        : (notification.senderHandle?.trim().isNotEmpty == true
+              ? '@${notification.senderHandle!.trim()}'
+              : 'Someone');
+    final accent = notification.calendarColorValue != null
+        ? Color(notification.calendarColorValue!)
+        : _gold;
+    final calendarName = notification.calendarName ?? notification.title;
+    final status = (notification.calendarInviteStatus ?? '').trim();
+    final statusColor = status == 'accepted'
+        ? Colors.greenAccent
+        : (status == 'declined' ? Colors.redAccent : accent);
+    final statusLabel = status == 'accepted'
+        ? 'Accepted'
+        : (status == 'declined' ? 'Declined' : 'Pending');
+    final responseVerb = status == 'declined' ? 'declined' : 'accepted';
+    final subtitle = notification.isCalendarInviteResponseNotification
+        ? '$senderName $responseVerb your invitation to $calendarName'
+        : (status == 'accepted'
+              ? 'You accepted this invitation.'
+              : (status == 'declined'
+                    ? 'You declined this invitation.'
+                    : '$senderName invited you to join $calendarName'));
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      leading: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: accent.withValues(alpha: 0.14),
+          border: Border.all(color: accent.withValues(alpha: 0.32)),
+        ),
+        child: Icon(
+          notification.isCalendarInviteResponseNotification
+              ? Icons.mark_email_read_rounded
+              : Icons.person_add_alt_1_rounded,
+          color: accent,
+        ),
+      ),
+      title: Text(
+        calendarName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: notification.isUnread ? FontWeight.bold : FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.7),
+          fontSize: 14,
+        ),
+      ),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              statusLabel,
+              style: TextStyle(
+                color: statusColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (notification.isUnread) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: _gold,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ],
+        ],
+      ),
+      onTap: () async {
+        if (closeContext != null) {
+          Navigator.of(closeContext).pop();
+        }
+        await _openCalendarNotification(notification);
+      },
+    );
+  }
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -1025,7 +1574,7 @@ class _InboxPageState extends State<InboxPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Shared flows, messages, and invites will appear here',
+            'Shared flows, messages, invites, and calendar updates will appear here',
             style: TextStyle(
               color: Colors.white.withOpacity(0.5),
               fontSize: 14,
@@ -1035,9 +1584,32 @@ class _InboxPageState extends State<InboxPage> {
       ),
     );
   }
+
+  Future<void> _openCalendarNotification(InboxShareItem notification) async {
+    if (notification.isUnread) {
+      await _shareRepo.markInboxItemViewed(notification);
+    }
+    if (!mounted) return;
+
+    if (notification.isCalendarInviteNotification ||
+        notification.isCalendarInviteResponseNotification) {
+      await SharedCalendarsSheet.show(context, repo: _sharedCalendarsRepo);
+      return;
+    }
+
+    final clientEventId = notification.calendarClientEventId;
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        emitCalendarPushOpenIntent(clientEventId);
+      });
+    }
+  }
 }
 
-enum _UnifiedKind { message, eventInvite, activity }
+enum _UnifiedKind { message, calendarNotification, eventInvite, activity }
 
 class _UnifiedInboxItem {
   _UnifiedInboxItem.message({
@@ -1047,6 +1619,7 @@ class _UnifiedInboxItem {
     required this.items,
     required this.hasUnread,
   }) : kind = _UnifiedKind.message,
+       calendarNotification = null,
        invite = null,
        activity = null;
 
@@ -1056,6 +1629,7 @@ class _UnifiedInboxItem {
       otherProfile = null,
       items = null,
       hasUnread = null,
+      calendarNotification = null,
       invite = null;
 
   _UnifiedInboxItem.eventInvite({required this.createdAt, required this.invite})
@@ -1064,7 +1638,19 @@ class _UnifiedInboxItem {
       otherProfile = null,
       items = null,
       hasUnread = null,
+      calendarNotification = null,
       activity = null;
+
+  _UnifiedInboxItem.calendarNotification({
+    required this.createdAt,
+    required this.calendarNotification,
+  }) : kind = _UnifiedKind.calendarNotification,
+       otherUserId = null,
+       otherProfile = null,
+       items = null,
+       hasUnread = null,
+       invite = null,
+       activity = null;
 
   final _UnifiedKind kind;
   final DateTime createdAt;
@@ -1074,6 +1660,7 @@ class _UnifiedInboxItem {
   final ConversationUser? otherProfile;
   final List<InboxShareItem>? items;
   final bool? hasUnread;
+  final InboxShareItem? calendarNotification;
   final InboxShareItem? invite;
 
   // Activity fields

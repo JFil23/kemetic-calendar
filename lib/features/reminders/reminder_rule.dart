@@ -61,15 +61,23 @@ class ReminderRepeat {
       },
       monthDay: (json['monthDay'] as num?)?.toInt(),
       monthDays: {
-        for (final n in (json['monthDays'] as List? ?? (json['monthDay'] != null ? [json['monthDay']] : const [])))
+        for (final n
+            in (json['monthDays'] as List? ??
+                (json['monthDay'] != null ? [json['monthDay']] : const [])))
           (n as num).toInt(),
       },
       decanDays: {
-        for (final n in (json['decanDays'] as List? ?? (json['decanDay'] != null ? [json['decanDay']] : const [])))
+        for (final n
+            in (json['decanDays'] as List? ??
+                (json['decanDay'] != null ? [json['decanDay']] : const [])))
           (n as num).toInt(),
       },
       kemeticMonthDays: {
-        for (final n in (json['kemeticMonthDays'] as List? ?? (json['kemeticMonthDay'] != null ? [json['kemeticMonthDay']] : const [])))
+        for (final n
+            in (json['kemeticMonthDays'] as List? ??
+                (json['kemeticMonthDay'] != null
+                    ? [json['kemeticMonthDay']]
+                    : const [])))
           (n as num).toInt(),
       },
     );
@@ -99,6 +107,7 @@ class ReminderRepeat {
 @immutable
 class ReminderRule {
   final String id;
+  final String? calendarId;
   final String title;
   final DateTime startLocal;
   final bool allDay;
@@ -110,6 +119,7 @@ class ReminderRule {
 
   const ReminderRule({
     required this.id,
+    this.calendarId,
     required this.title,
     required this.startLocal,
     this.allDay = false,
@@ -122,6 +132,7 @@ class ReminderRule {
 
   ReminderRule copyWith({
     String? id,
+    String? calendarId,
     String? title,
     DateTime? startLocal,
     bool? allDay,
@@ -133,6 +144,7 @@ class ReminderRule {
   }) {
     return ReminderRule(
       id: id ?? this.id,
+      calendarId: calendarId ?? this.calendarId,
       title: title ?? this.title,
       startLocal: startLocal ?? this.startLocal,
       allDay: allDay ?? this.allDay,
@@ -147,6 +159,7 @@ class ReminderRule {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'calendarId': calendarId,
       'title': title,
       'startLocal': startLocal.toIso8601String(),
       'allDay': allDay,
@@ -161,6 +174,8 @@ class ReminderRule {
   factory ReminderRule.fromJson(Map<String, dynamic> json) {
     return ReminderRule(
       id: json['id'] as String,
+      calendarId:
+          json['calendarId'] as String? ?? json['calendar_id'] as String?,
       title: json['title'] as String,
       startLocal: DateTime.parse(json['startLocal'] as String),
       allDay: (json['allDay'] as bool?) ?? false,
@@ -168,12 +183,9 @@ class ReminderRule {
       category: json['category'] as String?,
       active: (json['active'] as bool?) ?? true,
       repeat: ReminderRepeat.fromJson(
-        Map<String, dynamic>.from(
-          (json['repeat'] as Map?) ?? const {},
-        ),
+        Map<String, dynamic>.from((json['repeat'] as Map?) ?? const {}),
       ),
-      alertOffsetMinutes:
-          (json['alertOffsetMinutes'] as num?)?.toInt() ?? -1,
+      alertOffsetMinutes: (json['alertOffsetMinutes'] as num?)?.toInt() ?? -1,
     );
   }
 

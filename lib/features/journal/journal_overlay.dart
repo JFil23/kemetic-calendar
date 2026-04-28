@@ -1,12 +1,9 @@
 // lib/features/journal/journal_overlay.dart
 // FIXES: 1) Toolbar overflow, 2) Layered coexistence, 3) Drawing undo
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mobile/core/touch_targets.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'journal_controller.dart';
 import 'journal_constants.dart';
@@ -16,7 +13,6 @@ import 'journal_v2_document_model.dart';
 import 'journal_v2_rich_text.dart';
 import 'journal_undo_system.dart';
 import 'journal_archive_page.dart';
-import '../../data/flow_progress_repo.dart';
 import '../../data/journal_repo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'journal_event_badge.dart';
@@ -53,8 +49,6 @@ enum _JournalPane { journal }
 
 class _JournalOverlayState extends State<JournalOverlay>
     with SingleTickerProviderStateMixin {
-  static const String _kJournalBadgeAreaOnboardingSeen =
-      'journal_badge_area_onboarding_seen';
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
   late TextEditingController _textController;
@@ -76,7 +70,6 @@ class _JournalOverlayState extends State<JournalOverlay>
   // Archive state
   bool _showingArchive = false;
   bool _keyboardVisible = false;
-  bool _showBadgeAreaOnboarding = false;
 
   // Universal undo/redo system
   late JournalUndoSystem _undoSystem;
@@ -126,7 +119,6 @@ class _JournalOverlayState extends State<JournalOverlay>
     _animationController.forward();
 
     _loadLinks();
-    unawaited(_maybeLoadBadgeAreaOnboarding());
 
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted &&
@@ -145,23 +137,6 @@ class _JournalOverlayState extends State<JournalOverlay>
     _focusNode.dispose();
     widget.controller.onDraftChanged = null;
     super.dispose();
-  }
-
-  Future<void> _maybeLoadBadgeAreaOnboarding() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(_kJournalBadgeAreaOnboardingSeen) ?? false) return;
-    final tracker = await FlowProgressRepo(
-      Supabase.instance.client,
-    ).loadPrimaryTracker();
-    if (tracker == null || !mounted) return;
-    setState(() => _showBadgeAreaOnboarding = true);
-  }
-
-  Future<void> _dismissBadgeAreaOnboarding() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kJournalBadgeAreaOnboardingSeen, true);
-    if (!mounted) return;
-    setState(() => _showBadgeAreaOnboarding = false);
   }
 
   void _onDraftChanged() {
@@ -973,111 +948,46 @@ class _JournalOverlayState extends State<JournalOverlay>
                           ),
                         ],
                       ),
-                      child: Column(
-                        children: [
-                          if (_showBadgeAreaOnboarding)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: KemeticGold.base.withValues(
-                                    alpha: 0.12,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: KemeticGold.base.withValues(
-                                      alpha: 0.32,
-                                    ),
-                                  ),
+                      child: badges.isEmpty
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 18),
+                                child: Text(
+                                  'Event badges you add from day view will appear here.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: Color(0xFF666666)),
                                 ),
+                              ),
+                            )
+                          : Scrollbar(
+                              thumbVisibility: true,
+                              controller: _badgeScrollController,
+                              child: SingleChildScrollView(
+                                controller: _badgeScrollController,
+                                padding: const EdgeInsets.all(12),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Badges are your evidence.',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
+                                  children: badges.map((token) {
+                                    final expanded =
+                                        _badgeExpansion[token.id] ?? false;
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12,
                                       ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    const Text(
-                                      'Add badges as you complete events and reflections. At the end of the decan, hꜣw uses them to reflect your pattern back to you.',
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        height: 1.45,
+                                      child: EventBadgeWidget(
+                                        token: token,
+                                        initialExpanded: expanded,
+                                        onToggle: (next) {
+                                          setState(() {
+                                            _badgeExpansion[token.id] = next;
+                                          });
+                                        },
                                       ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: TextButton(
-                                        onPressed: _dismissBadgeAreaOnboarding,
-                                        child: const Text(
-                                          'Got it',
-                                          style: TextStyle(
-                                            color: KemeticGold.base,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                    );
+                                  }).toList(),
                                 ),
                               ),
                             ),
-                          Expanded(
-                            child: badges.isEmpty
-                                ? const Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 18,
-                                      ),
-                                      child: Text(
-                                        'Event badges you add from day view will appear here.',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: Color(0xFF666666),
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                : Scrollbar(
-                                    thumbVisibility: true,
-                                    controller: _badgeScrollController,
-                                    child: SingleChildScrollView(
-                                      controller: _badgeScrollController,
-                                      padding: const EdgeInsets.all(12),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: badges.map((token) {
-                                          final expanded =
-                                              _badgeExpansion[token.id] ??
-                                              false;
-                                          return Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 12,
-                                            ),
-                                            child: EventBadgeWidget(
-                                              token: token,
-                                              initialExpanded: expanded,
-                                              onToggle: (next) {
-                                                setState(() {
-                                                  _badgeExpansion[token.id] =
-                                                      next;
-                                                });
-                                              },
-                                            ),
-                                          );
-                                        }).toList(),
-                                      ),
-                                    ),
-                                  ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
                 ),

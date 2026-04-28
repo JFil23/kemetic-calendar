@@ -1717,6 +1717,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     return EventItem(
       id: note.id,
       clientEventId: note.clientEventId,
+      calendarId: note.calendarId,
+      calendarName: note.calendarName,
       title: note.title,
       detail: note.detail,
       location: note.location,
@@ -2829,7 +2831,15 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   Widget _buildEventDetailBottomActionRow({
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
+    required ValueChanged<DayViewSheetEventTarget> onTargetChanged,
   }) {
+    final calendarLabel = CalendarPage.detailSheetCalendarButtonLabel(
+      target.event,
+    );
+    final calendarEnabled = CalendarPage.canChangeDetailSheetCalendar(
+      target.event,
+    );
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -2838,11 +2848,29 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           target: target,
         ),
         TextButton(
-          onPressed: () => Navigator.pop(sheetContext),
-          child: KemeticGold.text(
-            'Close',
-            style: _landscapeActionTextStyle.copyWith(fontSize: 15),
-          ),
+          onPressed: calendarEnabled
+              ? () async {
+                  final updatedTarget =
+                      await CalendarPage.showDetailSheetCalendarPicker(
+                        context: sheetContext,
+                        target: target,
+                      );
+                  if (!sheetContext.mounted || updatedTarget == null) return;
+                  onTargetChanged(updatedTarget);
+                }
+              : null,
+          child: calendarEnabled
+              ? KemeticGold.text(
+                  calendarLabel,
+                  style: _landscapeActionTextStyle.copyWith(fontSize: 15),
+                )
+              : Text(
+                  calendarLabel,
+                  style: _landscapeActionTextStyle.copyWith(
+                    fontSize: 15,
+                    color: Colors.white24,
+                  ),
+                ),
         ),
       ],
     );
@@ -2994,6 +3022,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                                 _buildEventDetailBottomActionRow(
                                   sheetContext: sheetContext,
                                   target: target,
+                                  onTargetChanged: moveToTarget,
                                 ),
                               ],
                             ),

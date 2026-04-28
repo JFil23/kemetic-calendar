@@ -5,9 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../features/calendar/notify.dart';
 import '../telemetry/telemetry.dart';
-import 'flow_activation_utils.dart';
 
 const _kTable = 'user_events';
+const _kReadableEventsTable = 'user_events_with_calendars';
 
 void _log(String msg) {
   if (kDebugMode) debugPrint('[user_events] $msg');
@@ -16,6 +16,10 @@ void _log(String msg) {
 typedef FlowEventRow = ({
   String? id,
   String? clientEventId,
+  String? calendarId,
+  String? calendarName,
+  int? calendarColor,
+  bool calendarIsPersonal,
   String title,
   String? detail,
   String? location,
@@ -37,6 +41,10 @@ bool _isUuid(String? v) {
 class UserEvent {
   final String id;
   final String? clientEventId;
+  final String? calendarId;
+  final String? calendarName;
+  final int? calendarColor;
+  final bool calendarIsPersonal;
   final String title;
   final String? detail;
   final String? location;
@@ -51,6 +59,10 @@ class UserEvent {
   const UserEvent({
     required this.id,
     this.clientEventId,
+    this.calendarId,
+    this.calendarName,
+    this.calendarColor,
+    this.calendarIsPersonal = true,
     required this.title,
     this.detail,
     this.location,
@@ -71,6 +83,10 @@ class UserEvent {
     return UserEvent(
       id: row['id'] as String,
       clientEventId: row['client_event_id'] as String?,
+      calendarId: row['calendar_id'] as String?,
+      calendarName: row['calendar_name'] as String?,
+      calendarColor: (row['calendar_color'] as num?)?.toInt(),
+      calendarIsPersonal: (row['calendar_is_personal'] as bool?) ?? true,
       title: row['title'] as String,
       detail: row['detail'] as String?,
       location: row['location'] as String?,
@@ -96,6 +112,7 @@ class UserEvent {
     return {
       'user_id': userId,
       'client_event_id': clientEventId,
+      if (calendarId != null) 'calendar_id': calendarId,
       'title': title,
       'detail': detail,
       'location': location,
@@ -109,6 +126,7 @@ class UserEvent {
   Map<String, dynamic> toPatch() {
     return {
       if (clientEventId != null) 'client_event_id': clientEventId,
+      if (calendarId != null) 'calendar_id': calendarId,
       'title': title,
       'detail': detail,
       'location': location,
@@ -124,6 +142,8 @@ class UserEventsRepo {
   UserEventsRepo(this._client);
   final SupabaseClient _client;
   static bool? _telemetryEnabled;
+  static const String _readSelect =
+      'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,updated_at,created_at';
 
   bool get telemetryEnabled => _telemetryEnabled ?? true;
 
@@ -171,12 +191,14 @@ class UserEventsRepo {
     String? clientEventId,
     DateTime? endsAtUtc,
     String? category,
+    String? calendarId,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) throw StateError('No user session. Please sign in.');
 
     final payload = <String, dynamic>{
       'user_id': user.id,
+      if (calendarId != null) 'calendar_id': calendarId,
       'title': title,
       'detail': detail,
       'location': location,
@@ -213,6 +235,7 @@ class UserEventsRepo {
     DateTime? endsAtUtc,
     int? flowLocalId,
     String? category,
+    String? calendarId,
     String? caller,
   }) async {
     final user = _client.auth.currentUser;
@@ -245,6 +268,7 @@ class UserEventsRepo {
     final payload = {
       'user_id': user.id,
       'client_event_id': clientEventId,
+      if (calendarId != null) 'calendar_id': calendarId,
       'title': title,
       'detail': detail,
       'location': location,
@@ -260,8 +284,7 @@ class UserEventsRepo {
     try {
       final row = await _client
           .from(_kTable)
-          // ⬇️ match the DB: unique(user_id, client_event_id)
-          .upsert(payload, onConflict: 'user_id,client_event_id')
+          .upsert(payload, onConflict: 'client_event_id')
           .select()
           .single();
       _log('upsert ✓ id=${row['id']} caller=$callerTag');
@@ -279,6 +302,7 @@ class UserEventsRepo {
   Future<UserEvent> update({
     required String id,
     String? clientEventId,
+    String? calendarId,
     String? title,
     String? detail,
     String? location,
@@ -289,6 +313,7 @@ class UserEventsRepo {
   }) async {
     final patch = <String, dynamic>{};
     if (clientEventId != null) patch['client_event_id'] = clientEventId;
+    if (calendarId != null) patch['calendar_id'] = calendarId;
     if (title != null) patch['title'] = title;
     if (detail != null) patch['detail'] = detail;
     if (location != null) patch['location'] = location;
@@ -339,9 +364,8 @@ class UserEventsRepo {
 
     try {
       final row = await _client
-          .from(_kTable)
-          .select()
-          .eq('user_id', user.id)
+          .from(_kReadableEventsTable)
+          .select(_readSelect)
           .eq('client_event_id', trimmed)
           .maybeSingle();
       if (row == null) return null;
@@ -360,6 +384,7 @@ class UserEventsRepo {
   Future<UserEvent> replace({
     required String id,
     required String clientEventId,
+    String? calendarId,
     required String title,
     String? detail,
     String? location,
@@ -370,6 +395,7 @@ class UserEventsRepo {
   }) async {
     final patch = <String, dynamic>{
       'client_event_id': clientEventId,
+      if (calendarId != null) 'calendar_id': calendarId,
       'title': title,
       'detail': detail,
       'location': location,
@@ -443,6 +469,28 @@ class UserEventsRepo {
         return;
       }
       _log('delete ✗ ${e.code} ${e.message}');
+      rethrow;
+    }
+  }
+
+  Future<void> updateCalendarForFlowEvents({
+    required int flowId,
+    required String calendarId,
+  }) async {
+    final trimmed = calendarId.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError.value(calendarId, 'calendarId', 'Must not be empty.');
+    }
+    final patch = <String, dynamic>{'calendar_id': trimmed};
+    _log('updateCalendarForFlowEvents($flowId) → $patch');
+    try {
+      await _client.from(_kTable).update(patch).eq('flow_local_id', flowId);
+      _log('updateCalendarForFlowEvents ✓ flow=$flowId');
+    } on PostgrestException catch (e) {
+      _log('updateCalendarForFlowEvents ✗ ${e.code} ${e.message}');
+      rethrow;
+    } catch (e) {
+      _log('updateCalendarForFlowEvents ✗ $e');
       rethrow;
     }
   }
@@ -759,7 +807,6 @@ class UserEventsRepo {
         .select(
           'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,flows!left(id,active,end_date)',
         )
-        .eq('user_id', user.id)
         .order('starts_at', ascending: true)
         .limit(limit);
 
@@ -827,6 +874,10 @@ class UserEventsRepo {
       ({
         String? id,
         String? clientEventId,
+        String? calendarId,
+        String? calendarName,
+        int? calendarColor,
+        bool calendarIsPersonal,
         String title,
         String? detail,
         String? location,
@@ -848,11 +899,10 @@ class UserEventsRepo {
 
     try {
       var query = _client
-          .from(_kTable)
+          .from(_kReadableEventsTable)
           .select(
-            'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
+            'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
           )
-          .eq('user_id', user.id)
           .isFilter('flow_local_id', null)
           .gte('starts_at', startUtc.toUtc().toIso8601String())
           .lt('starts_at', endUtc.toUtc().toIso8601String())
@@ -872,6 +922,10 @@ class UserEventsRepo {
         return (
           id: row['id'] as String?,
           clientEventId: row['client_event_id'] as String?,
+          calendarId: row['calendar_id'] as String?,
+          calendarName: row['calendar_name'] as String?,
+          calendarColor: (row['calendar_color'] as num?)?.toInt(),
+          calendarIsPersonal: (row['calendar_is_personal'] as bool?) ?? true,
           title: (row['title'] as String?) ?? '',
           detail: row['detail'] as String?,
           location: row['location'] as String?,
@@ -904,6 +958,10 @@ class UserEventsRepo {
         ({
           String? id,
           String? clientEventId,
+          String? calendarId,
+          String? calendarName,
+          int? calendarColor,
+          bool calendarIsPersonal,
           String title,
           String? detail,
           String? location,
@@ -932,6 +990,10 @@ class UserEventsRepo {
               ({
                 String? id,
                 String? clientEventId,
+                String? calendarId,
+                String? calendarName,
+                int? calendarColor,
+                bool calendarIsPersonal,
                 String title,
                 String? detail,
                 String? location,
@@ -954,11 +1016,10 @@ class UserEventsRepo {
     try {
       while (true) {
         var query = _client
-            .from(_kTable)
+            .from(_kReadableEventsTable)
             .select(
-              'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
+              'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
             )
-            .eq('user_id', user.id)
             .isFilter('flow_local_id', null)
             .gte('starts_at', startUtc.toUtc().toIso8601String())
             .lt('starts_at', endUtc.toUtc().toIso8601String())
@@ -995,6 +1056,10 @@ class UserEventsRepo {
               ({
                 String? id,
                 String? clientEventId,
+                String? calendarId,
+                String? calendarName,
+                int? calendarColor,
+                bool calendarIsPersonal,
                 String title,
                 String? detail,
                 String? location,
@@ -1016,6 +1081,10 @@ class UserEventsRepo {
               ({
                 String? id,
                 String? clientEventId,
+                String? calendarId,
+                String? calendarName,
+                int? calendarColor,
+                bool calendarIsPersonal,
                 String title,
                 String? detail,
                 String? location,
@@ -1037,6 +1106,10 @@ class UserEventsRepo {
       ({
         String? id,
         String? clientEventId,
+        String? calendarId,
+        String? calendarName,
+        int? calendarColor,
+        bool calendarIsPersonal,
         String title,
         String? detail,
         String? location,
@@ -1063,6 +1136,10 @@ class UserEventsRepo {
       events.add((
         id: row['id'] as String?,
         clientEventId: row['client_event_id'] as String?,
+        calendarId: row['calendar_id'] as String?,
+        calendarName: row['calendar_name'] as String?,
+        calendarColor: (row['calendar_color'] as num?)?.toInt(),
+        calendarIsPersonal: (row['calendar_is_personal'] as bool?) ?? true,
         title: (row['title'] as String?) ?? '',
         detail: row['detail'] as String?,
         location: row['location'] as String?,
@@ -1266,11 +1343,8 @@ class UserEventsRepo {
     if (user == null) return [];
 
     var query = _client
-        .from(_kTable)
-        .select(
-          'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,updated_at,created_at',
-        )
-        .eq('user_id', user.id)
+        .from(_kReadableEventsTable)
+        .select(_readSelect)
         .gte('starts_at', startUtc.toUtc().toIso8601String())
         .lte('starts_at', endUtc.toUtc().toIso8601String())
         .order('starts_at', ascending: true);
@@ -1293,19 +1367,10 @@ class UserEventsRepo {
   }) async {
     try {
       var query = _client
-          .from('user_events')
-          .select('''
-            id,
-            client_event_id,
-            title,
-            detail,
-            location,
-            all_day,
-            starts_at,
-            ends_at,
-            flow_local_id,
-            category
-          ''')
+          .from(_kReadableEventsTable)
+          .select(
+            'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
+          )
           .eq('flow_local_id', flowId);
 
       if (startUtc != null) {
@@ -1321,6 +1386,10 @@ class UserEventsRepo {
         return (
           id: row['id'] as String?,
           clientEventId: row['client_event_id'] as String?,
+          calendarId: row['calendar_id'] as String?,
+          calendarName: row['calendar_name'] as String?,
+          calendarColor: (row['calendar_color'] as num?)?.toInt(),
+          calendarIsPersonal: (row['calendar_is_personal'] as bool?) ?? true,
           title: (row['title'] as String?) ?? '',
           detail: row['detail'] as String?,
           location: row['location'] as String?,
@@ -1363,11 +1432,10 @@ class UserEventsRepo {
     try {
       while (true) {
         var query = _client
-            .from('user_events')
+            .from(_kReadableEventsTable)
             .select(
-              'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
+              'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
             )
-            .eq('user_id', user.id)
             .inFilter('flow_local_id', ids);
 
         if (startUtc != null) {
@@ -1385,6 +1453,10 @@ class UserEventsRepo {
           return (
             id: row['id'] as String?,
             clientEventId: row['client_event_id'] as String?,
+            calendarId: row['calendar_id'] as String?,
+            calendarName: row['calendar_name'] as String?,
+            calendarColor: (row['calendar_color'] as num?)?.toInt(),
+            calendarIsPersonal: (row['calendar_is_personal'] as bool?) ?? true,
             title: (row['title'] as String?) ?? '',
             detail: row['detail'] as String?,
             location: row['location'] as String?,
@@ -1602,57 +1674,13 @@ class UserEventsRepo {
         .eq('client_event_id', clientEventId);
   }
 
-  Future<void> _initializeFlowDayProgressIfNeeded({
-    required int flowId,
-    required List<dynamic> rulesJson,
-    int? flowLengthDays,
-    DateTime? startDate,
-    DateTime? endDate,
-  }) async {
-    final user = _client.auth.currentUser;
-    if (user == null) return;
-    final normalizedStart = normalizeDateOnly(startDate);
-    final resolvedLength = inferFlowLengthDays(
-      explicitLength: flowLengthDays,
-      startDate: startDate,
-      endDate: endDate,
-      rules: rulesJson,
-    );
-    if (normalizedStart == null ||
-        resolvedLength == null ||
-        resolvedLength <= 0) {
-      return;
-    }
-
-    final rows = List.generate(resolvedLength, (index) {
-      final localDate = normalizedStart.add(Duration(days: index));
-      final yyyy = localDate.year.toString().padLeft(4, '0');
-      final mm = localDate.month.toString().padLeft(2, '0');
-      final dd = localDate.day.toString().padLeft(2, '0');
-      return <String, dynamic>{
-        'user_id': user.id,
-        'flow_id': flowId,
-        'local_date': '$yyyy-$mm-$dd',
-        'flow_day_index': index + 1,
-      };
-    });
-
-    try {
-      await _client
-          .from('flow_day_progress')
-          .upsert(rows, onConflict: 'user_id,flow_id,local_date');
-    } catch (e, st) {
-      _log('flow_day_progress init ✗ $e');
-      _log('$st');
-    }
-  }
-
   /// Upsert a flow (jsonb rules). Returns server id.
   Future<int> upsertFlow({
     int? id,
     required String name,
     required int color,
     required bool active,
+    String? calendarId,
     DateTime? startDate,
     DateTime? endDate,
     String? notes,
@@ -1667,44 +1695,19 @@ class UserEventsRepo {
     String? originShareId,
     String? originGenerationId,
     int? rootFlowId,
-    int? flowLengthDays,
-    String? vowText,
-    String? intentionDomain,
-    String? intentionText,
-    String? obstacleText,
-    String? intensity,
-    int? dailyTimeBudgetMinutes,
-    String? preferredTimeOfDay,
-    String? decanTemplateKey,
-    String? startKemeticDecanName,
-    int? startKemeticDay,
-    String? firstFlowType,
-    String? watchType,
-    String? orderPractice,
-    bool? isFirstWatch,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
       throw StateError('No user session');
     }
 
-    final decodedRules = jsonDecode(rules);
-    final rulesJson = decodedRules is List<dynamic>
-        ? decodedRules
-        : <dynamic>[];
-    final resolvedFlowLengthDays = inferFlowLengthDays(
-      explicitLength: flowLengthDays,
-      startDate: startDate,
-      endDate: endDate,
-      rules: rulesJson,
-    );
-
     final payload = <String, dynamic>{
       'user_id': user.id,
+      if (calendarId != null) 'calendar_id': calendarId,
       'name': name,
       'color': (color & 0x00FFFFFF), // 24-bit guard
       'active': active,
-      'rules': rulesJson,
+      'rules': jsonDecode(rules),
       'is_hidden': isHidden,
     };
     if (startDate != null) payload['start_date'] = startDate.toIso8601String();
@@ -1721,7 +1724,6 @@ class UserEventsRepo {
       'profile_import',
       'fork',
       'template',
-      'saved_import',
     };
     if (originType != null && allowedOriginTypes.contains(originType.trim())) {
       payload['origin_type'] = originType.trim();
@@ -1738,60 +1740,6 @@ class UserEventsRepo {
     if (rootFlowId != null && rootFlowId > 0) {
       payload['root_flow_id'] = rootFlowId;
     }
-    if (resolvedFlowLengthDays != null) {
-      payload['flow_length_days'] = resolvedFlowLengthDays;
-    }
-    final normalizedVow = normalizeFlowText(vowText);
-    if (normalizedVow != null) payload['vow_text'] = normalizedVow;
-    final normalizedDomain = normalizeFlowText(intentionDomain);
-    if (normalizedDomain != null) {
-      payload['intention_domain'] = normalizedDomain;
-    }
-    final normalizedIntention = normalizeFlowText(intentionText);
-    if (normalizedIntention != null) {
-      payload['intention_text'] = normalizedIntention;
-    }
-    final normalizedObstacle = normalizeFlowText(obstacleText);
-    if (normalizedObstacle != null) {
-      payload['obstacle_text'] = normalizedObstacle;
-    }
-    final normalizedIntensity = normalizeFlowText(intensity);
-    if (normalizedIntensity != null) payload['intensity'] = normalizedIntensity;
-    if (dailyTimeBudgetMinutes != null && dailyTimeBudgetMinutes > 0) {
-      payload['daily_time_budget_minutes'] = dailyTimeBudgetMinutes;
-    }
-    final normalizedTimeOfDay = normalizeFlowText(preferredTimeOfDay);
-    if (normalizedTimeOfDay != null) {
-      payload['preferred_time_of_day'] = normalizedTimeOfDay;
-    }
-    final normalizedDecanTemplateKey = normalizeFlowText(decanTemplateKey);
-    if (normalizedDecanTemplateKey != null) {
-      payload['decan_template_key'] = normalizedDecanTemplateKey;
-    }
-    final normalizedStartDecanName = normalizeFlowText(startKemeticDecanName);
-    if (normalizedStartDecanName != null) {
-      payload['start_kemetic_decan_name'] = normalizedStartDecanName;
-    }
-    if (startKemeticDay != null &&
-        startKemeticDay >= 1 &&
-        startKemeticDay <= 10) {
-      payload['start_kemetic_day'] = startKemeticDay;
-    }
-    final normalizedFirstFlowType = normalizeFlowText(firstFlowType);
-    if (normalizedFirstFlowType != null) {
-      payload['first_flow_type'] = normalizedFirstFlowType;
-    }
-    final normalizedWatchType = normalizeFlowText(watchType);
-    if (normalizedWatchType != null) {
-      payload['watch_type'] = normalizedWatchType;
-    }
-    final normalizedOrderPractice = normalizeFlowText(orderPractice);
-    if (normalizedOrderPractice != null) {
-      payload['order_practice'] = normalizedOrderPractice;
-    }
-    if (isFirstWatch != null) {
-      payload['is_first_watch'] = isFirstWatch;
-    }
 
     try {
       if (id == null || id <= 0) {
@@ -1800,15 +1748,7 @@ class UserEventsRepo {
             .insert(payload)
             .select('id')
             .single();
-        final savedId = (inserted['id'] as num).toInt();
-        await _initializeFlowDayProgressIfNeeded(
-          flowId: savedId,
-          rulesJson: rulesJson,
-          flowLengthDays: resolvedFlowLengthDays,
-          startDate: startDate,
-          endDate: endDate,
-        );
-        return savedId;
+        return (inserted['id'] as num).toInt();
       } else {
         final patch = Map<String, dynamic>.from(payload)..remove('user_id');
         final updated = await _client
@@ -1817,15 +1757,7 @@ class UserEventsRepo {
             .eq('id', id)
             .select('id')
             .single();
-        final savedId = (updated['id'] as num).toInt();
-        await _initializeFlowDayProgressIfNeeded(
-          flowId: savedId,
-          rulesJson: rulesJson,
-          flowLengthDays: resolvedFlowLengthDays,
-          startDate: startDate,
-          endDate: endDate,
-        );
-        return savedId;
+        return (updated['id'] as num).toInt();
       }
     } on PostgrestException catch (e, st) {
       _log('upsertFlow ✗ ${e.code} ${e.message}');
@@ -1867,6 +1799,8 @@ class UserEventsRepo {
     List<
       ({
         int id,
+        String? userId,
+        String? calendarId,
         String name,
         int color,
         bool active,
@@ -1887,15 +1821,16 @@ class UserEventsRepo {
     if (user == null) return [];
 
     final res = await _client
-        .from('flows')
+        .from('flows_with_calendars')
         .select()
-        .eq('user_id', user.id)
         .order('created_at', ascending: false);
 
     return (res as List)
         .map(
           (row) => (
             id: (row['id'] as num).toInt(),
+            userId: row['user_id'] as String?,
+            calendarId: row['calendar_id'] as String?,
             name: row['name'] as String,
             color: (row['color'] as num).toInt(),
             active: row['active'] as bool,

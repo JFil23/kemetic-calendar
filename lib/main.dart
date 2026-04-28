@@ -348,9 +348,17 @@ class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
 
 /* ───────────────────────── Router Configuration ───────────────────────── */
 
+String _resolveInitialLocation() {
+  final defaultRoute = PlatformDispatcher.instance.defaultRouteName.trim();
+  if (defaultRoute.isEmpty || defaultRoute == Navigator.defaultRouteName) {
+    return '/';
+  }
+  return defaultRoute.startsWith('/') ? defaultRoute : '/$defaultRoute';
+}
+
 final _router = GoRouter(
   navigatorKey: _rootNavigatorKey,
-  initialLocation: '/',
+  initialLocation: _resolveInitialLocation(),
   observers: <NavigatorObserver>[routeObserver, TelemetryRouteObserver()],
   routes: [
     GoRoute(path: '/', builder: (context, state) => const AuthGate()),
@@ -559,6 +567,14 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
         'sender_id': params['sender_id'] ?? params['senderId'],
       if (_trimmedValue(params['share_id'] ?? params['shareId']) != null)
         'share_id': params['share_id'] ?? params['shareId'],
+      if (_trimmedValue(params['calendar_id'] ?? params['calendarId']) != null)
+        'calendar_id': params['calendar_id'] ?? params['calendarId'],
+      if (_trimmedValue(
+            params['notification_id'] ?? params['notificationId'],
+          ) !=
+          null)
+        'notification_id':
+            params['notification_id'] ?? params['notificationId'],
       if (_trimmedValue(
             params['response_status'] ?? params['responseStatus'],
           ) !=
@@ -725,6 +741,11 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       } else {
         nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
       }
+      return true;
+    }
+
+    if (kind == 'calendar_invite' || kind == 'calendar_invite_response') {
+      nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
       return true;
     }
 

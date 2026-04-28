@@ -139,9 +139,8 @@ class Notify {
       if (userId == null) return null;
 
       final row = await client
-          .from('user_events')
+          .from('user_events_with_calendars')
           .select('title')
-          .eq('user_id', userId)
           .eq('client_event_id', clientEventId)
           .maybeSingle();
       final title = (row?['title'] as String?)?.trim();
@@ -657,9 +656,8 @@ class Notify {
       for (int i = 0; i < ids.length; i += batchSize) {
         final batch = ids.skip(i).take(batchSize).toList();
         final rows = await client
-            .from('user_events')
+            .from('user_events_with_calendars')
             .select('client_event_id')
-            .eq('user_id', userId)
             .inFilter('client_event_id', batch);
         for (final row in (rows as List).cast<Map<String, dynamic>>()) {
           final cid = row['client_event_id'] as String?;

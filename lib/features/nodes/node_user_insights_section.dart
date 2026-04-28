@@ -182,48 +182,22 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final addInsightButton = TextButton.icon(
+        Row(
+          children: [
+            KemeticGold.text(
+              'Your Insights',
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+            const Spacer(),
+            TextButton.icon(
               onPressed: () => _openEditor(),
               icon: const Icon(Icons.add, color: KemeticGold.base, size: 18),
               label: const Text(
                 'Add Insight',
                 style: TextStyle(color: Colors.white),
               ),
-            );
-            if (constraints.maxWidth < 420) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  KemeticGold.text(
-                    'Your Insights',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  addInsightButton,
-                ],
-              );
-            }
-            return Row(
-              children: [
-                Expanded(
-                  child: KemeticGold.text(
-                    'Your Insights',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                addInsightButton,
-              ],
-            );
-          },
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         Text(

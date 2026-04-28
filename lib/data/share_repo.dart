@@ -2343,6 +2343,28 @@ class ShareRepo {
     }
   }
 
+  Future<bool> markInboxItemViewed(InboxShareItem item) async {
+    switch (item.kind) {
+      case InboxShareKind.flow:
+      case InboxShareKind.message:
+        return markViewed(item.shareId, isFlow: true);
+      case InboxShareKind.event:
+        return markViewed(item.shareId, isFlow: false);
+      case InboxShareKind.calendar:
+        try {
+          return await _updateShareRow(
+            table: 'shared_calendar_notifications',
+            shareId: item.shareId,
+            roleColumn: 'recipient_id',
+            values: {'viewed_at': DateTime.now().toUtc().toIso8601String()},
+          );
+        } catch (e) {
+          _log('[ShareRepo] Error marking calendar notification as viewed: $e');
+          return false;
+        }
+    }
+  }
+
   /// Mark a share as imported
   Future<bool> markImported(String shareId, {required bool isFlow}) async {
     try {
@@ -2473,8 +2495,12 @@ class ShareRepo {
         ? rows
         : rows
               .where((row) {
+                final kind = (row['kind'] as String?)?.trim();
                 final senderId = row['sender_id'] as String?;
                 final recipientId = row['recipient_id'] as String?;
+                if (kind == 'calendar') {
+                  return recipientId == uid;
+                }
                 return senderId == uid || recipientId == uid;
               })
               .toList(growable: false);
@@ -2651,6 +2677,17 @@ class ShareRepo {
         ),
         callback: (_) => scheduleRefresh(),
       )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'shared_calendar_notifications',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'recipient_id',
+          value: uid,
+        ),
+        callback: (_) => scheduleRefresh(),
+      )
       ..subscribe((status, [error]) {
         if (kDebugMode) {
           debugPrint(
@@ -2732,6 +2769,17 @@ class ShareRepo {
         ),
         callback: (_) => refreshUnreadCount(),
       )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'shared_calendar_notifications',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'recipient_id',
+          value: uid,
+        ),
+        callback: (_) => refreshUnreadCount(),
+      )
       ..subscribe();
 
     refreshUnreadCount();
@@ -2776,6 +2824,17 @@ class _InboxUnreadTracker {
         event: PostgresChangeEvent.all,
         schema: 'public',
         table: 'event_shares',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'recipient_id',
+          value: _uid,
+        ),
+        callback: (_) => scheduleRefresh(),
+      )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'shared_calendar_notifications',
         filter: PostgresChangeFilter(
           type: PostgresChangeFilterType.eq,
           column: 'recipient_id',

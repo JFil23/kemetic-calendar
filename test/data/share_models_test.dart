@@ -247,6 +247,32 @@ void main() {
       expect(item.title, 'Bring candles');
     });
 
+    test('parses shared calendar notifications', () {
+      final item = InboxShareItem.fromJson({
+        'share_id': 'share-8',
+        'kind': 'calendar',
+        'recipient_id': 'recipient-1',
+        'sender_id': 'sender-8',
+        'sender_handle': 'scribe',
+        'sender_name': 'Scribe',
+        'payload_id': 'calendar-1',
+        'title': 'Phillips\'',
+        'created_at': '2026-04-16T00:00:00Z',
+        'payload_json': {
+          'notification_kind': 'calendar_invite',
+          'calendar_name': 'Phillips\'',
+          'body': 'You were invited to join this calendar.',
+          'calendar_color': 13807415,
+        },
+      });
+
+      expect(item.kind, InboxShareKind.calendar);
+      expect(item.isCalendarInviteNotification, isTrue);
+      expect(item.calendarName, 'Phillips\'');
+      expect(item.calendarBody, 'You were invited to join this calendar.');
+      expect(item.calendarColorValue, 13807415);
+    });
+
     test('tryFromJson drops malformed rows instead of throwing', () {
       final item = InboxShareItem.tryFromJson({
         'kind': 'flow',
