@@ -73,6 +73,7 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage>
     with SingleTickerProviderStateMixin {
   static const double _feedRevealViewportThreshold = 0.74;
+  static const double _feedPullToCloseThreshold = 96;
   final _repo = ProfileRepo(Supabase.instance.client);
   late final PageController _postPageController;
   late final PageController _insightPostPageController;
@@ -94,10 +95,12 @@ class _ProfilePageState extends State<ProfilePage>
   bool _feedLoadingMore = false;
   bool _feedHasMore = true;
   bool _showGregorianFeedDates = false;
+  bool _feedCloseInFlight = false;
   int _activePostIndex = 0;
   int _activeInsightPostIndex = 0;
   bool _calendarRevealNavigationInFlight = false;
   int _profileLoadSerial = 0;
+  double _feedTopPullDistance = 0;
 
   bool get _isViewingOwnProfile {
     final currentId = Supabase.instance.client.auth.currentUser?.id;
@@ -287,16 +290,64 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> _revealFeed() async {
-    if (_feedRevealed) return;
+    if (_feedRevealed || _feedCloseInFlight) return;
+    _feedTopPullDistance = 0;
     setState(() => _feedRevealed = true);
-    _feedBloomController.forward(from: 0);
+    unawaited(_feedBloomController.forward(from: 0));
     await _loadFeedPage(reset: true);
   }
 
-  void _closeFeed() {
-    if (!_feedRevealed) return;
-    _feedBloomController.reset();
+  Future<void> _closeFeed() async {
+    if (!_feedRevealed || _feedCloseInFlight) return;
+    _feedCloseInFlight = true;
+    _feedTopPullDistance = 0;
+    await _feedBloomController.reverse(from: _feedBloomController.value);
+    if (!mounted) return;
+    _feedCloseInFlight = false;
     setState(() => _feedRevealed = false);
+  }
+
+  void _updateFeedPullDistance(double pullDistance) {
+    _feedTopPullDistance = pullDistance.clamp(0.0, _feedPullToCloseThreshold);
+  }
+
+  bool _handleFeedScrollNotification(ScrollNotification notification) {
+    if (!_feedRevealed || _feedCloseInFlight) return false;
+    if (notification.metrics.axis != Axis.vertical) return false;
+    if (notification.depth != 0) return false;
+
+    switch (notification) {
+      case ScrollStartNotification():
+        _feedTopPullDistance = 0;
+        return false;
+      case ScrollUpdateNotification():
+        final pullDistance = math.max(
+          0.0,
+          notification.metrics.minScrollExtent - notification.metrics.pixels,
+        );
+        if (pullDistance > 0) {
+          _updateFeedPullDistance(pullDistance);
+        }
+        return false;
+      case OverscrollNotification():
+        final atTop =
+            notification.metrics.pixels <=
+            notification.metrics.minScrollExtent + 0.5;
+        if (!atTop) return false;
+        _updateFeedPullDistance(
+          _feedTopPullDistance + notification.overscroll.abs(),
+        );
+        return false;
+      case ScrollEndNotification():
+        if (_feedTopPullDistance >= _feedPullToCloseThreshold) {
+          unawaited(_closeFeed());
+        } else {
+          _feedTopPullDistance = 0;
+        }
+        return false;
+      default:
+        return false;
+    }
   }
 
   void _toggleFeedDateMode() {
@@ -527,7 +578,9 @@ class _ProfilePageState extends State<ProfilePage>
             IconButton(
               tooltip: 'Profile',
               icon: _profileGoldIcon(Icons.person),
-              onPressed: _closeFeed,
+              onPressed: () {
+                unawaited(_closeFeed());
+              },
             )
           else if (!_isViewingOwnProfile)
             IconButton(
@@ -669,17 +722,22 @@ class _ProfilePageState extends State<ProfilePage>
   Widget _buildFeedMode() {
     final topInset = MediaQuery.paddingOf(context).top + kToolbarHeight;
 
-    return SingleChildScrollView(
-      controller: _feedScrollController,
-      physics: const BouncingScrollPhysics(),
-      padding: EdgeInsets.fromLTRB(20, topInset + 18, 20, 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildFeedHeader(),
-          const SizedBox(height: 18),
-          _buildFeedBloomPanel(),
-        ],
+    return NotificationListener<ScrollNotification>(
+      onNotification: _handleFeedScrollNotification,
+      child: SingleChildScrollView(
+        controller: _feedScrollController,
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        padding: EdgeInsets.fromLTRB(20, topInset + 18, 20, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildFeedHeader(),
+            const SizedBox(height: 18),
+            _buildFeedBloomPanel(),
+          ],
+        ),
       ),
     );
   }
@@ -1632,24 +1690,57 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildFeedHeader() {
-    return Column(
-      key: const ValueKey('feed_header'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _profileGoldTextWidget(
-          'Community Feed',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Flows and insights from the people you follow, plus the wider field.',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.62),
-            fontSize: 13,
-            height: 1.3,
+    return AnimatedBuilder(
+      animation: _feedBloomController,
+      builder: (context, child) {
+        final opacity = Curves.easeOutCubic.transform(
+          _feedBloomController.value.clamp(0.0, 1.0),
+        );
+        final y = (1 - opacity) * 18;
+        return Opacity(
+          opacity: opacity,
+          child: Transform.translate(offset: Offset(0, y), child: child),
+        );
+      },
+      child: Column(
+        key: const ValueKey('feed_header'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _profileGoldTextWidget(
+            'Community Feed',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
-        ),
-      ],
+          const SizedBox(height: 4),
+          Text(
+            'Flows and insights from the people you follow, plus the wider field.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.62),
+              fontSize: 13,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: _profileGoldText.withValues(alpha: 0.8),
+                size: 18,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Pull down at the top to return to profile',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.54),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
