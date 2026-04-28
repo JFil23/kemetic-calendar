@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/user_events_repo.dart';
+import '../../data/flow_activation_utils.dart';
 import '../../data/flows_repo.dart';
+import '../../data/flow_progress_repo.dart';
 import 'package:mobile/features/calendar/notify.dart';
 import 'package:flutter/rendering.dart';
 import '../../data/note_category.dart';
@@ -27,10 +29,8 @@ import '../../main.dart' show routeObserver, Events;
 import '../sharing/share_flow_sheet.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
-import '../../widgets/inbox_icon_with_badge.dart';
 import '../ai_generation/ai_flow_generation_modal.dart';
 import '../ai_generation/ai_flow_import_payload.dart';
-import '../../services/ai_flow_generation_service.dart';
 import '../../models/ai_flow_generation_response.dart';
 import '../../services/ai_reflection_service.dart';
 import '../../data/decan_reflection_repo.dart';
@@ -88,6 +88,8 @@ import '../onboarding/onboarding_overlay.dart';
 import '../onboarding/onboarding_storage.dart';
 import '../rhythm/data/planner_badge_repo.dart';
 import '../rhythm/pages/todays_alignment_page.dart';
+import '../rhythm/theme/rhythm_theme.dart';
+import '../rhythm/widgets/flow_tracker_card.dart';
 
 typedef _QuickAddParse = ({
   DateTime date,
@@ -4734,6 +4736,9 @@ class _CalendarPageState extends State<CalendarPage>
   late final DecanReflectionRepo _decanReflectionRepo = DecanReflectionRepo(
     Supabase.instance.client,
   );
+  late final FlowProgressRepo _flowProgressRepo = FlowProgressRepo(
+    Supabase.instance.client,
+  );
   late final AIReflectionService _aiReflectionService = AIReflectionService(
     Supabase.instance.client,
   );
@@ -6797,7 +6802,13 @@ class _CalendarPageState extends State<CalendarPage>
       // With flow-backed reminders, hydrate from flows instead of reminder meta events.
       final repo = UserEventsRepo(Supabase.instance.client);
       final flows = await repo.getAllFlows();
-      final reminderFlows = flows.where((f) => f.isReminder).toList();
+      final reminderFlows = flows.where((f) {
+        return looksLikeReminderMetadata(
+          f.notes,
+          isReminder: f.isReminder,
+          reminderUuid: f.reminderUuid,
+        );
+      }).toList();
       if (reminderFlows.isEmpty) return const [];
 
       final List<ReminderRule> rebuilt = [];
@@ -11373,6 +11384,16 @@ class _CalendarPageState extends State<CalendarPage>
 
   Future<void> openQuickAddFromOutside() => _openQuickAddSheet();
 
+  Future<void> openJournalFromOutside() => _openJournalFromAppBar();
+
+  Future<void> refreshCalendarDataFromOutside() async {
+    await _loadFromDisk();
+    if (mounted) {
+      setState(() {});
+      _notifyDayViewDataChanged();
+    }
+  }
+
   void jumpToTodayFromOutside({bool animate = true}) =>
       _scrollToToday(animate: animate);
 
@@ -11746,10 +11767,29 @@ class _CalendarPageState extends State<CalendarPage>
     UiGuards.enableJournalSwipe();
   }
 
+  Future<void> _prepareMyFlowsViewerData() async {
+    if (_flows.isEmpty && !_isLoadingFromDisk) {
+      await _loadFromDisk();
+    }
+    try {
+      await _flowProgressRepo.loadActiveTrackers();
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[MyFlows] tracker prewarm failed: $e');
+        debugPrint('$st');
+      }
+    }
+  }
+
   // Directly open My Flows list (no Flow Hub chooser).
-  void _openMyFlowsList({int? initialFlowId}) {
+  Future<void> _openMyFlowsList({int? initialFlowId}) async {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_prepareMyFlowsViewerData());
+    });
     final isTab = _isTablet(context);
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -11783,7 +11823,13 @@ class _CalendarPageState extends State<CalendarPage>
                       }
 
                       return _FlowsViewerPage(
-                        flows: _flows,
+                        getFlows: () => _flows,
+                        getNoteBuckets: () => _notes,
+                        dataVersionListenable: _dayViewDataVersion,
+                        maatTemplates: kMaatFlowTemplates,
+                        hasActiveMaatForKey: _hasActiveMaatInstanceFor,
+                        onPickMaatTemplate: (tpl) =>
+                            _pushMaatTemplateDetail(nav: nav, template: tpl),
                         fmtGregorian: (d) => d == null
                             ? '--'
                             : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
@@ -11834,12 +11880,28 @@ class _CalendarPageState extends State<CalendarPage>
 
   /// Public entrypoint so other screens (e.g., Profile) can open Flow Studio's
   /// "My Flows" viewer without duplicating UI.
-  Future<void> openMyFlowsFromOutside() async {
+  Future<void> openMyFlowsFromOutside({int? initialFlowId}) async {
+    if (initialFlowId != null) {
+      _openFlowEditorDirectly(initialFlowId);
+      return;
+    }
+    await _openMyFlowsList();
+  }
+
+  Future<void> shareFlowFromOutside(int flowId) async {
     if (_flows.isEmpty && !_isLoadingFromDisk) {
       await _loadFromDisk();
     }
     if (!mounted) return;
-    _openMyFlowsList();
+    final matches = _flows.where((flow) => flow.id == flowId);
+    if (matches.isEmpty) return;
+    final flow = matches.first;
+    await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ShareFlowSheet(flowId: flow.id, flowTitle: flow.name),
+    );
   }
 
   // Manage Flows callback: jump straight to My Flows (or specific flow editor if id provided).
@@ -11850,140 +11912,18 @@ class _CalendarPageState extends State<CalendarPage>
         _openFlowEditorDirectly(flowId);
         return;
       }
-      _openMyFlowsList();
+      unawaited(_openMyFlowsList());
     };
   }
 
-  // Flow Studio callback that opens the Flow Hub (same as main calendar)
+  // Flow Studio callback that lands directly on My Flows.
   void Function(int? flowId) _getFlowStudioCallback() {
     return (int? flowId) {
-      // If flowId provided, go directly to that flow
       if (flowId != null) {
         _openFlowEditorDirectly(flowId);
         return;
       }
-
-      // Otherwise open Flow Hub as before
-      _openFlowStudioSheet(
-        rootBuilder: (innerCtx) {
-          return _FlowHubPage(
-            openMyFlows: () {
-              Navigator.of(innerCtx).push(
-                MaterialPageRoute(
-                  builder: (ctx2) => _FlowsViewerPage(
-                    flows: _flows,
-                    fmtGregorian: (d) => d == null
-                        ? '--'
-                        : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
-                    onCreateNew: () async {
-                      final edited = await Navigator.of(innerCtx)
-                          .push<_FlowStudioResult>(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  _FlowStudioPage(existingFlows: _flows),
-                            ),
-                          );
-                      if (edited != null)
-                        await _persistFlowStudioResult(edited);
-                      // ✅ Refresh calendar data after flow operations
-                      await _loadFromDisk();
-                    },
-                    onEditFlow: (id) async {
-                      final edited = await Navigator.of(innerCtx)
-                          .push<_FlowStudioResult>(
-                            MaterialPageRoute(
-                              builder: (_) => _FlowStudioPage(
-                                existingFlows: _flows,
-                                editFlowId: id,
-                              ),
-                            ),
-                          );
-                      if (edited != null)
-                        await _persistFlowStudioResult(edited);
-                      // ✅ Refresh calendar data after flow operations
-                      await _loadFromDisk();
-                    },
-                    onEndFlow: (id) => _endFlow(id),
-                    onImportFlow: (importedFlowId) async {
-                      if (importedFlowId != null) {
-                        await _loadFromDisk();
-                      }
-                    },
-                    onAppendToJournal: _journalInitialized
-                        ? (text) => _journalController.appendToToday(text)
-                        : null,
-                  ),
-                ),
-              );
-            },
-            openMaatFlows: () {
-              Navigator.of(innerCtx).push(
-                MaterialPageRoute(
-                  builder: (ctx3) => _MaatFlowsListPage(
-                    title: 'ḥꜣw',
-                    templates: kMaatFlowTemplates,
-                    hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
-                    onPickTemplate: (tpl) async {
-                      final importedFlowId = await Navigator.of(ctx3)
-                          .push<int?>(
-                            MaterialPageRoute(
-                              builder: (ctx4) => _MaatFlowTemplateDetailPage(
-                                template: tpl,
-                                addInstance:
-                                    ({
-                                      required _MaatFlowTemplate template,
-                                      DateTime? startDate,
-                                      bool? useKemetic,
-                                      TrackSkyTimeZone? trackSkyTimeZone,
-                                      int? alertMinutesBefore,
-                                    }) async {
-                                      final id = await _addMaatFlowInstance(
-                                        template: template,
-                                        startDate: startDate,
-                                        useKemetic: useKemetic ?? false,
-                                        trackSkyTimeZone: trackSkyTimeZone,
-                                        alertMinutesBefore:
-                                            alertMinutesBefore ??
-                                            _alertNoneMinutes,
-                                      );
-                                      return id;
-                                    },
-                              ),
-                            ),
-                          );
-                      if (importedFlowId != null &&
-                          importedFlowId > 0 &&
-                          ctx3.mounted) {
-                        Navigator.of(ctx3).pop(importedFlowId);
-                      }
-                    },
-                    onCreateNew: () async {
-                      final edited = await Navigator.of(innerCtx)
-                          .push<_FlowStudioResult>(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  _FlowStudioPage(existingFlows: _flows),
-                            ),
-                          );
-                      if (edited != null)
-                        await _persistFlowStudioResult(edited);
-                    },
-                  ),
-                ),
-              );
-            },
-            onCreateNew: () async {
-              final edited = await Navigator.of(innerCtx)
-                  .push<_FlowStudioResult>(
-                    MaterialPageRoute(
-                      builder: (_) => _FlowStudioPage(existingFlows: _flows),
-                    ),
-                  );
-              if (edited != null) await _persistFlowStudioResult(edited);
-            },
-          );
-        },
-      );
+      unawaited(_openMyFlowsList());
     };
   }
 
@@ -12003,7 +11943,15 @@ class _CalendarPageState extends State<CalendarPage>
     _openFlowStudioSheet(
       rootBuilder: (innerCtx) {
         return _FlowsViewerPage(
-          flows: _flows,
+          getFlows: () => _flows,
+          getNoteBuckets: () => _notes,
+          dataVersionListenable: _dayViewDataVersion,
+          maatTemplates: kMaatFlowTemplates,
+          hasActiveMaatForKey: _hasActiveMaatInstanceFor,
+          onPickMaatTemplate: (tpl) => _pushMaatTemplateDetail(
+            nav: Navigator.of(innerCtx),
+            template: tpl,
+          ),
           fmtGregorian: (d) => d == null
               ? '--'
               : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
@@ -12043,6 +11991,36 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   /* ─────────── Ma’at Flows helpers ─────────── */
+
+  Future<int?> _pushMaatTemplateDetail({
+    required NavigatorState nav,
+    required _MaatFlowTemplate template,
+  }) {
+    return nav.push<int?>(
+      MaterialPageRoute(
+        builder: (_) => _MaatFlowTemplateDetailPage(
+          template: template,
+          addInstance:
+              ({
+                required _MaatFlowTemplate template,
+                DateTime? startDate,
+                bool? useKemetic,
+                TrackSkyTimeZone? trackSkyTimeZone,
+                int? alertMinutesBefore,
+              }) async {
+                final id = await _addMaatFlowInstance(
+                  template: template,
+                  startDate: startDate,
+                  useKemetic: useKemetic ?? false,
+                  trackSkyTimeZone: trackSkyTimeZone,
+                  alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
+                );
+                return id;
+              },
+        ),
+      ),
+    );
+  }
 
   /// True if there is at least one *active* instance of template [tplKey]
   /// with any remaining day today or in the future.
@@ -12789,12 +12767,30 @@ class _CalendarPageState extends State<CalendarPage>
     required DateTime completedOnDate,
   }) async {
     final repo = UserEventsRepo(Supabase.instance.client);
+    final progressRepo = FlowProgressRepo(Supabase.instance.client);
     try {
       await repo.recordEventCompletion(
         clientEventId: clientEventId,
         flowId: flowId,
         completedOnDate: completedOnDate,
       );
+      final event = await repo.getEventByClientEventId(clientEventId);
+      final category = event?.category?.trim().toLowerCase() ?? '';
+      final title = event?.title.trim().toLowerCase() ?? '';
+      final detail = event?.detail?.trim().toLowerCase() ?? '';
+      final reflectionEvent =
+          category == 'reflection' ||
+          (category != 'flow_action' &&
+              (title.contains('reflection') ||
+                  title.contains('journal') ||
+                  detail.contains('reflection') ||
+                  detail.contains('seal the day in your journal')));
+      if (!reflectionEvent) {
+        await progressRepo.markPrimaryEventCompleted(
+          flowId: flowId,
+          completedOnDate: completedOnDate,
+        );
+      }
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[DayView] recordEventCompletion failed: $e');
@@ -15095,13 +15091,13 @@ class _CalendarPageState extends State<CalendarPage>
       // 1) Load reminder rules + schedule their instances, then load flows/events
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
-        _requestStartupRun(reason: 'init').then((_) {
+        _requestStartupRun(reason: 'init').then((_) async {
           final targetFlowId = widget.initialFlowIdToEdit;
           if (!mounted) return;
           if (targetFlowId != null) {
             _openFlowEditorDirectly(targetFlowId);
           } else if (widget.openMyFlowsOnLaunch) {
-            _openMyFlowsList();
+            await _openMyFlowsList();
           }
         });
       } else {
@@ -15122,7 +15118,9 @@ class _CalendarPageState extends State<CalendarPage>
     } else if (widget.openMyFlowsOnLaunch) {
       // If already initialized and caller requested My Flows, honor it.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _openMyFlowsList();
+        if (mounted) {
+          unawaited(_openMyFlowsList());
+        }
       });
     }
 
@@ -15212,18 +15210,17 @@ class _CalendarPageState extends State<CalendarPage>
         debugPrint('[loadFromDisk] getAllFlows count: ${serverFlows.length}');
       }
       for (final f in serverFlows) {
-        final repMeta = _decodeRepeatingNoteMetadata(f.notes);
-        final derivedHidden =
-            f.isHidden ||
-            repMeta.detail != null ||
-            repMeta.location != null ||
-            repMeta.category != null;
+        final classification = classifyFlowMetadata(
+          isReminder: f.isReminder,
+          isHidden: f.isHidden,
+          reminderUuid: f.reminderUuid,
+          notes: f.notes,
+        );
+        final derivedHidden = classification.isRepeatingNote;
+        final derivedReminder = classification.isReminder;
         if (kDebugMode && derivedHidden) {
           final fromDb = f.isHidden;
-          final fromRepMeta =
-              repMeta.detail != null ||
-              repMeta.location != null ||
-              repMeta.category != null;
+          final fromRepMeta = looksLikeRepeatingNoteMetadata(f.notes);
           debugPrint(
             '[loadFromDisk] hidden flow id=${f.id} name="${f.name}" fromDb=$fromDb fromRepMeta=$fromRepMeta',
           );
@@ -15240,7 +15237,7 @@ class _CalendarPageState extends State<CalendarPage>
           notes: f.notes,
           shareId: f.shareId, // NEW: Load share_id
           isHidden: derivedHidden,
-          isReminder: f.isReminder,
+          isReminder: derivedReminder,
           reminderUuid: f.reminderUuid,
         );
         newFlows.add(flow);
@@ -15758,6 +15755,7 @@ class _CalendarPageState extends State<CalendarPage>
 
       await _regenReminderNotes(notify: false);
       _bumpDataVersion();
+      unawaited(_flowProgressRepo.loadActiveTrackers());
     } catch (e, stackTrace) {
       print('Supabase sync FAILED: $e');
       print('Stack: $stackTrace');
@@ -17759,6 +17757,18 @@ class _CalendarPageState extends State<CalendarPage>
   void _showReflectionSheet() {
     final prompt = _reflectionPrompt;
     if (prompt == null) return;
+    unawaited(
+      UserEventsRepo(Supabase.instance.client).track(
+        event: 'decan_reflection_opened',
+        properties: {
+          'decan_name': prompt.decanName,
+          'decan_start': _formatDateOnlyLocal(prompt.decanStart),
+          'decan_end': _formatDateOnlyLocal(prompt.decanEnd),
+          'badge_count': prompt.badgeCount,
+          'persisted': prompt.persisted,
+        },
+      ),
+    );
     final dateRange =
         '${_formatDateOnlyLocal(prompt.decanStart)} → ${_formatDateOnlyLocal(prompt.decanEnd)}';
 
@@ -18091,8 +18101,30 @@ class _CalendarPageState extends State<CalendarPage>
     return badges;
   }
 
-  String _buildReflectionFromBadges(List<EventBadgeToken> badges) {
+  String _buildReflectionFromBadges(
+    List<EventBadgeToken> badges, [
+    List<FlowReflectionEvidence> flowEvidence = const [],
+  ]) {
+    final primaryFlow = flowEvidence.isNotEmpty ? flowEvidence.first : null;
     if (badges.isEmpty) {
+      if (primaryFlow != null) {
+        final domain = primaryFlow.domain?.trim();
+        final anchor = domain != null && domain.isNotEmpty
+            ? domain
+            : primaryFlow.title.trim();
+        final badgeLine = primaryFlow.badgeCount > 0
+            ? '${primaryFlow.badgeCount} badge${primaryFlow.badgeCount == 1 ? '' : 's'}'
+            : 'no badges';
+        final reflectionLine = primaryFlow.reflectionCount > 0
+            ? '${primaryFlow.reflectionCount} reflection${primaryFlow.reflectionCount == 1 ? '' : 's'}'
+            : 'no reflections yet';
+        return [
+          '${primaryFlow.title} held the center of this decan.',
+          '${primaryFlow.daysWithProgress} of ${primaryFlow.overlapDays} flow days carried measurable movement, with ${primaryFlow.fullDays} fully recorded and ${primaryFlow.missedDays} left quiet.',
+          '${primaryFlow.vowText} The record shows $badgeLine and $reflectionLine around that practice.',
+          'As the next decan opens, keep $anchor under witness and return before the thread loosens.',
+        ].join('\n\n');
+      }
       return 'Time moved quietly this decan. Silence is still a shape—space held open for whatever wants to speak next.';
     }
 
@@ -18155,6 +18187,9 @@ class _CalendarPageState extends State<CalendarPage>
         ? 'Most frequent: “${sorted.first.key}”. '
         : '';
     final badgesLine = 'Badges logged: $total. ${dominantTitle.trim()}';
+    final flowLine = primaryFlow == null
+        ? null
+        : '${primaryFlow.title} carried ${primaryFlow.daysWithProgress}/${primaryFlow.overlapDays} tracked days, ${primaryFlow.badgeCount} badge${primaryFlow.badgeCount == 1 ? '' : 's'}, and ${primaryFlow.reflectionCount} reflection${primaryFlow.reflectionCount == 1 ? '' : 's'}.';
 
     return [
       opening,
@@ -18162,6 +18197,7 @@ class _CalendarPageState extends State<CalendarPage>
       rhythm,
       silence,
       badgesLine,
+      if (flowLine != null && flowLine.trim().isNotEmpty) flowLine,
       invitation,
       closing,
     ].join('\n\n');
@@ -18234,6 +18270,11 @@ class _CalendarPageState extends State<CalendarPage>
             },
           )
           .toList();
+      final flowEvidence = await FlowProgressRepo(Supabase.instance.client)
+          .loadReflectionEvidenceForWindow(
+            startDate: window.start,
+            endDate: window.end,
+          );
 
       String reflectionText = '';
       int badgeCount = decanBadges.length;
@@ -18251,6 +18292,7 @@ class _CalendarPageState extends State<CalendarPage>
           useKnowledgeGraph: true,
           useDecisionMatrix: true,
           badges: payloadBadges,
+          flowEvidence: flowEvidence,
         );
         if (response.success &&
             (response.reflection?.trim().isNotEmpty ?? false)) {
@@ -18272,6 +18314,7 @@ class _CalendarPageState extends State<CalendarPage>
       if (reflectionText.trim().isEmpty) {
         reflectionText = _buildReflectionFromBadges(
           decanBadges.map((b) => b.token).toList(),
+          flowEvidence,
         );
       }
 
@@ -18292,6 +18335,18 @@ class _CalendarPageState extends State<CalendarPage>
           persisted: reflectionId != null,
         );
       });
+      unawaited(
+        UserEventsRepo(Supabase.instance.client).track(
+          event: 'decan_reflection_prompt_seen',
+          properties: {
+            'decan_name': window.decanName,
+            'decan_start': _formatDateOnlyLocal(window.start),
+            'decan_end': _formatDateOnlyLocal(window.end),
+            'badge_count': badgeCount,
+            'flow_evidence_count': flowEvidence.length,
+          },
+        ),
+      );
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[DecanReflection] prompt load failed: $e');
@@ -23643,6 +23698,8 @@ class _FlowStudioResult {
   });
 }
 
+enum _FlowStudioCreationTab { add, generate }
+
 /* ---------------------------------- page ---------------------------------- */
 
 class _FlowStudioPage extends StatefulWidget {
@@ -23665,6 +23722,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   static _FlowStudioDraft? _sessionDraft;
   bool _suppressDraftSave = false;
   _Flow? _editing;
+  _FlowStudioCreationTab _creationTab = _FlowStudioCreationTab.add;
 
   // basic
   late final TextEditingController _nameCtrl;
@@ -23767,6 +23825,46 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     final month = getMonthById(k.kMonth).displayFull;
     final y = _gregYearLabelFor(k.kYear, k.kMonth);
     return '$month ${k.kDay} • $y';
+  }
+
+  bool get _showsCreationTabs =>
+      widget.editFlowId == null && widget.importData == null;
+
+  Future<void> _handleInlineAiGenerated(AIFlowGenerationResponse result) async {
+    if (!mounted) return;
+
+    _FlowStudioResult? edited;
+
+    if (result.flowId != null) {
+      edited = await Navigator.of(context).push<_FlowStudioResult>(
+        MaterialPageRoute(
+          builder: (_) => _FlowStudioPage(
+            existingFlows: widget.existingFlows,
+            editFlowId: result.flowId,
+          ),
+        ),
+      );
+    } else {
+      final baseStart =
+          result.requestedStartDate ?? _startDate ?? DateTime.now();
+      final importData = _aiImportDataFromResponse(result, baseStart);
+      if (importData == null) return;
+
+      edited = await Navigator.of(context).push<_FlowStudioResult>(
+        MaterialPageRoute(
+          builder: (_) => _FlowStudioPage(
+            existingFlows: widget.existingFlows,
+            importData: importData,
+          ),
+        ),
+      );
+    }
+
+    if (!mounted || edited == null) return;
+
+    _clearSessionDraft();
+    _suppressDraftSave = true;
+    Navigator.of(context, rootNavigator: true).pop(edited);
   }
 
   Iterable<_NoteDraft> _allDrafts() sync* {
@@ -25170,54 +25268,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   }
 
   // ---------- save/delete ----------
-
-  /// Show AI Flow Generation Modal
-  Future<void> _showAIGenerationModal() async {
-    final result = await showModalBottomSheet<AIFlowGenerationResponse>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const AIFlowGenerationModal(),
-    );
-
-    if (!mounted || result == null) return;
-
-    _FlowStudioResult? edited;
-
-    // Prefer DB-loaded flow if flowId is present
-    if (result.flowId != null) {
-      edited = await Navigator.of(context).push<_FlowStudioResult>(
-        MaterialPageRoute(
-          builder: (_) => _FlowStudioPage(
-            existingFlows: widget.existingFlows,
-            editFlowId: result.flowId,
-          ),
-        ),
-      );
-    } else {
-      // Fallback: seed Flow Studio directly from AI response (no DB flowId)
-      final baseStart =
-          result.requestedStartDate ?? _startDate ?? DateTime.now();
-      final importData = _aiImportDataFromResponse(result, baseStart);
-      if (importData == null) return;
-
-      edited = await Navigator.of(context).push<_FlowStudioResult>(
-        MaterialPageRoute(
-          builder: (_) => _FlowStudioPage(
-            existingFlows: widget.existingFlows,
-            editFlowId: null,
-            importData: importData,
-          ),
-        ),
-      );
-    }
-
-    if (!mounted || edited == null) return;
-
-    _clearSessionDraft();
-    _suppressDraftSave = true;
-    Navigator.of(context, rootNavigator: true).pop(edited);
-  }
 
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
@@ -27213,10 +27263,142 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     }
   }
 
+  Widget _buildCreationTabBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: SegmentedButton<_FlowStudioCreationTab>(
+        showSelectedIcon: false,
+        segments: const [
+          ButtonSegment(
+            value: _FlowStudioCreationTab.add,
+            label: Text('Add Flow'),
+          ),
+          ButtonSegment(
+            value: _FlowStudioCreationTab.generate,
+            label: Text('Generate Flow'),
+          ),
+        ],
+        selected: <_FlowStudioCreationTab>{_creationTab},
+        onSelectionChanged: (selection) {
+          if (selection.isEmpty) return;
+          setState(() {
+            _creationTab = selection.first;
+          });
+        },
+        style: ButtonStyle(
+          textStyle: WidgetStateProperty.all(
+            const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return gold.withValues(alpha: 0.1);
+            }
+            return const Color(0xFF111111);
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const Color(0xFFF3D27A);
+            }
+            return Colors.white.withValues(alpha: 0.88);
+          }),
+          side: WidgetStateProperty.resolveWith((states) {
+            return BorderSide(
+              color: states.contains(WidgetState.selected)
+                  ? gold.withValues(alpha: 0.54)
+                  : gold.withValues(alpha: 0.28),
+              width: 0.8,
+            );
+          }),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenerateFlowTab() {
+    return AIFlowGenerationPanel(
+      showHeader: false,
+      initialStartDate: _startDate,
+      initialEndDate: _endDate,
+      onGenerated: _handleInlineAiGenerated,
+    );
+  }
+
+  Widget _buildManualStudioBody() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      child: ListView(
+        children: [
+          const Text('Name', style: TextStyle(color: _silver, fontSize: 12)),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _nameCtrl,
+            style: const TextStyle(color: Colors.white),
+            decoration: _darkInput('Flow name'),
+          ),
+          const SizedBox(height: 8),
+          if (_overviewCtrl.text.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Text(
+                _overviewCtrl.text.trim(),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _active,
+            onChanged: (v) => setState(() => _active = v),
+            title: const Text('Active', style: TextStyle(color: Colors.white)),
+            activeThumbColor: _gold,
+          ),
+          const SizedBox(height: 8),
+          const GlossyText(
+            text: 'Color',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            gradient: silverGloss,
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 36,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _flowPalette.length,
+              itemBuilder: (_, i) => _colorDot(i),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _modeToggle(),
+          const SizedBox(height: 12),
+          _dateRangeSection(),
+          const SizedBox(height: 6),
+          if (!_hasFullRange)
+            _preRulesHint()
+          else if (_useKemetic)
+            (_splitByPeriod ? _kemeticPerDecan() : _kemeticSingleRow())
+          else
+            (_splitByPeriod ? _gregorianPerWeek() : _gregorianSingleRow()),
+          SizedBox(key: _editorsAnchorKey, height: 0),
+          _notesEditorsPanel(),
+        ],
+      ),
+    );
+  }
+
   // ---------- build ----------
 
   @override
   Widget build(BuildContext context) {
+    final manualTabActive =
+        !_showsCreationTabs || _creationTab == _FlowStudioCreationTab.add;
+
     // ✅ Show loading indicator while loading flow from DB
     if (_isLoadingFlow) {
       return Scaffold(
@@ -27250,14 +27432,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         ),
         title: const Text('Flow Studio', style: TextStyle(color: Colors.white)),
         actions: [
-          // ✨ NEW: AI Generation Button
-          IconButton(
-            icon: KemeticGold.icon(Icons.auto_awesome),
-            onPressed: _showAIGenerationModal,
-            tooltip: 'Generate with AI',
-          ),
-          // Only show the dropdown when there's at least one existing flow
-          if (widget.existingFlows.isNotEmpty)
+          if (manualTabActive && widget.existingFlows.isNotEmpty)
             PopupMenuButton<int>(
               tooltip: 'Flows menu',
               icon: const Icon(Icons.more_vert, color: _silver),
@@ -27271,7 +27446,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                   value: 1,
                   child: ListTile(
                     leading: Icon(Icons.search),
-                    title: Text('Find / Edit flows…'),
+                    title: Text('Edit existing flow…'),
                   ),
                 ),
                 PopupMenuItem(
@@ -27290,89 +27465,33 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                 ),
               ],
             ),
-          if (_editing != null)
+          if (manualTabActive && _editing != null)
             IconButton(
               tooltip: 'Delete',
               icon: const Icon(Icons.delete_outline, color: _silver),
               onPressed: _delete,
             ),
-          TextButton(
-            onPressed: _save,
-            child: const Text('Save', style: TextStyle(color: Colors.white)),
-          ),
+          if (manualTabActive)
+            TextButton(
+              onPressed: _save,
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        child: ListView(
-          children: [
-            const Text('Name', style: TextStyle(color: _silver, fontSize: 12)),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _nameCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: _darkInput('Flow name'),
-            ),
-            const SizedBox(height: 8),
-            // quick peek at overview (one-line, optional)
-            if (_overviewCtrl.text.trim().isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Text(
-                  _overviewCtrl.text.trim(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+      body: _showsCreationTabs
+          ? Column(
+              children: [
+                _buildCreationTabBar(),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: switch (_creationTab) {
+                    _FlowStudioCreationTab.add => _buildManualStudioBody(),
+                    _FlowStudioCreationTab.generate => _buildGenerateFlowTab(),
+                  },
                 ),
-              ),
-
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _active,
-              onChanged: (v) => setState(() => _active = v),
-              title: const Text(
-                'Active',
-                style: TextStyle(color: Colors.white),
-              ),
-              activeThumbColor: _gold,
-            ),
-
-            const SizedBox(height: 8),
-            const GlossyText(
-              text: 'Color',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              gradient: silverGloss,
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 36,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _flowPalette.length,
-                itemBuilder: (_, i) => _colorDot(i),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-            _modeToggle(),
-
-            const SizedBox(height: 12),
-            _dateRangeSection(),
-
-            const SizedBox(height: 6),
-            if (!_hasFullRange)
-              _preRulesHint()
-            else if (_useKemetic)
-              (_splitByPeriod ? _kemeticPerDecan() : _kemeticSingleRow())
-            else
-              (_splitByPeriod ? _gregorianPerWeek() : _gregorianSingleRow()),
-
-            // editors (pattern in repeat mode, per-day in customize mode)
-            SizedBox(key: _editorsAnchorKey, height: 0),
-            _notesEditorsPanel(),
-          ],
-        ),
-      ),
+              ],
+            )
+          : _buildManualStudioBody(),
     );
   }
 }
@@ -27645,6 +27764,9 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     final id = 'badge-${DateTime.now().microsecondsSinceEpoch}';
     return EventBadgeToken.buildToken(
       id: id,
+      eventId: events.isEmpty
+          ? null
+          : (events.first.id ?? events.first.clientEventId),
       title: flow.name.isEmpty ? 'Flow block' : flow.name,
       start: start,
       end: end,
@@ -29583,7 +29705,12 @@ _RuleDates _buildNoteRuleDates({
 
 class _FlowsViewerPage extends StatefulWidget {
   const _FlowsViewerPage({
-    required this.flows,
+    required this.getFlows,
+    required this.getNoteBuckets,
+    this.dataVersionListenable,
+    required this.maatTemplates,
+    required this.hasActiveMaatForKey,
+    required this.onPickMaatTemplate,
     required this.fmtGregorian,
     required this.onCreateNew,
     required this.onEditFlow,
@@ -29592,7 +29719,12 @@ class _FlowsViewerPage extends StatefulWidget {
     this.onAppendToJournal,
   });
 
-  final List<_Flow> flows;
+  final List<_Flow> Function() getFlows;
+  final Map<String, List<_Note>> Function() getNoteBuckets;
+  final ValueListenable<int>? dataVersionListenable;
+  final List<_MaatFlowTemplate> maatTemplates;
+  final bool Function(String key) hasActiveMaatForKey;
+  final Future<int?> Function(_MaatFlowTemplate template) onPickMaatTemplate;
   final String Function(DateTime? d) fmtGregorian;
   final VoidCallback onCreateNew;
   final void Function(int flowId) onEditFlow;
@@ -29606,18 +29738,181 @@ class _FlowsViewerPage extends StatefulWidget {
 
 class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   FlowListTab _tab = FlowListTab.active;
+  late final FlowProgressRepo _flowProgressRepo = FlowProgressRepo(
+    Supabase.instance.client,
+  );
+  late final Stream<List<FlowTrackerSummary>> _activeTrackerStream =
+      _flowProgressRepo.watchActiveTrackers();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.dataVersionListenable?.addListener(_handleExternalDataChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant _FlowsViewerPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dataVersionListenable != widget.dataVersionListenable) {
+      oldWidget.dataVersionListenable?.removeListener(
+        _handleExternalDataChanged,
+      );
+      widget.dataVersionListenable?.addListener(_handleExternalDataChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.dataVersionListenable?.removeListener(_handleExternalDataChanged);
+    super.dispose();
+  }
+
+  void _handleExternalDataChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Future<void> _startOnboardingFlow() async {
+    widget.onCreateNew();
+    if (!mounted) return;
+    setState(() {
+      _tab = FlowListTab.active;
+    });
+  }
+
+  bool _isTrackableFlowItem(_Flow flow) {
+    return isTrackableFlowMetadata(
+      isReminder: flow.isReminder,
+      isHidden: flow.isHidden,
+      reminderUuid: flow.reminderUuid,
+      notes: flow.notes,
+    );
+  }
 
   List<_Flow> get _activeItems =>
-      widget.flows
-          .where((f) => f.active && !f.isHidden && _isActiveByEndDate(f.end))
+      widget
+          .getFlows()
+          .where(
+            (f) =>
+                f.active &&
+                _isTrackableFlowItem(f) &&
+                _isActiveByEndDate(f.end),
+          )
           .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   // Saved flows act as templates, so they stay visible even after the user
   // removes them from the active calendar.
   List<_Flow> get _savedItems =>
-      widget.flows.where((f) => f.isSaved && !f.isHidden).toList()
+      widget
+          .getFlows()
+          .where((f) => f.isSaved && _isTrackableFlowItem(f))
+          .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+  List<_MaatFlowTemplate> get _maatItems => [...widget.maatTemplates]
+    ..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+
+  Future<void> _openActiveTrackerPreview(
+    FlowTrackerSummary summary,
+    List<FlowTrackerSummary> summaries,
+  ) async {
+    final flowById = {for (final flow in widget.getFlows()) flow.id: flow};
+    final selectedFlow = flowById[summary.flow.id];
+    if (selectedFlow == null) {
+      widget.onEditFlow(summary.flow.id);
+      if (mounted) setState(() {});
+      return;
+    }
+
+    final sequence = summaries
+        .map((item) => flowById[item.flow.id])
+        .whereType<_Flow>()
+        .toList();
+    final initialIndex = sequence.indexWhere((f) => f.id == selectedFlow.id);
+
+    final importedFlowId = await Navigator.of(context).push<int?>(
+      MaterialPageRoute(
+        builder: (_) => _FlowPreviewPage(
+          flow: selectedFlow,
+          flowSequence: sequence.isEmpty ? [selectedFlow] : sequence,
+          initialIndex: initialIndex < 0 ? 0 : initialIndex,
+          getDecanLabel: (km, di) =>
+              (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
+          fmt: widget.fmtGregorian,
+          onEdit: (flow) => widget.onEditFlow(flow.id),
+          onAppendToJournal: widget.onAppendToJournal,
+          onEndMaatFlow: (flow) {
+            widget.onEndFlow(flow.id);
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (importedFlowId != null) {
+      await widget.onImportFlow?.call(importedFlowId);
+    }
+    setState(() {});
+  }
+
+  Widget _buildActiveTrackerLoadingList() {
+    Widget skeletonCard() {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+        child: Container(
+          height: 54,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.035),
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      children: [skeletonCard()],
+    );
+  }
+
+  Widget _buildActiveTrackerList(Widget emptyState) {
+    final cachedSummaries = _flowProgressRepo.cachedActiveTrackers;
+    return StreamBuilder<List<FlowTrackerSummary>>(
+      stream: _activeTrackerStream,
+      initialData: cachedSummaries,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            cachedSummaries.isEmpty &&
+            !snapshot.hasData) {
+          return _buildActiveTrackerLoadingList();
+        }
+        final summaries = snapshot.hasData
+            ? (snapshot.data ?? const <FlowTrackerSummary>[])
+            : cachedSummaries;
+        if (summaries.isEmpty) {
+          return emptyState;
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          itemCount: summaries.length,
+          separatorBuilder: (_, __) =>
+              const Divider(height: 1, color: Colors.white10),
+          itemBuilder: (ctx, index) {
+            final summary = summaries[index];
+            return KeyedSubtree(
+              key: ValueKey<int>(summary.flow.id),
+              child: FlowTrackerCard(
+                summary: summary,
+                onTap: () =>
+                    unawaited(_openActiveTrackerPreview(summary, summaries)),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   // UI still filters by end date even though repos do, because _flows is an
   // in-memory cache that can contain stale rows until the next sync. This keeps
@@ -29631,89 +29926,324 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
     return !endDateOnly.isBefore(today);
   }
 
+  int? _savedFlowLengthDays(_Flow flow) {
+    return inferFlowLengthDays(
+      explicitLength: null,
+      startDate: flow.start,
+      endDate: flow.end,
+      rules: flow.rules.map(_CalendarPageState.ruleToJson).toList(),
+    );
+  }
+
+  String _savedFlowChipLabel(_Flow flow) {
+    final length = _savedFlowLengthDays(flow);
+    if (length != null && length > 0) {
+      return '$length-day Flow';
+    }
+    return 'Saved Flow';
+  }
+
+  String _savedFlowContextLabel(_Flow flow) {
+    final hasRange = flow.start != null || flow.end != null;
+    if (!hasRange) {
+      return 'Saved template ready to reuse.';
+    }
+    return 'Saved template • ${widget.fmtGregorian(flow.start)} → ${widget.fmtGregorian(flow.end)}';
+  }
+
+  Future<void> _openSavedFlowPreview(
+    _Flow flow,
+    List<_Flow> items,
+    int index,
+  ) async {
+    final importedFlowId = await Navigator.of(context).push<int?>(
+      MaterialPageRoute(
+        builder: (_) => _FlowPreviewPage(
+          flow: flow,
+          flowSequence: items,
+          initialIndex: index,
+          getDecanLabel: (km, di) =>
+              (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
+          fmt: widget.fmtGregorian,
+          onEdit: (selectedFlow) => widget.onEditFlow(selectedFlow.id),
+          onAppendToJournal: widget.onAppendToJournal,
+          onEndMaatFlow: (selectedFlow) {
+            widget.onEndFlow(selectedFlow.id);
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (importedFlowId != null) {
+      await widget.onImportFlow?.call(importedFlowId);
+    }
+    setState(() {});
+  }
+
+  String _maatTemplateChipLabel(_MaatFlowTemplate template) {
+    if (widget.hasActiveMaatForKey(template.key)) {
+      return 'Added';
+    }
+    return template.kind == _MaatFlowTemplateKind.trackSky
+        ? 'Ongoing'
+        : '10-day Flow';
+  }
+
+  String _maatTemplateContextLabel(_MaatFlowTemplate template) {
+    final overview = template.overview.trim();
+    if (overview.isNotEmpty) {
+      return overview;
+    }
+    return template.kind == _MaatFlowTemplateKind.trackSky
+        ? 'Sky-aligned Ma’at flow.'
+        : 'Ma’at flow template.';
+  }
+
+  Future<void> _openMaatTemplatePreview(_MaatFlowTemplate template) async {
+    final importedFlowId = await widget.onPickMaatTemplate(template);
+    if (!mounted) return;
+    if (importedFlowId != null) {
+      await widget.onImportFlow?.call(importedFlowId);
+      if (!mounted) return;
+      setState(() {
+        _tab = FlowListTab.active;
+      });
+      return;
+    }
+    setState(() {});
+  }
+
+  Widget _buildMaatTemplateList(
+    List<_MaatFlowTemplate> items,
+    Widget emptyState,
+  ) {
+    if (items.isEmpty) {
+      return emptyState;
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      itemCount: items.length,
+      separatorBuilder: (_, __) =>
+          const Divider(height: 1, color: Colors.white10),
+      itemBuilder: (ctx, i) {
+        final template = items[i];
+        final accent = template.color;
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => unawaited(_openMaatTemplatePreview(template)),
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          template.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            height: 1.15,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: accent.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: accent.withValues(alpha: 0.34),
+                              ),
+                            ),
+                            child: Text(
+                              _maatTemplateChipLabel(template),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Icon(
+                            Icons.chevron_right,
+                            color: Colors.white54,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _maatTemplateContextLabel(template),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 11.5,
+                      height: 1.3,
+                      letterSpacing: 0.15,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final items = _tab == FlowListTab.active ? _activeItems : _savedItems;
+    final savedItems = _savedItems;
+    final maatItems = _maatItems;
 
-    Widget emptyState = const Padding(
-      padding: EdgeInsets.all(24),
+    final activationButton = SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () => unawaited(_startOnboardingFlow()),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: RhythmTheme.aurora,
+          foregroundColor: Colors.black,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+        child: const Text('Start a 10-Day Flow'),
+      ),
+    );
+
+    final emptyState = Padding(
+      padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'No flows yet',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
+            switch (_tab) {
+              FlowListTab.active => 'No active flows yet',
+              FlowListTab.maat => 'No ḥꜣw flows yet',
+              FlowListTab.saved => 'No saved flows yet',
+            },
+            style: const TextStyle(color: Colors.white70, fontSize: 16),
+            textAlign: TextAlign.center,
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            'Tap + to create a flow, or explore Ma’at templates.',
-            style: TextStyle(color: Colors.white54),
+            switch (_tab) {
+              FlowListTab.active =>
+                'Start or import a Flow from here, then it will appear here as an active tracker.',
+              FlowListTab.maat =>
+                'Ma’at templates will appear here when they are available.',
+              FlowListTab.saved =>
+                'Saved flows stay here as templates you can reactivate later.',
+            },
+            style: const TextStyle(color: Colors.white54),
+            textAlign: TextAlign.center,
           ),
+          if (_tab == FlowListTab.active) ...[
+            const SizedBox(height: 16),
+            activationButton,
+          ],
         ],
       ),
     );
 
-    Widget list = ListView.separated(
+    Widget savedList = ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      itemCount: items.length,
+      itemCount: savedItems.length,
       separatorBuilder: (_, __) =>
-          const Divider(height: 12, color: Colors.white10),
+          const Divider(height: 1, color: Colors.white10),
       itemBuilder: (ctx, i) {
-        final f = items[i];
-        final meta = notesDecode(f.notes);
-        final modeLabel = meta.kemetic ? 'Kemetic' : 'Gregorian';
-        final statusLabel = _tab == FlowListTab.saved
-            ? 'Saved'
-            : (f.active ? 'Active' : 'Inactive');
-        final rangeLabel =
-            '${widget.fmtGregorian(f.start)} → ${widget.fmtGregorian(f.end)}';
-
-        return ListTile(
-          onTap: () async {
-            final importedFlowId = await Navigator.of(context).push<int?>(
-              MaterialPageRoute(
-                builder: (_) => _FlowPreviewPage(
-                  flow: f,
-                  flowSequence: items,
-                  initialIndex: i,
-                  getDecanLabel: (km, di) =>
-                      (DecanMetadata.decanNames[km] ??
-                      const ['I', 'II', 'III'])[di],
-                  fmt: widget.fmtGregorian,
-                  onEdit: (flow) => widget.onEditFlow(flow.id),
-                  onAppendToJournal: widget.onAppendToJournal,
-                  onEndMaatFlow: (flow) {
-                    widget.onEndFlow(flow.id);
-                    Navigator.of(context).pop();
-                  },
-                ),
+        final f = savedItems[i];
+        final accent = f.color;
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => unawaited(_openSavedFlowPreview(f, savedItems, i)),
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          f.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            height: 1.15,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: accent.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: accent.withValues(alpha: 0.34),
+                              ),
+                            ),
+                            child: Text(
+                              _savedFlowChipLabel(f),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11.5,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Icon(
+                            Icons.chevron_right,
+                            color: Colors.white54,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _savedFlowContextLabel(f),
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 11.5,
+                      height: 1.3,
+                      letterSpacing: 0.15,
+                    ),
+                  ),
+                ],
               ),
-            );
-            if (!mounted) return;
-            if (importedFlowId != null) {
-              await widget.onImportFlow?.call(importedFlowId);
-            }
-            setState(() {});
-          },
-
-          leading: Container(
-            width: 18,
-            height: 18,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: _glossFromColor(f.color),
             ),
           ),
-          title: Text(f.name, style: const TextStyle(color: Colors.white)),
-          subtitle: Text(
-            [
-              statusLabel,
-              modeLabel,
-              if (f.start != null || f.end != null) rangeLabel,
-            ].join(' • '),
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
-          ),
-          trailing: const Icon(Icons.chevron_right, color: _silver),
         );
       },
     );
@@ -29725,10 +30255,6 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
         elevation: 0.5,
         title: const Text('My Flows', style: TextStyle(color: Colors.white)),
         actions: [
-          InboxIconWithBadge(
-            onRefreshSync: () => setState(() {}),
-            onImportFlow: widget.onImportFlow,
-          ),
           IconButton(
             tooltip: 'New flow',
             icon: const Icon(Icons.add, color: _silver),
@@ -29752,6 +30278,10 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
                       ButtonSegment(
                         value: FlowListTab.active,
                         label: Text('Active Flows'),
+                      ),
+                      ButtonSegment(
+                        value: FlowListTab.maat,
+                        label: Text('ḥꜣw'),
                       ),
                       ButtonSegment(
                         value: FlowListTab.saved,
@@ -29782,192 +30312,12 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
             ),
           ),
           const SizedBox(height: 8),
-          Expanded(child: items.isEmpty ? emptyState : list),
-        ],
-      ),
-    );
-  }
-}
-
-enum FlowListTab { active, saved }
-
-/* ───────────────────────── Flow Hub (entry page) ───────────────────────── */
-
-class _FlowHubPage extends StatelessWidget {
-  const _FlowHubPage({
-    required this.openMyFlows,
-    required this.openMaatFlows,
-    required this.onCreateNew,
-    super.key,
-  });
-
-  final VoidCallback openMyFlows;
-  final VoidCallback openMaatFlows;
-  final VoidCallback onCreateNew;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0.5,
-        title: const Text('Flow Studio', style: TextStyle(color: Colors.white)),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: TextButton(
-              style: TextButton.styleFrom(foregroundColor: _silver),
-              onPressed: onCreateNew,
-              child: const Icon(Icons.add, size: 20),
-            ),
-          ),
-        ],
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center, // centers vertically
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              GlossyButton(
-                text: 'My Flows',
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFFB8860B),
-                    KemeticGold.base,
-                    Color(0xFFF0D879),
-                  ],
-                ),
-                borderColor: KemeticGold.base,
-                onPressed: openMyFlows, // <-- use the callback you passed in
-              ),
-              const SizedBox(height: 14),
-              GlossyButton(
-                text: "ḥꜣw",
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF7F8C8D),
-                    Color(0xFFBDC3C7),
-                    Color(0xFFEAECEE),
-                  ],
-                ),
-                borderColor: const Color(0xFFBDC3C7),
-                onPressed: openMaatFlows,
-              ),
-            ],
-          ), // Close Column
-        ), // Close Padding
-      ), // Close Center
-    ); // Close Scaffold and return
-  }
-}
-
-// ----------------- glossy button (local to this file) -----------------
-class GlossyButton extends StatelessWidget {
-  const GlossyButton({
-    super.key,
-    required this.text,
-    required this.gradient,
-    required this.borderColor,
-    required this.onPressed,
-  });
-
-  final String text;
-  final Gradient gradient;
-  final Color borderColor;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    // smaller “bubble” = shorter height + tighter radius
-    const double height = 52; // tweak 48–56 if you want
-    const double radius = 26; // half of height = soft pill
-    const double textSize = 20;
-    const FontWeight weight = FontWeight.w700;
-
-    return SizedBox(
-      height: height,
-      child: Stack(
-        children: [
-          // background with gradient + border + shadow
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: gradient,
-              borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: borderColor, width: 2),
-              boxShadow: const [
-                BoxShadow(
-                  blurRadius: 12,
-                  offset: Offset(0, 6),
-                  color: Colors.black26,
-                ),
-              ],
-            ),
-            child: const SizedBox.expand(),
-          ),
-
-          // gleam overlay (subtle diagonal shine)
-          IgnorePointer(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(radius),
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: FractionallySizedBox(
-                  widthFactor: 0.85,
-                  heightFactor: 0.55,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white.withOpacity(0.35),
-                          Colors.white.withOpacity(0.10),
-                          Colors.white.withOpacity(0.0),
-                        ],
-                        stops: const [0.0, 0.5, 1.0],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // tap surface + label
-          Material(
-            type: MaterialType.transparency,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(radius),
-              splashColor: Colors.white24,
-              highlightColor: Colors.white10,
-              onTap: onPressed,
-              child: const Center(
-                child: Text(
-                  '',
-                  // placeholder, replaced below
-                ),
-              ),
-            ),
-          ),
-          // we want the text above the gleam and centered
-          Center(
-            child: Text(
-              text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: textSize, // bigger text
-                fontWeight: weight,
-                color: Colors.black, // contrasts on gold/silver
-                letterSpacing: 0.2,
-              ),
-            ),
+          Expanded(
+            child: switch (_tab) {
+              FlowListTab.active => _buildActiveTrackerList(emptyState),
+              FlowListTab.maat => _buildMaatTemplateList(maatItems, emptyState),
+              FlowListTab.saved => savedItems.isEmpty ? emptyState : savedList,
+            },
           ),
         ],
       ),
@@ -29975,111 +30325,7 @@ class GlossyButton extends StatelessWidget {
   }
 }
 
-/* ───────────────────────── Ma’at Flows list ───────────────────────── */
-
-class _MaatFlowsListPage extends StatelessWidget {
-  const _MaatFlowsListPage({
-    required this.hasActiveForKey,
-    required this.onPickTemplate,
-    required this.onCreateNew,
-    required this.title,
-    required this.templates,
-    super.key,
-  });
-
-  final bool Function(String key) hasActiveForKey;
-  final Future<void> Function(_MaatFlowTemplate tpl) onPickTemplate;
-  final VoidCallback onCreateNew;
-  final String title;
-  final List<_MaatFlowTemplate> templates;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0.5,
-        title: GlossyText(
-          text: title,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-          gradient: goldGloss,
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'New flow',
-            icon: const Icon(Icons.add, color: _silver),
-            onPressed: onCreateNew,
-          ),
-        ],
-      ),
-      body: templates.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  'No Ma’at flows yet.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white70, fontSize: 16),
-                ),
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              itemCount: templates.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 12, color: Colors.white10),
-              itemBuilder: (ctx, i) {
-                final t = templates[i];
-                final added = hasActiveForKey(t.key);
-                return ListTile(
-                  onTap: () async => onPickTemplate(t),
-                  leading: Container(
-                    width: 18,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: _glossFromColor(t.color),
-                    ),
-                  ),
-                  title: GlossyText(
-                    text: t.title,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    gradient: goldGloss,
-                  ),
-                  subtitle: Text(
-                    '${t.kind == _MaatFlowTemplateKind.trackSky ? 'Ongoing' : '10 days'} • ${t.overview.isEmpty ? '—' : 'Tap for details'}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  trailing: added
-                      ? Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: _gold, width: 1.2),
-                          ),
-                          child: const GlossyText(
-                            text: 'Added',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            gradient: _maatBadgeGoldGloss,
-                          ),
-                        )
-                      : const Icon(Icons.chevron_right, color: _silver),
-                );
-              },
-            ),
-    );
-  }
-}
+enum FlowListTab { active, maat, saved }
 
 /* ───────────────────────── Template detail (Add Flow) ───────────────────────── */
 

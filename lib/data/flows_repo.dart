@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 
+import 'flow_activation_utils.dart';
+
 const _kFlows = 'flows';
 
 void _log(String msg) {
@@ -42,6 +44,23 @@ class FlowRow {
   final bool isHidden;
   final bool isReminder;
   final String? reminderUuid;
+  final int? flowLengthDays;
+  final String? vowText;
+  final String? intentionDomain;
+  final String? intentionText;
+  final String? obstacleText;
+  final String? intensity;
+  final int? dailyTimeBudgetMinutes;
+  final String? preferredTimeOfDay;
+  final String? decanTemplateKey;
+  final String? startKemeticDecanName;
+  final int? startKemeticDay;
+  final String? firstFlowType;
+  final String? watchType;
+  final String? orderPractice;
+  final bool isFirstWatch;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const FlowRow({
     required this.id,
@@ -58,21 +77,39 @@ class FlowRow {
     this.isHidden = false,
     this.isReminder = false,
     this.reminderUuid,
+    this.flowLengthDays,
+    this.vowText,
+    this.intentionDomain,
+    this.intentionText,
+    this.obstacleText,
+    this.intensity,
+    this.dailyTimeBudgetMinutes,
+    this.preferredTimeOfDay,
+    this.decanTemplateKey,
+    this.startKemeticDecanName,
+    this.startKemeticDay,
+    this.firstFlowType,
+    this.watchType,
+    this.orderPractice,
+    this.isFirstWatch = false,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory FlowRow.fromRow(Map<String, dynamic> r) {
-    dynamic _rules = r['rules'];
-    List<dynamic> _rulesList;
-    if (_rules == null) {
-      _rulesList = const [];
-    } else if (_rules is List) {
-      _rulesList = _rules;
+    final rulesValue = r['rules'];
+    late final List<dynamic> rulesList;
+    if (rulesValue == null) {
+      rulesList = const [];
+    } else if (rulesValue is List) {
+      rulesList = rulesValue;
     } else {
       // In case the column was accidentally stored as an object/string.
-      _rulesList = const [];
+      rulesList = const [];
     }
 
-    DateTime? _d(dynamic v) => v == null ? null : DateTime.parse(v as String);
+    DateTime? parseDate(dynamic value) =>
+        value == null ? null : DateTime.parse(value as String);
     return FlowRow(
       id: (r['id'] as num).toInt(),
       userId: r['user_id'] as String,
@@ -81,18 +118,67 @@ class FlowRow {
       color: (((r['color'] as num?)?.toInt() ?? 0x4DD0E1) & 0x00FFFFFF),
       active: (r['active'] as bool?) ?? true,
       isSaved: (r['is_saved'] as bool?) ?? false,
-      startDate: _d(r['start_date']),
-      endDate: _d(r['end_date']),
+      startDate: parseDate(r['start_date']),
+      endDate: parseDate(r['end_date']),
       notes: r['notes'] as String?,
-      rules: _rulesList,
+      rules: rulesList,
       isHidden: (r['is_hidden'] as bool?) ?? false,
       isReminder: (r['is_reminder'] as bool?) ?? false,
       reminderUuid: r['reminder_uuid'] as String?,
+      flowLengthDays: (r['flow_length_days'] as num?)?.toInt(),
+      vowText: normalizeFlowText(r['vow_text'] as String?),
+      intentionDomain: normalizeFlowText(r['intention_domain'] as String?),
+      intentionText: normalizeFlowText(r['intention_text'] as String?),
+      obstacleText: normalizeFlowText(r['obstacle_text'] as String?),
+      intensity: normalizeFlowText(r['intensity'] as String?),
+      dailyTimeBudgetMinutes: (r['daily_time_budget_minutes'] as num?)?.toInt(),
+      preferredTimeOfDay: normalizeFlowText(
+        r['preferred_time_of_day'] as String?,
+      ),
+      decanTemplateKey: normalizeFlowText(r['decan_template_key'] as String?),
+      startKemeticDecanName: normalizeFlowText(
+        r['start_kemetic_decan_name'] as String?,
+      ),
+      startKemeticDay: (r['start_kemetic_day'] as num?)?.toInt(),
+      firstFlowType: normalizeFlowText(r['first_flow_type'] as String?),
+      watchType: normalizeFlowText(r['watch_type'] as String?),
+      orderPractice: normalizeFlowText(r['order_practice'] as String?),
+      isFirstWatch: (r['is_first_watch'] as bool?) ?? false,
+      createdAt: parseDate(r['created_at']),
+      updatedAt: parseDate(r['updated_at']),
       aiMetadata: r['ai_metadata'] != null
           ? Map<String, dynamic>.from(r['ai_metadata'] as Map)
           : null,
     );
   }
+
+  int? get resolvedFlowLengthDays => inferFlowLengthDays(
+    explicitLength: flowLengthDays,
+    startDate: startDate,
+    endDate: endDate,
+    rules: rules,
+  );
+
+  bool get derivedIsReminder => classifyFlowMetadata(
+    isReminder: isReminder,
+    isHidden: isHidden,
+    reminderUuid: reminderUuid,
+    notes: notes,
+  ).isReminder;
+
+  bool get derivedIsRepeatingNote => classifyFlowMetadata(
+    isReminder: isReminder,
+    isHidden: isHidden,
+    reminderUuid: reminderUuid,
+    notes: notes,
+  ).isRepeatingNote;
+
+  bool get isTrackableFlow => !derivedIsReminder && !derivedIsRepeatingNote;
+
+  bool get isFirstWatchFlow =>
+      isFirstWatch ||
+      firstFlowType == 'first_watch_maat' ||
+      decanTemplateKey == 'first_watch_maat_v1';
 
   Map<String, dynamic> toInsert({required String userId}) => {
     'user_id': userId,
@@ -107,6 +193,21 @@ class FlowRow {
     'is_hidden': isHidden,
     'is_reminder': isReminder,
     'reminder_uuid': reminderUuid,
+    'flow_length_days': flowLengthDays,
+    'vow_text': vowText,
+    'intention_domain': intentionDomain,
+    'intention_text': intentionText,
+    'obstacle_text': obstacleText,
+    'intensity': intensity,
+    'daily_time_budget_minutes': dailyTimeBudgetMinutes,
+    'preferred_time_of_day': preferredTimeOfDay,
+    'decan_template_key': decanTemplateKey,
+    'start_kemetic_decan_name': startKemeticDecanName,
+    'start_kemetic_day': startKemeticDay,
+    'first_flow_type': firstFlowType,
+    'watch_type': watchType,
+    'order_practice': orderPractice,
+    'is_first_watch': isFirstWatch,
   };
 
   Map<String, dynamic> toUpdate() => {
@@ -121,6 +222,21 @@ class FlowRow {
     'is_hidden': isHidden,
     'is_reminder': isReminder,
     'reminder_uuid': reminderUuid,
+    'flow_length_days': flowLengthDays,
+    'vow_text': vowText,
+    'intention_domain': intentionDomain,
+    'intention_text': intentionText,
+    'obstacle_text': obstacleText,
+    'intensity': intensity,
+    'daily_time_budget_minutes': dailyTimeBudgetMinutes,
+    'preferred_time_of_day': preferredTimeOfDay,
+    'decan_template_key': decanTemplateKey,
+    'start_kemetic_decan_name': startKemeticDecanName,
+    'start_kemetic_day': startKemeticDay,
+    'first_flow_type': firstFlowType,
+    'watch_type': watchType,
+    'order_practice': orderPractice,
+    'is_first_watch': isFirstWatch,
   };
 }
 
@@ -195,7 +311,7 @@ class FlowsRepo {
 
     if (id == null) {
       final row = await _client.from(_kFlows).insert(payload).select().single();
-      return FlowRow.fromRow(row as Map<String, dynamic>);
+      return FlowRow.fromRow(Map<String, dynamic>.from(row));
     } else {
       final patch = Map<String, dynamic>.from(payload)..remove('user_id');
       final row = await _client
@@ -204,7 +320,7 @@ class FlowsRepo {
           .eq('id', id)
           .select()
           .single();
-      return FlowRow.fromRow(row as Map<String, dynamic>);
+      return FlowRow.fromRow(Map<String, dynamic>.from(row));
     }
   }
 
@@ -238,9 +354,9 @@ class FlowsRepo {
       'reminder_uuid': reminderUuid,
     };
     _log('insert → $payload');
-    final row =
-        await _client.from(_kFlows).insert(payload).select().single()
-            as Map<String, dynamic>;
+    final row = Map<String, dynamic>.from(
+      await _client.from(_kFlows).insert(payload).select().single(),
+    );
     final id = (row['id'] as num).toInt();
     _log('insert ✓ id=$id');
     return id;
@@ -346,7 +462,7 @@ class FlowsRepo {
         .maybeSingle();
 
     if (response == null) return null;
-    return FlowRow.fromRow(response as Map<String, dynamic>);
+    return FlowRow.fromRow(Map<String, dynamic>.from(response));
   }
 
   /// Fetch a flow id by reminder_uuid.

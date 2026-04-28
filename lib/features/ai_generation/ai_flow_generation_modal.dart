@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/ai_flow_generation_service.dart';
+import '../../models/ai_flow_generation_response.dart';
 import '../../widgets/kemetic_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart';
 import 'package:mobile/shared/glossy_text.dart';
@@ -50,14 +51,49 @@ class _VisibleThinkingStep {
   final String detail;
 }
 
-class AIFlowGenerationModal extends StatefulWidget {
+class AIFlowGenerationModal extends StatelessWidget {
   const AIFlowGenerationModal({super.key});
 
   @override
-  State<AIFlowGenerationModal> createState() => _AIFlowGenerationModalState();
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: Color(0xFF000000),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: AIFlowGenerationPanel(
+        showHeader: true,
+        onClose: () => Navigator.pop(context),
+        onGenerated: (response) {
+          Navigator.of(context).pop(response);
+        },
+      ),
+    );
+  }
 }
 
-class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
+class AIFlowGenerationPanel extends StatefulWidget {
+  const AIFlowGenerationPanel({
+    required this.onGenerated,
+    this.showHeader = false,
+    this.onClose,
+    this.initialStartDate,
+    this.initialEndDate,
+    super.key,
+  });
+
+  final FutureOr<void> Function(AIFlowGenerationResponse response) onGenerated;
+  final bool showHeader;
+  final VoidCallback? onClose;
+  final DateTime? initialStartDate;
+  final DateTime? initialEndDate;
+
+  @override
+  State<AIFlowGenerationPanel> createState() => _AIFlowGenerationPanelState();
+}
+
+class _AIFlowGenerationPanelState extends State<AIFlowGenerationPanel> {
   final _service = AIFlowGenerationService(Supabase.instance.client);
   final _descriptionController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -79,6 +115,13 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       _visibleThinkingSteps.length - 1,
     );
     return _visibleThinkingSteps[safeIndex];
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _startDate = widget.initialStartDate;
+    _endDate = widget.initialEndDate;
   }
 
   @override
@@ -213,37 +256,18 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
         return;
       }
 
-      // Success! Close modal and return the result
+      // Success! Return the generated response to the caller.
       _stopVisibleThinking();
-      Navigator.of(context).pop(
+      await widget.onGenerated(
         response.copyWith(
           requestedStartDate: _startDate,
           requestedEndDate: _endDate,
         ),
       );
-
-      // Show success message
-      final flowName = response.flowName ?? 'Flow';
-      final notesCount = response.notesCount ?? 0;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: gold),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Created "$flowName" with $notesCount events',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF1E1E1E),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      if (!mounted) return;
+      setState(() {
+        _isGenerating = false;
+      });
     } catch (e, stackTrace) {
       if (!mounted) return;
 
@@ -407,445 +431,396 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: Color(0xFF000000),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.close, color: gold),
-                  onPressed: () => Navigator.pop(context),
+    final content = SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Description input
+            const GlossyText(
+              text: 'What do you want to create?',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              gradient: silverGloss,
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _descriptionController,
+              minLines: 5,
+              maxLines: 18,
+              keyboardType: TextInputType.multiline,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText:
+                    'Paste a long plan or notes, pick your date range (e.g. 90 days), and ask to turn it into a flow…',
+                hintStyle: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  fontSize: 14,
                 ),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GlossyText(
-                        text: 'Generate with AI',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        gradient: silverGloss,
+                filled: true,
+                fillColor: const Color(0xFF1E1E1E),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please describe what you want to create';
+                }
+                if (value.trim().length < 5) {
+                  return 'Please be more specific';
+                }
+                return null;
+              },
+            ),
+
+            const SizedBox(height: 24),
+
+            // Color picker (matching Flow Studio exactly)
+            const GlossyText(
+              text: 'Color',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              gradient: silverGloss,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 36,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _flowPalette.length,
+                itemBuilder: (_, i) => _colorDot(i),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Kemetic/Gregorian toggle (matching Flow Studio)
+            SizedBox(
+              width: double.infinity,
+              child: CupertinoSegmentedControl<CalendarMode>(
+                groupValue: _mode,
+                onValueChanged: (v) => setState(() => _mode = v),
+                borderColor: silver,
+                selectedColor: const Color(0xFF7C4DFF),
+                unselectedColor: Colors.white,
+                children: const {
+                  CalendarMode.kemetic: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text('Kemetic', style: TextStyle(fontSize: 14)),
+                  ),
+                  CalendarMode.gregorian: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text('Gregorian', style: TextStyle(fontSize: 14)),
+                  ),
+                },
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Date range (matching Flow Studio exactly)
+            const GlossyText(
+              text: 'Date range (optional)',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              gradient: silverGloss,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: silver, width: 1.25),
+                      alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
                       ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Describe what you want and AI will create it',
-                        style: TextStyle(
-                          color: Color(0xFF999999),
-                          fontSize: 14,
-                        ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                    ],
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.1,
+                      ),
+                    ),
+                    onPressed: _isGenerating ? null : _pickRangeStart,
+                    child: Text(
+                      _startDate == null ? '--' : _formatShortDate(_startDate!),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: silver, width: 1.25),
+                      alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.1,
+                      ),
+                    ),
+                    onPressed: _isGenerating ? null : _pickRangeEnd,
+                    child: Text(
+                      _endDate == null ? '--' : _formatShortDate(_endDate!),
+                      style: const TextStyle(fontSize: 14),
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
 
-          // Content
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+            const SizedBox(height: 8),
+
+            // Helper text
+            const Text(
+              'Set a start and end date to define rules',
+              style: TextStyle(color: Color(0xFF999999), fontSize: 14),
+            ),
+
+            if (_startDate != null && _endDate != null) ...[
+              const SizedBox(height: 8),
+              Builder(
+                builder: (context) {
+                  return Text(
+                    'Duration: ${_formatDateRange()}',
+                    style: const TextStyle(
+                      color: Color(0xFF999999),
+                      fontSize: 14,
+                    ),
+                  );
+                },
+              ),
+            ],
+
+            const SizedBox(height: 24),
+
+            // Error message
+            if (_error != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                ),
+                child: Row(
                   children: [
-                    // Description input
-                    const GlossyText(
-                      text: 'What do you want to create?',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      gradient: silverGloss,
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 20,
                     ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _descriptionController,
-                      minLines: 5,
-                      maxLines: 18,
-                      keyboardType: TextInputType.multiline,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText:
-                            'Paste a long plan or notes, pick your date range (e.g. 90 days), and ask to turn it into a flow…',
-                        hintStyle: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.4),
-                          fontSize: 14,
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFF1E1E1E),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please describe what you want to create';
-                        }
-                        if (value.trim().length < 5) {
-                          return 'Please be more specific';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Color picker (matching Flow Studio exactly)
-                    const GlossyText(
-                      text: 'Color',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      gradient: silverGloss,
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 36,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _flowPalette.length,
-                        itemBuilder: (_, i) => _colorDot(i),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Kemetic/Gregorian toggle (matching Flow Studio)
-                    SizedBox(
-                      width: double.infinity,
-                      child: CupertinoSegmentedControl<CalendarMode>(
-                        groupValue: _mode,
-                        onValueChanged: (v) => setState(() => _mode = v),
-                        borderColor: silver,
-                        selectedColor: const Color(0xFF7C4DFF),
-                        unselectedColor: Colors.white,
-                        children: const {
-                          CalendarMode.kemetic: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Text(
-                              'Kemetic',
-                              style: TextStyle(fontSize: 14),
-                            ),
-                          ),
-                          CalendarMode.gregorian: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Text(
-                              'Gregorian',
-                              style: TextStyle(fontSize: 14),
-                            ),
-                          ),
-                        },
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Date range (matching Flow Studio exactly)
-                    const GlossyText(
-                      text: 'Date range (optional)',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      gradient: silverGloss,
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(
-                                color: silver,
-                                width: 1.25,
-                              ),
-                              alignment: Alignment.centerLeft,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              textStyle: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: -0.1,
-                              ),
-                            ),
-                            onPressed: _isGenerating ? null : _pickRangeStart,
-                            child: Text(
-                              _startDate == null
-                                  ? '--'
-                                  : _formatShortDate(_startDate!),
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(
-                                color: silver,
-                                width: 1.25,
-                              ),
-                              alignment: Alignment.centerLeft,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 16,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              textStyle: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: -0.1,
-                              ),
-                            ),
-                            onPressed: _isGenerating ? null : _pickRangeEnd,
-                            child: Text(
-                              _endDate == null
-                                  ? '--'
-                                  : _formatShortDate(_endDate!),
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // Helper text
-                    const Text(
-                      'Set a start and end date to define rules',
-                      style: TextStyle(color: Color(0xFF999999), fontSize: 14),
-                    ),
-
-                    if (_startDate != null && _endDate != null) ...[
-                      const SizedBox(height: 8),
-                      Builder(
-                        builder: (context) {
-                          return Text(
-                            'Duration: ${_formatDateRange()}',
-                            style: const TextStyle(
-                              color: Color(0xFF999999),
-                              fontSize: 14,
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-
-                    const SizedBox(height: 24),
-
-                    // Error message
-                    if (_error != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.red.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              color: Colors.red,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _error!,
-                                style: const TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Generate button
-                    ElevatedButton(
-                      onPressed: _isGenerating ? null : _generate,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: gold,
-                        foregroundColor: Colors.black,
-                        disabledBackgroundColor: Colors.grey.shade800,
-                        disabledForegroundColor: Colors.grey.shade600,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _isGenerating
-                          ? const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.black,
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(width: 12),
-                                Text(
-                                  'Generating flow…',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            )
-                          : const Text(
-                              'Generate Flow',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                    ),
-
-                    if (_isGenerating &&
-                        _activeVisibleThinkingStep != null) ...[
-                      const SizedBox(height: 12),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        child: Container(
-                          key: ValueKey<String>(
-                            _activeVisibleThinkingStep!.title,
-                          ),
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF111111),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: gold.withValues(alpha: 0.22),
-                            ),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: gold.withValues(alpha: 0.14),
-                                ),
-                                child: const Icon(
-                                  Icons.auto_awesome,
-                                  color: gold,
-                                  size: 16,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _activeVisibleThinkingStep!.title,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _activeVisibleThinkingStep!.detail,
-                                      style: TextStyle(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.72,
-                                        ),
-                                        fontSize: 13,
-                                        height: 1.35,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-
-                    const SizedBox(height: 16),
-
-                    // Tips section
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E1E),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(
-                                Icons.lightbulb_outline,
-                                color: gold,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'Tips for better results',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          _buildTip('Be specific about times if needed'),
-                          _buildTip('Mention if events repeat'),
-                          _buildTip('Include location if relevant'),
-                          _buildTip('Limit: 10 generations per day'),
-                        ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(color: Colors.red, fontSize: 14),
                       ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+            ],
+
+            // Generate button
+            ElevatedButton(
+              onPressed: _isGenerating ? null : _generate,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: gold,
+                foregroundColor: Colors.black,
+                disabledBackgroundColor: Colors.grey.shade800,
+                disabledForegroundColor: Colors.grey.shade600,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _isGenerating
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.black,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Generating flow…',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    )
+                  : const Text(
+                      'Generate Flow',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ),
-          ),
-        ],
+
+            if (_isGenerating && _activeVisibleThinkingStep != null) ...[
+              const SizedBox(height: 12),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                child: Container(
+                  key: ValueKey<String>(_activeVisibleThinkingStep!.title),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF111111),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: gold.withValues(alpha: 0.22)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: gold.withValues(alpha: 0.14),
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome,
+                          color: gold,
+                          size: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _activeVisibleThinkingStep!.title,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _activeVisibleThinkingStep!.detail,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.72),
+                                fontSize: 13,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // Tips section
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E1E),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.lightbulb_outline, color: gold, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'Tips for better results',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTip('Be specific about times if needed'),
+                  _buildTip('Mention if events repeat'),
+                  _buildTip('Include location if relevant'),
+                  _buildTip('Limit: 10 generations per day'),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+
+    if (!widget.showHeader) {
+      return content;
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              if (widget.onClose != null)
+                IconButton(
+                  icon: const Icon(Icons.close, color: gold),
+                  onPressed: widget.onClose,
+                ),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    GlossyText(
+                      text: 'Generate with AI',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      gradient: silverGloss,
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Describe what you want and AI will create it',
+                      style: TextStyle(color: Color(0xFF999999), fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: content),
+      ],
     );
   }
 

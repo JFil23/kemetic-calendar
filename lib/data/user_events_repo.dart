@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../features/calendar/notify.dart';
 import '../telemetry/telemetry.dart';
+import 'flow_activation_utils.dart';
 
 const _kTable = 'user_events';
 
@@ -1601,6 +1602,51 @@ class UserEventsRepo {
         .eq('client_event_id', clientEventId);
   }
 
+  Future<void> _initializeFlowDayProgressIfNeeded({
+    required int flowId,
+    required List<dynamic> rulesJson,
+    int? flowLengthDays,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+    final normalizedStart = normalizeDateOnly(startDate);
+    final resolvedLength = inferFlowLengthDays(
+      explicitLength: flowLengthDays,
+      startDate: startDate,
+      endDate: endDate,
+      rules: rulesJson,
+    );
+    if (normalizedStart == null ||
+        resolvedLength == null ||
+        resolvedLength <= 0) {
+      return;
+    }
+
+    final rows = List.generate(resolvedLength, (index) {
+      final localDate = normalizedStart.add(Duration(days: index));
+      final yyyy = localDate.year.toString().padLeft(4, '0');
+      final mm = localDate.month.toString().padLeft(2, '0');
+      final dd = localDate.day.toString().padLeft(2, '0');
+      return <String, dynamic>{
+        'user_id': user.id,
+        'flow_id': flowId,
+        'local_date': '$yyyy-$mm-$dd',
+        'flow_day_index': index + 1,
+      };
+    });
+
+    try {
+      await _client
+          .from('flow_day_progress')
+          .upsert(rows, onConflict: 'user_id,flow_id,local_date');
+    } catch (e, st) {
+      _log('flow_day_progress init ✗ $e');
+      _log('$st');
+    }
+  }
+
   /// Upsert a flow (jsonb rules). Returns server id.
   Future<int> upsertFlow({
     int? id,
@@ -1621,18 +1667,44 @@ class UserEventsRepo {
     String? originShareId,
     String? originGenerationId,
     int? rootFlowId,
+    int? flowLengthDays,
+    String? vowText,
+    String? intentionDomain,
+    String? intentionText,
+    String? obstacleText,
+    String? intensity,
+    int? dailyTimeBudgetMinutes,
+    String? preferredTimeOfDay,
+    String? decanTemplateKey,
+    String? startKemeticDecanName,
+    int? startKemeticDay,
+    String? firstFlowType,
+    String? watchType,
+    String? orderPractice,
+    bool? isFirstWatch,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
       throw StateError('No user session');
     }
 
+    final decodedRules = jsonDecode(rules);
+    final rulesJson = decodedRules is List<dynamic>
+        ? decodedRules
+        : <dynamic>[];
+    final resolvedFlowLengthDays = inferFlowLengthDays(
+      explicitLength: flowLengthDays,
+      startDate: startDate,
+      endDate: endDate,
+      rules: rulesJson,
+    );
+
     final payload = <String, dynamic>{
       'user_id': user.id,
       'name': name,
       'color': (color & 0x00FFFFFF), // 24-bit guard
       'active': active,
-      'rules': jsonDecode(rules),
+      'rules': rulesJson,
       'is_hidden': isHidden,
     };
     if (startDate != null) payload['start_date'] = startDate.toIso8601String();
@@ -1649,6 +1721,7 @@ class UserEventsRepo {
       'profile_import',
       'fork',
       'template',
+      'saved_import',
     };
     if (originType != null && allowedOriginTypes.contains(originType.trim())) {
       payload['origin_type'] = originType.trim();
@@ -1665,6 +1738,60 @@ class UserEventsRepo {
     if (rootFlowId != null && rootFlowId > 0) {
       payload['root_flow_id'] = rootFlowId;
     }
+    if (resolvedFlowLengthDays != null) {
+      payload['flow_length_days'] = resolvedFlowLengthDays;
+    }
+    final normalizedVow = normalizeFlowText(vowText);
+    if (normalizedVow != null) payload['vow_text'] = normalizedVow;
+    final normalizedDomain = normalizeFlowText(intentionDomain);
+    if (normalizedDomain != null) {
+      payload['intention_domain'] = normalizedDomain;
+    }
+    final normalizedIntention = normalizeFlowText(intentionText);
+    if (normalizedIntention != null) {
+      payload['intention_text'] = normalizedIntention;
+    }
+    final normalizedObstacle = normalizeFlowText(obstacleText);
+    if (normalizedObstacle != null) {
+      payload['obstacle_text'] = normalizedObstacle;
+    }
+    final normalizedIntensity = normalizeFlowText(intensity);
+    if (normalizedIntensity != null) payload['intensity'] = normalizedIntensity;
+    if (dailyTimeBudgetMinutes != null && dailyTimeBudgetMinutes > 0) {
+      payload['daily_time_budget_minutes'] = dailyTimeBudgetMinutes;
+    }
+    final normalizedTimeOfDay = normalizeFlowText(preferredTimeOfDay);
+    if (normalizedTimeOfDay != null) {
+      payload['preferred_time_of_day'] = normalizedTimeOfDay;
+    }
+    final normalizedDecanTemplateKey = normalizeFlowText(decanTemplateKey);
+    if (normalizedDecanTemplateKey != null) {
+      payload['decan_template_key'] = normalizedDecanTemplateKey;
+    }
+    final normalizedStartDecanName = normalizeFlowText(startKemeticDecanName);
+    if (normalizedStartDecanName != null) {
+      payload['start_kemetic_decan_name'] = normalizedStartDecanName;
+    }
+    if (startKemeticDay != null &&
+        startKemeticDay >= 1 &&
+        startKemeticDay <= 10) {
+      payload['start_kemetic_day'] = startKemeticDay;
+    }
+    final normalizedFirstFlowType = normalizeFlowText(firstFlowType);
+    if (normalizedFirstFlowType != null) {
+      payload['first_flow_type'] = normalizedFirstFlowType;
+    }
+    final normalizedWatchType = normalizeFlowText(watchType);
+    if (normalizedWatchType != null) {
+      payload['watch_type'] = normalizedWatchType;
+    }
+    final normalizedOrderPractice = normalizeFlowText(orderPractice);
+    if (normalizedOrderPractice != null) {
+      payload['order_practice'] = normalizedOrderPractice;
+    }
+    if (isFirstWatch != null) {
+      payload['is_first_watch'] = isFirstWatch;
+    }
 
     try {
       if (id == null || id <= 0) {
@@ -1673,7 +1800,15 @@ class UserEventsRepo {
             .insert(payload)
             .select('id')
             .single();
-        return (inserted['id'] as num).toInt();
+        final savedId = (inserted['id'] as num).toInt();
+        await _initializeFlowDayProgressIfNeeded(
+          flowId: savedId,
+          rulesJson: rulesJson,
+          flowLengthDays: resolvedFlowLengthDays,
+          startDate: startDate,
+          endDate: endDate,
+        );
+        return savedId;
       } else {
         final patch = Map<String, dynamic>.from(payload)..remove('user_id');
         final updated = await _client
@@ -1682,7 +1817,15 @@ class UserEventsRepo {
             .eq('id', id)
             .select('id')
             .single();
-        return (updated['id'] as num).toInt();
+        final savedId = (updated['id'] as num).toInt();
+        await _initializeFlowDayProgressIfNeeded(
+          flowId: savedId,
+          rulesJson: rulesJson,
+          flowLengthDays: resolvedFlowLengthDays,
+          startDate: startDate,
+          endDate: endDate,
+        );
+        return savedId;
       }
     } on PostgrestException catch (e, st) {
       _log('upsertFlow ✗ ${e.code} ${e.message}');

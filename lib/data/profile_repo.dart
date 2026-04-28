@@ -682,6 +682,13 @@ class ProfileRepo {
         'events': events.map(eventToPayload).toList(),
         'start_date': startDate?.toIso8601String(),
         'end_date': flow.endDate?.toIso8601String(),
+        if (flow.flowLengthDays != null)
+          'flow_length_days': flow.flowLengthDays,
+        if (flow.vowText?.trim().isNotEmpty == true) 'vow_text': flow.vowText,
+        if (flow.intentionDomain?.trim().isNotEmpty == true)
+          'intention_domain': flow.intentionDomain,
+        if (flow.decanTemplateKey?.trim().isNotEmpty == true)
+          'decan_template_key': flow.decanTemplateKey,
       };
 
       final inserted = await _client
@@ -814,6 +821,13 @@ class ProfileRepo {
 
       final userEventsRepo = UserEventsRepo(_client);
       final rulesString = jsonEncode(post.rules);
+      final payloadFlowLength = (post.payloadJson?['flow_length_days'] as num?)
+          ?.toInt();
+      final payloadVow = (post.payloadJson?['vow_text'] as String?)?.trim();
+      final payloadDomain = (post.payloadJson?['intention_domain'] as String?)
+          ?.trim();
+      final payloadTemplateKey =
+          (post.payloadJson?['decan_template_key'] as String?)?.trim();
       final newId = await userEventsRepo.upsertFlow(
         name: post.name,
         color: post.color,
@@ -827,6 +841,10 @@ class ProfileRepo {
         originType: 'profile_import',
         originFlowId: post.sourceFlowId,
         rootFlowId: post.sourceFlowId,
+        flowLengthDays: payloadFlowLength,
+        vowText: payloadVow,
+        intentionDomain: payloadDomain,
+        decanTemplateKey: payloadTemplateKey,
       );
 
       try {

@@ -6,9 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:mobile/core/touch_targets.dart';
+import 'package:mobile/data/flow_onboarding_state_repo.dart';
+import 'package:mobile/data/flow_progress_repo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mobile/data/nutrition_repo.dart';
+import 'package:mobile/data/user_events_repo.dart';
 import 'package:mobile/core/kemetic_converter.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
@@ -69,6 +72,11 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   final PlannerBadgeRepo _plannerBadgeRepo = PlannerBadgeRepo(
     Supabase.instance.client,
   );
+  final FlowOnboardingStateRepo _flowOnboardingStateRepo =
+      FlowOnboardingStateRepo();
+  final FlowProgressRepo _flowProgressRepo = FlowProgressRepo(
+    Supabase.instance.client,
+  );
   late Future<void> _future;
   final TextEditingController _commitmentInputController =
       TextEditingController();
@@ -115,6 +123,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   int _activeNutritionDayIndex = 0;
   bool _nutritionFormOpen = false;
   bool _calendarRevealNavigationInFlight = false;
+  bool _flowActivationPromptScheduled = false;
+  bool _flowActivationInFlight = false;
   Timer? _sessionPersistDebounce;
 
   bool get _tracksSessionState =>
@@ -157,6 +167,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
           'today_alignment',
         ),
       );
+      unawaited(_maybePromptFlowActivationOnboarding());
     });
   }
 
@@ -1057,6 +1068,66 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
   }
 
+  Future<void> _openFlowStudio({int? flowId}) async {
+    final calendarState = CalendarPage.globalKey.currentState;
+    if (calendarState != null) {
+      await calendarState.openMyFlowsFromOutside(initialFlowId: flowId);
+      return;
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Flow Studio is unavailable right now.')),
+    );
+  }
+
+  Future<void> _maybePromptFlowActivationOnboarding() async {
+    if (_flowActivationPromptScheduled || !mounted || widget.embedded) {
+      return;
+    }
+    final userId = _currentUserId;
+    if (userId == null) return;
+    _flowActivationPromptScheduled = true;
+
+    final alreadySeen = await _flowOnboardingStateRepo.hasSeenActivationPrompt(
+      userId,
+    );
+    if (!mounted || alreadySeen) return;
+
+    final tracker = await _flowProgressRepo.loadPrimaryTracker();
+    if (!mounted || tracker != null) return;
+
+    await _flowOnboardingStateRepo.markActivationPromptSeen(userId);
+    if (!mounted) return;
+    await _openStandardFlowActivation(
+      source: 'planner_first_session',
+      autoPresented: true,
+    );
+  }
+
+  Future<void> _openStandardFlowActivation({
+    String source = 'planner_activation',
+    bool autoPresented = false,
+  }) async {
+    if (_flowActivationInFlight || !mounted) return;
+    _flowActivationInFlight = true;
+    final tracker = UserEventsRepo(Supabase.instance.client);
+    try {
+      await tracker.track(
+        event: 'flow_onboarding_started',
+        properties: {
+          'source': source,
+          'auto_presented': autoPresented,
+          'current_decan_name': _currentDecanName(),
+          'current_decan_day': _currentDecanDay(),
+        },
+      );
+      if (!mounted) return;
+      await _openFlowStudio();
+    } finally {
+      _flowActivationInFlight = false;
+    }
+  }
+
   void _onTodoPageChanged(int index) {
     if (index < 0 || index >= _todoDays.length) return;
     setState(() {
@@ -1067,14 +1138,11 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   double _todoPageHeightEstimate() {
-    if (_todoDays.isEmpty) return 220;
-    double maxHeight = 220;
-    for (final day in _todoDays) {
-      final count = _todosByDay[day]?.length ?? 0;
-      final estimated = 160 + count * 110;
-      maxHeight = math.max(maxHeight, estimated.toDouble());
-    }
-    return maxHeight.clamp(220.0, 540.0).toDouble();
+    if (_todoDays.isEmpty) return 120;
+    final count = _todosByDay[_activeTodoDay]?.length ?? _todos.length;
+    if (count <= 0) return 120;
+    final estimated = 110 + count * 90;
+    return estimated.clamp(120, 420).toDouble();
   }
 
   void _requestTodoPage(int index, {bool animate = false}) {
@@ -2936,300 +3004,309 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         final progress = _progress();
         final plannerAction = _todayPlannerAction();
 
-        final list = ListView(
+        final scroll = SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          children: [
-            RhythmSectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  KemeticGold.text(
-                    'Planner',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: 'GentiumPlus',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              RhythmSectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    KemeticGold.text(
+                      'Planner',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'GentiumPlus',
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Move through today with clarity and grace.',
-                    style: RhythmTheme.subheading,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: RhythmTheme.frostSurface(),
-                        child: KemeticGold.icon(
-                          Icons.wb_sunny_rounded,
-                          size: 22,
+                    const SizedBox(height: 6),
+                    Text(
+                      'Move through today with clarity and grace.',
+                      style: RhythmTheme.subheading,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: RhythmTheme.frostSurface(),
+                          child: KemeticGold.icon(
+                            Icons.wb_sunny_rounded,
+                            size: 22,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              dateLabel,
-                              style: RhythmTheme.subheading.copyWith(
-                                color: _dateAccentColor(),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                dateLabel,
+                                style: RhythmTheme.subheading.copyWith(
+                                  color: _dateAccentColor(),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            LinearProgressIndicator(
-                              value: progress,
-                              minHeight: 8,
-                              backgroundColor: Colors.white12,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                RhythmTheme.aurora,
+                              const SizedBox(height: 6),
+                              LinearProgressIndicator(
+                                value: progress,
+                                minHeight: 8,
+                                backgroundColor: Colors.white12,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  RhythmTheme.aurora,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '${(progress * 100).round()}% aligned so far',
-                              style: RhythmTheme.subheading.copyWith(
-                                color: Colors.white70,
+                              const SizedBox(height: 6),
+                              Text(
+                                '${(progress * 100).round()}% aligned so far',
+                                style: RhythmTheme.subheading.copyWith(
+                                  color: Colors.white70,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            if (plannerAction != null) ...[
-              const SizedBox(height: 12),
-              KemeticDayButton(
-                dayKey: plannerAction.dayKey,
-                kYear: plannerAction.kYear,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Center(
-                    child: GlossyText(
-                      text: plannerAction.reflection,
-                      textAlign: TextAlign.center,
-                      softWrap: true,
-                      gradient: _plannerReflectionGloss,
-                      style: RhythmTheme.subheading.copyWith(height: 1.35),
+              if (plannerAction != null) ...[
+                const SizedBox(height: 12),
+                KemeticDayButton(
+                  dayKey: plannerAction.dayKey,
+                  kYear: plannerAction.kYear,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Center(
+                      child: GlossyText(
+                        text: plannerAction.reflection,
+                        textAlign: TextAlign.center,
+                        softWrap: true,
+                        gradient: _plannerReflectionGloss,
+                        style: RhythmTheme.subheading.copyWith(height: 1.35),
+                      ),
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 14),
+              ] else
+                const SizedBox(height: 14),
+              _buildNotesSection(),
               const SizedBox(height: 14),
-            ] else
+              _buildNutritionSection(),
               const SizedBox(height: 14),
-            _buildNotesSection(),
-            const SizedBox(height: 14),
-            _buildNutritionSection(),
-            const SizedBox(height: 14),
-            RhythmSectionCard(
-              title: 'To Do',
-              subtitle:
-                  'Add what you want to move for this day. Press return or tap Add.',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_month_rounded,
-                        size: 18,
-                        color: _dateAccentColor(),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _formatDateLabel(_activeTodoDay, short: true),
-                          style: RhythmTheme.subheading.copyWith(
-                            color: _dateAccentColor(),
-                            fontWeight: FontWeight.w700,
-                          ),
+              RhythmSectionCard(
+                title: 'To Do',
+                subtitle:
+                    'Add what you want to move for this day. Press return or tap Add.',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_month_rounded,
+                          size: 18,
+                          color: _dateAccentColor(),
                         ),
-                      ),
-                      ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: _commitmentInputController,
-                        builder: (context, value, child) {
-                          final hasText = value.text.trim().isNotEmpty;
-                          return ElevatedButton.icon(
-                            style: withExpandedTouchTargets(
-                              context,
-                              ElevatedButton.styleFrom(
-                                backgroundColor: RhythmTheme.aurora,
-                                foregroundColor: Colors.black,
-                                disabledBackgroundColor: Colors.white
-                                    .withValues(alpha: 0.08),
-                                disabledForegroundColor: Colors.white38,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
-                                ),
-                                visualDensity: VisualDensity.compact,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                            ),
-                            onPressed: hasText
-                                ? () => unawaited(_commitNewTodo())
-                                : null,
-                            icon: const Icon(Icons.add, size: 16),
-                            label: const Text('Add'),
-                          );
-                        },
-                      ),
-                      if (_sameDay(_activeTodoDay, _todayLocal))
                         const SizedBox(width: 8),
-                      if (_sameDay(_activeTodoDay, _todayLocal))
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white12),
-                          ),
-                          child: const Text(
-                            'Today',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
+                        Expanded(
+                          child: Text(
+                            _formatDateLabel(_activeTodoDay, short: true),
+                            style: RhythmTheme.subheading.copyWith(
+                              color: _dateAccentColor(),
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _commitmentInputController,
-                    style: RhythmTheme.subheading,
-                    decoration: InputDecoration(
-                      hintText:
-                          'Type a commitment, then press return or tap Add',
-                      hintStyle: RhythmTheme.subheading.copyWith(
-                        color: Colors.white38,
-                      ),
-                      filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.06),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.12),
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.12),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: RhythmTheme.aurora.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      isDense: true,
-                    ),
-                    textCapitalization: TextCapitalization.sentences,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => unawaited(_commitNewTodo()),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: _todoPageHeightEstimate(),
-                    child: PageView.builder(
-                      controller: _todoPageController,
-                      physics: const BouncingScrollPhysics(),
-                      onPageChanged: _onTodoPageChanged,
-                      itemCount: _todoDays.length,
-                      itemBuilder: (context, index) {
-                        final day = _todoDays[index];
-                        return _buildTodoDayPage(day);
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      for (int i = 0; i < _todoDays.length; i++)
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          height: 8,
-                          width: _activeTodoDayIndex == i ? 18 : 8,
-                          decoration: BoxDecoration(
-                            color: _activeTodoDayIndex == i
-                                ? RhythmTheme.aurora
-                                : Colors.white.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Swipe to review the previous 2 days or plan 2 days ahead.',
-                    textAlign: TextAlign.center,
-                    style: RhythmTheme.label.copyWith(color: Colors.white54),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            RhythmSectionCard(
-              title: 'Completed',
-              subtitle: 'Moments you already honored.',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: _completed().isEmpty
-                    ? [
-                        Text(
-                          'Nothing checked off yet. Start small; one step brings momentum.',
-                          style: RhythmTheme.subheading,
-                        ),
-                      ]
-                    : _completed()
-                          .map(
-                            (item) => Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 6.0,
+                        ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _commitmentInputController,
+                          builder: (context, value, child) {
+                            final hasText = value.text.trim().isNotEmpty;
+                            return ElevatedButton.icon(
+                              style: withExpandedTouchTargets(
+                                context,
+                                ElevatedButton.styleFrom(
+                                  backgroundColor: RhythmTheme.aurora,
+                                  foregroundColor: Colors.black,
+                                  disabledBackgroundColor: Colors.white
+                                      .withValues(alpha: 0.08),
+                                  disabledForegroundColor: Colors.white38,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
                               ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.check_circle,
-                                    color: Colors.greenAccent,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      item.title,
-                                      style: RhythmTheme.subheading,
-                                    ),
-                                  ),
-                                ],
+                              onPressed: hasText
+                                  ? () => unawaited(_commitNewTodo())
+                                  : null,
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('Add'),
+                            );
+                          },
+                        ),
+                        if (_sameDay(_activeTodoDay, _todayLocal))
+                          const SizedBox(width: 8),
+                        if (_sameDay(_activeTodoDay, _todayLocal))
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white12),
+                            ),
+                            child: const Text(
+                              'Today',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                          )
-                          .toList(),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _commitmentInputController,
+                      style: RhythmTheme.subheading,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Type a commitment, then press return or tap Add',
+                        hintStyle: RhythmTheme.subheading.copyWith(
+                          color: Colors.white38,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.06),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.12),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.12),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: RhythmTheme.aurora.withValues(alpha: 0.6),
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        isDense: true,
+                      ),
+                      textCapitalization: TextCapitalization.sentences,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => unawaited(_commitNewTodo()),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: _todoPageHeightEstimate(),
+                      child: PageView.builder(
+                        controller: _todoPageController,
+                        physics: const BouncingScrollPhysics(),
+                        onPageChanged: _onTodoPageChanged,
+                        itemCount: _todoDays.length,
+                        itemBuilder: (context, index) {
+                          final day = _todoDays[index];
+                          return _buildTodoDayPage(day);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        for (int i = 0; i < _todoDays.length; i++)
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            height: 8,
+                            width: _activeTodoDayIndex == i ? 18 : 8,
+                            decoration: BoxDecoration(
+                              color: _activeTodoDayIndex == i
+                                  ? RhythmTheme.aurora
+                                  : Colors.white.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Swipe to review the previous 2 days or plan 2 days ahead.',
+                      textAlign: TextAlign.center,
+                      style: RhythmTheme.label.copyWith(color: Colors.white54),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 14),
+              RhythmSectionCard(
+                title: 'Completed',
+                subtitle: 'Moments you already honored.',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _completed().isEmpty
+                      ? [
+                          Text(
+                            'Nothing checked off yet. Start small; one step brings momentum.',
+                            style: RhythmTheme.subheading,
+                          ),
+                        ]
+                      : _completed()
+                            .map(
+                              (item) => Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6.0,
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.greenAccent,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        item.title,
+                                        style: RhythmTheme.subheading,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                            .toList(),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+          ),
         );
 
-        return Stack(children: [list, _fullscreenOverlay()]);
+        return Stack(
+          fit: StackFit.expand,
+          children: [scroll, _fullscreenOverlay()],
+        );
       },
     );
 
