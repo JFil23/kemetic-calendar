@@ -308,7 +308,14 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   void _updateFeedPullDistance(double pullDistance) {
-    _feedTopPullDistance = pullDistance.clamp(0.0, _feedPullToCloseThreshold);
+    final clampedPull = pullDistance.clamp(0.0, _feedPullToCloseThreshold);
+    _feedTopPullDistance = math.max(_feedTopPullDistance, clampedPull);
+  }
+
+  void _maybeCloseFeedFromPull() {
+    if (_feedTopPullDistance < _feedPullToCloseThreshold) return;
+    if (_feedCloseInFlight) return;
+    unawaited(_closeFeed());
   }
 
   bool _handleFeedScrollNotification(ScrollNotification notification) {
@@ -327,6 +334,7 @@ class _ProfilePageState extends State<ProfilePage>
         );
         if (pullDistance > 0) {
           _updateFeedPullDistance(pullDistance);
+          _maybeCloseFeedFromPull();
         }
         return false;
       case OverscrollNotification():
@@ -337,6 +345,7 @@ class _ProfilePageState extends State<ProfilePage>
         _updateFeedPullDistance(
           _feedTopPullDistance + notification.overscroll.abs(),
         );
+        _maybeCloseFeedFromPull();
         return false;
       case ScrollEndNotification():
         if (_feedTopPullDistance >= _feedPullToCloseThreshold) {
