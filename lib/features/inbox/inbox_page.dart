@@ -23,6 +23,7 @@ import '../profile/profile_search_page.dart';
 import '../invites/event_invite_details_page.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../services/session_resume_service.dart';
+import '../../widgets/kemetic_heart_icon.dart';
 import '../../widgets/profile_avatar.dart';
 import '../calendars/shared_calendars_sheet.dart';
 
@@ -923,29 +924,32 @@ class _InboxPageState extends State<InboxPage> {
     InboxActivityItem activity, {
     BuildContext? closeContext,
   }) {
-    IconData icon;
+    Widget leadingIcon;
     Color color;
     String title;
     String subtitle;
 
     switch (activity.type) {
       case InboxActivityType.like:
-        icon = Icons.favorite;
         color = Colors.redAccent;
+        leadingIcon = const KemeticHeartIcon(size: 24, color: Colors.redAccent);
         title =
             '${activity.actorName ?? activity.actorHandle ?? 'Someone'} liked your flow';
         subtitle = activity.flowName ?? '';
         break;
       case InboxActivityType.comment:
-        icon = Icons.chat_bubble_outline;
         color = KemeticGold.base;
+        leadingIcon = const Icon(
+          Icons.chat_bubble_outline,
+          color: KemeticGold.base,
+        );
         title =
             '${activity.actorName ?? activity.actorHandle ?? 'Someone'} commented on your flow';
         subtitle = activity.commentPreview ?? activity.flowName ?? '';
         break;
       case InboxActivityType.follow:
-        icon = Icons.person_add;
         color = Colors.blueAccent;
+        leadingIcon = const Icon(Icons.person_add, color: Colors.blueAccent);
         title =
             '${activity.actorName ?? activity.actorHandle ?? 'Someone'} started following you';
         subtitle = '';
@@ -955,7 +959,7 @@ class _InboxPageState extends State<InboxPage> {
     return ListTile(
       leading: CircleAvatar(
         backgroundColor: color.withOpacity(0.1),
-        child: Icon(icon, color: color),
+        child: leadingIcon,
       ),
       title: Text(
         title,
@@ -1074,8 +1078,13 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Widget _buildSummaryGlyphAvatar({
-    required String glyph,
+    String? glyph,
+    Widget? child,
     double fontSize = 20,
+    EdgeInsetsGeometry padding = const EdgeInsets.symmetric(
+      horizontal: 8,
+      vertical: 6,
+    ),
   }) {
     return SizedBox(
       width: 44,
@@ -1097,21 +1106,54 @@ class _InboxPageState extends State<InboxPage> {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Text(
-              glyph,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: _summaryGoldInk,
-                fontSize: fontSize,
-                fontWeight: FontWeight.w700,
-                height: 0.95,
-                fontFamily: 'GentiumPlus',
-                fontFamilyFallback: _meduFontFallback,
-              ),
-            ),
+            padding: padding,
+            child:
+                child ??
+                Text(
+                  glyph!,
+                  textAlign: TextAlign.center,
+                  style: _summaryGlyphTextStyle(fontSize),
+                ),
           ),
         ),
+      ),
+    );
+  }
+
+  TextStyle _summaryGlyphTextStyle(double fontSize, {double height = 0.95}) {
+    return TextStyle(
+      color: _summaryGoldInk,
+      fontSize: fontSize,
+      fontWeight: FontWeight.w700,
+      height: height,
+      fontFamily: 'GentiumPlus',
+      fontFamilyFallback: _meduFontFallback,
+    );
+  }
+
+  Widget _buildInvitesSummaryGlyphAvatar() {
+    return _buildSummaryGlyphAvatar(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('𓂝', style: _summaryGlyphTextStyle(9.5, height: 0.8)),
+              Transform.translate(
+                offset: const Offset(0, -1),
+                child: Text(
+                  '𓈙',
+                  style: _summaryGlyphTextStyle(9.5, height: 0.8),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 2),
+          Text('𓀀', style: _summaryGlyphTextStyle(13, height: 0.9)),
+        ],
       ),
     );
   }
@@ -1136,16 +1178,13 @@ class _InboxPageState extends State<InboxPage> {
             latestSentInvite.invitedAt.isAfter(latestNotification.createdAt));
 
     final subtitle = useSentInvite
-        ? '${latestSentInvite!.calendarName} - waiting on ${latestSentInvite.inviteeLabel}'
+        ? '${latestSentInvite.calendarName} - waiting on ${latestSentInvite.inviteeLabel}'
         : _calendarSummarySubtitleForNotification(latestNotification);
 
     return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: _gold.withValues(alpha: 0.16),
-        child: Icon(Icons.calendar_month_rounded, color: _gold),
-      ),
+      leading: _buildInvitesSummaryGlyphAvatar(),
       title: const Text(
-        'Calendar',
+        'Invites',
         style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
       ),
       subtitle: Text(
@@ -1332,7 +1371,7 @@ class _InboxPageState extends State<InboxPage> {
                   ),
                 ),
                 const Text(
-                  'Calendar',
+                  'Invites',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,

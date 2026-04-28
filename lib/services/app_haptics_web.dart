@@ -5,6 +5,7 @@ import 'dart:js_util' as js_util;
 import 'package:flutter/foundation.dart';
 import 'package:web/web.dart' as web;
 
+import 'app_haptic_type.dart';
 import 'app_haptics_result.dart';
 
 void _debugLog(String message) {
@@ -12,7 +13,18 @@ void _debugLog(String message) {
   debugPrint('[haptics:web] $message');
 }
 
-Future<AppHapticResult> triggerProductiveHaptic() async {
+({Object pattern, String detail}) _webHapticForType(AppHapticType type) {
+  return switch (type) {
+    AppHapticType.selection => (pattern: 12, detail: 'navigator.vibrate(12)'),
+    AppHapticType.lightImpact => (pattern: 22, detail: 'navigator.vibrate(22)'),
+    AppHapticType.mediumImpact => (
+      pattern: 30,
+      detail: 'navigator.vibrate(30)',
+    ),
+  };
+}
+
+Future<AppHapticResult> triggerAppHaptic(AppHapticType type) async {
   try {
     if (!web.window.isSecureContext) {
       _debugLog('Skipped: not in a secure context.');
@@ -44,18 +56,25 @@ Future<AppHapticResult> triggerProductiveHaptic() async {
       _debugLog(
         'userActivation hasBeenActive=$hasBeenActive isActive=$isActive.',
       );
+      if (!hasBeenActive && !isActive) {
+        return const AppHapticResult(
+          backend: 'web',
+          status: 'skipped',
+          detail: 'user activation missing',
+        );
+      }
     }
 
-    // Slightly longer than the first pass so Android PWAs can actually feel it.
+    final haptic = _webHapticForType(type);
     final accepted = js_util.callMethod<Object?>(navigator, 'vibrate', <Object>[
-      22,
+      haptic.pattern,
     ]);
     _debugLog('navigator.vibrate returned $accepted.');
     final acceptedBool = accepted is bool ? accepted : null;
     return AppHapticResult(
       backend: 'web',
-      status: 'invoked',
-      detail: 'navigator.vibrate(22)',
+      status: acceptedBool == false ? 'rejected' : 'invoked',
+      detail: haptic.detail,
       accepted: acceptedBool,
     );
   } catch (error) {

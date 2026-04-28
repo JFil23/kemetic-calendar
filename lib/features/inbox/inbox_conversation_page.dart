@@ -16,6 +16,7 @@ import 'conversation_user.dart';
 import '../invites/event_invite_details_page.dart';
 import '../profile/profile_page.dart';
 import '../../services/session_resume_service.dart';
+import '../../widgets/kemetic_heart_icon.dart';
 import '../../widgets/profile_avatar.dart';
 
 class InboxConversationPage extends StatefulWidget {
@@ -969,8 +970,7 @@ class _MessageBubble extends StatelessWidget {
                 ),
               ] else if (likesCount > 0) ...[
                 const SizedBox(width: 8),
-                Icon(
-                  Icons.favorite,
+                KemeticHeartIcon(
                   size: 12,
                   color: likedByMe
                       ? Colors.redAccent

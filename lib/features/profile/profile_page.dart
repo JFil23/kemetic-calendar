@@ -15,6 +15,7 @@ import '../../data/insight_post_model.dart';
 import '../../data/profile_feed_item_model.dart';
 import '../../utils/detail_sanitizer.dart';
 import '../../utils/kemetic_date_format.dart';
+import '../../services/app_haptics.dart';
 import 'edit_profile_page.dart';
 import 'profile_search_page.dart';
 import 'flow_post_picker_page.dart';
@@ -292,6 +293,7 @@ class _ProfilePageState extends State<ProfilePage>
   Future<void> _revealFeed() async {
     if (_feedRevealed || _feedCloseInFlight) return;
     _feedTopPullDistance = 0;
+    unawaited(AppHaptics.mediumImpact(reason: 'profile_feed_reveal'));
     setState(() => _feedRevealed = true);
     unawaited(_feedBloomController.forward(from: 0));
     await _loadFeedPage(reset: true);
@@ -301,6 +303,7 @@ class _ProfilePageState extends State<ProfilePage>
     if (!_feedRevealed || _feedCloseInFlight) return;
     _feedCloseInFlight = true;
     _feedTopPullDistance = 0;
+    unawaited(AppHaptics.mediumImpact(reason: 'profile_feed_close'));
     await _feedBloomController.reverse(from: _feedBloomController.value);
     if (!mounted) return;
     _feedCloseInFlight = false;

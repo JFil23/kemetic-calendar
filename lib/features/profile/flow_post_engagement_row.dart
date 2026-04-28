@@ -12,6 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/flow_post_comment_model.dart';
 import '../../data/flow_post_model.dart';
 import '../../data/profile_repo.dart';
+import '../../widgets/kemetic_heart_icon.dart';
 import '../../widgets/profile_avatar.dart';
 
 class FlowPostEngagementRow extends StatefulWidget {
@@ -257,10 +258,10 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
       );
     }
 
-    return Icon(
-      _likedByMe ? Icons.favorite : Icons.favorite_border,
+    return KemeticHeartIcon(
       size: iconSize,
       color: _likedByMe ? Colors.redAccent : KemeticGold.base,
+      filled: _likedByMe,
     );
   }
 
@@ -947,14 +948,12 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
                                   ),
                                 )
                               else
-                                Icon(
-                                  comment.likedByMe
-                                      ? Icons.favorite
-                                      : Icons.favorite_border,
+                                KemeticHeartIcon(
                                   size: 15,
                                   color: comment.likedByMe
                                       ? Colors.redAccent
                                       : KemeticGold.base,
+                                  filled: comment.likedByMe,
                                 ),
                               const SizedBox(width: 5),
                               Text(

@@ -8,7 +8,6 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/gestures.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -2229,7 +2228,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     if (snapped != null && snapped != _dragPreviewStartMin) {
       _dragPreviewStartMin = snapped;
       _lastDragSnappedMinute = snapped;
-      HapticFeedback.selectionClick();
+      unawaited(AppHaptics.selection());
       shouldSetState = true;
     }
 
@@ -2242,7 +2241,7 @@ class _DayViewGridState extends State<DayViewGrid> {
       if (rescanned != null && rescanned != _dragPreviewStartMin) {
         _dragPreviewStartMin = rescanned;
         _lastDragSnappedMinute = rescanned;
-        HapticFeedback.selectionClick();
+        unawaited(AppHaptics.selection());
       }
       shouldSetState = true;
     }
@@ -2819,7 +2818,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               if (snapped == _dragPreviewStartMin) return;
               _dragPreviewStartMin = snapped;
               _lastDragSnappedMinute = snapped;
-              HapticFeedback.selectionClick();
+              unawaited(AppHaptics.selection());
               if (mounted) setState(() {});
               if (kDebugMode) {
                 debugPrint(
@@ -3123,7 +3122,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         behavior: HitTestBehavior.translucent,
         onTap: () => _showEventDetail(event),
         onLongPress: () {
-          HapticFeedback.mediumImpact();
+          unawaited(AppHaptics.mediumImpact());
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("This event can't be moved"),
@@ -3149,7 +3148,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         _dragPreviewEvent = event;
         _dragPreviewStartMin = event.startMin;
         _lastDragSnappedMinute = event.startMin;
-        HapticFeedback.selectionClick();
+        unawaited(AppHaptics.selection());
         if (kDebugMode) {
           debugPrint('[DayView] overflow proxy drag title="${event.title}"');
         }
@@ -3182,7 +3181,7 @@ class _DayViewGridState extends State<DayViewGrid> {
       details.globalPosition,
     );
     if (snappedMinutes == null) return;
-    HapticFeedback.mediumImpact();
+    unawaited(AppHaptics.mediumImpact());
     _tempDragStartMin = snappedMinutes;
     if (mounted) setState(() {});
   }
@@ -3200,7 +3199,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
     if (snapped != null && snapped != _tempDragStartMin) {
       _tempDragStartMin = snapped;
-      HapticFeedback.selectionClick();
+      unawaited(AppHaptics.selection());
       shouldSetState = true;
     }
 
@@ -3213,7 +3212,7 @@ class _DayViewGridState extends State<DayViewGrid> {
       );
       if (rescanned != null && rescanned != _tempDragStartMin) {
         _tempDragStartMin = rescanned;
-        HapticFeedback.selectionClick();
+        unawaited(AppHaptics.selection());
       }
       shouldSetState = true;
     }
@@ -3308,7 +3307,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         behavior: HitTestBehavior.opaque,
         onTap: () => _showEventDetail(event),
         onLongPress: () {
-          HapticFeedback.mediumImpact();
+          unawaited(AppHaptics.mediumImpact());
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text("This event can't be moved"),
@@ -3340,7 +3339,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         _dragPreviewEvent = event;
         _dragPreviewStartMin = event.startMin;
         _lastDragSnappedMinute = event.startMin;
-        HapticFeedback.selectionClick();
+        unawaited(AppHaptics.selection());
         if (kDebugMode) {
           debugPrint('[DayView] onDragStarted title="${event.title}"');
         }
@@ -4494,7 +4493,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           widget.onNavigateToDay!(nextTarget.ky, nextTarget.km, nextTarget.kd),
         );
       }
-      HapticFeedback.selectionClick();
+      unawaited(AppHaptics.selection());
     }
 
     showModalBottomSheet(

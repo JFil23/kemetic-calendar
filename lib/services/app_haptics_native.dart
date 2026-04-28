@@ -1,21 +1,42 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'app_haptic_type.dart';
 import 'app_haptics_result.dart';
 
-Future<AppHapticResult> triggerProductiveHaptic() async {
+({Future<void> Function() invoke, String detail}) _nativeHapticForType(
+  AppHapticType type,
+) {
+  return switch (type) {
+    AppHapticType.selection => (
+      invoke: HapticFeedback.selectionClick,
+      detail: 'HapticFeedback.selectionClick()',
+    ),
+    AppHapticType.lightImpact => (
+      invoke: HapticFeedback.lightImpact,
+      detail: 'HapticFeedback.lightImpact()',
+    ),
+    AppHapticType.mediumImpact => (
+      invoke: HapticFeedback.mediumImpact,
+      detail: 'HapticFeedback.mediumImpact()',
+    ),
+  };
+}
+
+Future<AppHapticResult> triggerAppHaptic(AppHapticType type) async {
+  final target = _nativeHapticForType(type);
   try {
     if (kDebugMode) {
-      debugPrint('[haptics:native] invoking HapticFeedback.lightImpact().');
+      debugPrint('[haptics:native] invoking ${target.detail}.');
     }
-    await HapticFeedback.lightImpact();
+    await target.invoke();
     if (kDebugMode) {
-      debugPrint('[haptics:native] HapticFeedback.lightImpact() completed.');
+      debugPrint('[haptics:native] ${target.detail} completed.');
     }
-    return const AppHapticResult(
+    return AppHapticResult(
       backend: 'native',
       status: 'invoked',
-      detail: 'HapticFeedback.lightImpact()',
+      detail: target.detail,
     );
   } catch (error) {
     if (kDebugMode) {

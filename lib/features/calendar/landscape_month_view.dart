@@ -4,13 +4,15 @@
 // Styled to match day_view.dart's beautiful detail sheets
 //
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart'; // For DragStartBehavior
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mobile/core/touch_targets.dart';
+import '../../services/app_haptics.dart';
 import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart' show CalendarPage, KemeticMath;
 import '../journal/journal_event_badge.dart';
@@ -2121,7 +2123,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         ),
       ),
       onDragStarted: () {
-        HapticFeedback.selectionClick();
+        unawaited(AppHaptics.selection());
       },
       onDraggableCanceled: (_, __) {},
       onDragEnd: (_) {},
@@ -2915,7 +2917,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       if (mounted && nextTarget.kd != previousTarget.kd) {
         _scrollToDay(nextTarget.kd);
       }
-      HapticFeedback.selectionClick();
+      unawaited(AppHaptics.selection());
     }
 
     showModalBottomSheet(
