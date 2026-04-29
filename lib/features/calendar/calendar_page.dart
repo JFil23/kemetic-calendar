@@ -14,7 +14,7 @@ import 'package:flutter/rendering.dart';
 import '../../data/note_category.dart';
 import 'dart:io' show File, Directory;
 import 'package:mobile/utils/color_bits.dart';
-import 'package:mobile/utils/local_end_date.dart';
+import 'package:mobile/utils/flow_visibility.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'landscape_month_view.dart';
@@ -4665,13 +4665,6 @@ class _CalendarPageState extends State<CalendarPage>
     return startLocal.subtract(Duration(minutes: alertMinutes));
   }
 
-  // UI still filters by end date even though repos do, because _flows is an
-  // in-memory cache that can contain stale rows until the next sync. This keeps
-  // ended flows out of visible lists.
-  bool _isActiveByEndDate(DateTime? endDate) {
-    return isActiveThroughLocalEndDate(endDate);
-  }
-
   Future<void> _saveFlowById(int flowId) async {
     final idx = _flows.indexWhere((f) => f.id == flowId);
     if (idx < 0) {
@@ -8590,7 +8583,12 @@ class _CalendarPageState extends State<CalendarPage>
     final rebuiltById = <String, ReminderRule>{};
     for (final f in _flows.where(
       (f) =>
-          f.isReminder && f.active && !f.isHidden && _isActiveByEndDate(f.end),
+          f.isReminder &&
+          isFlowVisibleLocally(
+            active: f.active,
+            isHidden: f.isHidden,
+            endDate: f.end,
+          ),
     )) {
       final rr = _reminderRuleFromFlow(f);
       if (rr != null && !_endedReminderIds.contains(rr.id)) {
@@ -9655,7 +9653,11 @@ class _CalendarPageState extends State<CalendarPage>
   Map<int, FlowData> _buildActiveFlowIndex() {
     final flowIndex = <int, FlowData>{};
     for (final f in _flows.where(
-      (f) => f.active && !f.isHidden && _isActiveByEndDate(f.end),
+      (f) => isFlowVisibleLocally(
+        active: f.active,
+        isHidden: f.isHidden,
+        endDate: f.end,
+      ),
     )) {
       flowIndex[f.id] = FlowData(
         id: f.id,
@@ -16470,7 +16472,9 @@ class _CalendarPageState extends State<CalendarPage>
         final hiddenCount = newFlows.where((f) => f.isHidden).length;
         final activeCount = newFlows.where((f) => f.active).length;
         final expiredCount = newFlows
-            .where((f) => !_isActiveByEndDate(f.end))
+            .where(
+              (f) => !isFlowActiveLocally(active: f.active, endDate: f.end),
+            )
             .length;
         debugPrint(
           '[loadFromDisk] newFlows: total=${newFlows.length} hidden=$hiddenCount active=$activeCount expired=$expiredCount',
@@ -16483,7 +16487,7 @@ class _CalendarPageState extends State<CalendarPage>
       // Hydrate events for flows that are still active and in-range.
       // Hidden flows (repeating notes) must be included so their occurrences appear.
       final hydrationFlowIds = newFlows
-          .where((f) => f.active && _isActiveByEndDate(f.end))
+          .where((f) => isFlowActiveLocally(active: f.active, endDate: f.end))
           .map((f) => f.id)
           .toSet(); // 👈 Set for O(1) contains() lookups
       if (kDebugMode) {
@@ -16594,8 +16598,10 @@ class _CalendarPageState extends State<CalendarPage>
             final owningFlow = flowIndex[flowId];
             final flowEligible =
                 owningFlow != null &&
-                owningFlow.active &&
-                _isActiveByEndDate(owningFlow.end);
+                isFlowActiveLocally(
+                  active: owningFlow.active,
+                  endDate: owningFlow.end,
+                );
             if (!flowEligible) {
               // skip events that belong to deleted / inactive / expired flows
               continue;
@@ -19820,7 +19826,7 @@ class _CalendarPageState extends State<CalendarPage>
   Map<int, FlowData> _buildFlowIndex() {
     final index = <int, FlowData>{};
     for (final f in _flows.where(
-      (f) => f.active && _isActiveByEndDate(f.end),
+      (f) => isFlowActiveLocally(active: f.active, endDate: f.end),
     )) {
       index[f.id] = FlowData(
         id: f.id,
@@ -30957,7 +30963,13 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
 
   List<_Flow> get _activeItems =>
       widget.flows
-          .where((f) => f.active && !f.isHidden && _isActiveByEndDate(f.end))
+          .where(
+            (f) => isFlowVisibleLocally(
+              active: f.active,
+              isHidden: f.isHidden,
+              endDate: f.end,
+            ),
+          )
           .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
@@ -30966,13 +30978,6 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   List<_Flow> get _savedItems =>
       widget.flows.where((f) => f.isSaved && !f.isHidden).toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-
-  // UI still filters by end date even though repos do, because _flows is an
-  // in-memory cache that can contain stale rows until the next sync. This keeps
-  // ended flows out of the view.
-  bool _isActiveByEndDate(DateTime? endDate) {
-    return isActiveThroughLocalEndDate(endDate);
-  }
 
   @override
   Widget build(BuildContext context) {

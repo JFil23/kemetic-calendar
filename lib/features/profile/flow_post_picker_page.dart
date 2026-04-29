@@ -6,7 +6,7 @@ import 'package:mobile/shared/glossy_text.dart';
 
 import '../../data/flows_repo.dart';
 import '../../data/profile_repo.dart';
-import '../../utils/local_end_date.dart';
+import '../../utils/flow_visibility.dart';
 import '_post_glossy_helper.dart';
 
 enum FlowPostTab { active, saved }
@@ -43,14 +43,14 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
     });
   }
 
-  bool _isActiveByEndDate(DateTime? endDate) {
-    return isActiveThroughLocalEndDate(endDate);
-  }
-
   List<FlowRow> get _activeFlows =>
       _flows
           .where(
-            (f) => f.active && !f.isHidden && _isActiveByEndDate(f.endDate),
+            (f) => isFlowVisibleLocally(
+              active: f.active,
+              isHidden: f.isHidden,
+              endDate: f.endDate,
+            ),
           )
           .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));

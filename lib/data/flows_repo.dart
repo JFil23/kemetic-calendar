@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 
-import '../utils/local_end_date.dart';
+import '../utils/flow_visibility.dart';
 
 const _kFlows = 'flows';
 
@@ -16,11 +16,6 @@ bool _isUuid(String? v) {
   return RegExp(
     r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
   ).hasMatch(v);
-}
-
-/// Returns true if the end date is unset or today-or-later in local time.
-bool _isActiveByEndDate(DateTime? endDate) {
-  return isActiveThroughLocalEndDate(endDate);
 }
 
 @immutable
@@ -146,8 +141,7 @@ class FlowsRepo {
               .where(
                 (f) =>
                     f.userId == user.id && // guard if RLS is loose
-                    f.active == true &&
-                    _isActiveByEndDate(f.endDate),
+                    isFlowActiveLocally(active: f.active, endDate: f.endDate),
               )
               .toList(),
         );
@@ -318,7 +312,7 @@ class FlowsRepo {
     _log('fetchAll ✓ ${rows.length} rows');
     final flows = (rows as List)
         .map((r) => FlowRow.fromRow(r as Map<String, dynamic>))
-        .where((f) => _isActiveByEndDate(f.endDate))
+        .where((f) => isFlowActiveLocally(active: f.active, endDate: f.endDate))
         .toList();
     return flows;
   }
@@ -338,7 +332,7 @@ class FlowsRepo {
     final flows = rows
         .cast<Map<String, dynamic>>()
         .map(FlowRow.fromRow)
-        .where((f) => _isActiveByEndDate(f.endDate))
+        .where((f) => isFlowActiveLocally(active: f.active, endDate: f.endDate))
         .toList();
     return flows;
   }

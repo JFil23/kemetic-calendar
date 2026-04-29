@@ -11,7 +11,7 @@ import '../core/kemetic_converter.dart';
 import 'share_models.dart';
 import 'user_events_repo.dart';
 import '../utils/event_cid_util.dart';
-import '../utils/local_end_date.dart';
+import '../utils/flow_visibility.dart';
 
 bool isExternalInboxActivityActor(String? actorId, String currentUserId) {
   if (currentUserId.isEmpty) return false;
@@ -2126,10 +2126,11 @@ class ShareRepo {
     required bool isHidden,
     required DateTime? endDate,
   }) {
-    if (!active || isHidden) {
-      return true;
-    }
-    return isExpiredAfterLocalEndDate(endDate);
+    return !isFlowVisibleLocally(
+      active: active,
+      isHidden: isHidden,
+      endDate: endDate,
+    );
   }
 
   Map<String, dynamic>? _asMap(Object? raw) {

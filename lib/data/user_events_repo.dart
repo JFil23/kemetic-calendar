@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../features/calendar/notify.dart';
 import '../telemetry/telemetry.dart';
+import '../utils/flow_visibility.dart';
 
 const _kTable = 'user_events';
 const _kReadableEventsTable = 'user_events_with_calendars';
@@ -826,24 +827,13 @@ class UserEventsRepo {
             return false;
           }
 
-          // If there's a flow, it must be active
-          final bool active = (flow['active'] as bool?) ?? false;
-          if (!active) {
-            // Flow exists but is inactive - skip it
-            return false;
-          }
-
-          // Treat flows as "ended" ONLY if their end_date is in the past.
-          // If end_date is in the future (or today), we still want to see them on the calendar.
-          final String? endDateStr = flow['end_date'] as String?;
-          bool expired = false;
-          if (endDateStr != null) {
-            final endDate = DateTime.parse(endDateStr).toUtc();
-            final now = DateTime.now().toUtc();
-            expired = endDate.isBefore(now);
-          }
-
-          return !expired; // Only return true if flow is active AND not expired
+          return isFlowActiveLocally(
+            active: (flow['active'] as bool?) ?? false,
+            endDate: switch (flow['end_date']) {
+              final String value => DateTime.parse(value),
+              _ => null,
+            },
+          );
         })
         .map(
           (row) => (

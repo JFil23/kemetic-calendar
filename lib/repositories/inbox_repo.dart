@@ -13,7 +13,7 @@ import '../data/share_repo.dart';
 import '../data/user_events_repo.dart';
 import '../features/calendar/calendar_page.dart' show CalendarPage, KemeticMath;
 import '../utils/event_cid_util.dart';
-import '../utils/local_end_date.dart';
+import '../utils/flow_visibility.dart';
 
 Map<String, ({int count, bool likedByMe})> aggregateDmMessageLikeStates(
   Iterable<String> shareIds,
@@ -139,11 +139,6 @@ class InboxRepo {
   /// 3. After deletion: trigger clears imported_at, this returns false
   /// 4. Re-import: button reactivates because no matching flow exists
   Future<bool> isFlowCurrentlyImported(String shareId) async {
-    bool isActiveByEndDateStr(String? endDateStr) {
-      if (endDateStr == null) return true;
-      return isActiveThroughLocalEndDate(DateTime.parse(endDateStr));
-    }
-
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) {
@@ -164,8 +159,13 @@ class InboxRepo {
       // Flow is imported if it exists, is active, and not past end_date
       final exists =
           flowResponse != null &&
-          (flowResponse['active'] as bool? ?? false) &&
-          isActiveByEndDateStr(flowResponse['end_date'] as String?);
+          isFlowActiveLocally(
+            active: flowResponse['active'] as bool? ?? false,
+            endDate: switch (flowResponse['end_date']) {
+              final String value => DateTime.parse(value),
+              _ => null,
+            },
+          );
 
       if (kDebugMode) {
         _log('[InboxRepo] isFlowCurrentlyImported($shareId)');
