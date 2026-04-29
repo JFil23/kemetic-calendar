@@ -141,7 +141,7 @@ class FlowsRepo {
               .where(
                 (f) =>
                     f.userId == user.id && // guard if RLS is loose
-                    isFlowActiveLocally(active: f.active, endDate: f.endDate),
+                    isFlowEnabled(active: f.active),
               )
               .toList(),
         );
@@ -312,7 +312,7 @@ class FlowsRepo {
     _log('fetchAll ✓ ${rows.length} rows');
     final flows = (rows as List)
         .map((r) => FlowRow.fromRow(r as Map<String, dynamic>))
-        .where((f) => isFlowActiveLocally(active: f.active, endDate: f.endDate))
+        .where((f) => isFlowEnabled(active: f.active))
         .toList();
     return flows;
   }
@@ -332,7 +332,7 @@ class FlowsRepo {
     final flows = rows
         .cast<Map<String, dynamic>>()
         .map(FlowRow.fromRow)
-        .where((f) => isFlowActiveLocally(active: f.active, endDate: f.endDate))
+        .where((f) => isFlowEnabled(active: f.active))
         .toList();
     return flows;
   }

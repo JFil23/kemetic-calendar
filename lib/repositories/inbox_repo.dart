@@ -156,16 +156,10 @@ class InboxRepo {
           .eq('active', true) // Must be active
           .maybeSingle();
 
-      // Flow is imported if it exists, is active, and not past end_date
+      // Flow is imported if the user's linked copy still exists and is active.
       final exists =
           flowResponse != null &&
-          isFlowActiveLocally(
-            active: flowResponse['active'] as bool? ?? false,
-            endDate: switch (flowResponse['end_date']) {
-              final String value => DateTime.parse(value),
-              _ => null,
-            },
-          );
+          isFlowEnabled(active: flowResponse['active'] as bool? ?? false);
 
       if (kDebugMode) {
         _log('[InboxRepo] isFlowCurrentlyImported($shareId)');

@@ -827,13 +827,7 @@ class UserEventsRepo {
             return false;
           }
 
-          return isFlowActiveLocally(
-            active: (flow['active'] as bool?) ?? false,
-            endDate: switch (flow['end_date']) {
-              final String value => DateTime.parse(value),
-              _ => null,
-            },
-          );
+          return isFlowEnabled(active: (flow['active'] as bool?) ?? false);
         })
         .map(
           (row) => (

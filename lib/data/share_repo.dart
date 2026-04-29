@@ -1720,7 +1720,6 @@ class ShareRepo {
         ?.trim();
     final existingActive = (existing?['active'] as bool?) ?? true;
     final existingHidden = (existing?['is_hidden'] as bool?) ?? false;
-    final existingEndDate = _parseDateOnlyValue(existing?['end_date']);
     final matchedByShareId = existing?['_matched_by_share_id'] == true;
 
     // Recipient-owned lifecycle state wins over the sender snapshot. If the
@@ -1733,7 +1732,6 @@ class ShareRepo {
         _isLocallyEndedImportedFlow(
           active: existingActive,
           isHidden: existingHidden,
-          endDate: existingEndDate,
         )) {
       await repo.deleteByFlowId(existingFlowId);
       return;
@@ -2124,13 +2122,8 @@ class ShareRepo {
   bool _isLocallyEndedImportedFlow({
     required bool active,
     required bool isHidden,
-    required DateTime? endDate,
   }) {
-    return !isFlowVisibleLocally(
-      active: active,
-      isHidden: isHidden,
-      endDate: endDate,
-    );
+    return !isFlowVisibleInLists(active: active, isHidden: isHidden);
   }
 
   Map<String, dynamic>? _asMap(Object? raw) {

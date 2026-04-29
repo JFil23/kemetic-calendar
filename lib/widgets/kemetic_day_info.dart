@@ -2666,12 +2666,21 @@ What was borne through the first ten days now stands before Ma’at as service c
             '✨ The heart of the carried current — scattered points of duty held in one living center',
         maatPrinciple: 'Spark the Outposts',
         cosmicContext: '''
-The first decan of Paopi was one surge of movement: one procession, one burden, one visible push.
-Now the work spreads.
-Paopi II begins when carrying stops being only local and becomes distributed across many points of need.
-Day 11 is about lighting the outposts: the places, people, and responsibilities that still depend on your presence.
-You are not responsible only for what is directly in front of you.
-You are responsible for what remains connected to your name, your labor, and your promise.
+The first ten days of Paopi gathered the burden into one visible act of carrying.
+
+Now the work must travel farther.
+
+Day 11 opens the heart of the riser: the inner station where scattered duties are remembered, named, and sent outward with force.
+
+This is the day of the outposts — the people, places, promises, and unfinished responsibilities that still depend on your order, even when they are not standing directly before you.
+
+Ma’at is not kept only at the center.
+
+It is kept wherever your presence has reached.
+
+Today, light the places connected to your name. Send the message. Restore the link. Feed the duty that has grown distant.
+
+A thing is not truly carried until it reaches what was waiting for it.
 ''',
         decanFlow: paophiIIFlowRows,
         meduNeter: MeduNeterKey(

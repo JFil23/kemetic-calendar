@@ -7,7 +7,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart' show DateUtils;
 import 'package:mobile/utils/detail_sanitizer.dart';
 import 'package:mobile/utils/event_cid_util.dart';
-import 'package:mobile/utils/local_end_date.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 import 'profile_avatar_glyphs.dart';
 import 'profile_model.dart';
@@ -164,14 +163,11 @@ class ProfileRepo {
     String userId,
   ) async {
     try {
-      final todayIso = localDateIso();
-
       final flowsResp = await _client
           .from('flows')
           .select('id')
           .eq('user_id', userId)
           .eq('active', true)
-          .or('end_date.is.null,end_date.gte.$todayIso')
           .or('is_hidden.is.null,is_hidden.eq.false');
 
       final flowsList = (flowsResp as List?) ?? const [];

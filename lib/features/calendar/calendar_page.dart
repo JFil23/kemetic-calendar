@@ -8584,11 +8584,8 @@ class _CalendarPageState extends State<CalendarPage>
     for (final f in _flows.where(
       (f) =>
           f.isReminder &&
-          isFlowVisibleLocally(
-            active: f.active,
-            isHidden: f.isHidden,
-            endDate: f.end,
-          ),
+          isFlowScheduleOpenLocally(active: f.active, endDate: f.end) &&
+          !f.isHidden,
     )) {
       final rr = _reminderRuleFromFlow(f);
       if (rr != null && !_endedReminderIds.contains(rr.id)) {
@@ -9653,11 +9650,7 @@ class _CalendarPageState extends State<CalendarPage>
   Map<int, FlowData> _buildActiveFlowIndex() {
     final flowIndex = <int, FlowData>{};
     for (final f in _flows.where(
-      (f) => isFlowVisibleLocally(
-        active: f.active,
-        isHidden: f.isHidden,
-        endDate: f.end,
-      ),
+      (f) => isFlowVisibleInLists(active: f.active, isHidden: f.isHidden),
     )) {
       flowIndex[f.id] = FlowData(
         id: f.id,
@@ -16473,7 +16466,9 @@ class _CalendarPageState extends State<CalendarPage>
         final activeCount = newFlows.where((f) => f.active).length;
         final expiredCount = newFlows
             .where(
-              (f) => !isFlowActiveLocally(active: f.active, endDate: f.end),
+              (f) =>
+                  f.active &&
+                  !isFlowScheduleOpenLocally(active: f.active, endDate: f.end),
             )
             .length;
         debugPrint(
@@ -16484,10 +16479,11 @@ class _CalendarPageState extends State<CalendarPage>
       // Build index/maps for later use
       final Map<int, _Flow> flowIndex = {for (final f in newFlows) f.id: f};
 
-      // Hydrate events for flows that are still active and in-range.
+      // Hydrate events for all active flows, including ones whose scheduled
+      // range has ended, so historical flow events remain visible.
       // Hidden flows (repeating notes) must be included so their occurrences appear.
       final hydrationFlowIds = newFlows
-          .where((f) => isFlowActiveLocally(active: f.active, endDate: f.end))
+          .where((f) => isFlowEnabled(active: f.active))
           .map((f) => f.id)
           .toSet(); // 👈 Set for O(1) contains() lookups
       if (kDebugMode) {
@@ -16594,16 +16590,12 @@ class _CalendarPageState extends State<CalendarPage>
             final kDate = KemeticMath.fromGregorian(localStart);
 
             // Build _Note, same shape the rest of the app expects
-            // 👈 SAFETY NET: Skip events for flows that don't exist or are inactive/expired.
+            // 👈 SAFETY NET: Skip events for flows that don't exist or are inactive.
             final owningFlow = flowIndex[flowId];
             final flowEligible =
-                owningFlow != null &&
-                isFlowActiveLocally(
-                  active: owningFlow.active,
-                  endDate: owningFlow.end,
-                );
+                owningFlow != null && isFlowEnabled(active: owningFlow.active);
             if (!flowEligible) {
-              // skip events that belong to deleted / inactive / expired flows
+              // skip events that belong to deleted / inactive flows
               continue;
             }
 
@@ -19825,9 +19817,7 @@ class _CalendarPageState extends State<CalendarPage>
   // Helper method to build flow index for landscape month view
   Map<int, FlowData> _buildFlowIndex() {
     final index = <int, FlowData>{};
-    for (final f in _flows.where(
-      (f) => isFlowActiveLocally(active: f.active, endDate: f.end),
-    )) {
+    for (final f in _flows.where((f) => isFlowEnabled(active: f.active))) {
       index[f.id] = FlowData(
         id: f.id,
         name: f.name,
@@ -30964,11 +30954,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   List<_Flow> get _activeItems =>
       widget.flows
           .where(
-            (f) => isFlowVisibleLocally(
-              active: f.active,
-              isHidden: f.isHidden,
-              endDate: f.end,
-            ),
+            (f) => isFlowVisibleInLists(active: f.active, isHidden: f.isHidden),
           )
           .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));

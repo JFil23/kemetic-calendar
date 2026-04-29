@@ -46,11 +46,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
   List<FlowRow> get _activeFlows =>
       _flows
           .where(
-            (f) => isFlowVisibleLocally(
-              active: f.active,
-              isHidden: f.isHidden,
-              endDate: f.endDate,
-            ),
+            (f) => isFlowVisibleInLists(active: f.active, isHidden: f.isHidden),
           )
           .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));

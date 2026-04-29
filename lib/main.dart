@@ -1491,43 +1491,54 @@ class _AuthGateState extends State<AuthGate> {
   // ------------------------------------
 
   void _initSharingIntent() {
+    if (kIsWeb) {
+      _logIcs('Skipping sharing intent setup on web.');
+      return;
+    }
+
     _logIcs('Initializing sharing intent handling...');
 
-    // Handle files shared while app is closed
-    ReceiveSharingIntent.instance
-        .getInitialMedia()
-        .then((List<SharedMediaFile> value) {
-          unawaited(
-            runGuardedAsync(
-              'initial shared media',
-              () => _handleIncomingSharedMedia(value, source: 'initial'),
-              onError: _logAuthGateError,
-            ),
-          );
-        })
-        .catchError((Object error, StackTrace stackTrace) {
-          _logIcs('Error getting initial media: $error');
-          _logAuthGateError('initial shared media fetch', error, stackTrace);
-        });
-
-    // Handle files shared while app is open
-    _intentDataStreamSubscription = ReceiveSharingIntent.instance
-        .getMediaStream()
-        .listen(
-          (List<SharedMediaFile> value) {
+    try {
+      // Handle files shared while app is closed
+      ReceiveSharingIntent.instance
+          .getInitialMedia()
+          .then((List<SharedMediaFile> value) {
             unawaited(
               runGuardedAsync(
-                'stream shared media',
-                () => _handleIncomingSharedMedia(value, source: 'stream'),
+                'initial shared media',
+                () => _handleIncomingSharedMedia(value, source: 'initial'),
                 onError: _logAuthGateError,
               ),
             );
-          },
-          onError: (Object error, StackTrace stackTrace) {
-            _logIcs('Error in media stream: $error');
-            _logAuthGateError('shared media stream', error, stackTrace);
-          },
-        );
+          })
+          .catchError((Object error, StackTrace stackTrace) {
+            _logIcs('Error getting initial media: $error');
+            _logAuthGateError('initial shared media fetch', error, stackTrace);
+          });
+
+      // Handle files shared while app is open
+      _intentDataStreamSubscription = ReceiveSharingIntent.instance
+          .getMediaStream()
+          .listen(
+            (List<SharedMediaFile> value) {
+              unawaited(
+                runGuardedAsync(
+                  'stream shared media',
+                  () => _handleIncomingSharedMedia(value, source: 'stream'),
+                  onError: _logAuthGateError,
+                ),
+              );
+            },
+            onError: (Object error, StackTrace stackTrace) {
+              _logIcs('Error in media stream: $error');
+              _logAuthGateError('shared media stream', error, stackTrace);
+            },
+          );
+    } on MissingPluginException catch (error, stackTrace) {
+      _logIcs('Sharing intent plugin unavailable: $error');
+      _logAuthGateError('sharing intent setup', error, stackTrace);
+      _intentDataStreamSubscription = null;
+    }
   }
 
   Future<void> _handleIncomingSharedMedia(
