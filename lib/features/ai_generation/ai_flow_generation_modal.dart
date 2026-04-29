@@ -251,9 +251,16 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       debugPrint('[AI Modal] Error during generation: $e');
       debugPrint('[AI Modal] Stack trace: $stackTrace');
 
+      final rawMessage = e.toString().trim();
+      final cleanMessage = rawMessage.startsWith('Exception: ')
+          ? rawMessage.substring('Exception: '.length).trim()
+          : rawMessage;
+
       _stopVisibleThinking();
       setState(() {
-        _error = 'Something went wrong. Please try again.';
+        _error = cleanMessage.isNotEmpty
+            ? cleanMessage
+            : 'Something went wrong. Please try again.';
         _isGenerating = false;
       });
     }
