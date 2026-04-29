@@ -13,6 +13,7 @@ import '../data/share_repo.dart';
 import '../data/user_events_repo.dart';
 import '../features/calendar/calendar_page.dart' show CalendarPage, KemeticMath;
 import '../utils/event_cid_util.dart';
+import '../utils/local_end_date.dart';
 
 Map<String, ({int count, bool likedByMe})> aggregateDmMessageLikeStates(
   Iterable<String> shareIds,
@@ -140,11 +141,7 @@ class InboxRepo {
   Future<bool> isFlowCurrentlyImported(String shareId) async {
     bool isActiveByEndDateStr(String? endDateStr) {
       if (endDateStr == null) return true;
-      final end = DateTime.parse(endDateStr).toUtc();
-      final endDateOnly = DateTime.utc(end.year, end.month, end.day);
-      final now = DateTime.now().toUtc();
-      final today = DateTime.utc(now.year, now.month, now.day);
-      return !endDateOnly.isBefore(today);
+      return isActiveThroughLocalEndDate(DateTime.parse(endDateStr));
     }
 
     try {

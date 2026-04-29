@@ -1,5 +1,4 @@
-const String profileBackdropAssetDirectory =
-    'assets/profile/day_cycle_registered_v3_jpg';
+const String profileBackdropAssetDirectory = 'assets/profile/day_cycle_alt';
 
 class ProfileBackdropFrame {
   final String assetPath;
@@ -11,102 +10,93 @@ class ProfileBackdropFrame {
   });
 }
 
+// Curated anchors across the day. These alternates are visually consistent
+// enough to support live blending without the doubled-landmark issue from the
+// older hourly set.
 const List<ProfileBackdropFrame> profileBackdropFrames = [
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/12am.jpg',
-    minuteOfDay: 0,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_ud0tf5ud0tf5ud0t.png',
+    minuteOfDay: 30,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/1am.jpg',
-    minuteOfDay: 60,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_w23cuuw23cuuw23c.png',
+    minuteOfDay: 3 * 60 + 30,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/2am.jpg',
-    minuteOfDay: 120,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_tj7dxltj7dxltj7d.png',
+    minuteOfDay: 5 * 60 + 15,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/3am.jpg',
-    minuteOfDay: 180,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_fzalkbfzalkbfzal.png',
+    minuteOfDay: 6 * 60,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/4am.jpg',
-    minuteOfDay: 240,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_obejgdobejgdobej.png',
+    minuteOfDay: 6 * 60 + 45,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/5am.jpg',
-    minuteOfDay: 300,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_akck2oakck2oakck.png',
+    minuteOfDay: 8 * 60,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/6am.jpg',
-    minuteOfDay: 360,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_kqnl1zkqnl1zkqnl.png',
+    minuteOfDay: 9 * 60 + 30,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/7am.jpg',
-    minuteOfDay: 420,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_hxen9ghxen9ghxen.png',
+    minuteOfDay: 11 * 60,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/8am.jpg',
-    minuteOfDay: 480,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_xt94fyxt94fyxt94.png',
+    minuteOfDay: 12 * 60 + 15,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/9am.jpg',
-    minuteOfDay: 540,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_34xdte34xdte34xd.png',
+    minuteOfDay: 13 * 60 + 30,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/10am.jpg',
-    minuteOfDay: 600,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_qpd87fqpd87fqpd8.png',
+    minuteOfDay: 14 * 60 + 45,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/11am.jpg',
-    minuteOfDay: 660,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_twbjprtwbjprtwbj.png',
+    minuteOfDay: 16 * 60,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/12pm.jpg',
-    minuteOfDay: 720,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_xk3nzmxk3nzmxk3n.png',
+    minuteOfDay: 17 * 60 + 15,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/1pm.jpg',
-    minuteOfDay: 780,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_utruv3utruv3utru (1).png',
+    minuteOfDay: 18 * 60 + 30,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/2pm.jpg',
-    minuteOfDay: 840,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_8m6x8m8m6x8m8m6x.png',
+    minuteOfDay: 19 * 60 + 15,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/3pm.jpg',
-    minuteOfDay: 900,
+    assetPath:
+        '$profileBackdropAssetDirectory/Gemini_Generated_Image_vc4fm5vc4fm5vc4f.png',
+    minuteOfDay: 20 * 60 + 15,
   ),
   ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/4pm.jpg',
-    minuteOfDay: 960,
-  ),
-  ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/5pm.jpg',
-    minuteOfDay: 1020,
-  ),
-  ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/6pm.jpg',
-    minuteOfDay: 1080,
-  ),
-  ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/7pm.jpg',
-    minuteOfDay: 1140,
-  ),
-  ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/8pm.jpg',
-    minuteOfDay: 1200,
-  ),
-  ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/9pm.jpg',
-    minuteOfDay: 1260,
-  ),
-  ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/10pm.jpg',
-    minuteOfDay: 1320,
-  ),
-  ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/11pm.jpg',
-    minuteOfDay: 1380,
+    assetPath: '$profileBackdropAssetDirectory/primary_night_pyramid.png',
+    minuteOfDay: 23 * 60,
   ),
 ];
 
@@ -114,10 +104,16 @@ const List<ProfileBackdropFrame> profileBackdropFrames = [
 DateTime profileBackdropPhoneLocalNow([DateTime Function()? clock]) =>
     (clock ?? DateTime.now)().toLocal();
 
-Duration profileBackdropDelayUntilNextFrameChange(DateTime now) {
-  final nextFrame = DateTime(now.year, now.month, now.day, now.hour + 1);
-  final delay = nextFrame.difference(now);
-  return delay > Duration.zero ? delay : const Duration(hours: 1);
+Duration profileBackdropDelayUntilNextBlendTick(DateTime now) {
+  final nextTick = DateTime(
+    now.year,
+    now.month,
+    now.day,
+    now.hour,
+    now.minute + 1,
+  );
+  final delay = nextTick.difference(now);
+  return delay > Duration.zero ? delay : const Duration(minutes: 1);
 }
 
 class ProfileBackdropBlend {

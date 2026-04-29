@@ -51,6 +51,8 @@ class _InboxPageState extends State<InboxPage> {
   static const Color _summaryGoldBase = Color(0xFFCA9221);
   static const Color _summaryGoldDeep = Color(0xFF7A5310);
   static const Color _summaryGoldInk = Color(0xFF1C1204);
+  static const double _summaryGlyphAvatarWidth = 42;
+  static const double _summaryGlyphAvatarHeight = 40;
   static const Gradient _summaryGoldGradient = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
@@ -1087,33 +1089,39 @@ class _InboxPageState extends State<InboxPage> {
     ),
   }) {
     return SizedBox(
-      width: 44,
-      height: 40,
+      width: _summaryGlyphAvatarWidth,
+      height: _summaryGlyphAvatarHeight,
       child: Center(
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: _summaryGoldGradient,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: _summaryGoldLight.withValues(alpha: 0.52),
-            ),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: _summaryGoldDeep.withValues(alpha: 0.34),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
+        child: SizedBox(
+          width: _summaryGlyphAvatarWidth,
+          height: _summaryGlyphAvatarHeight,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: _summaryGoldGradient,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: _summaryGoldLight.withValues(alpha: 0.52),
               ),
-            ],
-          ),
-          child: Padding(
-            padding: padding,
-            child:
-                child ??
-                Text(
-                  glyph!,
-                  textAlign: TextAlign.center,
-                  style: _summaryGlyphTextStyle(fontSize),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: _summaryGoldDeep.withValues(alpha: 0.34),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
                 ),
+              ],
+            ),
+            child: Center(
+              child: Padding(
+                padding: padding,
+                child:
+                    child ??
+                    Text(
+                      glyph!,
+                      textAlign: TextAlign.center,
+                      style: _summaryGlyphTextStyle(fontSize),
+                    ),
+              ),
+            ),
           ),
         ),
       ),

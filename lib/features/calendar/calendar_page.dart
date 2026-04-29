@@ -14,6 +14,7 @@ import 'package:flutter/rendering.dart';
 import '../../data/note_category.dart';
 import 'dart:io' show File, Directory;
 import 'package:mobile/utils/color_bits.dart';
+import 'package:mobile/utils/local_end_date.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'landscape_month_view.dart';
@@ -4668,12 +4669,7 @@ class _CalendarPageState extends State<CalendarPage>
   // in-memory cache that can contain stale rows until the next sync. This keeps
   // ended flows out of visible lists.
   bool _isActiveByEndDate(DateTime? endDate) {
-    if (endDate == null) return true;
-    final endUtc = endDate.toUtc();
-    final endDateOnly = DateTime.utc(endUtc.year, endUtc.month, endUtc.day);
-    final now = DateTime.now().toUtc();
-    final today = DateTime.utc(now.year, now.month, now.day);
-    return !endDateOnly.isBefore(today);
+    return isActiveThroughLocalEndDate(endDate);
   }
 
   Future<void> _saveFlowById(int flowId) async {
@@ -30975,12 +30971,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   // in-memory cache that can contain stale rows until the next sync. This keeps
   // ended flows out of the view.
   bool _isActiveByEndDate(DateTime? endDate) {
-    if (endDate == null) return true;
-    final endUtc = endDate.toUtc();
-    final endDateOnly = DateTime.utc(endUtc.year, endUtc.month, endUtc.day);
-    final now = DateTime.now().toUtc();
-    final today = DateTime.utc(now.year, now.month, now.day);
-    return !endDateOnly.isBefore(today);
+    return isActiveThroughLocalEndDate(endDate);
   }
 
   @override

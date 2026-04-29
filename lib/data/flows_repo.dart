@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 
+import '../utils/local_end_date.dart';
+
 const _kFlows = 'flows';
 
 void _log(String msg) {
@@ -16,14 +18,9 @@ bool _isUuid(String? v) {
   ).hasMatch(v);
 }
 
-/// Returns true if the end date is unset or today-or-later (UTC date-only).
+/// Returns true if the end date is unset or today-or-later in local time.
 bool _isActiveByEndDate(DateTime? endDate) {
-  if (endDate == null) return true;
-  final endUtc = endDate.toUtc();
-  final endDateOnly = DateTime.utc(endUtc.year, endUtc.month, endUtc.day);
-  final now = DateTime.now().toUtc();
-  final today = DateTime.utc(now.year, now.month, now.day);
-  return !endDateOnly.isBefore(today);
+  return isActiveThroughLocalEndDate(endDate);
 }
 
 @immutable

@@ -2925,7 +2925,7 @@ class _ProfileBackdropState extends State<_ProfileBackdrop>
     with WidgetsBindingObserver {
   static const Alignment _heroImageAlignment = Alignment(-0.08, -1.0);
   static const double _heroImageOpacity = 0.9;
-  static const int _backdropSourceWidth = 1672;
+  static const int _backdropSourceWidth = 2730;
 
   final Set<String> _precachedAssets = <String>{};
   Timer? _tickTimer;
@@ -2995,7 +2995,7 @@ class _ProfileBackdropState extends State<_ProfileBackdrop>
   void _scheduleNextTick() {
     _tickTimer?.cancel();
     final now = profileBackdropPhoneLocalNow();
-    _tickTimer = Timer(profileBackdropDelayUntilNextFrameChange(now), () {
+    _tickTimer = Timer(profileBackdropDelayUntilNextBlendTick(now), () {
       if (!mounted) return;
       _refreshVisibleTime();
     });
@@ -3016,15 +3016,24 @@ class _ProfileBackdropState extends State<_ProfileBackdrop>
   @override
   Widget build(BuildContext context) {
     final blend = ProfileBackdropBlend.forTime(_visibleNow);
+    final nextOpacity = blend.t;
     _primeAssets(blend);
 
     return RepaintBoundary(
       child: SizedBox.expand(
         child: Opacity(
           opacity: _heroImageOpacity,
-          // These hourly plates are not pixel-registered enough for a live
-          // crossfade; blending them creates doubled landmarks in-app.
-          child: _buildBackdropImage(blend.current.assetPath),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              _buildBackdropImage(blend.current.assetPath),
+              if (nextOpacity > 0.001)
+                Opacity(
+                  opacity: nextOpacity,
+                  child: _buildBackdropImage(blend.next.assetPath),
+                ),
+            ],
+          ),
         ),
       ),
     );

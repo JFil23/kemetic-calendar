@@ -11,6 +11,7 @@ import '../core/kemetic_converter.dart';
 import 'share_models.dart';
 import 'user_events_repo.dart';
 import '../utils/event_cid_util.dart';
+import '../utils/local_end_date.dart';
 
 bool isExternalInboxActivityActor(String? actorId, String currentUserId) {
   if (currentUserId.isEmpty) return false;
@@ -2128,14 +2129,7 @@ class ShareRepo {
     if (!active || isHidden) {
       return true;
     }
-    if (endDate == null) {
-      return false;
-    }
-    final endUtc = endDate.toUtc();
-    final endDateOnly = DateTime.utc(endUtc.year, endUtc.month, endUtc.day);
-    final now = DateTime.now().toUtc();
-    final today = DateTime.utc(now.year, now.month, now.day);
-    return endDateOnly.isBefore(today);
+    return isExpiredAfterLocalEndDate(endDate);
   }
 
   Map<String, dynamic>? _asMap(Object? raw) {

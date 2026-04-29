@@ -6,6 +6,7 @@ import 'package:mobile/shared/glossy_text.dart';
 
 import '../../data/flows_repo.dart';
 import '../../data/profile_repo.dart';
+import '../../utils/local_end_date.dart';
 import '_post_glossy_helper.dart';
 
 enum FlowPostTab { active, saved }
@@ -43,12 +44,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
   }
 
   bool _isActiveByEndDate(DateTime? endDate) {
-    if (endDate == null) return true;
-    final endUtc = endDate.toUtc();
-    final endDateOnly = DateTime.utc(endUtc.year, endUtc.month, endUtc.day);
-    final now = DateTime.now().toUtc();
-    final today = DateTime.utc(now.year, now.month, now.day);
-    return !endDateOnly.isBefore(today);
+    return isActiveThroughLocalEndDate(endDate);
   }
 
   List<FlowRow> get _activeFlows =>

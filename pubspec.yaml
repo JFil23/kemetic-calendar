@@ -93,6 +93,7 @@ flutter:
   assets:
     - env/dev.json
     - assets/ma_at_flows/
+    - assets/profile/day_cycle_alt/
     - assets/profile/day_cycle_registered_v3_jpg/
 
   # Using GoogleFonts package for all typography
