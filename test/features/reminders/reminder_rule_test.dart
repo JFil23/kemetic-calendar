@@ -58,6 +58,25 @@ void main() {
       expect(rule.alertOffsetMinutes, -1);
     });
 
+    test('supports reminder series end dates in current and legacy keys', () {
+      final fromCurrent = ReminderRule.fromJson({
+        'id': 'rule-1',
+        'title': 'Temple visit',
+        'startLocal': '2026-04-15T09:00:00',
+        'endLocal': '2026-05-15T00:00:00',
+      });
+      final fromLegacy = ReminderRule.fromJson({
+        'id': 'rule-2',
+        'title': 'Temple visit',
+        'startLocal': '2026-04-15T09:00:00',
+        'end_date': '2026-05-20T00:00:00',
+      });
+
+      expect(fromCurrent.endLocal, DateTime(2026, 5, 15));
+      expect(fromLegacy.endLocal, DateTime(2026, 5, 20));
+      expect(fromCurrent.toJson()['endLocal'], '2026-05-15T00:00:00.000');
+    });
+
     test('encodeList and decodeList dedupe by reminder id', () {
       final first = ReminderRule(
         id: 'rule-1',
@@ -70,6 +89,7 @@ void main() {
         id: 'rule-2',
         title: 'Evening reflection',
         startLocal: DateTime(2026, 4, 15, 20),
+        endLocal: DateTime(2026, 5, 1),
         color: Colors.indigo,
         repeat: const ReminderRepeat(
           kind: ReminderRepeatKind.weekly,
@@ -84,6 +104,7 @@ void main() {
       expect(decoded.first.id, 'rule-1');
       expect(decoded.first.title, 'Morning prayer');
       expect(decoded.last.id, 'rule-2');
+      expect(decoded.last.endLocal, DateTime(2026, 5, 1));
       expect(decoded.last.repeat.kind, ReminderRepeatKind.weekly);
       expect(decoded.last.repeat.weekdays, {1, 3, 5});
     });

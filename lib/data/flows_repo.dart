@@ -181,9 +181,7 @@ class FlowsRepo {
     if (startDate != null) {
       payload['start_date'] = startDate.toUtc().toIso8601String();
     }
-    if (endDate != null) {
-      payload['end_date'] = endDate.toUtc().toIso8601String();
-    }
+    payload['end_date'] = endDate?.toUtc().toIso8601String();
     if (notes != null) {
       payload['notes'] = notes;
     }

@@ -110,6 +110,7 @@ class ReminderRule {
   final String? calendarId;
   final String title;
   final DateTime startLocal;
+  final DateTime? endLocal;
   final bool allDay;
   final Color color;
   final String? category;
@@ -122,6 +123,7 @@ class ReminderRule {
     this.calendarId,
     required this.title,
     required this.startLocal,
+    this.endLocal,
     this.allDay = false,
     required this.color,
     this.category,
@@ -135,6 +137,7 @@ class ReminderRule {
     String? calendarId,
     String? title,
     DateTime? startLocal,
+    DateTime? endLocal,
     bool? allDay,
     Color? color,
     String? category,
@@ -147,6 +150,7 @@ class ReminderRule {
       calendarId: calendarId ?? this.calendarId,
       title: title ?? this.title,
       startLocal: startLocal ?? this.startLocal,
+      endLocal: endLocal ?? this.endLocal,
       allDay: allDay ?? this.allDay,
       color: color ?? this.color,
       category: category ?? this.category,
@@ -162,6 +166,7 @@ class ReminderRule {
       'calendarId': calendarId,
       'title': title,
       'startLocal': startLocal.toIso8601String(),
+      'endLocal': endLocal?.toIso8601String(),
       'allDay': allDay,
       'color': color.value,
       'category': category,
@@ -178,6 +183,12 @@ class ReminderRule {
           json['calendarId'] as String? ?? json['calendar_id'] as String?,
       title: json['title'] as String,
       startLocal: DateTime.parse(json['startLocal'] as String),
+      endLocal: switch (json['endLocal'] ??
+          json['endDate'] ??
+          json['end_date']) {
+        final String raw => DateTime.parse(raw),
+        _ => null,
+      },
       allDay: (json['allDay'] as bool?) ?? false,
       color: Color((json['color'] as num?)?.toInt() ?? Colors.blue.value),
       category: json['category'] as String?,
