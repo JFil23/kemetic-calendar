@@ -1,4 +1,5 @@
-const String profileBackdropAssetDirectory = 'assets/profile/day_cycle_alt';
+const String profileBackdropAssetDirectory =
+    'assets/profile/day_cycle_registered_v3_jpg';
 
 class ProfileBackdropFrame {
   final String assetPath;
@@ -10,95 +11,41 @@ class ProfileBackdropFrame {
   });
 }
 
-// Curated anchors across the day. These alternates are visually consistent
-// enough to support live blending without the doubled-landmark issue from the
-// older hourly set.
-const List<ProfileBackdropFrame> profileBackdropFrames = [
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_ud0tf5ud0tf5ud0t.png',
-    minuteOfDay: 30,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_w23cuuw23cuuw23c.png',
-    minuteOfDay: 3 * 60 + 30,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_tj7dxltj7dxltj7d.png',
-    minuteOfDay: 5 * 60 + 15,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_fzalkbfzalkbfzal.png',
-    minuteOfDay: 6 * 60,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_obejgdobejgdobej.png',
-    minuteOfDay: 6 * 60 + 45,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_akck2oakck2oakck.png',
-    minuteOfDay: 8 * 60,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_kqnl1zkqnl1zkqnl.png',
-    minuteOfDay: 9 * 60 + 30,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_hxen9ghxen9ghxen.png',
-    minuteOfDay: 11 * 60,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_xt94fyxt94fyxt94.png',
-    minuteOfDay: 12 * 60 + 15,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_34xdte34xdte34xd.png',
-    minuteOfDay: 13 * 60 + 30,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_qpd87fqpd87fqpd8.png',
-    minuteOfDay: 14 * 60 + 45,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_twbjprtwbjprtwbj.png',
-    minuteOfDay: 16 * 60,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_xk3nzmxk3nzmxk3n.png',
-    minuteOfDay: 17 * 60 + 15,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_utruv3utruv3utru (1).png',
-    minuteOfDay: 18 * 60 + 30,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_8m6x8m8m6x8m8m6x.png',
-    minuteOfDay: 19 * 60 + 15,
-  ),
-  ProfileBackdropFrame(
-    assetPath:
-        '$profileBackdropAssetDirectory/Gemini_Generated_Image_vc4fm5vc4fm5vc4f.png',
-    minuteOfDay: 20 * 60 + 15,
-  ),
-  ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/primary_night_pyramid.png',
-    minuteOfDay: 23 * 60,
-  ),
+const List<String> _profileBackdropHourLabels = <String>[
+  '12am',
+  '1am',
+  '2am',
+  '3am',
+  '4am',
+  '5am',
+  '6am',
+  '7am',
+  '8am',
+  '9am',
+  '10am',
+  '11am',
+  '12pm',
+  '1pm',
+  '2pm',
+  '3pm',
+  '4pm',
+  '5pm',
+  '6pm',
+  '7pm',
+  '8pm',
+  '9pm',
+  '10pm',
+  '11pm',
 ];
+
+final List<ProfileBackdropFrame>
+profileBackdropFrames = List<ProfileBackdropFrame>.generate(24, (index) {
+  return ProfileBackdropFrame(
+    assetPath:
+        '$profileBackdropAssetDirectory/${_profileBackdropHourLabels[index]}.jpg',
+    minuteOfDay: index * 60,
+  );
+}, growable: false);
 
 // The profile backdrop should follow the phone's current local clock.
 DateTime profileBackdropPhoneLocalNow([DateTime Function()? clock]) =>

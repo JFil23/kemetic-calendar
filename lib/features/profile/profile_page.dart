@@ -25,6 +25,7 @@ import 'insight_post_detail_page.dart';
 import '_post_glossy_helper.dart';
 import 'follow_list_page.dart';
 import '../calendar/calendar_page.dart';
+import '../calendar/kemetic_month_metadata.dart' show getMonthById;
 import 'flow_post_engagement_row.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../widgets/inbox_icon_with_badge.dart';
@@ -40,6 +41,92 @@ const Color _profileGregorianBlue = Color(0xFF4DA3FF);
 const Color _profileGregorianBlueLight = Color(0xFFBFE0FF);
 const int _profileFeedPageSize = 18;
 const double _profileFeedColumnGap = 12;
+const Set<String> _profileFeedKeywordStopWords = <String>{
+  'a',
+  'about',
+  'all',
+  'am',
+  'an',
+  'and',
+  'any',
+  'are',
+  'as',
+  'at',
+  'be',
+  'been',
+  'being',
+  'but',
+  'by',
+  'community',
+  'dated',
+  'day',
+  'days',
+  'did',
+  'do',
+  'flow',
+  'flows',
+  'follow',
+  'following',
+  'for',
+  'from',
+  'have',
+  'i',
+  'if',
+  'in',
+  'insight',
+  'insights',
+  'into',
+  'is',
+  'it',
+  'its',
+  'like',
+  'me',
+  'more',
+  'my',
+  'no',
+  'note',
+  'notes',
+  'of',
+  'on',
+  'or',
+  'our',
+  'out',
+  'over',
+  'post',
+  'posted',
+  'posts',
+  'read',
+  'she',
+  'so',
+  'than',
+  'that',
+  'the',
+  'their',
+  'them',
+  'then',
+  'there',
+  'they',
+  'this',
+  'through',
+  'to',
+  'under',
+  'up',
+  'us',
+  'was',
+  'we',
+  'were',
+  'what',
+  'when',
+  'where',
+  'which',
+  'while',
+  'will',
+  'with',
+  'within',
+  'yes',
+  'you',
+  'your',
+};
 
 const Gradient _profileGoldGradient = LinearGradient(
   begin: Alignment.centerLeft,
@@ -96,6 +183,7 @@ class _ProfilePageState extends State<ProfilePage>
   bool _feedLoadingMore = false;
   bool _feedHasMore = true;
   bool _showGregorianFeedDates = false;
+  ProfileFeedItem? _expandedFeedItem;
   bool _feedCloseInFlight = false;
   int _activePostIndex = 0;
   int _activeInsightPostIndex = 0;
@@ -260,10 +348,6 @@ class _ProfilePageState extends State<ProfilePage>
     });
   }
 
-  Future<void> _reloadPostedContent() async {
-    await Future.wait<void>([_loadPosts(), _loadInsightPosts()]);
-  }
-
   void _handleProfileScroll() {
     if (!_feedRevealed) {
       _maybeRevealFeedFromViewport();
@@ -307,7 +391,10 @@ class _ProfilePageState extends State<ProfilePage>
     await _feedBloomController.reverse(from: _feedBloomController.value);
     if (!mounted) return;
     _feedCloseInFlight = false;
-    setState(() => _feedRevealed = false);
+    setState(() {
+      _feedRevealed = false;
+      _expandedFeedItem = null;
+    });
   }
 
   void _updateFeedPullDistance(double pullDistance) {
@@ -389,6 +476,9 @@ class _ProfilePageState extends State<ProfilePage>
     );
     if (!mounted) return;
 
+    final expandedIdentity = _expandedFeedItem == null
+        ? null
+        : _feedItemIdentity(_expandedFeedItem!);
     final merged = reset
         ? <ProfileFeedItem>[]
         : List<ProfileFeedItem>.from(_feedItems);
@@ -402,11 +492,17 @@ class _ProfilePageState extends State<ProfilePage>
       }
     }
 
+    final updatedExpanded = expandedIdentity == null
+        ? null
+        : _findFeedItemByIdentity(merged, expandedIdentity);
     setState(() {
       _feedItems = merged;
       _feedLoading = false;
       _feedLoadingMore = false;
       _feedHasMore = loaded.length >= _profileFeedPageSize;
+      if (updatedExpanded != null) {
+        _expandedFeedItem = updatedExpanded;
+      }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -421,6 +517,368 @@ class _ProfilePageState extends State<ProfilePage>
     if (!_feedScrollController.hasClients) return;
     if (_feedScrollController.position.extentAfter > 720) return;
     unawaited(_loadFeedPage());
+  }
+
+  String _feedItemIdentity(ProfileFeedItem item) =>
+      '${item.kind.name}:${item.id}';
+
+  ProfileFeedItem? _findFeedItemByIdentity(
+    Iterable<ProfileFeedItem> items,
+    String identity,
+  ) {
+    for (final item in items) {
+      if (_feedItemIdentity(item) == identity) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _expandFeedItem(ProfileFeedItem item) async {
+    if (!_feedRevealed) return;
+    final resolved =
+        _findFeedItemByIdentity(_feedItems, _feedItemIdentity(item)) ?? item;
+    unawaited(AppHaptics.mediumImpact(reason: 'profile_feed_expand_post'));
+    if (mounted) {
+      setState(() {
+        _expandedFeedItem = resolved;
+      });
+    }
+    if (_feedScrollController.hasClients) {
+      unawaited(
+        _feedScrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    }
+  }
+
+  void _collapseExpandedFeedItem() {
+    if (!mounted || _expandedFeedItem == null) return;
+    setState(() {
+      _expandedFeedItem = null;
+    });
+  }
+
+  String _normalizedFeedPhrase(String value) {
+    return value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), ' ').trim();
+  }
+
+  Set<String> _feedTokensFromText(
+    String value, {
+    int minLength = 2,
+    int? limit,
+  }) {
+    final tokens = <String>{};
+    for (final match in RegExp(r'[a-z0-9]+').allMatches(value.toLowerCase())) {
+      final token = match.group(0)!;
+      if (token.length < minLength) continue;
+      if (_profileFeedKeywordStopWords.contains(token)) continue;
+      tokens.add(token);
+      if (limit != null && tokens.length >= limit) break;
+    }
+    return tokens;
+  }
+
+  int _sharedTokenCount(Set<String> a, Set<String> b) {
+    var count = 0;
+    for (final token in a) {
+      if (b.contains(token)) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  bool _containsAllTokens(Set<String> haystack, Set<String> needles) {
+    if (needles.isEmpty) return false;
+    for (final token in needles) {
+      if (!haystack.contains(token)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  List<Map<String, dynamic>> _flowRuleMaps(FlowPost post) {
+    final rawRules = post.payloadJson?['rules'];
+    final source = rawRules is List ? rawRules : post.rules;
+    return source
+        .whereType<Map>()
+        .map((rule) => Map<String, dynamic>.from(rule))
+        .toList();
+  }
+
+  List<Map<String, dynamic>> _flowPayloadEvents(FlowPost post) {
+    final rawEvents = post.payloadJson?['events'];
+    if (rawEvents is! List) return const [];
+    return rawEvents
+        .whereType<Map>()
+        .map((event) => Map<String, dynamic>.from(event))
+        .toList();
+  }
+
+  Set<String> _flowTokens(FlowPost post) {
+    final tokens = <String>{};
+    tokens.addAll(_feedTokensFromText(cleanFlowTitle(post.name)));
+    tokens.addAll(_feedTokensFromText(cleanFlowOverview(post.notes)));
+    tokens.addAll(_feedTokensFromText(cleanFlowDetail(post.notes)));
+    for (final event in _flowPayloadEvents(post)) {
+      tokens.addAll(
+        _feedTokensFromText(cleanFlowTitle(event['title'] as String?)),
+      );
+      tokens.addAll(
+        _feedTokensFromText(cleanFlowDetail(event['detail'] as String?)),
+      );
+      tokens.addAll(_feedTokensFromText((event['location'] as String?) ?? ''));
+    }
+    return tokens;
+  }
+
+  Set<String> _flowFocusTerms(FlowPost post) {
+    final tokens = <String>{};
+    tokens.addAll(_feedTokensFromText(cleanFlowTitle(post.name)));
+    tokens.addAll(_feedTokensFromText(cleanFlowOverview(post.notes)));
+    for (final token in _flowTokens(post)) {
+      tokens.add(token);
+      if (tokens.length >= 12) break;
+    }
+    return tokens;
+  }
+
+  Set<String> _insightTokens(InsightPost post) {
+    final tokens = <String>{};
+    tokens.addAll(_feedTokensFromText(post.nodeTitle));
+    tokens.addAll(_feedTokensFromText(post.nodeId.replaceAll('-', ' ')));
+    tokens.addAll(_feedTokensFromText(post.bodyText, limit: 18));
+    return tokens;
+  }
+
+  Set<String> _insightFocusTerms(InsightPost post) {
+    final tokens = <String>{};
+    tokens.addAll(_feedTokensFromText(post.nodeTitle));
+    tokens.addAll(_feedTokensFromText(post.nodeId.replaceAll('-', ' ')));
+    for (final token in _feedTokensFromText(post.bodyText)) {
+      tokens.add(token);
+      if (tokens.length >= 12) break;
+    }
+    return tokens;
+  }
+
+  bool _sameInsightNode(InsightPost a, InsightPost b) {
+    final aNodeId = a.nodeId.trim().toLowerCase();
+    final bNodeId = b.nodeId.trim().toLowerCase();
+    if (aNodeId.isNotEmpty && aNodeId == bNodeId) return true;
+    final aTitle = _normalizedFeedPhrase(a.nodeTitle);
+    final bTitle = _normalizedFeedPhrase(b.nodeTitle);
+    return aTitle.isNotEmpty && aTitle == bTitle;
+  }
+
+  int _scoreRelatedFeedItem(
+    ProfileFeedItem selected,
+    ProfileFeedItem candidate,
+  ) {
+    if (_feedItemIdentity(selected) == _feedItemIdentity(candidate)) return 0;
+
+    switch (selected.kind) {
+      case ProfileFeedItemKind.insight:
+        final selectedInsight = selected.insightPost!;
+        final focusTerms = _insightFocusTerms(selectedInsight);
+        if (candidate.kind == ProfileFeedItemKind.insight) {
+          final candidateInsight = candidate.insightPost!;
+          var score =
+              _sharedTokenCount(focusTerms, _insightTokens(candidateInsight)) *
+              18;
+          if (_sameInsightNode(selectedInsight, candidateInsight)) {
+            score += 220;
+          }
+          return score;
+        }
+
+        final candidateFlow = candidate.flowPost!;
+        final flowTokens = _flowTokens(candidateFlow);
+        var score = _sharedTokenCount(focusTerms, flowTokens) * 14;
+        final nodeTitleTokens = _feedTokensFromText(selectedInsight.nodeTitle);
+        if (_containsAllTokens(flowTokens, nodeTitleTokens)) {
+          score += 72;
+        }
+        final nodeIdTokens = _feedTokensFromText(
+          selectedInsight.nodeId.replaceAll('-', ' '),
+        );
+        if (_containsAllTokens(flowTokens, nodeIdTokens)) {
+          score += 92;
+        }
+        return score;
+
+      case ProfileFeedItemKind.flow:
+        final selectedFlow = selected.flowPost!;
+        final focusTerms = _flowFocusTerms(selectedFlow);
+        if (candidate.kind == ProfileFeedItemKind.flow) {
+          final candidateFlow = candidate.flowPost!;
+          final candidateTokens = _flowTokens(candidateFlow);
+          var score = _sharedTokenCount(focusTerms, candidateTokens) * 16;
+          final titleTokens = _feedTokensFromText(
+            cleanFlowTitle(selectedFlow.name),
+          );
+          if (_containsAllTokens(candidateTokens, titleTokens)) {
+            score += 82;
+          }
+          return score;
+        }
+
+        final candidateInsight = candidate.insightPost!;
+        final candidateTokens = _insightTokens(candidateInsight);
+        var score = _sharedTokenCount(focusTerms, candidateTokens) * 12;
+        final nodeTitleTokens = _feedTokensFromText(candidateInsight.nodeTitle);
+        if (_containsAllTokens(focusTerms, nodeTitleTokens)) {
+          score += 54;
+        }
+        return score;
+    }
+  }
+
+  List<ProfileFeedItem> _rankRelatedFeedItems(
+    ProfileFeedItem selected,
+    ProfileFeedItemKind kind, {
+    int limit = 6,
+  }) {
+    final scored = <({ProfileFeedItem item, int score})>[];
+    final selectedIdentity = _feedItemIdentity(selected);
+    final seen = <String>{};
+
+    for (final item in _feedItems) {
+      final identity = _feedItemIdentity(item);
+      if (identity == selectedIdentity ||
+          item.kind != kind ||
+          !seen.add(identity)) {
+        continue;
+      }
+      final score = _scoreRelatedFeedItem(selected, item);
+      if (score <= 0) continue;
+      scored.add((item: item, score: score));
+    }
+
+    scored.sort((a, b) {
+      final scoreCompare = b.score.compareTo(a.score);
+      if (scoreCompare != 0) return scoreCompare;
+      return b.item.createdAt.compareTo(a.item.createdAt);
+    });
+
+    return [for (final entry in scored.take(limit)) entry.item];
+  }
+
+  List<ProfileFeedItem> _generalFeedFallback(
+    ProfileFeedItem selected, {
+    int limit = 8,
+  }) {
+    final selectedIdentity = _feedItemIdentity(selected);
+    final results = <ProfileFeedItem>[];
+    for (final item in _feedItems) {
+      if (_feedItemIdentity(item) == selectedIdentity) continue;
+      results.add(item);
+      if (results.length >= limit) break;
+    }
+    return results;
+  }
+
+  String? _insightTopicLabel(InsightPost post) {
+    final title = post.nodeTitle.trim();
+    if (title.isNotEmpty && title.toLowerCase() != 'insight') {
+      return title;
+    }
+    final focusTerms = _insightFocusTerms(post).toList();
+    if (focusTerms.isEmpty) return null;
+    return focusTerms.first;
+  }
+
+  List<_FeedRelatedSection> _relatedSectionsForFeedItem(
+    ProfileFeedItem selected,
+  ) {
+    switch (selected.kind) {
+      case ProfileFeedItemKind.insight:
+        final post = selected.insightPost!;
+        final topic = _insightTopicLabel(post);
+        final relatedInsights = _rankRelatedFeedItems(
+          selected,
+          ProfileFeedItemKind.insight,
+        );
+        final relatedFlows = _rankRelatedFeedItems(
+          selected,
+          ProfileFeedItemKind.flow,
+        );
+        final sections = <_FeedRelatedSection>[
+          if (relatedInsights.isNotEmpty)
+            _FeedRelatedSection(
+              title: 'Related Insights',
+              subtitle: topic == null
+                  ? 'More insights on the same thread.'
+                  : 'More insights touching $topic.',
+              items: relatedInsights,
+            ),
+          if (relatedFlows.isNotEmpty)
+            _FeedRelatedSection(
+              title: 'Relevant Flows',
+              subtitle: topic == null
+                  ? 'Flows that echo this idea.'
+                  : 'Flows that echo $topic.',
+              items: relatedFlows,
+            ),
+        ];
+        if (sections.isNotEmpty) return sections;
+
+        final fallback = _generalFeedFallback(selected);
+        if (fallback.isEmpty) return const [];
+        return [
+          _FeedRelatedSection(
+            title: 'More From The Feed',
+            subtitle: 'No close match yet. Browse the nearest posts instead.',
+            items: fallback,
+          ),
+        ];
+
+      case ProfileFeedItemKind.flow:
+        final post = selected.flowPost!;
+        final title = cleanFlowTitle(post.name);
+        final relatedFlows = _rankRelatedFeedItems(
+          selected,
+          ProfileFeedItemKind.flow,
+        );
+        final relatedInsights = _rankRelatedFeedItems(
+          selected,
+          ProfileFeedItemKind.insight,
+        );
+        final sections = <_FeedRelatedSection>[
+          if (relatedFlows.isNotEmpty)
+            _FeedRelatedSection(
+              title: 'Similar Flows',
+              subtitle: title.isEmpty
+                  ? 'Flows carrying a similar cadence or theme.'
+                  : 'Flows carrying a similar cadence to $title.',
+              items: relatedFlows,
+            ),
+          if (relatedInsights.isNotEmpty)
+            _FeedRelatedSection(
+              title: 'Related Insights',
+              subtitle: title.isEmpty
+                  ? 'Insights linked to this flow’s language.'
+                  : 'Insights linked to $title.',
+              items: relatedInsights,
+            ),
+        ];
+        if (sections.isNotEmpty) return sections;
+
+        final fallback = _generalFeedFallback(selected);
+        if (fallback.isEmpty) return const [];
+        return [
+          _FeedRelatedSection(
+            title: 'More From The Feed',
+            subtitle: 'No close match yet. Browse the next nearest posts.',
+            items: fallback,
+          ),
+        ];
+    }
   }
 
   int _clampPostIndex(int length, [int? desired]) {
@@ -1872,7 +2330,22 @@ class _ProfilePageState extends State<ProfilePage>
                   ),
                 )
               else
-                _buildFeedGrid(_feedItems),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 280),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  child: _expandedFeedItem == null
+                      ? KeyedSubtree(
+                          key: const ValueKey('feed_grid'),
+                          child: _buildFeedGrid(_feedItems),
+                        )
+                      : KeyedSubtree(
+                          key: ValueKey(
+                            'feed_expanded_${_feedItemIdentity(_expandedFeedItem!)}',
+                          ),
+                          child: _buildExpandedFeedView(_expandedFeedItem!),
+                        ),
+                ),
               if (_feedLoadingMore) ...[
                 const SizedBox(height: 12),
                 const Center(
@@ -2018,13 +2491,14 @@ class _ProfilePageState extends State<ProfilePage>
   Widget _buildFeedItemTile(ProfileFeedItem item) {
     switch (item.kind) {
       case ProfileFeedItemKind.flow:
-        return _buildFeedFlowTile(item.flowPost!);
+        return _buildFeedFlowTile(item);
       case ProfileFeedItemKind.insight:
-        return _buildFeedInsightTile(item.insightPost!);
+        return _buildFeedInsightTile(item);
     }
   }
 
-  Widget _buildFeedFlowTile(FlowPost post) {
+  Widget _buildFeedFlowTile(ProfileFeedItem item) {
+    final post = item.flowPost!;
     final accent = Color(0xFF000000 | (post.color & 0x00FFFFFF));
     final title = cleanFlowTitle(post.name);
     final label = _ownsPost(post)
@@ -2063,7 +2537,7 @@ class _ProfilePageState extends State<ProfilePage>
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(22),
               ),
-              onTap: () => _openFeedPost(post),
+              onTap: () => _expandFeedItem(item),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
                 child: Column(
@@ -2207,7 +2681,8 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  Widget _buildFeedInsightTile(InsightPost post) {
+  Widget _buildFeedInsightTile(ProfileFeedItem item) {
+    final post = item.insightPost!;
     final label = _ownsInsightPost(post)
         ? 'Your Insight'
         : post.isFollowingAuthor
@@ -2237,157 +2712,896 @@ class _ProfilePageState extends State<ProfilePage>
       ),
       child: Material(
         color: Colors.transparent,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: _profileGoldBase.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _profileGoldMid.withValues(alpha: 0.28),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () => _expandFeedItem(item),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _profileGoldBase.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _profileGoldMid.withValues(alpha: 0.28),
+                    ),
+                  ),
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      color: _profileGoldText,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: _profileGoldText,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    ProfileAvatar(
+                      displayName: post.authorLabel,
+                      avatarUrl: post.authorAvatarUrl,
+                      avatarGlyphIds: post.authorAvatarGlyphIds,
+                      radius: 14,
+                      foregroundColor: _profileGoldText,
+                      backgroundColor: const Color(0xFF111115),
+                      borderColor: _profileGoldMid.withValues(alpha: 0.24),
+                      borderWidth: 1,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            post.authorLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (showHandle)
+                            Text(
+                              '@$authorHandle',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.56),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  ProfileAvatar(
-                    displayName: post.authorLabel,
-                    avatarUrl: post.authorAvatarUrl,
-                    avatarGlyphIds: post.authorAvatarGlyphIds,
-                    radius: 14,
-                    foregroundColor: _profileGoldText,
-                    backgroundColor: const Color(0xFF111115),
-                    borderColor: _profileGoldMid.withValues(alpha: 0.24),
-                    borderWidth: 1,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.authorLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 14),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if ((post.nodeGlyph?.trim().isNotEmpty ?? false))
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Text(
+                          post.nodeGlyph!,
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
+                            color: _profileGoldText,
+                            fontSize: 20,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        if (showHandle)
-                          Text(
-                            '@$authorHandle',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.56),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if ((post.nodeGlyph?.trim().isNotEmpty ?? false))
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Text(
-                        post.nodeGlyph!,
+                      ),
+                    Expanded(
+                      child: _profileGoldTextWidget(
+                        post.nodeTitle,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: _profileGoldText,
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
+                          height: 1.08,
                         ),
                       ),
                     ),
-                  Expanded(
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _insightPreviewText(post.bodyText),
+                  maxLines: 7,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.88),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Dated ${_formatPostDate(post.entryDate, compact: true)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _postDateTextColor(0.56),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Posted ${_formatPostDate(post.createdAt, compact: true)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _postDateTextColor(0.5),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => _expandFeedItem(item),
                     child: _profileGoldTextWidget(
-                      post.nodeTitle,
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
+                      'Read more',
                       style: const TextStyle(
-                        fontSize: 20,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        height: 1.08,
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _insightPreviewText(post.bodyText),
-                maxLines: 7,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.88),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  height: 1.35,
                 ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedFeedView(ProfileFeedItem item) {
+    final sections = _relatedSectionsForFeedItem(item);
+    final detailHeight = _expandedFeedDetailHeight(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: detailHeight,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 280),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: _buildExpandedFeedDetailCard(item),
+          ),
+        ),
+        const SizedBox(height: 18),
+        _profileGoldTextWidget(
+          'Similar Posts',
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Tap a post below to swap the expanded card while the day-cycle background stays in view.',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.62),
+            fontSize: 13,
+            height: 1.3,
+          ),
+        ),
+        if (sections.isEmpty) ...[
+          const SizedBox(height: 16),
+          Text(
+            'No related posts have surfaced yet.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.56),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ] else
+          for (int i = 0; i < sections.length; i++) ...[
+            const SizedBox(height: 16),
+            _buildFeedRelatedSection(sections[i]),
+          ],
+      ],
+    );
+  }
+
+  Widget _buildFeedRelatedSection(_FeedRelatedSection section) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _profileGoldTextWidget(
+          section.title,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+        if (section.subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            section.subtitle!,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.56),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        _buildFeedItemCollection(section.items),
+      ],
+    );
+  }
+
+  Widget _buildFeedItemCollection(List<ProfileFeedItem> items) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    if (items.length == 1) {
+      return _buildFeedItemTile(items.first);
+    }
+    return _buildFeedGrid(items);
+  }
+
+  double _expandedFeedDetailHeight(BuildContext context) {
+    final height = MediaQuery.sizeOf(context).height;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    var detailHeight = (height * 0.5).clamp(360.0, 520.0).toDouble();
+    if (textScale > 1.08) detailHeight += 18;
+    if (textScale > 1.18) detailHeight += 18;
+    return detailHeight.clamp(360.0, 556.0).toDouble();
+  }
+
+  Widget _buildExpandedFeedDetailCard(ProfileFeedItem item) {
+    switch (item.kind) {
+      case ProfileFeedItemKind.flow:
+        return _buildExpandedFlowDetailCard(item.flowPost!);
+      case ProfileFeedItemKind.insight:
+        return _buildExpandedInsightDetailCard(item.insightPost!);
+    }
+  }
+
+  Widget _buildExpandedFlowDetailCard(FlowPost post) {
+    final accent = Color(0xFF000000 | (post.color & 0x00FFFFFF));
+    final title = cleanFlowTitle(post.name);
+    final meta = notesDecode(post.notes);
+    final overview = cleanFlowOverview(
+      post.notes,
+      decodedOverview: meta.overview,
+    );
+    final scheduleLines = _flowScheduleSummaryLines(post);
+    final events = _flowPayloadEvents(post);
+
+    return _buildExpandedFeedCardShell(
+      key: ValueKey('expanded_flow_${post.id}'),
+      topChip: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: accent.withValues(alpha: 0.32)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: glossFromColor(post.color),
               ),
-              const SizedBox(height: 14),
-              Text(
-                'Dated ${_formatPostDate(post.entryDate, compact: true)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: _postDateTextColor(0.56),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              _ownsPost(post) ? 'Your Flow' : 'Posted Flow',
+              style: TextStyle(
+                color: accent.withValues(alpha: 0.95),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Posted ${_formatPostDate(post.createdAt, compact: true)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: _postDateTextColor(0.5),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+            ),
+          ],
+        ),
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildExpandedFeedAuthorRow(
+            displayName: post.authorLabel,
+            handle: post.authorHandle,
+            displayHandleWhenDistinct:
+                (post.authorHandle?.trim().isNotEmpty ?? false) &&
+                (post.authorDisplayName?.trim().isNotEmpty ?? false) &&
+                post.authorHandle?.toLowerCase() !=
+                    post.authorDisplayName?.toLowerCase(),
+            avatarUrl: post.authorAvatarUrl,
+            avatarGlyphIds: post.authorAvatarGlyphIds,
+          ),
+          const SizedBox(height: 16),
+          _profileGoldTextWidget(
+            title.isEmpty ? 'Untitled Flow' : title,
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w700,
+              height: 1.05,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(
+                Icons.schedule_outlined,
+                size: 15,
+                color: _postDateIconColor(0.46),
               ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => _openInsightPost(post),
-                  child: _profileGoldTextWidget(
-                    'Read more',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Posted ${_formatPostDate(post.createdAt)}',
+                  style: TextStyle(
+                    color: _postDateTextColor(0.58),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 18),
+          if (overview.isNotEmpty) ...[
+            _buildExpandedSectionTitle('Overview'),
+            const SizedBox(height: 6),
+            Text(
+              overview,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                height: 1.48,
+              ),
+            ),
+            const SizedBox(height: 18),
+          ],
+          _buildExpandedSectionTitle('Schedule'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildExpandedMetaPill(
+                meta.kemetic ? 'Kemetic cadence' : 'Gregorian cadence',
+              ),
+              if (meta.split) _buildExpandedMetaPill('Custom dates'),
+              if (events.isNotEmpty)
+                _buildExpandedMetaPill(
+                  '${events.length} event${events.length == 1 ? '' : 's'}',
+                ),
+            ],
+          ),
+          if (scheduleLines.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            for (final line in scheduleLines) ...[
+              Text(
+                line,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.84),
+                  fontSize: 13,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
+          ],
+          if (events.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            _buildExpandedSectionTitle('Events'),
+            const SizedBox(height: 8),
+            for (final event in events) _buildExpandedFlowEventTile(event),
+          ],
+        ],
+      ),
+      footer: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FlowPostEngagementRow(
+              key: ValueKey('expanded_${post.id}'),
+              post: post,
+            ),
+            const SizedBox(height: 2),
+            Align(
+              alignment: Alignment.centerRight,
+              child: _ownsPost(post)
+                  ? TextButton.icon(
+                      onPressed: () => _removePost(post.id),
+                      icon: const Icon(
+                        Icons.remove_circle_outline,
+                        color: Colors.redAccent,
+                        size: 18,
+                      ),
+                      label: const Text(
+                        'Remove',
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    )
+                  : TextButton.icon(
+                      onPressed: () => _savePost(post),
+                      icon: _profileGoldIcon(Icons.bookmark_add_outlined),
+                      label: _profileGoldTextWidget(
+                        'Save Flow',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedInsightDetailCard(InsightPost post) {
+    final handle = post.authorHandle?.trim();
+    final displayName = post.authorDisplayName?.trim();
+
+    return _buildExpandedFeedCardShell(
+      key: ValueKey('expanded_insight_${post.id}'),
+      topChip: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: _profileGoldBase.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: _profileGoldMid.withValues(alpha: 0.28)),
+        ),
+        child: Text(
+          _ownsInsightPost(post) ? 'Your Insight' : 'Posted Insight',
+          style: const TextStyle(
+            color: _profileGoldText,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildExpandedFeedAuthorRow(
+            displayName: post.authorLabel,
+            handle: handle,
+            displayHandleWhenDistinct:
+                handle != null &&
+                handle.isNotEmpty &&
+                displayName != null &&
+                displayName.isNotEmpty &&
+                handle.toLowerCase() != displayName.toLowerCase(),
+            avatarUrl: post.authorAvatarUrl,
+            avatarGlyphIds: post.authorAvatarGlyphIds,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if ((post.nodeGlyph?.trim().isNotEmpty ?? false))
+                Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Text(
+                    post.nodeGlyph!,
+                    style: const TextStyle(
+                      color: _profileGoldText,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: _profileGoldTextWidget(
+                  post.nodeTitle,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    height: 1.05,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildExpandedMetaPill(
+                'Dated ${_formatPostDate(post.entryDate, compact: true)}',
+              ),
+              _buildExpandedMetaPill(
+                'Posted ${_formatPostDate(post.createdAt, compact: true)}',
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _buildExpandedSectionTitle('Insight'),
+          const SizedBox(height: 8),
+          Text(
+            post.bodyText.trim(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              height: 1.56,
+            ),
+          ),
+        ],
+      ),
+      footer: _ownsInsightPost(post)
+          ? Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => _removeInsightPost(post.id),
+                  icon: const Icon(
+                    Icons.remove_circle_outline,
+                    color: Colors.redAccent,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Remove',
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildExpandedFeedCardShell({
+    required Key key,
+    required Widget topChip,
+    required Widget body,
+    Widget? footer,
+  }) {
+    return Container(
+      key: key,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: _profileGoldMid.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.38),
+            blurRadius: 26,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Row(
+                children: [
+                  Expanded(child: topChip),
+                  const SizedBox(width: 12),
+                  Material(
+                    color: Colors.black.withValues(alpha: 0.36),
+                    borderRadius: BorderRadius.circular(999),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: _collapseExpandedFeedItem,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(
+                          Icons.close_rounded,
+                          color: Colors.white.withValues(alpha: 0.88),
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+                child: body,
+              ),
+            ),
+            if (footer != null) ...[
+              Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
+              footer,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedFeedAuthorRow({
+    required String displayName,
+    required String? handle,
+    required bool displayHandleWhenDistinct,
+    required String? avatarUrl,
+    required List<String> avatarGlyphIds,
+  }) {
+    return Row(
+      children: [
+        ProfileAvatar(
+          displayName: displayName,
+          avatarUrl: avatarUrl,
+          avatarGlyphIds: avatarGlyphIds,
+          radius: 16,
+          foregroundColor: _profileGoldText,
+          backgroundColor: const Color(0xFF111115),
+          borderColor: _profileGoldMid.withValues(alpha: 0.24),
+          borderWidth: 1,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (displayHandleWhenDistinct && handle != null)
+                Text(
+                  '@$handle',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.58),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExpandedSectionTitle(String title) {
+    return _profileGoldTextWidget(
+      title,
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+    );
+  }
+
+  Widget _buildExpandedMetaPill(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.32),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _profileGoldMid.withValues(alpha: 0.22)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.84),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  List<String> _flowScheduleSummaryLines(FlowPost post) {
+    final rules = _flowRuleMaps(post);
+    if (rules.isEmpty) return const [];
+
+    final lines = <String>[];
+    for (final rule in rules) {
+      final type = (rule['type'] as String? ?? '').trim().toLowerCase();
+      switch (type) {
+        case 'decan':
+          final months = (rule['months'] as List<dynamic>? ?? const [])
+              .whereType<num>()
+              .map((value) => getMonthById(value.toInt()).displayFull)
+              .toList();
+          final decans =
+              (rule['decans'] as List<dynamic>? ?? const [])
+                  .whereType<num>()
+                  .map((value) => value.toInt())
+                  .toList()
+                ..sort();
+          final days =
+              (rule['daysInDecan'] as List<dynamic>? ?? const [])
+                  .whereType<num>()
+                  .map((value) => value.toInt())
+                  .toList()
+                ..sort();
+          final monthLabels = months.join(', ');
+          final decanLabels = decans
+              .map(
+                (value) => ['I', 'II', 'III'][(value.toInt() - 1).clamp(0, 2)],
+              )
+              .join(', ');
+          if (monthLabels.isNotEmpty) {
+            lines.add('Months: $monthLabels');
+          }
+          if (decanLabels.isNotEmpty) {
+            lines.add(
+              days.isEmpty
+                  ? 'Decans: $decanLabels (all days)'
+                  : 'Decans: $decanLabels',
+            );
+          }
+          if (days.isNotEmpty) {
+            lines.add('Days in decan: ${days.join(', ')}');
+          }
+          break;
+        case 'week':
+          final weekdays =
+              (rule['weekdays'] as List<dynamic>? ?? const [])
+                  .whereType<num>()
+                  .map((value) => value.toInt())
+                  .toList()
+                ..sort();
+          const weekdayNames = <int, String>{
+            DateTime.monday: 'Mon',
+            DateTime.tuesday: 'Tue',
+            DateTime.wednesday: 'Wed',
+            DateTime.thursday: 'Thu',
+            DateTime.friday: 'Fri',
+            DateTime.saturday: 'Sat',
+            DateTime.sunday: 'Sun',
+          };
+          if (weekdays.isNotEmpty) {
+            lines.add(
+              'Repeats on: ${weekdays.map((value) => weekdayNames[value] ?? 'Day $value').join(', ')}',
+            );
+          }
+          break;
+        case 'dates':
+          final dates =
+              (rule['dates'] as List<dynamic>? ?? const [])
+                  .whereType<num>()
+                  .map(
+                    (value) => DateUtils.dateOnly(
+                      DateTime.fromMillisecondsSinceEpoch(value.toInt()),
+                    ),
+                  )
+                  .toList()
+                ..sort();
+          if (dates.isEmpty) break;
+          String formatDate(DateTime value) =>
+              '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+          if (dates.length == 1) {
+            lines.add('Occurs on: ${formatDate(dates.first)}');
+          } else {
+            lines.add('Occurs on ${dates.length} dates');
+            lines.add(
+              'From ${formatDate(dates.first)} to ${formatDate(dates.last)}',
+            );
+          }
+          break;
+        default:
+          lines.add('Custom schedule');
+          break;
+      }
+    }
+    return lines;
+  }
+
+  Widget _buildExpandedFlowEventTile(Map<String, dynamic> event) {
+    final title = cleanFlowTitle(event['title'] as String?);
+    final detail = cleanFlowDetail(event['detail'] as String?);
+    final location = (event['location'] as String?)?.trim();
+    final allDay = event['all_day'] as bool? ?? false;
+    final startTime = (event['start_time'] as String?)?.trim();
+    final endTime = (event['end_time'] as String?)?.trim();
+    final offsetDays = (event['offset_days'] as num?)?.toInt();
+    final dayNumber = offsetDays == null ? null : offsetDays + 1;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  title.isEmpty ? 'Untitled Event' : title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+              if (dayNumber != null)
+                Text(
+                  'Day $dayNumber',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.62),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            allDay
+                ? 'All day'
+                : startTime == null || startTime.isEmpty
+                ? 'Time not listed'
+                : endTime != null && endTime.isNotEmpty
+                ? '$startTime - $endTime'
+                : startTime,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.64),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (detail.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              detail,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                height: 1.42,
+              ),
+            ),
+          ],
+          if (location != null && location.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              location,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -2767,21 +3981,6 @@ class _ProfilePageState extends State<ProfilePage>
     return SizedBox.expand(child: card);
   }
 
-  Future<void> _openFeedPost(FlowPost post) async {
-    final changed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) =>
-            FlowPostDetailPage(post: post, isOwner: _ownsPost(post)),
-      ),
-    );
-    if (changed == true) {
-      await _reloadPostedContent();
-      if (_feedRevealed) {
-        await _loadFeedPage(reset: true);
-      }
-    }
-  }
-
   Future<void> _openInsightPost(InsightPost post) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -2900,7 +4099,18 @@ class _ProfilePageState extends State<ProfilePage>
       _showError('Unable to remove post. Please try again.');
       return;
     }
+    final selected = _expandedFeedItem;
+    if (selected != null &&
+        selected.kind == ProfileFeedItemKind.flow &&
+        selected.id == postId) {
+      setState(() {
+        _expandedFeedItem = null;
+      });
+    }
     await _loadPosts();
+    if (_feedRevealed) {
+      await _loadFeedPage(reset: true);
+    }
   }
 
   Future<void> _removeInsightPost(String postId) async {
@@ -2910,8 +4120,31 @@ class _ProfilePageState extends State<ProfilePage>
       _showError('Unable to remove insight. Please try again.');
       return;
     }
+    final selected = _expandedFeedItem;
+    if (selected != null &&
+        selected.kind == ProfileFeedItemKind.insight &&
+        selected.id == postId) {
+      setState(() {
+        _expandedFeedItem = null;
+      });
+    }
     await _loadInsightPosts();
+    if (_feedRevealed) {
+      await _loadFeedPage(reset: true);
+    }
   }
+}
+
+class _FeedRelatedSection {
+  final String title;
+  final String? subtitle;
+  final List<ProfileFeedItem> items;
+
+  const _FeedRelatedSection({
+    required this.title,
+    this.subtitle,
+    required this.items,
+  });
 }
 
 class _ProfileBackdrop extends StatefulWidget {

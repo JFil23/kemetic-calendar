@@ -13,26 +13,17 @@ void main() {
       DateTime(2026, 4, 26, 5, 37, 30),
     );
 
-    expect(
-      blend.current.assetPath,
-      endsWith('/Gemini_Generated_Image_tj7dxltj7dxltj7d.png'),
-    );
-    expect(
-      blend.next.assetPath,
-      endsWith('/Gemini_Generated_Image_fzalkbfzalkbfzal.png'),
-    );
-    expect(blend.t, closeTo(0.5, 0.0001));
+    expect(blend.current.assetPath, endsWith('/5am.jpg'));
+    expect(blend.next.assetPath, endsWith('/6am.jpg'));
+    expect(blend.t, closeTo(37.5 / 60, 0.0001));
   });
 
   test('wraps from the late-night anchor back into the overnight sequence', () {
     final blend = ProfileBackdropBlend.forTime(DateTime(2026, 4, 26, 23, 30));
 
-    expect(blend.current.assetPath, endsWith('/primary_night_pyramid.png'));
-    expect(
-      blend.next.assetPath,
-      endsWith('/Gemini_Generated_Image_ud0tf5ud0tf5ud0t.png'),
-    );
-    expect(blend.t, closeTo(30 / 90, 0.0001));
+    expect(blend.current.assetPath, endsWith('/11pm.jpg'));
+    expect(blend.next.assetPath, endsWith('/12am.jpg'));
+    expect(blend.t, closeTo(0.5, 0.0001));
   });
 
   test('waits until the next minute blend tick', () {
