@@ -38,6 +38,14 @@ bool _isUuid(String? v) {
   ).hasMatch(v);
 }
 
+DateTime? _parseOptionalDateTime(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value.toUtc();
+  final raw = value.toString().trim();
+  if (raw.isEmpty) return null;
+  return DateTime.tryParse(raw)?.toUtc();
+}
+
 @immutable
 class UserEvent {
   final String id;
@@ -1789,6 +1797,7 @@ class UserEventsRepo {
         int color,
         bool active,
         bool isSaved,
+        DateTime? savedAt,
         DateTime? startDate,
         DateTime? endDate,
         String? notes,
@@ -1809,31 +1818,70 @@ class UserEventsRepo {
         .select()
         .order('created_at', ascending: false);
 
-    return (res as List)
-        .map(
-          (row) => (
-            id: (row['id'] as num).toInt(),
-            userId: row['user_id'] as String?,
-            calendarId: row['calendar_id'] as String?,
-            name: row['name'] as String,
-            color: (row['color'] as num).toInt(),
-            active: row['active'] as bool,
-            isSaved: (row['is_saved'] as bool?) ?? false,
-            startDate: row['start_date'] == null
-                ? null
-                : DateTime.parse(row['start_date'] as String),
-            endDate: row['end_date'] == null
-                ? null
-                : DateTime.parse(row['end_date'] as String),
-            notes: row['notes'] as String?,
-            rules: jsonEncode(row['rules']),
-            shareId: row['share_id'] as String?, // NEW: Include share_id
-            isHidden: (row['is_hidden'] as bool?) ?? false,
-            isReminder: (row['is_reminder'] as bool?) ?? false,
-            reminderUuid: row['reminder_uuid'] as String?,
-          ),
-        )
-        .toList();
+    final rows = (res as List).cast<Map<String, dynamic>>();
+    final savedAtByFlowId = await getSavedFlowTimestamps(
+      flowIds: rows
+          .where((row) => (row['is_saved'] as bool?) ?? false)
+          .map((row) => (row['id'] as num).toInt()),
+    );
+
+    return rows.map((row) {
+      final flowId = (row['id'] as num).toInt();
+      final isSaved = (row['is_saved'] as bool?) ?? false;
+      final savedAt =
+          savedAtByFlowId[flowId] ??
+          (isSaved
+              ? (_parseOptionalDateTime(row['updated_at']) ??
+                    _parseOptionalDateTime(row['created_at']))
+              : null);
+      return (
+        id: flowId,
+        userId: row['user_id'] as String?,
+        calendarId: row['calendar_id'] as String?,
+        name: row['name'] as String,
+        color: (row['color'] as num).toInt(),
+        active: row['active'] as bool,
+        isSaved: isSaved,
+        savedAt: savedAt,
+        startDate: row['start_date'] == null
+            ? null
+            : DateTime.parse(row['start_date'] as String),
+        endDate: row['end_date'] == null
+            ? null
+            : DateTime.parse(row['end_date'] as String),
+        notes: row['notes'] as String?,
+        rules: jsonEncode(row['rules']),
+        shareId: row['share_id'] as String?, // NEW: Include share_id
+        isHidden: (row['is_hidden'] as bool?) ?? false,
+        isReminder: (row['is_reminder'] as bool?) ?? false,
+        reminderUuid: row['reminder_uuid'] as String?,
+      );
+    }).toList();
+  }
+
+  Future<Map<int, DateTime>> getSavedFlowTimestamps({
+    required Iterable<int> flowIds,
+  }) async {
+    final user = _client.auth.currentUser;
+    final ids = flowIds.toSet().toList(growable: false);
+    if (user == null || ids.isEmpty) return const {};
+
+    final rows =
+        await _client
+                .from('flow_saves')
+                .select('flow_id, saved_at')
+                .eq('user_id', user.id)
+                .inFilter('flow_id', ids)
+            as List<dynamic>;
+
+    final byFlowId = <int, DateTime>{};
+    for (final raw in rows.cast<Map<String, dynamic>>()) {
+      final flowId = (raw['flow_id'] as num?)?.toInt();
+      final savedAt = _parseOptionalDateTime(raw['saved_at']);
+      if (flowId == null || savedAt == null) continue;
+      byFlowId[flowId] = savedAt;
+    }
+    return byFlowId;
   }
 
   /// Delete a single flow row.
@@ -1903,6 +1951,11 @@ class UserEventsRepo {
     required int flowId,
     required bool isSaved,
   }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw StateError('No user session. Please sign in.');
+    }
+
     try {
       final updated = await _client
           .from('flows')
@@ -1910,6 +1963,22 @@ class UserEventsRepo {
           .eq('id', flowId)
           .select('id, is_saved, active, updated_at')
           .single();
+
+      if (isSaved) {
+        await _client.from('flow_saves').upsert({
+          'user_id': user.id,
+          'flow_id': flowId,
+          'saved_from': 'self',
+          'saved_at': DateTime.now().toUtc().toIso8601String(),
+        }, onConflict: 'user_id,flow_id');
+      } else {
+        await _client
+            .from('flow_saves')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('flow_id', flowId);
+      }
+
       if (kDebugMode) {
         debugPrint('[UserEventsRepo] setFlowSaved DB row: $updated');
       }

@@ -658,6 +658,7 @@ class InboxRepo {
             'user_id': userId,
             'flow_id': flowId,
             'saved_from': 'share',
+            'saved_at': DateTime.now().toUtc().toIso8601String(),
             'metadata': {
               'share_id': share.shareId,
               if (originFlowId != null) 'origin_flow_id': originFlowId,

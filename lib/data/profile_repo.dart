@@ -889,6 +889,7 @@ class ProfileRepo {
           'user_id': userId,
           'flow_id': newId,
           'saved_from': 'profile',
+          'saved_at': DateTime.now().toUtc().toIso8601String(),
           'metadata': {'flow_post_id': post.id, 'source_user_id': post.userId},
         }, onConflict: 'user_id,flow_id');
       } catch (e) {

@@ -11,6 +11,20 @@ void _log(String msg) {
   if (kDebugMode) debugPrint('[flows] $msg');
 }
 
+DateTime? _parseDateTime(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value.toUtc();
+  final raw = value.toString().trim();
+  if (raw.isEmpty) return null;
+  return DateTime.tryParse(raw)?.toUtc();
+}
+
+DateTime? _savedAtFallbackForRow(Map<String, dynamic> row) {
+  final isSaved = (row['is_saved'] as bool?) ?? false;
+  if (!isSaved) return null;
+  return _parseDateTime(row['updated_at']) ?? _parseDateTime(row['created_at']);
+}
+
 bool _isUuid(String? v) {
   if (v == null) return false;
   return RegExp(
@@ -35,6 +49,7 @@ class FlowRow {
   final bool isHidden;
   final bool isReminder;
   final String? reminderUuid;
+  final DateTime? savedAt;
 
   const FlowRow({
     required this.id,
@@ -52,6 +67,7 @@ class FlowRow {
     this.isHidden = false,
     this.isReminder = false,
     this.reminderUuid,
+    this.savedAt,
   });
 
   factory FlowRow.fromRow(Map<String, dynamic> r) {
@@ -66,7 +82,6 @@ class FlowRow {
       _rulesList = const [];
     }
 
-    DateTime? _d(dynamic v) => v == null ? null : DateTime.parse(v as String);
     return FlowRow(
       id: (r['id'] as num).toInt(),
       userId: r['user_id'] as String,
@@ -76,13 +91,14 @@ class FlowRow {
       color: (((r['color'] as num?)?.toInt() ?? 0x4DD0E1) & 0x00FFFFFF),
       active: (r['active'] as bool?) ?? true,
       isSaved: (r['is_saved'] as bool?) ?? false,
-      startDate: _d(r['start_date']),
-      endDate: _d(r['end_date']),
+      startDate: _parseDateTime(r['start_date']),
+      endDate: _parseDateTime(r['end_date']),
       notes: r['notes'] as String?,
       rules: _rulesList,
       isHidden: (r['is_hidden'] as bool?) ?? false,
       isReminder: (r['is_reminder'] as bool?) ?? false,
       reminderUuid: r['reminder_uuid'] as String?,
+      savedAt: _parseDateTime(r['saved_at']),
       aiMetadata: r['ai_metadata'] != null
           ? Map<String, dynamic>.from(r['ai_metadata'] as Map)
           : null,
@@ -125,6 +141,56 @@ class FlowsRepo {
   FlowsRepo(this._client);
   final SupabaseClient _client;
 
+  Future<Map<int, DateTime>> _loadSavedTimestamps({
+    required String userId,
+    required Iterable<int> flowIds,
+  }) async {
+    final ids = flowIds.toSet().toList(growable: false);
+    if (ids.isEmpty) return const {};
+
+    final rows =
+        await _client
+                .from('flow_saves')
+                .select('flow_id, saved_at')
+                .eq('user_id', userId)
+                .inFilter('flow_id', ids)
+            as List<dynamic>;
+
+    final byFlowId = <int, DateTime>{};
+    for (final raw in rows.cast<Map<String, dynamic>>()) {
+      final flowId = (raw['flow_id'] as num?)?.toInt();
+      final savedAt = _parseDateTime(raw['saved_at']);
+      if (flowId == null || savedAt == null) continue;
+      byFlowId[flowId] = savedAt;
+    }
+    return byFlowId;
+  }
+
+  Future<List<FlowRow>> _inflateFlowRows(
+    List<Map<String, dynamic>> rows, {
+    required String userId,
+  }) async {
+    final savedFlowIds = rows
+        .where((row) => (row['is_saved'] as bool?) ?? false)
+        .map((row) => (row['id'] as num).toInt())
+        .toSet();
+    final savedAtByFlowId = await _loadSavedTimestamps(
+      userId: userId,
+      flowIds: savedFlowIds,
+    );
+
+    return rows
+        .map((row) {
+          final flowId = (row['id'] as num).toInt();
+          final enriched = Map<String, dynamic>.from(row);
+          final savedAt =
+              savedAtByFlowId[flowId] ?? _savedAtFallbackForRow(enriched);
+          enriched['saved_at'] = savedAt?.toIso8601String();
+          return FlowRow.fromRow(enriched);
+        })
+        .toList(growable: false);
+  }
+
   FlowLedger<FlowRow> _buildLedger(
     Iterable<FlowRow> flows, {
     Map<int, int> totalEventCounts = const {},
@@ -156,7 +222,7 @@ class FlowsRepo {
                 .eq('user_id', user.id)
                 .order('created_at', ascending: false)
             as List<dynamic>;
-    return rows.cast<Map<String, dynamic>>().map(FlowRow.fromRow).toList();
+    return _inflateFlowRows(rows.cast<Map<String, dynamic>>(), userId: user.id);
   }
 
   Future<({Map<int, int> total, Map<int, int> remaining})> _loadMyEventCounts(
@@ -267,11 +333,11 @@ class FlowsRepo {
         .order('updated_at', ascending: false)
         .order('start_date', ascending: true)
         .asyncMap((rows) async {
-          final flows = rows
+          final filteredRows = rows
               .cast<Map<String, dynamic>>()
-              .map(FlowRow.fromRow)
-              .where((flow) => flow.userId == user.id)
-              .toList();
+              .where((row) => row['user_id'] == user.id)
+              .toList(growable: false);
+          final flows = await _inflateFlowRows(filteredRows, userId: user.id);
           final eventCounts = await _loadMyEventCounts(
             flows.map((flow) => flow.id).toList(growable: false),
           );
@@ -460,7 +526,7 @@ class FlowsRepo {
                 .order('created_at', ascending: false)
                 .limit(limit)
             as List<dynamic>;
-    return rows.cast<Map<String, dynamic>>().map(FlowRow.fromRow).toList();
+    return _inflateFlowRows(rows.cast<Map<String, dynamic>>(), userId: user.id);
   }
 
   /// Fetch a single flow by ID
@@ -472,7 +538,13 @@ class FlowsRepo {
         .maybeSingle();
 
     if (response == null) return null;
-    return FlowRow.fromRow(response as Map<String, dynamic>);
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null)
+      return FlowRow.fromRow(response as Map<String, dynamic>);
+    final flows = await _inflateFlowRows([
+      Map<String, dynamic>.from(response as Map),
+    ], userId: userId);
+    return flows.isEmpty ? null : flows.first;
   }
 
   /// Fetch a flow id by reminder_uuid.

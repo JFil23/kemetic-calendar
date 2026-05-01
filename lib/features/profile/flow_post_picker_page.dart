@@ -27,6 +27,14 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
   bool _posting = false;
   FlowLedger<FlowRow>? _ledger;
 
+  int _compareSavedFlows(FlowRow a, FlowRow b) {
+    final aSavedAt = a.savedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final bSavedAt = b.savedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final bySavedAt = bSavedAt.compareTo(aSavedAt);
+    if (bySavedAt != 0) return bySavedAt;
+    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+  }
+
   @override
   void initState() {
     super.initState();
@@ -52,7 +60,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
   // Saved flows can be posted/shared later even if they are no longer active.
   List<FlowRow> get _savedFlows {
     final flows = [...?_ledger?.savedTemplateItems];
-    flows.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    flows.sort(_compareSavedFlows);
     return flows;
   }
 

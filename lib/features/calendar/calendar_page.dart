@@ -3972,6 +3972,7 @@ class _Flow {
   Color color;
   bool active;
   bool isSaved;
+  DateTime? savedAt;
   DateTime? start; // inclusive (Gregorian local)
   DateTime? end; // inclusive (Gregorian local)
   final List<FlowRule> rules;
@@ -3987,6 +3988,7 @@ class _Flow {
     required this.color,
     required this.active,
     this.isSaved = false,
+    this.savedAt,
     required this.rules,
     this.start,
     this.end,
@@ -4692,6 +4694,7 @@ class _CalendarPageState extends State<CalendarPage>
       if (!mounted) return;
       setState(() {
         _flows[idx].isSaved = true;
+        _flows[idx].savedAt = DateTime.now().toUtc();
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -11509,6 +11512,7 @@ class _CalendarPageState extends State<CalendarPage>
         color: flow.color,
         active: flow.active,
         isSaved: flow.isSaved,
+        savedAt: flow.savedAt,
         rules: flow.rules,
         start: flow.start,
         end: flow.end,
@@ -11731,6 +11735,7 @@ class _CalendarPageState extends State<CalendarPage>
           shareId: f.shareId,
           isHidden: f.isHidden,
           isSaved: f.isSaved,
+          savedAt: f.savedAt,
           isReminder: f.isReminder,
           reminderUuid: f.reminderUuid,
         );
@@ -13621,6 +13626,7 @@ class _CalendarPageState extends State<CalendarPage>
         shareId: f.shareId,
         isHidden: f.isHidden, // Preserve hidden status
         isSaved: f.isSaved,
+        savedAt: f.savedAt,
         isReminder: f.isReminder,
         reminderUuid: f.reminderUuid,
       );
@@ -16642,6 +16648,7 @@ class _CalendarPageState extends State<CalendarPage>
           color: Color(rgbToArgb(f.color)),
           active: f.active,
           isSaved: f.isSaved,
+          savedAt: f.savedAt,
           rules: _parseRules(f.rules),
           start: f.startDate,
           end: f.endDate,
@@ -17459,6 +17466,8 @@ class _CalendarPageState extends State<CalendarPage>
         name: r.savedFlow!.name,
         color: r.savedFlow!.color,
         active: r.savedFlow!.active,
+        isSaved: r.savedFlow!.isSaved,
+        savedAt: r.savedFlow!.savedAt,
         rules: r.savedFlow!.rules,
         start: r.savedFlow!.start,
         end: r.savedFlow!.end,
@@ -27388,6 +27397,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         name: flow.name,
         color: Color(rgbToArgb(flow.color)),
         active: flow.active,
+        isSaved: flow.isSaved,
+        savedAt: flow.savedAt,
         start: flow.startDate,
         end: flow.endDate,
         notes: flow.notes,
@@ -27661,6 +27672,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         name: flowRow.name,
         color: Color(rgbToArgb(flowRow.color)),
         active: flowRow.active,
+        isSaved: flowRow.isSaved,
+        savedAt: flowRow.savedAt,
         start: flowRow.startDate,
         end: flowRow.endDate,
         notes: flowRow.notes,
@@ -27704,6 +27717,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       name: flowRow.name,
       color: Color(rgbToArgb(flowRow.color)),
       active: flowRow.active,
+      isSaved: flowRow.isSaved,
+      savedAt: flowRow.savedAt,
       start: startDate,
       end: endDate,
       notes: flowRow.notes,
@@ -30233,6 +30248,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       if (!mounted) return;
       setState(() {
         flow.isSaved = !flow.isSaved;
+        flow.savedAt = flow.isSaved ? DateTime.now().toUtc() : null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -31214,6 +31230,14 @@ class _FlowsViewerPage extends StatefulWidget {
 class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   FlowListTab _tab = FlowListTab.active;
 
+  int _compareSavedFlows(_Flow a, _Flow b) {
+    final aSavedAt = a.savedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final bSavedAt = b.savedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final bySavedAt = bSavedAt.compareTo(aSavedAt);
+    if (bySavedAt != 0) return bySavedAt;
+    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+  }
+
   FlowLedger<_Flow> get _ledger => buildFlowLedger<_Flow>(
     flows: widget.flows,
     idOf: (flow) => flow.id,
@@ -31235,8 +31259,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   // Saved flows act as templates, so they stay visible even after the user
   // removes them from the active calendar.
   List<_Flow> get _savedItems =>
-      _ledger.savedTemplateItems.toList()
-        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      _ledger.savedTemplateItems.toList()..sort(_compareSavedFlows);
 
   @override
   Widget build(BuildContext context) {
