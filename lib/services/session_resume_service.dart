@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
+import 'package:mobile/features/calendar/notify.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -330,6 +331,7 @@ class _SessionLifecycleBridgeState extends State<SessionLifecycleBridge>
         unawaited(SessionResumeService.touch());
         break;
       case AppLifecycleState.resumed:
+        unawaited(Notify.syncLocalDeliveryMode());
         break;
     }
   }

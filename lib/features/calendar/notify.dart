@@ -30,15 +30,40 @@ class Notify {
   static const _androidChannelName = 'Ma\'at Reminders';
   static const _androidChannelDesc = 'Event notes and flow reminders';
   static const _minimumScheduleLead = Duration(seconds: 3);
+  static const _maxConcurrentLocalNotifications = 450;
+  static const _localReconcileDebounce = Duration(milliseconds: 350);
 
   static bool _inited = false;
   static final Set<String> _schedulingInProgress = {};
+  static Timer? _localReconcileTimer;
+  static bool _localReconcileInProgress = false;
+  static bool _localReconcileQueued = false;
+  static bool _localReconcileNeedsRefresh = false;
 
   static String _notificationIdentity(
     String clientEventId,
     NotificationType type,
   ) {
     return '${type.value}::$clientEventId';
+  }
+
+  static NotificationType _notificationTypeFromValue(String? raw) {
+    for (final type in NotificationType.values) {
+      if (type.value == raw) return type;
+    }
+    return NotificationType.eventStart;
+  }
+
+  static bool _notificationRequiresEventExistence(NotificationType type) {
+    switch (type) {
+      case NotificationType.eventStart:
+      case NotificationType.reminder10min:
+        return true;
+      case NotificationType.dailyReview:
+      case NotificationType.flowStep:
+      case NotificationType.flowReminder:
+        return false;
+    }
   }
 
   /// Generate a stable notification ID per logical notification identity.
@@ -194,6 +219,218 @@ class Notify {
       );
     } catch (e) {
       _log('⚠️ Error cancelling pending local notifications: $e');
+    }
+  }
+
+  static void _requestLocalWindowReconcile({
+    Duration delay = _localReconcileDebounce,
+    bool refreshExisting = false,
+  }) {
+    if (!_inited) return;
+
+    _localReconcileQueued = true;
+    _localReconcileNeedsRefresh =
+        _localReconcileNeedsRefresh || refreshExisting;
+
+    _localReconcileTimer?.cancel();
+    _localReconcileTimer = Timer(delay, () {
+      _localReconcileTimer = null;
+      unawaited(_reconcileLocalScheduleWindow());
+    });
+  }
+
+  static Future<void> _reconcileLocalScheduleWindow() async {
+    if (!_inited) return;
+    if (_localReconcileInProgress) {
+      _localReconcileQueued = true;
+      return;
+    }
+
+    _localReconcileTimer?.cancel();
+    _localReconcileTimer = null;
+
+    final shouldRefreshExisting = _localReconcileNeedsRefresh;
+    _localReconcileQueued = false;
+    _localReconcileNeedsRefresh = false;
+    _localReconcileInProgress = true;
+
+    try {
+      final shouldScheduleLocally = await _shouldScheduleLocallyOnThisDevice();
+      if (!shouldScheduleLocally) {
+        _log(
+          'Push alerts are enabled on this device; clearing local scheduled notifications',
+        );
+        await _cancelPendingLocalNotificationsOnly();
+        return;
+      }
+
+      final client = Supabase.instance.client;
+      final userId = client.auth.currentUser?.id;
+
+      if (userId == null) {
+        _log('No user logged in, skipping local schedule reconciliation');
+        return;
+      }
+
+      final now = DateTime.now();
+      final response = await client
+          .from('scheduled_notifications')
+          .select()
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .order('scheduled_at', ascending: true);
+
+      final rows = (response as List)
+          .cast<Map<dynamic, dynamic>>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList(growable: false);
+
+      final eventBackedCandidateIds = <String>{};
+      for (final row in rows) {
+        final clientEventId = (row['client_event_id'] as String?)?.trim();
+        if (clientEventId == null || clientEventId.isEmpty) continue;
+
+        final type = _notificationTypeFromValue(
+          row['notification_type'] as String?,
+        );
+        if (_notificationRequiresEventExistence(type)) {
+          eventBackedCandidateIds.add(clientEventId);
+        }
+      }
+
+      final existingEventIds = await _existingEventIdsForNotifications(
+        eventBackedCandidateIds,
+      );
+
+      final eligibleRows = <Map<String, dynamic>>[];
+      int retired = 0;
+      for (final row in rows) {
+        final clientEventId = (row['client_event_id'] as String?)?.trim();
+        if (clientEventId == null || clientEventId.isEmpty) continue;
+
+        final type = _notificationTypeFromValue(
+          row['notification_type'] as String?,
+        );
+        final notificationId =
+            row['notification_id'] as int? ??
+            _generateStableNotificationId(clientEventId, type: type);
+        final scheduledAtRaw = row['scheduled_at'] as String?;
+        if (scheduledAtRaw == null || scheduledAtRaw.isEmpty) {
+          await _plugin.cancel(notificationId);
+          await _markNotificationInactive(clientEventId, type: type);
+          retired++;
+          continue;
+        }
+
+        DateTime scheduledAt;
+        try {
+          scheduledAt = DateTime.parse(scheduledAtRaw);
+        } catch (e) {
+          _log(
+            '⚠️ Invalid scheduled_at for $clientEventId (${type.value}): $e',
+          );
+          await _plugin.cancel(notificationId);
+          await _markNotificationInactive(clientEventId, type: type);
+          retired++;
+          continue;
+        }
+
+        if (!scheduledAt.isAfter(now.add(_minimumScheduleLead))) {
+          await _plugin.cancel(notificationId);
+          await _markNotificationInactive(clientEventId, type: type);
+          retired++;
+          continue;
+        }
+
+        if (_notificationRequiresEventExistence(type) &&
+            !existingEventIds.contains(clientEventId)) {
+          await _plugin.cancel(notificationId);
+          await _markNotificationInactive(clientEventId, type: type);
+          _log(
+            'Skipping local schedule; event missing for $clientEventId (${type.value})',
+          );
+          retired++;
+          continue;
+        }
+
+        row['notification_id'] = notificationId;
+        eligibleRows.add(row);
+      }
+
+      final desiredRows = eligibleRows
+          .take(_maxConcurrentLocalNotifications)
+          .toList(growable: false);
+      final deferredCount = eligibleRows.length - desiredRows.length;
+      final desiredIds = desiredRows
+          .map((row) => row['notification_id'] as int)
+          .toSet();
+
+      final pending = await _plugin.pendingNotificationRequests();
+      final pendingIds = pending.map((notif) => notif.id).toSet();
+
+      int canceled = 0;
+      for (final notif in pending) {
+        if (desiredIds.contains(notif.id)) continue;
+        await _plugin.cancel(notif.id);
+        canceled++;
+      }
+
+      int scheduled = 0;
+      int refreshed = 0;
+      for (final row in desiredRows) {
+        final notificationId = row['notification_id'] as int;
+        final alreadyPending = pendingIds.contains(notificationId);
+        if (alreadyPending && !shouldRefreshExisting) continue;
+
+        try {
+          if (alreadyPending) {
+            await _plugin.cancel(notificationId);
+            refreshed++;
+          }
+
+          final clientEventId = row['client_event_id'] as String;
+          final scheduledAt = DateTime.parse(row['scheduled_at'] as String);
+          final resolvedTitle = await _resolveNotificationTitle(
+            clientEventId: clientEventId,
+            preferredTitle: row['title'] as String?,
+          );
+          await _scheduleLocalNotification(
+            id: notificationId,
+            scheduledAt: scheduledAt,
+            title: resolvedTitle,
+            body: _resolveNotificationBody(
+              preferredBody: row['body'] as String?,
+            ),
+            payload: row['payload'] as String? ?? '{}',
+          );
+          scheduled++;
+        } catch (e) {
+          _log(
+            '⚠️ Error reconciling notification $notificationId (${row['client_event_id']}): $e',
+          );
+        }
+      }
+
+      _log(
+        '✅ Local schedule window synced '
+        '(eligible=${eligibleRows.length}, armed=${desiredRows.length}, '
+        'scheduled=$scheduled, refreshed=$refreshed, canceled=$canceled, '
+        'retired=$retired, deferred=$deferredCount, '
+        'max=$_maxConcurrentLocalNotifications)',
+      );
+    } catch (e) {
+      _log('⚠️ Error reconciling local scheduled notifications: $e');
+    } finally {
+      _localReconcileInProgress = false;
+      if (_localReconcileQueued || _localReconcileNeedsRefresh) {
+        final refreshExisting = _localReconcileNeedsRefresh;
+        _localReconcileQueued = false;
+        _localReconcileNeedsRefresh = false;
+        _requestLocalWindowReconcile(
+          delay: Duration.zero,
+          refreshExisting: refreshExisting,
+        );
+      }
     }
   }
 
@@ -464,33 +701,14 @@ class Notify {
         _log(
           'Updating existing notification $notificationId for event $clientEventId',
         );
-        // Cancel old notification
-        await _plugin.cancel(notificationId);
       } else {
         _log(
           'Creating new notification $notificationId for event $clientEventId',
         );
       }
 
-      if (shouldScheduleLocally) {
-        // Schedule the local notification when this device is not relying on
-        // remote push delivery for scheduled alerts.
-        await _scheduleLocalNotification(
-          id: notificationId,
-          scheduledAt: scheduledAt,
-          title: sanitizedTitle,
-          body: sanitizedBody,
-          payload: payload ?? '{}',
-        );
-      } else {
-        await _plugin.cancel(notificationId);
-        _log(
-          'Push alerts enabled on this device; persisted without local schedule for $notificationIdentity',
-        );
-      }
-
       // Persist to Supabase
-      await _persistNotificationToDatabase(
+      final persisted = await _persistNotificationToDatabase(
         clientEventId: clientEventId,
         notificationId: notificationId,
         scheduledAt: scheduledAt,
@@ -500,7 +718,40 @@ class Notify {
         type: type,
       );
 
-      // Detailed logging happens in _scheduleLocalNotification()
+      if (shouldScheduleLocally) {
+        if (existing != null) {
+          await _plugin.cancel(notificationId);
+        }
+
+        if (persisted) {
+          _requestLocalWindowReconcile();
+          _log(
+            'Queued local schedule reconciliation for $notificationIdentity',
+          );
+        } else {
+          try {
+            await _scheduleLocalNotification(
+              id: notificationId,
+              scheduledAt: scheduledAt,
+              title: sanitizedTitle,
+              body: sanitizedBody,
+              payload: payload ?? '{}',
+            );
+            _log(
+              '⚠️ Scheduled local fallback without database persistence for $notificationIdentity',
+            );
+          } catch (e) {
+            _log(
+              '⚠️ Local fallback scheduling failed for $notificationIdentity: $e',
+            );
+          }
+        }
+      } else {
+        await _plugin.cancel(notificationId);
+        _log(
+          'Push alerts enabled on this device; persisted without local schedule for $notificationIdentity',
+        );
+      }
     } finally {
       // Always remove from set, even if error occurs
       _schedulingInProgress.remove(notificationIdentity);
@@ -530,6 +781,7 @@ class Notify {
       if (userId == null) return;
 
       const batchSize = 100;
+      bool rowsRetired = false;
       for (int i = 0; i < ids.length; i += batchSize) {
         final end = (i + batchSize < ids.length) ? i + batchSize : ids.length;
         final batch = ids.sublist(i, end);
@@ -572,6 +824,11 @@ class Notify {
             .update({'is_active': false})
             .eq('user_id', userId)
             .inFilter('client_event_id', matchedIds.toList());
+        rowsRetired = true;
+      }
+
+      if (_inited && rowsRetired) {
+        _requestLocalWindowReconcile();
       }
     } catch (e) {
       _log('⚠️ Error cancelling notifications for client_event_ids: $e');
@@ -682,103 +939,8 @@ class Notify {
       return;
     }
 
-    try {
-      final shouldScheduleLocally = await _shouldScheduleLocallyOnThisDevice();
-      if (!shouldScheduleLocally) {
-        _log(
-          'Skipping local reschedule because push alerts are enabled on this device',
-        );
-        await _cancelPendingLocalNotificationsOnly();
-        return;
-      }
-
-      final client = Supabase.instance.client;
-      final userId = client.auth.currentUser?.id;
-
-      if (userId == null) {
-        _log('No user logged in, skipping reschedule');
-        return;
-      }
-
-      final now = DateTime.now();
-
-      // Fetch all active notifications that haven't fired yet
-      final response = await client
-          .from('scheduled_notifications')
-          .select()
-          .eq('user_id', userId)
-          .eq('is_active', true)
-          .gte('scheduled_at', now.toIso8601String())
-          .order('scheduled_at', ascending: true);
-
-      final notifications = response as List<dynamic>;
-
-      final candidateIds = notifications
-          .map((n) => n['client_event_id'] as String?)
-          .whereType<String>()
-          .toSet();
-      final existingEventIds = await _existingEventIdsForNotifications(
-        candidateIds,
-      );
-
-      _log('Rescheduling ${notifications.length} active notifications');
-
-      int rescheduled = 0;
-      for (final notif in notifications) {
-        try {
-          final scheduledAt = DateTime.parse(notif['scheduled_at'] as String);
-          final clientEventId = notif['client_event_id'] as String?;
-          final notificationId = notif['notification_id'] as int?;
-          final shouldReschedule =
-              clientEventId != null &&
-              clientEventId.isNotEmpty &&
-              existingEventIds.contains(clientEventId);
-
-          if (!shouldReschedule) {
-            if (notificationId != null) {
-              await _plugin.cancel(notificationId);
-            }
-            if (clientEventId != null && clientEventId.isNotEmpty) {
-              await _markNotificationInactive(clientEventId);
-              _log('Skipping reschedule; event missing for $clientEventId');
-            }
-            continue;
-          }
-
-          // Only reschedule future notifications
-          if (scheduledAt.isAfter(now)) {
-            final resolvedTitle = await _resolveNotificationTitle(
-              clientEventId: clientEventId,
-              preferredTitle: notif['title'] as String?,
-            );
-            await _scheduleLocalNotification(
-              id:
-                  notificationId ??
-                  _generateStableNotificationId(clientEventId),
-              scheduledAt: scheduledAt,
-              title: resolvedTitle,
-              body: _resolveNotificationBody(
-                preferredBody: notif['body'] as String?,
-              ),
-              payload: notif['payload'] as String? ?? '{}',
-            );
-            rescheduled++;
-          } else {
-            // Mark past notifications as inactive
-            if (notificationId != null) {
-              await _plugin.cancel(notificationId);
-            }
-            await _markNotificationInactive(clientEventId);
-          }
-        } catch (e) {
-          _log('⚠️ Error rescheduling notification ${notif['id']}: $e');
-        }
-      }
-
-      _log('✅ Rescheduled $rescheduled notifications');
-    } catch (e) {
-      _log('⚠️ Error loading notifications from database: $e');
-    }
+    _localReconcileNeedsRefresh = true;
+    await _reconcileLocalScheduleWindow();
   }
 
   /// **PRIVATE**: Internal method to schedule local notification only
@@ -839,7 +1001,7 @@ class Notify {
   }
 
   /// **PRIVATE**: Persist notification to Supabase
-  static Future<void> _persistNotificationToDatabase({
+  static Future<bool> _persistNotificationToDatabase({
     required String clientEventId,
     required int notificationId,
     required DateTime scheduledAt,
@@ -854,7 +1016,7 @@ class Notify {
 
       if (userId == null) {
         _log('⚠️ Cannot persist notification - no user logged in');
-        return;
+        return false;
       }
 
       await client.from('scheduled_notifications').upsert({
@@ -870,9 +1032,10 @@ class Notify {
       }, onConflict: 'user_id,client_event_id,notification_type');
 
       _log('Persisted notification to database: $clientEventId');
+      return true;
     } catch (e) {
       _log('⚠️ Error persisting notification to database: $e');
-      // Don't throw - notification is still scheduled locally
+      return false;
     }
   }
 
