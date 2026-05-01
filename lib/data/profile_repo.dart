@@ -869,7 +869,10 @@ class ProfileRepo {
       final newId = await userEventsRepo.upsertFlow(
         name: post.name,
         color: post.color,
-        active: true,
+        // Saving from the community/profile feed should create a dormant
+        // template in Saved Flows. The user must explicitly import it later
+        // before it appears on the active calendar timeline.
+        active: false,
         isSaved: true,
         isHidden: false,
         startDate: effectiveStart,
@@ -892,6 +895,8 @@ class ProfileRepo {
         _log('[ProfileRepo] flow_saves upsert failed: $e');
       }
 
+      // Keep event snapshots attached to the saved template so the Saved Flows
+      // preview and later Import Flow action preserve the original structure.
       await _copyFlowPostEvents(
         targetFlowId: newId,
         post: post,

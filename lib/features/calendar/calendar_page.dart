@@ -13070,9 +13070,7 @@ class _CalendarPageState extends State<CalendarPage>
   /// Public entrypoint so other screens (e.g., Profile) can open Flow Studio's
   /// "My Flows" viewer without duplicating UI.
   Future<void> openMyFlowsFromOutside() async {
-    if (_flows.isEmpty && !_isLoadingFromDisk) {
-      await _loadFromDisk();
-    }
+    await _loadFromDisk(source: 'open_my_flows_from_outside');
     if (!mounted) return;
     _openMyFlowsList();
   }

@@ -121,6 +121,34 @@ void main() {
     expect(ledger.savedTemplateItems.length, 1);
   });
 
+  test('ledger keeps active saved flows in both active and saved lists', () {
+    final ledger = buildFlowLedger<_FakeFlow>(
+      flows: [
+        const _FakeFlow(
+          id: 1,
+          active: true,
+          isSaved: true,
+          isHidden: false,
+          isReminder: false,
+        ),
+      ],
+      idOf: (flow) => flow.id,
+      activeOf: (flow) => flow.active,
+      isSavedOf: (flow) => flow.isSaved,
+      isHiddenOf: (flow) => flow.isHidden,
+      isReminderOf: (flow) => flow.isReminder,
+      endDateOf: (flow) => flow.endDate,
+      notesOf: (flow) => flow.notes,
+      useRemainingEventCount: true,
+      remainingEventCounts: const {1: 2},
+      now: DateTime(2026, 4, 30, 12),
+    );
+
+    expect(ledger.activeCount, 1);
+    expect(ledger.activeItems.length, 1);
+    expect(ledger.savedTemplateItems.length, 1);
+  });
+
   test('calendar-active flow excludes reminders and hidden rows', () {
     expect(
       isCalendarActiveFlow(active: true, isHidden: false, isReminder: false),

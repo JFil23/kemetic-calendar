@@ -17,17 +17,21 @@ class FlowLedgerEntry<T> {
   const FlowLedgerEntry({
     required this.flow,
     required this.bucket,
+    required this.visibleInActiveList,
+    required this.visibleInSavedList,
     required this.totalEventCount,
     required this.remainingEventCount,
   });
 
   final T flow;
   final FlowLedgerBucket bucket;
+  final bool visibleInActiveList;
+  final bool visibleInSavedList;
   final int totalEventCount;
   final int remainingEventCount;
 
-  bool get isActive => bucket == FlowLedgerBucket.active;
-  bool get isSavedTemplate => bucket == FlowLedgerBucket.savedTemplate;
+  bool get isActive => visibleInActiveList;
+  bool get isSavedTemplate => visibleInSavedList;
 }
 
 class FlowLedger<T> {
@@ -203,20 +207,29 @@ FlowLedger<T> buildFlowLedger<T>({
     final flowId = idOf(flow);
     final totalEventCount = totalEventCounts[flowId] ?? 0;
     final remainingEventCount = remainingEventCounts[flowId] ?? 0;
+    final visibleInSavedList = isSavedFlowTemplate(
+      isSaved: isSavedOf(flow),
+      isHidden: isHiddenOf(flow),
+      isReminder: isReminderOf(flow),
+      notes: notesOf(flow),
+    );
+    final bucket = classifyFlowLedgerBucket(
+      active: activeOf(flow),
+      isSaved: isSavedOf(flow),
+      isHidden: isHiddenOf(flow),
+      isReminder: isReminderOf(flow),
+      endDate: endDateOf(flow),
+      notes: notesOf(flow),
+      remainingEventCount: remainingEventCount,
+      useRemainingEventCount: useRemainingEventCount,
+      now: now,
+    );
     entries.add(
       FlowLedgerEntry<T>(
         flow: flow,
-        bucket: classifyFlowLedgerBucket(
-          active: activeOf(flow),
-          isSaved: isSavedOf(flow),
-          isHidden: isHiddenOf(flow),
-          isReminder: isReminderOf(flow),
-          endDate: endDateOf(flow),
-          notes: notesOf(flow),
-          remainingEventCount: remainingEventCount,
-          useRemainingEventCount: useRemainingEventCount,
-          now: now,
-        ),
+        bucket: bucket,
+        visibleInActiveList: bucket == FlowLedgerBucket.active,
+        visibleInSavedList: visibleInSavedList,
         totalEventCount: totalEventCount,
         remainingEventCount: remainingEventCount,
       ),
