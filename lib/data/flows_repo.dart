@@ -124,6 +124,138 @@ class FlowRow {
 class FlowsRepo {
   FlowsRepo(this._client);
   final SupabaseClient _client;
+
+  FlowLedger<FlowRow> _buildLedger(
+    Iterable<FlowRow> flows, {
+    Map<int, int> totalEventCounts = const {},
+    Map<int, int> remainingEventCounts = const {},
+  }) {
+    return buildFlowLedger<FlowRow>(
+      flows: flows,
+      idOf: (flow) => flow.id,
+      activeOf: (flow) => flow.active,
+      isSavedOf: (flow) => flow.isSaved,
+      isHiddenOf: (flow) => flow.isHidden,
+      isReminderOf: (flow) => flow.isReminder,
+      endDateOf: (flow) => flow.endDate,
+      notesOf: (flow) => flow.notes,
+      useRemainingEventCount: true,
+      totalEventCounts: totalEventCounts,
+      remainingEventCounts: remainingEventCounts,
+    );
+  }
+
+  Future<List<FlowRow>> _fetchMyRawFlows() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return const [];
+
+    final rows =
+        await _client
+                .from(_kFlows)
+                .select()
+                .eq('user_id', user.id)
+                .order('created_at', ascending: false)
+            as List<dynamic>;
+    return rows.cast<Map<String, dynamic>>().map(FlowRow.fromRow).toList();
+  }
+
+  Future<({Map<int, int> total, Map<int, int> remaining})> _loadMyEventCounts(
+    List<int> flowIds,
+  ) async {
+    final user = _client.auth.currentUser;
+    if (user == null || flowIds.isEmpty) {
+      return (total: <int, int>{}, remaining: <int, int>{});
+    }
+    final flowIdSet = flowIds.toSet();
+
+    try {
+      final rpcResponse = await _client.rpc('get_my_flow_activity');
+      final rows = switch (rpcResponse) {
+        List<dynamic>() => rpcResponse.cast<dynamic>(),
+        Map() => [rpcResponse],
+        _ => const <dynamic>[],
+      };
+
+      final totalCounts = <int, int>{};
+      final remainingCounts = <int, int>{};
+      for (final raw in rows.cast<Map>()) {
+        final row = Map<String, dynamic>.from(raw);
+        final flowId = (row['flow_id'] as num?)?.toInt();
+        if (flowId == null || !flowIdSet.contains(flowId)) continue;
+        totalCounts[flowId] = (row['total_event_count'] as num?)?.toInt() ?? 0;
+        remainingCounts[flowId] =
+            (row['remaining_event_count'] as num?)?.toInt() ?? 0;
+      }
+      return (total: totalCounts, remaining: remainingCounts);
+    } catch (e) {
+      _log('get_my_flow_activity unavailable, using local fallback: $e');
+    }
+
+    final eventRows =
+        await _client
+                .from('user_events')
+                .select('flow_local_id, client_event_id, category')
+                .eq('user_id', user.id)
+                .inFilter('flow_local_id', flowIds)
+            as List<dynamic>;
+    final completionRows =
+        await _client
+                .from('user_event_completions')
+                .select('flow_id, client_event_id')
+                .eq('user_id', user.id)
+                .inFilter('flow_id', flowIds)
+            as List<dynamic>;
+
+    final completedClientIdsByFlow = <int, Set<String>>{};
+    for (final raw in completionRows.cast<Map<String, dynamic>>()) {
+      final flowId = (raw['flow_id'] as num?)?.toInt();
+      final clientEventId = (raw['client_event_id'] as String?)?.trim();
+      if (flowId == null || clientEventId == null || clientEventId.isEmpty) {
+        continue;
+      }
+      completedClientIdsByFlow
+          .putIfAbsent(flowId, () => <String>{})
+          .add(clientEventId);
+    }
+
+    final totalCounts = <int, int>{};
+    final remainingCounts = <int, int>{};
+    for (final raw in eventRows.cast<Map<String, dynamic>>()) {
+      final flowId = (raw['flow_local_id'] as num?)?.toInt();
+      if (flowId == null) continue;
+      if ((raw['category'] as String?) == 'tombstone') continue;
+
+      totalCounts[flowId] = (totalCounts[flowId] ?? 0) + 1;
+
+      final clientEventId = (raw['client_event_id'] as String?)?.trim();
+      final completed =
+          clientEventId != null &&
+          clientEventId.isNotEmpty &&
+          (completedClientIdsByFlow[flowId]?.contains(clientEventId) ?? false);
+      if (!completed) {
+        remainingCounts[flowId] = (remainingCounts[flowId] ?? 0) + 1;
+      }
+    }
+
+    return (total: totalCounts, remaining: remainingCounts);
+  }
+
+  Future<({Map<int, int> total, Map<int, int> remaining})>
+  loadMyFlowEventCounts({required Iterable<int> flowIds}) async {
+    return _loadMyEventCounts(flowIds.toList(growable: false));
+  }
+
+  Future<FlowLedger<FlowRow>> loadMyFlowLedger() async {
+    final flows = await _fetchMyRawFlows();
+    final flowIds = flows.map((flow) => flow.id).toList(growable: false);
+    final eventCounts = await _loadMyEventCounts(flowIds);
+    return _buildLedger(
+      flows,
+      totalEventCounts: eventCounts.total,
+      remainingEventCounts: eventCounts.remaining,
+    );
+  }
+
   Stream<List<FlowRow>> streamMyFlows() {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -134,17 +266,21 @@ class FlowsRepo {
         .stream(primaryKey: ['id'])
         .order('updated_at', ascending: false)
         .order('start_date', ascending: true)
-        .map(
-          (rows) => rows
+        .asyncMap((rows) async {
+          final flows = rows
               .cast<Map<String, dynamic>>()
               .map(FlowRow.fromRow)
-              .where(
-                (f) =>
-                    f.userId == user.id && // guard if RLS is loose
-                    isFlowEnabled(active: f.active),
-              )
-              .toList(),
-        );
+              .where((flow) => flow.userId == user.id)
+              .toList();
+          final eventCounts = await _loadMyEventCounts(
+            flows.map((flow) => flow.id).toList(growable: false),
+          );
+          return _buildLedger(
+            flows,
+            totalEventCounts: eventCounts.total,
+            remainingEventCounts: eventCounts.remaining,
+          ).activeItems;
+        });
   }
 
   Future<FlowRow> upsert({
@@ -301,38 +437,14 @@ class FlowsRepo {
     }
 
     _log('fetchAll');
-    final rows = await _client
-        .from(_kFlows)
-        .select()
-        .eq('user_id', user.id)
-        .order('created_at', ascending: false);
-
-    _log('fetchAll ✓ ${rows.length} rows');
-    final flows = (rows as List)
-        .map((r) => FlowRow.fromRow(r as Map<String, dynamic>))
-        .where((f) => isFlowEnabled(active: f.active))
-        .toList();
-    return flows;
+    final ledger = await loadMyFlowLedger();
+    _log('fetchAll ✓ ${ledger.entries.length} rows');
+    return ledger.activeItems;
   }
 
   Future<List<FlowRow>> listMyFlows({int limit = 200}) async {
-    final user = _client.auth.currentUser;
-    if (user == null) return const [];
-    final rows =
-        await _client
-                .from(_kFlows)
-                .select()
-                .eq('user_id', user.id)
-                .eq('active', true)
-                .order('updated_at', ascending: false)
-                .limit(limit)
-            as List<dynamic>;
-    final flows = rows
-        .cast<Map<String, dynamic>>()
-        .map(FlowRow.fromRow)
-        .where((f) => isFlowEnabled(active: f.active))
-        .toList();
-    return flows;
+    final ledger = await loadMyFlowLedger();
+    return ledger.activeItems.take(limit).toList(growable: false);
   }
 
   /// List flows for the current user without filtering by active/end dates.

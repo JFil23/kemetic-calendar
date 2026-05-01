@@ -4727,6 +4727,8 @@ class _CalendarPageState extends State<CalendarPage>
   /// Prevents duplicate async move operations for the same event row id.
   final Set<String> _eventMoveInProgress = <String>{};
   List<_Flow> _flows = [];
+  final Map<int, int> _flowTotalEventCounts = <int, int>{};
+  final Map<int, int> _flowRemainingEventCounts = <int, int>{};
   int _nextFlowId = 1;
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
   final ScrollController _scrollCtrl = ScrollController();
@@ -9847,9 +9849,8 @@ class _CalendarPageState extends State<CalendarPage>
 
   Map<int, FlowData> _buildActiveFlowIndex() {
     final flowIndex = <int, FlowData>{};
-    for (final f in _flows.where(
-      (f) => isFlowVisibleInLists(active: f.active, isHidden: f.isHidden),
-    )) {
+    final ledger = _buildFlowLedger(_flows);
+    for (final f in ledger.activeItems) {
       flowIndex[f.id] = FlowData(
         id: f.id,
         name: f.name,
@@ -13016,6 +13017,8 @@ class _CalendarPageState extends State<CalendarPage>
 
                       return _FlowsViewerPage(
                         flows: _flows,
+                        totalEventCounts: _flowTotalEventCounts,
+                        remainingEventCounts: _flowRemainingEventCounts,
                         fmtGregorian: (d) => d == null
                             ? '--'
                             : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
@@ -13104,6 +13107,8 @@ class _CalendarPageState extends State<CalendarPage>
                 MaterialPageRoute(
                   builder: (ctx2) => _FlowsViewerPage(
                     flows: _flows,
+                    totalEventCounts: _flowTotalEventCounts,
+                    remainingEventCounts: _flowRemainingEventCounts,
                     fmtGregorian: (d) => d == null
                         ? '--'
                         : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
@@ -13236,6 +13241,8 @@ class _CalendarPageState extends State<CalendarPage>
       rootBuilder: (innerCtx) {
         return _FlowsViewerPage(
           flows: _flows,
+          totalEventCounts: _flowTotalEventCounts,
+          remainingEventCounts: _flowRemainingEventCounts,
           fmtGregorian: (d) => d == null
               ? '--'
               : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
@@ -17136,10 +17143,33 @@ class _CalendarPageState extends State<CalendarPage>
         }
       }
 
+      ({Map<int, int> total, Map<int, int> remaining}) flowEventCounts = (
+        total: <int, int>{},
+        remaining: <int, int>{},
+      );
+      try {
+        flowEventCounts = await _flowsRepo.loadMyFlowEventCounts(
+          flowIds: newFlows.map((flow) => flow.id),
+        );
+      } catch (err, st) {
+        if (kDebugMode) {
+          debugPrint(
+            '[loadFromDisk] failed to load flow activity counts: $err',
+          );
+          debugPrint('$st');
+        }
+      }
+
       // force rebuild
       _flows
         ..clear()
         ..addAll(newFlows);
+      _flowTotalEventCounts
+        ..clear()
+        ..addAll(flowEventCounts.total);
+      _flowRemainingEventCounts
+        ..clear()
+        ..addAll(flowEventCounts.remaining);
       _notes
         ..clear()
         ..addAll(newNotes);
@@ -20015,7 +20045,8 @@ class _CalendarPageState extends State<CalendarPage>
   // Helper method to build flow index for landscape month view
   Map<int, FlowData> _buildFlowIndex() {
     final index = <int, FlowData>{};
-    for (final f in _flows.where((f) => isFlowEnabled(active: f.active))) {
+    final ledger = _buildFlowLedger(_flows);
+    for (final f in ledger.activeItems) {
       index[f.id] = FlowData(
         id: f.id,
         name: f.name,
@@ -20025,6 +20056,22 @@ class _CalendarPageState extends State<CalendarPage>
       );
     }
     return index;
+  }
+
+  FlowLedger<_Flow> _buildFlowLedger(Iterable<_Flow> flows) {
+    return buildFlowLedger<_Flow>(
+      flows: flows,
+      idOf: (flow) => flow.id,
+      activeOf: (flow) => flow.active,
+      isSavedOf: (flow) => flow.isSaved,
+      isHiddenOf: (flow) => flow.isHidden,
+      isReminderOf: (flow) => flow.isReminder,
+      endDateOf: (flow) => flow.end,
+      notesOf: (flow) => flow.notes,
+      useRemainingEventCount: true,
+      totalEventCounts: _flowTotalEventCounts,
+      remainingEventCounts: _flowRemainingEventCounts,
+    );
   }
 
   FlowData? _flowDataForId(int? flowId) {
@@ -31142,6 +31189,8 @@ _RuleDates _buildNoteRuleDates({
 class _FlowsViewerPage extends StatefulWidget {
   const _FlowsViewerPage({
     required this.flows,
+    required this.totalEventCounts,
+    required this.remainingEventCounts,
     required this.fmtGregorian,
     required this.onCreateNew,
     required this.onEditFlow,
@@ -31151,6 +31200,8 @@ class _FlowsViewerPage extends StatefulWidget {
   });
 
   final List<_Flow> flows;
+  final Map<int, int> totalEventCounts;
+  final Map<int, int> remainingEventCounts;
   final String Function(DateTime? d) fmtGregorian;
   final VoidCallback onCreateNew;
   final void Function(int flowId) onEditFlow;
@@ -31165,18 +31216,28 @@ class _FlowsViewerPage extends StatefulWidget {
 class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   FlowListTab _tab = FlowListTab.active;
 
+  FlowLedger<_Flow> get _ledger => buildFlowLedger<_Flow>(
+    flows: widget.flows,
+    idOf: (flow) => flow.id,
+    activeOf: (flow) => flow.active,
+    isSavedOf: (flow) => flow.isSaved,
+    isHiddenOf: (flow) => flow.isHidden,
+    isReminderOf: (flow) => flow.isReminder,
+    endDateOf: (flow) => flow.end,
+    notesOf: (flow) => flow.notes,
+    useRemainingEventCount: true,
+    totalEventCounts: widget.totalEventCounts,
+    remainingEventCounts: widget.remainingEventCounts,
+  );
+
   List<_Flow> get _activeItems =>
-      widget.flows
-          .where(
-            (f) => isFlowVisibleInLists(active: f.active, isHidden: f.isHidden),
-          )
-          .toList()
+      _ledger.activeItems.toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   // Saved flows act as templates, so they stay visible even after the user
   // removes them from the active calendar.
   List<_Flow> get _savedItems =>
-      widget.flows.where((f) => f.isSaved && !f.isHidden).toList()
+      _ledger.savedTemplateItems.toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   @override
@@ -31210,9 +31271,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
         final f = items[i];
         final meta = notesDecode(f.notes);
         final modeLabel = meta.kemetic ? 'Kemetic' : 'Gregorian';
-        final statusLabel = _tab == FlowListTab.saved
-            ? 'Saved'
-            : (f.active ? 'Active' : 'Inactive');
+        final statusLabel = _tab == FlowListTab.saved ? 'Saved' : 'Active';
         final rangeLabel =
             '${widget.fmtGregorian(f.start)} → ${widget.fmtGregorian(f.end)}';
 

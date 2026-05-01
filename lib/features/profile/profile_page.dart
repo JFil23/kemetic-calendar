@@ -250,7 +250,6 @@ class _ProfilePageState extends State<ProfilePage>
         : _repo.isFollowing(widget.userId);
     final postsFuture = _repo.getFlowPosts(widget.userId);
     final insightPostsFuture = _repo.getInsightPosts(widget.userId);
-    final countsFuture = _repo.computeFlowCountsForUser(widget.userId);
 
     final profile = await profileFuture;
     final isFollowing = await followFuture;
@@ -263,19 +262,6 @@ class _ProfilePageState extends State<ProfilePage>
     });
 
     if (profile == null) return;
-
-    unawaited(() async {
-      final counts = await countsFuture;
-      if (!mounted || loadSerial != _profileLoadSerial) return;
-      final current = _profile;
-      if (current == null) return;
-      setState(() {
-        _profile = current.copyWith(
-          activeFlowsCount: counts.$1,
-          totalFlowEventsCount: counts.$2,
-        );
-      });
-    }());
 
     unawaited(() async {
       final posts = await postsFuture;

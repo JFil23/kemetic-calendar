@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart' show DateUtils;
 import 'package:mobile/utils/detail_sanitizer.dart';
 import 'package:mobile/utils/event_cid_util.dart';
+import 'package:mobile/utils/flow_visibility.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 import 'profile_avatar_glyphs.dart';
 import 'profile_model.dart';
@@ -37,6 +38,15 @@ class ProfileRepo {
     if (kDebugMode) {
       debugPrint(message);
     }
+  }
+
+  Future<UserProfile?> _overlayLiveFlowCounts(UserProfile? profile) async {
+    if (profile == null) return null;
+    final counts = await computeFlowCountsForUser(profile.id);
+    return profile.copyWith(
+      activeFlowsCount: counts.$1,
+      totalFlowEventsCount: counts.$2,
+    );
   }
 
   String _profilesSelect({bool includeAvatarGlyphs = true}) {
@@ -151,27 +161,69 @@ class ProfileRepo {
           .maybeSingle();
 
       if (response == null) return null;
-      return UserProfile.fromJson(response);
+      return _overlayLiveFlowCounts(UserProfile.fromJson(response));
     } catch (e) {
       _log('[ProfileRepo] Error fetching profile: $e');
       return null;
     }
   }
 
-  /// Compute accurate flow and flow-event counts for a user using live tables.
+  /// Compute flow counts from the canonical active/inactive accountant.
   Future<(int activeFlows, int flowEvents)> computeFlowCountsForUser(
     String userId,
   ) async {
     try {
+      final rpcResponse = await _client.rpc(
+        'get_profile_flow_counts',
+        params: {'p_user_id': userId},
+      );
+      Map<String, dynamic>? row;
+      if (rpcResponse is List &&
+          rpcResponse.isNotEmpty &&
+          rpcResponse.first is Map) {
+        row = Map<String, dynamic>.from(rpcResponse.first as Map);
+      } else if (rpcResponse is Map) {
+        row = Map<String, dynamic>.from(rpcResponse);
+      }
+      if (row != null) {
+        return (
+          (row['active_flows_count'] as num?)?.toInt() ?? 0,
+          (row['total_flow_events_count'] as num?)?.toInt() ?? 0,
+        );
+      }
+    } catch (e) {
+      _log('[ProfileRepo] get_profile_flow_counts unavailable: $e');
+    }
+
+    try {
+      final currentUserId = _client.auth.currentUser?.id;
+      if (currentUserId == userId) {
+        final ledger = await FlowsRepo(_client).loadMyFlowLedger();
+        return (ledger.activeCount, ledger.totalRemainingEventCount);
+      }
+
       final flowsResp = await _client
           .from('flows')
-          .select('id')
+          .select('id, active, is_hidden, is_reminder, end_date, notes')
           .eq('user_id', userId)
-          .eq('active', true)
-          .or('is_hidden.is.null,is_hidden.eq.false');
+          .order('created_at', ascending: false);
 
       final flowsList = (flowsResp as List?) ?? const [];
       final flowIds = flowsList
+          .where(
+            (row) =>
+                classifyFlowLedgerBucket(
+                  active: (row['active'] as bool?) ?? false,
+                  isSaved: false,
+                  isHidden: (row['is_hidden'] as bool?) ?? false,
+                  isReminder: (row['is_reminder'] as bool?) ?? false,
+                  endDate: row['end_date'] == null
+                      ? null
+                      : DateTime.parse(row['end_date'] as String),
+                  notes: row['notes'] as String?,
+                ) ==
+                FlowLedgerBucket.active,
+          )
           .map((row) => (row['id'] as num?)?.toInt())
           .whereType<int>()
           .toList();
@@ -181,11 +233,14 @@ class ProfileRepo {
 
       final eventsResp = await _client
           .from('user_events')
-          .select('id')
+          .select('id, category')
           .eq('user_id', userId)
           .inFilter('flow_local_id', flowIds);
 
-      final flowEvents = (eventsResp as List?)?.length ?? 0;
+      final flowEvents = ((eventsResp as List?) ?? const [])
+          .cast<Map<String, dynamic>>()
+          .where((row) => row['category'] != 'tombstone')
+          .length;
       return (activeFlows, flowEvents);
     } catch (e) {
       _log('[ProfileRepo] Error computing counts: $e');
@@ -365,7 +420,7 @@ class ProfileRepo {
           .maybeSingle();
 
       if (response == null) return null;
-      return UserProfile.fromJson(response);
+      return _overlayLiveFlowCounts(UserProfile.fromJson(response));
     } catch (e) {
       _log('[ProfileRepo] Error fetching profile by handle: $e');
       return null;

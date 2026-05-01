@@ -25,7 +25,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
   FlowPostTab _tab = FlowPostTab.active;
   bool _loading = true;
   bool _posting = false;
-  List<FlowRow> _flows = const [];
+  FlowLedger<FlowRow>? _ledger;
 
   @override
   void initState() {
@@ -35,26 +35,26 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final flows = await _flowsRepo.listMyFlowsUnfiltered(limit: 400);
+    final ledger = await _flowsRepo.loadMyFlowLedger();
     if (!mounted) return;
     setState(() {
-      _flows = flows;
+      _ledger = ledger;
       _loading = false;
     });
   }
 
-  List<FlowRow> get _activeFlows =>
-      _flows
-          .where(
-            (f) => isFlowVisibleInLists(active: f.active, isHidden: f.isHidden),
-          )
-          .toList()
-        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  List<FlowRow> get _activeFlows {
+    final flows = [...?_ledger?.activeItems];
+    flows.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return flows;
+  }
 
   // Saved flows can be posted/shared later even if they are no longer active.
-  List<FlowRow> get _savedFlows =>
-      _flows.where((f) => f.isSaved && !f.isHidden).toList()
-        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  List<FlowRow> get _savedFlows {
+    final flows = [...?_ledger?.savedTemplateItems];
+    flows.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return flows;
+  }
 
   void _showDebugHapticsSnackBar(AppHapticResult result) {
     if (!kDebugMode || !mounted) return;
@@ -195,9 +195,9 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
                                 style: const TextStyle(color: Colors.white),
                               ),
                               subtitle: Text(
-                                f.isSaved
+                                _tab == FlowPostTab.saved
                                     ? 'Saved Flow'
-                                    : (f.active ? 'Active' : 'Inactive'),
+                                    : 'Active',
                                 style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
