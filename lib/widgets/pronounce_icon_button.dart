@@ -5,6 +5,7 @@ import 'package:mobile/services/speech/speech_service.dart';
 /// Compact icon button for playing/stopping pronunciations.
 class PronounceIconButton extends StatelessWidget {
   final String speakText;
+  final String? utteranceId;
   final Color color;
   final double size;
   final bool isPhonetic;
@@ -12,6 +13,7 @@ class PronounceIconButton extends StatelessWidget {
   const PronounceIconButton({
     super.key,
     required this.speakText,
+    this.utteranceId,
     required this.color,
     this.size = 22,
     this.isPhonetic = false,
@@ -19,11 +21,20 @@ class PronounceIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: SpeechService.instance.isSpeaking,
-      builder: (context, speaking, child) {
+    final speech = SpeechService.instance;
+    final buttonUtteranceId = (utteranceId?.trim().isNotEmpty ?? false)
+        ? utteranceId!.trim()
+        : speakText;
+
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        speech.isSpeaking,
+        speech.activeUtteranceId,
+      ]),
+      builder: (context, child) {
+        final isActive = speech.activeUtteranceId.value == buttonUtteranceId;
         return IconButton(
-          tooltip: speaking ? 'Stop' : 'Play pronunciation',
+          tooltip: isActive ? 'Stop' : 'Play pronunciation',
           padding: expandedIconButtonPadding(
             context,
             iconSize: size,
@@ -32,19 +43,22 @@ class PronounceIconButton extends StatelessWidget {
           constraints: expandedIconButtonConstraints(context),
           visualDensity: expandedVisualDensity(context),
           icon: Icon(
-            speaking ? Icons.stop_circle_outlined : Icons.volume_up_rounded,
+            isActive ? Icons.stop_circle_outlined : Icons.volume_up_rounded,
             color: color,
             size: size,
           ),
           onPressed: () async {
             try {
-              if (speaking) {
-                await SpeechService.instance.stop();
+              if (isActive) {
+                await speech.stop(utteranceId: buttonUtteranceId);
               } else {
                 if (isPhonetic) {
-                  await SpeechService.instance.speakPhonetic(speakText);
+                  await speech.speakPhonetic(
+                    speakText,
+                    utteranceId: buttonUtteranceId,
+                  );
                 } else {
-                  await SpeechService.instance.speak(speakText);
+                  await speech.speak(speakText, utteranceId: buttonUtteranceId);
                 }
               }
             } catch (_) {

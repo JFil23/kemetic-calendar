@@ -31,10 +31,18 @@ class SpeechResolver {
     return _withCue(base, englishCue);
   }
 
+  static String prose({required String base, String? englishCue}) {
+    final resolvedBase = base.trim();
+    if (resolvedBase.isEmpty) {
+      return _normalizeCue(englishCue) ?? '';
+    }
+    return _withCue(resolvedBase, englishCue);
+  }
+
   static String _withCue(String base, String? cue) {
-    final c = cue?.trim();
-    if (c == null || c.isEmpty) return base;
-    return '$base. $c.';
+    final normalizedCue = _normalizeCue(cue);
+    if (normalizedCue == null) return base;
+    return '$base, $normalizedCue';
   }
 
   static String _firstNonEmpty(List<String?> options) {
@@ -48,5 +56,18 @@ class SpeechResolver {
 
   static String _stripEnglishCue(String s) {
     return s.split('(').first.trim();
+  }
+
+  static String? _normalizeCue(String? cue) {
+    final cleaned = cue
+        ?.replaceAll(RegExp(r'^[\s"“”]+'), '')
+        .replaceAll(RegExp(r'[\s"“”.,;:!?]+$'), '')
+        .trim();
+    if (cleaned == null || cleaned.isEmpty) return null;
+
+    if (RegExp(r'^(the|a|an)\b', caseSensitive: false).hasMatch(cleaned)) {
+      return cleaned;
+    }
+    return 'the $cleaned';
   }
 }

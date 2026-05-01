@@ -80,6 +80,71 @@ class TrackSkyEventSchedule {
   });
 }
 
+TrackSkyEventSchedule normalizeTrackSkyViewingSchedule({
+  required String title,
+  required String category,
+  required TrackSkyEventSchedule schedule,
+  String? exactLabel,
+}) {
+  final titleKey = _trackSkyTitleKey(title);
+  final month = int.tryParse(schedule.dateIso.split('-')[1]) ?? 1;
+
+  TrackSkyEventSchedule timed(String start, String end) {
+    return TrackSkyEventSchedule(
+      dateIso: schedule.dateIso,
+      startTime24: start,
+      endTime24: end,
+      allDay: false,
+    );
+  }
+
+  if (titleKey.contains('total lunar eclipse') ||
+      titleKey.contains('partial lunar eclipse')) {
+    return schedule;
+  }
+
+  if (titleKey.contains('penumbral lunar eclipse')) {
+    return timed('17:30', '18:30');
+  }
+
+  if (titleKey.contains('supermoon') ||
+      titleKey.contains('micromoon') ||
+      titleKey.contains('(full)')) {
+    return timed('20:00', '21:00');
+  }
+
+  if (titleKey.contains('equinox')) {
+    return month == 9 ? timed('18:00', '19:00') : timed('06:30', '07:30');
+  }
+
+  if (titleKey.contains('solstice')) {
+    return timed('12:00', '13:00');
+  }
+
+  if (category == 'Meteor Showers') {
+    return schedule;
+  }
+
+  if (titleKey.contains('6-planet parade') ||
+      titleKey.contains('venus-jupiter conjunction') ||
+      titleKey.contains('venus at greatest eastern elongation')) {
+    return timed('20:00', '21:00');
+  }
+
+  if (titleKey.contains('venus at greatest western elongation') ||
+      titleKey.contains('mercury at greatest western elongation')) {
+    return timed('05:00', '06:00');
+  }
+
+  if (titleKey.contains('jupiter at opposition') ||
+      titleKey.contains('saturn at opposition') ||
+      titleKey.contains('mars at opposition')) {
+    return timed('21:00', '22:00');
+  }
+
+  return schedule;
+}
+
 class TrackSkyEvent {
   final String category;
   final String title;
@@ -103,15 +168,44 @@ class TrackSkyEvent {
     required this.schedule,
   });
 
-  List<String> get detailSegments =>
-      <String>[bestViewing, whatToSee, scientificBreakdown, significance, notes]
-          .map(_normalizeTrackSkyInlineSegment)
-          .where((part) => part.isNotEmpty)
-          .toList();
+  _TrackSkyNarrative? get _narrative =>
+      _trackSkyNarrativeForMetadata(title: title, category: category);
 
-  String get detailSummary => detailSegments.join(' | ');
+  String get trackingGuidance {
+    final override = _narrative?.trackingGuidance.trim();
+    if (override != null && override.isNotEmpty) return override;
+
+    final fallback = _joinTrackSkyParagraphParts(<String>[
+      bestViewing,
+      whatToSee,
+    ]);
+    if (fallback.isNotEmpty) return fallback;
+
+    return _normalizeTrackSkyInlineSegment(scientificBreakdown);
+  }
+
+  String get maatReflection {
+    final override = _narrative?.maatReflection.trim();
+    if (override != null && override.isNotEmpty) return override;
+    return _normalizeTrackSkyInlineSegment(significance);
+  }
+
+  List<String> get detailSegments => <String>[trackingGuidance, maatReflection]
+      .map(_normalizeTrackSkyInlineSegment)
+      .where((part) => part.isNotEmpty)
+      .toList();
+
+  String get detailSummary {
+    return _trackSkySummaryText(
+      guidance: trackingGuidance,
+      reflection: maatReflection,
+    );
+  }
 
   String get teaserText {
+    final guidanceLead = _firstTrackSkySentence(trackingGuidance);
+    if (guidanceLead.isNotEmpty) return guidanceLead;
+
     for (final value in <String>[bestViewing, whatToSee, scientificBreakdown]) {
       final normalized = _normalizeTrackSkyInlineSegment(value);
       if (normalized.isNotEmpty) return normalized;
@@ -122,6 +216,16 @@ class TrackSkyEvent {
   String get detailText {
     return detailSummary;
   }
+}
+
+class _TrackSkyNarrative {
+  final String trackingGuidance;
+  final String maatReflection;
+
+  const _TrackSkyNarrative({
+    required this.trackingGuidance,
+    required this.maatReflection,
+  });
 }
 
 const String _trackSkyMonthTokenPattern =
@@ -146,6 +250,224 @@ const Set<String> _trackSkyDistinctHeadings = <String>{
 
 String _normalizeTrackSkyInlineSegment(String value) {
   return value.trim().replaceAll(RegExp(r'\s+'), ' ');
+}
+
+String _trackSkySummaryText({
+  required String guidance,
+  required String reflection,
+}) {
+  final normalizedGuidance = _normalizeTrackSkyInlineSegment(guidance);
+  final normalizedReflection = _normalizeTrackSkyInlineSegment(reflection);
+  if (normalizedGuidance.isEmpty) return normalizedReflection;
+  if (normalizedReflection.isEmpty) return normalizedGuidance;
+  return '$normalizedGuidance\n\n$normalizedReflection';
+}
+
+String buildTrackSkyNarrativeSummary({
+  required String title,
+  String? category,
+  String? fallbackGuidance,
+  String? fallbackReflection,
+}) {
+  final narrative = _trackSkyNarrativeForMetadata(
+    title: title,
+    category: category,
+  );
+  if (narrative != null) {
+    return _trackSkySummaryText(
+      guidance: narrative.trackingGuidance,
+      reflection: narrative.maatReflection,
+    );
+  }
+
+  return _trackSkySummaryText(
+    guidance: fallbackGuidance ?? '',
+    reflection: fallbackReflection ?? '',
+  );
+}
+
+String _joinTrackSkyParagraphParts(Iterable<String> values) {
+  return values
+      .map(_normalizeTrackSkyInlineSegment)
+      .where((part) => part.isNotEmpty)
+      .join(' ');
+}
+
+String _firstTrackSkySentence(String text) {
+  final trimmed = text.trim();
+  if (trimmed.isEmpty) return '';
+  final match = RegExp(r'^.+?[.!?](?=\s|$)').firstMatch(trimmed);
+  return (match?.group(0) ?? trimmed).trim();
+}
+
+String _trackSkyTitleKey(String title) {
+  return title
+      .trim()
+      .toLowerCase()
+      .replaceAll('’', "'")
+      .replaceAll('“', '"')
+      .replaceAll('”', '"');
+}
+
+_TrackSkyNarrative? _trackSkyNarrativeForMetadata({
+  required String title,
+  String? category,
+}) {
+  final titleKey = _trackSkyTitleKey(title);
+
+  if (titleKey.contains('penumbral lunar eclipse')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'This is a quiet event. Look near the listed maximum and do not expect the drama of a red Moon. The change may be no more than a soft dimming, a faint unevenness across the lunar face. Let your eyes settle. The careful observer may see what the hurried eye misses.',
+      maatReflection:
+          "Some signs are subtle by nature. Ma'at is not only in spectacle, but in attention.",
+    );
+  }
+
+  if (titleKey.contains('partial lunar eclipse')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Watch the Moon before maximum, when the shadow is still gathering. One side of the disk will remain bright while the other takes on a muted gray, bronze, or red-brown tone. The sign is the curved edge of Earth\'s shadow. Stay with it long enough to see the balance shift across the face of the Moon.',
+      maatReflection:
+          'Partial shadow still reveals order. Not every lesson arrives in total darkness.',
+    );
+  }
+
+  if (titleKey.contains('total lunar eclipse')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Begin before the deepest hour of the eclipse, while the Moon is still bright enough to compare against its own shadow. Keep your attention on the edge of the disk. The change will come slowly: first a dimming, then a darkening, then the copper-red color of Earth\'s shadow crossing the Moon. This is not a glance-and-go event. Its meaning is in the transformation.',
+      maatReflection:
+          'The Moon does not lose itself in shadow. It passes through, keeps its form, and returns with its measure intact.',
+    );
+  }
+
+  if (titleKey.contains('equinox')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Observe the Sun at sunrise or sunset rather than chasing the exact clock-time of the equinox. Stand where you can see the horizon clearly. The Sun will rise close to due east and set close to due west, returning the year to a point of balance. Mark the place against a fixed landmark so the year can be measured by return, not memory alone.',
+      maatReflection:
+          'The equinox is not a spectacle. It is a correction: light and dark brought back into relation.',
+    );
+  }
+
+  if (titleKey.contains('solstice')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Watch the Sun through its path, especially at noon and near sunset. In summer, the day stretches long and the noon shadow shortens beneath the high Sun. In winter, the Sun travels low, the shadow lengthens, and darkness arrives early. The solstice is a limit: the far reach of light before the year begins to turn again.',
+      maatReflection:
+          'Every force has a boundary. The wisdom is knowing when the turn has begun.',
+    );
+  }
+
+  if (category == 'Meteor Showers') {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Find a dark, open place after midnight and let the sky widen above you. Do not search with force. Let your eyes adjust, keep your phone away, and watch the whole sky rather than one fixed point. The meteors may appear as quick cuts of light, faint streaks, or sudden bright fire. Count them in quiet intervals and notice which direction they seem to come from.',
+      maatReflection:
+          'The sky rewards patience. What appears sudden is still part of a larger order.',
+    );
+  }
+
+  if (titleKey.contains('6-planet parade')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Step out in evening twilight while the western horizon is still carrying the last light. Begin low in the west and let your gaze travel along the line of the ecliptic from one world to the next. Some planets will announce themselves at once; the faintest will ask for binoculars and patience. The meaning is not a single burst of spectacle, but several wanderers briefly sharing one visible path.',
+      maatReflection:
+          'When many wanderers gather along one line, the sky shows agreement without stillness.',
+    );
+  }
+
+  if (titleKey.contains('venus-jupiter conjunction')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Return to the western sky after sunset and give the low bright edge of dusk a little time. Venus and Jupiter will appear there close together, two steady lights holding one patch of sky. Watch their spacing against the fading light and the first stars. The event belongs to a few evenings, not a single instant, so let closeness reveal itself gradually.',
+      maatReflection:
+          'Alignment can look like nearness. What matters is the order that lets two paths meet.',
+    );
+  }
+
+  if (titleKey.contains('venus at greatest eastern elongation')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Look low toward the bright edge of dusk after sunset. Venus will stand there as a steady, brilliant light, brighter than the surrounding stars and carried well away from the Sun. Watch it across several evenings. Its lesson is not only brightness, but position: how confidently it holds the western sky before drawing back in the weeks ahead.',
+      maatReflection:
+          'Venus marks the threshold: the flame that remains after day has passed.',
+    );
+  }
+
+  if (titleKey.contains('venus at greatest western elongation')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Look low toward the bright edge of dawn before sunrise. Venus will appear there as a steady, brilliant light, stronger than the nearby stars and clear of the Sun\'s glare. Watch it across several mornings. Its lesson is not only brightness, but movement: how it leads the day for a time before closing the distance again.',
+      maatReflection: 'Venus marks the threshold: the light before light.',
+    );
+  }
+
+  if (titleKey.contains('jupiter at opposition')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Begin after sunset by looking east for the bright, steady planet rising into the night. Near midnight, it will stand higher toward the south; before dawn, it will move westward. Opposition is best understood through the whole arc, not one moment. Watch its path and notice how it holds steady against the turning sky.',
+      maatReflection:
+          'A planet at opposition teaches presence. It stands fully revealed because it has come into right alignment.',
+    );
+  }
+
+  if (titleKey.contains('saturn at opposition')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Begin after sunset by looking east for Saturn\'s steady golden light. Near midnight it will stand highest toward the south; before dawn it will move westward with the turning sky. Opposition is best understood through the whole arc, and Saturn rewards the longer watch. If you have a telescope, this is the season to give the rings your attention.',
+      maatReflection:
+          'Saturn teaches structure through duration. What endures does not hurry to be seen.',
+    );
+  }
+
+  if (titleKey.contains('mars at opposition')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Begin after sunset and look east for the reddish planet rising into the night. As the hours deepen it will stand stronger and clearer, and by dawn it will have begun its westward lean. Watch how its color separates it from the surrounding stars and how much more insistent it feels when the night is fully open.',
+      maatReflection:
+          'Mars teaches force under measure. Brightness without discipline is only noise.',
+    );
+  }
+
+  if (titleKey.contains('mercury at greatest western elongation')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Go out before sunrise while the eastern horizon is still narrow and dark. Mercury will remain low, brief, and close to the place where the Sun is coming. Find it early, keep your attention just above the horizon, and notice how quickly dawn begins to take it back. This is an event for the careful eye, not the hurried glance.',
+      maatReflection:
+          'Some presences are measured by brevity. What is hardest to keep in view often sharpens attention.',
+    );
+  }
+
+  if (titleKey.contains('micromoon')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Step out near moonrise and let the eastern horizon do the work for you. The Moon will rise full there, but the micromoon quality is a matter of measure, not spectacle. Keep an earlier full Moon in mind, or compare it against the same landmark you use each month, and notice how quietly size can change while brightness remains.',
+      maatReflection:
+          'Measure is not diminished by subtlety. Small differences still belong to the order of return.',
+    );
+  }
+
+  if (titleKey.contains('supermoon')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Step out near moonrise, while the eastern horizon is still holding the last color of the day. The Moon will rise there, low and large, carrying its first color before it climbs into white. Give the first hour your attention: notice where it clears the horizon, what it rises behind, and how its brightness gathers as it climbs.',
+      maatReflection:
+          'The full Moon teaches fullness without haste. What has been growing in silence now becomes visible.',
+    );
+  }
+
+  if (titleKey.contains('(full)')) {
+    return const _TrackSkyNarrative(
+      trackingGuidance:
+          'Step out near moonrise while the eastern horizon is still holding the last color of day. The Moon will rise full there, warm at the horizon before it settles into white higher up. Stay with the first hour: notice where it appears, what landmark receives it, and how the light changes as it climbs.',
+      maatReflection:
+          'The full Moon teaches fullness without haste. What has been growing in silence now becomes visible.',
+    );
+  }
+
+  return null;
 }
 
 String normalizeTrackSkyDetailText(String detail) {
@@ -498,8 +820,14 @@ TrackSkyFlowData _parseTrackSkyMarkdown(
       continue;
     }
 
-    final schedule = _deriveSchedule(currentCategory, cells[1]);
-    if (schedule == null) continue;
+    final rawSchedule = _deriveSchedule(currentCategory, cells[1]);
+    if (rawSchedule == null) continue;
+    final schedule = normalizeTrackSkyViewingSchedule(
+      title: cells[0],
+      category: currentCategory,
+      schedule: rawSchedule,
+      exactLabel: cells[1],
+    );
     final anchorDate = DateTime.parse(schedule.dateIso);
 
     events.add(

@@ -2704,6 +2704,11 @@ class _DayViewGridState extends State<DayViewGrid> {
       normalizeTrackSkyDetailText(_stripCidLines(displayDetail)),
       anchorDate: KemeticMath.toGregorian(ky, km, kd),
     );
+    displayDetail = buildTrackSkyNarrativeSummary(
+      title: event.title,
+      category: event.category,
+      fallbackGuidance: displayDetail,
+    );
     if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
       return '';
     }

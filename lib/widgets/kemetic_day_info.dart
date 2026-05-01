@@ -23,7 +23,6 @@ import 'package:mobile/widgets/pronounce_icon_button.dart';
 import 'package:mobile/services/speech/speech_service.dart';
 import 'package:mobile/features/calendar/speech_resolver.dart';
 import 'package:mobile/features/calendar/decan_id.dart';
-import 'package:mobile/features/calendar/speech_overrides.dart';
 
 /// Model for Kemetic day information
 class KemeticDayInfo {
@@ -21294,34 +21293,6 @@ class KemeticDayDropdown extends StatelessWidget {
       );
     }
 
-    // Debug: trace TTS wiring for day card
-    debugPrint('--- DAY CARD TTS DEBUG ---');
-    debugPrint('dayKey=$dayKey');
-    debugPrint('parsedDecan=$parsedDecan');
-    debugPrint('isEpagomenal=$isEpagomenal');
-    debugPrint('monthLine(display)=$monthLine');
-    debugPrint('monthSpeakLine(resolved)=$monthSpeakLine');
-    debugPrint(
-      'monthSpeechHit=${monthId != null ? monthSpeechNames.containsKey(monthId) : 'no-monthId'}',
-    );
-    debugPrint('decanLine(display)=$decanLine');
-    debugPrint('resolvedDecanName=$resolvedDecanName');
-    if (parsedDecan != null &&
-        parsedDecan.kMonth >= 1 &&
-        parsedDecan.kMonth <= 12) {
-      final testDecanId = decanIdFromMonthAndIndex(
-        monthIndex: parsedDecan.kMonth,
-        decanInMonth: parsedDecan.decan,
-      );
-      debugPrint('decanSpeechHit=${decanSpeechNames.containsKey(testDecanId)}');
-      debugPrint(
-        'decanSpeechLabelHit=${decanSpeechNamesByLabel.containsKey(_stripEnglishCue(resolvedDecanName))}',
-      );
-      debugPrint('decanSpeakLine(resolved)=$decanSpeakLine');
-    } else {
-      debugPrint('decanSpeakLine(resolved)=$decanSpeakLine');
-    }
-
     return Material(
       color: Colors.transparent,
       child: Container(
@@ -21567,9 +21538,8 @@ class KemeticDayDropdown extends StatelessWidget {
         speakOverride != null && speakOverride.trim().isNotEmpty;
     final speakLine = hasOverride
         ? speakOverride.trim()
-        : (englishCue == null || englishCue.trim().isEmpty
-              ? value.trim()
-              : '${value.trim()}. ${englishCue.trim()}.');
+        : SpeechResolver.prose(base: value.trim(), englishCue: englishCue);
+    final utteranceId = '${label.trim().toLowerCase()}:$speakLine';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -21600,6 +21570,7 @@ class KemeticDayDropdown extends StatelessWidget {
           const SizedBox(width: 8),
           PronounceIconButton(
             speakText: speakLine,
+            utteranceId: utteranceId,
             color: KemeticGold.base,
             size: 22,
             isPhonetic: isPhonetic,

@@ -403,6 +403,71 @@ bool _isTrackSkyFlowName(String? name) {
   return normalized == 'follow the sky' || normalized == 'track the sky';
 }
 
+TrackSkyEventSchedule trackSkyScheduleFromLocalWindow(
+  DateTime startLocal,
+  DateTime? endLocal,
+  bool allDay,
+) {
+  String two(int value) => value.toString().padLeft(2, '0');
+  return TrackSkyEventSchedule(
+    dateIso:
+        '${startLocal.year}-${two(startLocal.month)}-${two(startLocal.day)}',
+    startTime24: allDay
+        ? null
+        : '${two(startLocal.hour)}:${two(startLocal.minute)}',
+    endTime24: allDay || endLocal == null
+        ? null
+        : '${two(endLocal.hour)}:${two(endLocal.minute)}',
+    allDay: allDay,
+  );
+}
+
+({DateTime startLocal, DateTime? endLocal, bool allDay})
+normalizeTrackSkyLocalWindow({
+  required String title,
+  required String? category,
+  required DateTime startLocal,
+  required DateTime? endLocal,
+  required bool allDay,
+}) {
+  final schedule = trackSkyScheduleFromLocalWindow(
+    startLocal,
+    endLocal,
+    allDay,
+  );
+  final normalized = normalizeTrackSkyViewingSchedule(
+    title: title,
+    category: category ?? '',
+    schedule: schedule,
+  );
+  if (normalized.allDay || normalized.startTime24 == null) {
+    return (startLocal: startLocal, endLocal: endLocal, allDay: allDay);
+  }
+
+  final dateParts = normalized.dateIso.split('-').map(int.parse).toList();
+  final startParts = normalized.startTime24!.split(':').map(int.parse).toList();
+  final newStart = DateTime(
+    dateParts[0],
+    dateParts[1],
+    dateParts[2],
+    startParts[0],
+    startParts[1],
+  );
+  DateTime? newEnd;
+  if (normalized.endTime24 != null) {
+    final endParts = normalized.endTime24!.split(':').map(int.parse).toList();
+    newEnd = DateTime(
+      dateParts[0],
+      dateParts[1],
+      dateParts[2],
+      endParts[0],
+      endParts[1],
+    );
+  }
+
+  return (startLocal: newStart, endLocal: newEnd, allDay: false);
+}
+
 Color _displayFlowColor(String? flowName, Color fallback) {
   if (_isTrackSkyFlowName(flowName)) return _trackSkySignifierBase;
   return fallback;
@@ -4289,7 +4354,7 @@ final List<_MaatFlowTemplate> kMaatFlowTemplates = [
     key: 'track-the-sky',
     title: 'Follow the sky',
     overview:
-        'An ongoing Ma’at flow for live skywatching. Join from whatever point in the calendar you are on, choose your U.S. timezone, and the remaining equinoxes, lunar events, meteor peaks, and planetary highlights through March 20, 2027 will be added directly to your calendar with viewing guidance.',
+        'A Ma\'at flow for skywatching in season. Choose your U.S. timezone and the remaining equinoxes, lunar events, meteor peaks, and planetary highlights through March 20, 2027 will be placed on your calendar with clear guidance on when to step outside, where to look, and what change to keep.',
     color: _trackSkySignifierBase,
     kind: _MaatFlowTemplateKind.trackSky,
   ),
@@ -16702,16 +16767,32 @@ class _CalendarPageState extends State<CalendarPage>
       for (final flowId in hydrationFlowIds) {
         try {
           final flowEvents = eventsByFlowId[flowId] ?? const <FlowEventRow>[];
+          final owningFlow = flowIndex[flowId];
+          final isTrackSkyFlow = _isTrackSkyFlowName(owningFlow?.name);
 
           for (final evt in flowEvents) {
             // Convert DB UTC timestamps -> device local -> Kemetic date
-            final localStart = evt.startsAtUtc.toLocal();
+            var localStart = evt.startsAtUtc.toLocal();
+            var localEnd = evt.endsAtUtc?.toLocal();
+            var allDay = evt.allDay;
+
+            if (isTrackSkyFlow) {
+              final normalized = normalizeTrackSkyLocalWindow(
+                title: evt.title,
+                category: evt.category,
+                startLocal: localStart,
+                endLocal: localEnd,
+                allDay: allDay,
+              );
+              localStart = normalized.startLocal;
+              localEnd = normalized.endLocal;
+              allDay = normalized.allDay;
+            }
 
             final kDate = KemeticMath.fromGregorian(localStart);
 
             // Build _Note, same shape the rest of the app expects
             // 👈 SAFETY NET: Skip events for flows that don't exist or are inactive.
-            final owningFlow = flowIndex[flowId];
             final ownerSnapshot = flowOwnersById[flowId];
             final ownerKind = ownerSnapshot == null
                 ? null
@@ -16726,12 +16807,12 @@ class _CalendarPageState extends State<CalendarPage>
               continue;
             }
 
-            final startTime = evt.allDay
+            final startTime = allDay
                 ? null
                 : TimeOfDay.fromDateTime(localStart);
-            final endTime = evt.endsAtUtc == null
+            final endTime = localEnd == null
                 ? null
-                : TimeOfDay.fromDateTime(evt.endsAtUtc!.toLocal());
+                : TimeOfDay.fromDateTime(localEnd);
             if ((evt.category ?? '') == 'tombstone') {
               continue;
             }
@@ -16749,7 +16830,7 @@ class _CalendarPageState extends State<CalendarPage>
               kMonth: kDate.kMonth,
               kDay: kDate.kDay,
               title: evt.title,
-              allDay: evt.allDay,
+              allDay: allDay,
               start: startTime,
               end: endTime,
               flowId: flowId,
@@ -16765,7 +16846,7 @@ class _CalendarPageState extends State<CalendarPage>
               title: _cleanTitle(evt.title),
               detail: cleanedDetail, // Clean the flowLocalId prefix
               location: evt.location,
-              allDay: evt.allDay,
+              allDay: allDay,
               start: startTime,
               end: endTime,
               flowId: flowId,
@@ -22056,7 +22137,16 @@ class _MainCalendarEventDetailSheetState
     final cb = widget.onAppendToJournal;
     if (cb == null) return;
     Navigator.pop(sheetContext);
-    final detail = _cleanDetail(event.detail);
+    final flow = widget.flowResolver?.call(event.flowId);
+    final isTrackSky = _isTrackSkyFlowName(flow?.name);
+    final rawDetail = _cleanDetail(event.detail);
+    final detail = isTrackSky
+        ? buildTrackSkyNarrativeSummary(
+            title: event.title,
+            category: event.category,
+            fallbackGuidance: rawDetail,
+          )
+        : rawDetail;
     final text = '${event.title}${detail.isNotEmpty ? '\n\n$detail' : ''}';
     await cb(text);
   }
@@ -22068,9 +22158,16 @@ class _MainCalendarEventDetailSheetState
     final currentEvent = target.event;
     final flow = widget.flowResolver?.call(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
-    final detail = _cleanDetail(currentEvent.detail);
-    final isNutrition = detail.contains('Source:');
     final isTrackSky = _isTrackSkyFlowName(flow?.name);
+    final rawDetail = _cleanDetail(currentEvent.detail);
+    final detail = isTrackSky
+        ? buildTrackSkyNarrativeSummary(
+            title: currentEvent.title,
+            category: currentEvent.category,
+            fallbackGuidance: rawDetail,
+          )
+        : rawDetail;
+    final isNutrition = detail.contains('Source:');
     final trackSkySpec = isTrackSky
         ? _trackSkyBadgeSpecForTitle(currentEvent.title)
         : null;
@@ -24157,6 +24254,8 @@ class _InfoTabState extends State<_InfoTab> {
                 const SizedBox(width: 8),
                 PronounceIconButton(
                   speakText: widget.speakText,
+                  utteranceId:
+                      'calendar-info:${widget.selectionSerial}:${widget.title}',
                   color: _gold,
                   size: 22,
                   isPhonetic: true,
@@ -29110,6 +29209,100 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     return notesDecode(flow.notes);
   }
 
+  TrackSkyEventSchedule _trackSkyScheduleFromLocalWindow(
+    DateTime startLocal,
+    DateTime? endLocal,
+    bool allDay,
+  ) {
+    String two(int value) => value.toString().padLeft(2, '0');
+    return TrackSkyEventSchedule(
+      dateIso:
+          '${startLocal.year}-${two(startLocal.month)}-${two(startLocal.day)}',
+      startTime24: allDay
+          ? null
+          : '${two(startLocal.hour)}:${two(startLocal.minute)}',
+      endTime24: allDay || endLocal == null
+          ? null
+          : '${two(endLocal.hour)}:${two(endLocal.minute)}',
+      allDay: allDay,
+    );
+  }
+
+  ({DateTime startLocal, DateTime? endLocal, bool allDay})
+  _normalizeTrackSkyLocalWindow({
+    required String title,
+    required String? category,
+    required DateTime startLocal,
+    required DateTime? endLocal,
+    required bool allDay,
+  }) {
+    final schedule = _trackSkyScheduleFromLocalWindow(
+      startLocal,
+      endLocal,
+      allDay,
+    );
+    final normalized = normalizeTrackSkyViewingSchedule(
+      title: title,
+      category: category ?? '',
+      schedule: schedule,
+    );
+    if (normalized.allDay || normalized.startTime24 == null) {
+      return (startLocal: startLocal, endLocal: endLocal, allDay: allDay);
+    }
+
+    final dateParts = normalized.dateIso.split('-').map(int.parse).toList();
+    final startParts = normalized.startTime24!
+        .split(':')
+        .map(int.parse)
+        .toList();
+    final newStart = DateTime(
+      dateParts[0],
+      dateParts[1],
+      dateParts[2],
+      startParts[0],
+      startParts[1],
+    );
+    DateTime? newEnd;
+    if (normalized.endTime24 != null) {
+      final endParts = normalized.endTime24!.split(':').map(int.parse).toList();
+      newEnd = DateTime(
+        dateParts[0],
+        dateParts[1],
+        dateParts[2],
+        endParts[0],
+        endParts[1],
+      );
+    }
+
+    return (startLocal: newStart, endLocal: newEnd, allDay: false);
+  }
+
+  FlowEventRow _normalizeTrackSkyFlowEventRow(FlowEventRow event) {
+    final normalized = _normalizeTrackSkyLocalWindow(
+      title: event.title,
+      category: event.category,
+      startLocal: event.startsAtUtc.toLocal(),
+      endLocal: event.endsAtUtc?.toLocal(),
+      allDay: event.allDay,
+    );
+    return (
+      id: event.id,
+      clientEventId: event.clientEventId,
+      calendarId: event.calendarId,
+      calendarName: event.calendarName,
+      calendarColor: event.calendarColor,
+      calendarIsPersonal: event.calendarIsPersonal,
+      title: event.title,
+      detail: event.detail,
+      location: event.location,
+      allDay: normalized.allDay,
+      startsAtUtc: normalized.startLocal.toUtc(),
+      endsAtUtc: normalized.endLocal?.toUtc(),
+      flowLocalId: event.flowLocalId,
+      category: event.category,
+    );
+  }
+
   List<FlowEventRow> _dedupeEvents(List<FlowEventRow> events) {
     String _canonKey(FlowEventRow e) {
       final titleKey = e.title.trim().toLowerCase();
@@ -29164,7 +29357,10 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
 
     try {
       final events = await _userEventsRepo.getEventsForFlow(flowId);
-      final deduped = _dedupeEvents(events);
+      final normalized = _isTrackSkyFlowName(flow.name)
+          ? events.map(_normalizeTrackSkyFlowEventRow).toList()
+          : events;
+      final deduped = _dedupeEvents(normalized);
 
       if (!mounted) return;
       setState(() {
@@ -29965,7 +30161,14 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
             events: events,
           )
         else
-          ...events.map(_buildEventTile),
+          ...events.map(
+            (event) => _buildEventTile(
+              event,
+              isTrackSky:
+                  meta.maatKey == 'track-the-sky' ||
+                  _isTrackSkyFlowName(flow.name),
+            ),
+          ),
       ],
     );
   }
@@ -30187,7 +30390,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     }
   }
 
-  Widget _buildEventTile(FlowEventRow e) {
+  Widget _buildEventTile(FlowEventRow e, {bool isTrackSky = false}) {
     final localStart = e.startsAtUtc.toLocal();
     final localEnd = e.endsAtUtc?.toLocal();
     bool _isCidDetail(String text) {
@@ -30201,7 +30404,14 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       return cidPattern.hasMatch(withPrefix);
     }
 
-    final detailText = _stripCidLines(_cleanDetail(e.detail));
+    final cleanedDetail = _stripCidLines(_cleanDetail(e.detail));
+    final detailText = isTrackSky
+        ? buildTrackSkyNarrativeSummary(
+            title: e.title,
+            category: e.category,
+            fallbackGuidance: cleanedDetail,
+          )
+        : cleanedDetail;
     final hasDetail = detailText.isNotEmpty && !_isCidDetail(detailText);
     final hasLocation = (e.location != null && e.location!.trim().isNotEmpty);
 

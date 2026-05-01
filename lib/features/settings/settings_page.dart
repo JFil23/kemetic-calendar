@@ -6,12 +6,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
-import '../calendar/calendar_page.dart';
-import '../calendar/notify.dart';
-import 'settings_prefs.dart';
-import 'us_holiday_seeder.dart';
 import '../../services/calendar_sync_service.dart';
 import '../../services/push_notifications.dart';
+import '../../services/speech/speech_service.dart';
+import '../calendar/calendar_page.dart';
+import '../calendar/notify.dart';
+import '../calendar/speech_resolver.dart';
+import 'settings_prefs.dart';
+import 'us_holiday_seeder.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -21,6 +23,8 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  static const String _speechPreviewUtteranceId = 'settings:speech-preview';
+
   bool _realTimeAlerts = false;
   bool _autoCalendarSync = true;
   bool _usHolidaysEnabled = false;
@@ -31,9 +35,14 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _requestingPush = false;
   bool _loadingPushDiagnostics = false;
   bool _sendingPushTest = false;
+  bool _loadingSpeechVoices = false;
+  bool _savingSpeechVoice = false;
   String? _pushStatus;
+  String? _speechVoiceStatus;
   CalendarSyncStatus? _calendarSyncStatus;
   PushRegistrationDiagnostics? _pushDiagnostics;
+  List<SpeechVoiceOption> _speechVoices = const [];
+  String? _selectedSpeechVoiceId;
 
   bool get _hasSession => Supabase.instance.client.auth.currentSession != null;
   bool get _nativeCalendarSyncAvailable => !kIsWeb;
@@ -43,6 +52,15 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _load();
+    unawaited(_loadSpeechSettings());
+  }
+
+  @override
+  void dispose() {
+    unawaited(
+      SpeechService.instance.stop(utteranceId: _speechPreviewUtteranceId),
+    );
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -73,6 +91,119 @@ class _SettingsPageState extends State<SettingsPage> {
     await prefs.setBool(SettingsPrefs.realTimeAlertsKey, _realTimeAlerts);
     await prefs.setBool(SettingsPrefs.autoCalendarSyncKey, _autoCalendarSync);
     await prefs.setBool(SettingsPrefs.usHolidaysEnabledKey, _usHolidaysEnabled);
+  }
+
+  Future<void> _loadSpeechSettings() async {
+    if (mounted) {
+      setState(() {
+        _loadingSpeechVoices = true;
+      });
+    }
+
+    try {
+      final speech = SpeechService.instance;
+      final voices = await speech.getAvailableVoices(
+        localePrefix: 'en',
+        reload: true,
+      );
+      final preferred = await speech.getPreferredVoice();
+      final preferredId =
+          preferred != null && _voiceFromList(voices, preferred.id) != null
+          ? preferred.id
+          : null;
+
+      if (!mounted) return;
+      setState(() {
+        _speechVoices = voices;
+        _selectedSpeechVoiceId = preferredId;
+        _speechVoiceStatus = _speechStatusForSelection(
+          voices: voices,
+          selectedVoiceId: preferredId,
+        );
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _speechVoices = const [];
+        _selectedSpeechVoiceId = null;
+        _speechVoiceStatus =
+            'Voice selection is unavailable in this build, so speech uses the current device or browser voice.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingSpeechVoices = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _setSpeechVoice(String? voiceId) async {
+    if (_savingSpeechVoice) return;
+
+    final selectedVoice = _voiceFromList(_speechVoices, voiceId);
+    setState(() {
+      _savingSpeechVoice = true;
+      _speechVoiceStatus = selectedVoice == null
+          ? 'Switching back to the current system English voice...'
+          : 'Applying ${selectedVoice.displayLabel}...';
+    });
+
+    try {
+      await SpeechService.instance.setPreferredVoice(selectedVoice);
+      if (!mounted) return;
+      setState(() {
+        _selectedSpeechVoiceId = selectedVoice?.id;
+        _speechVoiceStatus = _speechStatusForSelection(
+          voices: _speechVoices,
+          selectedVoiceId: selectedVoice?.id,
+        );
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _speechVoiceStatus = 'Could not apply speech voice: $e';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not apply speech voice: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _savingSpeechVoice = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _previewSpeechVoice() async {
+    final speech = SpeechService.instance;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      if (speech.activeUtteranceId.value == _speechPreviewUtteranceId) {
+        await speech.stop(utteranceId: _speechPreviewUtteranceId);
+        return;
+      }
+
+      await speech.speakPhonetic(
+        SpeechResolver.prose(
+          base: 'Tepi-a Sebau',
+          englishCue: 'Foremost of the Stars',
+        ),
+        utteranceId: _speechPreviewUtteranceId,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Speech preview is unavailable: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 
   Future<void> _refreshCalendarStatus() async {
@@ -737,6 +868,51 @@ class _SettingsPageState extends State<SettingsPage> {
     return lines;
   }
 
+  SpeechVoiceOption? _voiceFromList(
+    List<SpeechVoiceOption> voices,
+    String? voiceId,
+  ) {
+    if (voiceId == null || voiceId.isEmpty) return null;
+    for (final voice in voices) {
+      if (voice.id == voiceId) return voice;
+    }
+    return null;
+  }
+
+  String _speechStatusForSelection({
+    required List<SpeechVoiceOption> voices,
+    required String? selectedVoiceId,
+  }) {
+    if (voices.isEmpty) {
+      return 'Voice selection is unavailable in this build, so speech uses the current device or browser voice.';
+    }
+
+    final selectedVoice = _voiceFromList(voices, selectedVoiceId);
+    if (selectedVoice == null) {
+      return 'Using the current system English voice on this device.';
+    }
+    return 'Using ${selectedVoice.displayLabel}.';
+  }
+
+  List<String> _speechStatusLines() {
+    final lines = <String>[];
+
+    if (_speechVoiceStatus != null && _speechVoiceStatus!.trim().isNotEmpty) {
+      lines.add(_speechVoiceStatus!);
+    }
+    lines.add(
+      'Pronunciation still uses the local device or browser TTS engine for now.',
+    );
+    if (_speechVoices.isNotEmpty) {
+      final count = _speechVoices.length;
+      lines.add(
+        '$count English voice${count == 1 ? '' : 's'} detected on this device.',
+      );
+    }
+
+    return lines;
+  }
+
   Widget _sectionCard({
     required String title,
     required String description,
@@ -845,6 +1021,27 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  InputDecoration _dropdownDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: Colors.white70),
+      filled: true,
+      fillColor: Colors.black,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFF303030)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: KemeticGold.base),
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFF262626)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -856,6 +1053,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     final calendarStatusLines = _calendarStatusLines();
     final pushDiagnosticLines = _pushDiagnosticLines();
+    final speechStatusLines = _speechStatusLines();
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -1033,6 +1231,71 @@ class _SettingsPageState extends State<SettingsPage> {
                         )
                       : null,
                 ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _sectionCard(
+              title: 'Speech',
+              description:
+                  'Pronunciation still runs through the device or browser TTS engine. You can choose an English voice on this device and preview it here.',
+              children: [
+                DropdownButtonFormField<String?>(
+                  key: ValueKey(_selectedSpeechVoiceId),
+                  initialValue: _selectedSpeechVoiceId,
+                  decoration: _dropdownDecoration('Pronunciation voice'),
+                  dropdownColor: const Color(0xFF101010),
+                  style: const TextStyle(color: Colors.white),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('System default'),
+                    ),
+                    ..._speechVoices.map(
+                      (voice) => DropdownMenuItem<String?>(
+                        value: voice.id,
+                        child: Text(voice.displayLabel),
+                      ),
+                    ),
+                  ],
+                  onChanged: _loadingSpeechVoices || _savingSpeechVoice
+                      ? null
+                      : _setSpeechVoice,
+                ),
+                const SizedBox(height: 12),
+                ValueListenableBuilder<String?>(
+                  valueListenable: SpeechService.instance.activeUtteranceId,
+                  builder: (context, activeUtteranceId, child) {
+                    final previewActive =
+                        activeUtteranceId == _speechPreviewUtteranceId;
+                    return SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Color(0xFF3A3A3A)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: _loadingSpeechVoices || _savingSpeechVoice
+                            ? null
+                            : _previewSpeechVoice,
+                        child: Text(
+                          previewActive
+                              ? 'Stop voice preview'
+                              : (_loadingSpeechVoices
+                                    ? 'Loading available voices...'
+                                    : 'Preview selected voice'),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                for (final line in speechStatusLines) _statusLine(line),
               ],
             ),
             const SizedBox(height: 16),
