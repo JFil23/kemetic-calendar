@@ -72,6 +72,7 @@ import '../journal/journal_page.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
 import '../../services/push_notifications.dart';
+import '../../services/app_restoration_service.dart';
 import '../../services/session_resume_service.dart';
 import '../../core/push_intent_bus.dart';
 import '../../widgets/flow_start_date_picker.dart';
@@ -4664,6 +4665,8 @@ class _CalendarPageState extends State<CalendarPage>
   // Debug switch for verbose standalone hydration traces. Set to false to silence.
   static const bool kDebugStandaloneHydration = true;
   static const Set<String> _debugStandaloneKeys = {'1-13-3', '1-13-4'};
+  static const Duration _foregroundRefreshThreshold = Duration(minutes: 10);
+  static const Duration _restorationWriteDebounce = Duration(milliseconds: 400);
   bool _isLoadingFromDisk = false;
   // Startup coordinator: single-flight gate for auth-triggered startup work.
   Completer<void>? _startupFlight;
@@ -4779,6 +4782,14 @@ class _CalendarPageState extends State<CalendarPage>
   // ✅ RouteObserver subscription tracking
   bool _isSubscribed = false;
   DateTime? _lastRefreshTime;
+  DateTime? _lastBackgroundedAt;
+  DateTime? _lastSuccessfulHydrationAt;
+  Timer? _calendarRestorationDebounce;
+  double? _lastKnownCalendarScrollOffset;
+  double? _restoredCalendarScrollOffset;
+  DayViewRestorationState? _activeDayViewRestorationState;
+  DayViewRestorationState? _pendingPersistentDayViewState;
+  bool _persistentDayViewRestoreAttempted = false;
 
   /* ───── today + notes + flows state ───── */
 
@@ -6060,6 +6071,9 @@ class _CalendarPageState extends State<CalendarPage>
   // Call on scroll to keep tracking the centered month.
   void _onVerticalScroll() {
     if (!_initialViewportSettled) return;
+    if (_scrollCtrl.hasClients) {
+      _lastKnownCalendarScrollOffset = _scrollCtrl.position.pixels;
+    }
     // ✅ Debounce to next frame to avoid stale RenderObjects
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _initialViewportSettled) {
@@ -6247,6 +6261,7 @@ class _CalendarPageState extends State<CalendarPage>
   @override
   void initState() {
     super.initState();
+    debugPrint('[calendar] initState');
     WidgetsBinding.instance.addObserver(this);
     // Load local reminders cache and check any due on startup.
     _reminderService.load().then((_) {
@@ -6283,12 +6298,19 @@ class _CalendarPageState extends State<CalendarPage>
 
     _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       final event = data.event;
+      if (kDebugMode) {
+        debugPrint('[calendar] auth state change event=${event.name}');
+      }
       if (event == AuthChangeEvent.initialSession ||
-          event == AuthChangeEvent.signedIn ||
-          event == AuthChangeEvent.tokenRefreshed) {
+          event == AuthChangeEvent.signedIn) {
         if (!mounted) return;
         unawaited(_loadCalendarState());
         _requestStartupRun(reason: 'auth:${event.name}');
+        return;
+      }
+      if (event == AuthChangeEvent.tokenRefreshed) {
+        if (!mounted) return;
+        unawaited(_loadCalendarState());
       }
     });
 
@@ -6405,9 +6427,10 @@ class _CalendarPageState extends State<CalendarPage>
       kind: _kSessionResumeKindDaySheet,
       baseRoute: '/',
     );
-    if (!mounted || entry == null) return;
-
-    final payload = entry.payload;
+    final payload =
+        entry?.payload ??
+        await AppRestorationService.instance.readDaySheetState();
+    if (!mounted || payload == null) return;
     final kYear = (payload['kYear'] as num?)?.toInt();
     final kMonth = (payload['kMonth'] as num?)?.toInt();
     final kDay = (payload['kDay'] as num?)?.toInt();
@@ -6515,6 +6538,7 @@ class _CalendarPageState extends State<CalendarPage>
           localMatch.kMonth,
           localMatch.kDay,
           allowDateChange: false,
+          persistAsRestoration: false,
           initialTitle: note.title,
           initialLocation: note.location,
           initialDetail: note.detail,
@@ -6546,6 +6570,7 @@ class _CalendarPageState extends State<CalendarPage>
         kDate.kMonth,
         kDate.kDay,
         allowDateChange: false,
+        persistAsRestoration: false,
         initialTitle: event.title,
         initialLocation: event.location,
         initialDetail: event.detail,
@@ -7012,6 +7037,7 @@ class _CalendarPageState extends State<CalendarPage>
       _showCalendarToggleCoachmark = false;
       _calendarToggleCoachmarkArmedForReturn = false;
     });
+    _scheduleCalendarRestorationSave(reason: 'calendar_toggle_changed');
   }
 
   GlobalKey? get _calendarMonthCoachmarkTargetKey {
@@ -7117,7 +7143,175 @@ class _CalendarPageState extends State<CalendarPage>
     await _markOnboardingCompletedIfNeeded();
   }
 
-  /// ✅ Load persisted view state from SharedPreferences
+  CalendarRestorationState? _legacyCalendarRestorationState(
+    Map<String, dynamic>? savedState,
+  ) {
+    final savedKy = (savedState?['kYear'] as num?)?.toInt();
+    final savedKm = (savedState?['kMonth'] as num?)?.toInt();
+    final savedKd = (savedState?['kDay'] as num?)?.toInt();
+    final savedSchemaVersion =
+        (savedState?['schemaVersion'] as num?)?.toInt() ?? 0;
+    final savedExpansion = savedState?['expansion'] as String?;
+    if (savedSchemaVersion != _kCalendarViewStateSchemaVersion ||
+        savedKy == null ||
+        savedKm == null ||
+        savedKm < 1 ||
+        savedKm > 13) {
+      return null;
+    }
+
+    final maxDay = _maxDayForMonth(savedKy, savedKm);
+    final clampedDay = (savedKd != null && savedKd >= 1 && savedKd <= maxDay)
+        ? savedKd
+        : 1;
+    return CalendarRestorationState(
+      kYear: savedKy,
+      kMonth: savedKm,
+      kDay: clampedDay,
+      showGregorian: false,
+      expansion: savedExpansion ?? _expansionToString(_monthExpansion),
+    );
+  }
+
+  CalendarRestorationState _buildCalendarRestorationState({
+    int? overrideKy,
+    int? overrideKm,
+    int? overrideKd,
+    double? overrideScrollOffset,
+  }) {
+    final ky = overrideKy ?? _lastViewKy ?? _today.kYear;
+    final km = overrideKm ?? _lastViewKm ?? _today.kMonth;
+    final maxDay = _maxDayForMonth(ky, km);
+    final kd = (overrideKd ?? _lastViewKd ?? _today.kDay).clamp(1, maxDay);
+    final scrollOffset =
+        overrideScrollOffset ??
+        (_scrollCtrl.hasClients ? _scrollCtrl.position.pixels : null) ??
+        _lastKnownCalendarScrollOffset;
+    return CalendarRestorationState(
+      kYear: ky,
+      kMonth: km,
+      kDay: kd,
+      showGregorian: _showGregorian,
+      expansion: _expansionToString(_monthExpansion),
+      scrollOffset: scrollOffset,
+    );
+  }
+
+  Future<void> _persistCalendarRestorationState(
+    CalendarRestorationState state, {
+    required String reason,
+  }) async {
+    _lastKnownCalendarScrollOffset = state.scrollOffset;
+    await AppRestorationService.instance.saveCalendarState(state);
+    await SessionResumeService.saveScopedState(_kSessionScopeCalendarView, {
+      'schemaVersion': _kCalendarViewStateSchemaVersion,
+      'kYear': state.kYear,
+      'kMonth': state.kMonth,
+      'kDay': state.kDay,
+      'expansion': state.expansion,
+    });
+    if (kDebugMode) {
+      debugPrint(
+        '[restoration] saved calendar reason=$reason '
+        'ky=${state.kYear} km=${state.kMonth} kd=${state.kDay} '
+        'scroll=${state.scrollOffset?.toStringAsFixed(1)}',
+      );
+    }
+  }
+
+  Future<void> _saveCalendarRestorationNow({
+    String reason = 'manual',
+    int? overrideKy,
+    int? overrideKm,
+    int? overrideKd,
+  }) async {
+    if (!_rememberLastView) return;
+    final state = _buildCalendarRestorationState(
+      overrideKy: overrideKy,
+      overrideKm: overrideKm,
+      overrideKd: overrideKd,
+    );
+    await _persistCalendarRestorationState(state, reason: reason);
+  }
+
+  void _scheduleCalendarRestorationSave({String reason = 'debounced'}) {
+    if (!_rememberLastView || !_restored) return;
+    _calendarRestorationDebounce?.cancel();
+    _calendarRestorationDebounce = Timer(_restorationWriteDebounce, () {
+      unawaited(_saveCalendarRestorationNow(reason: reason));
+    });
+  }
+
+  Future<void> _persistDayViewState(
+    DayViewRestorationState state, {
+    required String reason,
+  }) async {
+    _activeDayViewRestorationState = state;
+    await AppRestorationService.instance.saveDayViewState(state);
+    if (kDebugMode) {
+      debugPrint(
+        '[restoration] saved day_view reason=$reason '
+        'open=${state.isOpen} ky=${state.kYear} km=${state.kMonth} '
+        'kd=${state.kDay} scroll=${state.scrollOffset?.toStringAsFixed(1)}',
+      );
+    }
+  }
+
+  void _schedulePersistentDayViewRestore() {
+    if (_persistentDayViewRestoreAttempted ||
+        _pendingPersistentDayViewState == null) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_restorePersistentDayViewIfNeeded());
+    });
+  }
+
+  Future<void> _restorePersistentDayViewIfNeeded([int attempt = 0]) async {
+    if (!mounted || _persistentDayViewRestoreAttempted) return;
+    final state = _pendingPersistentDayViewState;
+    if (state == null || !state.isOpen) {
+      _persistentDayViewRestoreAttempted = true;
+      return;
+    }
+    if (!_restored || !_initialViewportSettled) {
+      if (attempt >= 20) return;
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      if (!mounted) return;
+      return _restorePersistentDayViewIfNeeded(attempt + 1);
+    }
+
+    final pendingPush = await SessionResumeService.readResumeEntry(
+      kind: _kSessionResumeKindPushEvent,
+      baseRoute: '/',
+    );
+    if (pendingPush != null) {
+      _persistentDayViewRestoreAttempted = true;
+      return;
+    }
+
+    final pendingSheet = await SessionResumeService.readResumeEntry(
+      kind: _kSessionResumeKindDaySheet,
+      baseRoute: '/',
+    );
+    if (pendingSheet != null) {
+      _persistentDayViewRestoreAttempted = true;
+      return;
+    }
+
+    _persistentDayViewRestoreAttempted = true;
+    if (!mounted) return;
+    _openDayView(
+      context,
+      state.kYear,
+      state.kMonth,
+      state.kDay,
+      initialScrollOffset: state.scrollOffset,
+      initialShowGregorian: state.showGregorian,
+    );
+  }
+
+  /// ✅ Load persisted view state from permanent per-window restoration first.
   Future<void> _loadPersistedViewState() async {
     if (!_rememberLastView) {
       _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
@@ -7126,28 +7320,36 @@ class _CalendarPageState extends State<CalendarPage>
       return;
     }
     try {
-      final savedState = await SessionResumeService.readScopedState(
-        _kSessionScopeCalendarView,
-      );
-      final savedKy = (savedState?['kYear'] as num?)?.toInt();
-      final savedKm = (savedState?['kMonth'] as num?)?.toInt();
-      final savedKd = (savedState?['kDay'] as num?)?.toInt();
-      final savedSchemaVersion =
-          (savedState?['schemaVersion'] as num?)?.toInt() ?? 0;
-      final savedExpansion = savedState?['expansion'] as String?;
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+      var savedCalendar = snapshot?.calendar;
+      final savedDayView = snapshot?.dayView;
 
-      // ✅ FIX 2: Allow years < 1 in saved state - support historical dates
-      if (savedSchemaVersion == _kCalendarViewStateSchemaVersion &&
-          savedKy != null &&
-          savedKm != null &&
-          savedKm >= 1 &&
-          savedKm <= 13) {
+      if (savedCalendar == null) {
+        final legacyState = await SessionResumeService.readScopedState(
+          _kSessionScopeCalendarView,
+        );
+        savedCalendar = _legacyCalendarRestorationState(legacyState);
+      }
+
+      if (savedCalendar == null && savedDayView != null) {
+        savedCalendar = CalendarRestorationState(
+          kYear: savedDayView.kYear,
+          kMonth: savedDayView.kMonth,
+          kDay: savedDayView.kDay,
+          showGregorian: savedDayView.showGregorian,
+          expansion: _expansionToString(_monthExpansion),
+        );
+      }
+
+      if (savedCalendar != null) {
         final today = KemeticMath.fromGregorian(DateTime.now());
 
-        if (savedKy > today.kYear + 2) {
+        if (savedCalendar.kYear > today.kYear + 2) {
           if (kDebugMode) {
-            print(
-              '⚠️ [CALENDAR] Future persisted date $savedKy/$savedKm — defaulting to today',
+            debugPrint(
+              '⚠️ [CALENDAR] Future persisted date '
+              '${savedCalendar.kYear}/${savedCalendar.kMonth} '
+              '— defaulting to today',
             );
           }
           _setView(today.kYear, today.kMonth, kd: today.kDay);
@@ -7156,35 +7358,45 @@ class _CalendarPageState extends State<CalendarPage>
           return;
         }
 
-        // Restore valid saved state
-        final maxDay = _maxDayForMonth(savedKy, savedKm);
-        final clamped = (savedKd != null && savedKd >= 1 && savedKd <= maxDay)
-            ? savedKd
-            : 1;
+        final maxDay = _maxDayForMonth(
+          savedCalendar.kYear,
+          savedCalendar.kMonth,
+        );
+        final clampedDay = savedCalendar.kDay.clamp(1, maxDay);
 
         if (kDebugMode) {
-          print('📂 [CALENDAR] Restored $savedKy/$savedKm/$clamped');
+          debugPrint(
+            '📂 [CALENDAR] Restored '
+            '${savedCalendar.kYear}/${savedCalendar.kMonth}/$clampedDay',
+          );
         }
 
         setState(() {
-          _lastViewKy = savedKy;
-          _lastViewKm = savedKm;
-          _lastViewKd = clamped;
+          _lastViewKy = savedCalendar!.kYear;
+          _lastViewKm = savedCalendar.kMonth;
+          _lastViewKd = clampedDay;
+          _showGregorian = savedCalendar.showGregorian;
+          _monthExpansion = _parseExpansion(savedCalendar.expansion);
+          _restoredCalendarScrollOffset = savedCalendar.scrollOffset;
+          _pendingPersistentDayViewState =
+              savedDayView != null && savedDayView.isOpen ? savedDayView : null;
           _restored = true;
-          _monthExpansion = _parseExpansion(savedExpansion);
         });
-        _scheduleInitialViewportRestore();
       } else {
         if (kDebugMode) {
-          print('📂 [CALENDAR] No persisted state — defaulting to today');
+          debugPrint('📂 [CALENDAR] No persisted state — defaulting to today');
         }
         _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
-        _scheduleInitialViewportRestore();
         _restored = true;
       }
+
+      _scheduleInitialViewportRestore();
+      _schedulePersistentDayViewRestore();
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ [CALENDAR] Persist load error — defaulting to today: $e');
+        debugPrint(
+          '⚠️ [CALENDAR] Persist load error — defaulting to today: $e',
+        );
       }
       _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
       _scheduleInitialViewportRestore();
@@ -7212,36 +7424,26 @@ class _CalendarPageState extends State<CalendarPage>
     if (kd != null) _lastViewKd = kd;
 
     if (_rememberLastView) {
-      _saveViewState(ky, km, kd); // existing signature
+      _scheduleCalendarRestorationSave(reason: 'centered_month_changed');
     }
     setState(() {}); // keep headers/UI in sync
   }
 
-  /// ✅ Save view state to SharedPreferences
+  /// ✅ Save view state immediately to permanent restoration and legacy fallback.
   Future<void> _saveViewState(int ky, int km, [int? kd]) async {
     if (!_rememberLastView) return; // persistence disabled
     try {
-      // ✅ HARDENING 1: Save day if provided, otherwise keep existing or use 1
-      final dayToSave = kd ?? _lastViewKd ?? 1;
-      // Clamp day to valid range before saving
       final maxDay = _maxDayForMonth(ky, km);
-      final clampedDay = dayToSave.clamp(1, maxDay);
-      await SessionResumeService.saveScopedState(_kSessionScopeCalendarView, {
-        'schemaVersion': _kCalendarViewStateSchemaVersion,
-        'kYear': ky,
-        'kMonth': km,
-        'kDay': clampedDay,
-        'expansion': _expansionToString(_monthExpansion),
-      });
-
-      if (kDebugMode) {
-        print(
-          '💾 [CALENDAR] Saved view state: Year $ky, Month $km, Day $clampedDay',
-        );
-      }
+      final clampedDay = (kd ?? _lastViewKd ?? 1).clamp(1, maxDay);
+      await _saveCalendarRestorationNow(
+        reason: 'save_view_state',
+        overrideKy: ky,
+        overrideKm: km,
+        overrideKd: clampedDay,
+      );
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️  [CALENDAR] Error saving view state: $e');
+        debugPrint('⚠️  [CALENDAR] Error saving view state: $e');
       }
     }
   }
@@ -7261,7 +7463,22 @@ class _CalendarPageState extends State<CalendarPage>
           finishRestore();
           return;
         }
-        final ok = _jumpToCurrentViewNow(animate: false);
+        bool ok = false;
+        final restoredOffset = _restoredCalendarScrollOffset;
+        if (restoredOffset != null &&
+            _scrollCtrl.hasClients &&
+            _scrollCtrl.position.hasContentDimensions) {
+          final position = _scrollCtrl.position;
+          final clamped = restoredOffset.clamp(
+            position.minScrollExtent,
+            position.maxScrollExtent,
+          );
+          _scrollCtrl.jumpTo(clamped);
+          _lastKnownCalendarScrollOffset = clamped.toDouble();
+          _restoredCalendarScrollOffset = null;
+          ok = true;
+        }
+        ok = ok || _jumpToCurrentViewNow(animate: false);
         if (ok || tries >= 20) {
           finishRestore();
         } else {
@@ -7441,6 +7658,7 @@ class _CalendarPageState extends State<CalendarPage>
     debugPrint('   Total builds: $_buildCount');
     debugPrint('');
     _journalController.dispose();
+    _calendarRestorationDebounce?.cancel();
     _scrollCtrl.dispose();
     _dayViewDataVersion.dispose();
     super.dispose();
@@ -7461,26 +7679,79 @@ class _CalendarPageState extends State<CalendarPage>
   // ✅ Fallback: app comes back to foreground
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      final now = DateTime.now();
-      if (_lastRefreshTime == null ||
-          now.difference(_lastRefreshTime!) > const Duration(seconds: 2)) {
-        _refreshAfterReturn();
-      }
-      _checkDueReminders();
-      unawaited(_maybeLoadDecanReflectionPrompt(force: true));
+    if (kDebugMode) {
+      debugPrint('[calendar] lifecycle state=${state.name}');
+    }
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        _lastBackgroundedAt = DateTime.now();
+        unawaited(
+          _saveCalendarRestorationNow(reason: 'lifecycle:${state.name}'),
+        );
+        final dayViewState = _activeDayViewRestorationState;
+        if (dayViewState != null) {
+          unawaited(
+            _persistDayViewState(
+              dayViewState.copyWith(isOpen: true),
+              reason: 'lifecycle:${state.name}',
+            ),
+          );
+        }
+        break;
+      case AppLifecycleState.resumed:
+        final now = DateTime.now();
+        if (_lastRefreshTime == null ||
+            now.difference(_lastRefreshTime!) > const Duration(seconds: 2)) {
+          unawaited(_refreshAfterReturn(reason: 'lifecycle_resumed'));
+        }
+        _checkDueReminders();
+        unawaited(
+          _maybeLoadDecanReflectionPrompt(
+            force: _shouldRefreshAfterForegroundResume(now),
+          ),
+        );
+        break;
     }
   }
 
   // ✅ Refresh when returning to this page
   Future<void> _handleCalendarReturnFromAnotherPage() async {
-    await _refreshAfterReturn();
+    await _refreshAfterReturn(reason: 'route_return');
     if (!mounted) return;
     await _maybePresentCalendarToggleCoachmarkAfterReturn();
   }
 
-  Future<void> _refreshAfterReturn() async {
+  bool _shouldRefreshAfterForegroundResume(DateTime now) {
+    final lastHydrationAt = _lastSuccessfulHydrationAt;
+    if (lastHydrationAt == null) {
+      return true;
+    }
+    if (now.difference(lastHydrationAt) >= _foregroundRefreshThreshold) {
+      return true;
+    }
+    final backgroundedAt = _lastBackgroundedAt;
+    if (backgroundedAt == null) {
+      return false;
+    }
+    return now.difference(backgroundedAt) >= _foregroundRefreshThreshold;
+  }
+
+  Future<void> _refreshAfterReturn({
+    String reason = 'resume',
+    bool force = false,
+  }) async {
     if (!mounted) return;
+    final refreshStartedAt = DateTime.now();
+    if (!force && !_shouldRefreshAfterForegroundResume(refreshStartedAt)) {
+      _lastRefreshTime = refreshStartedAt;
+      if (kDebugMode) {
+        debugPrint('[calendar] skipped foreground refresh reason=$reason');
+      }
+      return;
+    }
 
     // Small delay to make sure any DB writes (like imports) are done
     await Future.delayed(const Duration(milliseconds: 200));
@@ -7490,7 +7761,7 @@ class _CalendarPageState extends State<CalendarPage>
       await ShareRepo(
         Supabase.instance.client,
       ).syncAcceptedInviteCalendarImports();
-      await _loadFromDisk(); // reuse your existing loader
+      await _loadFromDisk(source: 'foreground:$reason', preserveViewport: true);
       _lastRefreshTime = DateTime.now();
       if (mounted) setState(() {});
       _checkDueReminders();
@@ -11948,17 +12219,10 @@ class _CalendarPageState extends State<CalendarPage>
 
   Future<void> _persistExpansionLevel(MonthExpansionLevel level) async {
     if (!_rememberLastView) return;
-    final ky = _lastViewKy ?? _today.kYear;
-    final km = _lastViewKm ?? _today.kMonth;
-    final maxDay = _maxDayForMonth(ky, km);
-    final kd = (_lastViewKd ?? _today.kDay).clamp(1, maxDay);
-    await SessionResumeService.saveScopedState(_kSessionScopeCalendarView, {
-      'schemaVersion': _kCalendarViewStateSchemaVersion,
-      'kYear': ky,
-      'kMonth': km,
-      'kDay': kd,
-      'expansion': _expansionToString(level),
-    });
+    final state = _buildCalendarRestorationState().copyWith(
+      expansion: _expansionToString(level),
+    );
+    await _persistCalendarRestorationState(state, reason: 'expansion_changed');
   }
 
   void _setExpansionLevelSmooth(
@@ -13688,9 +13952,25 @@ class _CalendarPageState extends State<CalendarPage>
     int kMonth,
     int kDay, {
     EventItem? focusEvent,
+    double? initialScrollOffset,
+    bool? initialShowGregorian,
   }) {
     final shouldShowDayCardRevealCoachmark =
         _shouldShowDayCardRevealCoachmarkFromOnboarding;
+    final resolvedShowGregorian = initialShowGregorian ?? _showGregorian;
+    final initialDayViewState = DayViewRestorationState(
+      isOpen: true,
+      kYear: kYear,
+      kMonth: kMonth,
+      kDay: kDay,
+      showGregorian: resolvedShowGregorian,
+      scrollOffset: initialScrollOffset,
+    );
+    _activeDayViewRestorationState = initialDayViewState;
+    unawaited(_saveCalendarRestorationNow(reason: 'before_day_view_open'));
+    unawaited(
+      _persistDayViewState(initialDayViewState, reason: 'day_view_open'),
+    );
 
     // Adapter: Convert _Note to NoteData, and prime reminders for the day
     final notesForDayFn = (int y, int m, int d) {
@@ -13779,12 +14059,13 @@ class _CalendarPageState extends State<CalendarPage>
           initialKy: kYear,
           initialKm: kMonth,
           initialKd: kDay,
-          showGregorian: _showGregorian,
+          showGregorian: resolvedShowGregorian,
           notesForDay: notesForDayFn,
           flowIndex: flowIndex,
           flowIndexBuilder: _buildActiveFlowIndex,
           dataVersion: _dayViewDataVersion,
           getMonthName: getMonthName,
+          initialScrollOffset: initialScrollOffset,
           focusStartMin: focusEvent?.startMin,
           focusFlowId: focusEvent?.flowId,
           focusTitle: focusEvent?.title,
@@ -13854,9 +14135,36 @@ class _CalendarPageState extends State<CalendarPage>
                 completedOnDate: completedOnDate,
               ),
           onUnrecordCompletion: _unrecordEventCompletion,
+          onRestorationStateChanged:
+              ({
+                required int kYear,
+                required int kMonth,
+                required int kDay,
+                required bool showGregorian,
+                double? scrollOffset,
+              }) {
+                final state = DayViewRestorationState(
+                  isOpen: true,
+                  kYear: kYear,
+                  kMonth: kMonth,
+                  kDay: kDay,
+                  showGregorian: showGregorian,
+                  scrollOffset: scrollOffset,
+                );
+                _activeDayViewRestorationState = state;
+                unawaited(
+                  _persistDayViewState(state, reason: 'day_view_state_changed'),
+                );
+              },
         ),
       ),
     ).then((_) {
+      final closedState =
+          (_activeDayViewRestorationState ?? initialDayViewState).copyWith(
+            isOpen: false,
+          );
+      _activeDayViewRestorationState = closedState;
+      unawaited(_persistDayViewState(closedState, reason: 'day_view_closed'));
       // ✅ Save state when returning from day view
       if (mounted) {
         final ky = _lastViewKy ?? kYear;
@@ -14064,6 +14372,7 @@ class _CalendarPageState extends State<CalendarPage>
     int kMonth,
     int kDay, {
     bool allowDateChange = false,
+    bool persistAsRestoration = true,
     TimeOfDay? initialStartTime,
     TimeOfDay? initialEndTime,
     bool initialAllDay = false,
@@ -14190,6 +14499,13 @@ class _CalendarPageState extends State<CalendarPage>
 
     void persistDaySheetSession() {
       if (sheetClosing || sheetControllersDisposed) return;
+      if (persistAsRestoration) {
+        unawaited(
+          AppRestorationService.instance.saveDaySheetState(
+            daySheetSessionPayload(),
+          ),
+        );
+      }
       unawaited(
         SessionResumeService.saveResumeEntry(
           baseRoute: '/',
@@ -16089,6 +16405,9 @@ class _CalendarPageState extends State<CalendarPage>
         },
       ).then((_) {
         sheetClosing = true;
+        if (persistAsRestoration) {
+          unawaited(AppRestorationService.instance.saveDaySheetState(null));
+        }
         unawaited(
           SessionResumeService.clearResumeEntry(
             kind: _kSessionResumeKindDaySheet,
@@ -16106,6 +16425,9 @@ class _CalendarPageState extends State<CalendarPage>
       debugPrint('');
       sheetClosing = true;
       disposeDaySheetControllers();
+      if (persistAsRestoration) {
+        unawaited(AppRestorationService.instance.saveDaySheetState(null));
+      }
       unawaited(
         SessionResumeService.clearResumeEntry(
           kind: _kSessionResumeKindDaySheet,
@@ -16539,7 +16861,10 @@ class _CalendarPageState extends State<CalendarPage>
     }());
   }
 
-  Future<void> _loadFromDisk({String source = 'manual'}) async {
+  Future<void> _loadFromDisk({
+    String source = 'manual',
+    bool preserveViewport = false,
+  }) async {
     if (_isLoadingFromDisk) {
       if (kDebugMode && kDebugStandaloneHydration) {
         debugPrint(
@@ -16560,6 +16885,10 @@ class _CalendarPageState extends State<CalendarPage>
       _isLoadingFromDisk = false;
       return;
     }
+    final preservedScrollOffset = preserveViewport
+        ? (_scrollCtrl.hasClients ? _scrollCtrl.position.pixels : null) ??
+              _lastKnownCalendarScrollOffset
+        : null;
     await _ensureManualDeleteTombstonesLoaded();
     if (kDebugMode && kDebugStandaloneHydration) {
       final uid = currentUser.id;
@@ -17211,6 +17540,24 @@ class _CalendarPageState extends State<CalendarPage>
 
       await _regenReminderNotes(notify: false);
       _bumpDataVersion();
+      _lastSuccessfulHydrationAt = DateTime.now();
+      if (preserveViewport && preservedScrollOffset != null) {
+        _lastKnownCalendarScrollOffset = preservedScrollOffset;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted ||
+              !_scrollCtrl.hasClients ||
+              !_scrollCtrl.position.hasContentDimensions) {
+            return;
+          }
+          final position = _scrollCtrl.position;
+          final clamped = preservedScrollOffset.clamp(
+            position.minScrollExtent,
+            position.maxScrollExtent,
+          );
+          _scrollCtrl.jumpTo(clamped);
+          _lastKnownCalendarScrollOffset = clamped.toDouble();
+        });
+      }
     } catch (e, stackTrace) {
       print('Supabase sync FAILED: $e');
       print('Stack: $stackTrace');
@@ -17222,7 +17569,8 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   /// Allows other screens (e.g., Settings) to trigger a fresh sync of flows/notes.
-  Future<void> reloadFromOutside() => _refreshAfterReturn();
+  Future<void> reloadFromOutside() =>
+      _refreshAfterReturn(reason: 'external_request', force: true);
 
   static Map<String, dynamic> ruleToJson(FlowRule r) {
     if (r is _RuleWeek) {
@@ -19907,6 +20255,9 @@ class _CalendarPageState extends State<CalendarPage>
     return NotificationListener<ScrollEndNotification>(
       onNotification: (notification) {
         if (!_initialViewportSettled) return false;
+        if (_scrollCtrl.hasClients) {
+          _lastKnownCalendarScrollOffset = _scrollCtrl.position.pixels;
+        }
         // ✅ Only update centered month when scrolling STOPS
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || !_initialViewportSettled) return;
@@ -19915,6 +20266,7 @@ class _CalendarPageState extends State<CalendarPage>
           if (centered.$1 != _lastViewKy || centered.$2 != _lastViewKm) {
             _handlePortraitMonthChanged(centered.$1, centered.$2);
           }
+          _scheduleCalendarRestorationSave(reason: 'calendar_scroll_end');
         });
         return false;
       },

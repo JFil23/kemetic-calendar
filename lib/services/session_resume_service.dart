@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
 import 'package:mobile/features/calendar/notify.dart';
+import 'package:mobile/services/app_restoration_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -290,6 +291,9 @@ class _SessionTrackedRouteState extends State<SessionTrackedRoute> {
   void _persistRoute() {
     if (!widget.enabled) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        AppRestorationService.instance.saveRouteLocation(widget.location),
+      );
       unawaited(SessionResumeService.saveRouteLocation(widget.location));
     });
   }

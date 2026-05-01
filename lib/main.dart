@@ -44,6 +44,8 @@ import 'features/rhythm/pages/todays_alignment_page.dart';
 import 'features/settings/settings_prefs.dart';
 import 'features/reflections/decan_reflection_detail_page.dart';
 import 'widgets/kemetic_keyboard.dart';
+import 'services/app_restoration_service.dart';
+import 'services/app_window_service.dart';
 import 'services/session_resume_service.dart';
 
 // Conditional import: on web we use URL cleanup + visibility hook; elsewhere no-ops.
@@ -139,6 +141,7 @@ Future<void> main() async {
     _configureLogging();
 
     WidgetsFlutterBinding.ensureInitialized();
+    debugPrint('[boot] main() executed');
 
     // Register background handler for FCM (no-op on web)
     registerPushBackgroundHandler();
@@ -184,6 +187,9 @@ Future<void> main() async {
       ),
     );
 
+    await AppWindowService.instance.ensureInitialized();
+    await AppRestorationService.instance.initialize();
+
     // 🚨 Initialize notifications/push without blocking the first frame.
     // AuthGate will re-attempt on sign-in if these fail.
     _startBackgroundWarmups();
@@ -201,6 +207,7 @@ final supabase = Supabase.instance.client;
 
 void _startWebBootTasks() {
   if (!kIsWeb) return;
+  AppWindowService.instance.installWebLifecycleLogging();
   _webAuthExchangeInProgress.value = Uri.base.queryParameters.containsKey(
     'code',
   );
@@ -433,6 +440,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
+      restorationScopeId: AppWindowService.instance.restorationScopeId,
       theme: AppTheme.dark,
       routerConfig: _router,
       builder: (context, child) {
@@ -1329,7 +1337,9 @@ class _AuthGateState extends State<AuthGate> {
         _deferSessionResumeForPushNavigation) {
       return;
     }
-    final savedLocation = await SessionResumeService.readRouteLocation();
+    final savedLocation =
+        await AppRestorationService.instance.readRouteLocation() ??
+        await SessionResumeService.readRouteLocation();
     if (!mounted ||
         savedLocation == null ||
         _deferSessionResumeForPushNavigation ||

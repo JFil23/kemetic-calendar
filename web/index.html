@@ -346,9 +346,13 @@
       // Best effort only; continue with app bootstrap.
     }
 
-    const cacheBuster = Date.now().toString();
+    const buildVersion = {{flutter_service_worker_version}};
     const s = document.createElement('script');
-    s.src = 'flutter_bootstrap.js?v=' + cacheBuster;
+    if (buildVersion) {
+      s.src = 'flutter_bootstrap.js?v=' + encodeURIComponent(buildVersion);
+    } else {
+      s.src = 'flutter_bootstrap.js';
+    }
     s.async = true;
     document.body.appendChild(s);
   })();

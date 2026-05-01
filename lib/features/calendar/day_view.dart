@@ -32,6 +32,15 @@ const double _kEventColumnGap = 4.0;
 const double _kSingleEventWidthFactor = 0.8;
 const Color _dayGold = KemeticGold.base;
 const String _kNewEventPreviewClientEventId = '__day_view_new_event_preview__';
+typedef DayViewRestorationCallback =
+    void Function({
+      required int kYear,
+      required int kMonth,
+      required int kDay,
+      required bool showGregorian,
+      double? scrollOffset,
+    });
+
 const TextStyle _goldHeaderStyle = TextStyle(
   fontSize: 17,
   fontWeight: FontWeight.w600,
@@ -1193,6 +1202,7 @@ class DayViewPage extends StatefulWidget {
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final bool showDayCardRevealCoachmarkForOnboarding;
   final VoidCallback? onDayCardRevealCoachmarkCompleted;
+  final DayViewRestorationCallback? onRestorationStateChanged;
 
   const DayViewPage({
     super.key,
@@ -1231,6 +1241,7 @@ class DayViewPage extends StatefulWidget {
     this.onUnrecordCompletion,
     this.showDayCardRevealCoachmarkForOnboarding = false,
     this.onDayCardRevealCoachmarkCompleted,
+    this.onRestorationStateChanged,
   });
 
   @override
@@ -1261,6 +1272,7 @@ class _DayViewPageState extends State<DayViewPage> {
   final GlobalKey _dayCardRevealTargetKey = GlobalKey(
     debugLabel: 'day_view_date_reveal_target',
   );
+  Timer? _restorationDebounce;
 
   @override
   void initState() {
@@ -1328,6 +1340,8 @@ class _DayViewPageState extends State<DayViewPage> {
 
   @override
   void dispose() {
+    _reportRestorationState(immediate: true);
+    _restorationDebounce?.cancel();
     _pageController.dispose();
     _miniCalendarScrollController.dispose(); // 🔧 Don't forget to dispose
     super.dispose();
@@ -1338,6 +1352,7 @@ class _DayViewPageState extends State<DayViewPage> {
     setState(() {
       _showGregorian = !_showGregorian;
     });
+    _reportRestorationState(immediate: true);
   }
 
   String _buildHeaderDateLabel(
@@ -1427,10 +1442,38 @@ class _DayViewPageState extends State<DayViewPage> {
 
     // Animate mini calendar when day changes
     _scrollMiniCalendar();
+    _reportRestorationState(immediate: true);
   }
 
   void _onScrollChanged(double offset) {
     _savedScrollOffset = offset;
+    _reportRestorationState();
+  }
+
+  void _reportRestorationState({bool immediate = false}) {
+    final callback = widget.onRestorationStateChanged;
+    if (callback == null) {
+      return;
+    }
+
+    void emit() {
+      callback(
+        kYear: _currentKy,
+        kMonth: _currentKm,
+        kDay: _currentKd,
+        showGregorian: _showGregorian,
+        scrollOffset: _savedScrollOffset,
+      );
+    }
+
+    if (immediate) {
+      _restorationDebounce?.cancel();
+      emit();
+      return;
+    }
+
+    _restorationDebounce?.cancel();
+    _restorationDebounce = Timer(const Duration(milliseconds: 400), emit);
   }
 
   Future<void> _jumpToToday() async {
@@ -1464,6 +1507,7 @@ class _DayViewPageState extends State<DayViewPage> {
         _gridInstance++; // rebuild grid to honor cleared scroll offset
       });
       _scrollMiniCalendarToCenter(_currentKd);
+      _reportRestorationState(immediate: true);
     } finally {
       _isJumpingToToday = false;
     }
@@ -1675,6 +1719,7 @@ class _DayViewPageState extends State<DayViewPage> {
                         _currentKd = maxDay;
                       }
                     });
+                    _reportRestorationState(immediate: true);
                   },
                   onShareNote: widget.onShareNote,
                   onEditReminder: widget.onEditReminder,
