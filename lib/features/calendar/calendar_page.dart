@@ -11899,30 +11899,6 @@ class _CalendarPageState extends State<CalendarPage>
     });
   }
 
-  void _setExpansionLevel(
-    MonthExpansionLevel level, {
-    String entryPoint = 'menu',
-  }) {
-    if (_monthExpansion == level) return;
-    final double? offset = _scrollCtrl.hasClients
-        ? _scrollCtrl.position.pixels
-        : null;
-    setState(() => _monthExpansion = level);
-    _persistExpansionLevel(level);
-    Events.trackIfAuthed('calendar_expansion_changed', {
-      'level': _expansionToString(level),
-      'entry_point': entryPoint,
-    });
-    if (offset != null && _scrollCtrl.hasClients) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_scrollCtrl.hasClients) return;
-        final pos = _scrollCtrl.position;
-        final target = offset.clamp(pos.minScrollExtent, pos.maxScrollExtent);
-        pos.jumpTo(target);
-      });
-    }
-  }
-
   void _setExpansionLevelSmooth(
     MonthExpansionLevel level, {
     String entryPoint = 'pinch',
@@ -12154,78 +12130,8 @@ class _CalendarPageState extends State<CalendarPage>
     return null;
   }
 
-  PopupMenuItem<MonthExpansionLevel> _expansionMenuItem(
-    MonthExpansionLevel level,
-    String label,
-    IconData icon,
-  ) {
-    final selected = _monthExpansion == level;
-    return PopupMenuItem<MonthExpansionLevel>(
-      value: level,
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: selected ? _gold : Colors.white70),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: selected ? Colors.white : Colors.white70,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ),
-          if (selected) const Icon(Icons.check, size: 18, color: _gold),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showDensityMenu(BuildContext context, Rect anchorRect) async {
-    final overlay =
-        Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
-    if (overlay == null) return;
-
-    final position = RelativeRect.fromRect(
-      Rect.fromLTWH(anchorRect.left, anchorRect.bottom, anchorRect.width, 0),
-      Offset.zero & overlay.size,
-    );
-
-    final selection = await showMenu<MonthExpansionLevel>(
-      context: context,
-      position: position,
-      color: const Color(0xFF0F0F12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Colors.white12),
-      ),
-      items: [
-        _expansionMenuItem(
-          MonthExpansionLevel.compact,
-          'Compact',
-          Icons.horizontal_rule,
-        ),
-        _expansionMenuItem(
-          MonthExpansionLevel.stacked,
-          'Stacked',
-          Icons.view_column,
-        ),
-        _expansionMenuItem(
-          MonthExpansionLevel.details,
-          'Details',
-          Icons.view_agenda,
-        ),
-      ],
-    );
-
-    if (selection != null) {
-      _setExpansionLevel(selection, entryPoint: 'menu');
-    }
-  }
-
   List<_CalendarAction> _calendarActions(
-    BuildContext context,
-    Rect anchorRect, {
+    BuildContext context, {
     bool hasUnreadInbox = false,
     bool includeNewNote = true,
   }) {
@@ -12280,12 +12186,6 @@ class _CalendarPageState extends State<CalendarPage>
         onSelected: _openSearch,
       ),
       _CalendarAction(
-        icon: Icons.view_agenda_outlined,
-        gradient: silverGloss,
-        label: 'Calendar density',
-        onSelected: () => _showDensityMenu(context, anchorRect),
-      ),
-      _CalendarAction(
         icon: Icons.view_timeline,
         gradient: goldGloss,
         label: 'Flow Studio',
@@ -12323,7 +12223,6 @@ class _CalendarPageState extends State<CalendarPage>
 
     final baseActions = _calendarActions(
       context,
-      anchorRect,
       includeNewNote: includeNewNote,
     );
     final rows =
@@ -12377,7 +12276,6 @@ class _CalendarPageState extends State<CalendarPage>
                     (snapshot.data ?? const InboxUnreadState()).hasUnread;
                 final actions = _calendarActions(
                   context,
-                  anchorRect,
                   hasUnreadInbox: hasUnreadInbox,
                   includeNewNote: includeNewNote,
                 );
