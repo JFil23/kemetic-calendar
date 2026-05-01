@@ -14,6 +14,7 @@ import 'package:flutter/rendering.dart';
 import '../../data/note_category.dart';
 import 'dart:io' show File, Directory;
 import 'package:mobile/utils/color_bits.dart';
+import 'package:mobile/utils/flow_filter_engine.dart';
 import 'package:mobile/utils/flow_visibility.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -5595,11 +5596,7 @@ class _CalendarPageState extends State<CalendarPage>
   /// parsing fails or no flow id segment is present. This can be used when
   /// reconstructing notes from persisted events.
   int _flowIdFromCid(String cid) {
-    final m = RegExp(r'\|f=([\-0-9]+)').firstMatch(cid);
-    if (m != null) {
-      return int.tryParse(m.group(1)!) ?? -1;
-    }
-    return -1;
+    return extractFlowIdFromClientEventId(cid) ?? -1;
   }
 
   String? _reminderRuleIdFromCid(String cid) {
@@ -16586,12 +16583,27 @@ class _CalendarPageState extends State<CalendarPage>
 
       // Build index/maps for later use
       final Map<int, _Flow> flowIndex = {for (final f in newFlows) f.id: f};
+      final flowOwnersById = <int, FlowRecordSnapshot>{
+        for (final f in newFlows)
+          f.id: FlowRecordSnapshot(
+            id: f.id,
+            active: f.active,
+            isHidden: f.isHidden,
+            isReminder: f.isReminder,
+            notes: f.notes,
+          ),
+      };
 
       // Hydrate events for all active flows, including ones whose scheduled
       // range has ended, so historical flow events remain visible.
       // Hidden flows (repeating notes) must be included so their occurrences appear.
       final hydrationFlowIds = newFlows
-          .where((f) => isFlowEnabled(active: f.active))
+          .where((f) {
+            final kind = classifyFlowRecordSnapshot(flowOwnersById[f.id]!);
+            return kind == FlowRecordKind.active ||
+                kind == FlowRecordKind.hiddenHelper ||
+                kind == FlowRecordKind.reminder;
+          })
           .map((f) => f.id)
           .toSet(); // 👈 Set for O(1) contains() lookups
       if (kDebugMode) {
@@ -16700,8 +16712,15 @@ class _CalendarPageState extends State<CalendarPage>
             // Build _Note, same shape the rest of the app expects
             // 👈 SAFETY NET: Skip events for flows that don't exist or are inactive.
             final owningFlow = flowIndex[flowId];
+            final ownerSnapshot = flowOwnersById[flowId];
+            final ownerKind = ownerSnapshot == null
+                ? null
+                : classifyFlowRecordSnapshot(ownerSnapshot);
             final flowEligible =
-                owningFlow != null && isFlowEnabled(active: owningFlow.active);
+                owningFlow != null &&
+                (ownerKind == FlowRecordKind.active ||
+                    ownerKind == FlowRecordKind.hiddenHelper ||
+                    ownerKind == FlowRecordKind.reminder);
             if (!flowEligible) {
               // skip events that belong to deleted / inactive flows
               continue;
@@ -16799,8 +16818,25 @@ class _CalendarPageState extends State<CalendarPage>
           startUtc: standaloneWindow.startUtc,
           endUtc: standaloneWindow.endUtc,
           pageSize: 1000,
+          flowOwnersById: flowOwnersById,
         );
         final standaloneEvents = standaloneResult.events;
+        final ghostStandaloneIds = standaloneResult.ghostEventIds;
+
+        if (ghostStandaloneIds.isNotEmpty) {
+          unawaited(() async {
+            try {
+              await repo.deleteByIds(ghostStandaloneIds);
+            } catch (e, st) {
+              if (kDebugMode) {
+                debugPrint(
+                  '[_loadFromDisk] standalone ghost cleanup failed: $e',
+                );
+                debugPrint('$st');
+              }
+            }
+          }());
+        }
 
         if (kDebugMode && kDebugStandaloneHydration) {
           final uid = currentUser?.id ?? 'nouser';
@@ -16824,32 +16860,19 @@ class _CalendarPageState extends State<CalendarPage>
           try {
             final cid = evt.clientEventId ?? '';
             final rawDetail = evt.detail ?? '';
+            final flowDecision = classifyFlowEvent(
+              event: FlowEventSnapshot(
+                flowLocalId: evt.flowLocalId,
+                clientEventId: evt.clientEventId,
+                detail: evt.detail,
+                category: evt.category,
+              ),
+              flowOwnersById: flowOwnersById,
+            );
 
-            // 🚫 HARD GUARD 1: Any event with a flowLocalId is NOT standalone
-            if (evt.flowLocalId != null) {
+            // Standalone notes must pass the dedicated flow filter engine.
+            if (!flowDecision.isStandaloneVisible) {
               continue;
-            }
-
-            // 🚫 HARD GUARD 2: Legacy flow copies where detail starts with "flowLocalId="
-            if (rawDetail.startsWith('flowLocalId=')) {
-              continue;
-            }
-
-            // 🚫 HARD GUARD 3: Legacy Ma'at events using "maat:" prefix
-            if (cid.startsWith('maat:')) {
-              continue;
-            }
-
-            // 🚫 HARD GUARD 4a: Unified CID events (ky=...|f=123) referencing flows.
-            // If f != -1 AND evt.flowLocalId == null → orphaned zombie.
-            if (cid.contains('|f=')) {
-              final match = RegExp(r'\|f=([\-0-9]+)').firstMatch(cid);
-              if (match != null) {
-                final fVal = int.tryParse(match.group(1) ?? '-1') ?? -1;
-                if (fVal != -1) {
-                  continue;
-                }
-              }
             }
 
             // 🚫 HARD GUARD 4b: Reminder instances whose rule no longer exists (or was ended/deleted).

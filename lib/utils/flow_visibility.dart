@@ -1,5 +1,4 @@
-import 'dart:convert';
-
+import 'flow_filter_engine.dart';
 import 'local_end_date.dart';
 
 export 'local_end_date.dart';
@@ -59,12 +58,12 @@ class FlowLedger<T> {
 
 /// True when the row is a reminder-backed flow rather than a user flow.
 bool isReminderBackedFlow({required bool isReminder}) {
-  return isReminder;
-}
-
-/// True when the flow row is still enabled by the user.
-bool isFlowEnabled({required bool active}) {
-  return active;
+  return classifyFlowRecord(
+        active: true,
+        isHidden: false,
+        isReminder: isReminder,
+      ) ==
+      FlowRecordKind.reminder;
 }
 
 /// True when the row represents a soft-deleted / ended flow.
@@ -73,25 +72,24 @@ bool isFlowEnabled({required bool active}) {
 /// marks them inactive and hidden so they disappear from user-facing flow UIs
 /// while preserving row history for cleanup and imports.
 bool isSoftDeletedFlow({required bool active, required bool isHidden}) {
-  return !active && isHidden;
-}
-
-/// True when the flow row carries repeating-note metadata and should be treated
-/// as a hidden helper row rather than a user-facing flow.
-bool hasRepeatingNoteFlowMetadata(String? notes) {
-  if (notes == null || notes.trim().isEmpty) return false;
-  try {
-    final decoded = jsonDecode(notes.trim());
-    return decoded is Map && decoded['kind'] == 'repeating_note';
-  } catch (_) {
-    return false;
-  }
+  return classifyFlowRecord(
+        active: active,
+        isHidden: isHidden,
+        isReminder: false,
+      ) ==
+      FlowRecordKind.softDeleted;
 }
 
 /// True when a row is hidden from user-facing calendar flow surfaces.
 bool isFlowHiddenFromCalendar({required bool isHidden, String? notes}) {
-  if (isHidden) return true;
-  return hasRepeatingNoteFlowMetadata(notes);
+  final kind = classifyFlowRecord(
+    active: true,
+    isHidden: isHidden,
+    isReminder: false,
+    notes: notes,
+  );
+  return kind == FlowRecordKind.softDeleted ||
+      kind == FlowRecordKind.hiddenHelper;
 }
 
 /// True when a flow should appear in active user-facing flow lists.
@@ -104,8 +102,13 @@ bool isFlowVisibleInLists({
   required bool isHidden,
   String? notes,
 }) {
-  if (isFlowHiddenFromCalendar(isHidden: isHidden, notes: notes)) return false;
-  return isFlowEnabled(active: active);
+  return classifyFlowRecord(
+        active: active,
+        isHidden: isHidden,
+        isReminder: false,
+        notes: notes,
+      ) ==
+      FlowRecordKind.active;
 }
 
 /// True when a row is a real flow that should count as active on the calendar.
@@ -119,8 +122,13 @@ bool isCalendarActiveFlow({
   required bool isReminder,
   String? notes,
 }) {
-  if (isReminderBackedFlow(isReminder: isReminder)) return false;
-  return isFlowVisibleInLists(active: active, isHidden: isHidden, notes: notes);
+  return classifyFlowRecord(
+        active: active,
+        isHidden: isHidden,
+        isReminder: isReminder,
+        notes: notes,
+      ) ==
+      FlowRecordKind.active;
 }
 
 /// True when a row is a saved flow template that should appear in saved-flow
@@ -132,9 +140,13 @@ bool isSavedFlowTemplate({
   String? notes,
 }) {
   if (!isSaved) return false;
-  if (isFlowHiddenFromCalendar(isHidden: isHidden, notes: notes)) return false;
-  if (isReminderBackedFlow(isReminder: isReminder)) return false;
-  return true;
+  final kind = classifyFlowRecord(
+    active: false,
+    isHidden: isHidden,
+    isReminder: isReminder,
+    notes: notes,
+  );
+  return kind == FlowRecordKind.inactive || kind == FlowRecordKind.active;
 }
 
 FlowLedgerBucket classifyFlowLedgerBucket({
@@ -148,17 +160,28 @@ FlowLedgerBucket classifyFlowLedgerBucket({
   bool useRemainingEventCount = false,
   DateTime? now,
 }) {
+  final recordKind = classifyFlowRecord(
+    active: active,
+    isHidden: isHidden,
+    isReminder: isReminder,
+    notes: notes,
+  );
   final scheduleOpen = isFlowScheduleOpenLocally(
     active: active,
     endDate: endDate,
     now: now,
   );
 
-  if (isReminderBackedFlow(isReminder: isReminder)) {
-    return FlowLedgerBucket.reminder;
-  }
-  if (isSoftDeletedFlow(active: active, isHidden: isHidden)) {
-    return FlowLedgerBucket.softDeleted;
+  switch (recordKind) {
+    case FlowRecordKind.reminder:
+      return FlowLedgerBucket.reminder;
+    case FlowRecordKind.softDeleted:
+      return FlowLedgerBucket.softDeleted;
+    case FlowRecordKind.hiddenHelper:
+      return FlowLedgerBucket.hiddenHelper;
+    case FlowRecordKind.active:
+    case FlowRecordKind.inactive:
+      break;
   }
   if (isSavedFlowTemplate(
     isSaved: isSaved,
@@ -171,9 +194,6 @@ FlowLedgerBucket classifyFlowLedgerBucket({
     if (useRemainingEventCount && remainingEventCount <= 0) {
       return FlowLedgerBucket.savedTemplate;
     }
-  }
-  if (isFlowHiddenFromCalendar(isHidden: isHidden, notes: notes)) {
-    return FlowLedgerBucket.hiddenHelper;
   }
   if (!active) {
     return FlowLedgerBucket.inactive;

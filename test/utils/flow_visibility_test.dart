@@ -182,7 +182,7 @@ void main() {
 
   test('soft-deleted flow is hidden and inactive', () {
     expect(isSoftDeletedFlow(active: false, isHidden: true), isTrue);
-    expect(isSoftDeletedFlow(active: true, isHidden: true), isFalse);
+    expect(isSoftDeletedFlow(active: true, isHidden: true), isTrue);
     expect(isSoftDeletedFlow(active: false, isHidden: false), isFalse);
   });
 

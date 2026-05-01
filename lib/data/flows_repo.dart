@@ -492,8 +492,11 @@ class FlowsRepo {
 
   Future<void> delete(int id) async {
     _log('delete($id)');
-    await _client.from(_kFlows).delete().eq('id', id);
-    _log('delete ✓');
+    await _client
+        .from(_kFlows)
+        .update({'is_hidden': true, 'active': false})
+        .eq('id', id);
+    _log('delete ✓ (soft)');
   }
 
   Future<List<FlowRow>> fetchAll() async {

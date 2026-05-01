@@ -13,7 +13,7 @@ import '../data/share_repo.dart';
 import '../data/user_events_repo.dart';
 import '../features/calendar/calendar_page.dart' show CalendarPage, KemeticMath;
 import '../utils/event_cid_util.dart';
-import '../utils/flow_visibility.dart';
+import '../utils/flow_filter_engine.dart';
 
 Map<String, ({int count, bool likedByMe})> aggregateDmMessageLikeStates(
   Iterable<String> shareIds,
@@ -150,16 +150,24 @@ class InboxRepo {
       // This finds the USER'S imported copy, not the sender's original
       final flowResponse = await _client
           .from('flows')
-          .select('id, active, share_id, end_date')
+          .select(
+            'id, active, is_hidden, is_reminder, notes, share_id, end_date',
+          )
           .eq('user_id', userId) // User's flows only
           .eq('share_id', shareId) // Linked to this inbox share
-          .eq('active', true) // Must be active
           .maybeSingle();
 
-      // Flow is imported if the user's linked copy still exists and is active.
+      // Flow is imported only when the linked row still classifies as an active
+      // user-facing flow.
       final exists =
           flowResponse != null &&
-          isFlowEnabled(active: flowResponse['active'] as bool? ?? false);
+          classifyFlowRecord(
+                active: flowResponse['active'] as bool? ?? false,
+                isHidden: (flowResponse['is_hidden'] as bool?) ?? false,
+                isReminder: (flowResponse['is_reminder'] as bool?) ?? false,
+                notes: flowResponse['notes'] as String?,
+              ) ==
+              FlowRecordKind.active;
 
       if (kDebugMode) {
         _log('[InboxRepo] isFlowCurrentlyImported($shareId)');

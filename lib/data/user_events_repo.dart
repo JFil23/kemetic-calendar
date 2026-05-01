@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../features/calendar/notify.dart';
 import '../telemetry/telemetry.dart';
-import '../utils/flow_visibility.dart';
+import '../utils/flow_filter_engine.dart';
 
 const _kTable = 'user_events';
 const _kReadableEventsTable = 'user_events_with_calendars';
@@ -38,12 +38,36 @@ bool _isUuid(String? v) {
   ).hasMatch(v);
 }
 
+Iterable<List<T>> _chunkList<T>(List<T> items, int size) sync* {
+  if (items.isEmpty || size <= 0) return;
+  for (var i = 0; i < items.length; i += size) {
+    final end = (i + size < items.length) ? i + size : items.length;
+    yield items.sublist(i, end);
+  }
+}
+
 DateTime? _parseOptionalDateTime(dynamic value) {
   if (value == null) return null;
   if (value is DateTime) return value.toUtc();
   final raw = value.toString().trim();
   if (raw.isEmpty) return null;
   return DateTime.tryParse(raw)?.toUtc();
+}
+
+FlowRecordSnapshot? _flowOwnerSnapshotFromJoinedRow(
+  Map<String, dynamic>? row, {
+  int? fallbackId,
+}) {
+  if (row == null) return null;
+  final id = (row['id'] as num?)?.toInt() ?? fallbackId;
+  if (id == null || id <= 0) return null;
+  return FlowRecordSnapshot(
+    id: id,
+    active: (row['active'] as bool?) ?? false,
+    isHidden: (row['is_hidden'] as bool?) ?? false,
+    isReminder: (row['is_reminder'] as bool?) ?? false,
+    notes: row['notes'] as String?,
+  );
 }
 
 @immutable
@@ -150,6 +174,57 @@ class UserEvent {
 class UserEventsRepo {
   UserEventsRepo(this._client);
   final SupabaseClient _client;
+
+  Future<List<Map<String, dynamic>>> _loadStandaloneGhostRowsForFlow({
+    required String userId,
+    required int flowId,
+    DateTime? startUtc,
+    DateTime? endUtc,
+    int pageSize = 1000,
+  }) async {
+    final rowsForDelete = <Map<String, dynamic>>[];
+    var offset = 0;
+
+    while (true) {
+      var query = _client
+          .from(_kTable)
+          .select('id,client_event_id,detail,flow_local_id,starts_at')
+          .eq('user_id', userId)
+          .isFilter('flow_local_id', null);
+
+      if (startUtc != null) {
+        query = query.gte('starts_at', startUtc.toUtc().toIso8601String());
+      }
+      if (endUtc != null) {
+        query = query.lt('starts_at', endUtc.toUtc().toIso8601String());
+      }
+
+      final rawPage = await query
+          .order('starts_at', ascending: true)
+          .order('id', ascending: true)
+          .range(offset, offset + pageSize - 1);
+      final page = (rawPage as List).cast<Map<String, dynamic>>().toList(
+        growable: false,
+      );
+      for (final row in page) {
+        if (!eventReferencesFlow(
+          flowId: flowId,
+          flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+          clientEventId: row['client_event_id'] as String?,
+          detail: row['detail'] as String?,
+        )) {
+          continue;
+        }
+        rowsForDelete.add(row);
+      }
+
+      if (page.length < pageSize) break;
+      offset += pageSize;
+    }
+
+    return rowsForDelete;
+  }
+
   static bool? _telemetryEnabled;
   static const String _readSelect =
       'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,updated_at,created_at';
@@ -675,6 +750,7 @@ class UserEventsRepo {
 
       final user = _client.auth.currentUser;
       final cidsToCancel = <String>{};
+      List<Map<String, dynamic>> orphanRows = const [];
 
       try {
         final taggedEvents = await getEventsForFlow(
@@ -689,6 +765,21 @@ class UserEventsRepo {
         }
       } catch (_) {
         // Best effort only; deletion should still proceed.
+      }
+
+      if (user != null) {
+        orphanRows = await _loadStandaloneGhostRowsForFlow(
+          userId: user.id,
+          flowId: flowId,
+          startUtc: windowStart,
+          endUtc: windowEndExclusive,
+        );
+        for (final row in orphanRows) {
+          final cid = (row['client_event_id'] as String?)?.trim();
+          if (cid != null && cid.isNotEmpty) {
+            cidsToCancel.add(cid);
+          }
+        }
       }
 
       if (user != null && (windowStart != null || windowEndExclusive != null)) {
@@ -743,6 +834,21 @@ class UserEventsRepo {
           q2 = q2.lt('starts_at', windowEndExclusive.toIso8601String());
         }
         await q2;
+      }
+
+      if (user != null && orphanRows.isNotEmpty) {
+        final orphanIds = orphanRows
+            .map((row) => row['id'] as String?)
+            .whereType<String>()
+            .where((id) => id.trim().isNotEmpty)
+            .toList(growable: false);
+        for (final chunk in _chunkList(orphanIds, 200)) {
+          await _client
+              .from(_kTable)
+              .delete()
+              .eq('user_id', user.id)
+              .inFilter('id', chunk);
+        }
       }
 
       _log('deleteByFlowId ✓');
@@ -814,7 +920,7 @@ class UserEventsRepo {
     final rows = await _client
         .from(_kTable)
         .select(
-          'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,flows!left(id,active,end_date)',
+          'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,flows!left(id,active,is_hidden,is_reminder,notes)',
         )
         .order('starts_at', ascending: true)
         .limit(limit);
@@ -822,20 +928,23 @@ class UserEventsRepo {
     final filtered = (rows as List)
         .cast<Map<String, dynamic>>()
         .where((row) {
-          final int? fid = (row['flow_local_id'] as num?)?.toInt();
-
-          // Standalone events (no flow) are fine
-          if (fid == null) return true;
-
-          // 🚫 Orphaned event: has flow_local_id but no flow row (flow was deleted)
-          final Map<String, dynamic>? flow =
-              row['flows'] as Map<String, dynamic>?;
-          if (flow == null) {
-            // Orphaned event - skip it
-            return false;
-          }
-
-          return isFlowEnabled(active: (flow['active'] as bool?) ?? false);
+          final owner = _flowOwnerSnapshotFromJoinedRow(
+            row['flows'] as Map<String, dynamic>?,
+            fallbackId: (row['flow_local_id'] as num?)?.toInt(),
+          );
+          final decision = classifyFlowEvent(
+            event: FlowEventSnapshot(
+              flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+              clientEventId: row['client_event_id'] as String?,
+              detail: row['detail'] as String?,
+              category: row['category'] as String?,
+            ),
+            owner: owner,
+          );
+          return decision.kind == FlowEventKind.standalone ||
+              decision.kind == FlowEventKind.activeFlow ||
+              decision.kind == FlowEventKind.hiddenHelperFlow ||
+              decision.kind == FlowEventKind.reminderFlow;
         })
         .map(
           (row) => (
@@ -885,6 +994,7 @@ class UserEventsRepo {
     required DateTime startUtc,
     required DateTime endUtc,
     int limit = 10000,
+    Map<int, FlowRecordSnapshot> flowOwnersById = const {},
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) return [];
@@ -910,26 +1020,60 @@ class UserEventsRepo {
         '(${startUtc.toUtc().toIso8601String()} → ${endUtc.toUtc().toIso8601String()})',
       );
 
-      return rows.cast<Map<String, dynamic>>().map((row) {
-        return (
-          id: row['id'] as String?,
-          clientEventId: row['client_event_id'] as String?,
-          calendarId: row['calendar_id'] as String?,
-          calendarName: row['calendar_name'] as String?,
-          calendarColor: (row['calendar_color'] as num?)?.toInt(),
-          calendarIsPersonal: (row['calendar_is_personal'] as bool?) ?? true,
-          title: (row['title'] as String?) ?? '',
-          detail: row['detail'] as String?,
-          location: row['location'] as String?,
-          allDay: (row['all_day'] as bool?) ?? false,
-          startsAtUtc: DateTime.parse(row['starts_at'] as String),
-          endsAtUtc: row['ends_at'] == null
-              ? null
-              : DateTime.parse(row['ends_at'] as String),
-          flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
-          category: row['category'] as String?,
-        );
-      }).toList();
+      return rows
+          .cast<Map<String, dynamic>>()
+          .map((row) {
+            final decision = classifyFlowEvent(
+              event: FlowEventSnapshot(
+                flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+                clientEventId: row['client_event_id'] as String?,
+                detail: row['detail'] as String?,
+                category: row['category'] as String?,
+              ),
+              flowOwnersById: flowOwnersById,
+            );
+            if (!decision.isStandaloneVisible) {
+              return null;
+            }
+            return (
+              id: row['id'] as String?,
+              clientEventId: row['client_event_id'] as String?,
+              calendarId: row['calendar_id'] as String?,
+              calendarName: row['calendar_name'] as String?,
+              calendarColor: (row['calendar_color'] as num?)?.toInt(),
+              calendarIsPersonal:
+                  (row['calendar_is_personal'] as bool?) ?? true,
+              title: (row['title'] as String?) ?? '',
+              detail: row['detail'] as String?,
+              location: row['location'] as String?,
+              allDay: (row['all_day'] as bool?) ?? false,
+              startsAtUtc: DateTime.parse(row['starts_at'] as String),
+              endsAtUtc: row['ends_at'] == null
+                  ? null
+                  : DateTime.parse(row['ends_at'] as String),
+              flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+              category: row['category'] as String?,
+            );
+          })
+          .whereType<
+            ({
+              String? id,
+              String? clientEventId,
+              String? calendarId,
+              String? calendarName,
+              int? calendarColor,
+              bool calendarIsPersonal,
+              String title,
+              String? detail,
+              String? location,
+              bool allDay,
+              DateTime startsAtUtc,
+              DateTime? endsAtUtc,
+              int? flowLocalId,
+              String? category,
+            })
+          >()
+          .toList();
     } on PostgrestException catch (e) {
       _log(
         'getStandaloneEventsForDateRange ✗ code=${e.code} message=${e.message} hint=${e.hint} details=${e.details} '
@@ -965,6 +1109,7 @@ class UserEventsRepo {
         })
       >
       events,
+      List<String> ghostEventIds,
       int pageCount,
       int rawCount,
     })
@@ -973,6 +1118,7 @@ class UserEventsRepo {
     required DateTime startUtc,
     required DateTime endUtc,
     int pageSize = 1000,
+    Map<int, FlowRecordSnapshot> flowOwnersById = const {},
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -996,6 +1142,7 @@ class UserEventsRepo {
                 String? category,
               })
             >[],
+        ghostEventIds: const <String>[],
         pageCount: 0,
         rawCount: 0,
       );
@@ -1062,6 +1209,7 @@ class UserEventsRepo {
                 String? category,
               })
             >[],
+        ghostEventIds: const <String>[],
         pageCount: pageCount,
         rawCount: pages.length,
       );
@@ -1087,6 +1235,7 @@ class UserEventsRepo {
                 String? category,
               })
             >[],
+        ghostEventIds: const <String>[],
         pageCount: pageCount,
         rawCount: pages.length,
       );
@@ -1113,10 +1262,28 @@ class UserEventsRepo {
       })
     >
     events = [];
+    final ghostEventIds = <String>[];
 
     for (final row in pages) {
+      final decision = classifyFlowEvent(
+        event: FlowEventSnapshot(
+          flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+          clientEventId: row['client_event_id'] as String?,
+          detail: row['detail'] as String?,
+          category: row['category'] as String?,
+        ),
+        flowOwnersById: flowOwnersById,
+      );
       final id = row['id'] as String?;
+      if (!decision.isStandaloneVisible) {
+        if (decision.shouldPurgeGhostRow && id != null && id.isNotEmpty) {
+          ghostEventIds.add(id);
+        }
+        continue;
+      }
+
       final cid = row['client_event_id'] as String?;
+
       if (id != null && id.isNotEmpty) {
         if (seenIds.contains(id)) continue;
         seenIds.add(id);
@@ -1147,11 +1314,16 @@ class UserEventsRepo {
 
     if (kDebugMode) {
       _log(
-        'getStandaloneEventsForDateRangeAll ✓ pages=$pageCount raw=${pages.length} merged=${events.length}',
+        'getStandaloneEventsForDateRangeAll ✓ pages=$pageCount raw=${pages.length} merged=${events.length} ghosts=${ghostEventIds.length}',
       );
     }
 
-    return (events: events, pageCount: pageCount, rawCount: pages.length);
+    return (
+      events: events,
+      ghostEventIds: ghostEventIds,
+      pageCount: pageCount,
+      rawCount: pages.length,
+    );
   }
 
   /// Fetch reminder events by client_event_id prefix. Reminders-only.
@@ -1888,19 +2060,10 @@ class UserEventsRepo {
   Future<void> deleteFlow(int flowId) async {
     _log('deleteFlow($flowId)');
     try {
-      try {
-        final events = await getEventsForFlow(flowId);
-        final cidsToCancel = events
-            .map((event) => event.clientEventId)
-            .whereType<String>()
-            .where((cid) => cid.trim().isNotEmpty)
-            .toSet();
-        if (cidsToCancel.isNotEmpty) {
-          await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
-        }
-      } catch (_) {
-        // Flow delete should still proceed if notification cleanup misses.
-      }
+      // Canonical delete path: purge linked event rows before the flow is
+      // soft-deleted so local notification cleanup does not rely solely on the
+      // backend trigger.
+      await deleteByFlowId(flowId);
 
       final row = await _client
           .from('flows')
