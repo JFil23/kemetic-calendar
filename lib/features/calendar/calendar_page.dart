@@ -4666,7 +4666,8 @@ class _CalendarPageState extends State<CalendarPage>
   static const bool kDebugStandaloneHydration = true;
   static const Set<String> _debugStandaloneKeys = {'1-13-3', '1-13-4'};
   static const Duration _foregroundRefreshThreshold = Duration(minutes: 10);
-  static const Duration _restorationWriteDebounce = Duration(milliseconds: 400);
+  static const Duration _restorationWriteDebounce = Duration(milliseconds: 150);
+  static const int _calendarProgressSaveIntervalMs = 300;
   bool _isLoadingFromDisk = false;
   // Startup coordinator: single-flight gate for auth-triggered startup work.
   Completer<void>? _startupFlight;
@@ -4786,10 +4787,17 @@ class _CalendarPageState extends State<CalendarPage>
   DateTime? _lastSuccessfulHydrationAt;
   Timer? _calendarRestorationDebounce;
   double? _lastKnownCalendarScrollOffset;
+  String? _restoredCalendarAnchorTarget;
+  double? _restoredCalendarAnchorAlignment;
   double? _restoredCalendarScrollOffset;
+  int _lastCalendarProgressSaveAtMs = 0;
+  bool _calendarProgressSaveInFlight = false;
   DayViewRestorationState? _activeDayViewRestorationState;
   DayViewRestorationState? _pendingPersistentDayViewState;
   bool _persistentDayViewRestoreAttempted = false;
+  bool _pendingAuthResolutionForRestore = false;
+  String? _tentativeRestorationUserId;
+  bool _restorationInteractedSinceBoot = false;
 
   /* ───── today + notes + flows state ───── */
 
@@ -5849,6 +5857,10 @@ class _CalendarPageState extends State<CalendarPage>
   static const String _kSessionResumeKindDaySheet = 'calendar_day_sheet';
   static const String _kSessionResumeKindPushEvent = 'calendar_push_event';
   static const int _kCalendarViewStateSchemaVersion = 2;
+  static const int _kCalendarRestorationLayoutRevision = 1;
+  static const String _kCalendarAnchorTargetDayChip = 'dayChip';
+  static const String _kCalendarAnchorTargetMonthHeader = 'monthHeader';
+  static const String _kCalendarAnchorTargetMonthBody = 'monthBody';
 
   bool _initialJumpScheduled = false;
   bool _initialViewportSettled = false;
@@ -6074,6 +6086,8 @@ class _CalendarPageState extends State<CalendarPage>
     if (_scrollCtrl.hasClients) {
       _lastKnownCalendarScrollOffset = _scrollCtrl.position.pixels;
     }
+    _restorationInteractedSinceBoot = true;
+    _maybePersistCalendarRestorationDuringScroll();
     // ✅ Debounce to next frame to avoid stale RenderObjects
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _initialViewportSettled) {
@@ -6146,6 +6160,7 @@ class _CalendarPageState extends State<CalendarPage>
 
     _isUpdatingFromPortrait = true;
     try {
+      _restorationInteractedSinceBoot = true;
       final maxDay = _maxDayForMonth(ky, km);
       final clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
 
@@ -6300,6 +6315,13 @@ class _CalendarPageState extends State<CalendarPage>
       final event = data.event;
       if (kDebugMode) {
         debugPrint('[calendar] auth state change event=${event.name}');
+      }
+      if (event == AuthChangeEvent.initialSession ||
+          event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.tokenRefreshed ||
+          event == AuthChangeEvent.signedOut) {
+        if (!mounted) return;
+        unawaited(_maybeResolvePersistedViewStateAfterAuth(event));
       }
       if (event == AuthChangeEvent.initialSession ||
           event == AuthChangeEvent.signedIn) {
@@ -7032,6 +7054,7 @@ class _CalendarPageState extends State<CalendarPage>
   void _handleCalendarToggleTapped() {
     if (!mounted) return;
 
+    _restorationInteractedSinceBoot = true;
     setState(() {
       _showGregorian = !_showGregorian;
       _showCalendarToggleCoachmark = false;
@@ -7187,12 +7210,17 @@ class _CalendarPageState extends State<CalendarPage>
         overrideScrollOffset ??
         (_scrollCtrl.hasClients ? _scrollCtrl.position.pixels : null) ??
         _lastKnownCalendarScrollOffset;
+    final viewportAnchor = _currentViewportCalendarAnchor();
     return CalendarRestorationState(
       kYear: ky,
       kMonth: km,
       kDay: kd,
       showGregorian: _showGregorian,
       expansion: _expansionToString(_monthExpansion),
+      anchorTarget: viewportAnchor?.target,
+      anchorAlignment: viewportAnchor?.alignment,
+      viewportHeight: _currentViewportHeight(),
+      layoutRevision: _kCalendarRestorationLayoutRevision,
       scrollOffset: scrollOffset,
     );
   }
@@ -7219,6 +7247,29 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
+  void _maybePersistCalendarRestorationDuringScroll() {
+    if (!_rememberLastView ||
+        !_restored ||
+        _calendarProgressSaveInFlight ||
+        !_scrollCtrl.hasClients) {
+      return;
+    }
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (nowMs - _lastCalendarProgressSaveAtMs <
+        _calendarProgressSaveIntervalMs) {
+      return;
+    }
+    _lastCalendarProgressSaveAtMs = nowMs;
+    _calendarProgressSaveInFlight = true;
+    unawaited(
+      _saveCalendarRestorationNow(
+        reason: 'calendar_scroll_progress',
+      ).whenComplete(() {
+        _calendarProgressSaveInFlight = false;
+      }),
+    );
+  }
+
   Future<void> _saveCalendarRestorationNow({
     String reason = 'manual',
     int? overrideKy,
@@ -7232,6 +7283,20 @@ class _CalendarPageState extends State<CalendarPage>
       overrideKd: overrideKd,
     );
     await _persistCalendarRestorationState(state, reason: reason);
+  }
+
+  Future<void> _flushPendingCalendarRestorationSave({
+    required String reason,
+  }) async {
+    final hadPendingWrite = _calendarRestorationDebounce?.isActive ?? false;
+    _calendarRestorationDebounce?.cancel();
+    _calendarRestorationDebounce = null;
+    if (!_rememberLastView || !_restored) {
+      return;
+    }
+    await _saveCalendarRestorationNow(
+      reason: hadPendingWrite ? '$reason:flush' : reason,
+    );
   }
 
   void _scheduleCalendarRestorationSave({String reason = 'debounced'}) {
@@ -7306,25 +7371,129 @@ class _CalendarPageState extends State<CalendarPage>
       state.kYear,
       state.kMonth,
       state.kDay,
+      initialFirstVisibleMinute: state.firstVisibleMinute,
       initialScrollOffset: state.scrollOffset,
       initialShowGregorian: state.showGregorian,
     );
   }
 
-  /// ✅ Load persisted view state from permanent per-window restoration first.
-  Future<void> _loadPersistedViewState() async {
-    if (!_rememberLastView) {
-      _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
-      _scheduleInitialViewportRestore();
+  void _applyTodayFallbackAfterRestore({required String reason}) {
+    if (kDebugMode) {
+      debugPrint('[restoration] calendar fallback=today reason=$reason');
+    }
+    _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
+    _scheduleInitialViewportRestore();
+    if (!mounted) {
+      _pendingAuthResolutionForRestore = false;
+      _tentativeRestorationUserId = null;
+      _pendingPersistentDayViewState = null;
+      _persistentDayViewRestoreAttempted = false;
+      _restoredCalendarAnchorTarget = null;
+      _restoredCalendarAnchorAlignment = null;
+      _restoredCalendarScrollOffset = null;
+      _restorationInteractedSinceBoot = false;
       _restored = true;
       return;
     }
+    setState(() {
+      _pendingAuthResolutionForRestore = false;
+      _tentativeRestorationUserId = null;
+      _pendingPersistentDayViewState = null;
+      _persistentDayViewRestoreAttempted = false;
+      _restoredCalendarAnchorTarget = null;
+      _restoredCalendarAnchorAlignment = null;
+      _restoredCalendarScrollOffset = null;
+      _restorationInteractedSinceBoot = false;
+      _restored = true;
+    });
+  }
+
+  Future<void> _maybeResolvePersistedViewStateAfterAuth(
+    AuthChangeEvent event,
+  ) async {
+    if (!_pendingAuthResolutionForRestore || !mounted) {
+      return;
+    }
+
+    final authUserId = Supabase.instance.client.auth.currentUser?.id.trim();
+    final hasResolvedUser = authUserId != null && authUserId.isNotEmpty;
+    final tentativeUserId = _tentativeRestorationUserId;
+    final userMismatch =
+        hasResolvedUser &&
+        tentativeUserId != null &&
+        tentativeUserId != authUserId;
+    final authResolvedWithoutUser =
+        (event == AuthChangeEvent.initialSession ||
+            event == AuthChangeEvent.signedOut) &&
+        !hasResolvedUser;
+
+    if (_restorationInteractedSinceBoot &&
+        !userMismatch &&
+        !authResolvedWithoutUser) {
+      if (kDebugMode) {
+        debugPrint(
+          '[restoration] auth resolution kept current view '
+          'event=${event.name} user=$authUserId',
+        );
+      }
+      if (mounted) {
+        setState(() {
+          _pendingAuthResolutionForRestore = false;
+          _tentativeRestorationUserId = null;
+        });
+      } else {
+        _pendingAuthResolutionForRestore = false;
+        _tentativeRestorationUserId = null;
+      }
+      return;
+    }
+
+    if (authResolvedWithoutUser) {
+      _applyTodayFallbackAfterRestore(
+        reason: 'auth_resolved_without_user:${event.name}',
+      );
+      return;
+    }
+
+    if (!hasResolvedUser) {
+      return;
+    }
+
+    if (kDebugMode) {
+      debugPrint(
+        '[restoration] retrying persisted view restore '
+        'event=${event.name} user=$authUserId mismatch=$userMismatch',
+      );
+    }
+    await _loadPersistedViewState(trigger: 'auth:${event.name}');
+  }
+
+  /// ✅ Load persisted view state from permanent per-window restoration first.
+  Future<void> _loadPersistedViewState({String trigger = 'startup'}) async {
+    if (!_rememberLastView) {
+      _applyTodayFallbackAfterRestore(reason: 'remember_last_view_disabled');
+      return;
+    }
     try {
-      final snapshot = await AppRestorationService.instance.readSnapshot();
+      final readResult = await AppRestorationService.instance
+          .readBestSnapshot();
+      if (readResult.isAwaitingAuth) {
+        _pendingAuthResolutionForRestore = true;
+        _tentativeRestorationUserId = null;
+        if (kDebugMode) {
+          debugPrint(
+            '[restoration] calendar awaiting auth '
+            'trigger=$trigger window=${readResult.windowId}',
+          );
+        }
+        return;
+      }
+
+      final snapshot = readResult.snapshot;
       var savedCalendar = snapshot?.calendar;
       final savedDayView = snapshot?.dayView;
 
-      if (savedCalendar == null) {
+      if (savedCalendar == null && !readResult.isTentative) {
         final legacyState = await SessionResumeService.readScopedState(
           _kSessionScopeCalendarView,
         );
@@ -7352,9 +7521,7 @@ class _CalendarPageState extends State<CalendarPage>
               '— defaulting to today',
             );
           }
-          _setView(today.kYear, today.kMonth, kd: today.kDay);
-          _scheduleInitialViewportRestore();
-          _restored = true;
+          _applyTodayFallbackAfterRestore(reason: 'future_persisted_date');
           return;
         }
 
@@ -7377,30 +7544,41 @@ class _CalendarPageState extends State<CalendarPage>
           _lastViewKd = clampedDay;
           _showGregorian = savedCalendar.showGregorian;
           _monthExpansion = _parseExpansion(savedCalendar.expansion);
+          _restoredCalendarAnchorTarget = savedCalendar.anchorTarget;
+          _restoredCalendarAnchorAlignment = savedCalendar.anchorAlignment;
           _restoredCalendarScrollOffset = savedCalendar.scrollOffset;
-          _pendingPersistentDayViewState =
-              savedDayView != null && savedDayView.isOpen ? savedDayView : null;
+          _pendingPersistentDayViewState = readResult.isTentative
+              ? null
+              : (savedDayView != null && savedDayView.isOpen
+                    ? savedDayView
+                    : null);
+          _persistentDayViewRestoreAttempted = false;
+          _pendingAuthResolutionForRestore = readResult.isTentative;
+          _tentativeRestorationUserId = readResult.isTentative
+              ? snapshot?.userId
+              : null;
+          _restorationInteractedSinceBoot = false;
           _restored = true;
         });
       } else {
         if (kDebugMode) {
           debugPrint('📂 [CALENDAR] No persisted state — defaulting to today');
         }
-        _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
-        _restored = true;
+        _applyTodayFallbackAfterRestore(reason: 'no_persisted_state');
+        return;
       }
 
       _scheduleInitialViewportRestore();
-      _schedulePersistentDayViewRestore();
+      if (!readResult.isTentative) {
+        _schedulePersistentDayViewRestore();
+      }
     } catch (e) {
       if (kDebugMode) {
         debugPrint(
           '⚠️ [CALENDAR] Persist load error — defaulting to today: $e',
         );
       }
-      _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
-      _scheduleInitialViewportRestore();
-      _restored = true;
+      _applyTodayFallbackAfterRestore(reason: 'persist_load_error');
     }
   }
 
@@ -7464,8 +7642,23 @@ class _CalendarPageState extends State<CalendarPage>
           return;
         }
         bool ok = false;
+        final restoredAnchorTarget = _restoredCalendarAnchorTarget;
+        final restoredAlignment = _restoredCalendarAnchorAlignment;
+        if (restoredAlignment != null) {
+          ok = _jumpToCalendarAnchorAtAlignmentNow(
+            restoredAnchorTarget,
+            restoredAlignment,
+            animate: false,
+          );
+          if (ok && _scrollCtrl.hasClients) {
+            _lastKnownCalendarScrollOffset = _scrollCtrl.position.pixels;
+            _restoredCalendarAnchorTarget = null;
+            _restoredCalendarAnchorAlignment = null;
+          }
+        }
         final restoredOffset = _restoredCalendarScrollOffset;
-        if (restoredOffset != null &&
+        if (!ok &&
+            restoredOffset != null &&
             _scrollCtrl.hasClients &&
             _scrollCtrl.position.hasContentDimensions) {
           final position = _scrollCtrl.position;
@@ -7475,11 +7668,16 @@ class _CalendarPageState extends State<CalendarPage>
           );
           _scrollCtrl.jumpTo(clamped);
           _lastKnownCalendarScrollOffset = clamped.toDouble();
+          _restoredCalendarAnchorTarget = null;
+          _restoredCalendarAnchorAlignment = null;
           _restoredCalendarScrollOffset = null;
           ok = true;
         }
         ok = ok || _jumpToCurrentViewNow(animate: false);
         if (ok || tries >= 20) {
+          _restoredCalendarAnchorTarget = null;
+          _restoredCalendarAnchorAlignment = null;
+          _restoredCalendarScrollOffset = null;
           finishRestore();
         } else {
           attemptRestore(tries + 1);
@@ -7490,7 +7688,47 @@ class _CalendarPageState extends State<CalendarPage>
     attemptRestore(0);
   }
 
-  void _scheduleOrientationJumpToToday() {
+  int _sessionDayForMonth(int ky, int km) {
+    final maxDay = _maxDayForMonth(ky, km);
+    if (ky == _today.kYear && km == _today.kMonth) {
+      return _today.kDay.clamp(1, maxDay);
+    }
+    return (_lastViewKd ?? 1).clamp(1, maxDay);
+  }
+
+  void _commitVisiblePortraitMonthForRotation() {
+    if (!_scrollCtrl.hasClients) {
+      return;
+    }
+    final centered = _computeCenteredMonthPrecisely();
+    _lastKnownCalendarScrollOffset = _scrollCtrl.position.pixels;
+    _lastViewKy = centered.$1;
+    _lastViewKm = centered.$2;
+    _lastViewKd = _sessionDayForMonth(centered.$1, centered.$2);
+  }
+
+  void _commitLandscapeVisibleMonthForRotation(int ky, int km) {
+    _restorationInteractedSinceBoot = true;
+    _lastViewKy = ky;
+    _lastViewKm = km;
+    _lastViewKd = _sessionDayForMonth(ky, km);
+    if (_rememberLastView) {
+      _scheduleCalendarRestorationSave(reason: 'landscape_rotation_commit');
+    }
+    final orientation = MediaQuery.maybeOf(context)?.orientation;
+    if (orientation == Orientation.portrait) {
+      _portraitRecenterPending = true;
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {});
+          }
+        });
+      }
+    }
+  }
+
+  void _scheduleOrientationJumpToCurrentView() {
     if (_orientationJumpScheduled) return;
     _orientationJumpScheduled = true;
     void attempt(int tries) {
@@ -7499,7 +7737,9 @@ class _CalendarPageState extends State<CalendarPage>
           _orientationJumpScheduled = false;
           return;
         }
-        final ok = _jumpToTodayNow(animate: false);
+        final ok =
+            _jumpToCurrentViewNow(animate: false) ||
+            _jumpToTodayNow(animate: false);
         if (ok || tries >= 2) {
           _orientationJumpScheduled = false;
         } else {
@@ -7512,7 +7752,7 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   void _ensurePortraitCentered() {
-    _scheduleOrientationJumpToToday();
+    _scheduleOrientationJumpToCurrentView();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _portraitRecenterPending = false;
@@ -7521,6 +7761,11 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   BuildContext? _currentViewTargetContext() {
+    return _calendarAnchorContextForTarget(_kCalendarAnchorTargetDayChip) ??
+        _calendarAnchorContextForTarget(_kCalendarAnchorTargetMonthBody);
+  }
+
+  BuildContext? _currentViewDayAnchorContext() {
     final viewKy = _lastViewKy;
     final viewKm = _lastViewKm;
     final viewKd = _lastViewKd;
@@ -7528,19 +7773,167 @@ class _CalendarPageState extends State<CalendarPage>
       if (viewKy == _today.kYear &&
           viewKm == _today.kMonth &&
           viewKd == _today.kDay) {
-        return _todayDayKey.currentContext ??
-            keyForMonth(viewKy, viewKm).currentContext;
+        return _todayDayKey.currentContext;
       }
-      return _viewDayAnchorKey.currentContext ??
-          keyForMonth(viewKy, viewKm).currentContext;
+      return _viewDayAnchorKey.currentContext;
     }
-    return _todayDayKey.currentContext ??
-        keyForMonth(_today.kYear, _today.kMonth).currentContext;
+    return _todayDayKey.currentContext;
+  }
+
+  BuildContext? _calendarAnchorContextForTarget(String? target) {
+    final viewKy = _lastViewKy ?? _today.kYear;
+    final viewKm = _lastViewKm ?? _today.kMonth;
+    switch (target) {
+      case _kCalendarAnchorTargetDayChip:
+        return _currentViewDayAnchorContext() ??
+            keyForMonthHeader(viewKy, viewKm).currentContext ??
+            keyForMonth(viewKy, viewKm).currentContext;
+      case _kCalendarAnchorTargetMonthHeader:
+        return keyForMonthHeader(viewKy, viewKm).currentContext ??
+            keyForMonth(viewKy, viewKm).currentContext;
+      case _kCalendarAnchorTargetMonthBody:
+        return keyForMonth(viewKy, viewKm).currentContext ??
+            keyForMonthHeader(viewKy, viewKm).currentContext;
+      default:
+        return _currentViewDayAnchorContext() ??
+            keyForMonth(viewKy, viewKm).currentContext;
+    }
+  }
+
+  ({BuildContext context, String target, double alignment, double distance})?
+  _visibleCalendarAnchorCandidate(String target, BuildContext? targetCtx) {
+    if (targetCtx == null) return null;
+
+    final scrollableState = Scrollable.of(targetCtx);
+    if (scrollableState == null) return null;
+
+    final viewportBox =
+        scrollableState.context.findRenderObject() as RenderBox?;
+    final targetBox = targetCtx.findRenderObject() as RenderBox?;
+    if (viewportBox == null ||
+        targetBox == null ||
+        !viewportBox.hasSize ||
+        !targetBox.hasSize ||
+        viewportBox.size.height <= 0) {
+      return null;
+    }
+
+    final targetTopLeft = targetBox.localToGlobal(
+      Offset.zero,
+      ancestor: viewportBox,
+    );
+    final targetTop = targetTopLeft.dy;
+    final targetBottom = targetTop + targetBox.size.height;
+    final visibleTop = targetTop.clamp(0.0, viewportBox.size.height);
+    final visibleBottom = targetBottom.clamp(0.0, viewportBox.size.height);
+    final visibleHeight = visibleBottom - visibleTop;
+    if (visibleHeight <= 0) {
+      return null;
+    }
+    final targetCenterY = targetTopLeft.dy + targetBox.size.height / 2;
+    final alignment = (targetCenterY / viewportBox.size.height)
+        .clamp(0.0, 1.0)
+        .toDouble();
+    return (
+      context: targetCtx,
+      target: target,
+      alignment: alignment,
+      distance: (targetCenterY - (viewportBox.size.height / 2)).abs(),
+    );
+  }
+
+  ({BuildContext context, String target, double alignment})?
+  _currentViewportCalendarAnchor() {
+    final candidates =
+        <
+          ({
+            BuildContext context,
+            String target,
+            double alignment,
+            double distance,
+          })?
+        >[
+          _visibleCalendarAnchorCandidate(
+            _kCalendarAnchorTargetDayChip,
+            _calendarAnchorContextForTarget(_kCalendarAnchorTargetDayChip),
+          ),
+          _visibleCalendarAnchorCandidate(
+            _kCalendarAnchorTargetMonthHeader,
+            _calendarAnchorContextForTarget(_kCalendarAnchorTargetMonthHeader),
+          ),
+          _visibleCalendarAnchorCandidate(
+            _kCalendarAnchorTargetMonthBody,
+            _calendarAnchorContextForTarget(_kCalendarAnchorTargetMonthBody),
+          ),
+        ];
+    ({BuildContext context, String target, double alignment, double distance})?
+    best;
+    for (final candidate in candidates) {
+      if (candidate == null) continue;
+      if (best == null || candidate.distance < best.distance) {
+        best = candidate;
+      }
+    }
+    if (best == null) return null;
+    return (
+      context: best.context,
+      target: best.target,
+      alignment: best.alignment,
+    );
+  }
+
+  double? _currentViewportHeight() {
+    final targetCtx =
+        _currentViewportCalendarAnchor()?.context ??
+        _currentViewTargetContext();
+    if (targetCtx == null) return null;
+    final scrollableState = Scrollable.of(targetCtx);
+    final viewportBox =
+        scrollableState?.context.findRenderObject() as RenderBox?;
+    if (viewportBox == null || !viewportBox.hasSize) {
+      return null;
+    }
+    return viewportBox.size.height > 0 ? viewportBox.size.height : null;
+  }
+
+  double? _scrollOffsetForContext(
+    BuildContext? targetCtx, {
+    double alignment = 0.5,
+  }) {
+    if (targetCtx == null || !_scrollCtrl.hasClients) return null;
+
+    final scrollableState = Scrollable.of(targetCtx);
+    if (scrollableState == null) return null;
+
+    final position = scrollableState.position;
+    final targetRenderObject = targetCtx.findRenderObject();
+    if (targetRenderObject == null) return null;
+
+    final viewport = RenderAbstractViewport.of(targetRenderObject);
+    if (viewport == null) return null;
+
+    final reveal = viewport.getOffsetToReveal(targetRenderObject, alignment);
+    return reveal.offset
+        .clamp(position.minScrollExtent, position.maxScrollExtent)
+        .toDouble();
   }
 
   bool _jumpToCurrentViewNow({bool animate = true}) {
-    final targetCtx = _currentViewTargetContext();
-    final targetPixels = _centeredScrollOffsetForContext(targetCtx);
+    return _jumpToCurrentViewAtAlignmentNow(0.5, animate: animate);
+  }
+
+  bool _jumpToCalendarAnchorAtAlignmentNow(
+    String? anchorTarget,
+    double alignment, {
+    bool animate = true,
+  }) {
+    final targetCtx =
+        _calendarAnchorContextForTarget(anchorTarget) ??
+        _currentViewTargetContext();
+    final targetPixels = _scrollOffsetForContext(
+      targetCtx,
+      alignment: alignment,
+    );
     if (targetPixels == null) return false;
 
     final position = _scrollCtrl.position;
@@ -7555,6 +7948,17 @@ class _CalendarPageState extends State<CalendarPage>
       position.jumpTo(targetPixels);
     }
     return true;
+  }
+
+  bool _jumpToCurrentViewAtAlignmentNow(
+    double alignment, {
+    bool animate = true,
+  }) {
+    return _jumpToCalendarAnchorAtAlignmentNow(
+      _kCalendarAnchorTargetDayChip,
+      alignment,
+      animate: animate,
+    );
   }
 
   bool _jumpToTodayNow({bool animate = true}) {
@@ -7579,23 +7983,7 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   double? _centeredScrollOffsetForContext(BuildContext? targetCtx) {
-    if (targetCtx == null || !_scrollCtrl.hasClients) return null;
-
-    final scrollableState = Scrollable.of(targetCtx);
-    if (scrollableState == null) return null;
-
-    final position = scrollableState.position;
-    final targetRenderObject = targetCtx.findRenderObject();
-    if (targetRenderObject == null) return null;
-
-    final viewport = RenderAbstractViewport.of(targetRenderObject);
-    if (viewport == null) return null;
-
-    final reveal = viewport.getOffsetToReveal(targetRenderObject, 0.5);
-    return reveal.offset.clamp(
-      position.minScrollExtent,
-      position.maxScrollExtent,
-    );
+    return _scrollOffsetForContext(targetCtx, alignment: 0.5);
   }
 
   /// ✅ Handle month change from landscape view (WITH CORRECT FEEDBACK LOOP GUARD TIMING)
@@ -7617,6 +8005,7 @@ class _CalendarPageState extends State<CalendarPage>
 
     // ✅ FIX 5: Exception-safe callback handling
     try {
+      _restorationInteractedSinceBoot = true;
       // ✅ HARDENING 1: Clamp day when month changes, or use today's day if month matches today
       final maxDay = _maxDayForMonth(ky, km);
       int clampedKd;
@@ -7659,6 +8048,11 @@ class _CalendarPageState extends State<CalendarPage>
     debugPrint('');
     _journalController.dispose();
     _calendarRestorationDebounce?.cancel();
+    unawaited(_flushPendingCalendarRestorationSave(reason: 'dispose'));
+    final dayViewState = _activeDayViewRestorationState;
+    if (dayViewState != null) {
+      unawaited(_persistDayViewState(dayViewState, reason: 'calendar_dispose'));
+    }
     _scrollCtrl.dispose();
     _dayViewDataVersion.dispose();
     super.dispose();
@@ -7672,6 +8066,7 @@ class _CalendarPageState extends State<CalendarPage>
 
   @override
   void didPushNext() {
+    unawaited(_flushPendingCalendarRestorationSave(reason: 'did_push_next'));
     if (!_canShowCalendarToggleCoachmarkOnReturn) return;
     _calendarToggleCoachmarkArmedForReturn = true;
   }
@@ -7689,7 +8084,9 @@ class _CalendarPageState extends State<CalendarPage>
       case AppLifecycleState.detached:
         _lastBackgroundedAt = DateTime.now();
         unawaited(
-          _saveCalendarRestorationNow(reason: 'lifecycle:${state.name}'),
+          _flushPendingCalendarRestorationSave(
+            reason: 'lifecycle:${state.name}',
+          ),
         );
         final dayViewState = _activeDayViewRestorationState;
         if (dayViewState != null) {
@@ -13952,18 +14349,26 @@ class _CalendarPageState extends State<CalendarPage>
     int kMonth,
     int kDay, {
     EventItem? focusEvent,
+    int? initialFirstVisibleMinute,
     double? initialScrollOffset,
     bool? initialShowGregorian,
   }) {
+    _restorationInteractedSinceBoot = true;
     final shouldShowDayCardRevealCoachmark =
         _shouldShowDayCardRevealCoachmarkFromOnboarding;
     final resolvedShowGregorian = initialShowGregorian ?? _showGregorian;
+    final resolvedInitialFirstVisibleMinute =
+        initialFirstVisibleMinute ??
+        (initialScrollOffset == null
+            ? null
+            : initialScrollOffset.floor().clamp(0, 24 * 60 - 1).toInt());
     final initialDayViewState = DayViewRestorationState(
       isOpen: true,
       kYear: kYear,
       kMonth: kMonth,
       kDay: kDay,
       showGregorian: resolvedShowGregorian,
+      firstVisibleMinute: resolvedInitialFirstVisibleMinute,
       scrollOffset: initialScrollOffset,
     );
     _activeDayViewRestorationState = initialDayViewState;
@@ -14065,6 +14470,7 @@ class _CalendarPageState extends State<CalendarPage>
           flowIndexBuilder: _buildActiveFlowIndex,
           dataVersion: _dayViewDataVersion,
           getMonthName: getMonthName,
+          initialFirstVisibleMinute: resolvedInitialFirstVisibleMinute,
           initialScrollOffset: initialScrollOffset,
           focusStartMin: focusEvent?.startMin,
           focusFlowId: focusEvent?.flowId,
@@ -14141,6 +14547,7 @@ class _CalendarPageState extends State<CalendarPage>
                 required int kMonth,
                 required int kDay,
                 required bool showGregorian,
+                int? firstVisibleMinute,
                 double? scrollOffset,
               }) {
                 final state = DayViewRestorationState(
@@ -14149,6 +14556,7 @@ class _CalendarPageState extends State<CalendarPage>
                   kMonth: kMonth,
                   kDay: kDay,
                   showGregorian: showGregorian,
+                  firstVisibleMinute: firstVisibleMinute,
                   scrollOffset: scrollOffset,
                 );
                 _activeDayViewRestorationState = state;
@@ -19348,11 +19756,12 @@ class _CalendarPageState extends State<CalendarPage>
     // ========================================
     // DEBUG: Log orientation changes
     // ========================================
-    if (_lastOrientation != null && _lastOrientation != orientation) {
+    final previousOrientation = _lastOrientation;
+    if (previousOrientation != null && previousOrientation != orientation) {
       if (kDebugMode) {
         print('\n' + '🔄' * 30);
         print('ORIENTATION CHANGED!');
-        print('From: $_lastOrientation → To: $orientation');
+        print('From: $previousOrientation → To: $orientation');
         print('Navigator canPop: ${Navigator.canPop(context)}');
         print(
           'Modal route active: ${ModalRoute.of(context)?.isCurrent ?? false}',
@@ -19360,20 +19769,17 @@ class _CalendarPageState extends State<CalendarPage>
         print('🔄' * 30 + '\n');
       }
 
-      // ✅ FIX 1: Scroll to saved month when switching to portrait
-      // _centerMonth() already uses addPostFrameCallback internally, so direct call is safe
-      if (orientation == Orientation.portrait &&
-          _lastViewKy != null &&
-          _lastViewKm != null) {
+      if (previousOrientation == Orientation.portrait &&
+          orientation == Orientation.landscape) {
+        _commitVisiblePortraitMonthForRotation();
+      }
+
+      if (orientation == Orientation.portrait) {
         if (kDebugMode) {
           print(
-            '📜 [CALENDAR] Scrolling to saved month: $_lastViewKy-$_lastViewKm',
+            '📜 [CALENDAR] Preserving month for portrait: $_lastViewKy-$_lastViewKm',
           );
         }
-        _centerMonth(_lastViewKy!, _lastViewKm!);
-      }
-      if (!_rememberLastView && orientation == Orientation.portrait) {
-        // When switching into portrait without persistence, hide until we recentre on today.
         _portraitRecenterPending = true;
       }
     }
@@ -19451,6 +19857,7 @@ class _CalendarPageState extends State<CalendarPage>
             _openDaySheet(ky, km, kd, allowDateChange: true);
           },
           onMonthChanged: _handleLandscapeMonthChanged, // ✅ ADD CALLBACK
+          onVisibleMonthCommitted: _commitLandscapeVisibleMonthForRotation,
           onTodayActionChanged: (action) {
             _landscapeTodayAction = action;
           },

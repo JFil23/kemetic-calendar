@@ -600,6 +600,7 @@ class LandscapeMonthView extends StatelessWidget {
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
+  final void Function(int ky, int km)? onVisibleMonthCommitted;
   final ValueChanged<VoidCallback?>? onTodayActionChanged;
   final void Function(int flowId)? onEndFlow;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
@@ -635,6 +636,7 @@ class LandscapeMonthView extends StatelessWidget {
     this.onManageFlows,
     this.onAddNote,
     this.onMonthChanged, // ✅ NEW CALLBACK
+    this.onVisibleMonthCommitted,
     this.onTodayActionChanged,
     this.onEndFlow,
     this.onDeleteNote,
@@ -663,6 +665,7 @@ class LandscapeMonthView extends StatelessWidget {
       onManageFlows: onManageFlows,
       onAddNote: onAddNote,
       onMonthChanged: onMonthChanged, // ✅ PASS CALLBACK DOWN
+      onVisibleMonthCommitted: onVisibleMonthCommitted,
       onTodayActionChanged: onTodayActionChanged,
       onEndFlow: onEndFlow,
       onDeleteNote: onDeleteNote,
@@ -696,6 +699,7 @@ class LandscapeMonthPager extends StatefulWidget {
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
+  final void Function(int ky, int km)? onVisibleMonthCommitted;
   final ValueChanged<VoidCallback?>? onTodayActionChanged;
   final void Function(int flowId)? onEndFlow;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
@@ -731,6 +735,7 @@ class LandscapeMonthPager extends StatefulWidget {
     this.onManageFlows,
     this.onAddNote,
     this.onMonthChanged, // ✅ NEW CALLBACK
+    this.onVisibleMonthCommitted,
     this.onTodayActionChanged,
     this.onEndFlow,
     this.onDeleteNote,
@@ -808,6 +813,16 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
     return _fromTotalMonths(total);
   }
 
+  ({int kYear, int kMonth}) _currentVisibleMonth() {
+    if (_pageController.hasClients) {
+      final roundedPage = _pageController.page?.round();
+      if (roundedPage != null) {
+        return _monthForPage(roundedPage);
+      }
+    }
+    return _actualMonth ?? _monthForPage(_currentPage);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -821,6 +836,11 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
 
   @override
   void dispose() {
+    final visibleMonth = _currentVisibleMonth();
+    widget.onVisibleMonthCommitted?.call(
+      visibleMonth.kYear,
+      visibleMonth.kMonth,
+    );
     widget.onTodayActionChanged?.call(null);
     _pageController.dispose();
     super.dispose();

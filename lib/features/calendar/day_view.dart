@@ -30,6 +30,8 @@ const double _kTimelineLabelWidth = 60.0;
 const double _kTimelineRightPadding = 16.0;
 const double _kEventColumnGap = 4.0;
 const double _kSingleEventWidthFactor = 0.8;
+const double _kDayViewHourHeight = 60.0;
+const double _kDayViewPixelsPerMinute = _kDayViewHourHeight / 60.0;
 const Color _dayGold = KemeticGold.base;
 const String _kNewEventPreviewClientEventId = '__day_view_new_event_preview__';
 typedef DayViewRestorationCallback =
@@ -38,6 +40,7 @@ typedef DayViewRestorationCallback =
       required int kMonth,
       required int kDay,
       required bool showGregorian,
+      int? firstVisibleMinute,
       double? scrollOffset,
     });
 
@@ -1138,6 +1141,7 @@ class DayViewPage extends StatefulWidget {
   final Map<int, FlowData> Function()? flowIndexBuilder;
   final ValueListenable<int>? dataVersion;
   final String Function(int km) getMonthName;
+  final int? initialFirstVisibleMinute;
   final double? initialScrollOffset; // optional: jump to a target time on open
   final int? focusStartMin; // minutes since midnight to auto-scroll/highlight
   final int? focusFlowId; // highlight a flow's events
@@ -1215,6 +1219,7 @@ class DayViewPage extends StatefulWidget {
     this.flowIndexBuilder,
     this.dataVersion,
     required this.getMonthName,
+    this.initialFirstVisibleMinute,
     this.initialScrollOffset,
     this.focusStartMin,
     this.focusFlowId,
@@ -1258,6 +1263,14 @@ class _DayViewPageState extends State<DayViewPage> {
   static const int _centerPage = 5000;
   int _gridInstance = 0; // Forces grid rebuilds when jumping
   double? _savedScrollOffset; // Added for scroll persistence
+
+  int? _firstVisibleMinuteForOffset(double? offset) {
+    if (offset == null || !offset.isFinite) {
+      return null;
+    }
+    final minute = (offset / _kDayViewPixelsPerMinute).floor();
+    return minute.clamp(0, 24 * 60 - 1).toInt();
+  }
 
   // ✅ Today button guard to prevent duplicate state updates
   bool _isJumpingToToday = false;
@@ -1462,6 +1475,7 @@ class _DayViewPageState extends State<DayViewPage> {
         kMonth: _currentKm,
         kDay: _currentKd,
         showGregorian: _showGregorian,
+        firstVisibleMinute: _firstVisibleMinuteForOffset(_savedScrollOffset),
         scrollOffset: _savedScrollOffset,
       );
     }
@@ -1869,6 +1883,8 @@ class _DayViewPageState extends State<DayViewPage> {
                           showGregorian: _showGregorian,
                           flowIndex: flowIndex,
                           initialScrollOffset: _savedScrollOffset, // 🔧 NEW
+                          initialFirstVisibleMinute:
+                              widget.initialFirstVisibleMinute,
                           focusStartMin: widget.focusStartMin,
                           focusFlowId: widget.focusFlowId,
                           focusTitle: widget.focusTitle,
@@ -1952,6 +1968,7 @@ class DayViewGrid extends StatefulWidget {
   final ValueListenable<int>? dataVersion;
   final bool showGregorian;
   final Map<int, FlowData> flowIndex;
+  final int? initialFirstVisibleMinute;
   final double? initialScrollOffset; // 🔧 NEW
   final int? focusStartMin; // minutes since midnight
   final int? focusFlowId;
@@ -2029,6 +2046,7 @@ class DayViewGrid extends StatefulWidget {
     this.dataVersion,
     required this.showGregorian,
     required this.flowIndex,
+    this.initialFirstVisibleMinute,
     this.initialScrollOffset, // 🔧 NEW
     this.focusStartMin,
     this.focusFlowId,
@@ -2392,8 +2410,7 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     // 1) Focused event wins
     if (_focusStartMin != null) {
-      const hourHeight = 60.0;
-      final targetOffset = (_focusStartMin! / 60) * hourHeight - 120;
+      final targetOffset = (_focusStartMin! * _kDayViewPixelsPerMinute) - 120;
       _scrollController.animateTo(
         targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
         duration: const Duration(milliseconds: 400),
@@ -2404,18 +2421,32 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     // 2) Saved scroll offset next
-    if (widget.initialScrollOffset != null) {
-      _scrollController.jumpTo(widget.initialScrollOffset!);
+    if (widget.initialFirstVisibleMinute != null) {
+      final targetOffset =
+          (widget.initialFirstVisibleMinute! * _kDayViewPixelsPerMinute)
+              .clamp(0.0, _scrollController.position.maxScrollExtent)
+              .toDouble();
+      _scrollController.jumpTo(targetOffset);
       _hasScrolledToInitial = true;
       return;
     }
 
-    // 3) Fallback: scroll to current time
+    // 3) Saved scroll offset fallback
+    if (widget.initialScrollOffset != null) {
+      final clampedOffset = widget.initialScrollOffset!.clamp(
+        0.0,
+        _scrollController.position.maxScrollExtent,
+      );
+      _scrollController.jumpTo(clampedOffset.toDouble());
+      _hasScrolledToInitial = true;
+      return;
+    }
+
+    // 4) Fallback: scroll to current time
     final now = DateTime.now().toLocal();
     final minutesSinceMidnight = now.hour * 60 + now.minute;
-    const hourHeight = 60.0;
     final targetOffset =
-        (minutesSinceMidnight / 60) * hourHeight -
+        (minutesSinceMidnight * _kDayViewPixelsPerMinute) -
         200; // 200px above current time
 
     _scrollController.animateTo(

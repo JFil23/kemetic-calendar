@@ -7,6 +7,49 @@ import 'package:mobile/shared/glossy_text.dart';
 
 void main() {
   group('DayViewGrid overlapping event gestures', () {
+    testWidgets(
+      'saved initial scroll offset is clamped to the current extent',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        await tester.pumpWidget(
+          const _DayViewHarness(notes: [], initialScrollOffset: 999999),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('first visible minute restores before raw pixel offset', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: DayViewGrid(
+              ky: 1,
+              km: 1,
+              kd: 1,
+              notes: [],
+              showGregorian: false,
+              flowIndex: {},
+              initialFirstVisibleMinute: 8 * 60,
+              initialScrollOffset: 120,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final scrollable = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      );
+      expect(scrollable.position.pixels, closeTo(8 * 60, 0.001));
+    });
+
     test('staggered overlapping events are assigned separate lanes', () {
       final blocks = EventLayoutEngine.layoutEventItems(
         events: const [
@@ -463,9 +506,13 @@ double _detailSheetPageHeight(WidgetTester tester) {
 }
 
 class _DayViewHarness extends StatelessWidget {
-  const _DayViewHarness({required this.notes});
+  const _DayViewHarness({
+    required this.notes,
+    this.initialScrollOffset = 9 * 60,
+  });
 
   final List<NoteData> notes;
+  final double initialScrollOffset;
 
   @override
   Widget build(BuildContext context) {
@@ -493,7 +540,7 @@ class _DayViewHarness extends StatelessWidget {
               active: true,
             ),
           },
-          initialScrollOffset: 9 * 60,
+          initialScrollOffset: initialScrollOffset,
         ),
       ),
     );

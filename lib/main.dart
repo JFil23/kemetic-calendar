@@ -1314,6 +1314,7 @@ class _AuthGateState extends State<AuthGate> {
 
     if (ev == AuthChangeEvent.signedOut) {
       _sessionResumeChecked = false;
+      await AppRestorationService.instance.clearBootFallbackIdentity();
       _calendarSync?.stop();
       fireAndForgetGuarded(
         'push unregister',

@@ -1,10 +1,66 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app_window_service.dart';
+import 'app_window_platform_stub.dart'
+    if (dart.library.html) 'app_window_platform_web.dart'
+    as app_window_platform;
+
+const Set<String> _validExpansionValues = <String>{
+  'compact',
+  'stacked',
+  'details',
+};
+
+const Set<String> _validCalendarAnchorTargets = <String>{
+  'dayChip',
+  'monthHeader',
+  'monthBody',
+};
+
+Map<String, dynamic>? _asJsonMap(Object? raw) {
+  if (raw is! Map) {
+    return null;
+  }
+  return raw.map<String, dynamic>(
+    (dynamic key, dynamic value) => MapEntry(key.toString(), value),
+  );
+}
+
+int? _asInt(Object? raw) => (raw as num?)?.toInt();
+
+bool _isLeapKemeticYear(int kYear) => ((kYear - 1) % 4 + 4) % 4 == 2;
+
+bool _isValidKemeticMonth(int kMonth) => kMonth >= 1 && kMonth <= 13;
+
+int _maxDayForKemeticMonth(int kYear, int kMonth) {
+  if (kMonth == 13) {
+    return _isLeapKemeticYear(kYear) ? 6 : 5;
+  }
+  return 30;
+}
+
+bool _isValidKemeticDay(int kYear, int kMonth, int kDay) {
+  if (!_isValidKemeticMonth(kMonth)) {
+    return false;
+  }
+  return kDay >= 1 && kDay <= _maxDayForKemeticMonth(kYear, kMonth);
+}
+
+double? _readOptionalScrollOffset(Map<String, dynamic> raw) {
+  if (!raw.containsKey('scrollOffset') || raw['scrollOffset'] == null) {
+    return null;
+  }
+  final scrollOffset = (raw['scrollOffset'] as num?)?.toDouble();
+  if (scrollOffset == null || !scrollOffset.isFinite || scrollOffset < 0) {
+    return null;
+  }
+  return scrollOffset;
+}
 
 class CalendarRestorationState {
   const CalendarRestorationState({
@@ -13,6 +69,10 @@ class CalendarRestorationState {
     required this.kDay,
     required this.showGregorian,
     required this.expansion,
+    this.anchorTarget,
+    this.anchorAlignment,
+    this.viewportHeight,
+    this.layoutRevision,
     this.scrollOffset,
   });
 
@@ -21,6 +81,10 @@ class CalendarRestorationState {
   final int kDay;
   final bool showGregorian;
   final String expansion;
+  final String? anchorTarget;
+  final double? anchorAlignment;
+  final double? viewportHeight;
+  final int? layoutRevision;
   final double? scrollOffset;
 
   CalendarRestorationState copyWith({
@@ -29,7 +93,15 @@ class CalendarRestorationState {
     int? kDay,
     bool? showGregorian,
     String? expansion,
+    String? anchorTarget,
+    double? anchorAlignment,
+    double? viewportHeight,
+    int? layoutRevision,
     double? scrollOffset,
+    bool clearAnchorTarget = false,
+    bool clearAnchorAlignment = false,
+    bool clearViewportHeight = false,
+    bool clearLayoutRevision = false,
     bool clearScrollOffset = false,
   }) {
     return CalendarRestorationState(
@@ -38,6 +110,18 @@ class CalendarRestorationState {
       kDay: kDay ?? this.kDay,
       showGregorian: showGregorian ?? this.showGregorian,
       expansion: expansion ?? this.expansion,
+      anchorTarget: clearAnchorTarget
+          ? null
+          : (anchorTarget ?? this.anchorTarget),
+      anchorAlignment: clearAnchorAlignment
+          ? null
+          : (anchorAlignment ?? this.anchorAlignment),
+      viewportHeight: clearViewportHeight
+          ? null
+          : (viewportHeight ?? this.viewportHeight),
+      layoutRevision: clearLayoutRevision
+          ? null
+          : (layoutRevision ?? this.layoutRevision),
       scrollOffset: clearScrollOffset
           ? null
           : (scrollOffset ?? this.scrollOffset),
@@ -51,20 +135,57 @@ class CalendarRestorationState {
       'kDay': kDay,
       'showGregorian': showGregorian,
       'expansion': expansion,
+      if (anchorTarget != null) 'anchorTarget': anchorTarget,
+      if (anchorAlignment != null) 'anchorAlignment': anchorAlignment,
+      if (viewportHeight != null) 'viewportHeight': viewportHeight,
+      if (layoutRevision != null) 'layoutRevision': layoutRevision,
       if (scrollOffset != null) 'scrollOffset': scrollOffset,
     };
   }
 
   static CalendarRestorationState? fromJson(Object? raw) {
-    if (raw is! Map<String, dynamic>) {
+    final json = _asJsonMap(raw);
+    if (json == null) {
       return null;
     }
-    final kYear = (raw['kYear'] as num?)?.toInt();
-    final kMonth = (raw['kMonth'] as num?)?.toInt();
-    final kDay = (raw['kDay'] as num?)?.toInt();
-    final showGregorian = raw['showGregorian'] == true;
-    final expansion = (raw['expansion'] as String?)?.trim();
-    if (kYear == null || kMonth == null || kDay == null || expansion == null) {
+    final kYear = _asInt(json['kYear']);
+    final kMonth = _asInt(json['kMonth']);
+    final kDay = _asInt(json['kDay']);
+    final showGregorian = json['showGregorian'] == true;
+    final expansion = (json['expansion'] as String?)?.trim();
+    final anchorTarget = (json['anchorTarget'] as String?)?.trim();
+    final anchorAlignment = (json['anchorAlignment'] as num?)?.toDouble();
+    final viewportHeight = (json['viewportHeight'] as num?)?.toDouble();
+    final layoutRevision = _asInt(json['layoutRevision']);
+    final scrollOffset = _readOptionalScrollOffset(json);
+    if (kYear == null ||
+        kMonth == null ||
+        kDay == null ||
+        expansion == null ||
+        !_validExpansionValues.contains(expansion) ||
+        !_isValidKemeticDay(kYear, kMonth, kDay) ||
+        (json.containsKey('anchorTarget') &&
+            json['anchorTarget'] != null &&
+            (anchorTarget == null ||
+                anchorTarget.isEmpty ||
+                !_validCalendarAnchorTargets.contains(anchorTarget))) ||
+        (json.containsKey('anchorAlignment') &&
+            json['anchorAlignment'] != null &&
+            (anchorAlignment == null ||
+                !anchorAlignment.isFinite ||
+                anchorAlignment < 0 ||
+                anchorAlignment > 1)) ||
+        (json.containsKey('viewportHeight') &&
+            json['viewportHeight'] != null &&
+            (viewportHeight == null ||
+                !viewportHeight.isFinite ||
+                viewportHeight <= 0)) ||
+        (json.containsKey('layoutRevision') &&
+            json['layoutRevision'] != null &&
+            (layoutRevision == null || layoutRevision < 1)) ||
+        (json.containsKey('scrollOffset') &&
+            json['scrollOffset'] != null &&
+            scrollOffset == null)) {
       return null;
     }
     return CalendarRestorationState(
@@ -73,7 +194,11 @@ class CalendarRestorationState {
       kDay: kDay,
       showGregorian: showGregorian,
       expansion: expansion,
-      scrollOffset: (raw['scrollOffset'] as num?)?.toDouble(),
+      anchorTarget: anchorTarget,
+      anchorAlignment: anchorAlignment,
+      viewportHeight: viewportHeight,
+      layoutRevision: layoutRevision,
+      scrollOffset: scrollOffset,
     );
   }
 }
@@ -85,6 +210,7 @@ class DayViewRestorationState {
     required this.kMonth,
     required this.kDay,
     required this.showGregorian,
+    this.firstVisibleMinute,
     this.scrollOffset,
   });
 
@@ -93,6 +219,7 @@ class DayViewRestorationState {
   final int kMonth;
   final int kDay;
   final bool showGregorian;
+  final int? firstVisibleMinute;
   final double? scrollOffset;
 
   DayViewRestorationState copyWith({
@@ -101,7 +228,9 @@ class DayViewRestorationState {
     int? kMonth,
     int? kDay,
     bool? showGregorian,
+    int? firstVisibleMinute,
     double? scrollOffset,
+    bool clearFirstVisibleMinute = false,
     bool clearScrollOffset = false,
   }) {
     return DayViewRestorationState(
@@ -110,6 +239,9 @@ class DayViewRestorationState {
       kMonth: kMonth ?? this.kMonth,
       kDay: kDay ?? this.kDay,
       showGregorian: showGregorian ?? this.showGregorian,
+      firstVisibleMinute: clearFirstVisibleMinute
+          ? null
+          : (firstVisibleMinute ?? this.firstVisibleMinute),
       scrollOffset: clearScrollOffset
           ? null
           : (scrollOffset ?? this.scrollOffset),
@@ -123,27 +255,43 @@ class DayViewRestorationState {
       'kMonth': kMonth,
       'kDay': kDay,
       'showGregorian': showGregorian,
+      if (firstVisibleMinute != null) 'firstVisibleMinute': firstVisibleMinute,
       if (scrollOffset != null) 'scrollOffset': scrollOffset,
     };
   }
 
   static DayViewRestorationState? fromJson(Object? raw) {
-    if (raw is! Map<String, dynamic>) {
+    final json = _asJsonMap(raw);
+    if (json == null) {
       return null;
     }
-    final kYear = (raw['kYear'] as num?)?.toInt();
-    final kMonth = (raw['kMonth'] as num?)?.toInt();
-    final kDay = (raw['kDay'] as num?)?.toInt();
-    if (kYear == null || kMonth == null || kDay == null) {
+    final kYear = _asInt(json['kYear']);
+    final kMonth = _asInt(json['kMonth']);
+    final kDay = _asInt(json['kDay']);
+    final firstVisibleMinute = _asInt(json['firstVisibleMinute']);
+    final scrollOffset = _readOptionalScrollOffset(json);
+    if (kYear == null ||
+        kMonth == null ||
+        kDay == null ||
+        !_isValidKemeticDay(kYear, kMonth, kDay) ||
+        (json.containsKey('firstVisibleMinute') &&
+            json['firstVisibleMinute'] != null &&
+            (firstVisibleMinute == null ||
+                firstVisibleMinute < 0 ||
+                firstVisibleMinute > 24 * 60 - 1)) ||
+        (json.containsKey('scrollOffset') &&
+            json['scrollOffset'] != null &&
+            scrollOffset == null)) {
       return null;
     }
     return DayViewRestorationState(
-      isOpen: raw['isOpen'] == true,
+      isOpen: json['isOpen'] == true,
       kYear: kYear,
       kMonth: kMonth,
       kDay: kDay,
-      showGregorian: raw['showGregorian'] == true,
-      scrollOffset: (raw['scrollOffset'] as num?)?.toDouble(),
+      showGregorian: json['showGregorian'] == true,
+      firstVisibleMinute: firstVisibleMinute,
+      scrollOffset: scrollOffset,
     );
   }
 }
@@ -170,7 +318,7 @@ class AppRestorationSnapshot {
   static AppRestorationSnapshot? fromJson(Map<String, dynamic> raw) {
     final userId = (raw['userId'] as String?)?.trim();
     final windowId = (raw['windowId'] as String?)?.trim();
-    final updatedAtMs = (raw['updatedAtMs'] as num?)?.toInt();
+    final updatedAtMs = _asInt(raw['updatedAtMs']);
     if (userId == null ||
         userId.isEmpty ||
         windowId == null ||
@@ -187,11 +335,45 @@ class AppRestorationSnapshot {
       routeLocation: (raw['routeLocation'] as String?)?.trim(),
       calendar: CalendarRestorationState.fromJson(raw['calendar']),
       dayView: DayViewRestorationState.fromJson(raw['dayView']),
-      daySheet: daySheetRaw is Map<String, dynamic>
-          ? Map<String, dynamic>.from(daySheetRaw)
-          : null,
+      daySheet: _asJsonMap(daySheetRaw),
     );
   }
+}
+
+enum AppRestorationReadStatus { restored, tentative, noSnapshot, awaitingAuth }
+
+class AppRestorationReadResult {
+  const AppRestorationReadResult({
+    required this.status,
+    required this.windowId,
+    required this.activeUserId,
+    this.snapshot,
+    this.source,
+    this.reason,
+  });
+
+  final AppRestorationReadStatus status;
+  final String windowId;
+  final String? activeUserId;
+  final AppRestorationSnapshot? snapshot;
+  final String? source;
+  final String? reason;
+
+  bool get hasSnapshot => snapshot != null;
+  bool get isTentative => status == AppRestorationReadStatus.tentative;
+  bool get isAwaitingAuth => status == AppRestorationReadStatus.awaitingAuth;
+}
+
+class _SnapshotCandidate {
+  const _SnapshotCandidate({
+    required this.snapshot,
+    required this.raw,
+    required this.source,
+  });
+
+  final AppRestorationSnapshot snapshot;
+  final Map<String, dynamic> raw;
+  final String source;
 }
 
 class AppRestorationService {
@@ -199,12 +381,29 @@ class AppRestorationService {
 
   static const int schemaVersion = 1;
   static const String _keyPrefix = 'app_restoration_v1';
+  static const String _latestUserKeyPrefix = 'app_restoration_latest_v2';
+  static const String _lastActiveUserKey = 'app_restoration_last_user_v2';
   static final AppRestorationService instance = AppRestorationService._();
 
   static String? Function()? debugUserIdResolver;
+  static String? Function(String windowId)? debugCriticalSnapshotReader;
+  static void Function(String windowId, String? serialized)?
+  debugCriticalSnapshotWriter;
+  static String? Function(String userId)? debugLatestCriticalSnapshotReader;
+  static void Function(String userId, String? serialized)?
+  debugLatestCriticalSnapshotWriter;
+  static String? Function()? debugPlatformLastActiveUserIdReader;
+  static void Function(String? userId)? debugPlatformLastActiveUserIdWriter;
 
   Future<void> initialize() async {
-    await AppWindowService.instance.ensureInitialized();
+    final windowId = await AppWindowService.instance.ensureInitialized();
+    app_window_platform.registerCriticalSnapshotWindow(windowId);
+  }
+
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint('[restoration] $message');
+    }
   }
 
   Future<String?> _currentUserId() async {
@@ -228,6 +427,71 @@ class AppRestorationService {
 
   String _prefsKey(String userId, String windowId) =>
       '$_keyPrefix:$userId:$windowId';
+
+  String _latestPrefsKey(String userId) => '$_latestUserKeyPrefix:$userId';
+
+  Future<void> _clearSnapshotFor(String userId, String windowId) async {
+    final prefs = await _prefs();
+    await prefs.remove(_prefsKey(userId, windowId));
+  }
+
+  Future<void> _clearLatestSnapshotForUser(String userId) async {
+    final prefs = await _prefs();
+    await prefs.remove(_latestPrefsKey(userId));
+  }
+
+  Future<String?> _readLastActiveUserId() async {
+    final prefs = await _prefs();
+    final raw = prefs.getString(_lastActiveUserKey)?.trim();
+    return raw == null || raw.isEmpty ? null : raw;
+  }
+
+  String? _readPlatformLastActiveUserId() {
+    final debugReader = debugPlatformLastActiveUserIdReader;
+    final raw = debugReader != null
+        ? debugReader()?.trim()
+        : app_window_platform.readPlatformLastActiveUserId()?.trim();
+    return raw == null || raw.isEmpty ? null : raw;
+  }
+
+  void _writePlatformLastActiveUserId(String? userId) {
+    final debugWriter = debugPlatformLastActiveUserIdWriter;
+    if (debugWriter != null) {
+      debugWriter(userId);
+      return;
+    }
+    app_window_platform.updatePlatformLastActiveUserId(userId);
+  }
+
+  Future<String?> _readBootFallbackUserId() async {
+    final fromPrefs = await _readLastActiveUserId();
+    if (fromPrefs != null) {
+      return fromPrefs;
+    }
+    return _readPlatformLastActiveUserId();
+  }
+
+  Future<void> clearBootFallbackIdentity() async {
+    final prefs = await _prefs();
+    await prefs.remove(_lastActiveUserKey);
+    _writePlatformLastActiveUserId(null);
+    final windowId = await _currentWindowId();
+    _writeCriticalSnapshot(windowId, null);
+    _log('cleared boot fallback identity window=$windowId');
+  }
+
+  Map<String, dynamic>? _migrateRawSnapshot(Map<String, dynamic> raw) {
+    final version = _asInt(raw['schemaVersion']);
+    if (version == null) {
+      return null;
+    }
+    switch (version) {
+      case schemaVersion:
+        return Map<String, dynamic>.from(raw);
+      default:
+        return null;
+    }
+  }
 
   Future<Map<String, dynamic>?> _loadRawFor(
     String userId,
@@ -258,17 +522,475 @@ class AppRestorationService {
     }
   }
 
+  Future<Map<String, dynamic>?> _loadLatestRawForUser(
+    String userId, {
+    required bool clearIfInvalid,
+  }) async {
+    final prefs = await _prefs();
+    final key = _latestPrefsKey(userId);
+    final rawString = prefs.getString(key);
+    if (rawString == null || rawString.trim().isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(rawString);
+      if (decoded is! Map<String, dynamic>) {
+        if (clearIfInvalid) {
+          await prefs.remove(key);
+        }
+        return null;
+      }
+      return Map<String, dynamic>.from(decoded);
+    } catch (_) {
+      if (clearIfInvalid) {
+        await prefs.remove(key);
+      }
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _loadCriticalRawFor(
+    String windowId, {
+    required bool clearIfInvalid,
+  }) async {
+    final debugReader = debugCriticalSnapshotReader;
+    final rawString = debugReader != null
+        ? debugReader(windowId)
+        : app_window_platform.readCriticalSnapshot(windowId);
+    if (rawString == null || rawString.trim().isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(rawString);
+      if (decoded is! Map<String, dynamic>) {
+        if (clearIfInvalid) {
+          _writeCriticalSnapshot(windowId, null);
+        }
+        return null;
+      }
+      return Map<String, dynamic>.from(decoded);
+    } catch (_) {
+      if (clearIfInvalid) {
+        _writeCriticalSnapshot(windowId, null);
+      }
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _loadLatestCriticalRawForUser(
+    String userId, {
+    required bool clearIfInvalid,
+  }) async {
+    final debugReader = debugLatestCriticalSnapshotReader;
+    final rawString = debugReader != null
+        ? debugReader(userId)
+        : app_window_platform.readLatestCriticalSnapshot(userId);
+    if (rawString == null || rawString.trim().isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(rawString);
+      if (decoded is! Map<String, dynamic>) {
+        if (clearIfInvalid) {
+          _writeLatestCriticalSnapshot(userId, null);
+        }
+        return null;
+      }
+      return Map<String, dynamic>.from(decoded);
+    } catch (_) {
+      if (clearIfInvalid) {
+        _writeLatestCriticalSnapshot(userId, null);
+      }
+      return null;
+    }
+  }
+
+  Future<_SnapshotCandidate?> _loadPrefsCandidate(
+    String userId,
+    String windowId, {
+    required bool clearIfInvalid,
+  }) async {
+    final raw = await _loadRawFor(
+      userId,
+      windowId,
+      clearIfInvalid: clearIfInvalid,
+    );
+    if (raw == null) {
+      return null;
+    }
+    final migrated = _migrateRawSnapshot(raw);
+    if (migrated == null) {
+      if (clearIfInvalid) {
+        await _clearSnapshotFor(userId, windowId);
+      }
+      return null;
+    }
+    final snapshot = AppRestorationSnapshot.fromJson(migrated);
+    if (snapshot == null ||
+        snapshot.userId != userId ||
+        snapshot.windowId != windowId) {
+      if (clearIfInvalid) {
+        await _clearSnapshotFor(userId, windowId);
+      }
+      return null;
+    }
+    return _SnapshotCandidate(
+      snapshot: snapshot,
+      raw: migrated,
+      source: 'prefs',
+    );
+  }
+
+  Future<_SnapshotCandidate?> _loadCriticalCandidate(
+    String windowId, {
+    String? expectedUserId,
+    required bool clearIfInvalid,
+  }) async {
+    final raw = await _loadCriticalRawFor(
+      windowId,
+      clearIfInvalid: clearIfInvalid,
+    );
+    if (raw == null) {
+      return null;
+    }
+    final migrated = _migrateRawSnapshot(raw);
+    if (migrated == null) {
+      if (clearIfInvalid) {
+        _writeCriticalSnapshot(windowId, null);
+      }
+      return null;
+    }
+    final snapshot = AppRestorationSnapshot.fromJson(migrated);
+    final userMismatch =
+        expectedUserId != null &&
+        snapshot != null &&
+        snapshot.userId != expectedUserId;
+    if (snapshot == null || snapshot.windowId != windowId || userMismatch) {
+      if (clearIfInvalid) {
+        _writeCriticalSnapshot(windowId, null);
+      }
+      return null;
+    }
+    return _SnapshotCandidate(
+      snapshot: snapshot,
+      raw: migrated,
+      source: 'critical',
+    );
+  }
+
+  Future<_SnapshotCandidate?> _loadLatestPrefsCandidate(
+    String userId, {
+    required bool clearIfInvalid,
+  }) async {
+    final raw = await _loadLatestRawForUser(
+      userId,
+      clearIfInvalid: clearIfInvalid,
+    );
+    if (raw == null) {
+      return null;
+    }
+    final migrated = _migrateRawSnapshot(raw);
+    if (migrated == null) {
+      if (clearIfInvalid) {
+        await _clearLatestSnapshotForUser(userId);
+      }
+      return null;
+    }
+    final snapshot = AppRestorationSnapshot.fromJson(migrated);
+    if (snapshot == null || snapshot.userId != userId) {
+      if (clearIfInvalid) {
+        await _clearLatestSnapshotForUser(userId);
+      }
+      return null;
+    }
+    return _SnapshotCandidate(
+      snapshot: snapshot,
+      raw: migrated,
+      source: 'latest_prefs',
+    );
+  }
+
+  Future<_SnapshotCandidate?> _loadLatestCriticalCandidate(
+    String userId, {
+    required bool clearIfInvalid,
+  }) async {
+    final raw = await _loadLatestCriticalRawForUser(
+      userId,
+      clearIfInvalid: clearIfInvalid,
+    );
+    if (raw == null) {
+      return null;
+    }
+    final migrated = _migrateRawSnapshot(raw);
+    if (migrated == null) {
+      if (clearIfInvalid) {
+        _writeLatestCriticalSnapshot(userId, null);
+      }
+      return null;
+    }
+    final snapshot = AppRestorationSnapshot.fromJson(migrated);
+    if (snapshot == null || snapshot.userId != userId) {
+      if (clearIfInvalid) {
+        _writeLatestCriticalSnapshot(userId, null);
+      }
+      return null;
+    }
+    return _SnapshotCandidate(
+      snapshot: snapshot,
+      raw: migrated,
+      source: 'latest_critical',
+    );
+  }
+
+  Future<_SnapshotCandidate?> _scanPrefsCandidatesForUser(
+    String userId, {
+    required bool clearIfInvalid,
+  }) async {
+    final prefs = await _prefs();
+    final prefix = '$_keyPrefix:$userId:';
+    final candidates = <_SnapshotCandidate>[];
+    for (final key in prefs.getKeys()) {
+      if (!key.startsWith(prefix)) {
+        continue;
+      }
+      final windowId = key.substring(prefix.length).trim();
+      if (windowId.isEmpty) {
+        if (clearIfInvalid) {
+          await prefs.remove(key);
+        }
+        continue;
+      }
+      final candidate = await _loadPrefsCandidate(
+        userId,
+        windowId,
+        clearIfInvalid: clearIfInvalid,
+      );
+      if (candidate != null) {
+        candidates.add(candidate);
+      }
+    }
+    return _pickNewestCandidate(candidates);
+  }
+
+  _SnapshotCandidate? _pickNewestCandidate(
+    Iterable<_SnapshotCandidate> candidates,
+  ) {
+    _SnapshotCandidate? winner;
+    for (final candidate in candidates) {
+      final currentWinner = winner;
+      if (currentWinner == null ||
+          candidate.snapshot.updatedAtMs >=
+              currentWinner.snapshot.updatedAtMs) {
+        winner = candidate;
+      }
+    }
+    return winner;
+  }
+
+  Future<_SnapshotCandidate?> _readSnapshotCandidateForUser(
+    String userId,
+    String windowId, {
+    required bool clearIfInvalid,
+  }) async {
+    final prefsCandidate = await _loadPrefsCandidate(
+      userId,
+      windowId,
+      clearIfInvalid: clearIfInvalid,
+    );
+    final criticalCandidate = await _loadCriticalCandidate(
+      windowId,
+      expectedUserId: userId,
+      clearIfInvalid: clearIfInvalid,
+    );
+    return _pickNewestCandidate(<_SnapshotCandidate>[
+      if (prefsCandidate != null) prefsCandidate,
+      if (criticalCandidate != null) criticalCandidate,
+    ]);
+  }
+
+  Future<_SnapshotCandidate?> _readLatestSnapshotCandidateForUser(
+    String userId, {
+    required bool clearIfInvalid,
+  }) async {
+    final latestPrefsCandidate = await _loadLatestPrefsCandidate(
+      userId,
+      clearIfInvalid: clearIfInvalid,
+    );
+    final latestCriticalCandidate = await _loadLatestCriticalCandidate(
+      userId,
+      clearIfInvalid: clearIfInvalid,
+    );
+    final scannedPrefsCandidate = await _scanPrefsCandidatesForUser(
+      userId,
+      clearIfInvalid: clearIfInvalid,
+    );
+    return _pickNewestCandidate(<_SnapshotCandidate>[
+      if (latestPrefsCandidate != null) latestPrefsCandidate,
+      if (latestCriticalCandidate != null) latestCriticalCandidate,
+      if (scannedPrefsCandidate != null) scannedPrefsCandidate,
+    ]);
+  }
+
+  Future<_SnapshotCandidate?> _readStableSnapshotCandidateForUser(
+    String userId,
+    String windowId, {
+    required bool clearIfInvalid,
+  }) async {
+    final currentWindowCandidate = await _readSnapshotCandidateForUser(
+      userId,
+      windowId,
+      clearIfInvalid: clearIfInvalid,
+    );
+    final latestUserCandidate = await _readLatestSnapshotCandidateForUser(
+      userId,
+      clearIfInvalid: clearIfInvalid,
+    );
+    return currentWindowCandidate ?? latestUserCandidate;
+  }
+
+  void _writeCriticalSnapshot(String windowId, String? serialized) {
+    final debugWriter = debugCriticalSnapshotWriter;
+    if (debugWriter != null) {
+      debugWriter(windowId, serialized);
+      return;
+    }
+    if (serialized == null || serialized.trim().isEmpty) {
+      app_window_platform.clearCriticalSnapshot(windowId);
+      return;
+    }
+    app_window_platform.updateCriticalSnapshot(windowId, serialized);
+  }
+
+  void _writeLatestCriticalSnapshot(String userId, String? serialized) {
+    final debugWriter = debugLatestCriticalSnapshotWriter;
+    if (debugWriter != null) {
+      debugWriter(userId, serialized);
+      return;
+    }
+    if (serialized == null || serialized.trim().isEmpty) {
+      app_window_platform.clearLatestCriticalSnapshot(userId);
+      return;
+    }
+    app_window_platform.updateLatestCriticalSnapshot(userId, serialized);
+  }
+
+  Future<AppRestorationSnapshot?> readSnapshotForUser(
+    String userId, {
+    String? windowId,
+  }) async {
+    final normalizedUserId = userId.trim();
+    if (normalizedUserId.isEmpty) {
+      return null;
+    }
+    final resolvedWindowId = windowId ?? await _currentWindowId();
+    final candidate = await _readStableSnapshotCandidateForUser(
+      normalizedUserId,
+      resolvedWindowId,
+      clearIfInvalid: true,
+    );
+    return candidate?.snapshot;
+  }
+
+  Future<AppRestorationReadResult> readBestSnapshot() async {
+    final windowId = await _currentWindowId();
+    app_window_platform.registerCriticalSnapshotWindow(windowId);
+    final activeUserId = await _currentUserId();
+    if (activeUserId != null) {
+      final candidate = await _readStableSnapshotCandidateForUser(
+        activeUserId,
+        windowId,
+        clearIfInvalid: true,
+      );
+      if (candidate != null) {
+        _log(
+          'read status=restored source=${candidate.source} '
+          'user=$activeUserId window=$windowId',
+        );
+        return AppRestorationReadResult(
+          status: AppRestorationReadStatus.restored,
+          windowId: windowId,
+          activeUserId: activeUserId,
+          snapshot: candidate.snapshot,
+          source: candidate.source,
+          reason: 'matched_current_user',
+        );
+      }
+      _log(
+        'read status=no_snapshot user=$activeUserId window=$windowId '
+        'reason=no_snapshot_for_current_user',
+      );
+      return AppRestorationReadResult(
+        status: AppRestorationReadStatus.noSnapshot,
+        windowId: windowId,
+        activeUserId: activeUserId,
+        source: 'none',
+        reason: 'no_snapshot_for_current_user',
+      );
+    }
+
+    final lastActiveUserId = await _readBootFallbackUserId();
+    final tentativeCandidate = lastActiveUserId == null
+        ? await _loadCriticalCandidate(windowId, clearIfInvalid: true)
+        : await _pickNewestTentativeCandidate(lastActiveUserId, windowId);
+    if (tentativeCandidate != null) {
+      _log(
+        'read status=tentative source=${tentativeCandidate.source} '
+        'snapshot_user=${tentativeCandidate.snapshot.userId} window=$windowId '
+        'reason=auth_not_ready',
+      );
+      return AppRestorationReadResult(
+        status: AppRestorationReadStatus.tentative,
+        windowId: windowId,
+        activeUserId: null,
+        snapshot: tentativeCandidate.snapshot,
+        source: tentativeCandidate.source,
+        reason: 'auth_not_ready',
+      );
+    }
+
+    _log(
+      'read status=awaiting_auth window=$windowId '
+      'reason=no_authenticated_user',
+    );
+    return AppRestorationReadResult(
+      status: AppRestorationReadStatus.awaitingAuth,
+      windowId: windowId,
+      activeUserId: null,
+      source: 'none',
+      reason: 'no_authenticated_user',
+    );
+  }
+
+  Future<_SnapshotCandidate?> _pickNewestTentativeCandidate(
+    String lastActiveUserId,
+    String windowId,
+  ) async {
+    final userScopedCandidate = await _readStableSnapshotCandidateForUser(
+      lastActiveUserId,
+      windowId,
+      clearIfInvalid: true,
+    );
+    final currentWindowCriticalCandidate = await _loadCriticalCandidate(
+      windowId,
+      expectedUserId: lastActiveUserId,
+      clearIfInvalid: true,
+    );
+    return _pickNewestCandidate(<_SnapshotCandidate>[
+      if (userScopedCandidate != null) userScopedCandidate,
+      if (currentWindowCriticalCandidate != null)
+        currentWindowCriticalCandidate,
+    ]);
+  }
+
   Future<AppRestorationSnapshot?> readSnapshot() async {
     final userId = await _currentUserId();
     if (userId == null) {
       return null;
     }
-    final windowId = await _currentWindowId();
-    final raw = await _loadRawFor(userId, windowId, clearIfInvalid: true);
-    if (raw == null) {
-      return null;
-    }
-    return AppRestorationSnapshot.fromJson(raw);
+    return readSnapshotForUser(userId);
   }
 
   Future<void> _mutate(
@@ -279,16 +1001,32 @@ class AppRestorationService {
       return;
     }
     final windowId = await _currentWindowId();
-    final current =
+    app_window_platform.registerCriticalSnapshotWindow(windowId);
+    final snapshotCandidate = await _readStableSnapshotCandidateForUser(
+      userId,
+      windowId,
+      clearIfInvalid: false,
+    );
+    final baseline =
+        snapshotCandidate?.raw ??
         await _loadRawFor(userId, windowId, clearIfInvalid: false) ??
         <String, dynamic>{};
+    final current = Map<String, dynamic>.from(baseline);
     update(current);
     current['schemaVersion'] = schemaVersion;
     current['userId'] = userId;
     current['windowId'] = windowId;
     current['updatedAtMs'] = DateTime.now().millisecondsSinceEpoch;
+    final encoded = jsonEncode(current);
+    _writeCriticalSnapshot(windowId, encoded);
+    _writeLatestCriticalSnapshot(userId, encoded);
+    _writePlatformLastActiveUserId(userId);
     final prefs = await _prefs();
-    await prefs.setString(_prefsKey(userId, windowId), jsonEncode(current));
+    await Future.wait<bool>(<Future<bool>>[
+      prefs.setString(_prefsKey(userId, windowId), encoded),
+      prefs.setString(_latestPrefsKey(userId), encoded),
+      prefs.setString(_lastActiveUserKey, userId),
+    ]);
   }
 
   Future<void> clearCurrentSnapshot() async {
@@ -299,6 +1037,7 @@ class AppRestorationService {
     final windowId = await _currentWindowId();
     final prefs = await _prefs();
     await prefs.remove(_prefsKey(userId, windowId));
+    _writeCriticalSnapshot(windowId, null);
   }
 
   Future<String?> readRouteLocation() async {
@@ -325,8 +1064,12 @@ class AppRestorationService {
   }
 
   Future<void> saveCalendarState(CalendarRestorationState state) async {
+    final validated = CalendarRestorationState.fromJson(state.toJson());
+    if (validated == null) {
+      return;
+    }
     await _mutate((current) {
-      current['calendar'] = state.toJson();
+      current['calendar'] = validated.toJson();
     });
   }
 
@@ -340,7 +1083,11 @@ class AppRestorationService {
         current.remove('dayView');
         return;
       }
-      current['dayView'] = state.toJson();
+      final validated = DayViewRestorationState.fromJson(state.toJson());
+      if (validated == null) {
+        return;
+      }
+      current['dayView'] = validated.toJson();
     });
   }
 
