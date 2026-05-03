@@ -9,18 +9,69 @@ class RhythmStateButtonGroup extends StatelessWidget {
     super.key,
     required this.current,
     this.onChanged,
+    this.onDelete,
   });
 
   final RhythmItemState current;
   final ValueChanged<RhythmItemState>? onChanged;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final options = [
-      (RhythmItemState.done, Icons.check_circle_rounded),
-      (RhythmItemState.partial, Icons.adjust_rounded),
-      (RhythmItemState.skipped, Icons.remove_circle_outline_rounded),
-    ];
+    final options =
+        <
+          ({
+            RhythmItemState state,
+            IconData icon,
+            bool isActive,
+            VoidCallback? onTap,
+          })
+        >[
+          (
+            state: RhythmItemState.done,
+            icon: Icons.check_circle_rounded,
+            isActive: current == RhythmItemState.done,
+            onTap: onChanged != null
+                ? () => onChanged!(
+                    current == RhythmItemState.done
+                        ? RhythmItemState.pending
+                        : RhythmItemState.done,
+                  )
+                : null,
+          ),
+          (
+            state: RhythmItemState.partial,
+            icon: Icons.adjust_rounded,
+            isActive: current == RhythmItemState.partial,
+            onTap: onChanged != null
+                ? () => onChanged!(
+                    current == RhythmItemState.partial
+                        ? RhythmItemState.pending
+                        : RhythmItemState.partial,
+                  )
+                : null,
+          ),
+          if (onDelete != null)
+            (
+              state: RhythmItemState.skipped,
+              icon: Icons.delete_outline_rounded,
+              isActive: false,
+              onTap: onDelete,
+            )
+          else
+            (
+              state: RhythmItemState.skipped,
+              icon: Icons.remove_circle_outline_rounded,
+              isActive: current == RhythmItemState.skipped,
+              onTap: onChanged != null
+                  ? () => onChanged!(
+                      current == RhythmItemState.skipped
+                          ? RhythmItemState.pending
+                          : RhythmItemState.skipped,
+                    )
+                  : null,
+            ),
+        ];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -31,16 +82,10 @@ class RhythmStateButtonGroup extends StatelessWidget {
           for (int i = 0; i < options.length; i++) ...[
             if (i > 0) const SizedBox(width: 8),
             RhythmStateDot(
-              state: options[i].$1,
-              isActive: current == options[i].$1,
-              icon: options[i].$2,
-              onTap: onChanged != null
-                  ? () => onChanged!(
-                      current == options[i].$1
-                          ? RhythmItemState.pending
-                          : options[i].$1,
-                    )
-                  : null,
+              state: options[i].state,
+              isActive: options[i].isActive,
+              icon: options[i].icon,
+              onTap: options[i].onTap,
             ),
           ],
         ],

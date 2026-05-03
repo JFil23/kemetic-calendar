@@ -10,12 +10,14 @@ class RhythmTodoRow extends StatelessWidget {
     super.key,
     required this.todo,
     this.onStateChanged,
+    this.onDelete,
     this.dueTextOverride,
     this.dueTextColor,
   });
 
   final RhythmTodo todo;
   final ValueChanged<RhythmItemState>? onStateChanged;
+  final VoidCallback? onDelete;
   final String? dueTextOverride;
   final Color? dueTextColor;
 
@@ -72,7 +74,10 @@ class RhythmTodoRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(todo.title, style: RhythmTheme.heading.copyWith(fontSize: 16)),
+              Text(
+                todo.title,
+                style: RhythmTheme.heading.copyWith(fontSize: 16),
+              ),
               if (todo.notes != null) ...[
                 const SizedBox(height: 4),
                 Text(todo.notes!, style: RhythmTheme.subheading),
@@ -81,7 +86,11 @@ class RhythmTodoRow extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.schedule_rounded, size: 14, color: Colors.white54),
+                    const Icon(
+                      Icons.schedule_rounded,
+                      size: 14,
+                      color: Colors.white54,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       dueText,
@@ -96,6 +105,7 @@ class RhythmTodoRow extends StatelessWidget {
               RhythmStateButtonGroup(
                 current: todo.state,
                 onChanged: onStateChanged,
+                onDelete: onDelete,
               ),
             ],
           ),

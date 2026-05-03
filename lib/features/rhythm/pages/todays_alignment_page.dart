@@ -9,6 +9,7 @@ import 'package:mobile/core/touch_targets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mobile/data/nutrition_repo.dart';
+import 'package:mobile/data/user_events_repo.dart';
 import 'package:mobile/core/kemetic_converter.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
@@ -66,6 +67,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
   final RhythmRepo _repo = RhythmRepo(Supabase.instance.client);
   final NutritionRepo _nutritionRepo = NutritionRepo(Supabase.instance.client);
+  final UserEventsRepo _eventsRepo = UserEventsRepo(Supabase.instance.client);
   final PlannerBadgeRepo _plannerBadgeRepo = PlannerBadgeRepo(
     Supabase.instance.client,
   );
@@ -488,6 +490,68 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     if (savedTodo == null) return;
     _commitmentInputController.clear();
     _appendTodoToDay(savedTodo);
+  }
+
+  Future<void> _deleteTodo(int index) async {
+    final activeDay = _activeTodoDay;
+    final dayTodos = [...(_todosByDay[activeDay] ?? _todos)];
+    if (index < 0 || index >= dayTodos.length) return;
+    final todo = dayTodos[index];
+    if (todo.id.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: Colors.black87,
+        title: const Text(
+          'Delete to-do?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'This removes the commitment from this day.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final updated = [...dayTodos]..removeAt(index);
+    _updateTodosForDay(activeDay, updated);
+
+    final result = await _repo.deleteTodo(todo.id);
+    if (!mounted) return;
+    if (result.friendlyError != null || result.missingTables) {
+      _updateTodosForDay(activeDay, dayTodos);
+      final msg = result.missingTables
+          ? 'To-do storage is not available in this environment yet.'
+          : (result.friendlyError ?? 'Could not delete task.');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      return;
+    }
+
+    var badgeDeleted = false;
+    try {
+      await _plannerBadgeRepo.deleteTodoBadge(
+        todoId: todo.id,
+        date: _normalizeDate(todo.dueDate ?? activeDay),
+      );
+      badgeDeleted = true;
+    } catch (_) {
+      badgeDeleted = false;
+    }
+    if (badgeDeleted) {
+      unawaited(_plannerBadgeRepo.refreshKnowledgeGraph());
+    }
   }
 
   String _prefsKeyForUser(String? uid) =>
@@ -993,6 +1057,45 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     return trimmed.isEmpty ? fallback : trimmed;
   }
 
+  String _nutritionItemLabel(NutritionItem item) {
+    final nutrient = item.nutrient.trim();
+    if (nutrient.isNotEmpty) return nutrient;
+    final source = item.source.trim();
+    if (source.isNotEmpty) return source;
+    return 'this nutrition item';
+  }
+
+  Future<void> _deleteNutritionItem(NutritionItem item) async {
+    await _eventsRepo.deleteByClientIdPrefix('nutrition:${item.id}:');
+    await _nutritionRepo.delete(item.id);
+
+    final updatedStates = Map<String, RhythmItemState>.from(
+      _nutritionStatesByKey,
+    )..removeWhere((key, _) => key.endsWith('::${item.id}'));
+    await _saveNutritionStatesToPrefs(updatedStates);
+
+    if (mounted) {
+      setState(() {
+        _nutritionItems = [
+          for (final current in _nutritionItems)
+            if (current.id != item.id) current,
+        ];
+        _nutritionStatesByKey = updatedStates;
+      });
+    }
+
+    var badgesDeleted = false;
+    try {
+      await _plannerBadgeRepo.deleteNutritionBadgesForItem(item.id);
+      badgesDeleted = true;
+    } catch (_) {
+      badgesDeleted = false;
+    }
+    if (badgesDeleted) {
+      unawaited(_plannerBadgeRepo.refreshKnowledgeGraph());
+    }
+  }
+
   String? _formatTodoDue(RhythmTodo todo, DateTime fallbackDay) {
     DateTime? day = todo.dueDate;
     if (day == null && todo.dueTime == null) {
@@ -1137,6 +1240,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
               dueTextOverride: _formatTodoDue(todos[i], day),
               dueTextColor: _dateAccentColor(),
               onStateChanged: (state) => unawaited(_persistTodoState(i, state)),
+              onDelete: () => unawaited(_deleteTodo(i)),
             ),
             if (i != todos.length - 1)
               const Divider(height: 18, thickness: 0.6, color: Colors.white12),
@@ -1719,6 +1823,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     Map<String, TextEditingController>? nutrientControllers,
     Map<String, TextEditingController>? sourceControllers,
     Map<String, TextEditingController>? purposeControllers,
+    Future<void> Function(NutritionItem item)? onDeleteItem,
   }) {
     if (items.isEmpty) {
       return Center(
@@ -1729,6 +1834,14 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         ),
       );
     }
+
+    final columns = <DataColumn>[
+      const DataColumn(label: Text('Nutrient')),
+      const DataColumn(label: Text('Source')),
+      const DataColumn(label: Text('Purpose')),
+      if (editable && onDeleteItem != null)
+        const DataColumn(label: Text('Delete')),
+    ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1752,11 +1865,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                   fontWeight: FontWeight.w700,
                 ),
                 dataTextStyle: RhythmTheme.subheading,
-                columns: const [
-                  DataColumn(label: Text('Nutrient')),
-                  DataColumn(label: Text('Source')),
-                  DataColumn(label: Text('Purpose')),
-                ],
+                columns: columns,
                 rows: items
                     .map(
                       (item) => DataRow(
@@ -1788,6 +1897,17 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                                   )
                                 : Text(_presentableText(item.purpose)),
                           ),
+                          if (editable && onDeleteItem != null)
+                            DataCell(
+                              IconButton(
+                                onPressed: () => unawaited(onDeleteItem(item)),
+                                tooltip: 'Delete item',
+                                icon: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     )
@@ -1882,6 +2002,12 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       for (final controller in controllers.values) {
         controller.dispose();
       }
+    }
+
+    void disposeItemControllers(String itemId) {
+      nutrientControllers.remove(itemId)?.dispose();
+      sourceControllers.remove(itemId)?.dispose();
+      purposeControllers.remove(itemId)?.dispose();
     }
 
     List<NutritionItem> draftItems() {
@@ -2076,12 +2202,83 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                             nutrientControllers: nutrientControllers,
                             sourceControllers: sourceControllers,
                             purposeControllers: purposeControllers,
+                            onDeleteItem: isEditing && !isSaving
+                                ? (item) async {
+                                    final label = _nutritionItemLabel(item);
+                                    final confirmed = await showDialog<bool>(
+                                      context: modalContext,
+                                      builder: (dialogContext) => AlertDialog(
+                                        backgroundColor: Colors.black87,
+                                        title: const Text(
+                                          'Delete nutrition item?',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                        content: Text(
+                                          'Delete "$label"? This also removes its reminders and calendar entries.',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(
+                                              dialogContext,
+                                            ).pop(false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.of(
+                                              dialogContext,
+                                            ).pop(true),
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirmed != true) return;
+
+                                    setModalState(() {
+                                      dialogError = null;
+                                      isSaving = true;
+                                    });
+                                    try {
+                                      await _deleteNutritionItem(item);
+                                      if (!modalContext.mounted) return;
+                                      disposeItemControllers(item.id);
+                                      final remaining = [
+                                        for (final current in dialogItems)
+                                          if (current.id != item.id) current,
+                                      ];
+                                      setModalState(() {
+                                        dialogItems = remaining;
+                                        isEditing = remaining.isNotEmpty;
+                                        isSaving = false;
+                                      });
+                                      ScaffoldMessenger.of(
+                                        modalContext,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Deleted $label from nutrition.',
+                                          ),
+                                        ),
+                                      );
+                                    } catch (_) {
+                                      if (!modalContext.mounted) return;
+                                      setModalState(() {
+                                        isSaving = false;
+                                        dialogError =
+                                            'Could not delete nutrition item.';
+                                      });
+                                    }
+                                  }
+                                : null,
                           ),
                         ),
                         if (isEditing) ...[
                           const SizedBox(height: 10),
                           Text(
-                            'Edit the nutrient, source, and purpose fields, then save.',
+                            'Edit or delete rows, then save the remaining fields.',
                             style: RhythmTheme.label.copyWith(
                               color: Colors.white54,
                             ),

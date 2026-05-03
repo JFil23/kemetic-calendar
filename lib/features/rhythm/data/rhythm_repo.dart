@@ -291,6 +291,25 @@ class RhythmRepo {
     }
   }
 
+  Future<RhythmRepoResult<bool>> deleteTodo(String todoId) async {
+    final uid = _userId;
+    if (uid == null) {
+      return const RhythmRepoResult(
+        data: false,
+        friendlyError: 'Not signed in',
+      );
+    }
+    try {
+      await _client.from('todos').delete().eq('id', todoId).eq('user_id', uid);
+      return const RhythmRepoResult(data: true);
+    } catch (e) {
+      if (_isMissingTable(e)) {
+        return const RhythmRepoResult(data: false, missingTables: true);
+      }
+      return RhythmRepoResult(data: false, friendlyError: _friendlyMessage(e));
+    }
+  }
+
   String _stateToDbString(RhythmItemState state) {
     switch (state) {
       case RhythmItemState.done:

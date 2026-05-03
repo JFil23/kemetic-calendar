@@ -806,6 +806,10 @@ class InboxRepo {
             allDay: allDay,
             endsAtUtc: endsAt?.toUtc(),
             flowLocalId: flowId,
+            actionId: e['action_id'] as String?,
+            behaviorPayload: e['behavior_payload'] is Map
+                ? Map<String, dynamic>.from(e['behavior_payload'] as Map)
+                : null,
             caller: 'inbox_import_snapshot',
           );
 

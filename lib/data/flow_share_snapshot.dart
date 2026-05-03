@@ -8,7 +8,9 @@ class FlowShareEventSnapshot {
   final String? location;
   final bool allDay;
   final String? startTime; // "HH:mm"
-  final String? endTime;   // "HH:mm"
+  final String? endTime; // "HH:mm"
+  final String? actionId;
+  final Map<String, dynamic>? behaviorPayload;
 
   FlowShareEventSnapshot({
     required this.offsetDays,
@@ -18,6 +20,8 @@ class FlowShareEventSnapshot {
     required this.allDay,
     this.startTime,
     this.endTime,
+    this.actionId,
+    this.behaviorPayload,
   });
 
   factory FlowShareEventSnapshot.fromJson(Map<String, dynamic> json) {
@@ -29,6 +33,10 @@ class FlowShareEventSnapshot {
       allDay: (json['all_day'] ?? false) as bool,
       startTime: json['start_time'] as String?,
       endTime: json['end_time'] as String?,
+      actionId: json['action_id'] as String?,
+      behaviorPayload: json['behavior_payload'] is Map
+          ? Map<String, dynamic>.from(json['behavior_payload'] as Map)
+          : null,
     );
   }
 }
@@ -63,6 +71,3 @@ class FlowSharePayload {
     );
   }
 }
-
-
-

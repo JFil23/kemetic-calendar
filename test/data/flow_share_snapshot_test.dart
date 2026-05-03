@@ -10,7 +10,10 @@ void main() {
         'color': 0xFF123456,
         'notes': 'Start with water',
         'rules': [
-          {'kind': 'weekly', 'weekdays': [1, 3, 5]},
+          {
+            'kind': 'weekly',
+            'weekdays': [1, 3, 5],
+          },
         ],
         'events': [
           {
@@ -21,11 +24,12 @@ void main() {
             'all_day': false,
             'start_time': '06:00',
             'end_time': '06:15',
+            'action_id': 'wake-001',
+            'behavior_payload': {
+              'definition_of_done': 'Drink one glass of water',
+            },
           },
-          {
-            'title': 'Reflect',
-            'all_day': true,
-          },
+          {'title': 'Reflect', 'all_day': true},
         ],
       });
 
@@ -42,6 +46,10 @@ void main() {
       expect(payload.events.first.allDay, isFalse);
       expect(payload.events.first.startTime, '06:00');
       expect(payload.events.first.endTime, '06:15');
+      expect(payload.events.first.actionId, 'wake-001');
+      expect(payload.events.first.behaviorPayload, {
+        'definition_of_done': 'Drink one glass of water',
+      });
 
       expect(payload.events.last.offsetDays, 0);
       expect(payload.events.last.title, 'Reflect');
@@ -64,7 +72,10 @@ void main() {
         'payload_json': {
           'name': 'Morning Flow',
           'rules': [
-            {'kind': 'weekly', 'weekdays': [1, 3]},
+            {
+              'kind': 'weekly',
+              'weekdays': [1, 3],
+            },
           ],
           'events': [
             {
@@ -88,26 +99,29 @@ void main() {
       expect(payload.events.single.startTime, '08:00');
     });
 
-    test('returns null for malformed flow payloads so callers can fallback', () {
-      final item = InboxShareItem.fromJson({
-        'share_id': 'share-flow-2',
-        'kind': 'flow',
-        'recipient_id': 'recipient-1',
-        'sender_id': 'sender-1',
-        'sender_handle': 'priestess',
-        'sender_name': 'Priestess',
-        'payload_id': 'payload-2',
-        'title': 'Fallback Flow',
-        'created_at': '2026-04-15T00:00:00Z',
-        'payload_json': {
-          'name': 'Fallback Flow',
-          'events': ['not-a-map'],
-        },
-      });
+    test(
+      'returns null for malformed flow payloads so callers can fallback',
+      () {
+        final item = InboxShareItem.fromJson({
+          'share_id': 'share-flow-2',
+          'kind': 'flow',
+          'recipient_id': 'recipient-1',
+          'sender_id': 'sender-1',
+          'sender_handle': 'priestess',
+          'sender_name': 'Priestess',
+          'payload_id': 'payload-2',
+          'title': 'Fallback Flow',
+          'created_at': '2026-04-15T00:00:00Z',
+          'payload_json': {
+            'name': 'Fallback Flow',
+            'events': ['not-a-map'],
+          },
+        });
 
-      expect(item.flowPayload, isNull);
-      expect(item.isFlow, isTrue);
-      expect(item.subtitle, 'Flow shared by @priestess');
-    });
+        expect(item.flowPayload, isNull);
+        expect(item.isFlow, isTrue);
+        expect(item.subtitle, 'Flow shared by @priestess');
+      },
+    );
   });
 }

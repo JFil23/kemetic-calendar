@@ -54,5 +54,61 @@ void main() {
       expect(events, hasLength(1));
       expect(events.first['location'], 'https://meet.google.com/abc-defg-hij');
     });
+
+    test('drops generic setup cues from location while keeping real links', () {
+      final response = AIFlowGenerationResponse(
+        success: true,
+        notes: jsonEncode([
+          {
+            'day_index': 0,
+            'title': 'Study',
+            'details':
+                'Use this class today: https://www.youtube.com/watch?v=FSwmDWL68gw.',
+            'all_day': false,
+            'start_time': '07:00',
+            'end_time': '07:30',
+            'location': 'study materials open',
+          },
+        ]),
+      );
+
+      final events = buildAiFlowImportEvents(response);
+
+      expect(events, hasLength(1));
+      expect(
+        events.first['location'],
+        'https://www.youtube.com/watch?v=FSwmDWL68gw',
+      );
+    });
+
+    test('carries behavior metadata from generated notes', () {
+      final response = AIFlowGenerationResponse(
+        success: true,
+        notes: jsonEncode([
+          {
+            'day_index': 0,
+            'title': 'Recall chapter 1',
+            'details': 'Recall the chapter from memory.',
+            'all_day': false,
+            'start_time': '07:00',
+            'end_time': '07:20',
+            'action_id': 'a001',
+            'behavior_payload': {
+              'action_id': 'a001',
+              'trigger': 'Start at 07:00.',
+            },
+          },
+        ]),
+      );
+
+      final events = buildAiFlowImportEvents(response);
+
+      expect(events, hasLength(1));
+      expect(events.first['action_id'], 'a001');
+      expect(events.first['behavior_payload'], {
+        'action_id': 'a001',
+        'trigger': 'Start at 07:00.',
+      });
+    });
   });
 }

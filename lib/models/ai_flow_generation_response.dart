@@ -22,6 +22,7 @@ class AIFlowGenerationResponse {
   final String? errorMessage;
   final DateTime? requestedStartDate;
   final DateTime? requestedEndDate;
+  final Map<String, dynamic>? aiMetadata;
 
   const AIFlowGenerationResponse({
     required this.success,
@@ -42,6 +43,7 @@ class AIFlowGenerationResponse {
     this.errorMessage,
     this.requestedStartDate,
     this.requestedEndDate,
+    this.aiMetadata,
   });
 
   factory AIFlowGenerationResponse.fromJson(Map<String, dynamic> j) {
@@ -106,6 +108,11 @@ class AIFlowGenerationResponse {
       requestedEndDate: parseDate(
         j['requestedEndDate'] ?? j['requested_end_date'],
       ),
+      aiMetadata: j['ai_metadata'] is Map
+          ? Map<String, dynamic>.from(j['ai_metadata'] as Map)
+          : (j['metadata'] is Map
+                ? Map<String, dynamic>.from(j['metadata'] as Map)
+                : null),
     );
   }
 
@@ -128,6 +135,7 @@ class AIFlowGenerationResponse {
     String? errorMessage,
     DateTime? requestedStartDate,
     DateTime? requestedEndDate,
+    Map<String, dynamic>? aiMetadata,
   }) {
     return AIFlowGenerationResponse(
       success: success ?? this.success,
@@ -148,6 +156,7 @@ class AIFlowGenerationResponse {
       errorMessage: errorMessage ?? this.errorMessage,
       requestedStartDate: requestedStartDate ?? this.requestedStartDate,
       requestedEndDate: requestedEndDate ?? this.requestedEndDate,
+      aiMetadata: aiMetadata ?? this.aiMetadata,
     );
   }
 }

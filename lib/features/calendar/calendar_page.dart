@@ -4532,6 +4532,7 @@ class CalendarPage extends StatefulWidget {
       originShareId: r.originShareId ?? f.shareId,
       originGenerationId: r.originGenerationId,
       rootFlowId: r.rootFlowId,
+      aiMetadata: r.aiMetadata,
     );
 
     if (r.originGenerationId != null) {
@@ -4596,6 +4597,8 @@ class CalendarPage extends StatefulWidget {
           calendarId: f.calendarId,
           flowLocalId: savedId,
           category: n.category,
+          actionId: n.actionId,
+          behaviorPayload: n.behaviorPayload,
           caller: 'flow_save_notes',
         );
       }
@@ -18216,6 +18219,7 @@ class _CalendarPageState extends State<CalendarPage>
         originShareId: r.originShareId ?? r.savedFlow!.shareId,
         originGenerationId: r.originGenerationId,
         rootFlowId: r.rootFlowId,
+        aiMetadata: r.aiMetadata,
       );
 
       saved = _Flow(
@@ -18371,6 +18375,8 @@ class _CalendarPageState extends State<CalendarPage>
           calendarId: flowCalendarId,
           flowLocalId: noteFlowId >= 0 ? noteFlowId : null,
           category: n.category,
+          actionId: n.actionId,
+          behaviorPayload: n.behaviorPayload,
           caller: 'persist_flow_studio',
         );
         firstClientEventId ??= savedEvent.clientEventId ?? cid;
@@ -25764,6 +25770,8 @@ class _NoteDraft {
   int alertMinutesBefore =
       _alertNoneMinutes; // -1 = none, null = legacy default
   bool usesFlowAlertDefault = true;
+  String? actionId;
+  Map<String, dynamic>? behaviorPayload;
 
   _Note toNote({required int flowAlertMinutesBefore}) {
     final t = titleCtrl.text.trim();
@@ -25781,6 +25789,10 @@ class _NoteDraft {
       end: allDay ? null : end,
       category: category,
       alertOffsetMinutes: effectiveAlert,
+      actionId: actionId,
+      behaviorPayload: behaviorPayload == null
+          ? null
+          : Map<String, dynamic>.from(behaviorPayload!),
     );
   }
 
@@ -25801,6 +25813,8 @@ class _DraftNoteData {
   final String? category;
   final int alertMinutesBefore;
   final bool usesFlowAlertDefault;
+  final String? actionId;
+  final Map<String, dynamic>? behaviorPayload;
 
   const _DraftNoteData({
     required this.title,
@@ -25812,6 +25826,8 @@ class _DraftNoteData {
     required this.category,
     required this.alertMinutesBefore,
     required this.usesFlowAlertDefault,
+    this.actionId,
+    this.behaviorPayload,
   });
 
   factory _DraftNoteData.fromDraft(_NoteDraft draft) {
@@ -25829,6 +25845,10 @@ class _DraftNoteData {
       category: draft.category,
       alertMinutesBefore: draft.alertMinutesBefore,
       usesFlowAlertDefault: draft.usesFlowAlertDefault,
+      actionId: draft.actionId,
+      behaviorPayload: draft.behaviorPayload == null
+          ? null
+          : Map<String, dynamic>.from(draft.behaviorPayload!),
     );
   }
 
@@ -25854,6 +25874,10 @@ class _DraftNoteData {
     d.category = category;
     d.alertMinutesBefore = alertMinutesBefore;
     d.usesFlowAlertDefault = usesFlowAlertDefault;
+    d.actionId = actionId;
+    d.behaviorPayload = behaviorPayload == null
+        ? null
+        : Map<String, dynamic>.from(behaviorPayload!);
     return d;
   }
 }
@@ -25940,6 +25964,7 @@ class ImportFlowData {
   final int? originFlowId;
   final int? rootFlowId;
   final String? originType;
+  final Map<String, dynamic>? aiMetadata;
   const ImportFlowData({
     required this.share,
     required this.name,
@@ -25953,6 +25978,7 @@ class ImportFlowData {
     this.originFlowId,
     this.rootFlowId,
     this.originType,
+    this.aiMetadata,
   });
 }
 
@@ -25976,6 +26002,7 @@ class _FlowStudioResult {
   final String? originShareId;
   final String? originGenerationId;
   final int? rootFlowId;
+  final Map<String, dynamic>? aiMetadata;
   const _FlowStudioResult({
     this.savedFlow,
     this.deleteFlowId,
@@ -25985,6 +26012,7 @@ class _FlowStudioResult {
     this.originShareId,
     this.originGenerationId,
     this.rootFlowId,
+    this.aiMetadata,
   });
 }
 
@@ -27749,6 +27777,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
             end: noteWithFlowId.end,
             flowId: flowId,
             alertOffsetMinutes: noteWithFlowId.alertOffsetMinutes,
+            actionId: noteWithFlowId.actionId,
+            behaviorPayload: noteWithFlowId.behaviorPayload,
           );
 
           planned.add(
@@ -27775,6 +27805,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           end: noteWithFlowId.end,
           flowId: flowId,
           alertOffsetMinutes: noteWithFlowId.alertOffsetMinutes,
+          actionId: noteWithFlowId.actionId,
+          behaviorPayload: noteWithFlowId.behaviorPayload,
         );
 
         for (final d in g.days) {
@@ -27844,6 +27876,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         originShareId: originShareId,
         originGenerationId: originGenerationId,
         rootFlowId: rootFlowId,
+        aiMetadata: widget.importData?.aiMetadata,
       ),
     );
   }
@@ -28697,6 +28730,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         originType: 'ai',
         originFlowId: resp.flowId,
         rootFlowId: resp.flowId,
+        aiMetadata: resp.aiMetadata,
       );
     } catch (_) {
       return null;
@@ -28790,6 +28824,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
           decodedDetail.alertMinutes ?? _alertNoneMinutes; // default to none
       draft.usesFlowAlertDefault = false;
       draft.category = event.category;
+      draft.actionId = event.actionId;
+      draft.behaviorPayload = event.behaviorPayload == null
+          ? null
+          : Map<String, dynamic>.from(event.behaviorPayload!);
 
       // Set times
       final hasExplicitTime =
@@ -28922,6 +28960,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
                 endsAt: endsAt,
                 flowLocalId: null,
                 category: null,
+                actionId: e['action_id'] as String?,
+                behaviorPayload: e['behavior_payload'] is Map
+                    ? Map<String, dynamic>.from(e['behavior_payload'] as Map)
+                    : null,
               ),
             );
           } catch (_) {
@@ -30059,6 +30101,10 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       endsAtUtc: normalized.endLocal?.toUtc(),
       flowLocalId: event.flowLocalId,
       category: event.category,
+      actionId: event.actionId,
+      behaviorPayload: event.behaviorPayload == null
+          ? null
+          : Map<String, dynamic>.from(event.behaviorPayload!),
     );
   }
 
@@ -34288,6 +34334,8 @@ class _Note {
   final String? reminderId;
   final int?
   alertOffsetMinutes; // minutes before start; -1 = none, null = default
+  final String? actionId;
+  final Map<String, dynamic>? behaviorPayload;
 
   const _Note({
     this.id,
@@ -34306,6 +34354,8 @@ class _Note {
     this.isReminder = false,
     this.reminderId,
     this.alertOffsetMinutes,
+    this.actionId,
+    this.behaviorPayload,
   });
 
   _Note copyWith({
@@ -34325,6 +34375,8 @@ class _Note {
     bool? isReminder,
     String? reminderId,
     int? alertOffsetMinutes,
+    String? actionId,
+    Map<String, dynamic>? behaviorPayload,
   }) {
     return _Note(
       id: id ?? this.id,
@@ -34343,6 +34395,8 @@ class _Note {
       isReminder: isReminder ?? this.isReminder,
       reminderId: reminderId ?? this.reminderId,
       alertOffsetMinutes: alertOffsetMinutes ?? this.alertOffsetMinutes,
+      actionId: actionId ?? this.actionId,
+      behaviorPayload: behaviorPayload ?? this.behaviorPayload,
     );
   }
 }

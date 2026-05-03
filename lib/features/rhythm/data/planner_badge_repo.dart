@@ -212,6 +212,42 @@ class PlannerBadgeRepo {
         .eq('event_id', eventId);
   }
 
+  Future<void> deleteTodoBadge({
+    required String todoId,
+    required DateTime date,
+  }) async {
+    final uid = _userId;
+    if (uid == null || todoId.isEmpty) return;
+    final eventId = todoEventId(todoId, date);
+    try {
+      await _deleteByEventId(eventId);
+    } catch (error) {
+      if (_isUnavailable(error)) {
+        debugPrint('[PlannerBadgeRepo] todo delete skipped: $error');
+        return;
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> deleteNutritionBadgesForItem(String itemId) async {
+    final uid = _userId;
+    if (uid == null || itemId.isEmpty) return;
+    try {
+      await _client
+          .from('journal_badges')
+          .delete()
+          .eq('user_id', uid)
+          .like('event_id', 'planner-nutrition:%:$itemId');
+    } catch (error) {
+      if (_isUnavailable(error)) {
+        debugPrint('[PlannerBadgeRepo] nutrition delete skipped: $error');
+        return;
+      }
+      rethrow;
+    }
+  }
+
   Future<void> _insertBadge({
     required String badgeId,
     required String eventId,

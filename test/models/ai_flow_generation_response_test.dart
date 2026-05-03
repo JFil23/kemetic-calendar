@@ -31,4 +31,27 @@ void main() {
     expect(response.requestedStartDate, DateTime(2026, 4, 19));
     expect(response.requestedEndDate, DateTime(2026, 4, 28));
   });
+
+  test('fromJson preserves ai_metadata for downstream flow persistence', () {
+    final response = AIFlowGenerationResponse.fromJson({
+      'success': true,
+      'flow_name': 'Study Flow',
+      'notes': const [],
+      'ai_metadata': {
+        'generated': true,
+        'plan_spec': {
+          'version': 'flowspec_v2',
+          'actions': [
+            {'action_id': 'a001'},
+          ],
+        },
+      },
+    });
+
+    expect(response.aiMetadata?['generated'], isTrue);
+    expect(
+      (response.aiMetadata?['plan_spec'] as Map<String, dynamic>)['version'],
+      'flowspec_v2',
+    );
+  });
 }

@@ -29,6 +29,8 @@ typedef FlowEventRow = ({
   DateTime? endsAtUtc,
   int? flowLocalId,
   String? category,
+  String? actionId,
+  Map<String, dynamic>? behaviorPayload,
 });
 
 bool _isUuid(String? v) {
@@ -86,6 +88,8 @@ class UserEvent {
   final DateTime? endsAt;
   final int? flowLocalId;
   final String? category;
+  final String? actionId;
+  final Map<String, dynamic>? behaviorPayload;
   final DateTime? updatedAt;
   final DateTime? createdAt;
 
@@ -104,6 +108,8 @@ class UserEvent {
     this.endsAt,
     this.flowLocalId,
     this.category,
+    this.actionId,
+    this.behaviorPayload,
     this.updatedAt,
     this.createdAt,
   });
@@ -132,6 +138,10 @@ class UserEvent {
           ? (row['flow_local_id'] as num).toInt()
           : null,
       category: row['category'] as String?,
+      actionId: (row['action_id'] as String?)?.trim(),
+      behaviorPayload: row['behavior_payload'] is Map
+          ? Map<String, dynamic>.from(row['behavior_payload'] as Map)
+          : null,
       updatedAt: row['updated_at'] == null
           ? null
           : DateTime.parse(row['updated_at'] as String).toUtc(),
@@ -153,6 +163,8 @@ class UserEvent {
       'starts_at': startsAt.toUtc().toIso8601String(),
       if (endsAt != null) 'ends_at': endsAt!.toUtc().toIso8601String(),
       if (category != null) 'category': category,
+      if (actionId != null) 'action_id': actionId,
+      if (behaviorPayload != null) 'behavior_payload': behaviorPayload,
     };
   }
 
@@ -167,6 +179,8 @@ class UserEvent {
       'starts_at': startsAt.toUtc().toIso8601String(),
       if (endsAt != null) 'ends_at': endsAt!.toUtc().toIso8601String(),
       if (category != null) 'category': category,
+      if (actionId != null) 'action_id': actionId,
+      if (behaviorPayload != null) 'behavior_payload': behaviorPayload,
     };
   }
 }
@@ -227,7 +241,7 @@ class UserEventsRepo {
 
   static bool? _telemetryEnabled;
   static const String _readSelect =
-      'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,updated_at,created_at';
+      'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,action_id,behavior_payload,updated_at,created_at';
 
   bool get telemetryEnabled => _telemetryEnabled ?? true;
 
@@ -319,6 +333,8 @@ class UserEventsRepo {
     DateTime? endsAtUtc,
     int? flowLocalId,
     String? category,
+    String? actionId,
+    Map<String, dynamic>? behaviorPayload,
     String? calendarId,
     String? caller,
   }) async {
@@ -361,6 +377,8 @@ class UserEventsRepo {
       if (endsAtUtc != null) 'ends_at': endsAtUtc.toIso8601String(),
       if (flowLocalId != null) 'flow_local_id': flowLocalId,
       if (category != null) 'category': category,
+      if (actionId != null) 'action_id': actionId,
+      if (behaviorPayload != null) 'behavior_payload': behaviorPayload,
     };
 
     final callerTag = caller == null || caller.isEmpty ? 'unspecified' : caller;
@@ -394,6 +412,8 @@ class UserEventsRepo {
     DateTime? startsAt,
     DateTime? endsAt,
     String? category,
+    String? actionId,
+    Map<String, dynamic>? behaviorPayload,
   }) async {
     final patch = <String, dynamic>{};
     if (clientEventId != null) patch['client_event_id'] = clientEventId;
@@ -407,6 +427,8 @@ class UserEventsRepo {
     }
     if (endsAt != null) patch['ends_at'] = endsAt.toUtc().toIso8601String();
     if (category != null) patch['category'] = category;
+    if (actionId != null) patch['action_id'] = actionId;
+    if (behaviorPayload != null) patch['behavior_payload'] = behaviorPayload;
     if (patch.isEmpty) throw ArgumentError('Nothing to update.');
 
     _log('update($id) → $patch');
@@ -1533,7 +1555,7 @@ class UserEventsRepo {
       var query = _client
           .from(_kReadableEventsTable)
           .select(
-            'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
+            'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,action_id,behavior_payload',
           )
           .eq('flow_local_id', flowId);
 
@@ -1564,6 +1586,10 @@ class UserEventsRepo {
               : null,
           flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
           category: row['category'] as String?,
+          actionId: (row['action_id'] as String?)?.trim(),
+          behaviorPayload: row['behavior_payload'] is Map
+              ? Map<String, dynamic>.from(row['behavior_payload'] as Map)
+              : null,
         );
       }).toList();
     } catch (e, st) {
@@ -1598,7 +1624,7 @@ class UserEventsRepo {
         var query = _client
             .from(_kReadableEventsTable)
             .select(
-              'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
+              'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,action_id,behavior_payload',
             )
             .inFilter('flow_local_id', ids);
 
@@ -1631,6 +1657,10 @@ class UserEventsRepo {
                 : null,
             flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
             category: row['category'] as String?,
+            actionId: (row['action_id'] as String?)?.trim(),
+            behaviorPayload: row['behavior_payload'] is Map
+                ? Map<String, dynamic>.from(row['behavior_payload'] as Map)
+                : null,
           );
         }).toList();
 
@@ -1859,6 +1889,7 @@ class UserEventsRepo {
     String? originShareId,
     String? originGenerationId,
     int? rootFlowId,
+    Map<String, dynamic>? aiMetadata,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -1903,6 +1934,9 @@ class UserEventsRepo {
     }
     if (rootFlowId != null && rootFlowId > 0) {
       payload['root_flow_id'] = rootFlowId;
+    }
+    if (aiMetadata != null) {
+      payload['ai_metadata'] = aiMetadata;
     }
 
     try {

@@ -19,6 +19,102 @@ bool isExternalInboxActivityActor(String? actorId, String currentUserId) {
   return actorId != currentUserId;
 }
 
+Map<String, dynamic>? _asBehaviorPayload(Object? raw) {
+  if (raw is! Map) return null;
+  return Map<String, dynamic>.from(raw);
+}
+
+String? _cleanShareString(Object? raw) {
+  if (raw == null) return null;
+  if (raw is! String) return null;
+  final trimmed = raw.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
+bool _parseShareBoolish(Object? raw) {
+  if (raw is bool) return raw;
+  if (raw is num) return raw != 0;
+  final normalized = raw?.toString().trim().toLowerCase();
+  return normalized == 'true' ||
+      normalized == 't' ||
+      normalized == '1' ||
+      normalized == 'yes';
+}
+
+DateTime? _parseShareDateTime(Object? raw) {
+  if (raw is DateTime) return raw;
+  if (raw == null) return null;
+  final text = raw.toString().trim();
+  if (text.isEmpty) return null;
+  return DateTime.tryParse(text);
+}
+
+String buildImportedFlowInviteEventCid({
+  required int flowId,
+  required Map<String, dynamic> sourceEvent,
+}) {
+  final sourceClientEventId = _cleanShareString(
+    sourceEvent['source_client_event_id'],
+  );
+  final startsAt = _parseShareDateTime(
+    sourceEvent['starts_at'],
+  )?.toUtc().toIso8601String();
+  final title = _cleanShareString(sourceEvent['title']) ?? 'event';
+  final sourceKey =
+      sourceClientEventId ??
+      '$startsAt|${Uri.encodeComponent(title)}|${_cleanShareString(sourceEvent['location']) ?? ''}';
+  return 'flow_import:$flowId:${Uri.encodeComponent(sourceKey)}';
+}
+
+Map<String, dynamic>? buildStandaloneInviteImportSpec({
+  required String shareId,
+  required Map<String, dynamic>? payload,
+}) {
+  final startsAt = _parseShareDateTime(payload?['starts_at']);
+  if (startsAt == null) return null;
+
+  final title =
+      _cleanShareString(payload?['title']) ??
+      _cleanShareString(payload?['name']) ??
+      'Shared Event';
+  return {
+    'client_event_id': 'event_share:$shareId',
+    'title': title,
+    'starts_at_utc': startsAt.toUtc(),
+    'detail': _cleanShareString(payload?['detail']),
+    'location': _cleanShareString(payload?['location']),
+    'all_day': _parseShareBoolish(payload?['all_day']),
+    'ends_at_utc': _parseShareDateTime(payload?['ends_at'])?.toUtc(),
+    'category': _cleanShareString(payload?['category']),
+    'action_id': _cleanShareString(payload?['action_id']),
+    'behavior_payload': _asBehaviorPayload(payload?['behavior_payload']),
+  };
+}
+
+Map<String, dynamic>? buildImportedFlowInviteEventSpec({
+  required int flowId,
+  required Map<String, dynamic> sourceEvent,
+}) {
+  final startsAt = _parseShareDateTime(sourceEvent['starts_at']);
+  if (startsAt == null) return null;
+
+  return {
+    'client_event_id': buildImportedFlowInviteEventCid(
+      flowId: flowId,
+      sourceEvent: sourceEvent,
+    ),
+    'title': _cleanShareString(sourceEvent['title']) ?? 'Shared Event',
+    'starts_at_utc': startsAt.toUtc(),
+    'detail': _cleanShareString(sourceEvent['detail']),
+    'location': _cleanShareString(sourceEvent['location']),
+    'all_day': _parseShareBoolish(sourceEvent['all_day']),
+    'ends_at_utc': _parseShareDateTime(sourceEvent['ends_at'])?.toUtc(),
+    'category': _cleanShareString(sourceEvent['category']),
+    'action_id': _cleanShareString(sourceEvent['action_id']),
+    'behavior_payload': _asBehaviorPayload(sourceEvent['behavior_payload']),
+  };
+}
+
 class ShareRepo {
   static const String _activitySeenPrefKey = 'inbox:activity_seen_at:v1';
   static final StreamController<void> _activitySeenChangedController =
@@ -1142,7 +1238,9 @@ class ShareRepo {
   ) async {
     final rawFlowEvents = await _client
         .from('user_events')
-        .select('title, detail, location, all_day, starts_at, ends_at')
+        .select(
+          'title, detail, location, all_day, starts_at, ends_at, action_id, behavior_payload',
+        )
         .eq('flow_local_id', flowId)
         .order('starts_at', ascending: true)
         .order('created_at', ascending: true);
@@ -1182,6 +1280,10 @@ class ShareRepo {
             if (!allDay && startUtc != null)
               'start_time': _formatShareTime(startUtc),
             if (!allDay && endUtc != null) 'end_time': _formatShareTime(endUtc),
+            if (_cleanNullableString(row['action_id']) != null)
+              'action_id': _cleanNullableString(row['action_id']),
+            if (_asBehaviorPayload(row['behavior_payload']) != null)
+              'behavior_payload': _asBehaviorPayload(row['behavior_payload']),
           };
         })
         .toList(growable: false);
@@ -1667,22 +1769,22 @@ class ShareRepo {
     required String shareId,
     required Map<String, dynamic>? payload,
   }) async {
-    final startsAt = _parseDateTimeValue(payload?['starts_at']);
-    if (startsAt == null) return;
-
-    final title =
-        _cleanNullableString(payload?['title']) ??
-        _cleanNullableString(payload?['name']) ??
-        'Shared Event';
+    final spec = buildStandaloneInviteImportSpec(
+      shareId: shareId,
+      payload: payload,
+    );
+    if (spec == null) return;
     await repo.upsertByClientId(
-      clientEventId: 'event_share:$shareId',
-      title: title,
-      startsAtUtc: startsAt.toUtc(),
-      detail: _cleanNullableString(payload?['detail']),
-      location: _cleanNullableString(payload?['location']),
-      allDay: _parseBoolishValue(payload?['all_day']),
-      endsAtUtc: _parseDateTimeValue(payload?['ends_at'])?.toUtc(),
-      category: _cleanNullableString(payload?['category']),
+      clientEventId: spec['client_event_id'] as String,
+      title: spec['title'] as String,
+      startsAtUtc: spec['starts_at_utc'] as DateTime,
+      detail: spec['detail'] as String?,
+      location: spec['location'] as String?,
+      allDay: spec['all_day'] as bool? ?? false,
+      endsAtUtc: spec['ends_at_utc'] as DateTime?,
+      category: spec['category'] as String?,
+      actionId: spec['action_id'] as String?,
+      behaviorPayload: spec['behavior_payload'] as Map<String, dynamic>?,
       caller: 'event_share_accept_import',
     );
   }
@@ -1816,26 +1918,24 @@ class ShareRepo {
 
     var importedEventCount = 0;
     for (final event in sourceEvents) {
-      final startsAt = _parseDateTimeValue(event['starts_at']);
-      if (startsAt == null) continue;
-
-      final title = _cleanNullableString(event['title']) ?? name;
-      final allDay = _parseBoolishValue(event['all_day']);
-      final clientEventId = _buildImportedFlowInviteEventCid(
+      final spec = buildImportedFlowInviteEventSpec(
         flowId: targetFlowId,
         sourceEvent: event,
       );
+      if (spec == null) continue;
 
       await repo.upsertByClientId(
-        clientEventId: clientEventId,
-        title: title,
-        startsAtUtc: startsAt.toUtc(),
-        detail: _cleanNullableString(event['detail']),
-        location: _cleanNullableString(event['location']),
-        allDay: allDay,
-        endsAtUtc: _parseDateTimeValue(event['ends_at'])?.toUtc(),
+        clientEventId: spec['client_event_id'] as String,
+        title: spec['title'] as String? ?? name,
+        startsAtUtc: spec['starts_at_utc'] as DateTime,
+        detail: spec['detail'] as String?,
+        location: spec['location'] as String?,
+        allDay: spec['all_day'] as bool? ?? false,
+        endsAtUtc: spec['ends_at_utc'] as DateTime?,
         flowLocalId: targetFlowId,
-        category: _cleanNullableString(event['category']),
+        category: spec['category'] as String?,
+        actionId: spec['action_id'] as String?,
+        behaviorPayload: spec['behavior_payload'] as Map<String, dynamic>?,
         caller: 'event_share_flow_import',
       );
       importedEventCount++;
@@ -2232,23 +2332,6 @@ class ShareRepo {
     return RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
     ).hasMatch(value);
-  }
-
-  String _buildImportedFlowInviteEventCid({
-    required int flowId,
-    required Map<String, dynamic> sourceEvent,
-  }) {
-    final sourceClientEventId = _cleanNullableString(
-      sourceEvent['source_client_event_id'],
-    );
-    final startsAt = _parseDateTimeValue(
-      sourceEvent['starts_at'],
-    )?.toUtc().toIso8601String();
-    final title = _cleanNullableString(sourceEvent['title']) ?? 'event';
-    final sourceKey =
-        sourceClientEventId ??
-        '$startsAt|${Uri.encodeComponent(title)}|${_cleanNullableString(sourceEvent['location']) ?? ''}';
-    return 'flow_import:$flowId:${Uri.encodeComponent(sourceKey)}';
   }
 
   /// Resolve a share link and get flow details for preview
