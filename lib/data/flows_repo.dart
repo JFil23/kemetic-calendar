@@ -71,15 +71,15 @@ class FlowRow {
   });
 
   factory FlowRow.fromRow(Map<String, dynamic> r) {
-    dynamic _rules = r['rules'];
-    List<dynamic> _rulesList;
-    if (_rules == null) {
-      _rulesList = const [];
-    } else if (_rules is List) {
-      _rulesList = _rules;
+    dynamic rules = r['rules'];
+    List<dynamic> rulesList;
+    if (rules == null) {
+      rulesList = const [];
+    } else if (rules is List) {
+      rulesList = rules;
     } else {
       // In case the column was accidentally stored as an object/string.
-      _rulesList = const [];
+      rulesList = const [];
     }
 
     return FlowRow(
@@ -94,7 +94,7 @@ class FlowRow {
       startDate: _parseDateTime(r['start_date']),
       endDate: _parseDateTime(r['end_date']),
       notes: r['notes'] as String?,
-      rules: _rulesList,
+      rules: rulesList,
       isHidden: (r['is_hidden'] as bool?) ?? false,
       isReminder: (r['is_reminder'] as bool?) ?? false,
       reminderUuid: r['reminder_uuid'] as String?,
@@ -217,7 +217,7 @@ class FlowsRepo {
 
     final rows =
         await _client
-                .from(_kFlows)
+                .from('flow_filing_items_client')
                 .select()
                 .eq('user_id', user.id)
                 .order('created_at', ascending: false)
@@ -259,10 +259,10 @@ class FlowsRepo {
 
     final eventRows =
         await _client
-                .from('user_events')
-                .select('flow_local_id, client_event_id, category')
+                .from('user_event_filing_items_client')
+                .select('filed_flow_id, client_event_id')
                 .eq('user_id', user.id)
-                .inFilter('flow_local_id', flowIds)
+                .inFilter('filed_flow_id', flowIds)
             as List<dynamic>;
     final completionRows =
         await _client
@@ -287,9 +287,8 @@ class FlowsRepo {
     final totalCounts = <int, int>{};
     final remainingCounts = <int, int>{};
     for (final raw in eventRows.cast<Map<String, dynamic>>()) {
-      final flowId = (raw['flow_local_id'] as num?)?.toInt();
+      final flowId = (raw['filed_flow_id'] as num?)?.toInt();
       if (flowId == null) continue;
-      if ((raw['category'] as String?) == 'tombstone') continue;
 
       totalCounts[flowId] = (totalCounts[flowId] ?? 0) + 1;
 
@@ -332,21 +331,7 @@ class FlowsRepo {
         .stream(primaryKey: ['id'])
         .order('updated_at', ascending: false)
         .order('start_date', ascending: true)
-        .asyncMap((rows) async {
-          final filteredRows = rows
-              .cast<Map<String, dynamic>>()
-              .where((row) => row['user_id'] == user.id)
-              .toList(growable: false);
-          final flows = await _inflateFlowRows(filteredRows, userId: user.id);
-          final eventCounts = await _loadMyEventCounts(
-            flows.map((flow) => flow.id).toList(growable: false),
-          );
-          return _buildLedger(
-            flows,
-            totalEventCounts: eventCounts.total,
-            remainingEventCounts: eventCounts.remaining,
-          ).activeItems;
-        });
+        .asyncMap((_) async => (await loadMyFlowLedger()).activeItems);
   }
 
   Future<FlowRow> upsert({
@@ -393,7 +378,7 @@ class FlowsRepo {
 
     if (id == null) {
       final row = await _client.from(_kFlows).insert(payload).select().single();
-      return FlowRow.fromRow(row as Map<String, dynamic>);
+      return FlowRow.fromRow(row);
     } else {
       final patch = Map<String, dynamic>.from(payload)..remove('user_id');
       final row = await _client
@@ -402,7 +387,7 @@ class FlowsRepo {
           .eq('id', id)
           .select()
           .single();
-      return FlowRow.fromRow(row as Map<String, dynamic>);
+      return FlowRow.fromRow(row);
     }
   }
 
@@ -438,9 +423,7 @@ class FlowsRepo {
       'reminder_uuid': reminderUuid,
     };
     _log('insert → $payload');
-    final row =
-        await _client.from(_kFlows).insert(payload).select().single()
-            as Map<String, dynamic>;
+    final row = await _client.from(_kFlows).insert(payload).select().single();
     final id = (row['id'] as num).toInt();
     _log('insert ✓ id=$id');
     return id;
@@ -542,8 +525,9 @@ class FlowsRepo {
 
     if (response == null) return null;
     final userId = _client.auth.currentUser?.id;
-    if (userId == null)
-      return FlowRow.fromRow(response as Map<String, dynamic>);
+    if (userId == null) {
+      return FlowRow.fromRow(response);
+    }
     final flows = await _inflateFlowRows([
       Map<String, dynamic>.from(response as Map),
     ], userId: userId);

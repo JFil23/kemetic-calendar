@@ -8,7 +8,7 @@ import '../telemetry/telemetry.dart';
 import '../utils/flow_filter_engine.dart';
 
 const _kTable = 'user_events';
-const _kReadableEventsTable = 'user_events_with_calendars';
+const _kReadableEventsTable = 'user_event_filing_items_client';
 
 void _log(String msg) {
   if (kDebugMode) debugPrint('[user_events] $msg');
@@ -623,6 +623,10 @@ class UserEventsRepo {
       final rows = deletedRows.cast<Map<String, dynamic>>();
       if (rows.isEmpty) {
         _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
+        await recordDeletionTombstone(
+          clientEventId: clientEventId,
+          reason: 'delete_by_client_id_missing_row',
+        );
         return;
       }
 
@@ -648,9 +652,41 @@ class UserEventsRepo {
       if (e.code == 'PGRST116' ||
           e.message.contains('Results contain 0 rows')) {
         _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
+        await recordDeletionTombstone(
+          clientEventId: clientEventId,
+          reason: 'delete_by_client_id_missing_row',
+        );
         return;
       }
       _log('deleteByClientId ✗ ${e.code} ${e.message}');
+      rethrow;
+    }
+  }
+
+  Future<void> recordDeletionTombstone({
+    required String clientEventId,
+    String? calendarId,
+    String reason = 'client_delete',
+  }) async {
+    final trimmed = clientEventId.trim();
+    if (trimmed.isEmpty) return;
+
+    try {
+      await _client.rpc(
+        'record_user_event_tombstone',
+        params: {
+          'p_client_event_id': trimmed,
+          if (calendarId != null && calendarId.trim().isNotEmpty)
+            'p_calendar_id': calendarId.trim(),
+          'p_reason': reason,
+        },
+      );
+      _log('recordDeletionTombstone ✓ cid=$trimmed');
+    } on PostgrestException catch (e) {
+      _log('recordDeletionTombstone ✗ ${e.code} ${e.message}');
+      rethrow;
+    } catch (e) {
+      _log('recordDeletionTombstone ✗ $e');
       rethrow;
     }
   }

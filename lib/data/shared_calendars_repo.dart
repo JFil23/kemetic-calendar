@@ -4,7 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'event_filing_engine.dart';
+import 'event_filing_repo.dart';
 import 'shared_calendar_models.dart';
+import 'user_events_repo.dart';
 
 class SharedCalendarsRepo {
   SharedCalendarsRepo(this._client);
@@ -86,6 +89,34 @@ class SharedCalendarsRepo {
     } catch (e) {
       _log('getSentPendingInvites failed: $e');
       return const [];
+    }
+  }
+
+  Future<List<UserEvent>> getCalendarEvents(
+    String calendarId, {
+    int pageSize = 1000,
+  }) async {
+    final filedEvents = await getCalendarFiledEvents(
+      calendarId,
+      pageSize: pageSize,
+    );
+    return filedEvents.map((entry) => entry.event).toList(growable: false);
+  }
+
+  Future<List<FiledEvent>> getCalendarFiledEvents(
+    String calendarId, {
+    int pageSize = 1000,
+  }) async {
+    final trimmed = calendarId.trim();
+    if (trimmed.isEmpty) return const [];
+
+    try {
+      return await EventFilingRepo(
+        _client,
+      ).getLiveFiledCalendarEvents(trimmed, pageSize: pageSize);
+    } catch (e) {
+      _log('getCalendarFiledEvents failed: $e');
+      rethrow;
     }
   }
 

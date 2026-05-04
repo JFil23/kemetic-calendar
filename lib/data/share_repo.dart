@@ -910,9 +910,9 @@ class ShareRepo {
     }
 
     final rawEvent = await _client
-        .from('user_events')
+        .from('user_event_filing_items_client')
         .select(
-          'id, user_id, title, detail, location, starts_at, ends_at, all_day, flow_local_id, category',
+          'id, user_id, title, detail, location, starts_at, ends_at, all_day, flow_local_id, filed_flow_id, category',
         )
         .eq('id', eventId)
         .maybeSingle();
@@ -932,7 +932,8 @@ class ShareRepo {
     }
 
     final sourceFlowPayload = await _buildEventSourceFlowPayload(
-      _parseIntValue(eventRow['flow_local_id']),
+      _parseIntValue(eventRow['flow_local_id']) ??
+          _parseIntValue(eventRow['filed_flow_id']),
     );
     final eventPayload = <String, dynamic>{
       if (payloadJson != null) ...payloadJson,
@@ -1188,11 +1189,11 @@ class ShareRepo {
     }
 
     final rawFlowEvents = await _client
-        .from('user_events')
+        .from('user_event_filing_items_client')
         .select(
           'client_event_id, title, detail, location, all_day, starts_at, ends_at, category',
         )
-        .eq('flow_local_id', sourceFlowId)
+        .eq('filed_flow_id', sourceFlowId)
         .order('starts_at', ascending: true)
         .order('created_at', ascending: true);
 
@@ -1237,11 +1238,11 @@ class ShareRepo {
     Map<String, dynamic> flowRow,
   ) async {
     final rawFlowEvents = await _client
-        .from('user_events')
+        .from('user_event_filing_items_client')
         .select(
           'title, detail, location, all_day, starts_at, ends_at, action_id, behavior_payload',
         )
-        .eq('flow_local_id', flowId)
+        .eq('filed_flow_id', flowId)
         .order('starts_at', ascending: true)
         .order('created_at', ascending: true);
 

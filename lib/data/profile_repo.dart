@@ -7,7 +7,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart' show DateUtils;
 import 'package:mobile/utils/detail_sanitizer.dart';
 import 'package:mobile/utils/event_cid_util.dart';
-import 'package:mobile/utils/flow_visibility.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 import 'profile_avatar_glyphs.dart';
 import 'profile_model.dart';
@@ -201,47 +200,10 @@ class ProfileRepo {
         final ledger = await FlowsRepo(_client).loadMyFlowLedger();
         return (ledger.activeCount, ledger.totalRemainingEventCount);
       }
-
-      final flowsResp = await _client
-          .from('flows')
-          .select('id, active, is_hidden, is_reminder, end_date, notes')
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
-
-      final flowsList = (flowsResp as List?) ?? const [];
-      final flowIds = flowsList
-          .where(
-            (row) =>
-                classifyFlowLedgerBucket(
-                  active: (row['active'] as bool?) ?? false,
-                  isSaved: false,
-                  isHidden: (row['is_hidden'] as bool?) ?? false,
-                  isReminder: (row['is_reminder'] as bool?) ?? false,
-                  endDate: row['end_date'] == null
-                      ? null
-                      : DateTime.parse(row['end_date'] as String),
-                  notes: row['notes'] as String?,
-                ) ==
-                FlowLedgerBucket.active,
-          )
-          .map((row) => (row['id'] as num?)?.toInt())
-          .whereType<int>()
-          .toList();
-
-      final activeFlows = flowIds.length;
-      if (flowIds.isEmpty) return (0, 0);
-
-      final eventsResp = await _client
-          .from('user_events')
-          .select('id, category')
-          .eq('user_id', userId)
-          .inFilter('flow_local_id', flowIds);
-
-      final flowEvents = ((eventsResp as List?) ?? const [])
-          .cast<Map<String, dynamic>>()
-          .where((row) => row['category'] != 'tombstone')
-          .length;
-      return (activeFlows, flowEvents);
+      _log(
+        '[ProfileRepo] No client-safe fallback for another user without get_profile_flow_counts.',
+      );
+      return (0, 0);
     } catch (e) {
       _log('[ProfileRepo] Error computing counts: $e');
       return (0, 0);

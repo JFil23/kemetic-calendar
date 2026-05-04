@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
+import '../../data/event_filing_engine.dart';
 import '../../data/shared_calendar_models.dart';
 import '../../data/shared_calendars_repo.dart';
 import '../../features/profile/profile_search_page.dart';
@@ -38,6 +40,11 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   ];
 
   SharedCalendarsSnapshot? _snapshot;
+  final Set<String> _expandedCalendarIds = <String>{};
+  final Set<String> _loadingCalendarEventIds = <String>{};
+  final Map<String, List<FiledEvent>> _calendarEventsById =
+      <String, List<FiledEvent>>{};
+  final Map<String, String> _calendarEventErrorsById = <String, String>{};
   bool _loading = true;
   bool _saving = false;
   bool _changed = false;
@@ -178,6 +185,39 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       );
     });
     _changed = true;
+  }
+
+  Future<void> _toggleCalendarEvents(SharedCalendarSummary calendar) async {
+    final calendarId = calendar.id.trim();
+    if (calendarId.isEmpty) return;
+
+    if (_expandedCalendarIds.contains(calendarId)) {
+      setState(() => _expandedCalendarIds.remove(calendarId));
+      return;
+    }
+
+    setState(() {
+      _expandedCalendarIds.add(calendarId);
+      _calendarEventErrorsById.remove(calendarId);
+      _calendarEventsById.remove(calendarId);
+      _loadingCalendarEventIds.add(calendarId);
+    });
+
+    try {
+      final events = await widget.repo.getCalendarFiledEvents(calendarId);
+      if (!mounted) return;
+      setState(() {
+        _calendarEventsById[calendarId] = events;
+        _loadingCalendarEventIds.remove(calendarId);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingCalendarEventIds.remove(calendarId);
+        _calendarEventErrorsById[calendarId] =
+            'Could not load events for this calendar.';
+      });
+    }
   }
 
   Future<_CalendarEditorResult?> _showCalendarEditor({
@@ -322,6 +362,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   ) {
     final isVisible = !snapshot.hiddenCalendarIds.contains(calendar.id);
     final isOwner = calendar.role == SharedCalendarRole.owner;
+    final isExpanded = _expandedCalendarIds.contains(calendar.id);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -333,49 +374,68 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         child: Column(
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: calendar.color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        calendar.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
+            InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => _toggleCalendarEvents(calendar),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: calendar.color,
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        calendar.isPersonal
-                            ? 'Personal calendar'
-                            : '${calendar.memberCount} members • ${calendar.roleLabel}',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.62),
-                          fontSize: 13,
-                        ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            calendar.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            calendar.isPersonal
+                                ? 'Personal calendar'
+                                : '${calendar.memberCount} members • ${calendar.roleLabel}',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.62),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    Icon(
+                      isExpanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      color: calendar.color,
+                    ),
+                    const SizedBox(width: 6),
+                    Switch(
+                      value: isVisible,
+                      activeThumbColor: calendar.color,
+                      onChanged: (value) =>
+                          _setCalendarVisible(calendar, value),
+                    ),
+                  ],
                 ),
-                Switch(
-                  value: isVisible,
-                  activeThumbColor: calendar.color,
-                  onChanged: (value) => _setCalendarVisible(calendar, value),
-                ),
-              ],
+              ),
             ),
+            if (isExpanded) ...[
+              const SizedBox(height: 12),
+              _calendarEventsDropdown(calendar),
+            ],
             if (!calendar.isPersonal) ...[
               const SizedBox(height: 10),
               Row(
@@ -431,6 +491,182 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
         ),
       ),
     );
+  }
+
+  Widget _calendarEventsDropdown(SharedCalendarSummary calendar) {
+    final calendarId = calendar.id;
+    final isLoading = _loadingCalendarEventIds.contains(calendarId);
+    final error = _calendarEventErrorsById[calendarId];
+    final events = _calendarEventsById[calendarId] ?? const <FiledEvent>[];
+
+    Widget body;
+    if (isLoading) {
+      body = Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(calendar.color),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Loading events...',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.68)),
+            ),
+          ],
+        ),
+      );
+    } else if (error != null) {
+      body = Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Text(
+          error,
+          style: const TextStyle(color: Color(0xFFE85D75), fontSize: 13),
+        ),
+      );
+    } else if (events.isEmpty) {
+      body = Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Text(
+          'No events on this calendar.',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.62)),
+        ),
+      );
+    } else {
+      body = Column(
+        children: [
+          for (var i = 0; i < events.length; i++) ...[
+            _calendarEventRow(events[i], calendar),
+            if (i != events.length - 1)
+              Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
+          ],
+        ],
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: calendar.color.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.event_note_rounded, size: 16, color: calendar.color),
+              const SizedBox(width: 6),
+              Text(
+                events.isEmpty && !isLoading
+                    ? 'Upcoming events'
+                    : 'Upcoming events (${events.length})',
+                style: TextStyle(
+                  color: calendar.color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          body,
+        ],
+      ),
+    );
+  }
+
+  Widget _calendarEventRow(
+    FiledEvent filedEvent,
+    SharedCalendarSummary calendar,
+  ) {
+    final event = filedEvent.event;
+    final title = event.title.trim().isEmpty ? 'Untitled event' : event.title;
+    final meta = _eventMetaText(filedEvent);
+    final detail = event.location?.trim().isNotEmpty == true
+        ? event.location!.trim()
+        : event.detail?.trim();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            margin: const EdgeInsets.only(top: 6),
+            decoration: BoxDecoration(
+              color: calendar.color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  meta,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.62),
+                    fontSize: 12,
+                  ),
+                ),
+                if (detail != null && detail.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    detail,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.48),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _eventMetaText(FiledEvent filedEvent) {
+    final event = filedEvent.event;
+    final localStart = event.startsAt.toLocal();
+    final datePattern = localStart.year == DateTime.now().year
+        ? 'EEE, MMM d'
+        : 'EEE, MMM d, y';
+    final day = DateFormat(datePattern).format(localStart);
+    if (event.allDay) return '$day • All day';
+
+    final start = DateFormat('h:mm a').format(localStart);
+    final end = event.endsAt == null
+        ? null
+        : DateFormat('h:mm a').format(event.endsAt!.toLocal());
+    return end == null ? '$day • $start' : '$day • $start-$end';
   }
 
   Widget _inviteCard(SharedCalendarInvite invite) {

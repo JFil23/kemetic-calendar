@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/event_filing_engine.dart';
 import '../../data/user_events_repo.dart';
 import '../../data/flows_repo.dart';
 import '../../data/shared_calendar_models.dart';
@@ -9180,6 +9181,17 @@ class _CalendarPageState extends State<CalendarPage>
         );
       }
     }
+    try {
+      await eventsRepo.deleteByClientId('reminder:rule:$id');
+      await eventsRepo.recordDeletionTombstone(
+        clientEventId: 'reminder:$id',
+        reason: 'delete_reminder_rule',
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[reminders] record reminder tombstone failed: $e');
+      }
+    }
 
     try {
       final flowsRepo = FlowsRepo(Supabase.instance.client);
@@ -11668,23 +11680,16 @@ class _CalendarPageState extends State<CalendarPage>
         if (tombstoneCid != null) {
           await _recordManualTombstone(tombstoneCid);
           try {
-            // Persist a tombstone so local/share-import sync does not recreate
-            // an invitee-deleted standalone import on the next refresh.
-            final now = DateTime.now().toUtc();
-            await repo.upsertByClientId(
+            // Store the deletion marker outside client-readable event rows so
+            // deleted notes cannot resurface as calendar ghosts.
+            await repo.recordDeletionTombstone(
               clientEventId: tombstoneCid,
-              title: 'deleted',
-              startsAtUtc: now,
-              detail: null,
-              location: null,
-              allDay: true,
-              endsAtUtc: now,
-              category: 'tombstone',
-              caller: 'delete_tombstone',
+              calendarId: note.calendarId,
+              reason: 'delete_note',
             );
           } catch (e) {
             if (kDebugMode) {
-              debugPrint('[delete-note] tombstone upsert failed: $e');
+              debugPrint('[delete-note] tombstone record failed: $e');
             }
           }
         }
@@ -32980,28 +32985,30 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
     return a.name.toLowerCase().compareTo(b.name.toLowerCase());
   }
 
-  FlowLedger<_Flow> get _ledger => buildFlowLedger<_Flow>(
-    flows: widget.flows,
-    idOf: (flow) => flow.id,
-    activeOf: (flow) => flow.active,
-    isSavedOf: (flow) => flow.isSaved,
-    isHiddenOf: (flow) => flow.isHidden,
-    isReminderOf: (flow) => flow.isReminder,
-    endDateOf: (flow) => flow.end,
-    notesOf: (flow) => flow.notes,
-    useRemainingEventCount: true,
-    totalEventCounts: widget.totalEventCounts,
-    remainingEventCounts: widget.remainingEventCounts,
-  );
+  FiledFlowCabinet<_Flow> get _flowFiling =>
+      const EventFilingEngine().fileFlowRecords<_Flow>(
+        flows: widget.flows,
+        idOf: (flow) => flow.id,
+        activeOf: (flow) => flow.active,
+        isSavedOf: (flow) => flow.isSaved,
+        isHiddenOf: (flow) => flow.isHidden,
+        isReminderOf: (flow) => flow.isReminder,
+        endDateOf: (flow) => flow.end,
+        notesOf: (flow) => flow.notes,
+        calendarIdOf: (flow) => flow.calendarId,
+        totalEventCounts: widget.totalEventCounts,
+        remainingEventCounts: widget.remainingEventCounts,
+      );
 
   List<_Flow> get _activeItems =>
-      _ledger.activeItems.toList()
+      _flowFiling.active.map((entry) => entry.flow).toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   // Saved flows act as templates, so they stay visible even after the user
   // removes them from the active calendar.
   List<_Flow> get _savedItems =>
-      _ledger.savedTemplateItems.toList()..sort(_compareSavedFlows);
+      _flowFiling.saved.map((entry) => entry.flow).toList()
+        ..sort(_compareSavedFlows);
 
   @override
   Widget build(BuildContext context) {
