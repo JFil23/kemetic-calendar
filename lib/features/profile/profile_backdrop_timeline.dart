@@ -95,10 +95,6 @@ const List<ProfileBackdropFrame> profileBackdropFrames = [
         '$profileBackdropAssetDirectory/Gemini_Generated_Image_vc4fm5vc4fm5vc4f.png',
     minuteOfDay: 20 * 60 + 15,
   ),
-  ProfileBackdropFrame(
-    assetPath: '$profileBackdropAssetDirectory/primary_night_pyramid.png',
-    minuteOfDay: 23 * 60,
-  ),
 ];
 
 // The profile backdrop should follow the phone's current local clock.

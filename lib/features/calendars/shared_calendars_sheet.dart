@@ -119,17 +119,8 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       await widget.repo.inviteUser(
         calendarId: calendar.id,
         userId: trimmedUserId,
-      );
-      await widget.repo.sendCalendarPush(
-        userIds: <String>[trimmedUserId],
-        title: calendar.name,
-        body: 'You were invited to join this calendar.',
-        data: <String, dynamic>{
-          'kind': 'calendar_invite',
-          'calendar_id': calendar.id,
-          'calendar_name': calendar.name,
-          'calendar_color': calendar.colorValue,
-        },
+        calendarName: calendar.name,
+        calendarColorValue: calendar.colorValue,
       );
     });
   }
@@ -507,22 +498,8 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                             await widget.repo.respondToInvite(
                               calendarId: invite.calendarId,
                               accept: false,
+                              invite: invite,
                             );
-                            final inviterId = invite.invitedBy?.trim();
-                            if (inviterId != null && inviterId.isNotEmpty) {
-                              await widget.repo.sendCalendarPush(
-                                userIds: <String>[inviterId],
-                                title: invite.calendarName,
-                                body: 'Your calendar invitation was declined.',
-                                data: <String, dynamic>{
-                                  'kind': 'calendar_invite_response',
-                                  'calendar_id': invite.calendarId,
-                                  'calendar_name': invite.calendarName,
-                                  'calendar_color': invite.calendarColorValue,
-                                  'invite_status': 'declined',
-                                },
-                              );
-                            }
                           }),
                     child: const Text('Decline'),
                   ),
@@ -540,22 +517,8 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                             await widget.repo.respondToInvite(
                               calendarId: invite.calendarId,
                               accept: true,
+                              invite: invite,
                             );
-                            final inviterId = invite.invitedBy?.trim();
-                            if (inviterId != null && inviterId.isNotEmpty) {
-                              await widget.repo.sendCalendarPush(
-                                userIds: <String>[inviterId],
-                                title: invite.calendarName,
-                                body: 'Your calendar invitation was accepted.',
-                                data: <String, dynamic>{
-                                  'kind': 'calendar_invite_response',
-                                  'calendar_id': invite.calendarId,
-                                  'calendar_name': invite.calendarName,
-                                  'calendar_color': invite.calendarColorValue,
-                                  'invite_status': 'accepted',
-                                },
-                              );
-                            }
                           }),
                     child: const Text('Accept'),
                   ),

@@ -24,15 +24,18 @@ void main() {
     expect(blend.t, closeTo(22.5 / 45, 0.0001));
   });
 
-  test('wraps from the late-night anchor back into the overnight sequence', () {
+  test('wraps from the evening anchor back into the overnight sequence', () {
     final blend = ProfileBackdropBlend.forTime(DateTime(2026, 4, 26, 23, 30));
 
-    expect(blend.current.assetPath, endsWith('/primary_night_pyramid.png'));
+    expect(
+      blend.current.assetPath,
+      endsWith('/Gemini_Generated_Image_vc4fm5vc4fm5vc4f.png'),
+    );
     expect(
       blend.next.assetPath,
       endsWith('/Gemini_Generated_Image_ud0tf5ud0tf5ud0t.png'),
     );
-    expect(blend.t, closeTo(30 / 90, 0.0001));
+    expect(blend.t, closeTo(195 / 255, 0.0001));
   });
 
   test('waits until the next minute blend tick', () {

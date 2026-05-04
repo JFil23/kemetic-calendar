@@ -17,8 +17,6 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIR = ROOT / "assets/profile/day_cycle"
 OUTPUT_DIR = ROOT / "assets/profile/day_cycle_registered_v3"
 JPEG_OUTPUT_DIR = ROOT / "assets/profile/day_cycle_registered_v3_jpg"
-PRIMARY_NIGHT_DIR = ROOT / "assets/profile/PRIMARY"
-PRIMARY_NIGHT_IMAGE_NAME = "primary_night_pyramid.png"
 ANCHOR_NAME = "12am.png"
 
 FRAME_ORDER = [
@@ -55,19 +53,6 @@ FIT_CENTERING = {
 # Use adjacent real night images to ease stars out during predawn.
 STAR_BLEND = {
     "5am.png": ("4am.png", 0.08),
-}
-
-NIGHT_PYRAMID_FRAMES = {
-    "8pm.png",
-    "9pm.png",
-    "10pm.png",
-    "11pm.png",
-    "12am.png",
-    "1am.png",
-    "2am.png",
-    "3am.png",
-    "4am.png",
-    "5am.png",
 }
 
 EARLY_NIGHT_STAR_BLEND = {
@@ -147,33 +132,6 @@ def build_alignment_mask(size: tuple[int, int]) -> np.ndarray:
     mask[:, : int(width * 0.62)] = 255
     mask[int(height * 0.58) :, :] = 255
     return mask
-
-
-def build_pyramid_mask(size: tuple[int, int]) -> Image.Image:
-    width, height = size
-    mask = Image.new("L", size, 0)
-    draw = ImageDraw.Draw(mask)
-    draw.polygon(
-        [
-            (0, int(height * 0.01)),
-            (int(width * 0.228), int(height * 0.01)),
-            (int(width * 0.544), int(height * 0.701)),
-            (int(width * 0.548), int(height * 0.779)),
-            (0, int(height * 0.886)),
-        ],
-        fill=255,
-    )
-    draw.polygon(
-        [
-            (int(width * 0.500), int(height * 0.673)),
-            (int(width * 0.559), int(height * 0.673)),
-            (int(width * 0.587), int(height * 0.770)),
-            (int(width * 0.529), int(height * 0.787)),
-            (int(width * 0.476), int(height * 0.722)),
-        ],
-        fill=220,
-    )
-    return mask.filter(ImageFilter.GaussianBlur(3))
 
 
 def build_upper_right_sky_mask(size: tuple[int, int], sky_mask: Image.Image) -> Image.Image:
@@ -268,27 +226,6 @@ def screen_blend(base: Image.Image, overlay: Image.Image, mask: Image.Image) -> 
     return Image.composite(screened, base.convert("RGB"), mask)
 
 
-def composite_with_mask(
-    base: Image.Image,
-    overlay: Image.Image,
-    mask: Image.Image,
-) -> Image.Image:
-    return Image.composite(overlay.convert("RGB"), base.convert("RGB"), mask)
-
-
-def resolve_primary_night_image_path() -> Path | None:
-    preferred = PRIMARY_NIGHT_DIR / PRIMARY_NIGHT_IMAGE_NAME
-    if preferred.exists():
-        return preferred
-
-    candidates: list[Path] = []
-    for pattern in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
-        candidates.extend(sorted(PRIMARY_NIGHT_DIR.glob(pattern)))
-    if not candidates:
-        return None
-    return candidates[0]
-
-
 def main() -> None:
     anchor_image = Image.open(SOURCE_DIR / ANCHOR_NAME).convert("RGB")
     target_size = anchor_image.size
@@ -297,16 +234,7 @@ def main() -> None:
     JPEG_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     sky_mask = build_sky_mask(target_size)
-    pyramid_mask = build_pyramid_mask(target_size)
     alignment_mask = build_alignment_mask(target_size)
-    primary_night_path = resolve_primary_night_image_path()
-    primary_night_image = anchor_image
-    if primary_night_path is not None:
-        primary_night_image = align_to_anchor(
-            fit_to_anchor(Image.open(primary_night_path), target_size, primary_night_path.name),
-            anchor_image,
-            alignment_mask,
-        )
     twilight_fade = gradient_mask(
         target_size,
         start_y=0.0,
@@ -316,7 +244,7 @@ def main() -> None:
     )
     star_mask = multiply_masks(sky_mask, twilight_fade)
     early_night_star_mask = build_upper_right_sky_mask(target_size, sky_mask)
-    primary_night_star_field = build_star_field_overlay(primary_night_image)
+    anchor_star_field = build_star_field_overlay(anchor_image)
 
     processed_cache: dict[str, Image.Image] = {}
     aligned_cache: dict[str, Image.Image] = {}
@@ -331,17 +259,10 @@ def main() -> None:
     for frame_name, processed in aligned_cache.items():
         output_image = processed
 
-        if frame_name in NIGHT_PYRAMID_FRAMES:
-            output_image = composite_with_mask(
-                output_image,
-                primary_night_image,
-                pyramid_mask,
-            )
-
         if frame_name in EARLY_NIGHT_STAR_BLEND:
             output_image = screen_blend(
                 output_image,
-                primary_night_star_field,
+                anchor_star_field,
                 early_night_star_mask.point(
                     lambda value, alpha=EARLY_NIGHT_STAR_BLEND[frame_name]: int(value * alpha)
                 ),

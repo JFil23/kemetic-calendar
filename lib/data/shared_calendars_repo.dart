@@ -89,6 +89,26 @@ class SharedCalendarsRepo {
     }
   }
 
+  Future<SharedCalendarInvite?> getPendingInviteForCalendar(
+    String calendarId,
+  ) async {
+    final trimmed = calendarId.trim();
+    if (trimmed.isEmpty) return null;
+
+    try {
+      final row = await _client
+          .from('shared_calendar_pending_invites')
+          .select()
+          .eq('calendar_id', trimmed)
+          .maybeSingle();
+      if (row == null) return null;
+      return SharedCalendarInvite.fromRow(Map<String, dynamic>.from(row));
+    } catch (e) {
+      _log('getPendingInviteForCalendar failed: $e');
+      return null;
+    }
+  }
+
   Future<Set<String>> getHiddenCalendarIds() async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null || uid.isEmpty) return <String>{};
@@ -233,6 +253,98 @@ class SharedCalendarsRepo {
     return controller.stream;
   }
 
+  Stream<List<SharedCalendarInvite>> watchPendingInvites() {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null || uid.isEmpty) {
+      return Stream.value(const <SharedCalendarInvite>[]);
+    }
+
+    final controller = StreamController<List<SharedCalendarInvite>>();
+    final channelName =
+        'shared_calendar_pending_invites_${uid}_${DateTime.now().microsecondsSinceEpoch}';
+    List<SharedCalendarInvite> lastItems = const [];
+    Timer? refreshDebounce;
+    bool refreshInFlight = false;
+    bool refreshQueued = false;
+
+    Future<void> emitLatest() async {
+      if (refreshInFlight) {
+        refreshQueued = true;
+        return;
+      }
+      refreshInFlight = true;
+      try {
+        final items = await getPendingInvites();
+        lastItems = items;
+        if (!controller.isClosed) {
+          controller.add(items);
+        }
+      } catch (e, st) {
+        _log('watchPendingInvites refresh failed: $e');
+        if (kDebugMode) {
+          debugPrint('$st');
+        }
+        if (!controller.isClosed) {
+          controller.add(lastItems);
+        }
+      } finally {
+        refreshInFlight = false;
+        if (refreshQueued) {
+          refreshQueued = false;
+          unawaited(emitLatest());
+        }
+      }
+    }
+
+    void scheduleRefresh() {
+      refreshDebounce?.cancel();
+      refreshDebounce = Timer(const Duration(milliseconds: 120), () {
+        unawaited(emitLatest());
+      });
+    }
+
+    final channel = _client.channel(channelName)
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'shared_calendar_members',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: uid,
+        ),
+        callback: (_) => scheduleRefresh(),
+      )
+      ..subscribe((status, [error]) {
+        if (kDebugMode) {
+          debugPrint(
+            '[SharedCalendarsRepo] channel=$channelName status=$status error=$error',
+          );
+        }
+        switch (status) {
+          case RealtimeSubscribeStatus.subscribed:
+            scheduleRefresh();
+            break;
+          case RealtimeSubscribeStatus.channelError:
+          case RealtimeSubscribeStatus.timedOut:
+            scheduleRefresh();
+            break;
+          case RealtimeSubscribeStatus.closed:
+            break;
+        }
+      });
+
+    unawaited(emitLatest());
+
+    controller.onCancel = () async {
+      refreshDebounce?.cancel();
+      await channel.unsubscribe();
+      await controller.close();
+    };
+
+    return controller.stream;
+  }
+
   Future<String> createCalendar({
     required String name,
     required int colorValue,
@@ -266,13 +378,37 @@ class SharedCalendarsRepo {
     required String calendarId,
     required String userId,
     SharedCalendarRole role = SharedCalendarRole.editor,
+    String? calendarName,
+    int? calendarColorValue,
   }) async {
+    final trimmedCalendarId = calendarId.trim();
+    final trimmedUserId = userId.trim();
     await _client.rpc(
       'invite_user_to_shared_calendar',
       params: <String, dynamic>{
-        'p_calendar_id': calendarId,
-        'p_user_id': userId,
+        'p_calendar_id': trimmedCalendarId,
+        'p_user_id': trimmedUserId,
         'p_role': role.name,
+      },
+    );
+
+    final metadata = await _calendarPushMetadata(
+      calendarId: trimmedCalendarId,
+      fallbackName: calendarName,
+      fallbackColorValue: calendarColorValue,
+    );
+    final title = metadata.name.isNotEmpty ? metadata.name : 'Calendar invite';
+    await sendCalendarPush(
+      userIds: <String>[trimmedUserId],
+      title: title,
+      body: 'You were invited to join $title.',
+      data: <String, dynamic>{
+        'type': 'calendar_invite',
+        'kind': 'calendar_invite',
+        'calendar_id': trimmedCalendarId,
+        'calendar_name': title,
+        if (metadata.colorValue != null) 'calendar_color': metadata.colorValue,
+        'role': role.name,
       },
     );
   }
@@ -280,12 +416,37 @@ class SharedCalendarsRepo {
   Future<void> respondToInvite({
     required String calendarId,
     required bool accept,
+    SharedCalendarInvite? invite,
   }) async {
+    final trimmedCalendarId = calendarId.trim();
+    final pendingInvite =
+        invite ?? await getPendingInviteForCalendar(trimmedCalendarId);
     await _client.rpc(
       'respond_to_shared_calendar_invite',
       params: <String, dynamic>{
-        'p_calendar_id': calendarId,
+        'p_calendar_id': trimmedCalendarId,
         'p_accept': accept,
+      },
+    );
+
+    final inviterId = pendingInvite?.invitedBy?.trim();
+    if (inviterId == null || inviterId.isEmpty) return;
+
+    final title = pendingInvite!.calendarName.trim().isNotEmpty
+        ? pendingInvite.calendarName.trim()
+        : 'Calendar invite';
+    final status = accept ? 'accepted' : 'declined';
+    await sendCalendarPush(
+      userIds: <String>[inviterId],
+      title: title,
+      body: 'Your calendar invitation was $status.',
+      data: <String, dynamic>{
+        'type': 'calendar_invite_response',
+        'kind': 'calendar_invite_response',
+        'calendar_id': trimmedCalendarId,
+        'calendar_name': title,
+        'calendar_color': pendingInvite.calendarColorValue,
+        'invite_status': status,
       },
     );
   }
@@ -341,6 +502,20 @@ class SharedCalendarsRepo {
         .toList(growable: false);
     if (recipients.isEmpty) return;
 
+    final currentUserId = _client.auth.currentUser?.id.trim();
+    final pushData = <String, dynamic>{if (data != null) ...data};
+    final kind = pushData['kind']?.toString().trim();
+    if ((pushData['type']?.toString().trim().isEmpty ?? true) &&
+        kind != null &&
+        kind.isNotEmpty) {
+      pushData['type'] = kind;
+    }
+    if ((pushData['sender_id']?.toString().trim().isEmpty ?? true) &&
+        currentUserId != null &&
+        currentUserId.isNotEmpty) {
+      pushData['sender_id'] = currentUserId;
+    }
+
     for (var i = 0; i < recipients.length; i += 5) {
       final batch = recipients.sublist(
         i,
@@ -355,7 +530,7 @@ class SharedCalendarsRepo {
               'title': title,
               if (body != null && body.trim().isNotEmpty) 'body': body.trim(),
             },
-            if (data != null && data.isNotEmpty) 'data': data,
+            if (pushData.isNotEmpty) 'data': pushData,
           },
         );
       } catch (e) {
@@ -399,5 +574,39 @@ class SharedCalendarsRepo {
       _log('createCalendarNotifications failed: $e');
       return 0;
     }
+  }
+
+  Future<({String name, int? colorValue})> _calendarPushMetadata({
+    required String calendarId,
+    String? fallbackName,
+    int? fallbackColorValue,
+  }) async {
+    final fallback = (
+      name: fallbackName?.trim() ?? '',
+      colorValue: fallbackColorValue,
+    );
+    if (fallback.name.isNotEmpty && fallback.colorValue != null) {
+      return fallback;
+    }
+
+    try {
+      final row = await _client
+          .from('shared_calendar_summaries')
+          .select('name, color')
+          .eq('id', calendarId)
+          .maybeSingle();
+      if (row != null) {
+        final name = ((row['name'] as String?) ?? '').trim();
+        final colorValue = (row['color'] as num?)?.toInt();
+        return (
+          name: name.isNotEmpty ? name : fallback.name,
+          colorValue: colorValue ?? fallback.colorValue,
+        );
+      }
+    } catch (e) {
+      _log('calendar push metadata lookup failed: $e');
+    }
+
+    return fallback;
   }
 }
