@@ -4700,9 +4700,17 @@ class _CalendarPageState extends State<CalendarPage>
   // Narrower initial window for faster startup; flows can still widen it.
   static const int _standaloneHydrationWindowYears = 1;
   static const Duration _standaloneHydrationPadding = Duration(days: 30);
+  static const String _kWarmStartCacheKeyPrefix = 'calendar:warm_start:v1';
+  static const Duration _warmStartCacheDebounce = Duration(milliseconds: 600);
+  static const int _warmStartCacheMaxChars = 850000;
+  static const Duration _warmStartTrimPast = Duration(days: 120);
+  static const Duration _warmStartTrimFuture = Duration(days: 365);
 
   int _dataVersion = 0;
   final ValueNotifier<int> _dayViewDataVersion = ValueNotifier<int>(0);
+  Timer? _warmStartCacheDebounceTimer;
+  String? _warmStartCacheRestoredForUserId;
+  bool _warmStartSnapshotVisible = false;
   void _bumpDataVersion() {
     // why: force landscape PageView child to reconstruct once when data hydrates
     if (!mounted) return;
@@ -4713,6 +4721,7 @@ class _CalendarPageState extends State<CalendarPage>
   void _notifyDayViewDataChanged() {
     if (!mounted) return;
     _dayViewDataVersion.value++;
+    _scheduleWarmStartCacheSave();
   }
 
   // Build a reminder id that is unique per event occurrence and alert time.
@@ -4962,6 +4971,389 @@ class _CalendarPageState extends State<CalendarPage>
       return true;
     }
     return !_hiddenCalendarIds.contains(trimmed);
+  }
+
+  String? _activeWarmStartUserId() {
+    final userId = Supabase.instance.client.auth.currentUser?.id.trim();
+    if (userId == null || userId.isEmpty) return null;
+    return userId;
+  }
+
+  String _warmStartCacheKey(String userId) =>
+      '$_kWarmStartCacheKeyPrefix:$userId';
+
+  bool _hasWarmStartSnapshotVisibleForCurrentUser() {
+    final userId = _activeWarmStartUserId();
+    if (userId == null) return false;
+    return _warmStartSnapshotVisible &&
+        _warmStartCacheRestoredForUserId == userId;
+  }
+
+  TimeOfDay? _timeOfDayFromMinutes(dynamic raw) {
+    final totalMinutes = (raw as num?)?.toInt();
+    if (totalMinutes == null || totalMinutes < 0) return null;
+    return TimeOfDay(
+      hour: (totalMinutes ~/ 60) % 24,
+      minute: totalMinutes % 60,
+    );
+  }
+
+  int? _timeOfDayToMinutes(TimeOfDay? time) {
+    if (time == null) return null;
+    return time.hour * 60 + time.minute;
+  }
+
+  DateTime? _parseWarmStartDateTime(Object? raw) {
+    final value = raw?.toString().trim();
+    if (value == null || value.isEmpty) return null;
+    return DateTime.tryParse(value);
+  }
+
+  DateTime? _warmStartDateFromKey(String key) {
+    final parts = key.split('-');
+    if (parts.length != 3) return null;
+    final ky = int.tryParse(parts[0]);
+    final km = int.tryParse(parts[1]);
+    final kd = int.tryParse(parts[2]);
+    if (ky == null || km == null || kd == null) return null;
+    try {
+      return DateUtils.dateOnly(KemeticMath.toGregorian(ky, km, kd));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<int, int> _decodeWarmStartIntMap(Object? raw) {
+    if (raw is! Map) return const <int, int>{};
+    final result = <int, int>{};
+    raw.forEach((key, value) {
+      final id = int.tryParse(key.toString());
+      final count = (value as num?)?.toInt();
+      if (id == null || count == null) return;
+      result[id] = count;
+    });
+    return result;
+  }
+
+  Map<String, dynamic> _encodeWarmStartIntMap(Map<int, int> values) {
+    return <String, dynamic>{
+      for (final entry in values.entries) entry.key.toString(): entry.value,
+    };
+  }
+
+  Map<String, dynamic> _serializeWarmStartFlow(_Flow flow) {
+    return <String, dynamic>{
+      'id': flow.id,
+      'calendarId': flow.calendarId,
+      'name': flow.name,
+      'color': flow.color.toARGB32(),
+      'active': flow.active,
+      'isSaved': flow.isSaved,
+      'savedAt': flow.savedAt?.toIso8601String(),
+      'start': flow.start?.toIso8601String(),
+      'end': flow.end?.toIso8601String(),
+      'rules': flow.rules.map(ruleToJson).toList(growable: false),
+      'notes': flow.notes,
+      'shareId': flow.shareId,
+      'isHidden': flow.isHidden,
+      'isReminder': flow.isReminder,
+      'reminderUuid': flow.reminderUuid,
+    };
+  }
+
+  _Flow? _deserializeWarmStartFlow(Object? raw) {
+    if (raw is! Map) return null;
+    try {
+      final json = Map<String, dynamic>.from(raw);
+      final id = (json['id'] as num?)?.toInt();
+      final name = json['name'] as String?;
+      final colorValue = (json['color'] as num?)?.toInt();
+      if (id == null || name == null || colorValue == null) return null;
+      final rulesRaw = (json['rules'] as List?) ?? const [];
+      final rules = rulesRaw
+          .whereType<Map>()
+          .map(
+            (item) =>
+                CalendarPage.ruleFromJson(Map<String, dynamic>.from(item)),
+          )
+          .toList(growable: false);
+      return _Flow(
+        id: id,
+        calendarId: json['calendarId'] as String?,
+        name: name,
+        color: Color(colorValue),
+        active: (json['active'] as bool?) ?? true,
+        isSaved: (json['isSaved'] as bool?) ?? false,
+        savedAt: _parseWarmStartDateTime(json['savedAt'])?.toUtc(),
+        rules: rules,
+        start: _parseWarmStartDateTime(json['start'])?.toLocal(),
+        end: _parseWarmStartDateTime(json['end'])?.toLocal(),
+        notes: json['notes'] as String?,
+        shareId: json['shareId'] as String?,
+        isHidden: (json['isHidden'] as bool?) ?? false,
+        isReminder: (json['isReminder'] as bool?) ?? false,
+        reminderUuid: json['reminderUuid'] as String?,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<String, dynamic> _serializeWarmStartNote(_Note note) {
+    return <String, dynamic>{
+      'id': note.id,
+      'clientEventId': note.clientEventId,
+      'calendarId': note.calendarId,
+      'calendarName': note.calendarName,
+      'title': note.title,
+      'detail': note.detail,
+      'location': note.location,
+      'allDay': note.allDay,
+      'startMinutes': _timeOfDayToMinutes(note.start),
+      'endMinutes': _timeOfDayToMinutes(note.end),
+      'flowId': note.flowId,
+      'manualColor': note.manualColor?.toARGB32(),
+      'category': note.category,
+      'isReminder': note.isReminder,
+      'reminderId': note.reminderId,
+      'alertOffsetMinutes': note.alertOffsetMinutes,
+      'actionId': note.actionId,
+      'behaviorPayload': note.behaviorPayload,
+    };
+  }
+
+  _Note? _deserializeWarmStartNote(Object? raw) {
+    if (raw is! Map) return null;
+    try {
+      final json = Map<String, dynamic>.from(raw);
+      final title = json['title'] as String?;
+      final allDay = json['allDay'] as bool?;
+      if (title == null || allDay == null) return null;
+      return _Note(
+        id: json['id'] as String?,
+        clientEventId: json['clientEventId'] as String?,
+        calendarId: json['calendarId'] as String?,
+        calendarName: json['calendarName'] as String?,
+        title: title,
+        detail: json['detail'] as String?,
+        location: json['location'] as String?,
+        allDay: allDay,
+        start: _timeOfDayFromMinutes(json['startMinutes']),
+        end: _timeOfDayFromMinutes(json['endMinutes']),
+        flowId: (json['flowId'] as num?)?.toInt(),
+        manualColor: json['manualColor'] == null
+            ? null
+            : Color((json['manualColor'] as num).toInt()),
+        category: json['category'] as String?,
+        isReminder: (json['isReminder'] as bool?) ?? false,
+        reminderId: json['reminderId'] as String?,
+        alertOffsetMinutes: (json['alertOffsetMinutes'] as num?)?.toInt(),
+        actionId: json['actionId'] as String?,
+        behaviorPayload: json['behaviorPayload'] is Map
+            ? Map<String, dynamic>.from(json['behaviorPayload'] as Map)
+            : null,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Map<String, dynamic> _buildWarmStartSnapshot({
+    required String userId,
+    required bool trimmed,
+  }) {
+    final centerDay =
+        (_lastViewKy != null && _lastViewKm != null && _lastViewKd != null)
+        ? DateUtils.dateOnly(
+            KemeticMath.toGregorian(_lastViewKy!, _lastViewKm!, _lastViewKd!),
+          )
+        : DateUtils.dateOnly(DateTime.now());
+    final trimmedStart = centerDay.subtract(_warmStartTrimPast);
+    final trimmedEnd = centerDay.add(_warmStartTrimFuture);
+
+    final notesJson = <String, dynamic>{};
+    _notes.forEach((key, notes) {
+      final day = _warmStartDateFromKey(key);
+      if (trimmed &&
+          day != null &&
+          (day.isBefore(trimmedStart) || day.isAfter(trimmedEnd))) {
+        return;
+      }
+      notesJson[key] = notes
+          .map(_serializeWarmStartNote)
+          .toList(growable: false);
+    });
+
+    return <String, dynamic>{
+      'userId': userId,
+      'savedAt': DateTime.now().toUtc().toIso8601String(),
+      'nextFlowId': _nextFlowId,
+      'flows': _flows.map(_serializeWarmStartFlow).toList(growable: false),
+      'notes': notesJson,
+      'flowTotalEventCounts': _encodeWarmStartIntMap(_flowTotalEventCounts),
+      'flowRemainingEventCounts': _encodeWarmStartIntMap(
+        _flowRemainingEventCounts,
+      ),
+    };
+  }
+
+  void _scheduleWarmStartCacheSave() {
+    final userId = _activeWarmStartUserId();
+    if (userId == null) return;
+    _warmStartCacheDebounceTimer?.cancel();
+    _warmStartCacheDebounceTimer = Timer(_warmStartCacheDebounce, () {
+      _warmStartCacheDebounceTimer = null;
+      unawaited(_persistWarmStartCacheNow(userId: userId));
+    });
+  }
+
+  Future<void> _flushPendingWarmStartCacheSave({
+    String reason = 'manual',
+  }) async {
+    final timer = _warmStartCacheDebounceTimer;
+    if (timer == null) return;
+    _warmStartCacheDebounceTimer = null;
+    if (timer.isActive) {
+      timer.cancel();
+    }
+    await _persistWarmStartCacheNow(debugReason: reason);
+  }
+
+  Future<void> _persistWarmStartCacheNow({
+    String? userId,
+    String debugReason = 'debounced',
+  }) async {
+    final resolvedUserId = userId ?? _activeWarmStartUserId();
+    if (resolvedUserId == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final key = _warmStartCacheKey(resolvedUserId);
+
+    if (_flows.isEmpty && _notes.isEmpty) {
+      await prefs.remove(key);
+      return;
+    }
+
+    var encoded = jsonEncode(
+      _buildWarmStartSnapshot(userId: resolvedUserId, trimmed: false),
+    );
+    if (encoded.length > _warmStartCacheMaxChars) {
+      encoded = jsonEncode(
+        _buildWarmStartSnapshot(userId: resolvedUserId, trimmed: true),
+      );
+      if (encoded.length > _warmStartCacheMaxChars) {
+        if (kDebugMode) {
+          debugPrint(
+            '[warmStart] skip cache save reason=$debugReason size=${encoded.length}',
+          );
+        }
+        return;
+      }
+    }
+
+    await prefs.setString(key, encoded);
+    if (kDebugMode) {
+      debugPrint(
+        '[warmStart] saved cache reason=$debugReason size=${encoded.length}',
+      );
+    }
+  }
+
+  Future<void> _restoreWarmStartCacheIfAvailable({
+    String reason = 'startup',
+  }) async {
+    final userId = _activeWarmStartUserId();
+    if (userId == null) return;
+    if (_warmStartCacheRestoredForUserId == userId) return;
+
+    try {
+      await _loadEndedReminderIds();
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_warmStartCacheKey(userId));
+      if (raw == null || raw.trim().isEmpty) {
+        _warmStartCacheRestoredForUserId = userId;
+        return;
+      }
+
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) {
+        _warmStartCacheRestoredForUserId = userId;
+        return;
+      }
+      final json = Map<String, dynamic>.from(decoded);
+      final snapshotUserId = (json['userId'] as String?)?.trim();
+      if (snapshotUserId != null &&
+          snapshotUserId.isNotEmpty &&
+          snapshotUserId != userId) {
+        _warmStartCacheRestoredForUserId = userId;
+        return;
+      }
+
+      final flows = ((json['flows'] as List?) ?? const [])
+          .map(_deserializeWarmStartFlow)
+          .whereType<_Flow>()
+          .toList(growable: false);
+      final notesByDay = <String, List<_Note>>{};
+      final notesRaw = json['notes'];
+      if (notesRaw is Map) {
+        notesRaw.forEach((key, value) {
+          if (value is! List) return;
+          final notes = value
+              .map(_deserializeWarmStartNote)
+              .whereType<_Note>()
+              .toList(growable: false);
+          if (notes.isNotEmpty) {
+            notesByDay[key.toString()] = notes;
+          }
+        });
+      }
+
+      final nextFlowId =
+          (json['nextFlowId'] as num?)?.toInt() ??
+          ((flows.isEmpty
+                  ? 0
+                  : flows
+                        .map((flow) => flow.id)
+                        .reduce((a, b) => a > b ? a : b)) +
+              1);
+      final totalCounts = _decodeWarmStartIntMap(json['flowTotalEventCounts']);
+      final remainingCounts = _decodeWarmStartIntMap(
+        json['flowRemainingEventCounts'],
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _flows
+          ..clear()
+          ..addAll(flows);
+        _notes
+          ..clear()
+          ..addAll(notesByDay);
+        _flowTotalEventCounts
+          ..clear()
+          ..addAll(totalCounts);
+        _flowRemainingEventCounts
+          ..clear()
+          ..addAll(remainingCounts);
+        _nextFlowId = nextFlowId > 0 ? nextFlowId : _nextFlowId;
+      });
+      _rebuildReminderRulesFromFlowsIfMissing();
+      _warmStartCacheRestoredForUserId = userId;
+      _warmStartSnapshotVisible = true;
+      if (kDebugMode) {
+        final totalNotes = notesByDay.values.fold<int>(
+          0,
+          (sum, list) => sum + list.length,
+        );
+        debugPrint(
+          '[warmStart] restored cache reason=$reason flows=${flows.length} notes=$totalNotes',
+        );
+      }
+      _notifyDayViewDataChanged();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[warmStart] restore failed reason=$reason error=$e');
+      }
+    }
   }
 
   Future<void> _loadCalendarState() async {
@@ -6303,6 +6695,7 @@ class _CalendarPageState extends State<CalendarPage>
 
     // ✅ Load persisted state first, fallback to today
     _loadPersistedViewState();
+    unawaited(_restoreWarmStartCacheIfAvailable(reason: 'initState'));
     calendarPushOpenIntent.addListener(_handleCalendarPushOpenIntent);
     _scheduleDaySheetResumeRestore();
     _schedulePushEventResumeRestore();
@@ -6343,6 +6736,9 @@ class _CalendarPageState extends State<CalendarPage>
           event == AuthChangeEvent.signedIn) {
         if (!mounted) return;
         unawaited(_loadCalendarState());
+        unawaited(
+          _restoreWarmStartCacheIfAvailable(reason: 'auth:${event.name}'),
+        );
         _requestStartupRun(reason: 'auth:${event.name}');
         return;
       }
@@ -8112,6 +8508,8 @@ class _CalendarPageState extends State<CalendarPage>
     debugPrint('');
     _journalController.dispose();
     _calendarRestorationDebounce?.cancel();
+    _warmStartCacheDebounceTimer?.cancel();
+    unawaited(_flushPendingWarmStartCacheSave(reason: 'dispose'));
     unawaited(_flushPendingCalendarRestorationSave(reason: 'dispose'));
     final dayViewState = _activeDayViewRestorationState;
     if (dayViewState != null) {
@@ -8147,6 +8545,9 @@ class _CalendarPageState extends State<CalendarPage>
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
         _lastBackgroundedAt = DateTime.now();
+        unawaited(
+          _flushPendingWarmStartCacheSave(reason: 'lifecycle:${state.name}'),
+        );
         unawaited(
           _flushPendingCalendarRestorationSave(
             reason: 'lifecycle:${state.name}',
@@ -8385,6 +8786,39 @@ class _CalendarPageState extends State<CalendarPage>
       }
     } catch (_) {
       _reminderRulesLoaded = true;
+    }
+  }
+
+  Future<void> _primeReminderRulesFromFlows(Iterable<_Flow> flows) async {
+    try {
+      await _loadEndedReminderIds();
+      var source = flows
+          .where((flow) => flow.isReminder)
+          .map(_reminderRuleFromFlow)
+          .whereType<ReminderRule>()
+          .where((rule) => !_endedReminderIds.contains(rule.id))
+          .toList(growable: false);
+      if (source.isEmpty) {
+        source = await _reminderRuleStore.load();
+      }
+
+      final merged = _dedupeReminderRules(
+        source.where((rule) => !_endedReminderIds.contains(rule.id)).toList(),
+      );
+      _reminderRules
+        ..clear()
+        ..addAll(merged);
+      _reminderRulesLoaded = true;
+
+      if (merged.isNotEmpty) {
+        await _saveReminderRules();
+      } else {
+        await _reminderRuleStore.saveAll(const []);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[reminders] prime from loaded flows failed: $e');
+      }
     }
   }
 
@@ -14616,6 +15050,8 @@ class _CalendarPageState extends State<CalendarPage>
   static const int _flowHydrationLookbackDays = 365; // 12 months back
   static const int _flowHydrationLookaheadDays = 540; // ~18 months ahead
   static const Duration _flowHydrationPadding = Duration(days: 14);
+  static const Duration _startupVisibleHydrationLead = Duration(days: 45);
+  static const Duration _startupVisibleHydrationTrail = Duration(days: 60);
 
   ({DateTime startUtc, DateTime endUtc}) _computeFlowHydrationWindow(
     Set<int> activeFlowIds,
@@ -14689,6 +15125,43 @@ class _CalendarPageState extends State<CalendarPage>
     // Treat end as exclusive so the final day is fully included.
     final endExclusive = end.add(const Duration(days: 1));
     return (startUtc: start.toUtc(), endUtc: endExclusive.toUtc());
+  }
+
+  ({DateTime startUtc, DateTime endUtc})
+  _computeStartupVisibleHydrationWindow() {
+    final targetKy = _lastViewKy ?? _today.kYear;
+    final targetKm = _lastViewKm ?? _today.kMonth;
+    final monthStart = DateUtils.dateOnly(
+      KemeticMath.toGregorian(targetKy, targetKm, 1),
+    );
+    final monthEnd = DateUtils.dateOnly(
+      KemeticMath.toGregorian(
+        targetKy,
+        targetKm,
+        _maxDayForMonth(targetKy, targetKm),
+      ),
+    );
+    final start = monthStart.subtract(_startupVisibleHydrationLead);
+    final endExclusive = monthEnd
+        .add(_startupVisibleHydrationTrail)
+        .add(const Duration(days: 1));
+    return (startUtc: start.toUtc(), endUtc: endExclusive.toUtc());
+  }
+
+  ({DateTime startUtc, DateTime endUtc}) _clampHydrationWindowToFocus(
+    ({DateTime startUtc, DateTime endUtc}) base,
+    ({DateTime startUtc, DateTime endUtc}) focus,
+  ) {
+    final startUtc = base.startUtc.isAfter(focus.startUtc)
+        ? base.startUtc
+        : focus.startUtc;
+    final endUtc = base.endUtc.isBefore(focus.endUtc)
+        ? base.endUtc
+        : focus.endUtc;
+    if (!endUtc.isAfter(startUtc)) {
+      return focus;
+    }
+    return (startUtc: startUtc, endUtc: endUtc);
   }
 
   Future<void> _handleCreateTimedEvent(
@@ -17276,16 +17749,23 @@ class _CalendarPageState extends State<CalendarPage>
         debugPrint('$st');
       }
     }
-    // Order: load reminder rules, hydrate events/flows, then sync reminders in background.
-    await _loadReminderRules();
-    await _loadFromDisk(source: 'startup:$reason');
+    final keepWarmStartVisible = _hasWarmStartSnapshotVisibleForCurrentUser();
+    // If warm-start data is already on screen, keep it stable until the
+    // backfill finishes instead of doing an intermediate visible-window swap.
+    if (!keepWarmStartVisible) {
+      await _loadFromDisk(source: 'startup:$reason');
+    }
     await _maybeLoadDecanReflectionPrompt();
     unawaited(() async {
       try {
+        await _loadFromDisk(
+          source: 'startup_backfill:$reason',
+          preserveViewport: true,
+        );
         await _syncReminderEvents(refreshUi: false);
       } catch (e, st) {
         if (kDebugMode) {
-          debugPrint('[startup] reminder sync failed (async): $e');
+          debugPrint('[startup] backfill/reminder sync failed (async): $e');
           debugPrint('$st');
         }
       }
@@ -17328,9 +17808,10 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     try {
-      // Ensure reminder rules are loaded before hydrating events so we can filter orphaned reminder instances.
-      await _loadReminderRules();
-
+      final fastStartupMode = source.startsWith('startup:');
+      final focusWindow = fastStartupMode
+          ? _computeStartupVisibleHydrationWindow()
+          : null;
       final repo = UserEventsRepo(Supabase.instance.client);
       final currentUser = Supabase.instance.client.auth.currentUser;
 
@@ -17406,6 +17887,10 @@ class _CalendarPageState extends State<CalendarPage>
         );
       }
 
+      // Reuse the just-loaded flow rows for reminder bootstrapping so startup
+      // does not pay for a second full flow fetch before note hydration.
+      await _primeReminderRulesFromFlows(newFlows);
+
       // Build index/maps for later use
       final Map<int, _Flow> flowIndex = {for (final f in newFlows) f.id: f};
       final flowOwnersById = <int, FlowRecordSnapshot>{
@@ -17452,6 +17937,9 @@ class _CalendarPageState extends State<CalendarPage>
       ({DateTime startUtc, DateTime endUtc})? flowWindow;
       if (hydrationFlowIds.isNotEmpty) {
         flowWindow = _computeFlowHydrationWindow(hydrationFlowIds, flowIndex);
+        if (focusWindow != null) {
+          flowWindow = _clampHydrationWindowToFocus(flowWindow, focusWindow);
+        }
         if (kDebugMode) {
           debugPrint(
             '[loadFromDisk] flow hydration window '
@@ -17460,9 +17948,12 @@ class _CalendarPageState extends State<CalendarPage>
         }
       }
 
-      // Batched fetch of flow-backed events to avoid N sequential network calls.
-      final Map<int, List<FlowEventRow>> eventsByFlowId = {};
-      if (hydrationFlowIds.isNotEmpty) {
+      Future<Map<int, List<FlowEventRow>>> loadFlowEvents() async {
+        final eventsByFlowId = <int, List<FlowEventRow>>{};
+        if (hydrationFlowIds.isEmpty) {
+          return eventsByFlowId;
+        }
+
         try {
           final batchedEvents = await repo.getEventsForFlowIds(
             hydrationFlowIds,
@@ -17471,8 +17962,7 @@ class _CalendarPageState extends State<CalendarPage>
           );
           for (final evt in batchedEvents) {
             final fid = evt.flowLocalId;
-            if (fid == null) continue;
-            if (!hydrationFlowIds.contains(fid)) continue;
+            if (fid == null || !hydrationFlowIds.contains(fid)) continue;
             eventsByFlowId.putIfAbsent(fid, () => <FlowEventRow>[]).add(evt);
           }
           if (kDebugMode) {
@@ -17486,10 +17976,18 @@ class _CalendarPageState extends State<CalendarPage>
             debugPrint('$st');
           }
         }
-      }
 
-      // Fallback to per-flow fetch if batching fails or returns nothing.
-      if (eventsByFlowId.isEmpty && hydrationFlowIds.isNotEmpty) {
+        if (eventsByFlowId.isNotEmpty) {
+          if (kDebugMode) {
+            eventsByFlowId.forEach((fid, events) {
+              debugPrint(
+                '[loadFromDisk] flow $fid events (batched) count: ${events.length}',
+              );
+            });
+          }
+          return eventsByFlowId;
+        }
+
         for (final flowId in hydrationFlowIds) {
           try {
             final flowEvents = await repo.getEventsForFlow(
@@ -17512,13 +18010,28 @@ class _CalendarPageState extends State<CalendarPage>
             }
           }
         }
-      } else if (kDebugMode && eventsByFlowId.isNotEmpty) {
-        eventsByFlowId.forEach((fid, events) {
-          debugPrint(
-            '[loadFromDisk] flow $fid events (batched) count: ${events.length}',
-          );
-        });
+
+        return eventsByFlowId;
       }
+
+      var standaloneWindow = _computeStandaloneHydrationWindow(newFlows);
+      if (focusWindow != null) {
+        standaloneWindow = _clampHydrationWindowToFocus(
+          standaloneWindow,
+          focusWindow,
+        );
+      }
+      final flowEventsFuture = loadFlowEvents();
+      final standaloneFuture = repo.getStandaloneEventsForDateRangeAll(
+        startUtc: standaloneWindow.startUtc,
+        endUtc: standaloneWindow.endUtc,
+        pageSize: 1000,
+        flowOwnersById: flowOwnersById,
+      );
+      final flowEventCountsFuture = _flowsRepo.loadMyFlowEventCounts(
+        flowIds: newFlows.map((flow) => flow.id),
+      );
+      final eventsByFlowId = await flowEventsFuture;
 
       int flowAddedCount = 0;
 
@@ -17683,13 +18196,7 @@ class _CalendarPageState extends State<CalendarPage>
       // Load standalone events (single notes with flow_local_id = null)
       // 🚫 HARD GUARDS prevent old/zombie flow events from loading
       try {
-        final standaloneWindow = _computeStandaloneHydrationWindow(newFlows);
-        final standaloneResult = await repo.getStandaloneEventsForDateRangeAll(
-          startUtc: standaloneWindow.startUtc,
-          endUtc: standaloneWindow.endUtc,
-          pageSize: 1000,
-          flowOwnersById: flowOwnersById,
-        );
+        final standaloneResult = await standaloneFuture;
         final standaloneEvents = standaloneResult.events;
         final ghostStandaloneIds = standaloneResult.ghostEventIds;
 
@@ -17939,33 +18446,11 @@ class _CalendarPageState extends State<CalendarPage>
         }
       }
 
-      ({Map<int, int> total, Map<int, int> remaining}) flowEventCounts = (
-        total: <int, int>{},
-        remaining: <int, int>{},
-      );
-      try {
-        flowEventCounts = await _flowsRepo.loadMyFlowEventCounts(
-          flowIds: newFlows.map((flow) => flow.id),
-        );
-      } catch (err, st) {
-        if (kDebugMode) {
-          debugPrint(
-            '[loadFromDisk] failed to load flow activity counts: $err',
-          );
-          debugPrint('$st');
-        }
-      }
-
-      // force rebuild
+      // Force rebuild as soon as visible event data is ready. Flow counts and
+      // reminder regeneration are secondary and can land afterward.
       _flows
         ..clear()
         ..addAll(newFlows);
-      _flowTotalEventCounts
-        ..clear()
-        ..addAll(flowEventCounts.total);
-      _flowRemainingEventCounts
-        ..clear()
-        ..addAll(flowEventCounts.remaining);
       _notes
         ..clear()
         ..addAll(newNotes);
@@ -17997,10 +18482,10 @@ class _CalendarPageState extends State<CalendarPage>
       }
 
       _rebuildReminderRulesFromFlowsIfMissing();
-
-      await _regenReminderNotes(notify: false);
       _bumpDataVersion();
       _lastSuccessfulHydrationAt = DateTime.now();
+      _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
+      _warmStartSnapshotVisible = false;
       if (preserveViewport && preservedScrollOffset != null) {
         _lastKnownCalendarScrollOffset = preservedScrollOffset;
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -18017,6 +18502,55 @@ class _CalendarPageState extends State<CalendarPage>
           _scrollCtrl.jumpTo(clamped);
           _lastKnownCalendarScrollOffset = clamped.toDouble();
         });
+      }
+
+      Future<void> finishNonCriticalPostProcessing() async {
+        try {
+          final flowEventCounts = await flowEventCountsFuture;
+          if (mounted) {
+            setState(() {
+              _flowTotalEventCounts
+                ..clear()
+                ..addAll(flowEventCounts.total);
+              _flowRemainingEventCounts
+                ..clear()
+                ..addAll(flowEventCounts.remaining);
+            });
+          } else {
+            _flowTotalEventCounts
+              ..clear()
+              ..addAll(flowEventCounts.total);
+            _flowRemainingEventCounts
+              ..clear()
+              ..addAll(flowEventCounts.remaining);
+          }
+          _scheduleWarmStartCacheSave();
+        } catch (err, st) {
+          if (kDebugMode) {
+            debugPrint(
+              '[loadFromDisk] failed to load flow activity counts: $err',
+            );
+            debugPrint('$st');
+          }
+        }
+
+        try {
+          final changed = await _regenReminderNotes(notify: false);
+          if (changed) {
+            _refreshNoteCacheUi();
+          }
+        } catch (err, st) {
+          if (kDebugMode) {
+            debugPrint('[loadFromDisk] reminder regen failed: $err');
+            debugPrint('$st');
+          }
+        }
+      }
+
+      if (fastStartupMode) {
+        unawaited(finishNonCriticalPostProcessing());
+      } else {
+        await finishNonCriticalPostProcessing();
       }
     } catch (e, stackTrace) {
       print('Supabase sync FAILED: $e');
