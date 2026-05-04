@@ -5302,15 +5302,23 @@ class _CalendarPageState extends State<CalendarPage>
           .map(_deserializeWarmStartFlow)
           .whereType<_Flow>()
           .toList(growable: false);
+      final restoredTrackSkyFlowIds = flows
+          .where((flow) => _isTrackSkyFlowName(flow.name))
+          .map((flow) => flow.id)
+          .where((flowId) => flowId > 0)
+          .toSet();
       final notesByDay = <String, List<_Note>>{};
       final notesRaw = json['notes'];
       if (notesRaw is Map) {
         notesRaw.forEach((key, value) {
           if (value is! List) return;
-          final notes = value
-              .map(_deserializeWarmStartNote)
-              .whereType<_Note>()
-              .toList(growable: false);
+          final notes = _dedupeVisibleDayNotes(
+            value
+                .map(_deserializeWarmStartNote)
+                .whereType<_Note>()
+                .toList(growable: false),
+            trackSkyFlowIds: restoredTrackSkyFlowIds,
+          );
           if (notes.isNotEmpty) {
             notesByDay[key.toString()] = notes;
           }
@@ -11040,10 +11048,12 @@ class _CalendarPageState extends State<CalendarPage>
   List<_Note> _getNotes(int kYear, int kMonth, int kDay) {
     final key = _kKey(kYear, kMonth, kDay);
     final result = _notes[key] ?? const [];
-    if (!_calendarStateLoaded) return result;
-    return result
-        .where((note) => _isCalendarVisible(note.calendarId))
-        .toList(growable: false);
+    final visible = !_calendarStateLoaded
+        ? result
+        : result
+              .where((note) => _isCalendarVisible(note.calendarId))
+              .toList(growable: false);
+    return _dedupeVisibleDayNotes(visible);
   }
 
   ReminderRule? _reminderRuleFromFlow(_Flow f) {
@@ -14875,7 +14885,7 @@ class _CalendarPageState extends State<CalendarPage>
     // Adapter: Convert _Note to NoteData, and prime reminders for the day
     final notesForDayFn = (int y, int m, int d) {
       final key = '$y-$m-$d';
-      final notes = _notes[key] ?? [];
+      final notes = _dedupeVisibleDayNotes(_notes[key] ?? const <_Note>[]);
 
       // Create/update local reminders for timed events on this day (Flutter-only)
       for (final n in notes) {
@@ -18496,6 +18506,22 @@ class _CalendarPageState extends State<CalendarPage>
         }
       }
 
+      final hydratedTrackSkyFlowIds = newFlows
+          .where((flow) => _isTrackSkyFlowName(flow.name))
+          .map((flow) => flow.id)
+          .where((flowId) => flowId > 0)
+          .toSet();
+      final dedupedNotes = <String, List<_Note>>{};
+      newNotes.forEach((key, notes) {
+        final cleaned = _dedupeVisibleDayNotes(
+          notes,
+          trackSkyFlowIds: hydratedTrackSkyFlowIds,
+        );
+        if (cleaned.isNotEmpty) {
+          dedupedNotes[key] = cleaned;
+        }
+      });
+
       // Force rebuild as soon as visible event data is ready. Flow counts and
       // reminder regeneration are secondary and can land afterward.
       _flows
@@ -18503,17 +18529,17 @@ class _CalendarPageState extends State<CalendarPage>
         ..addAll(newFlows);
       _notes
         ..clear()
-        ..addAll(newNotes);
+        ..addAll(dedupedNotes);
       if (kDebugMode && kDebugStandaloneHydration) {
-        final totalNotes = newNotes.values.fold<int>(
+        final totalNotes = dedupedNotes.values.fold<int>(
           0,
           (sum, list) => sum + list.length,
         );
         debugPrint(
-          '[_loadFromDisk] committed _notes keys=${newNotes.length} totalNotes=$totalNotes',
+          '[_loadFromDisk] committed _notes keys=${dedupedNotes.length} totalNotes=$totalNotes',
         );
         for (final key in _debugStandaloneKeys) {
-          final bucket = newNotes[key];
+          final bucket = dedupedNotes[key];
           if (bucket != null) {
             debugPrint(
               '[_loadFromDisk] bucket $key titles=${bucket.map((n) => n.title).join(' | ')}',
@@ -21552,48 +21578,124 @@ class _CalendarPageState extends State<CalendarPage>
     );
   }
 
-  List<_Note> _dedupeCalendarSheetNotes(List<_Note> notes) {
-    if (notes.isEmpty) return notes;
+  bool _noteHasStableIdentity(_Note note) =>
+      (note.id?.trim().isNotEmpty ?? false) ||
+      (note.clientEventId?.trim().isNotEmpty ?? false);
 
-    final seen = <String, _Note>{};
+  int _visibleDayNotePriority(_Note note, {bool preferTimed = false}) {
+    var score = 0;
+    if (_noteHasStableIdentity(note)) score += 8;
+    if (note.id?.trim().isNotEmpty ?? false) score += 3;
+    if (note.clientEventId?.trim().isNotEmpty ?? false) score += 2;
+    if (note.start != null) score += 1;
+    if (note.end != null) score += 1;
+    if (note.detail?.trim().isNotEmpty ?? false) score += 1;
+    if (preferTimed && !note.allDay) score += 12;
+    return score;
+  }
 
+  String _visibleDayNoteBaseKey(_Note note) {
+    final flowKey = note.flowId?.toString() ?? 'NO_FLOW';
+
+    String startKey;
+    String endKey;
+
+    if (note.allDay) {
+      startKey = 'ALLDAY';
+      endKey = 'ALLDAY';
+    } else if (note.start != null && note.end != null) {
+      startKey = '${note.start!.hour * 60 + note.start!.minute}';
+      endKey = '${note.end!.hour * 60 + note.end!.minute}';
+    } else {
+      startKey = 'NO_START';
+      endKey = 'NO_END';
+    }
+
+    final titleKey = note.title.trim().toLowerCase();
+    return '$flowKey|$startKey|$endKey|$titleKey';
+  }
+
+  String? _trackSkyVisibleDayNoteKey(_Note note, {Set<int>? trackSkyFlowIds}) {
+    final flowId = note.flowId;
+    final isTrackSkyNote =
+        flowId != null &&
+        flowId > 0 &&
+        ((trackSkyFlowIds != null && trackSkyFlowIds.contains(flowId)) ||
+            _isTrackSkyFlowName(_flowName(note)));
+    if (!isTrackSkyNote) return null;
+    final flowKey = note.flowId?.toString() ?? 'NO_FLOW';
+    final titleKey = note.title.trim().toLowerCase();
+    final categoryKey = (note.category ?? '').trim().toLowerCase();
+    return 'track-sky|$flowKey|$categoryKey|$titleKey';
+  }
+
+  void _mergeVisibleDayDuplicate({
+    required List<_Note> deduped,
+    required Map<String, int> indexByKey,
+    required String key,
+    required _Note note,
+    bool preferTimed = false,
+  }) {
+    final existingIndex = indexByKey[key];
+    if (existingIndex == null) {
+      indexByKey[key] = deduped.length;
+      deduped.add(note);
+      return;
+    }
+
+    final existing = deduped[existingIndex];
+    final existingScore = _visibleDayNotePriority(
+      existing,
+      preferTimed: preferTimed,
+    );
+    final incomingScore = _visibleDayNotePriority(
+      note,
+      preferTimed: preferTimed,
+    );
+    if (incomingScore > existingScore) {
+      deduped[existingIndex] = note;
+    }
+  }
+
+  List<_Note> _dedupeVisibleDayNotes(
+    List<_Note> notes, {
+    Set<int>? trackSkyFlowIds,
+  }) {
+    if (notes.length < 2) return notes;
+
+    final exactDeduped = <_Note>[];
+    final exactIndexByKey = <String, int>{};
     for (final note in notes) {
-      final flowKey = note.flowId?.toString() ?? 'NO_FLOW';
+      _mergeVisibleDayDuplicate(
+        deduped: exactDeduped,
+        indexByKey: exactIndexByKey,
+        key: _visibleDayNoteBaseKey(note),
+        note: note,
+      );
+    }
 
-      String startKey;
-      String endKey;
-
-      if (note.allDay) {
-        startKey = 'ALLDAY';
-        endKey = 'ALLDAY';
-      } else if (note.start != null && note.end != null) {
-        startKey = '${note.start!.hour * 60 + note.start!.minute}';
-        endKey = '${note.end!.hour * 60 + note.end!.minute}';
-      } else {
-        startKey = 'NO_START';
-        endKey = 'NO_END';
-      }
-
-      final titleKey = note.title.trim().toLowerCase();
-      final key = '$flowKey|$startKey|$endKey|$titleKey';
-
-      if (!seen.containsKey(key)) {
-        seen[key] = note;
+    final trackSkyDeduped = <_Note>[];
+    final trackSkyIndexByKey = <String, int>{};
+    for (final note in exactDeduped) {
+      final trackSkyKey = _trackSkyVisibleDayNoteKey(
+        note,
+        trackSkyFlowIds: trackSkyFlowIds,
+      );
+      if (trackSkyKey == null) {
+        trackSkyDeduped.add(note);
         continue;
       }
 
-      final existing = seen[key]!;
-      bool hasIdentity(_Note candidate) =>
-          (candidate.id != null && candidate.id!.trim().isNotEmpty) ||
-          (candidate.clientEventId != null &&
-              candidate.clientEventId!.trim().isNotEmpty);
-
-      if (!hasIdentity(existing) && hasIdentity(note)) {
-        seen[key] = note;
-      }
+      _mergeVisibleDayDuplicate(
+        deduped: trackSkyDeduped,
+        indexByKey: trackSkyIndexByKey,
+        key: trackSkyKey,
+        note: note,
+        preferTimed: true,
+      );
     }
 
-    return seen.values.toList();
+    return trackSkyDeduped;
   }
 
   String _calendarSheetEventIdentityKey(EventItem event) {
@@ -21664,7 +21766,7 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   List<EventItem> _calendarSheetEventsForDay(int ky, int km, int kd) {
-    final notes = _dedupeCalendarSheetNotes(_getNotes(ky, km, kd));
+    final notes = _getNotes(ky, km, kd);
     final events = [
       for (final note in notes) _calendarSheetEventItemFromNote(note),
     ];
@@ -22839,6 +22941,13 @@ class _DayChip extends StatelessWidget {
     final gradient = isToday
         ? goldGloss
         : (showGregorian ? blueGloss : silverGloss);
+    _Note? trackSkyHeaderNote;
+    for (final note in notes) {
+      if (_isTrackSkyFlowName(flowNameGetter?.call(note))) {
+        trackSkyHeaderNote = note;
+        break;
+      }
+    }
     final isCompact = expansionLevel == MonthExpansionLevel.compact;
     final chipHeight = decanHeight ?? _chipHeightFor(expansionLevel);
     final nonCompactHeaderHeight = 24.0;
@@ -23071,12 +23180,110 @@ class _DayChip extends StatelessWidget {
                     children: [
                       SizedBox(
                         height: nonCompactHeaderHeight,
-                        child: Center(
-                          child: GlossyText(
-                            text: label,
-                            style: textStyle,
-                            gradient: gradient,
-                          ),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final maxWidth = constraints.maxWidth.isFinite
+                                ? constraints.maxWidth
+                                : 0.0;
+                            final canShowTrackSkyMotif =
+                                trackSkyHeaderNote != null && maxWidth >= 14;
+                            final motifWidth = canShowTrackSkyMotif
+                                ? math.min(14.0, maxWidth * 0.4)
+                                : 0.0;
+                            final motifOffset = canShowTrackSkyMotif
+                                ? (motifWidth / 2) + 1.5
+                                : 0.0;
+                            final motifOnLeftEdge = kDay % 10 == 0;
+                            final motifSpec = trackSkyHeaderNote == null
+                                ? null
+                                : _trackSkyBadgeSpecForNote(
+                                    trackSkyHeaderNote!,
+                                  );
+
+                            return Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: nonCompactHeaderHeight,
+                                  child: Center(
+                                    child: GlossyText(
+                                      text: label,
+                                      style: textStyle,
+                                      gradient: gradient,
+                                    ),
+                                  ),
+                                ),
+                                if (canShowTrackSkyMotif && motifSpec != null)
+                                  Positioned(
+                                    top: 10,
+                                    left: motifOnLeftEdge ? -motifOffset : null,
+                                    right: motifOnLeftEdge
+                                        ? null
+                                        : -motifOffset,
+                                    child: IgnorePointer(
+                                      child: SizedBox(
+                                        width: motifWidth,
+                                        height: 10,
+                                        child: Stack(
+                                          alignment: Alignment.center,
+                                          children: [
+                                            Align(
+                                              alignment: Alignment.topCenter,
+                                              child: SizedBox(
+                                                height: 6.2,
+                                                child: FittedBox(
+                                                  fit: BoxFit.scaleDown,
+                                                  alignment:
+                                                      Alignment.topCenter,
+                                                  child:
+                                                      _buildTrackSkyBadgeMotif(
+                                                        spec: motifSpec,
+                                                        title:
+                                                            trackSkyHeaderNote!
+                                                                .title,
+                                                        dense: false,
+                                                      ),
+                                                ),
+                                              ),
+                                            ),
+                                            Align(
+                                              alignment: Alignment.bottomCenter,
+                                              child: Container(
+                                                height: 1.8,
+                                                decoration: BoxDecoration(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        999,
+                                                      ),
+                                                  gradient: LinearGradient(
+                                                    colors: [
+                                                      motifSpec.accentColor
+                                                          .withValues(
+                                                            alpha: 0.0,
+                                                          ),
+                                                      motifSpec.accentColor
+                                                          .withValues(
+                                                            alpha: 0.75,
+                                                          ),
+                                                      motifSpec
+                                                          .secondaryAccentColor
+                                                          .withValues(
+                                                            alpha: 0.95,
+                                                          ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
                         ),
                       ),
                       Expanded(
