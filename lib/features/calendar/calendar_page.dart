@@ -4438,13 +4438,14 @@ class CalendarPage extends StatefulWidget {
 
   static void openMainCalendarAtToday(
     BuildContext context, {
-    bool animate = true,
+    bool animate = false,
   }) {
     final rootNavigator = Navigator.of(context, rootNavigator: true);
-    GoRouter.of(context).go('/');
     if (rootNavigator.canPop()) {
       rootNavigator.popUntil((route) => route.isFirst);
+      return;
     }
+    GoRouter.of(context).go('/');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       globalKey.currentState?.jumpToTodayFromOutside(animate: animate);
     });
@@ -4687,6 +4688,7 @@ class _CalendarPageState extends State<CalendarPage>
   bool _startupRerunRequested = false;
   String? _startupLastReason;
   bool _pendingInitialHydration = false;
+  String? _initialStartupUserId;
   // Track whether the clientEventId migration has been executed.
   // This ensures the migration runs at most once per app session to avoid
   // concurrent modification errors and repeated work.
@@ -5070,13 +5072,14 @@ class _CalendarPageState extends State<CalendarPage>
       final colorValue = (json['color'] as num?)?.toInt();
       if (id == null || name == null || colorValue == null) return null;
       final rulesRaw = (json['rules'] as List?) ?? const [];
-      final rules = rulesRaw
-          .whereType<Map>()
-          .map(
-            (item) =>
-                CalendarPage.ruleFromJson(Map<String, dynamic>.from(item)),
-          )
-          .toList(growable: false);
+      final rules = <FlowRule>[];
+      for (final item in rulesRaw.whereType<Map>()) {
+        try {
+          rules.add(CalendarPage.ruleFromJson(Map<String, dynamic>.from(item)));
+        } catch (_) {
+          // Skip malformed cached rules instead of dropping the entire flow.
+        }
+      }
       return _Flow(
         id: id,
         calendarId: json['calendarId'] as String?,
@@ -5113,6 +5116,7 @@ class _CalendarPageState extends State<CalendarPage>
       'endMinutes': _timeOfDayToMinutes(note.end),
       'flowId': note.flowId,
       'manualColor': note.manualColor?.toARGB32(),
+      'resolvedColor': _noteColor(note).toARGB32(),
       'category': note.category,
       'isReminder': note.isReminder,
       'reminderId': note.reminderId,
@@ -5129,6 +5133,12 @@ class _CalendarPageState extends State<CalendarPage>
       final title = json['title'] as String?;
       final allDay = json['allDay'] as bool?;
       if (title == null || allDay == null) return null;
+      final flowId = (json['flowId'] as num?)?.toInt();
+      final explicitColorValue = (json['manualColor'] as num?)?.toInt();
+      final resolvedColorValue = (json['resolvedColor'] as num?)?.toInt();
+      final warmStartColorValue =
+          explicitColorValue ??
+          ((flowId != null && flowId != -1) ? resolvedColorValue : null);
       return _Note(
         id: json['id'] as String?,
         clientEventId: json['clientEventId'] as String?,
@@ -5140,10 +5150,10 @@ class _CalendarPageState extends State<CalendarPage>
         allDay: allDay,
         start: _timeOfDayFromMinutes(json['startMinutes']),
         end: _timeOfDayFromMinutes(json['endMinutes']),
-        flowId: (json['flowId'] as num?)?.toInt(),
-        manualColor: json['manualColor'] == null
+        flowId: flowId,
+        manualColor: warmStartColorValue == null
             ? null
-            : Color((json['manualColor'] as num).toInt()),
+            : Color(warmStartColorValue),
         category: json['category'] as String?,
         isReminder: (json['isReminder'] as bool?) ?? false,
         reminderId: json['reminderId'] as String?,
@@ -5339,6 +5349,7 @@ class _CalendarPageState extends State<CalendarPage>
       _rebuildReminderRulesFromFlowsIfMissing();
       _warmStartCacheRestoredForUserId = userId;
       _warmStartSnapshotVisible = true;
+      _lastSuccessfulHydrationAt ??= DateTime.now();
       if (kDebugMode) {
         final totalNotes = notesByDay.values.fold<int>(
           0,
@@ -5367,6 +5378,23 @@ class _CalendarPageState extends State<CalendarPage>
       _personalCalendarId = snapshot.personalCalendarId;
       _calendarStateLoaded = true;
     });
+  }
+
+  Future<void> _requestInitialStartupRun({required String reason}) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      _pendingInitialHydration = true;
+      return;
+    }
+    final userId = user.id;
+    if (_initialStartupUserId == userId) {
+      if (_startupFlight != null && !(_startupFlight!.isCompleted)) {
+        await _startupFlight!.future;
+      }
+      return;
+    }
+    _initialStartupUserId = userId;
+    await _requestStartupRun(reason: reason);
   }
 
   Future<void> _openSharedCalendarsSheet() async {
@@ -6739,12 +6767,19 @@ class _CalendarPageState extends State<CalendarPage>
         unawaited(
           _restoreWarmStartCacheIfAvailable(reason: 'auth:${event.name}'),
         );
-        _requestStartupRun(reason: 'auth:${event.name}');
+        unawaited(_requestInitialStartupRun(reason: 'auth:${event.name}'));
         return;
       }
       if (event == AuthChangeEvent.tokenRefreshed) {
         if (!mounted) return;
         unawaited(_loadCalendarState());
+        return;
+      }
+      if (event == AuthChangeEvent.signedOut) {
+        _initialStartupUserId = null;
+        _warmStartSnapshotVisible = false;
+        _warmStartCacheRestoredForUserId = null;
+        _lastSuccessfulHydrationAt = null;
       }
     });
 
@@ -7205,9 +7240,6 @@ class _CalendarPageState extends State<CalendarPage>
           ),
         ),
       );
-      if (updated == true && mounted) {
-        await _loadFromDisk();
-      }
       return updated == true || (shouldReplayPrompts && !requireCompletion);
     } finally {
       UiGuards.enableJournalSwipe();
@@ -8565,9 +8597,19 @@ class _CalendarPageState extends State<CalendarPage>
         break;
       case AppLifecycleState.resumed:
         final now = DateTime.now();
-        if (_lastRefreshTime == null ||
-            now.difference(_lastRefreshTime!) > const Duration(seconds: 2)) {
+        final startupInFlight =
+            !_initOnce ||
+            _pendingInitialHydration ||
+            (_startupFlight != null && !(_startupFlight!.isCompleted));
+        if (!startupInFlight &&
+            (_lastRefreshTime == null ||
+                now.difference(_lastRefreshTime!) >
+                    const Duration(seconds: 2))) {
           unawaited(_refreshAfterReturn(reason: 'lifecycle_resumed'));
+        } else if (kDebugMode && startupInFlight) {
+          debugPrint(
+            '[calendar] skipped foreground refresh while startup is still running',
+          );
         }
         _checkDueReminders();
         unawaited(
@@ -8581,7 +8623,6 @@ class _CalendarPageState extends State<CalendarPage>
 
   // ✅ Refresh when returning to this page
   Future<void> _handleCalendarReturnFromAnotherPage() async {
-    await _refreshAfterReturn(reason: 'route_return');
     if (!mounted) return;
     await _maybePresentCalendarToggleCoachmarkAfterReturn();
   }
@@ -9567,7 +9608,10 @@ class _CalendarPageState extends State<CalendarPage>
     return changed;
   }
 
-  Future<void> _syncReminderEvents({bool refreshUi = false}) async {
+  Future<void> _syncReminderEvents({
+    bool refreshUi = false,
+    bool updateLocalCache = true,
+  }) async {
     await _loadReminderRules();
     if (_reminderRules.isEmpty) return;
     final repo = UserEventsRepo(Supabase.instance.client);
@@ -9645,20 +9689,22 @@ class _CalendarPageState extends State<CalendarPage>
       }
 
       final occurrences = _generateReminderOccurrences(rule, today, windowEnd);
-      // Update local cache first so UI reflects immediately even if network fails.
-      localCacheChanged =
-          _pruneReminderNotes(rule.id, fromDate: today) || localCacheChanged;
       final flowIdForReminder = await _findFlowIdByReminderUuid(
         rule.id,
       ); // may be null/nonexistent
-      localCacheChanged =
-          _materializeReminderLocally(
-            rule: rule,
-            occurrences: occurrences,
-            flowId: flowIdForReminder,
-            notify: false,
-          ) ||
-          localCacheChanged;
+      if (updateLocalCache) {
+        // Update local cache first so UI reflects immediately even if network fails.
+        localCacheChanged =
+            _pruneReminderNotes(rule.id, fromDate: today) || localCacheChanged;
+        localCacheChanged =
+            _materializeReminderLocally(
+              rule: rule,
+              occurrences: occurrences,
+              flowId: flowIdForReminder,
+              notify: false,
+            ) ||
+            localCacheChanged;
+      }
 
       if (!rule.id.startsWith('nutrition:')) {
         for (final day in occurrences) {
@@ -9755,7 +9801,7 @@ class _CalendarPageState extends State<CalendarPage>
 
     if (refreshUi) {
       await _loadFromDisk();
-    } else if (localCacheChanged) {
+    } else if (updateLocalCache && localCacheChanged) {
       _refreshNoteCacheUi();
     }
   }
@@ -10942,23 +10988,22 @@ class _CalendarPageState extends State<CalendarPage>
   /// Derives colors from notes in _notes, not from recomputed flow occurrences.
   List<Color> getFlowColorsForDay(int kYear, int kMonth, int kDay) {
     final notes = _getNotes(kYear, kMonth, kDay);
-    final flowIds = notes
-        .where((n) => n.flowId != null && n.flowId != -1)
-        .map((n) => n.flowId!)
-        .toSet();
-
     final colors = <Color>[];
-    for (final fid in flowIds) {
+    for (final note in notes) {
+      final fid = note.flowId;
+      if (fid == null || fid == -1) continue;
+      Color? displayColor;
       try {
         final flow = _flows.firstWhere((f) => f.id == fid);
-        final displayColor = _displayFlowColor(flow.name, flow.color);
-        if (!colors.contains(displayColor)) {
-          colors.add(displayColor);
-          if (colors.length == 3) break; // Cap to 3 colors
-        }
+        displayColor = _displayFlowColor(flow.name, flow.color);
       } catch (_) {
-        // Flow not found, skip
+        displayColor = note.manualColor;
       }
+      if (displayColor == null || colors.contains(displayColor)) {
+        continue;
+      }
+      colors.add(displayColor);
+      if (colors.length == 3) break; // Cap to 3 colors
     }
     return colors;
   }
@@ -10972,23 +11017,22 @@ class _CalendarPageState extends State<CalendarPage>
     List<_Note> Function(int kMonth, int kDay) notesGetter,
   ) {
     final notes = notesGetter(kMonth, kDay);
-    final flowIds = notes
-        .where((n) => n.flowId != null && n.flowId != -1)
-        .map((n) => n.flowId!)
-        .toSet();
-
     final colors = <Color>[];
-    for (final fid in flowIds) {
+    for (final note in notes) {
+      final fid = note.flowId;
+      if (fid == null || fid == -1) continue;
+      Color? displayColor;
       try {
         final flow = _flows.firstWhere((f) => f.id == fid);
-        final displayColor = _displayFlowColor(flow.name, flow.color);
-        if (!colors.contains(displayColor)) {
-          colors.add(displayColor);
-          if (colors.length == 3) break; // Cap to 3 colors
-        }
+        displayColor = _displayFlowColor(flow.name, flow.color);
       } catch (_) {
-        // Flow not found, skip
+        displayColor = note.manualColor;
       }
+      if (displayColor == null || colors.contains(displayColor)) {
+        continue;
+      }
+      colors.add(displayColor);
+      if (colors.length == 3) break; // Cap to 3 colors
     }
     return colors;
   }
@@ -13735,9 +13779,6 @@ class _CalendarPageState extends State<CalendarPage>
           openedFromCalendarSwipe: openedFromCalendarSwipe,
         ),
       );
-      if (mounted) {
-        await _loadFromDisk();
-      }
     } finally {
       _profileNavigationInFlight = false;
       UiGuards.enableJournalSwipe();
@@ -17694,7 +17735,7 @@ class _CalendarPageState extends State<CalendarPage>
       // 1) Load reminder rules + schedule their instances, then load flows/events
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
-        _requestStartupRun(reason: 'init').then((_) {
+        _requestInitialStartupRun(reason: 'init').then((_) {
           final targetFlowId = widget.initialFlowIdToEdit;
           if (!mounted) return;
           if (targetFlowId != null) {
@@ -17727,7 +17768,7 @@ class _CalendarPageState extends State<CalendarPage>
 
     if (_pendingInitialHydration &&
         Supabase.instance.client.auth.currentUser != null) {
-      _requestStartupRun(reason: 'init-pending');
+      _requestInitialStartupRun(reason: 'init-pending');
     }
   }
 
@@ -17762,7 +17803,13 @@ class _CalendarPageState extends State<CalendarPage>
           source: 'startup_backfill:$reason',
           preserveViewport: true,
         );
-        await _syncReminderEvents(refreshUi: false);
+        await _syncReminderEvents(
+          refreshUi: false,
+          updateLocalCache: !keepWarmStartVisible,
+        );
+        await _persistWarmStartCacheNow(
+          debugReason: 'startup_backfill_complete',
+        );
       } catch (e, st) {
         if (kDebugMode) {
           debugPrint('[startup] backfill/reminder sync failed (async): $e');
@@ -17809,6 +17856,9 @@ class _CalendarPageState extends State<CalendarPage>
 
     try {
       final fastStartupMode = source.startsWith('startup:');
+      final warmStartBackfillMode = source.startsWith('startup_backfill:');
+      final keepWarmStartSnapshotVisible =
+          warmStartBackfillMode && _hasWarmStartSnapshotVisibleForCurrentUser();
       final focusWindow = fastStartupMode
           ? _computeStartupVisibleHydrationWindow()
           : null;
@@ -18535,9 +18585,17 @@ class _CalendarPageState extends State<CalendarPage>
         }
 
         try {
-          final changed = await _regenReminderNotes(notify: false);
-          if (changed) {
-            _refreshNoteCacheUi();
+          if (keepWarmStartSnapshotVisible) {
+            if (kDebugMode) {
+              debugPrint(
+                '[loadFromDisk] skipped reminder regen after warm-start backfill',
+              );
+            }
+          } else {
+            final changed = await _regenReminderNotes(notify: false);
+            if (changed) {
+              _refreshNoteCacheUi();
+            }
           }
         } catch (err, st) {
           if (kDebugMode) {
