@@ -24,6 +24,7 @@ import '../../data/user_events_repo.dart';
 import '../journal/journal_event_badge.dart';
 import '../../services/app_haptics.dart';
 import '../../utils/external_link_utils.dart';
+import '../../utils/flow_filter_engine.dart';
 
 const double _kMinEventBlockHeight = 64.0; // was 32.0
 const double _kTimelineLabelWidth = 60.0;
@@ -33,6 +34,17 @@ const double _kSingleEventWidthFactor = 0.8;
 const double _kDayViewHourHeight = 60.0;
 const double _kDayViewPixelsPerMinute = _kDayViewHourHeight / 60.0;
 const Color _dayGold = KemeticGold.base;
+const Gradient _trackSkyFlowGoldGloss = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color(0xFFFFF1BF),
+    Color(0xFFF8DA79),
+    Color(0xFFFFF8D9),
+    Color(0xFFF1CE67),
+  ],
+  stops: [0.0, 0.34, 0.66, 1.0],
+);
 const String _kNewEventPreviewClientEventId = '__day_view_new_event_preview__';
 typedef DayViewRestorationCallback =
     void Function({
@@ -945,6 +957,8 @@ EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
       : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
 
   Color eventColor = Colors.blue;
+  // Product rule: explicit per-event colors win; otherwise we fall back to the
+  // owning flow's chrome color so historical/saved flow notes stay unified.
   if (note.manualColor != null) {
     eventColor = note.manualColor!;
   } else if (note.flowId != null) {
@@ -1139,6 +1153,8 @@ class DayViewPage extends StatefulWidget {
   final List<NoteData> Function(int ky, int km, int kd) notesForDay;
   final Map<int, FlowData> flowIndex;
   final Map<int, FlowData> Function()? flowIndexBuilder;
+  final Set<int> activeLedgerFlowIds;
+  final Set<int> Function()? activeLedgerFlowIdsBuilder;
   final ValueListenable<int>? dataVersion;
   final String Function(int km) getMonthName;
   final int? initialFirstVisibleMinute;
@@ -1217,6 +1233,8 @@ class DayViewPage extends StatefulWidget {
     required this.notesForDay,
     required this.flowIndex,
     this.flowIndexBuilder,
+    this.activeLedgerFlowIds = const <int>{},
+    this.activeLedgerFlowIdsBuilder,
     this.dataVersion,
     required this.getMonthName,
     this.initialFirstVisibleMinute,
@@ -1565,12 +1583,18 @@ class _DayViewPageState extends State<DayViewPage> {
     }
   }
 
-  Map<int, FlowData> _activeFlowIndex() =>
+  Map<int, FlowData> _currentFlowChromeIndex() =>
       widget.flowIndexBuilder?.call() ?? widget.flowIndex;
+
+  Set<int> _currentActiveLedgerFlowIds() =>
+      widget.activeLedgerFlowIdsBuilder?.call() ?? widget.activeLedgerFlowIds;
 
   List<EventItem> _eventsForKemeticDay(int ky, int km, int kd) {
     final notes = _dedupeDayNotesForUi(widget.notesForDay(ky, km, kd));
-    return _sortedEventsForDay(notes: notes, flowIndex: _activeFlowIndex());
+    return _sortedEventsForDay(
+      notes: notes,
+      flowIndex: _currentFlowChromeIndex(),
+    );
   }
 
   DayViewSheetEventTarget? _resolveAdjacentEventTarget({
@@ -1693,7 +1717,8 @@ class _DayViewPageState extends State<DayViewPage> {
           }
         }
         _lastOrientation = effectiveOrientation;
-        final flowIndex = widget.flowIndexBuilder?.call() ?? widget.flowIndex;
+        final flowIndex = _currentFlowChromeIndex();
+        final activeLedgerFlowIds = _currentActiveLedgerFlowIds();
 
         return Scaffold(
           backgroundColor: const Color(0xFF000000), // True black
@@ -1709,6 +1734,7 @@ class _DayViewPageState extends State<DayViewPage> {
                   dataVersion: widget.dataVersion,
                   notesForDay: widget.notesForDay,
                   flowIndex: flowIndex,
+                  activeLedgerFlowIds: activeLedgerFlowIds,
                   getMonthName: widget.getMonthName,
                   onManageFlows: widget.onManageFlows,
                   onAddNote: widget.onAddNote,
@@ -1882,6 +1908,7 @@ class _DayViewPageState extends State<DayViewPage> {
                           dataVersion: widget.dataVersion,
                           showGregorian: _showGregorian,
                           flowIndex: flowIndex,
+                          activeLedgerFlowIds: activeLedgerFlowIds,
                           initialScrollOffset: _savedScrollOffset, // 🔧 NEW
                           initialFirstVisibleMinute:
                               widget.initialFirstVisibleMinute,
@@ -1968,6 +1995,7 @@ class DayViewGrid extends StatefulWidget {
   final ValueListenable<int>? dataVersion;
   final bool showGregorian;
   final Map<int, FlowData> flowIndex;
+  final Set<int> activeLedgerFlowIds;
   final int? initialFirstVisibleMinute;
   final double? initialScrollOffset; // 🔧 NEW
   final int? focusStartMin; // minutes since midnight
@@ -2046,6 +2074,7 @@ class DayViewGrid extends StatefulWidget {
     this.dataVersion,
     required this.showGregorian,
     required this.flowIndex,
+    this.activeLedgerFlowIds = const <int>{},
     this.initialFirstVisibleMinute,
     this.initialScrollOffset, // 🔧 NEW
     this.focusStartMin,
@@ -2116,19 +2145,43 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
+  FlowData? _chromeFlowForId(int? flowId) => widget.flowIndex[flowId];
+
+  bool _isRepeatingNoteFlowId(int? flowId) {
+    final flow = _chromeFlowForId(flowId);
+    return flow != null && hasRepeatingNoteFlowMetadata(flow.notes);
+  }
+
+  bool _shouldShowEndFlowForId(int? flowId) {
+    final flow = _chromeFlowForId(flowId);
+    return flow != null && !hasRepeatingNoteFlowMetadata(flow.notes);
+  }
+
+  bool _isActionableFlowId(int? flowId) {
+    if (flowId == null) return false;
+    if (widget.activeLedgerFlowIds.contains(flowId)) return true;
+    final flow = _chromeFlowForId(flowId);
+    if (flow == null) return false;
+    return flow.active && !hasRepeatingNoteFlowMetadata(flow.notes);
+  }
+
   Widget _buildEndFlowButton(
-    int? flowId, {
+    DayViewSheetEventTarget target, {
     required BuildContext actionContext,
   }) {
     final onEndFlow = widget.onEndFlow;
-    final id = flowId;
-    final enabled = onEndFlow != null && id != null;
+    final id = target.event.flowId;
+    final enabled = onEndFlow != null && _shouldShowEndFlowForId(id);
     return OutlinedButton.icon(
       style: _endButtonStyle(actionContext),
       onPressed: enabled
-          ? () {
+          ? () async {
               Navigator.pop(actionContext);
-              onEndFlow(id);
+              final routedThroughCalendarPage =
+                  await CalendarPage.endFlowFromEventTarget(target);
+              if (!routedThroughCalendarPage) {
+                onEndFlow(id!);
+              }
             }
           : null,
       icon: const Icon(Icons.stop_circle),
@@ -2715,7 +2768,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     required int km,
     required int kd,
   }) {
-    final flow = widget.flowIndex[event.flowId];
+    final flow = _chromeFlowForId(event.flowId);
     if (!_isTrackSkyFlowName(flow?.name)) return null;
     final timezone = _trackSkyTimeZoneForFlow(flow);
     if (timezone == null) return null;
@@ -3461,7 +3514,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     bool isPreview = false,
   }) {
     final event = block.event;
-    final flow = widget.flowIndex[event.flowId];
+    final flow = _chromeFlowForId(event.flowId);
     final isTrackSky = _isTrackSkyFlowName(flow?.name);
     final trackSkySpec = isTrackSky ? _trackSkyCardSpecForEvent(event) : null;
 
@@ -3609,7 +3662,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     int durationMinutes, {
     bool isPreview = false,
   }) {
-    final flow = widget.flowIndex[event.flowId];
+    final flow = _chromeFlowForId(event.flowId);
     final bool hasFlow = flow != null;
     final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
     final trackSkySpec = isTrackSky ? _trackSkyCardSpecForEvent(event) : null;
@@ -3617,6 +3670,9 @@ class _DayViewGridState extends State<DayViewGrid> {
     final showTitle = event.title.trim().isNotEmpty;
     final showLocation =
         event.location != null && event.location!.trim().isNotEmpty;
+    final trackSkyFlowNameColor = _dayGold.withValues(
+      alpha: isPreview ? 0.92 : 1.0,
+    );
     final titleColor = isTrackSky
         ? trackSkySpec!.titleColor.withValues(alpha: isPreview ? 0.94 : 1.0)
         : (isPreview ? Colors.white70 : Colors.white);
@@ -3643,7 +3699,19 @@ class _DayViewGridState extends State<DayViewGrid> {
       required TextStyle style,
       required int maxLines,
       required TextOverflow overflow,
+      Gradient? gradient,
     }) {
+      final softWrap = maxLines != 1;
+      if (gradient != null) {
+        return GlossyText(
+          text: text,
+          style: style,
+          gradient: gradient,
+          maxLines: maxLines,
+          overflow: overflow,
+          softWrap: softWrap,
+        );
+      }
       if (kIsWeb) {
         return Text(
           text,
@@ -3658,6 +3726,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           ),
           maxLines: maxLines,
           overflow: overflow,
+          softWrap: softWrap,
         );
       }
       final highlightStyle = style.copyWith(
@@ -3695,7 +3764,13 @@ class _DayViewGridState extends State<DayViewGrid> {
               ),
             ),
           ),
-          Text(text, style: fillStyle, maxLines: maxLines, overflow: overflow),
+          Text(
+            text,
+            style: fillStyle,
+            maxLines: maxLines,
+            overflow: overflow,
+            softWrap: softWrap,
+          ),
         ],
       );
     }
@@ -3713,12 +3788,11 @@ class _DayViewGridState extends State<DayViewGrid> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: trackSkySpec!.labelColor.withValues(
-                      alpha: isPreview ? 0.9 : 1.0,
-                    ),
+                    color: trackSkyFlowNameColor,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  gradient: _trackSkyFlowGoldGloss,
                 )
               : Text(
                   flow.name,
@@ -3947,7 +4021,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     bool scrollable = true,
   }) {
     final currentEvent = target.event;
-    final flow = widget.flowIndex[currentEvent.flowId];
+    final flow = _chromeFlowForId(currentEvent.flowId);
     final bool isReminder = currentEvent.isReminder;
     final bool isNutrition =
         currentEvent.detail != null && currentEvent.detail!.contains('Source:');
@@ -4163,21 +4237,23 @@ class _DayViewGridState extends State<DayViewGrid> {
     required DayViewSheetEventTarget target,
   }) {
     final currentEvent = target.event;
-    final flow = widget.flowIndex[currentEvent.flowId];
+    final flow = _chromeFlowForId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
 
     return Row(
       children: [
         const Spacer(),
-        if (flow != null)
-          _buildEndFlowButton(flow.id, actionContext: sheetContext)
-        else if (isReminder)
+        if (_shouldShowEndFlowForId(currentEvent.flowId))
+          _buildEndFlowButton(target, actionContext: sheetContext)
+        else if (flow == null && isReminder)
           _buildEndReminderButton(
             currentEvent,
             actionContext: sheetContext,
             closeContext: sheetContext,
           )
-        else if (widget.onDeleteNote != null)
+        else if ((flow == null ||
+                _isRepeatingNoteFlowId(currentEvent.flowId)) &&
+            widget.onDeleteNote != null)
           _buildEndNoteButton(
             currentEvent,
             ky: target.ky,
@@ -4201,7 +4277,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     required DayViewSheetEventTarget target,
   }) {
     final currentEvent = target.event;
-    final flow = widget.flowIndex[currentEvent.flowId];
+    final flow = _chromeFlowForId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
 
     if (flow != null) {
@@ -4287,7 +4363,8 @@ class _DayViewGridState extends State<DayViewGrid> {
     required DayViewSheetEventTarget target,
   }) {
     final currentEvent = target.event;
-    final flow = widget.flowIndex[currentEvent.flowId];
+    final flow = _chromeFlowForId(currentEvent.flowId);
+    final actionableFlow = _isActionableFlowId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
 
     return PopupMenuButton<String>(
@@ -4303,7 +4380,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             kd: target.kd,
             sheetContext: sheetContext,
           );
-        } else if (value == 'edit' && flow != null) {
+        } else if (value == 'edit' && flow != null && actionableFlow) {
           Navigator.pop(sheetContext);
           widget.onManageFlows?.call(flow.id);
         } else if (value == 'invite_people') {
@@ -4313,7 +4390,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           } else if (widget.onShareNote != null) {
             await widget.onShareNote!(currentEvent);
           }
-        } else if (value == 'save' && flow != null) {
+        } else if (value == 'save' && flow != null && actionableFlow) {
           Navigator.pop(sheetContext);
           if (widget.onSaveFlow != null) {
             await widget.onSaveFlow!(flow.id);
@@ -4372,7 +4449,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               ],
             ),
           ),
-        if (flow != null && !isReminder)
+        if (flow != null && actionableFlow && !isReminder)
           PopupMenuItem(
             value: 'edit',
             child: Row(
@@ -4397,7 +4474,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               ],
             ),
           ),
-        if (flow != null && !isReminder)
+        if (flow != null && actionableFlow && !isReminder)
           PopupMenuItem(
             value: 'save',
             child: Row(

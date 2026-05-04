@@ -129,6 +129,39 @@ void main() {
       },
     );
 
+    test(
+      'flow-owned events keep the flow chrome color even when not ledger-active',
+      () {
+        final blocks = EventLayoutEngine.layoutEventsForDay(
+          notes: [
+            _timedNote(
+              title: 'Archived Practice',
+              startHour: 10,
+              startMinute: 0,
+              endHour: 11,
+              endMinute: 0,
+              flowId: 9,
+            ),
+          ],
+          flowIndex: const {
+            9: FlowData(
+              id: 9,
+              name: 'Archived Practice Flow',
+              color: Colors.green,
+              active: false,
+            ),
+          },
+          availableWidth: 314,
+          columnGap: 4,
+          textScale: 1.0,
+          day: 1,
+        );
+
+        expect(blocks, hasLength(1));
+        expect(blocks.single.event.color, Colors.green);
+      },
+    );
+
     testWidgets(
       'a short event card inherits the tallest hit height in its overlap row',
       (tester) async {
@@ -300,6 +333,128 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(find.text('End Flow'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'detail sheet keeps End Flow for inactive chrome flows outside the active ledger',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        int? endedFlowId;
+
+        await tester.pumpWidget(
+          _DayViewHarness(
+            notes: const [
+              NoteData(
+                title: 'Archived Practice',
+                allDay: false,
+                start: TimeOfDay(hour: 10, minute: 0),
+                end: TimeOfDay(hour: 11, minute: 0),
+                flowId: 9,
+              ),
+            ],
+            flowIndex: const {
+              9: FlowData(
+                id: 9,
+                name: 'Archived Practice Flow',
+                color: Colors.green,
+                active: false,
+              ),
+            },
+            activeLedgerFlowIds: const <int>{},
+            onEndFlow: (flowId) {
+              endedFlowId = flowId;
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Archived Practice'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Archived Practice Flow'), findsWidgets);
+        expect(find.text('Share Flow'), findsOneWidget);
+        expect(find.text('End Flow'), findsOneWidget);
+        expect(find.text('End Note'), findsNothing);
+
+        await tester.tap(find.text('End Flow'));
+        await tester.pumpAndSettle();
+
+        expect(endedFlowId, 9);
+      },
+    );
+
+    testWidgets(
+      'detail sheet keeps End Flow for active chrome flows outside the active ledger',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        await tester.pumpWidget(
+          const _DayViewHarness(
+            notes: [
+              NoteData(
+                title: 'Evening Reflection',
+                allDay: false,
+                start: TimeOfDay(hour: 20, minute: 0),
+                end: TimeOfDay(hour: 20, minute: 12),
+                flowId: 11,
+              ),
+            ],
+            flowIndex: {
+              11: FlowData(
+                id: 11,
+                name: 'Cooking and Art Mastery',
+                color: Colors.teal,
+                active: true,
+              ),
+            },
+            activeLedgerFlowIds: <int>{},
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Evening Reflection'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Cooking and Art Mastery'), findsWidgets);
+        expect(find.text('Share Flow'), findsOneWidget);
+        expect(find.text('End Flow'), findsOneWidget);
+        expect(find.text('End Note'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'End Flow falls back to onEndFlow when CalendarPage is not the host',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        int? endedFlowId;
+
+        await tester.pumpWidget(
+          _DayViewHarness(
+            notes: [
+              _timedNote(
+                title: 'Local Flow',
+                startHour: 10,
+                startMinute: 0,
+                endHour: 11,
+                endMinute: 0,
+                flowId: 1,
+              ),
+            ],
+            onEndFlow: (flowId) {
+              endedFlowId = flowId;
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Local Flow'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('End Flow'));
+        await tester.pumpAndSettle();
+
+        expect(endedFlowId, 1);
       },
     );
 
@@ -505,14 +660,27 @@ double _detailSheetPageHeight(WidgetTester tester) {
   return tester.getSize(sizedBox).height;
 }
 
+const Map<int, FlowData> _defaultFlowIndex = {
+  1: FlowData(id: 1, name: 'Practice', color: Colors.green, active: true),
+  2: FlowData(id: 2, name: 'Focus', color: Colors.red, active: true),
+  3: FlowData(id: 3, name: 'Taxes', color: Colors.blue, active: true),
+  4: FlowData(id: 4, name: 'Overflow', color: Colors.purple, active: true),
+};
+
 class _DayViewHarness extends StatelessWidget {
   const _DayViewHarness({
     required this.notes,
     this.initialScrollOffset = 9 * 60,
+    this.flowIndex = _defaultFlowIndex,
+    this.activeLedgerFlowIds,
+    this.onEndFlow,
   });
 
   final List<NoteData> notes;
   final double initialScrollOffset;
+  final Map<int, FlowData> flowIndex;
+  final Set<int>? activeLedgerFlowIds;
+  final void Function(int flowId)? onEndFlow;
 
   @override
   Widget build(BuildContext context) {
@@ -524,23 +692,10 @@ class _DayViewHarness extends StatelessWidget {
           kd: 1,
           notes: notes,
           showGregorian: false,
-          flowIndex: const {
-            1: FlowData(
-              id: 1,
-              name: 'Practice',
-              color: Colors.green,
-              active: true,
-            ),
-            2: FlowData(id: 2, name: 'Focus', color: Colors.red, active: true),
-            3: FlowData(id: 3, name: 'Taxes', color: Colors.blue, active: true),
-            4: FlowData(
-              id: 4,
-              name: 'Overflow',
-              color: Colors.purple,
-              active: true,
-            ),
-          },
+          flowIndex: flowIndex,
+          activeLedgerFlowIds: activeLedgerFlowIds ?? flowIndex.keys.toSet(),
           initialScrollOffset: initialScrollOffset,
+          onEndFlow: onEndFlow,
         ),
       ),
     );
@@ -647,6 +802,7 @@ class _SheetPersistenceHarness extends StatelessWidget {
                   active: true,
                 ),
               },
+              activeLedgerFlowIds: const {1},
               initialScrollOffset: 9 * 60,
             );
           },

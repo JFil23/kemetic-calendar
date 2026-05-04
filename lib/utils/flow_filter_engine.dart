@@ -21,13 +21,21 @@ class FlowRecordSnapshot {
     required this.active,
     required this.isHidden,
     required this.isReminder,
+    this.isSaved = false,
     this.notes,
   });
 
   final int id;
+  // Live schedule row. A row can still be active even when its local schedule
+  // window has expired; end-date semantics are handled separately.
   final bool active;
+  // Backend deleted-state marker. Active repeating-note helpers may still look
+  // hidden in client metadata, so this flag is not sufficient on its own.
   final bool isHidden;
+  // Reminder-backed rows share the flows table but are not user flow rows.
   final bool isReminder;
+  // Distinguishes ended historical flows from saved inactive templates.
+  final bool isSaved;
   final String? notes;
 }
 
@@ -93,7 +101,9 @@ FlowRecordKind classifyFlowRecord({
   String? notes,
 }) {
   if (isReminder) return FlowRecordKind.reminder;
-  if (hasRepeatingNoteFlowMetadata(notes)) return FlowRecordKind.hiddenHelper;
+  if (hasRepeatingNoteFlowMetadata(notes) && active) {
+    return FlowRecordKind.hiddenHelper;
+  }
   if (isHidden) return FlowRecordKind.softDeleted;
   if (active) return FlowRecordKind.active;
   return FlowRecordKind.inactive;
@@ -106,6 +116,84 @@ FlowRecordKind classifyFlowRecordSnapshot(FlowRecordSnapshot snapshot) {
     isReminder: snapshot.isReminder,
     notes: snapshot.notes,
   );
+}
+
+bool shouldHydrateFlowEvents(FlowRecordSnapshot snapshot) {
+  switch (classifyFlowRecordSnapshot(snapshot)) {
+    case FlowRecordKind.active:
+    case FlowRecordKind.hiddenHelper:
+    case FlowRecordKind.reminder:
+      return true;
+    case FlowRecordKind.inactive:
+    case FlowRecordKind.softDeleted:
+      return false;
+  }
+}
+
+/// Materialized `user_events` hydration is wider than live schedule hydration:
+/// ended non-saved flows keep historical rows visible, while saved inactive
+/// templates and backend deleted rows stay hidden.
+bool shouldHydrateMaterializedUserEvents(FlowRecordSnapshot snapshot) {
+  switch (classifyFlowRecordSnapshot(snapshot)) {
+    case FlowRecordKind.active:
+    case FlowRecordKind.hiddenHelper:
+    case FlowRecordKind.reminder:
+      return true;
+    case FlowRecordKind.inactive:
+      return !snapshot.isSaved;
+    case FlowRecordKind.softDeleted:
+      return false;
+  }
+}
+
+/// Calendar chrome is broader than the My Flows "Active" ledger: any
+/// non-deleted user flow that still owns a loaded calendar note should retain
+/// its flow name/color, even when it has fallen out of `ledger.activeItems`.
+bool shouldExposeFlowChromeForCalendar(
+  FlowRecordSnapshot snapshot, {
+  required bool isReferencedByCalendar,
+  required bool isActiveLedgerFlow,
+}) {
+  if (!isReferencedByCalendar && !isActiveLedgerFlow) {
+    return false;
+  }
+
+  switch (classifyFlowRecordSnapshot(snapshot)) {
+    case FlowRecordKind.active:
+    case FlowRecordKind.inactive:
+    case FlowRecordKind.hiddenHelper:
+      return true;
+    case FlowRecordKind.softDeleted:
+    case FlowRecordKind.reminder:
+      return false;
+  }
+}
+
+String buildMaterializedFlowEventDedupeKey({
+  required int flowId,
+  required bool allDay,
+  String? eventId,
+  String? clientEventId,
+  required String title,
+  int? startMinute,
+  int? endMinute,
+}) {
+  final trimmedEventId = eventId?.trim();
+  if (trimmedEventId != null && trimmedEventId.isNotEmpty) {
+    return 'flow:$flowId|id:$trimmedEventId';
+  }
+
+  final trimmedClientEventId = clientEventId?.trim();
+  if (trimmedClientEventId != null && trimmedClientEventId.isNotEmpty) {
+    return 'flow:$flowId|cid:$trimmedClientEventId';
+  }
+
+  final normalizedTitle = title.trim().toLowerCase();
+  if (allDay) {
+    return 'flow:$flowId|all-day|title:$normalizedTitle';
+  }
+
+  return 'flow:$flowId|time:${startMinute ?? -1}-${endMinute ?? -1}|title:$normalizedTitle';
 }
 
 int? extractFlowIdFromClientEventId(String? clientEventId) {

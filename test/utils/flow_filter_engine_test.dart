@@ -22,6 +22,18 @@ void main() {
       );
     });
 
+    test('treats inactive repeating-note rows as inactive, not helpers', () {
+      expect(
+        classifyFlowRecord(
+          active: false,
+          isHidden: false,
+          isReminder: false,
+          notes: '{"kind":"repeating_note","detail":"Bring journal"}',
+        ),
+        FlowRecordKind.inactive,
+      );
+    });
+
     test('treats hidden non-helper rows as deleted, not helper flows', () {
       expect(
         classifyFlowRecord(
@@ -31,6 +43,200 @@ void main() {
           notes: 'legacy placeholder',
         ),
         FlowRecordKind.softDeleted,
+      );
+    });
+
+    test('hydrates only live schedule rows for schedule hydration', () {
+      expect(
+        shouldHydrateFlowEvents(
+          const FlowRecordSnapshot(
+            id: 1,
+            active: true,
+            isHidden: false,
+            isReminder: false,
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        shouldHydrateFlowEvents(
+          const FlowRecordSnapshot(
+            id: 2,
+            active: false,
+            isHidden: false,
+            isReminder: false,
+          ),
+        ),
+        isFalse,
+      );
+      expect(
+        shouldHydrateFlowEvents(
+          const FlowRecordSnapshot(
+            id: 3,
+            active: false,
+            isHidden: true,
+            isReminder: false,
+          ),
+        ),
+        isFalse,
+      );
+      expect(
+        shouldHydrateFlowEvents(
+          const FlowRecordSnapshot(
+            id: 4,
+            active: false,
+            isHidden: false,
+            isReminder: false,
+            notes: '{"kind":"repeating_note","detail":"Water plants"}',
+          ),
+        ),
+        isFalse,
+      );
+      expect(
+        shouldHydrateFlowEvents(
+          const FlowRecordSnapshot(
+            id: 5,
+            active: false,
+            isHidden: false,
+            isReminder: true,
+          ),
+        ),
+        isTrue,
+      );
+    });
+
+    test('hydrates materialized history for ended non-saved flows only', () {
+      expect(
+        shouldHydrateMaterializedUserEvents(
+          const FlowRecordSnapshot(
+            id: 1,
+            active: true,
+            isHidden: false,
+            isReminder: false,
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        shouldHydrateMaterializedUserEvents(
+          const FlowRecordSnapshot(
+            id: 2,
+            active: false,
+            isHidden: false,
+            isReminder: false,
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        shouldHydrateMaterializedUserEvents(
+          const FlowRecordSnapshot(
+            id: 3,
+            active: false,
+            isHidden: false,
+            isReminder: false,
+            isSaved: true,
+          ),
+        ),
+        isFalse,
+      );
+      expect(
+        shouldHydrateMaterializedUserEvents(
+          const FlowRecordSnapshot(
+            id: 4,
+            active: false,
+            isHidden: true,
+            isReminder: false,
+          ),
+        ),
+        isFalse,
+      );
+      expect(
+        shouldHydrateMaterializedUserEvents(
+          const FlowRecordSnapshot(
+            id: 5,
+            active: true,
+            isHidden: false,
+            isReminder: false,
+            notes: '{"kind":"repeating_note","detail":"Water plants"}',
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        shouldHydrateMaterializedUserEvents(
+          const FlowRecordSnapshot(
+            id: 6,
+            active: false,
+            isHidden: false,
+            isReminder: true,
+          ),
+        ),
+        isTrue,
+      );
+    });
+
+    test('exposes calendar chrome for referenced ended flows', () {
+      expect(
+        shouldExposeFlowChromeForCalendar(
+          const FlowRecordSnapshot(
+            id: 7,
+            active: false,
+            isHidden: false,
+            isReminder: false,
+          ),
+          isReferencedByCalendar: true,
+          isActiveLedgerFlow: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test(
+      'exposes calendar chrome for referenced active flows even when not in active ledger',
+      () {
+        expect(
+          shouldExposeFlowChromeForCalendar(
+            const FlowRecordSnapshot(
+              id: 8,
+              active: true,
+              isHidden: false,
+              isReminder: false,
+            ),
+            isReferencedByCalendar: true,
+            isActiveLedgerFlow: false,
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test('hides calendar chrome for reminders and deleted rows', () {
+      expect(
+        shouldExposeFlowChromeForCalendar(
+          const FlowRecordSnapshot(
+            id: 9,
+            active: true,
+            isHidden: false,
+            isReminder: true,
+          ),
+          isReferencedByCalendar: true,
+          isActiveLedgerFlow: false,
+        ),
+        isFalse,
+      );
+      expect(
+        shouldExposeFlowChromeForCalendar(
+          const FlowRecordSnapshot(
+            id: 10,
+            active: false,
+            isHidden: true,
+            isReminder: false,
+          ),
+          isReferencedByCalendar: true,
+          isActiveLedgerFlow: false,
+        ),
+        isFalse,
       );
     });
   });
@@ -124,6 +330,40 @@ void main() {
 
       expect(decision.kind, FlowEventKind.deletedFlow);
       expect(decision.shouldPurgeGhostRow, isTrue);
+    });
+  });
+
+  group('materialized flow event dedupe', () {
+    test('keeps distinct all-day flow events when client ids differ', () {
+      final first = buildMaterializedFlowEventDedupeKey(
+        flowId: 12,
+        allDay: true,
+        clientEventId: 'flow:12:all-day:a',
+        title: 'Morning ritual',
+      );
+      final second = buildMaterializedFlowEventDedupeKey(
+        flowId: 12,
+        allDay: true,
+        clientEventId: 'flow:12:all-day:b',
+        title: 'Morning ritual',
+      );
+
+      expect(first, isNot(second));
+    });
+
+    test('keeps distinct all-day flow events when titles differ', () {
+      final first = buildMaterializedFlowEventDedupeKey(
+        flowId: 12,
+        allDay: true,
+        title: 'Morning ritual',
+      );
+      final second = buildMaterializedFlowEventDedupeKey(
+        flowId: 12,
+        allDay: true,
+        title: 'Evening offering',
+      );
+
+      expect(first, isNot(second));
     });
   });
 }

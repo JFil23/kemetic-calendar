@@ -20,6 +20,7 @@ import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'dart:math' as math;
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/month_name_text.dart';
+import 'package:mobile/utils/flow_filter_engine.dart';
 
 // ========================================
 // SHARED CONSTANTS FOR LANDSCAPE VIEW
@@ -28,6 +29,17 @@ const Color _landscapeGold = KemeticGold.base;
 const Color _landscapeBg = Color(0xFF000000); // True black
 const Color _landscapeSurface = Color(0xFF0D0D0F); // Dark surface
 const Color _landscapeDivider = Color(0xFF1A1A1A); // Divider lines
+const Gradient _trackSkyFlowGoldGloss = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color(0xFFFFF1BF),
+    Color(0xFFF8DA79),
+    Color(0xFFFFF8D9),
+    Color(0xFFF1CE67),
+  ],
+  stops: [0.0, 0.34, 0.66, 1.0],
+);
 const double kLandscapeHeaderHeight = 58.0; // Day number header height
 const TextStyle _landscapeActionTextStyle = TextStyle(
   fontSize: 17,
@@ -596,6 +608,7 @@ class LandscapeMonthView extends StatelessWidget {
   final ValueListenable<int>? dataVersion;
   final List<NoteData> Function(int ky, int km, int kd) notesForDay;
   final Map<int, FlowData> flowIndex;
+  final Set<int> activeLedgerFlowIds;
   final String Function(int km) getMonthName;
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
@@ -632,6 +645,7 @@ class LandscapeMonthView extends StatelessWidget {
     this.dataVersion,
     required this.notesForDay,
     required this.flowIndex,
+    this.activeLedgerFlowIds = const <int>{},
     required this.getMonthName,
     this.onManageFlows,
     this.onAddNote,
@@ -661,6 +675,7 @@ class LandscapeMonthView extends StatelessWidget {
       dataVersion: dataVersion,
       notesForDay: notesForDay,
       flowIndex: flowIndex,
+      activeLedgerFlowIds: activeLedgerFlowIds,
       getMonthName: getMonthName,
       onManageFlows: onManageFlows,
       onAddNote: onAddNote,
@@ -695,6 +710,7 @@ class LandscapeMonthPager extends StatefulWidget {
   final ValueListenable<int>? dataVersion;
   final List<NoteData> Function(int ky, int km, int kd) notesForDay;
   final Map<int, FlowData> flowIndex;
+  final Set<int> activeLedgerFlowIds;
   final String Function(int km) getMonthName;
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
@@ -731,6 +747,7 @@ class LandscapeMonthPager extends StatefulWidget {
     this.dataVersion,
     required this.notesForDay,
     required this.flowIndex,
+    this.activeLedgerFlowIds = const <int>{},
     required this.getMonthName,
     this.onManageFlows,
     this.onAddNote,
@@ -1183,6 +1200,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           dataVersion: widget.dataVersion,
           notesForDay: widget.notesForDay,
           flowIndex: widget.flowIndex,
+          activeLedgerFlowIds: widget.activeLedgerFlowIds,
           getMonthName: widget.getMonthName,
           onManageFlows: widget.onManageFlows,
           onAddNote: widget.onAddNote,
@@ -1215,6 +1233,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
   final ValueListenable<int>? dataVersion;
   final List<NoteData> Function(int ky, int km, int kd) notesForDay;
   final Map<int, FlowData> flowIndex;
+  final Set<int> activeLedgerFlowIds;
   final String Function(int km) getMonthName;
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
@@ -1247,6 +1266,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
     this.dataVersion,
     required this.notesForDay,
     required this.flowIndex,
+    this.activeLedgerFlowIds = const <int>{},
     required this.getMonthName,
     this.onManageFlows,
     this.onAddNote,
@@ -1727,10 +1747,13 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
 
     Color eventColor = Colors.blue;
+    // Product rule: explicit per-event colors win; otherwise we fall back to
+    // the owning flow's chrome color so historical/saved flow notes stay
+    // visually attached to their source flow.
     if (note.manualColor != null) {
       eventColor = note.manualColor!;
     } else if (note.flowId != null) {
-      final flow = widget.flowIndex[note.flowId];
+      final flow = _chromeFlowForId(note.flowId);
       if (flow != null) {
         eventColor = flow.color;
       }
@@ -1754,6 +1777,26 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       isReminder: note.isReminder,
       reminderId: note.reminderId,
     );
+  }
+
+  FlowData? _chromeFlowForId(int? flowId) => widget.flowIndex[flowId];
+
+  bool _isRepeatingNoteFlowId(int? flowId) {
+    final flow = _chromeFlowForId(flowId);
+    return flow != null && hasRepeatingNoteFlowMetadata(flow.notes);
+  }
+
+  bool _shouldShowEndFlowForId(int? flowId) {
+    final flow = _chromeFlowForId(flowId);
+    return flow != null && !hasRepeatingNoteFlowMetadata(flow.notes);
+  }
+
+  bool _isActionableFlowId(int? flowId) {
+    if (flowId == null) return false;
+    if (widget.activeLedgerFlowIds.contains(flowId)) return true;
+    final flow = _chromeFlowForId(flowId);
+    if (flow == null) return false;
+    return flow.active && !hasRepeatingNoteFlowMetadata(flow.notes);
   }
 
   String _sheetEventIdentityKey(EventItem event) {
@@ -1905,7 +1948,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       for (final note in rawNotes) {
         _logLandscape('   - Note: "${note.title}", flowId: ${note.flowId}');
         if (note.flowId != null) {
-          final flow = widget.flowIndex[note.flowId];
+          final flow = _chromeFlowForId(note.flowId);
           _logLandscape('     Flow color: ${flow?.color}');
         }
       }
@@ -2007,7 +2050,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   }
 
   Widget _buildEventCard(EventItem event, int durationMinutes) {
-    final flow = widget.flowIndex[event.flowId];
+    final flow = _chromeFlowForId(event.flowId);
     final isTrackSky = _isLandscapeTrackSkyFlowName(flow?.name);
     final trackSkySpec = isTrackSky
         ? _landscapeTrackSkySpecForEvent(event)
@@ -2156,7 +2199,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     int durationMinutes, {
     _LandscapeTrackSkySpec? trackSkySpec,
   }) {
-    final flow = widget.flowIndex[event.flowId];
+    final flow = _chromeFlowForId(event.flowId);
     final hasFlow = flow != null;
     final isTrackSky = trackSkySpec != null;
 
@@ -2164,7 +2207,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     final showLocation =
         event.location != null && event.location!.trim().isNotEmpty;
     final titleColor = trackSkySpec?.titleColor ?? Colors.white;
-    final flowColor = trackSkySpec?.flowColor ?? event.color;
+    final flowColor = isTrackSky ? _landscapeGold : event.color;
     final secondaryTextColor = isTrackSky
         ? Colors.white.withValues(alpha: 0.82)
         : Colors.white.withOpacity(0.7);
@@ -2183,6 +2226,22 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           ]
         : null;
 
+    Widget buildTrackSkyFlowNameText(String text) {
+      const baseStyle = TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+        color: Color(0xFFF1CF7A),
+      );
+      return GlossyText(
+        text: text,
+        style: baseStyle,
+        gradient: _trackSkyFlowGoldGloss,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        softWrap: false,
+      );
+    }
+
     return Column(
       mainAxisSize: MainAxisSize.min, // ✅ Don't expand unnecessarily
       mainAxisAlignment: MainAxisAlignment.start,
@@ -2190,17 +2249,19 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       children: [
         // Flow name first (if available). Skip for reminders to avoid overflow in short block.
         if (hasFlow && !event.isReminder) ...[
-          Text(
-            flow!.name,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: flowColor,
-              shadows: textShadows,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          isTrackSky
+              ? buildTrackSkyFlowNameText(flow!.name)
+              : Text(
+                  flow!.name,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: flowColor,
+                    shadows: textShadows,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
           const SizedBox(height: 2),
         ],
 
@@ -2300,18 +2361,22 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   }
 
   Widget _buildEndFlowButton(
-    int? flowId, {
+    DayViewSheetEventTarget target, {
     required BuildContext actionContext,
   }) {
     final onEndFlow = widget.onEndFlow;
-    final id = flowId;
-    final enabled = onEndFlow != null && id != null;
+    final id = target.event.flowId;
+    final enabled = onEndFlow != null && _shouldShowEndFlowForId(id);
     return OutlinedButton.icon(
       style: _endButtonStyle(actionContext),
       onPressed: enabled
-          ? () {
+          ? () async {
               Navigator.pop(actionContext);
-              onEndFlow(id);
+              final routedThroughCalendarPage =
+                  await CalendarPage.endFlowFromEventTarget(target);
+              if (!routedThroughCalendarPage) {
+                onEndFlow(id!);
+              }
             }
           : null,
       icon: const Icon(Icons.stop_circle),
@@ -2387,7 +2452,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     bool scrollable = true,
   }) {
     final currentEvent = target.event;
-    final flow = widget.flowIndex[currentEvent.flowId];
+    final flow = _chromeFlowForId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
     final detail = _cleanEventDetail(currentEvent.detail);
     final isNutrition = detail.contains('Source:');
@@ -2575,17 +2640,19 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     required DayViewSheetEventTarget target,
   }) {
     final currentEvent = target.event;
-    final flow = widget.flowIndex[currentEvent.flowId];
+    final flow = _chromeFlowForId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
 
     return Row(
       children: [
         const Spacer(),
-        if (flow != null)
-          _buildEndFlowButton(flow.id, actionContext: sheetContext)
-        else if (isReminder)
+        if (_shouldShowEndFlowForId(currentEvent.flowId))
+          _buildEndFlowButton(target, actionContext: sheetContext)
+        else if (flow == null && isReminder)
           _buildEndReminderButton(currentEvent, actionContext: sheetContext)
-        else if (widget.onDeleteNote != null)
+        else if ((flow == null ||
+                _isRepeatingNoteFlowId(currentEvent.flowId)) &&
+            widget.onDeleteNote != null)
           _buildEndNoteButton(
             currentEvent,
             ky: target.ky,
@@ -2607,7 +2674,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     required DayViewSheetEventTarget target,
   }) {
     final currentEvent = target.event;
-    final flow = widget.flowIndex[currentEvent.flowId];
+    final flow = _chromeFlowForId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
 
     if (flow != null) {
@@ -2692,7 +2759,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     required DayViewSheetEventTarget target,
   }) {
     final currentEvent = target.event;
-    final flow = widget.flowIndex[currentEvent.flowId];
+    final flow = _chromeFlowForId(currentEvent.flowId);
+    final actionableFlow = _isActionableFlowId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
 
     return PopupMenuButton<String>(
@@ -2706,7 +2774,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             target.kd,
             sheetContext: sheetContext,
           );
-        } else if (value == 'edit' && flow != null) {
+        } else if (value == 'edit' && flow != null && actionableFlow) {
           Navigator.pop(sheetContext);
           widget.onManageFlows?.call(flow.id);
         } else if (value == 'invite_people') {
@@ -2718,6 +2786,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           }
         } else if (value == 'save' &&
             flow != null &&
+            actionableFlow &&
             widget.onSaveFlow != null) {
           Navigator.pop(sheetContext);
           await widget.onSaveFlow!(flow.id);
@@ -2755,7 +2824,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               ],
             ),
           ),
-        if (flow != null && !isReminder && widget.onManageFlows != null)
+        if (flow != null &&
+            actionableFlow &&
+            !isReminder &&
+            widget.onManageFlows != null)
           PopupMenuItem(
             value: 'edit',
             child: Row(
@@ -2780,7 +2852,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               ],
             ),
           ),
-        if (flow != null && !isReminder && widget.onSaveFlow != null)
+        if (flow != null &&
+            actionableFlow &&
+            !isReminder &&
+            widget.onSaveFlow != null)
           PopupMenuItem(
             value: 'save',
             child: Row(

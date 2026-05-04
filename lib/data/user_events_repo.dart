@@ -56,6 +56,13 @@ DateTime? _parseOptionalDateTime(dynamic value) {
   return DateTime.tryParse(raw)?.toUtc();
 }
 
+String _formatDateOnlyLocal(DateTime value) {
+  final local = value.toLocal();
+  final month = local.month.toString().padLeft(2, '0');
+  final day = local.day.toString().padLeft(2, '0');
+  return '${local.year}-$month-$day';
+}
+
 FlowRecordSnapshot? _flowOwnerSnapshotFromJoinedRow(
   Map<String, dynamic>? row, {
   int? fallbackId,
@@ -68,6 +75,7 @@ FlowRecordSnapshot? _flowOwnerSnapshotFromJoinedRow(
     active: (row['active'] as bool?) ?? false,
     isHidden: (row['is_hidden'] as bool?) ?? false,
     isReminder: (row['is_reminder'] as bool?) ?? false,
+    isSaved: (row['is_saved'] as bool?) ?? false,
     notes: row['notes'] as String?,
   );
 }
@@ -1866,6 +1874,73 @@ class UserEventsRepo {
         .delete()
         .eq('user_id', user.id)
         .eq('client_event_id', clientEventId);
+  }
+
+  /// Canonical end-flow path.
+  ///
+  /// When [deleteAllMaterialized] is false, the RPC prunes the selected
+  /// occurrence and every future materialized row while keeping earlier
+  /// history intact. When true, it removes every matched materialized row from
+  /// the current flow calendar while leaving previously shared, posted, or
+  /// saved copies in their own records unchanged.
+  Future<
+    ({
+      int flowId,
+      DateTime endedAtUtc,
+      String endedOn,
+      int deletedEventCount,
+      int retiredNotificationCount,
+      int deletedCompletionCount,
+    })
+  >
+  endFlow({
+    required int flowId,
+    required DateTime endedAtLocal,
+    bool deleteAllMaterialized = false,
+  }) async {
+    final response = await _client.rpc(
+      'end_flow',
+      params: {
+        'p_flow_id': flowId,
+        'p_ended_at': endedAtLocal.toUtc().toIso8601String(),
+        'p_ended_on': _formatDateOnlyLocal(endedAtLocal),
+        'p_delete_all_materialized': deleteAllMaterialized,
+      },
+    );
+
+    Map<String, dynamic>? row;
+    if (response is List && response.isNotEmpty && response.first is Map) {
+      row = Map<String, dynamic>.from(response.first as Map);
+    } else if (response is Map) {
+      row = Map<String, dynamic>.from(response);
+    }
+    if (row == null) {
+      throw StateError('end_flow returned no result for flowId=$flowId');
+    }
+
+    try {
+      await Notify.syncLocalDeliveryMode();
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[UserEventsRepo] endFlow notify sync failed: $e');
+        debugPrint('$st');
+      }
+    }
+
+    return (
+      flowId: (row['flow_id'] as num?)?.toInt() ?? flowId,
+      endedAtUtc:
+          DateTime.tryParse(row['ended_at'] as String? ?? '')?.toUtc() ??
+          endedAtLocal.toUtc(),
+      endedOn: (row['ended_on'] as String?)?.trim().isNotEmpty == true
+          ? (row['ended_on'] as String).trim()
+          : _formatDateOnlyLocal(endedAtLocal),
+      deletedEventCount: (row['deleted_event_count'] as num?)?.toInt() ?? 0,
+      retiredNotificationCount:
+          (row['retired_notification_count'] as num?)?.toInt() ?? 0,
+      deletedCompletionCount:
+          (row['deleted_completion_count'] as num?)?.toInt() ?? 0,
+    );
   }
 
   /// Upsert a flow (jsonb rules). Returns server id.
