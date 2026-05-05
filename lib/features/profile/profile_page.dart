@@ -240,8 +240,30 @@ class _ProfilePageState extends State<ProfilePage>
 
   Future<void> _loadProfile({bool showSpinner = true}) async {
     final loadSerial = ++_profileLoadSerial;
-    if (showSpinner) {
+    final cachedProfile = _repo.getCachedProfileSync(widget.userId);
+    if (cachedProfile != null) {
+      setState(() {
+        _profile = cachedProfile;
+        _loading = false;
+      });
+    } else if (showSpinner) {
       setState(() => _loading = true);
+    }
+
+    if (cachedProfile == null) {
+      unawaited(() async {
+        final restored = await _repo.restoreCachedProfile(widget.userId);
+        if (!mounted ||
+            loadSerial != _profileLoadSerial ||
+            restored == null ||
+            _profile != null) {
+          return;
+        }
+        setState(() {
+          _profile = restored;
+          _loading = false;
+        });
+      }());
     }
 
     final profileFuture = _repo.getProfile(widget.userId);

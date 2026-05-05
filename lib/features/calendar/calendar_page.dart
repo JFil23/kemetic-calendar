@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../data/event_filing_engine.dart';
 import '../../data/user_events_repo.dart';
 import '../../data/flows_repo.dart';
 import '../../data/shared_calendar_models.dart';
@@ -4074,6 +4073,30 @@ class _Flow {
   });
 }
 
+class _MyFlowsFilingSnapshot {
+  const _MyFlowsFilingSnapshot({
+    required this.flows,
+    required this.activeFlowIds,
+    required this.savedFlowIds,
+    required this.totalEventCounts,
+    required this.remainingEventCounts,
+  });
+
+  final List<_Flow> flows;
+  final Set<int> activeFlowIds;
+  final Set<int> savedFlowIds;
+  final Map<int, int> totalEventCounts;
+  final Map<int, int> remainingEventCounts;
+
+  static const empty = _MyFlowsFilingSnapshot(
+    flows: <_Flow>[],
+    activeFlowIds: <int>{},
+    savedFlowIds: <int>{},
+    totalEventCounts: <int, int>{},
+    remainingEventCounts: <int, int>{},
+  );
+}
+
 /// One resolved instance of a flow on a day.
 class _FlowOccurrence {
   final _Flow flow;
@@ -4848,6 +4871,7 @@ class _CalendarPageState extends State<CalendarPage>
   List<_Flow> _flows = [];
   final Map<int, int> _flowTotalEventCounts = <int, int>{};
   final Map<int, int> _flowRemainingEventCounts = <int, int>{};
+  _MyFlowsFilingSnapshot? _myFlowsFilingSnapshotCache;
   int _nextFlowId = 1;
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
   final ScrollController _scrollCtrl = ScrollController();
@@ -6739,6 +6763,7 @@ class _CalendarPageState extends State<CalendarPage>
     // ✅ Load persisted state first, fallback to today
     _loadPersistedViewState();
     unawaited(_restoreWarmStartCacheIfAvailable(reason: 'initState'));
+    unawaited(_restoreMyFlowsFilingSnapshotCache(reason: 'initState'));
     calendarPushOpenIntent.addListener(_handleCalendarPushOpenIntent);
     _scheduleDaySheetResumeRestore();
     _schedulePushEventResumeRestore();
@@ -6782,6 +6807,9 @@ class _CalendarPageState extends State<CalendarPage>
         unawaited(
           _restoreWarmStartCacheIfAvailable(reason: 'auth:${event.name}'),
         );
+        unawaited(
+          _restoreMyFlowsFilingSnapshotCache(reason: 'auth:${event.name}'),
+        );
         unawaited(_requestInitialStartupRun(reason: 'auth:${event.name}'));
         return;
       }
@@ -6794,6 +6822,7 @@ class _CalendarPageState extends State<CalendarPage>
         _initialStartupUserId = null;
         _warmStartSnapshotVisible = false;
         _warmStartCacheRestoredForUserId = null;
+        _myFlowsFilingSnapshotCache = null;
         _lastSuccessfulHydrationAt = null;
       }
     });
@@ -14289,9 +14318,8 @@ class _CalendarPageState extends State<CalendarPage>
                       }
 
                       return _FlowsViewerPage(
-                        flows: _flows,
-                        totalEventCounts: _flowTotalEventCounts,
-                        remainingEventCounts: _flowRemainingEventCounts,
+                        loadFilingSnapshot: _loadMyFlowsFilingSnapshot,
+                        initialFilingSnapshot: _cachedMyFlowsFilingSnapshot(),
                         fmtGregorian: (d) => d == null
                             ? '--'
                             : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
@@ -14377,9 +14405,8 @@ class _CalendarPageState extends State<CalendarPage>
               Navigator.of(innerCtx).push(
                 MaterialPageRoute(
                   builder: (ctx2) => _FlowsViewerPage(
-                    flows: _flows,
-                    totalEventCounts: _flowTotalEventCounts,
-                    remainingEventCounts: _flowRemainingEventCounts,
+                    loadFilingSnapshot: _loadMyFlowsFilingSnapshot,
+                    initialFilingSnapshot: _cachedMyFlowsFilingSnapshot(),
                     fmtGregorian: (d) => d == null
                         ? '--'
                         : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
@@ -14511,9 +14538,8 @@ class _CalendarPageState extends State<CalendarPage>
     _openFlowStudioSheet(
       rootBuilder: (innerCtx) {
         return _FlowsViewerPage(
-          flows: _flows,
-          totalEventCounts: _flowTotalEventCounts,
-          remainingEventCounts: _flowRemainingEventCounts,
+          loadFilingSnapshot: _loadMyFlowsFilingSnapshot,
+          initialFilingSnapshot: _cachedMyFlowsFilingSnapshot(),
           fmtGregorian: (d) => d == null
               ? '--'
               : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
@@ -17863,6 +17889,19 @@ class _CalendarPageState extends State<CalendarPage>
     if (!keepWarmStartVisible) {
       await _loadFromDisk(source: 'startup:$reason');
     }
+    await _restoreMyFlowsFilingSnapshotCache(reason: 'startup:$reason');
+    if (widget.openMyFlowsOnLaunch && _myFlowsFilingSnapshotCache == null) {
+      try {
+        await _loadMyFlowsFilingSnapshot();
+      } catch (e, st) {
+        if (kDebugMode) {
+          debugPrint('[MyFlowsFiling] launch prefetch failed: $e');
+          debugPrint('$st');
+        }
+      }
+    } else {
+      _primeMyFlowsFilingSnapshotCache(reason: 'startup:$reason');
+    }
     await _maybeLoadDecanReflectionPrompt();
     unawaited(() async {
       try {
@@ -17877,6 +17916,7 @@ class _CalendarPageState extends State<CalendarPage>
         await _persistWarmStartCacheNow(
           debugReason: 'startup_backfill_complete',
         );
+        _primeMyFlowsFilingSnapshotCache(reason: 'startup_backfill:$reason');
       } catch (e, st) {
         if (kDebugMode) {
           debugPrint('[startup] backfill/reminder sync failed (async): $e');
@@ -18762,6 +18802,115 @@ class _CalendarPageState extends State<CalendarPage>
     } catch (_) {
       return [];
     }
+  }
+
+  List<FlowRule> _parseFlowRowRules(List<dynamic> rules) {
+    if (rules.isEmpty) return const [];
+    final parsed = <FlowRule>[];
+    for (final raw in rules) {
+      if (raw is! Map) continue;
+      try {
+        parsed.add(CalendarPage.ruleFromJson(Map<String, dynamic>.from(raw)));
+      } catch (_) {
+        // Skip malformed rows from older records without dropping the flow.
+      }
+    }
+    return parsed;
+  }
+
+  _Flow _flowFromFiledRow(FlowRow row) {
+    return _Flow(
+      id: row.id,
+      calendarId: row.calendarId,
+      name: row.name,
+      color: Color(rgbToArgb(row.color)),
+      active: row.active,
+      isSaved: row.isSaved,
+      savedAt: row.savedAt,
+      rules: _parseFlowRowRules(row.rules),
+      start: row.startDate?.toLocal(),
+      end: row.endDate?.toLocal(),
+      notes: row.notes,
+      shareId: row.shareId,
+      isHidden: row.isHidden,
+      isReminder: row.isReminder,
+      reminderUuid: row.reminderUuid,
+    );
+  }
+
+  _MyFlowsFilingSnapshot _myFlowsFilingSnapshotFromRows(List<FlowRow> rows) {
+    final flows = <_Flow>[];
+    final activeIds = <int>{};
+    final savedIds = <int>{};
+    final totalCounts = <int, int>{};
+    final remainingCounts = <int, int>{};
+
+    for (final row in rows) {
+      flows.add(_flowFromFiledRow(row));
+      if (row.visibleInActiveList) activeIds.add(row.id);
+      if (row.visibleInSavedList) savedIds.add(row.id);
+      totalCounts[row.id] = row.totalEventCount;
+      remainingCounts[row.id] = row.remainingLiveEventCount;
+    }
+
+    if (kDebugMode) {
+      debugPrint(
+        '[MyFlowsFiling] rows=${rows.length} active=${activeIds.length} saved=${savedIds.length}',
+      );
+    }
+
+    return _MyFlowsFilingSnapshot(
+      flows: List<_Flow>.unmodifiable(flows),
+      activeFlowIds: Set<int>.unmodifiable(activeIds),
+      savedFlowIds: Set<int>.unmodifiable(savedIds),
+      totalEventCounts: Map<int, int>.unmodifiable(totalCounts),
+      remainingEventCounts: Map<int, int>.unmodifiable(remainingCounts),
+    );
+  }
+
+  _MyFlowsFilingSnapshot? _cachedMyFlowsFilingSnapshot() {
+    final cached = _myFlowsFilingSnapshotCache;
+    if (cached != null) return cached;
+    final cachedRows = _flowsRepo.cachedMyFiledFlowsSync();
+    if (cachedRows == null) return null;
+    final snapshot = _myFlowsFilingSnapshotFromRows(cachedRows);
+    _myFlowsFilingSnapshotCache = snapshot;
+    return snapshot;
+  }
+
+  Future<void> _restoreMyFlowsFilingSnapshotCache({
+    String reason = 'restore',
+  }) async {
+    if (_myFlowsFilingSnapshotCache != null) return;
+    final rows = await _flowsRepo.restoreCachedFiledFlows();
+    if (rows == null || !mounted) return;
+    _myFlowsFilingSnapshotCache = _myFlowsFilingSnapshotFromRows(rows);
+    if (kDebugMode) {
+      debugPrint(
+        '[MyFlowsFiling] restored cache reason=$reason rows=${rows.length}',
+      );
+    }
+  }
+
+  Future<_MyFlowsFilingSnapshot> _loadMyFlowsFilingSnapshot() async {
+    final rows = await _flowsRepo.refreshMyFiledFlows();
+    final snapshot = _myFlowsFilingSnapshotFromRows(rows);
+    _myFlowsFilingSnapshotCache = snapshot;
+    return snapshot;
+  }
+
+  void _primeMyFlowsFilingSnapshotCache({String reason = 'prime'}) {
+    unawaited(() async {
+      try {
+        await _restoreMyFlowsFilingSnapshotCache(reason: reason);
+        await _loadMyFlowsFilingSnapshot();
+      } catch (e, st) {
+        if (kDebugMode) {
+          debugPrint('[MyFlowsFiling] prime failed reason=$reason error=$e');
+          debugPrint('$st');
+        }
+      }
+    }());
   }
 
   List<FlowRule> _rulesFromReminder(ReminderRule rule) {
@@ -33007,24 +33156,22 @@ _RuleDates _buildNoteRuleDates({
 
 class _FlowsViewerPage extends StatefulWidget {
   const _FlowsViewerPage({
-    required this.flows,
-    required this.totalEventCounts,
-    required this.remainingEventCounts,
+    required this.loadFilingSnapshot,
     required this.fmtGregorian,
     required this.onCreateNew,
     required this.onEditFlow,
     required this.onEndFlow,
     this.onImportFlow,
     this.onAppendToJournal,
+    this.initialFilingSnapshot,
   });
 
-  final List<_Flow> flows;
-  final Map<int, int> totalEventCounts;
-  final Map<int, int> remainingEventCounts;
+  final Future<_MyFlowsFilingSnapshot> Function() loadFilingSnapshot;
+  final _MyFlowsFilingSnapshot? initialFilingSnapshot;
   final String Function(DateTime? d) fmtGregorian;
-  final VoidCallback onCreateNew;
-  final void Function(int flowId) onEditFlow;
-  final void Function(int flowId) onEndFlow;
+  final FutureOr<void> Function() onCreateNew;
+  final FutureOr<void> Function(int flowId) onEditFlow;
+  final FutureOr<void> Function(int flowId) onEndFlow;
   final Future<void> Function(int? importedFlowId)? onImportFlow;
   final Future<void> Function(String text)? onAppendToJournal;
 
@@ -33034,6 +33181,50 @@ class _FlowsViewerPage extends StatefulWidget {
 
 class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   FlowListTab _tab = FlowListTab.active;
+  _MyFlowsFilingSnapshot? _snapshot;
+  Object? _loadError;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _snapshot = widget.initialFilingSnapshot;
+    _loading = _snapshot == null;
+    unawaited(_reloadFiledFlows());
+  }
+
+  Future<void> _reloadFiledFlows() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _loadError = null;
+      });
+    }
+
+    try {
+      final snapshot = await widget.loadFilingSnapshot();
+      if (!mounted) return;
+      setState(() {
+        _snapshot = snapshot;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = e;
+        _snapshot ??= _MyFlowsFilingSnapshot.empty;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _runAndReload(FutureOr<void> Function() action) async {
+    try {
+      await Future<void>.sync(action);
+    } finally {
+      await _reloadFiledFlows();
+    }
+  }
 
   int _compareSavedFlows(_Flow a, _Flow b) {
     final aSavedAt = a.savedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -33043,34 +33234,51 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
     return a.name.toLowerCase().compareTo(b.name.toLowerCase());
   }
 
-  FiledFlowCabinet<_Flow> get _flowFiling =>
-      const EventFilingEngine().fileFlowRecords<_Flow>(
-        flows: widget.flows,
-        idOf: (flow) => flow.id,
-        activeOf: (flow) => flow.active,
-        isSavedOf: (flow) => flow.isSaved,
-        isHiddenOf: (flow) => flow.isHidden,
-        isReminderOf: (flow) => flow.isReminder,
-        endDateOf: (flow) => flow.end,
-        notesOf: (flow) => flow.notes,
-        calendarIdOf: (flow) => flow.calendarId,
-        totalEventCounts: widget.totalEventCounts,
-        remainingEventCounts: widget.remainingEventCounts,
-      );
+  _MyFlowsFilingSnapshot get _currentSnapshot =>
+      _snapshot ?? _MyFlowsFilingSnapshot.empty;
 
   List<_Flow> get _activeItems =>
-      _flowFiling.active.map((entry) => entry.flow).toList()
+      _currentSnapshot.flows
+          .where((flow) => _currentSnapshot.activeFlowIds.contains(flow.id))
+          .toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   // Saved flows act as templates, so they stay visible even after the user
   // removes them from the active calendar.
   List<_Flow> get _savedItems =>
-      _flowFiling.saved.map((entry) => entry.flow).toList()
+      _currentSnapshot.flows
+          .where((flow) => _currentSnapshot.savedFlowIds.contains(flow.id))
+          .toList()
         ..sort(_compareSavedFlows);
 
   @override
   Widget build(BuildContext context) {
     final items = _tab == FlowListTab.active ? _activeItems : _savedItems;
+
+    Widget loadingState = const Center(
+      child: CircularProgressIndicator(color: _gold),
+    );
+
+    Widget errorState = Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Unable to load flows',
+              style: TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            IconButton(
+              tooltip: 'Retry',
+              onPressed: _loading ? null : () => unawaited(_reloadFiledFlows()),
+              icon: const Icon(Icons.refresh, color: _gold),
+            ),
+          ],
+        ),
+      ),
+    );
 
     Widget emptyState = const Padding(
       padding: EdgeInsets.all(24),
@@ -33115,10 +33323,12 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
                       (DecanMetadata.decanNames[km] ??
                       const ['I', 'II', 'III'])[di],
                   fmt: widget.fmtGregorian,
-                  onEdit: (flow) => widget.onEditFlow(flow.id),
+                  onEdit: (flow) => unawaited(
+                    _runAndReload(() => widget.onEditFlow(flow.id)),
+                  ),
                   onAppendToJournal: widget.onAppendToJournal,
                   onEndMaatFlow: (flow) {
-                    widget.onEndFlow(flow.id);
+                    unawaited(_runAndReload(() => widget.onEndFlow(flow.id)));
                     Navigator.of(context).pop();
                   },
                 ),
@@ -33127,8 +33337,8 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
             if (!mounted) return;
             if (importedFlowId != null) {
               await widget.onImportFlow?.call(importedFlowId);
+              await _reloadFiledFlows();
             }
-            setState(() {});
           },
 
           leading: Container(
@@ -33168,8 +33378,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
             tooltip: 'New flow',
             icon: const Icon(Icons.add, color: _silver),
             onPressed: () {
-              widget.onCreateNew();
-              if (mounted) setState(() {});
+              unawaited(_runAndReload(widget.onCreateNew));
             },
           ),
         ],
@@ -33217,7 +33426,15 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
             ),
           ),
           const SizedBox(height: 8),
-          Expanded(child: items.isEmpty ? emptyState : list),
+          Expanded(
+            child: _loading && _snapshot == null
+                ? loadingState
+                : (_loadError != null && _currentSnapshot.flows.isEmpty)
+                ? errorState
+                : items.isEmpty
+                ? emptyState
+                : list,
+          ),
         ],
       ),
     );

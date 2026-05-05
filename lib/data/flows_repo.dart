@@ -1,7 +1,9 @@
-// lib/data/flows_repo.dart
-import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../utils/flow_visibility.dart';
 
@@ -49,7 +51,14 @@ class FlowRow {
   final bool isHidden;
   final bool isReminder;
   final String? reminderUuid;
+  final String? shareId;
   final DateTime? savedAt;
+  final String? filingLifecycle;
+  final bool visibleInActiveList;
+  final bool visibleInSavedList;
+  final int totalEventCount;
+  final int remainingEventCount;
+  final int remainingLiveEventCount;
 
   const FlowRow({
     required this.id,
@@ -67,7 +76,14 @@ class FlowRow {
     this.isHidden = false,
     this.isReminder = false,
     this.reminderUuid,
+    this.shareId,
     this.savedAt,
+    this.filingLifecycle,
+    this.visibleInActiveList = false,
+    this.visibleInSavedList = false,
+    this.totalEventCount = 0,
+    this.remainingEventCount = 0,
+    this.remainingLiveEventCount = 0,
   });
 
   factory FlowRow.fromRow(Map<String, dynamic> r) {
@@ -98,7 +114,17 @@ class FlowRow {
       isHidden: (r['is_hidden'] as bool?) ?? false,
       isReminder: (r['is_reminder'] as bool?) ?? false,
       reminderUuid: r['reminder_uuid'] as String?,
+      shareId: r['share_id'] as String?,
       savedAt: _parseDateTime(r['saved_at']),
+      filingLifecycle: r['lifecycle'] as String?,
+      visibleInActiveList:
+          (r['visible_in_active_list'] as bool?) ??
+          ((r['lifecycle'] as String?) == 'active'),
+      visibleInSavedList: (r['visible_in_saved_list'] as bool?) ?? false,
+      totalEventCount: (r['total_event_count'] as num?)?.toInt() ?? 0,
+      remainingEventCount: (r['remaining_event_count'] as num?)?.toInt() ?? 0,
+      remainingLiveEventCount:
+          (r['remaining_live_event_count'] as num?)?.toInt() ?? 0,
       aiMetadata: r['ai_metadata'] != null
           ? Map<String, dynamic>.from(r['ai_metadata'] as Map)
           : null,
@@ -135,11 +161,125 @@ class FlowRow {
     'is_reminder': isReminder,
     'reminder_uuid': reminderUuid,
   };
+
+  Map<String, dynamic> toCacheJson() => {
+    'id': id,
+    'user_id': userId,
+    'calendar_id': calendarId,
+    'name': name,
+    'color': color,
+    'active': active,
+    'is_saved': isSaved,
+    'start_date': startDate?.toIso8601String(),
+    'end_date': endDate?.toIso8601String(),
+    'notes': notes,
+    'rules': rules,
+    'ai_metadata': aiMetadata,
+    'is_hidden': isHidden,
+    'is_reminder': isReminder,
+    'reminder_uuid': reminderUuid,
+    'share_id': shareId,
+    'saved_at': savedAt?.toIso8601String(),
+    'lifecycle': filingLifecycle,
+    'visible_in_active_list': visibleInActiveList,
+    'visible_in_saved_list': visibleInSavedList,
+    'total_event_count': totalEventCount,
+    'remaining_event_count': remainingEventCount,
+    'remaining_live_event_count': remainingLiveEventCount,
+  };
+}
+
+class FlowFilingCounts {
+  const FlowFilingCounts({required this.activeFlows, required this.flowEvents});
+
+  final int activeFlows;
+  final int flowEvents;
+
+  static FlowFilingCounts fromRows(Iterable<FlowRow> rows) {
+    var activeFlows = 0;
+    var flowEvents = 0;
+    for (final row in rows) {
+      if (!row.visibleInActiveList) continue;
+      activeFlows += 1;
+      flowEvents += row.remainingLiveEventCount;
+    }
+    return FlowFilingCounts(activeFlows: activeFlows, flowEvents: flowEvents);
+  }
 }
 
 class FlowsRepo {
   FlowsRepo(this._client);
   final SupabaseClient _client;
+
+  static const _kFiledFlowsCacheKeyPrefix = 'flow_filing:client:v1';
+  static final Map<String, List<FlowRow>> _filedFlowsMemoryCache = {};
+
+  static String _filedFlowsCacheKey(String userId) =>
+      '$_kFiledFlowsCacheKeyPrefix:$userId';
+
+  String? get _currentUserId => _client.auth.currentUser?.id;
+
+  List<FlowRow>? cachedMyFiledFlowsSync() {
+    final userId = _currentUserId;
+    if (userId == null) return null;
+    final rows = _filedFlowsMemoryCache[userId];
+    if (rows == null) return null;
+    return List<FlowRow>.unmodifiable(rows);
+  }
+
+  FlowFilingCounts? cachedMyFlowFilingCountsSync() {
+    final rows = cachedMyFiledFlowsSync();
+    if (rows == null) return null;
+    return FlowFilingCounts.fromRows(rows);
+  }
+
+  Future<List<FlowRow>?> restoreCachedFiledFlows() async {
+    final userId = _currentUserId;
+    if (userId == null) return null;
+    final cachedRows = _filedFlowsMemoryCache[userId];
+    if (cachedRows != null) return List<FlowRow>.unmodifiable(cachedRows);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_filedFlowsCacheKey(userId));
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return null;
+      final rows = decoded
+          .whereType<Map>()
+          .map((row) => FlowRow.fromRow(Map<String, dynamic>.from(row)))
+          .toList(growable: false);
+      _filedFlowsMemoryCache[userId] = List<FlowRow>.unmodifiable(rows);
+      return rows;
+    } catch (e) {
+      _log('restore filed flow cache failed: $e');
+      return null;
+    }
+  }
+
+  Future<FlowFilingCounts?> restoreCachedMyFlowFilingCounts() async {
+    final rows = await restoreCachedFiledFlows();
+    if (rows == null) return null;
+    return FlowFilingCounts.fromRows(rows);
+  }
+
+  Future<void> _cacheFiledFlows({
+    required String userId,
+    required List<FlowRow> rows,
+  }) async {
+    final frozen = List<FlowRow>.unmodifiable(rows);
+    _filedFlowsMemoryCache[userId] = frozen;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _filedFlowsCacheKey(userId),
+        jsonEncode(frozen.map((row) => row.toCacheJson()).toList()),
+      );
+    } catch (e) {
+      _log('persist filed flow cache failed: $e');
+    }
+  }
 
   Future<Map<int, DateTime>> _loadSavedTimestamps({
     required String userId,
@@ -211,18 +351,29 @@ class FlowsRepo {
     );
   }
 
-  Future<List<FlowRow>> _fetchMyRawFlows() async {
+  Future<List<FlowRow>> _fetchMyRawFlows() => refreshMyFiledFlows();
+
+  Future<List<FlowRow>> listMyFiledFlows({int? limit}) async {
+    return refreshMyFiledFlows(limit: limit);
+  }
+
+  Future<List<FlowRow>> refreshMyFiledFlows({int? limit}) async {
     final user = _client.auth.currentUser;
     if (user == null) return const [];
 
+    final query = _client
+        .from('flow_filing_items_client')
+        .select()
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false);
     final rows =
-        await _client
-                .from('flow_filing_items_client')
-                .select()
-                .eq('user_id', user.id)
-                .order('created_at', ascending: false)
-            as List<dynamic>;
-    return _inflateFlowRows(rows.cast<Map<String, dynamic>>(), userId: user.id);
+        await (limit == null ? query : query.limit(limit)) as List<dynamic>;
+    final inflated = await _inflateFlowRows(
+      rows.cast<Map<String, dynamic>>(),
+      userId: user.id,
+    );
+    unawaited(_cacheFiledFlows(userId: user.id, rows: inflated));
+    return inflated;
   }
 
   Future<({Map<int, int> total, Map<int, int> remaining})> _loadMyEventCounts(

@@ -1,13 +1,15 @@
 // lib/data/profile_repo.dart
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart' show DateUtils;
 import 'package:mobile/utils/detail_sanitizer.dart';
 import 'package:mobile/utils/event_cid_util.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'profile_avatar_glyphs.dart';
 import 'profile_model.dart';
 import 'share_models.dart';
@@ -33,19 +35,76 @@ class ProfileRepo {
 
   ProfileRepo(this._client);
 
+  static const _kProfileCacheKeyPrefix = 'profile:summary:v1';
+  static final Map<String, UserProfile> _profileMemoryCache = {};
+
+  static String _profileCacheKey(String userId) =>
+      '$_kProfileCacheKeyPrefix:$userId';
+
   void _log(String message) {
     if (kDebugMode) {
       debugPrint(message);
     }
   }
 
+  UserProfile? getCachedProfileSync(String userId) {
+    final profile = _profileMemoryCache[userId];
+    if (profile == null) return null;
+    return _overlayCachedOwnFlowCounts(profile);
+  }
+
+  Future<UserProfile?> restoreCachedProfile(String userId) async {
+    final inMemory = getCachedProfileSync(userId);
+    if (inMemory != null) return inMemory;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_profileCacheKey(userId));
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return null;
+      final profile = UserProfile.fromJson(Map<String, dynamic>.from(decoded));
+      _profileMemoryCache[userId] = profile;
+
+      if (_client.auth.currentUser?.id == userId) {
+        await FlowsRepo(_client).restoreCachedMyFlowFilingCounts();
+      }
+      return _overlayCachedOwnFlowCounts(profile);
+    } catch (e) {
+      _log('[ProfileRepo] restore cached profile failed: $e');
+      return null;
+    }
+  }
+
+  UserProfile _overlayCachedOwnFlowCounts(UserProfile profile) {
+    if (_client.auth.currentUser?.id != profile.id) return profile;
+    final counts = FlowsRepo(_client).cachedMyFlowFilingCountsSync();
+    if (counts == null) return profile;
+    return profile.copyWith(
+      activeFlowsCount: counts.activeFlows,
+      totalFlowEventsCount: counts.flowEvents,
+    );
+  }
+
+  Future<void> _cacheProfile(UserProfile profile) async {
+    _profileMemoryCache[profile.id] = profile;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_profileCacheKey(profile.id), jsonEncode(profile));
+    } catch (e) {
+      _log('[ProfileRepo] persist cached profile failed: $e');
+    }
+  }
+
   Future<UserProfile?> _overlayLiveFlowCounts(UserProfile? profile) async {
     if (profile == null) return null;
     final counts = await computeFlowCountsForUser(profile.id);
-    return profile.copyWith(
+    final updated = profile.copyWith(
       activeFlowsCount: counts.$1,
       totalFlowEventsCount: counts.$2,
     );
+    unawaited(_cacheProfile(updated));
+    return updated;
   }
 
   String _profilesSelect({bool includeAvatarGlyphs = true}) {
@@ -197,8 +256,15 @@ class ProfileRepo {
     try {
       final currentUserId = _client.auth.currentUser?.id;
       if (currentUserId == userId) {
-        final ledger = await FlowsRepo(_client).loadMyFlowLedger();
-        return (ledger.activeCount, ledger.totalRemainingEventCount);
+        final counts = await FlowsRepo(
+          _client,
+        ).restoreCachedMyFlowFilingCounts();
+        if (counts != null) {
+          return (counts.activeFlows, counts.flowEvents);
+        }
+        final rows = await FlowsRepo(_client).refreshMyFiledFlows();
+        final refreshedCounts = FlowFilingCounts.fromRows(rows);
+        return (refreshedCounts.activeFlows, refreshedCounts.flowEvents);
       }
       _log(
         '[ProfileRepo] No client-safe fallback for another user without get_profile_flow_counts.',
