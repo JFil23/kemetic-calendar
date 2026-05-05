@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -52,11 +54,23 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   @override
   void initState() {
     super.initState();
-    _reload();
+    unawaited(_restoreCachedSnapshot());
+    _reload(showLoading: false);
   }
 
-  Future<void> _reload() async {
-    setState(() => _loading = true);
+  Future<void> _restoreCachedSnapshot() async {
+    final snapshot = await widget.repo.restoreCachedSnapshot();
+    if (!mounted || snapshot == null) return;
+    setState(() {
+      _snapshot = snapshot;
+      _loading = false;
+    });
+  }
+
+  Future<void> _reload({bool showLoading = true}) async {
+    if (showLoading || _snapshot == null) {
+      setState(() => _loading = true);
+    }
     final snapshot = await widget.repo.loadSnapshot();
     if (!mounted) return;
     setState(() {

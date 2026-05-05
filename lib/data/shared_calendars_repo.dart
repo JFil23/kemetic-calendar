@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,10 +16,227 @@ class SharedCalendarsRepo {
   final SupabaseClient _client;
 
   static const String _hiddenCalendarsPrefKey = 'shared_calendars:hidden:v1';
+  static const String _calendarFilingView =
+      'shared_calendar_filing_items_client';
+  static const String _calendarInviteFilingView =
+      'shared_calendar_invite_filing_items_client';
+  static const String _legacyCalendarSummaryView = 'shared_calendar_summaries';
+  static const String _legacyPendingInviteView =
+      'shared_calendar_pending_invites';
+  static const String _legacySentPendingInviteView =
+      'shared_calendar_sent_pending_invites';
+  static const String _acceptedCalendarsCacheKeyPrefix =
+      'shared_calendars:accepted:v1';
+  static const String _pendingInvitesCacheKeyPrefix =
+      'shared_calendars:pending_invites:v1';
+  static const String _sentInvitesCacheKeyPrefix =
+      'shared_calendars:sent_invites:v1';
+  static final Map<String, List<SharedCalendarSummary>>
+  _acceptedCalendarsMemoryCache = {};
+  static final Map<String, List<SharedCalendarInvite>>
+  _pendingInvitesMemoryCache = {};
+  static final Map<String, List<SharedCalendarSentInvite>>
+  _sentInvitesMemoryCache = {};
 
   void _log(String message) {
     if (kDebugMode) {
       debugPrint('[SharedCalendarsRepo] $message');
+    }
+  }
+
+  String? get _currentUserId => _client.auth.currentUser?.id;
+
+  String _acceptedCalendarsCacheKey(String userId) =>
+      '$_acceptedCalendarsCacheKeyPrefix:$userId';
+
+  String _pendingInvitesCacheKey(String userId) =>
+      '$_pendingInvitesCacheKeyPrefix:$userId';
+
+  String _sentInvitesCacheKey(String userId) =>
+      '$_sentInvitesCacheKeyPrefix:$userId';
+
+  List<SharedCalendarSummary>? cachedAcceptedCalendarsSync() {
+    final uid = _currentUserId;
+    if (uid == null || uid.isEmpty) return null;
+    final items = _acceptedCalendarsMemoryCache[uid];
+    if (items == null) return null;
+    return List<SharedCalendarSummary>.unmodifiable(items);
+  }
+
+  Future<List<SharedCalendarSummary>?> restoreCachedAcceptedCalendars() async {
+    final uid = _currentUserId;
+    if (uid == null || uid.isEmpty) return null;
+    final memoryItems = _acceptedCalendarsMemoryCache[uid];
+    if (memoryItems != null) {
+      return List<SharedCalendarSummary>.unmodifiable(memoryItems);
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_acceptedCalendarsCacheKey(uid));
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return null;
+      final items = decoded
+          .whereType<Map>()
+          .map(
+            (row) =>
+                SharedCalendarSummary.fromRow(Map<String, dynamic>.from(row)),
+          )
+          .toList(growable: false);
+      _acceptedCalendarsMemoryCache[uid] =
+          List<SharedCalendarSummary>.unmodifiable(items);
+      return items;
+    } catch (e) {
+      _log('restore accepted calendar cache failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> _cacheAcceptedCalendars(
+    List<SharedCalendarSummary> calendars,
+  ) async {
+    final uid = _currentUserId;
+    if (uid == null || uid.isEmpty) return;
+    final frozen = List<SharedCalendarSummary>.unmodifiable(calendars);
+    _acceptedCalendarsMemoryCache[uid] = frozen;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _acceptedCalendarsCacheKey(uid),
+        jsonEncode(frozen.map((item) => item.toCacheJson()).toList()),
+      );
+    } catch (e) {
+      _log('persist accepted calendar cache failed: $e');
+    }
+  }
+
+  List<SharedCalendarInvite>? cachedPendingInvitesSync() {
+    final uid = _currentUserId;
+    if (uid == null || uid.isEmpty) return null;
+    final items = _pendingInvitesMemoryCache[uid];
+    if (items == null) return null;
+    return List<SharedCalendarInvite>.unmodifiable(items);
+  }
+
+  Future<List<SharedCalendarInvite>?> restoreCachedPendingInvites() async {
+    final uid = _currentUserId;
+    if (uid == null || uid.isEmpty) return null;
+    final memoryItems = _pendingInvitesMemoryCache[uid];
+    if (memoryItems != null) {
+      return List<SharedCalendarInvite>.unmodifiable(memoryItems);
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_pendingInvitesCacheKey(uid));
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return null;
+      final items = decoded
+          .whereType<Map>()
+          .map(
+            (row) =>
+                SharedCalendarInvite.fromRow(Map<String, dynamic>.from(row)),
+          )
+          .toList(growable: false);
+      _pendingInvitesMemoryCache[uid] = List<SharedCalendarInvite>.unmodifiable(
+        items,
+      );
+      return items;
+    } catch (e) {
+      _log('restore pending invite cache failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> _cachePendingInvites(List<SharedCalendarInvite> items) async {
+    final uid = _currentUserId;
+    if (uid == null || uid.isEmpty) return;
+    final frozen = List<SharedCalendarInvite>.unmodifiable(items);
+    _pendingInvitesMemoryCache[uid] = frozen;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _pendingInvitesCacheKey(uid),
+        jsonEncode(frozen.map((item) => item.toCacheJson()).toList()),
+      );
+    } catch (e) {
+      _log('persist pending invite cache failed: $e');
+    }
+  }
+
+  Future<void> _removePendingInviteFromCache(String calendarId) async {
+    final uid = _currentUserId;
+    if (uid == null || uid.isEmpty) return;
+    final current =
+        _pendingInvitesMemoryCache[uid] ?? await restoreCachedPendingInvites();
+    if (current == null || current.isEmpty) return;
+    final next = current
+        .where((invite) => invite.calendarId != calendarId)
+        .toList(growable: false);
+    if (next.length == current.length) return;
+    await _cachePendingInvites(next);
+  }
+
+  List<SharedCalendarSentInvite>? cachedSentPendingInvitesSync() {
+    final uid = _currentUserId;
+    if (uid == null || uid.isEmpty) return null;
+    final items = _sentInvitesMemoryCache[uid];
+    if (items == null) return null;
+    return List<SharedCalendarSentInvite>.unmodifiable(items);
+  }
+
+  Future<List<SharedCalendarSentInvite>?>
+  restoreCachedSentPendingInvites() async {
+    final uid = _currentUserId;
+    if (uid == null || uid.isEmpty) return null;
+    final memoryItems = _sentInvitesMemoryCache[uid];
+    if (memoryItems != null) {
+      return List<SharedCalendarSentInvite>.unmodifiable(memoryItems);
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_sentInvitesCacheKey(uid));
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return null;
+      final items = decoded
+          .whereType<Map>()
+          .map(
+            (row) => SharedCalendarSentInvite.fromRow(
+              Map<String, dynamic>.from(row),
+            ),
+          )
+          .toList(growable: false);
+      _sentInvitesMemoryCache[uid] =
+          List<SharedCalendarSentInvite>.unmodifiable(items);
+      return items;
+    } catch (e) {
+      _log('restore sent invite cache failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> _cacheSentPendingInvites(
+    List<SharedCalendarSentInvite> items,
+  ) async {
+    final uid = _currentUserId;
+    if (uid == null || uid.isEmpty) return;
+    final frozen = List<SharedCalendarSentInvite>.unmodifiable(items);
+    _sentInvitesMemoryCache[uid] = frozen;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _sentInvitesCacheKey(uid),
+        jsonEncode(frozen.map((item) => item.toCacheJson()).toList()),
+      );
+    } catch (e) {
+      _log('persist sent invite cache failed: $e');
     }
   }
 
@@ -39,56 +257,117 @@ class SharedCalendarsRepo {
     await ensurePersonalCalendar();
     try {
       final rows = await _client
-          .from('shared_calendar_summaries')
+          .from(_calendarFilingView)
           .select()
           .order('is_personal', ascending: false)
           .order('name', ascending: true);
-      return (rows as List)
+      final calendars = (rows as List)
           .whereType<Map>()
           .map(
             (row) => SharedCalendarSummary.fromRow(row.cast<String, dynamic>()),
           )
           .toList(growable: false);
+      unawaited(_cacheAcceptedCalendars(calendars));
+      return calendars;
     } catch (e) {
-      _log('getAcceptedCalendars failed: $e');
-      return const [];
+      _log('getAcceptedCalendars filing view failed: $e');
+    }
+
+    try {
+      final rows = await _client
+          .from(_legacyCalendarSummaryView)
+          .select()
+          .order('is_personal', ascending: false)
+          .order('name', ascending: true);
+      final calendars = (rows as List)
+          .whereType<Map>()
+          .map(
+            (row) => SharedCalendarSummary.fromRow(row.cast<String, dynamic>()),
+          )
+          .toList(growable: false);
+      unawaited(_cacheAcceptedCalendars(calendars));
+      return calendars;
+    } catch (e) {
+      _log('getAcceptedCalendars legacy fallback failed: $e');
+      return await restoreCachedAcceptedCalendars() ?? const [];
     }
   }
 
   Future<List<SharedCalendarInvite>> getPendingInvites() async {
     try {
       final rows = await _client
-          .from('shared_calendar_pending_invites')
+          .from(_calendarInviteFilingView)
           .select()
+          .eq('invite_direction', 'incoming')
           .order('invited_at', ascending: false);
-      return (rows as List)
+      final invites = (rows as List)
           .whereType<Map>()
           .map(
             (row) => SharedCalendarInvite.fromRow(row.cast<String, dynamic>()),
           )
           .toList(growable: false);
+      unawaited(_cachePendingInvites(invites));
+      return invites;
     } catch (e) {
-      _log('getPendingInvites failed: $e');
-      return const [];
+      _log('getPendingInvites filing view failed: $e');
+    }
+
+    try {
+      final rows = await _client
+          .from(_legacyPendingInviteView)
+          .select()
+          .order('invited_at', ascending: false);
+      final invites = (rows as List)
+          .whereType<Map>()
+          .map(
+            (row) => SharedCalendarInvite.fromRow(row.cast<String, dynamic>()),
+          )
+          .toList(growable: false);
+      unawaited(_cachePendingInvites(invites));
+      return invites;
+    } catch (e) {
+      _log('getPendingInvites legacy fallback failed: $e');
+      return await restoreCachedPendingInvites() ?? const [];
     }
   }
 
   Future<List<SharedCalendarSentInvite>> getSentPendingInvites() async {
     try {
       final rows = await _client
-          .from('shared_calendar_sent_pending_invites')
+          .from(_calendarInviteFilingView)
           .select()
+          .eq('invite_direction', 'sent')
           .order('invited_at', ascending: false);
-      return (rows as List)
+      final invites = (rows as List)
           .whereType<Map>()
           .map(
             (row) =>
                 SharedCalendarSentInvite.fromRow(row.cast<String, dynamic>()),
           )
           .toList(growable: false);
+      unawaited(_cacheSentPendingInvites(invites));
+      return invites;
     } catch (e) {
-      _log('getSentPendingInvites failed: $e');
-      return const [];
+      _log('getSentPendingInvites filing view failed: $e');
+    }
+
+    try {
+      final rows = await _client
+          .from(_legacySentPendingInviteView)
+          .select()
+          .order('invited_at', ascending: false);
+      final invites = (rows as List)
+          .whereType<Map>()
+          .map(
+            (row) =>
+                SharedCalendarSentInvite.fromRow(row.cast<String, dynamic>()),
+          )
+          .toList(growable: false);
+      unawaited(_cacheSentPendingInvites(invites));
+      return invites;
+    } catch (e) {
+      _log('getSentPendingInvites legacy fallback failed: $e');
+      return await restoreCachedSentPendingInvites() ?? const [];
     }
   }
 
@@ -128,14 +407,27 @@ class SharedCalendarsRepo {
 
     try {
       final row = await _client
-          .from('shared_calendar_pending_invites')
+          .from(_calendarInviteFilingView)
+          .select()
+          .eq('calendar_id', trimmed)
+          .eq('invite_direction', 'incoming')
+          .maybeSingle();
+      if (row == null) return null;
+      return SharedCalendarInvite.fromRow(Map<String, dynamic>.from(row));
+    } catch (e) {
+      _log('getPendingInviteForCalendar filing view failed: $e');
+    }
+
+    try {
+      final row = await _client
+          .from(_legacyPendingInviteView)
           .select()
           .eq('calendar_id', trimmed)
           .maybeSingle();
       if (row == null) return null;
       return SharedCalendarInvite.fromRow(Map<String, dynamic>.from(row));
     } catch (e) {
-      _log('getPendingInviteForCalendar failed: $e');
+      _log('getPendingInviteForCalendar legacy fallback failed: $e');
       return null;
     }
   }
@@ -188,6 +480,22 @@ class SharedCalendarsRepo {
     return SharedCalendarsSnapshot(
       calendars: results[0] as List<SharedCalendarSummary>,
       pendingInvites: results[1] as List<SharedCalendarInvite>,
+      hiddenCalendarIds: results[2] as Set<String>,
+    );
+  }
+
+  Future<SharedCalendarsSnapshot?> restoreCachedSnapshot() async {
+    final results = await Future.wait<dynamic>([
+      restoreCachedAcceptedCalendars(),
+      restoreCachedPendingInvites(),
+      getHiddenCalendarIds(),
+    ]);
+    final calendars = results[0] as List<SharedCalendarSummary>?;
+    final pendingInvites = results[1] as List<SharedCalendarInvite>?;
+    if (calendars == null && pendingInvites == null) return null;
+    return SharedCalendarsSnapshot(
+      calendars: calendars ?? const <SharedCalendarSummary>[],
+      pendingInvites: pendingInvites ?? const <SharedCalendarInvite>[],
       hiddenCalendarIds: results[2] as Set<String>,
     );
   }
@@ -273,7 +581,16 @@ class SharedCalendarsRepo {
         }
       });
 
-    unawaited(emitLatest());
+    unawaited(() async {
+      final cached =
+          cachedSentPendingInvitesSync() ??
+          await restoreCachedSentPendingInvites();
+      if (cached != null && !controller.isClosed) {
+        lastItems = cached;
+        controller.add(cached);
+      }
+      await emitLatest();
+    }());
 
     controller.onCancel = () async {
       refreshDebounce?.cancel();
@@ -365,7 +682,15 @@ class SharedCalendarsRepo {
         }
       });
 
-    unawaited(emitLatest());
+    unawaited(() async {
+      final cached =
+          cachedPendingInvitesSync() ?? await restoreCachedPendingInvites();
+      if (cached != null && !controller.isClosed) {
+        lastItems = cached;
+        controller.add(cached);
+      }
+      await emitLatest();
+    }());
 
     controller.onCancel = () async {
       refreshDebounce?.cancel();
@@ -459,6 +784,7 @@ class SharedCalendarsRepo {
         'p_accept': accept,
       },
     );
+    unawaited(_removePendingInviteFromCache(trimmedCalendarId));
 
     final inviterId = pendingInvite?.invitedBy?.trim();
     if (inviterId == null || inviterId.isEmpty) return;
@@ -622,7 +948,7 @@ class SharedCalendarsRepo {
 
     try {
       final row = await _client
-          .from('shared_calendar_summaries')
+          .from(_calendarFilingView)
           .select('name, color')
           .eq('id', calendarId)
           .maybeSingle();
@@ -635,7 +961,25 @@ class SharedCalendarsRepo {
         );
       }
     } catch (e) {
-      _log('calendar push metadata lookup failed: $e');
+      _log('calendar push metadata filing lookup failed: $e');
+    }
+
+    try {
+      final row = await _client
+          .from(_legacyCalendarSummaryView)
+          .select('name, color')
+          .eq('id', calendarId)
+          .maybeSingle();
+      if (row != null) {
+        final name = ((row['name'] as String?) ?? '').trim();
+        final colorValue = (row['color'] as num?)?.toInt();
+        return (
+          name: name.isNotEmpty ? name : fallback.name,
+          colorValue: colorValue ?? fallback.colorValue,
+        );
+      }
+    } catch (e) {
+      _log('calendar push metadata legacy lookup failed: $e');
     }
 
     return fallback;

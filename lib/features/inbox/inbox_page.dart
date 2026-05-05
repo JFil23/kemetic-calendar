@@ -102,44 +102,23 @@ class _InboxPageState extends State<InboxPage> {
     _sharedCalendarsRepo = SharedCalendarsRepo(client);
     _unreadState = _shareRepo.currentUnreadState;
     _inboxRepo = InboxRepo(client);
+    unawaited(_restoreCachedUnified());
     _convSub = _inboxRepo.watchConversations().listen((threads) {
       _latestThreads = threads;
       _reconcileOptimisticReadState();
       if (mounted) {
         setState(() {
           _unified = _buildUnifiedItems();
+          _loading = false;
         });
       }
     });
     _inboxItemsSub = _inboxRepo.watchInbox().listen((items) {
-      final currentUserId = _inboxRepo.currentUserId;
-      final invites = currentUserId == null
-          ? const <InboxShareItem>[]
-          : (items
-                .where(
-                  (item) =>
-                      item.isEvent &&
-                      !item.isDeleted &&
-                      item.recipientId == currentUserId,
-                )
-                .toList()
-              ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
-      final calendarNotifications = currentUserId == null
-          ? const <InboxShareItem>[]
-          : (items
-                .where(
-                  (item) =>
-                      item.isCalendar &&
-                      !item.isDeleted &&
-                      item.recipientId == currentUserId,
-                )
-                .toList()
-              ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
-      _latestEventInvites = invites;
-      _latestCalendarNotifications = calendarNotifications;
+      _applyInboxItems(items);
       if (mounted) {
         setState(() {
           _unified = _buildUnifiedItems();
+          _loading = false;
         });
       }
     });
@@ -157,6 +136,7 @@ class _InboxPageState extends State<InboxPage> {
           if (mounted) {
             setState(() {
               _unified = _buildUnifiedItems();
+              _loading = false;
             });
           }
         });
@@ -167,10 +147,11 @@ class _InboxPageState extends State<InboxPage> {
           if (mounted) {
             setState(() {
               _unified = _buildUnifiedItems();
+              _loading = false;
             });
           }
         });
-    _refreshUnified();
+    _refreshUnified(showLoading: false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_resumeConversationIfNeeded());
     });
@@ -180,9 +161,114 @@ class _InboxPageState extends State<InboxPage> {
     await _refreshUnified();
   }
 
-  Future<void> _refreshUnified() async {
-    setState(() => _loading = true);
+  Future<void> _refreshUnified({bool showLoading = true}) async {
+    if (showLoading && _unified.isEmpty && mounted) {
+      setState(() => _loading = true);
+    }
     final activity = await _shareRepo.getRecentActivity(limit: 50);
+    _applyActivity(activity);
+
+    if (!mounted) return;
+    setState(() {
+      _unified = _buildUnifiedItems();
+      _loading = false;
+    });
+  }
+
+  Future<void> _restoreCachedUnified() async {
+    final results = await Future.wait<dynamic>([
+      _shareRepo.restoreCachedInboxItems(),
+      _shareRepo.restoreCachedRecentActivity(limit: 50),
+      _sharedCalendarsRepo.restoreCachedSentPendingInvites(),
+      _sharedCalendarsRepo.restoreCachedPendingInvites(),
+    ]);
+    if (!mounted) return;
+
+    final inboxItems = results[0] as List<InboxShareItem>?;
+    final activity = results[1] as List<InboxActivityItem>?;
+    final sentInvites = results[2] as List<SharedCalendarSentInvite>?;
+    final incomingInvites = results[3] as List<SharedCalendarInvite>?;
+    final hasCachedData =
+        inboxItems != null ||
+        activity != null ||
+        sentInvites != null ||
+        incomingInvites != null;
+    if (!hasCachedData) return;
+
+    if (inboxItems != null) {
+      _applyInboxItems(inboxItems);
+    }
+    if (activity != null) {
+      _applyActivity(activity);
+    }
+    if (sentInvites != null) {
+      _latestSentCalendarInvites = sentInvites;
+    }
+    if (incomingInvites != null) {
+      _latestIncomingCalendarInvites = incomingInvites;
+    }
+
+    setState(() {
+      _unified = _buildUnifiedItems();
+      _loading = false;
+    });
+  }
+
+  void _applyInboxItems(List<InboxShareItem> items) {
+    final currentUserId = _inboxRepo.currentUserId;
+    _latestThreads = currentUserId == null
+        ? const <String, List<InboxShareItem>>{}
+        : _conversationThreadsFromItems(items, currentUserId);
+    _reconcileOptimisticReadState();
+
+    _latestEventInvites = currentUserId == null
+        ? const <InboxShareItem>[]
+        : (items
+              .where(
+                (item) =>
+                    item.isEvent &&
+                    !item.isDeleted &&
+                    item.recipientId == currentUserId,
+              )
+              .toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+    _latestCalendarNotifications = currentUserId == null
+        ? const <InboxShareItem>[]
+        : (items
+              .where(
+                (item) =>
+                    item.isCalendar &&
+                    !item.isDeleted &&
+                    item.recipientId == currentUserId,
+              )
+              .toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+  }
+
+  Map<String, List<InboxShareItem>> _conversationThreadsFromItems(
+    List<InboxShareItem> items,
+    String currentUserId,
+  ) {
+    final grouped = <String, List<InboxShareItem>>{};
+    for (final item in items) {
+      if (item.isDeleted || item.isEvent || item.isCalendar) continue;
+      final otherId = _otherUserIdForItem(item, currentUserId);
+      if (otherId == null) continue;
+      grouped.putIfAbsent(otherId, () => <InboxShareItem>[]).add(item);
+    }
+    for (final list in grouped.values) {
+      list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    }
+    return grouped;
+  }
+
+  String? _otherUserIdForItem(InboxShareItem item, String currentUserId) {
+    if (item.senderId == currentUserId) return item.recipientId;
+    if (item.recipientId == currentUserId) return item.senderId;
+    return null;
+  }
+
+  void _applyActivity(List<InboxActivityItem> activity) {
     InboxActivityItem? firstMatch(bool Function(InboxActivityItem) test) {
       for (final item in activity) {
         if (test(item)) return item;
@@ -197,12 +283,6 @@ class _InboxPageState extends State<InboxPage> {
           a.type == InboxActivityType.like ||
           a.type == InboxActivityType.comment,
     );
-
-    if (!mounted) return;
-    setState(() {
-      _unified = _buildUnifiedItems();
-      _loading = false;
-    });
   }
 
   @override

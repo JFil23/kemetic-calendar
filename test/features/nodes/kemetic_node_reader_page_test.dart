@@ -60,6 +60,95 @@ void main() {
       expect(find.text('Open reader'), findsNothing);
     },
   );
+
+  testWidgets('renders cosmic order prose with table grids', (tester) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: KemeticNodeReaderPage(
+          node: KemeticNodeLibrary.resolve('cosmic_order')!,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cosmic Order'), findsOneWidget);
+    expect(find.byType(Table), findsNWidgets(2));
+    expect(
+      find.text('Cosmic Beginnings, Around 13.8 Billion Years Ago'),
+      findsOneWidget,
+    );
+    expect(find.text('Modern Science'), findsOneWidget);
+    expect(find.text('Purpose'), findsOneWidget);
+    expect(find.text('The Womb of Molecules'), findsOneWidget);
+  });
+
+  testWidgets('renders human emergence table grids', (tester) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: KemeticNodeReaderPage(
+          node: KemeticNodeLibrary.resolve('human_emergence')!,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Human Emergence'), findsOneWidget);
+    expect(find.byType(Table), findsNWidgets(7));
+    expect(find.text('New Species'), findsOneWidget);
+    expect(find.text('Human Mirror'), findsOneWidget);
+  });
+
+  testWidgets('renders ancient african tree table grids', (tester) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: KemeticNodeReaderPage(
+          node: KemeticNodeLibrary.resolve('ancient_african_tree')!,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ancient African Tree'), findsOneWidget);
+    expect(find.byType(Table), findsNWidgets(2));
+    expect(find.text('Species'), findsOneWidget);
+    expect(find.text('Fractured Lineage'), findsOneWidget);
+  });
+
+  testWidgets('renders rise of kush and kemet volcanic grid', (tester) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: KemeticNodeReaderPage(
+          node: KemeticNodeLibrary.resolve('rise_of_kush_and_kemet')!,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rise of Kush and Kemet'), findsOneWidget);
+    expect(find.byType(Table), findsOneWidget);
+    expect(find.text('Volcanic Feature'), findsOneWidget);
+    expect(find.text('Relevance'), findsOneWidget);
+  });
 }
 
 class _ReaderLaunchPage extends StatelessWidget {

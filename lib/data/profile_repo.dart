@@ -36,10 +36,21 @@ class ProfileRepo {
   ProfileRepo(this._client);
 
   static const _kProfileCacheKeyPrefix = 'profile:summary:v1';
+  static const _kFlowPostsCacheKeyPrefix = 'profile:flow_posts:v1';
+  static const _kInsightPostsCacheKeyPrefix = 'profile:insight_posts:v1';
   static final Map<String, UserProfile> _profileMemoryCache = {};
+  static final Map<String, List<FlowPost>> _flowPostsMemoryCache = {};
+  static final Map<String, List<InsightPost>> _insightPostsMemoryCache = {};
+  static Future<void>? _preloadLocalCachesFuture;
 
   static String _profileCacheKey(String userId) =>
       '$_kProfileCacheKeyPrefix:$userId';
+
+  static String _flowPostsCacheKey(String userId) =>
+      '$_kFlowPostsCacheKeyPrefix:$userId';
+
+  static String _insightPostsCacheKey(String userId) =>
+      '$_kInsightPostsCacheKeyPrefix:$userId';
 
   void _log(String message) {
     if (kDebugMode) {
@@ -76,6 +87,70 @@ class ProfileRepo {
     }
   }
 
+  Future<void> preloadLocalCaches() {
+    return _preloadLocalCachesFuture ??= _preloadLocalCaches();
+  }
+
+  Future<void> _preloadLocalCaches() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      const profilePrefix = '$_kProfileCacheKeyPrefix:';
+      const flowPostsPrefix = '$_kFlowPostsCacheKeyPrefix:';
+      const insightPostsPrefix = '$_kInsightPostsCacheKeyPrefix:';
+
+      for (final key in keys) {
+        final raw = prefs.getString(key);
+        if (raw == null || raw.isEmpty) continue;
+
+        try {
+          if (key.startsWith(profilePrefix)) {
+            final decoded = jsonDecode(raw);
+            if (decoded is Map) {
+              final profile = UserProfile.fromJson(
+                Map<String, dynamic>.from(decoded),
+              );
+              _profileMemoryCache[profile.id] = profile;
+            }
+          } else if (key.startsWith(flowPostsPrefix)) {
+            final userId = key.substring(flowPostsPrefix.length);
+            final decoded = jsonDecode(raw);
+            if (decoded is List) {
+              final posts = decoded
+                  .whereType<Map>()
+                  .map(
+                    (row) => FlowPost.fromJson(Map<String, dynamic>.from(row)),
+                  )
+                  .toList(growable: false);
+              _flowPostsMemoryCache[userId] = List<FlowPost>.unmodifiable(
+                posts,
+              );
+            }
+          } else if (key.startsWith(insightPostsPrefix)) {
+            final userId = key.substring(insightPostsPrefix.length);
+            final decoded = jsonDecode(raw);
+            if (decoded is List) {
+              final posts = decoded
+                  .whereType<Map>()
+                  .map(
+                    (row) =>
+                        InsightPost.fromJson(Map<String, dynamic>.from(row)),
+                  )
+                  .toList(growable: false);
+              _insightPostsMemoryCache[userId] = List<InsightPost>.unmodifiable(
+                posts,
+              );
+            }
+          }
+        } catch (e) {
+          _log('[ProfileRepo] preload cached profile key failed ($key): $e');
+        }
+      }
+    } catch (e) {
+      _log('[ProfileRepo] preload local profile caches failed: $e');
+    }
+  }
+
   UserProfile _overlayCachedOwnFlowCounts(UserProfile profile) {
     if (_client.auth.currentUser?.id != profile.id) return profile;
     final counts = FlowsRepo(_client).cachedMyFlowFilingCountsSync();
@@ -93,6 +168,98 @@ class ProfileRepo {
       await prefs.setString(_profileCacheKey(profile.id), jsonEncode(profile));
     } catch (e) {
       _log('[ProfileRepo] persist cached profile failed: $e');
+    }
+  }
+
+  List<FlowPost>? getCachedFlowPostsSync(String userId) {
+    final posts = _flowPostsMemoryCache[userId];
+    if (posts == null) return null;
+    return List<FlowPost>.unmodifiable(posts);
+  }
+
+  Future<List<FlowPost>?> restoreCachedFlowPosts(String userId) async {
+    final memoryPosts = getCachedFlowPostsSync(userId);
+    if (memoryPosts != null) return memoryPosts;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_flowPostsCacheKey(userId));
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return null;
+      final posts = decoded
+          .whereType<Map>()
+          .map((row) => FlowPost.fromJson(Map<String, dynamic>.from(row)))
+          .toList(growable: false);
+      _flowPostsMemoryCache[userId] = List<FlowPost>.unmodifiable(posts);
+      return posts;
+    } catch (e) {
+      _log('[ProfileRepo] restore cached flow posts failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> _cacheFlowPosts({
+    required String userId,
+    required List<FlowPost> posts,
+  }) async {
+    final frozen = List<FlowPost>.unmodifiable(posts);
+    _flowPostsMemoryCache[userId] = frozen;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _flowPostsCacheKey(userId),
+        jsonEncode(frozen.map((post) => post.toJson()).toList()),
+      );
+    } catch (e) {
+      _log('[ProfileRepo] persist cached flow posts failed: $e');
+    }
+  }
+
+  List<InsightPost>? getCachedInsightPostsSync(String userId) {
+    final posts = _insightPostsMemoryCache[userId];
+    if (posts == null) return null;
+    return List<InsightPost>.unmodifiable(posts);
+  }
+
+  Future<List<InsightPost>?> restoreCachedInsightPosts(String userId) async {
+    final memoryPosts = getCachedInsightPostsSync(userId);
+    if (memoryPosts != null) return memoryPosts;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_insightPostsCacheKey(userId));
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return null;
+      final posts = decoded
+          .whereType<Map>()
+          .map((row) => InsightPost.fromJson(Map<String, dynamic>.from(row)))
+          .toList(growable: false);
+      _insightPostsMemoryCache[userId] = List<InsightPost>.unmodifiable(posts);
+      return posts;
+    } catch (e) {
+      _log('[ProfileRepo] restore cached insight posts failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> _cacheInsightPosts({
+    required String userId,
+    required List<InsightPost> posts,
+  }) async {
+    final frozen = List<InsightPost>.unmodifiable(posts);
+    _insightPostsMemoryCache[userId] = frozen;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _insightPostsCacheKey(userId),
+        jsonEncode(frozen.map((post) => post.toJson()).toList()),
+      );
+    } catch (e) {
+      _log('[ProfileRepo] persist cached insight posts failed: $e');
     }
   }
 
@@ -618,13 +785,15 @@ class ProfileRepo {
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
-      return (rows as List)
+      final posts = (rows as List)
           .cast<Map<String, dynamic>>()
           .map(FlowPost.fromJson)
           .toList();
+      unawaited(_cacheFlowPosts(userId: userId, posts: posts));
+      return posts;
     } catch (e) {
       _log('[ProfileRepo] Error fetching flow posts: $e');
-      return [];
+      return await restoreCachedFlowPosts(userId) ?? const [];
     }
   }
 
@@ -639,13 +808,15 @@ class ProfileRepo {
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
-      return (rows as List)
+      final posts = (rows as List)
           .cast<Map<String, dynamic>>()
           .map(InsightPost.fromJson)
           .toList();
+      unawaited(_cacheInsightPosts(userId: userId, posts: posts));
+      return posts;
     } catch (e) {
       _log('[ProfileRepo] Error fetching insight posts: $e');
-      return const [];
+      return await restoreCachedInsightPosts(userId) ?? const [];
     }
   }
 

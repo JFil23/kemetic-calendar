@@ -91,6 +91,28 @@ class InsightPost {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'insight_entry_id': insightEntryId,
+      'node_slug': nodeId,
+      'node_title': nodeTitle,
+      'node_glyph': nodeGlyph,
+      'body_text': bodyText,
+      'entry_date': entryDate.toIso8601String(),
+      'is_hidden': isHidden,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      'author_handle': authorHandle,
+      'author_display_name': authorDisplayName,
+      'author_avatar_url': authorAvatarUrl,
+      'author_avatar_glyphs': authorAvatarGlyphIds,
+      'score': feedScore,
+      'is_following_author': isFollowingAuthor,
+    };
+  }
+
   String get authorLabel {
     final display = authorDisplayName?.trim();
     if (display != null && display.isNotEmpty) {

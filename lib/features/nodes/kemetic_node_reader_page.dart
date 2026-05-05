@@ -25,6 +25,25 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     letterSpacing: 0.1,
   );
 
+  static const TextStyle _tableCellStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 14,
+    height: 1.35,
+    fontFamily: 'GentiumPlus',
+    fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+    letterSpacing: 0.1,
+  );
+
+  static const TextStyle _tableHeaderStyle = TextStyle(
+    color: KemeticGold.light,
+    fontSize: 15,
+    height: 1.25,
+    fontWeight: FontWeight.w700,
+    fontFamily: 'GentiumPlus',
+    fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+    letterSpacing: 0,
+  );
+
   final List<KemeticNode> _history = [];
   final ScrollController _scrollController = ScrollController();
   double _horizontalDrag = 0;
@@ -284,22 +303,174 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     for (final raw in node.body.split('\n\n')) {
       final paragraph = raw.trimRight();
       if (paragraph.isEmpty) continue;
-      final spans = _linkifyParagraph(paragraph, node.linkMap, used);
-      widgets.add(
-        RichText(
-          text: TextSpan(style: _bodyStyle, children: spans),
-          textHeightBehavior: const TextHeightBehavior(
-            applyHeightToFirstAscent: false,
-            applyHeightToLastDescent: false,
-          ),
-        ),
-      );
+      if (_isTableBlock(paragraph)) {
+        widgets.add(_buildTableBlock(paragraph, node.linkMap, used));
+      } else if (paragraph.startsWith('## ')) {
+        widgets.add(_buildSectionHeading(paragraph.substring(3).trim()));
+      } else {
+        widgets.add(_buildTextBlock(paragraph, node.linkMap, used));
+      }
       widgets.add(const SizedBox(height: 14));
     }
     if (widgets.isNotEmpty) {
       widgets.removeLast();
     }
     return widgets;
+  }
+
+  Widget _buildSectionHeading(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: KemeticGold.text(
+        text,
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          height: 1.15,
+          fontFamily: 'GentiumPlus',
+          fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextBlock(
+    String paragraph,
+    List<KemeticNodeLink> linkMap,
+    Set<String> used,
+  ) {
+    final spans = _linkifyParagraph(paragraph, linkMap, used);
+    return RichText(
+      text: TextSpan(style: _bodyStyle, children: spans),
+      textHeightBehavior: const TextHeightBehavior(
+        applyHeightToFirstAscent: false,
+        applyHeightToLastDescent: false,
+      ),
+    );
+  }
+
+  bool _isTableBlock(String block) {
+    final lines = block
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+    if (lines.length < 3) return false;
+    if (!lines.first.startsWith('|')) return false;
+    final separator = _splitTableRow(lines[1]);
+    return separator.isNotEmpty &&
+        separator.every((cell) => RegExp(r'^:?-{3,}:?$').hasMatch(cell));
+  }
+
+  Widget _buildTableBlock(
+    String block,
+    List<KemeticNodeLink> linkMap,
+    Set<String> used,
+  ) {
+    final rows = _parseTableRows(block);
+    if (rows.isEmpty) return _buildTextBlock(block, linkMap, used);
+    final columnCount = rows
+        .map((row) => row.length)
+        .reduce((value, element) => value > element ? value : element);
+    final widths = <int, TableColumnWidth>{
+      for (var i = 0; i < columnCount; i++)
+        i: FixedColumnWidth(_tableColumnWidth(columnCount, i)),
+    };
+    final tableWidth = widths.values.fold<double>(
+      0,
+      (sum, width) => sum + (width as FixedColumnWidth).value,
+    );
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: tableWidth,
+        child: Table(
+          border: TableBorder.all(color: Colors.white24),
+          columnWidths: widths,
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          children: [
+            for (var rowIndex = 0; rowIndex < rows.length; rowIndex++)
+              TableRow(
+                decoration: BoxDecoration(
+                  color: rowIndex == 0
+                      ? Colors.white.withOpacity(0.08)
+                      : rowIndex.isEven
+                      ? Colors.white.withOpacity(0.03)
+                      : Colors.transparent,
+                ),
+                children: [
+                  for (var colIndex = 0; colIndex < columnCount; colIndex++)
+                    _buildTableCell(
+                      colIndex < rows[rowIndex].length
+                          ? rows[rowIndex][colIndex]
+                          : '',
+                      isHeader: rowIndex == 0,
+                      linkMap: linkMap,
+                      used: used,
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  double _tableColumnWidth(int columnCount, int columnIndex) {
+    if (columnCount == 2) return columnIndex == 0 ? 190 : 420;
+    if (columnCount == 3) {
+      return switch (columnIndex) {
+        0 => 140,
+        1 => 260,
+        _ => 360,
+      };
+    }
+    return columnIndex == 0 ? 150 : 260;
+  }
+
+  Widget _buildTableCell(
+    String text, {
+    required bool isHeader,
+    required List<KemeticNodeLink> linkMap,
+    required Set<String> used,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+      child: isHeader
+          ? Text(text, style: _tableHeaderStyle)
+          : RichText(
+              text: TextSpan(
+                style: _tableCellStyle,
+                children: _linkifyParagraph(text, linkMap, used),
+              ),
+            ),
+    );
+  }
+
+  List<List<String>> _parseTableRows(String block) {
+    final rows = <List<String>>[];
+    for (final line in block.split('\n')) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      final cells = _splitTableRow(trimmed);
+      if (cells.isEmpty) continue;
+      if (cells.every((cell) => RegExp(r'^:?-{3,}:?$').hasMatch(cell))) {
+        continue;
+      }
+      rows.add(cells);
+    }
+    return rows;
+  }
+
+  List<String> _splitTableRow(String line) {
+    var normalized = line.trim();
+    if (!normalized.startsWith('|')) return const [];
+    if (normalized.startsWith('|')) normalized = normalized.substring(1);
+    if (normalized.endsWith('|')) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    return normalized.split('|').map((cell) => cell.trim()).toList();
   }
 
   List<InlineSpan> _linkifyParagraph(

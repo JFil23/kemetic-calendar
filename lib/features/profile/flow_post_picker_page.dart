@@ -6,7 +6,6 @@ import 'package:mobile/shared/glossy_text.dart';
 
 import '../../data/flows_repo.dart';
 import '../../data/profile_repo.dart';
-import '../../utils/flow_visibility.dart';
 import '_post_glossy_helper.dart';
 
 enum FlowPostTab { active, saved }
@@ -25,7 +24,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
   FlowPostTab _tab = FlowPostTab.active;
   bool _loading = true;
   bool _posting = false;
-  FlowLedger<FlowRow>? _ledger;
+  List<FlowRow> _filedFlows = const <FlowRow>[];
 
   int _compareSavedFlows(FlowRow a, FlowRow b) {
     final aSavedAt = a.savedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -38,28 +37,43 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _restoreCachedThenRefresh();
+  }
+
+  Future<void> _restoreCachedThenRefresh() async {
+    final cached = await _flowsRepo.restoreCachedFiledFlows();
+    if (mounted && cached != null) {
+      setState(() {
+        _filedFlows = cached;
+        _loading = false;
+      });
+    }
+    await _load();
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
-    final ledger = await _flowsRepo.loadMyFlowLedger();
+    if (mounted && _filedFlows.isEmpty) {
+      setState(() => _loading = true);
+    }
+    final flows = await _flowsRepo.refreshMyFiledFlows();
     if (!mounted) return;
     setState(() {
-      _ledger = ledger;
+      _filedFlows = flows;
       _loading = false;
     });
   }
 
   List<FlowRow> get _activeFlows {
-    final flows = [...?_ledger?.activeItems];
+    final flows = _filedFlows
+        .where((flow) => flow.visibleInActiveList)
+        .toList();
     flows.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return flows;
   }
 
   // Saved flows can be posted/shared later even if they are no longer active.
   List<FlowRow> get _savedFlows {
-    final flows = [...?_ledger?.savedTemplateItems];
+    final flows = _filedFlows.where((flow) => flow.visibleInSavedList).toList();
     flows.sort(_compareSavedFlows);
     return flows;
   }

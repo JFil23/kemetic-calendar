@@ -18,6 +18,8 @@ fi
 
 BUILD_ENV_FILE="$(mktemp "${TMPDIR:-/tmp}/kemetic-web-env.XXXXXX")"
 trap 'rm -f "$BUILD_ENV_FILE"' EXIT
+GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo local)"
+BUILD_VERSION="${WEB_BUILD_VERSION:-${GIT_SHA}-$(date -u +%Y%m%d%H%M%S)}"
 
 python3 - <<'PY' "$ENV_FILE" "$BUILD_ENV_FILE"
 import json
@@ -109,6 +111,36 @@ flutter build web --release \
   --dart-define-from-file="$BUILD_ENV_FILE" \
   --no-wasm-dry-run \
   --pwa-strategy=none
+
+python3 - <<'PY' "$BUILD_VERSION"
+import json
+import re
+import sys
+from pathlib import Path
+
+version = sys.argv[1].strip()
+literal = json.dumps(version)
+pattern = re.compile(r"const buildVersion = (?:null|\"[^\"]*\"|\d+);")
+
+for rel in ("build/web/index.html", "build/web/flutter_bootstrap.js"):
+    path = Path(rel)
+    text = path.read_text(encoding="utf-8")
+    next_text, count = pattern.subn(f"const buildVersion = {literal};", text)
+    if count == 0:
+        raise SystemExit(f"Could not inject web build version into {rel}")
+    path.write_text(next_text, encoding="utf-8")
+
+version_path = Path("build/web/version.json")
+version_payload = {}
+if version_path.exists():
+    try:
+        version_payload = json.loads(version_path.read_text(encoding="utf-8"))
+    except Exception:
+        version_payload = {}
+version_payload["build_version"] = version
+version_path.write_text(json.dumps(version_payload, indent=2) + "\n", encoding="utf-8")
+print(f"▶ Web build version: {version}")
+PY
 
 cp "$BUILD_ENV_FILE" build/web/env.json
 [[ -f "web/env.example.json" ]] && cp "web/env.example.json" "build/web/env.example.json"

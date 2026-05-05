@@ -56,28 +56,43 @@ DateTime? _parseOptionalDateTime(dynamic value) {
   return DateTime.tryParse(raw)?.toUtc();
 }
 
+String? _normalizedFilingItemKind(Map<String, dynamic> row) {
+  final raw = row['item_kind']?.toString().trim().toLowerCase();
+  return raw == null || raw.isEmpty ? null : raw;
+}
+
+int? _positiveInt(dynamic value) {
+  final parsed = (value as num?)?.toInt();
+  return parsed != null && parsed > 0 ? parsed : null;
+}
+
+@visibleForTesting
+int? canonicalFiledFlowIdForEventRow(Map<String, dynamic> row) {
+  return _positiveInt(row['filed_flow_id']) ??
+      _positiveInt(row['flow_local_id']);
+}
+
+@visibleForTesting
+bool filingRowIsFlowCalendarEvent(Map<String, dynamic> row) {
+  final kind = _normalizedFilingItemKind(row);
+  if (kind == 'flow') return true;
+  if (kind == 'note' || kind == 'reminder') return false;
+  return canonicalFiledFlowIdForEventRow(row) != null;
+}
+
+@visibleForTesting
+bool filingRowIsStandaloneCalendarEvent(Map<String, dynamic> row) {
+  final kind = _normalizedFilingItemKind(row);
+  if (kind == 'note' || kind == 'reminder') return true;
+  if (kind == 'flow') return false;
+  return canonicalFiledFlowIdForEventRow(row) == null;
+}
+
 String _formatDateOnlyLocal(DateTime value) {
   final local = value.toLocal();
   final month = local.month.toString().padLeft(2, '0');
   final day = local.day.toString().padLeft(2, '0');
   return '${local.year}-$month-$day';
-}
-
-FlowRecordSnapshot? _flowOwnerSnapshotFromJoinedRow(
-  Map<String, dynamic>? row, {
-  int? fallbackId,
-}) {
-  if (row == null) return null;
-  final id = (row['id'] as num?)?.toInt() ?? fallbackId;
-  if (id == null || id <= 0) return null;
-  return FlowRecordSnapshot(
-    id: id,
-    active: (row['active'] as bool?) ?? false,
-    isHidden: (row['is_hidden'] as bool?) ?? false,
-    isReminder: (row['is_reminder'] as bool?) ?? false,
-    isSaved: (row['is_saved'] as bool?) ?? false,
-    notes: row['notes'] as String?,
-  );
 }
 
 @immutable
@@ -404,8 +419,40 @@ class UserEventsRepo {
   static bool? _telemetryEnabled;
   static const String _readSelect =
       'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,action_id,behavior_payload,updated_at,created_at';
+  static const String _filingReadSelect =
+      'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,filed_flow_id,item_kind,category,action_id,behavior_payload,updated_at,created_at';
+  static const String _flowEventReadSelect =
+      'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,filed_flow_id,item_kind,category,action_id,behavior_payload';
 
   bool get telemetryEnabled => _telemetryEnabled ?? true;
+
+  FlowEventRow _flowEventRowFromFilingRow(
+    Map<String, dynamic> row, {
+    int? flowLocalIdOverride,
+  }) {
+    return (
+      id: row['id'] as String?,
+      clientEventId: row['client_event_id'] as String?,
+      calendarId: row['calendar_id'] as String?,
+      calendarName: row['calendar_name'] as String?,
+      calendarColor: (row['calendar_color'] as num?)?.toInt(),
+      calendarIsPersonal: (row['calendar_is_personal'] as bool?) ?? true,
+      title: (row['title'] as String?) ?? '',
+      detail: row['detail'] as String?,
+      location: row['location'] as String?,
+      allDay: (row['all_day'] as bool?) ?? false,
+      startsAtUtc: DateTime.parse(row['starts_at'] as String).toUtc(),
+      endsAtUtc: row['ends_at'] != null
+          ? DateTime.parse(row['ends_at'] as String).toUtc()
+          : null,
+      flowLocalId: flowLocalIdOverride ?? canonicalFiledFlowIdForEventRow(row),
+      category: row['category'] as String?,
+      actionId: (row['action_id'] as String?)?.trim(),
+      behaviorPayload: row['behavior_payload'] is Map
+          ? Map<String, dynamic>.from(row['behavior_payload'] as Map)
+          : null,
+    );
+  }
 
   /// Refresh telemetry/personalization flags from the profile helper RPC.
   static Future<void> refreshTelemetrySettings(SupabaseClient client) async {
@@ -1252,33 +1299,18 @@ class UserEventsRepo {
     if (user == null) return [];
 
     final rows = await _client
-        .from(_kTable)
-        .select(
-          'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,flows!left(id,active,is_hidden,is_reminder,notes)',
-        )
+        .from(_kReadableEventsTable)
+        .select(_filingReadSelect)
         .order('starts_at', ascending: true)
         .limit(limit);
 
     final filtered = (rows as List)
         .cast<Map<String, dynamic>>()
         .where((row) {
-          final owner = _flowOwnerSnapshotFromJoinedRow(
-            row['flows'] as Map<String, dynamic>?,
-            fallbackId: (row['flow_local_id'] as num?)?.toInt(),
-          );
-          final decision = classifyFlowEvent(
-            event: FlowEventSnapshot(
-              flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
-              clientEventId: row['client_event_id'] as String?,
-              detail: row['detail'] as String?,
-              category: row['category'] as String?,
-            ),
-            owner: owner,
-          );
-          return decision.kind == FlowEventKind.standalone ||
-              decision.kind == FlowEventKind.activeFlow ||
-              decision.kind == FlowEventKind.hiddenHelperFlow ||
-              decision.kind == FlowEventKind.reminderFlow;
+          final category = (row['category'] as String?)?.trim().toLowerCase();
+          if (category == 'tombstone') return false;
+          return filingRowIsStandaloneCalendarEvent(row) ||
+              filingRowIsFlowCalendarEvent(row);
         })
         .map(
           (row) => (
@@ -1293,7 +1325,7 @@ class UserEventsRepo {
             endsAtUtc: row['ends_at'] == null
                 ? null
                 : DateTime.parse(row['ends_at'] as String),
-            flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+            flowLocalId: canonicalFiledFlowIdForEventRow(row),
             category: row['category'] as String?,
           ),
         )
@@ -1336,10 +1368,8 @@ class UserEventsRepo {
     try {
       var query = _client
           .from(_kReadableEventsTable)
-          .select(
-            'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
-          )
-          .isFilter('flow_local_id', null)
+          .select(_flowEventReadSelect)
+          .inFilter('item_kind', const ['note', 'reminder'])
           .gte('starts_at', startUtc.toUtc().toIso8601String())
           .lt('starts_at', endUtc.toUtc().toIso8601String())
           .order('starts_at', ascending: true);
@@ -1357,17 +1387,19 @@ class UserEventsRepo {
       return rows
           .cast<Map<String, dynamic>>()
           .map((row) {
-            final decision = classifyFlowEvent(
-              event: FlowEventSnapshot(
-                flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
-                clientEventId: row['client_event_id'] as String?,
-                detail: row['detail'] as String?,
-                category: row['category'] as String?,
-              ),
-              flowOwnersById: flowOwnersById,
-            );
-            if (!decision.isStandaloneVisible) {
-              return null;
+            if (!filingRowIsStandaloneCalendarEvent(row)) {
+              final decision = classifyFlowEvent(
+                event: FlowEventSnapshot(
+                  flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+                  clientEventId: row['client_event_id'] as String?,
+                  detail: row['detail'] as String?,
+                  category: row['category'] as String?,
+                ),
+                flowOwnersById: flowOwnersById,
+              );
+              if (!decision.isStandaloneVisible) {
+                return null;
+              }
             }
             return (
               id: row['id'] as String?,
@@ -1385,7 +1417,7 @@ class UserEventsRepo {
               endsAtUtc: row['ends_at'] == null
                   ? null
                   : DateTime.parse(row['ends_at'] as String),
-              flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+              flowLocalId: canonicalFiledFlowIdForEventRow(row),
               category: row['category'] as String?,
             );
           })
@@ -1490,10 +1522,8 @@ class UserEventsRepo {
       while (true) {
         var query = _client
             .from(_kReadableEventsTable)
-            .select(
-              'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category',
-            )
-            .isFilter('flow_local_id', null)
+            .select(_flowEventReadSelect)
+            .inFilter('item_kind', const ['note', 'reminder'])
             .gte('starts_at', startUtc.toUtc().toIso8601String())
             .lt('starts_at', endUtc.toUtc().toIso8601String())
             .order('starts_at', ascending: true)
@@ -1599,17 +1629,17 @@ class UserEventsRepo {
     final ghostEventIds = <String>[];
 
     for (final row in pages) {
-      final decision = classifyFlowEvent(
-        event: FlowEventSnapshot(
-          flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
-          clientEventId: row['client_event_id'] as String?,
-          detail: row['detail'] as String?,
-          category: row['category'] as String?,
-        ),
-        flowOwnersById: flowOwnersById,
-      );
       final id = row['id'] as String?;
-      if (!decision.isStandaloneVisible) {
+      if (!filingRowIsStandaloneCalendarEvent(row)) {
+        final decision = classifyFlowEvent(
+          event: FlowEventSnapshot(
+            flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+            clientEventId: row['client_event_id'] as String?,
+            detail: row['detail'] as String?,
+            category: row['category'] as String?,
+          ),
+          flowOwnersById: flowOwnersById,
+        );
         if (decision.shouldPurgeGhostRow && id != null && id.isNotEmpty) {
           ghostEventIds.add(id);
         }
@@ -1641,7 +1671,7 @@ class UserEventsRepo {
         endsAtUtc: row['ends_at'] == null
             ? null
             : DateTime.parse(row['ends_at'] as String),
-        flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+        flowLocalId: canonicalFiledFlowIdForEventRow(row),
         category: row['category'] as String?,
       ));
     }
@@ -1862,14 +1892,17 @@ class UserEventsRepo {
     int flowId, {
     DateTime? startUtc,
     DateTime? endUtc,
+    bool flowEventsOnly = false,
   }) async {
     try {
       var query = _client
           .from(_kReadableEventsTable)
-          .select(
-            'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,action_id,behavior_payload',
-          )
-          .eq('flow_local_id', flowId);
+          .select(_flowEventReadSelect)
+          .eq('filed_flow_id', flowId);
+
+      if (flowEventsOnly) {
+        query = query.eq('item_kind', 'flow');
+      }
 
       if (startUtc != null) {
         query = query.gte('starts_at', startUtc.toUtc().toIso8601String());
@@ -1880,30 +1913,15 @@ class UserEventsRepo {
 
       final rows = await query.order('starts_at', ascending: true);
 
-      return (rows as List).map<FlowEventRow>((row) {
-        return (
-          id: row['id'] as String?,
-          clientEventId: row['client_event_id'] as String?,
-          calendarId: row['calendar_id'] as String?,
-          calendarName: row['calendar_name'] as String?,
-          calendarColor: (row['calendar_color'] as num?)?.toInt(),
-          calendarIsPersonal: (row['calendar_is_personal'] as bool?) ?? true,
-          title: (row['title'] as String?) ?? '',
-          detail: row['detail'] as String?,
-          location: row['location'] as String?,
-          allDay: (row['all_day'] as bool?) ?? false,
-          startsAtUtc: DateTime.parse(row['starts_at'] as String).toUtc(),
-          endsAtUtc: row['ends_at'] != null
-              ? DateTime.parse(row['ends_at'] as String).toUtc()
-              : null,
-          flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
-          category: row['category'] as String?,
-          actionId: (row['action_id'] as String?)?.trim(),
-          behaviorPayload: row['behavior_payload'] is Map
-              ? Map<String, dynamic>.from(row['behavior_payload'] as Map)
-              : null,
-        );
-      }).toList();
+      return (rows as List)
+          .cast<Map<String, dynamic>>()
+          .where(
+            (row) =>
+                canonicalFiledFlowIdForEventRow(row) == flowId &&
+                (!flowEventsOnly || filingRowIsFlowCalendarEvent(row)),
+          )
+          .map<FlowEventRow>(_flowEventRowFromFilingRow)
+          .toList();
     } catch (e, st) {
       if (kDebugMode) {
         // keep this so we can see if anything explodes
@@ -1935,10 +1953,9 @@ class UserEventsRepo {
       while (true) {
         var query = _client
             .from(_kReadableEventsTable)
-            .select(
-              'id,calendar_id,calendar_name,calendar_color,calendar_is_personal,client_event_id,title,detail,location,all_day,starts_at,ends_at,flow_local_id,category,action_id,behavior_payload',
-            )
-            .inFilter('flow_local_id', ids);
+            .select(_flowEventReadSelect)
+            .inFilter('filed_flow_id', ids)
+            .eq('item_kind', 'flow');
 
         if (startUtc != null) {
           query = query.gte('starts_at', startUtc.toUtc().toIso8601String());
@@ -1948,38 +1965,19 @@ class UserEventsRepo {
         }
 
         final rows = await query
-            .order('flow_local_id', ascending: true)
+            .order('filed_flow_id', ascending: true)
             .order('starts_at', ascending: true)
             .range(offset, offset + pageSize - 1);
-        final page = (rows as List).map<FlowEventRow>((row) {
-          return (
-            id: row['id'] as String?,
-            clientEventId: row['client_event_id'] as String?,
-            calendarId: row['calendar_id'] as String?,
-            calendarName: row['calendar_name'] as String?,
-            calendarColor: (row['calendar_color'] as num?)?.toInt(),
-            calendarIsPersonal: (row['calendar_is_personal'] as bool?) ?? true,
-            title: (row['title'] as String?) ?? '',
-            detail: row['detail'] as String?,
-            location: row['location'] as String?,
-            allDay: (row['all_day'] as bool?) ?? false,
-            startsAtUtc: DateTime.parse(row['starts_at'] as String).toUtc(),
-            endsAtUtc: row['ends_at'] != null
-                ? DateTime.parse(row['ends_at'] as String).toUtc()
-                : null,
-            flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
-            category: row['category'] as String?,
-            actionId: (row['action_id'] as String?)?.trim(),
-            behaviorPayload: row['behavior_payload'] is Map
-                ? Map<String, dynamic>.from(row['behavior_payload'] as Map)
-                : null,
-          );
-        }).toList();
+        final typedRows = (rows as List).cast<Map<String, dynamic>>();
+        final page = typedRows
+            .where(filingRowIsFlowCalendarEvent)
+            .map<FlowEventRow>(_flowEventRowFromFilingRow)
+            .toList();
 
         events.addAll(page);
         pageCount++;
 
-        if (page.length < pageSize) {
+        if (typedRows.length < pageSize) {
           break;
         }
         offset += pageSize;

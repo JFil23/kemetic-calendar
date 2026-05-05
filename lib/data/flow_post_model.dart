@@ -108,6 +108,33 @@ class FlowPost {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'flow_id': sourceFlowId,
+      'name': name,
+      'color': color,
+      'notes': notes,
+      'rules': rules,
+      'start_date': startDate?.toIso8601String(),
+      'end_date': endDate?.toIso8601String(),
+      'is_hidden': isHidden,
+      'ai_metadata': aiMetadata,
+      'payload': payloadJson,
+      'created_at': createdAt.toIso8601String(),
+      'author_handle': authorHandle,
+      'author_display_name': authorDisplayName,
+      'author_avatar_url': authorAvatarUrl,
+      'author_avatar_glyphs': authorAvatarGlyphIds,
+      'likes_count': likesCount,
+      'comments_count': commentsCount,
+      'liked_by_me': likedByMe,
+      'score': feedScore,
+      'is_following_author': isFollowingAuthor,
+    };
+  }
+
   String get authorLabel {
     final display = authorDisplayName?.trim();
     if (display != null && display.isNotEmpty) {

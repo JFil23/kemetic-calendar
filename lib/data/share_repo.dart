@@ -117,9 +117,15 @@ Map<String, dynamic>? buildImportedFlowInviteEventSpec({
 
 class ShareRepo {
   static const String _activitySeenPrefKey = 'inbox:activity_seen_at:v1';
+  static const String _shareFilingView = 'share_filing_items_client';
+  static const String _legacyInboxView = 'inbox_share_items_filtered';
+  static const String _inboxItemsCacheKeyPrefix = 'inbox:shares:v1';
+  static const String _activityCacheKeyPrefix = 'inbox:activity:v1';
   static final StreamController<void> _activitySeenChangedController =
       StreamController<void>.broadcast();
   static final Map<String, _InboxUnreadTracker> _unreadTrackers = {};
+  static final Map<String, List<InboxShareItem>> _inboxItemsMemoryCache = {};
+  static final Map<String, List<InboxActivityItem>> _activityMemoryCache = {};
 
   final SupabaseClient _client;
 
@@ -158,6 +164,157 @@ class ShareRepo {
 
   String _activitySeenStorageKey(String uid, InboxActivityBucket bucket) {
     return '$_activitySeenPrefKey:$uid:${bucket.storageKey}';
+  }
+
+  String _inboxItemsStorageKey(String uid) => '$_inboxItemsCacheKeyPrefix:$uid';
+
+  String _activityStorageKey(String uid) => '$_activityCacheKeyPrefix:$uid';
+
+  List<InboxShareItem>? cachedInboxItemsSync() {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null || uid.isEmpty) return null;
+    final items = _inboxItemsMemoryCache[uid];
+    if (items == null) return null;
+    return List<InboxShareItem>.unmodifiable(items);
+  }
+
+  Future<List<InboxShareItem>?> restoreCachedInboxItems() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null || uid.isEmpty) return null;
+    final memoryItems = _inboxItemsMemoryCache[uid];
+    if (memoryItems != null) {
+      return List<InboxShareItem>.unmodifiable(memoryItems);
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_inboxItemsStorageKey(uid));
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return null;
+      final items = decoded
+          .whereType<Map>()
+          .map((row) => InboxShareItem.tryFromJson(row.cast<String, dynamic>()))
+          .whereType<InboxShareItem>()
+          .where((item) => !item.isDeleted)
+          .toList(growable: false);
+      _inboxItemsMemoryCache[uid] = List<InboxShareItem>.unmodifiable(items);
+      return items;
+    } catch (e) {
+      _log('[ShareRepo] restore inbox cache failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> _cacheInboxItems({
+    required String uid,
+    required List<InboxShareItem> items,
+  }) async {
+    final frozen = List<InboxShareItem>.unmodifiable(
+      items.where((item) => !item.isDeleted),
+    );
+    _inboxItemsMemoryCache[uid] = frozen;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _inboxItemsStorageKey(uid),
+        jsonEncode(frozen.map((item) => item.toJson()).toList()),
+      );
+    } catch (e) {
+      _log('[ShareRepo] persist inbox cache failed: $e');
+    }
+  }
+
+  Future<void> _patchCachedInboxItem({
+    required String uid,
+    required String shareId,
+    required Map<String, dynamic> values,
+  }) async {
+    final current =
+        _inboxItemsMemoryCache[uid] ?? await restoreCachedInboxItems();
+    if (current == null || current.isEmpty) return;
+
+    final next = <InboxShareItem>[];
+    var changed = false;
+    for (final item in current) {
+      if (item.shareId != shareId) {
+        next.add(item);
+        continue;
+      }
+      changed = true;
+      if (values['deleted_at'] != null) {
+        continue;
+      }
+      final patchedJson = item.toJson()..addAll(values);
+      final patched = InboxShareItem.tryFromJson(patchedJson);
+      if (patched != null && !patched.isDeleted) {
+        next.add(patched);
+      }
+    }
+    if (!changed) return;
+    await _cacheInboxItems(uid: uid, items: next);
+  }
+
+  List<InboxActivityItem>? cachedRecentActivitySync() {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null || uid.isEmpty) return null;
+    final items = _activityMemoryCache[uid];
+    if (items == null) return null;
+    return List<InboxActivityItem>.unmodifiable(items);
+  }
+
+  Future<List<InboxActivityItem>?> restoreCachedRecentActivity({
+    int limit = 50,
+  }) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null || uid.isEmpty) return null;
+    final memoryItems = _activityMemoryCache[uid];
+    if (memoryItems != null) {
+      return memoryItems.take(limit).toList(growable: false);
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_activityStorageKey(uid));
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return null;
+      final items =
+          decoded
+              .whereType<Map>()
+              .map(
+                (row) => InboxActivityItem.fromCacheJson(
+                  row.cast<String, dynamic>(),
+                ),
+              )
+              .whereType<InboxActivityItem>()
+              .toList(growable: false)
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      _activityMemoryCache[uid] = List<InboxActivityItem>.unmodifiable(items);
+      return items.take(limit).toList(growable: false);
+    } catch (e) {
+      _log('[ShareRepo] restore activity cache failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> _cacheRecentActivity({
+    required String uid,
+    required List<InboxActivityItem> items,
+  }) async {
+    final frozen = List<InboxActivityItem>.unmodifiable(items);
+    _activityMemoryCache[uid] = frozen;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _activityStorageKey(uid),
+        jsonEncode(frozen.map((item) => item.toCacheJson()).toList()),
+      );
+    } catch (e) {
+      _log('[ShareRepo] persist activity cache failed: $e');
+    }
   }
 
   // Activity items (likes, comments, follows) for unified inbox feed.
@@ -279,12 +436,14 @@ class ShareRepo {
       }
 
       items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return items.take(limit).toList();
+      final limited = items.take(limit).toList(growable: false);
+      unawaited(_cacheRecentActivity(uid: uid, items: limited));
+      return limited;
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[ShareRepo] getRecentActivity error: $e');
       }
-      return const [];
+      return await restoreCachedRecentActivity(limit: limit) ?? const [];
     }
   }
 
@@ -2383,20 +2542,22 @@ class ShareRepo {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return 0;
 
-    try {
-      final resp = await _client
-          .from('inbox_share_items_filtered')
-          .select('share_id')
-          .eq('recipient_id', uid)
-          .neq('kind', 'event')
-          .filter('viewed_at', 'is', null)
-          .filter('deleted_at', 'is', null);
+    for (final viewName in const [_shareFilingView, _legacyInboxView]) {
+      try {
+        final resp = await _client
+            .from(viewName)
+            .select('share_id')
+            .eq('recipient_id', uid)
+            .neq('kind', 'event')
+            .filter('viewed_at', 'is', null)
+            .filter('deleted_at', 'is', null);
 
-      return resp.length;
-    } catch (e) {
-      _log('[ShareRepo] Error fetching unread count: $e');
-      return 0;
+        return resp.length;
+      } catch (e) {
+        _log('[ShareRepo] Error fetching unread count from $viewName: $e');
+      }
     }
+    return 0;
   }
 
   /// Mark a share as viewed
@@ -2545,18 +2706,30 @@ class ShareRepo {
   }) async {
     final uid = _client.auth.currentUser?.id;
     if (verbose) {
-      _log('📬 [ShareRepo] Querying inbox_share_items_filtered...');
+      _log('📬 [ShareRepo] Querying $_shareFilingView...');
     }
 
-    dynamic query = _client
-        .from('inbox_share_items_filtered')
-        .select()
-        .order('created_at', ascending: false);
-    if (limit != null) {
-      query = query.range(offset, offset + limit - 1);
+    dynamic response;
+    try {
+      dynamic query = _client
+          .from(_shareFilingView)
+          .select()
+          .order('created_at', ascending: false);
+      if (limit != null) {
+        query = query.range(offset, offset + limit - 1);
+      }
+      response = await query;
+    } catch (e) {
+      _log('[ShareRepo] $_shareFilingView unavailable, using legacy view: $e');
+      dynamic query = _client
+          .from(_legacyInboxView)
+          .select()
+          .order('created_at', ascending: false);
+      if (limit != null) {
+        query = query.range(offset, offset + limit - 1);
+      }
+      response = await query;
     }
-
-    final response = await query;
     if (verbose) {
       _log('📬 [ShareRepo] Raw response type: ${response.runtimeType}');
       _log('📬 [ShareRepo] Raw response: $response');
@@ -2602,6 +2775,9 @@ class ShareRepo {
     if (verbose) {
       _log('✅ [ShareRepo] Successfully parsed ${items.length} items');
     }
+    if (uid != null && offset == 0) {
+      unawaited(_cacheInboxItems(uid: uid, items: items));
+    }
     return items;
   }
 
@@ -2624,6 +2800,12 @@ class ShareRepo {
     final updated = await query.select('id').maybeSingle();
     final ok = updated is Map;
     if (ok) {
+      final actorId = userId ?? _client.auth.currentUser?.id;
+      if (actorId != null && actorId.isNotEmpty) {
+        unawaited(
+          _patchCachedInboxItem(uid: actorId, shareId: shareId, values: values),
+        );
+      }
       _trackerForCurrentUser()?.scheduleRefresh(immediate: true);
     }
     return ok;
@@ -2779,7 +2961,14 @@ class ShareRepo {
         }
       });
 
-    unawaited(emitLatest());
+    unawaited(() async {
+      final cached = cachedInboxItemsSync() ?? await restoreCachedInboxItems();
+      if (cached != null && !controller.isClosed) {
+        lastItems = cached;
+        controller.add(cached);
+      }
+      await emitLatest();
+    }());
 
     controller.onCancel = () async {
       refreshDebounce?.cancel();
@@ -3108,6 +3297,42 @@ class InboxActivityItem {
   final String? flowPostId;
   final String? flowName;
   final String? commentPreview;
+
+  factory InboxActivityItem.fromCacheJson(Map<String, dynamic> json) {
+    final typeName = json['type'] as String?;
+    final type = InboxActivityType.values.firstWhere(
+      (candidate) => candidate.name == typeName,
+      orElse: () => InboxActivityType.follow,
+    );
+    final createdAt =
+        DateTime.tryParse((json['created_at'] as String?) ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+    return InboxActivityItem(
+      type: type,
+      createdAt: createdAt,
+      actorId: json['actor_id'] as String?,
+      actorHandle: json['actor_handle'] as String?,
+      actorName: json['actor_name'] as String?,
+      actorAvatar: json['actor_avatar'] as String?,
+      flowPostId: json['flow_post_id'] as String?,
+      flowName: json['flow_name'] as String?,
+      commentPreview: json['comment_preview'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toCacheJson() {
+    return {
+      'type': type.name,
+      'created_at': createdAt.toUtc().toIso8601String(),
+      'actor_id': actorId,
+      'actor_handle': actorHandle,
+      'actor_name': actorName,
+      'actor_avatar': actorAvatar,
+      'flow_post_id': flowPostId,
+      'flow_name': flowName,
+      'comment_preview': commentPreview,
+    };
+  }
 
   InboxActivityBucket get bucket {
     switch (type) {

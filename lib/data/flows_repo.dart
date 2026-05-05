@@ -59,6 +59,10 @@ class FlowRow {
   final int totalEventCount;
   final int remainingEventCount;
   final int remainingLiveEventCount;
+  final bool isShared;
+  final bool isPosted;
+  final bool isSharedCalendarSource;
+  final bool isFlowShareSource;
 
   const FlowRow({
     required this.id,
@@ -84,6 +88,10 @@ class FlowRow {
     this.totalEventCount = 0,
     this.remainingEventCount = 0,
     this.remainingLiveEventCount = 0,
+    this.isShared = false,
+    this.isPosted = false,
+    this.isSharedCalendarSource = false,
+    this.isFlowShareSource = false,
   });
 
   factory FlowRow.fromRow(Map<String, dynamic> r) {
@@ -125,6 +133,11 @@ class FlowRow {
       remainingEventCount: (r['remaining_event_count'] as num?)?.toInt() ?? 0,
       remainingLiveEventCount:
           (r['remaining_live_event_count'] as num?)?.toInt() ?? 0,
+      isShared: (r['is_shared'] as bool?) ?? false,
+      isPosted: (r['is_posted'] as bool?) ?? false,
+      isSharedCalendarSource:
+          (r['is_shared_calendar_source'] as bool?) ?? false,
+      isFlowShareSource: (r['is_flow_share_source'] as bool?) ?? false,
       aiMetadata: r['ai_metadata'] != null
           ? Map<String, dynamic>.from(r['ai_metadata'] as Map)
           : null,
@@ -186,6 +199,10 @@ class FlowRow {
     'total_event_count': totalEventCount,
     'remaining_event_count': remainingEventCount,
     'remaining_live_event_count': remainingLiveEventCount,
+    'is_shared': isShared,
+    'is_posted': isPosted,
+    'is_shared_calendar_source': isSharedCalendarSource,
+    'is_flow_share_source': isFlowShareSource,
   };
 }
 

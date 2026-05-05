@@ -40,6 +40,11 @@ class SharedCalendarSummary {
     required this.status,
     required this.memberCount,
     required this.pendingInviteCount,
+    this.totalEventCount = 0,
+    this.liveEventCount = 0,
+    this.inactiveEventCount = 0,
+    this.liveFlowCount = 0,
+    this.filingLifecycle,
     this.ownerHandle,
     this.ownerDisplayName,
   });
@@ -54,6 +59,11 @@ class SharedCalendarSummary {
   final SharedCalendarInviteStatus status;
   final int memberCount;
   final int pendingInviteCount;
+  final int totalEventCount;
+  final int liveEventCount;
+  final int inactiveEventCount;
+  final int liveFlowCount;
+  final String? filingLifecycle;
   final String? ownerHandle;
   final String? ownerDisplayName;
 
@@ -71,9 +81,36 @@ class SharedCalendarSummary {
       ),
       memberCount: (row['member_count'] as num?)?.toInt() ?? 1,
       pendingInviteCount: (row['pending_invite_count'] as num?)?.toInt() ?? 0,
+      totalEventCount: (row['total_event_count'] as num?)?.toInt() ?? 0,
+      liveEventCount: (row['live_event_count'] as num?)?.toInt() ?? 0,
+      inactiveEventCount: (row['inactive_event_count'] as num?)?.toInt() ?? 0,
+      liveFlowCount: (row['live_flow_count'] as num?)?.toInt() ?? 0,
+      filingLifecycle: (row['lifecycle'] as String?)?.trim(),
       ownerHandle: (row['owner_handle'] as String?)?.trim(),
       ownerDisplayName: (row['owner_display_name'] as String?)?.trim(),
     );
+  }
+
+  Map<String, dynamic> toCacheJson() {
+    return {
+      'id': id,
+      'owner_id': ownerId,
+      'name': name,
+      'color': colorValue,
+      'icon': icon,
+      'is_personal': isPersonal,
+      'role': role.name,
+      'status': status.name,
+      'member_count': memberCount,
+      'pending_invite_count': pendingInviteCount,
+      'total_event_count': totalEventCount,
+      'live_event_count': liveEventCount,
+      'inactive_event_count': inactiveEventCount,
+      'live_flow_count': liveFlowCount,
+      'lifecycle': filingLifecycle,
+      'owner_handle': ownerHandle,
+      'owner_display_name': ownerDisplayName,
+    };
   }
 
   Color get color => Color(colorValue);
@@ -113,6 +150,8 @@ class SharedCalendarInvite {
     this.invitedBy,
     this.inviterHandle,
     this.inviterDisplayName,
+    this.inviteDirection,
+    this.filingLifecycle,
   });
 
   final String calendarId;
@@ -123,6 +162,8 @@ class SharedCalendarInvite {
   final String? invitedBy;
   final String? inviterHandle;
   final String? inviterDisplayName;
+  final String? inviteDirection;
+  final String? filingLifecycle;
 
   factory SharedCalendarInvite.fromRow(Map<String, dynamic> row) {
     return SharedCalendarInvite(
@@ -136,7 +177,24 @@ class SharedCalendarInvite {
       invitedBy: (row['invited_by'] as String?)?.trim(),
       inviterHandle: (row['inviter_handle'] as String?)?.trim(),
       inviterDisplayName: (row['inviter_display_name'] as String?)?.trim(),
+      inviteDirection: (row['invite_direction'] as String?)?.trim(),
+      filingLifecycle: (row['lifecycle'] as String?)?.trim(),
     );
+  }
+
+  Map<String, dynamic> toCacheJson() {
+    return {
+      'calendar_id': calendarId,
+      'calendar_name': calendarName,
+      'calendar_color': calendarColorValue,
+      'role': role.name,
+      'invited_at': invitedAt.toUtc().toIso8601String(),
+      'invited_by': invitedBy,
+      'inviter_handle': inviterHandle,
+      'inviter_display_name': inviterDisplayName,
+      'invite_direction': inviteDirection,
+      'lifecycle': filingLifecycle,
+    };
   }
 
   Color get color => Color(calendarColorValue);
@@ -162,6 +220,8 @@ class SharedCalendarSentInvite {
     this.inviteeHandle,
     this.inviteeDisplayName,
     this.inviteeAvatarUrl,
+    this.inviteDirection,
+    this.filingLifecycle,
   });
 
   final String calendarId;
@@ -174,6 +234,8 @@ class SharedCalendarSentInvite {
   final String? inviteeHandle;
   final String? inviteeDisplayName;
   final String? inviteeAvatarUrl;
+  final String? inviteDirection;
+  final String? filingLifecycle;
 
   factory SharedCalendarSentInvite.fromRow(Map<String, dynamic> row) {
     return SharedCalendarSentInvite(
@@ -191,7 +253,26 @@ class SharedCalendarSentInvite {
       inviteeHandle: (row['invitee_handle'] as String?)?.trim(),
       inviteeDisplayName: (row['invitee_display_name'] as String?)?.trim(),
       inviteeAvatarUrl: (row['invitee_avatar_url'] as String?)?.trim(),
+      inviteDirection: (row['invite_direction'] as String?)?.trim(),
+      filingLifecycle: (row['lifecycle'] as String?)?.trim(),
     );
+  }
+
+  Map<String, dynamic> toCacheJson() {
+    return {
+      'calendar_id': calendarId,
+      'calendar_name': calendarName,
+      'calendar_color': calendarColorValue,
+      'role': role.name,
+      'invited_at': invitedAt.toUtc().toIso8601String(),
+      'invitee_id': inviteeId,
+      'status': status.name,
+      'invitee_handle': inviteeHandle,
+      'invitee_display_name': inviteeDisplayName,
+      'invitee_avatar_url': inviteeAvatarUrl,
+      'invite_direction': inviteDirection,
+      'lifecycle': filingLifecycle,
+    };
   }
 
   Color get color => Color(calendarColorValue);

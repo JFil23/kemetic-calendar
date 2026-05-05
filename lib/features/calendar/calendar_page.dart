@@ -14,6 +14,7 @@ import 'package:flutter/rendering.dart';
 import '../../data/note_category.dart';
 import 'dart:io' show File, Directory;
 import 'package:mobile/utils/color_bits.dart';
+import 'package:mobile/utils/calendar_event_markers.dart';
 import 'package:mobile/utils/flow_filter_engine.dart';
 import 'package:mobile/utils/flow_visibility.dart';
 import 'package:flutter/foundation.dart';
@@ -11085,31 +11086,18 @@ class _CalendarPageState extends State<CalendarPage>
 
   String _kKey(int ky, int km, int kd) => '$ky-$km-$kd';
 
-  /// Get flow colors for a given day (for month grid dots).
-  /// Derives colors from notes in _notes, not from recomputed flow occurrences.
+  /// Get event marker colors for a given day (for month grid dots).
+  /// Derives colors from filed notes in _notes, not from recomputed flow rules.
   List<Color> getFlowColorsForDay(int kYear, int kMonth, int kDay) {
     final notes = _getNotes(kYear, kMonth, kDay);
-    final colors = <Color>[];
-    for (final note in notes) {
-      final fid = note.flowId;
-      if (fid == null || fid == -1) continue;
-      Color? displayColor;
-      try {
-        final flow = _flows.firstWhere((f) => f.id == fid);
-        displayColor = _displayFlowColor(flow.name, flow.color);
-      } catch (_) {
-        displayColor = note.manualColor;
-      }
-      if (displayColor == null || colors.contains(displayColor)) {
-        continue;
-      }
-      colors.add(displayColor);
-      if (colors.length == 3) break; // Cap to 3 colors
-    }
-    return colors;
+    return calendarEventMarkerColors<_Note>(
+      notes,
+      colorOf: _noteColor,
+      groupBy: _calendarMarkerGroupKey,
+    );
   }
 
-  /// Get flow colors for a given day using a notes getter function.
+  /// Get event marker colors for a given day using a notes getter function.
   /// Used by stateless widgets that can't access instance methods.
   List<Color> getFlowColorsForDayFromNotes(
     int kYear,
@@ -11118,24 +11106,17 @@ class _CalendarPageState extends State<CalendarPage>
     List<_Note> Function(int kMonth, int kDay) notesGetter,
   ) {
     final notes = notesGetter(kMonth, kDay);
-    final colors = <Color>[];
-    for (final note in notes) {
-      final fid = note.flowId;
-      if (fid == null || fid == -1) continue;
-      Color? displayColor;
-      try {
-        final flow = _flows.firstWhere((f) => f.id == fid);
-        displayColor = _displayFlowColor(flow.name, flow.color);
-      } catch (_) {
-        displayColor = note.manualColor;
-      }
-      if (displayColor == null || colors.contains(displayColor)) {
-        continue;
-      }
-      colors.add(displayColor);
-      if (colors.length == 3) break; // Cap to 3 colors
-    }
-    return colors;
+    return calendarEventMarkerColors<_Note>(
+      notes,
+      colorOf: _noteColor,
+      groupBy: _calendarMarkerGroupKey,
+    );
+  }
+
+  Object? _calendarMarkerGroupKey(_Note note) {
+    final flowId = note.flowId;
+    if (flowId == null || flowId <= 0) return null;
+    return 'flow:$flowId';
   }
 
   List<_Note> _getNotes(int kYear, int kMonth, int kDay) {
@@ -18151,6 +18132,7 @@ class _CalendarPageState extends State<CalendarPage>
               flowId,
               startUtc: flowWindow?.startUtc,
               endUtc: flowWindow?.endUtc,
+              flowEventsOnly: true,
             );
             eventsByFlowId[flowId] = flowEvents;
             if (kDebugMode) {
@@ -18350,8 +18332,8 @@ class _CalendarPageState extends State<CalendarPage>
         );
       }
 
-      // Load standalone events (single notes with flow_local_id = null)
-      // 🚫 HARD GUARDS prevent old/zombie flow events from loading
+      // Load filing-backed standalone calendar events: notes, reminders, and
+      // nutrition rows. Flow rows stay in the flow hydration path above.
       try {
         final standaloneResult = await standaloneFuture;
         final standaloneEvents = standaloneResult.events;
@@ -18410,8 +18392,13 @@ class _CalendarPageState extends State<CalendarPage>
               flowOwnersById: flowOwnersById,
             );
 
-            // Standalone notes must pass the dedicated flow filter engine.
-            if (!flowDecision.isStandaloneVisible) {
+            final isReminderBackboneEvent =
+                cid.startsWith('reminder:') || cid.startsWith('nutrition:');
+
+            // Filing-backed reminder rows may carry their canonical reminder
+            // flow id for color/identity. Keep them in the standalone calendar
+            // lane while still rejecting non-reminder flow ghosts.
+            if (!flowDecision.isStandaloneVisible && !isReminderBackboneEvent) {
               continue;
             }
 
@@ -18444,6 +18431,18 @@ class _CalendarPageState extends State<CalendarPage>
               }
             }
 
+            final positiveFiledFlowId =
+                evt.flowLocalId != null && evt.flowLocalId! > 0
+                ? evt.flowLocalId
+                : null;
+            final noteFlowId = isReminderEvent ? positiveFiledFlowId ?? -1 : -1;
+            final reminderFlow = isReminderEvent && positiveFiledFlowId != null
+                ? flowIndex[positiveFiledFlowId]
+                : null;
+            final reminderFlowColor = reminderFlow == null
+                ? null
+                : _displayFlowColor(reminderFlow.name, reminderFlow.color);
+
             // ✅ If it passed all guards → this is a true standalone note
             final localStart = evt.startsAtUtc.toLocal();
             final kDate = KemeticMath.fromGregorian(localStart);
@@ -18473,7 +18472,7 @@ class _CalendarPageState extends State<CalendarPage>
               allDay: evt.allDay,
               start: startTime,
               end: endTime,
-              flowId: -1,
+              flowId: noteFlowId,
             )) {
               continue;
             }
@@ -18489,9 +18488,10 @@ class _CalendarPageState extends State<CalendarPage>
               allDay: evt.allDay,
               start: startTime,
               end: endTime,
-              flowId: -1, // Standalone notes have flowId = -1
+              flowId: noteFlowId,
               manualColor:
                   decoded.color ??
+                  reminderFlowColor ??
                   (evt.calendarIsPersonal
                       ? null
                       : (evt.calendarColor != null
@@ -18513,7 +18513,11 @@ class _CalendarPageState extends State<CalendarPage>
 
             for (int i = 0; i < bucket.length; i++) {
               final existing = bucket[i];
-              if ((existing.flowId ?? -1) != -1) continue; // skip flow-driven
+              if ((existing.flowId ?? -1) != -1 &&
+                  !existing.isReminder &&
+                  !note.isReminder) {
+                continue; // skip flow-driven non-reminder rows
+              }
 
               if (existing.clientEventId != null &&
                   note.clientEventId != null &&

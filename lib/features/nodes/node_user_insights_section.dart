@@ -182,22 +182,45 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 12),
-        Row(
-          children: [
-            KemeticGold.text(
-              'Your Insights',
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-            ),
-            const Spacer(),
-            TextButton.icon(
-              onPressed: () => _openEditor(),
-              icon: const Icon(Icons.add, color: KemeticGold.base, size: 18),
-              label: const Text(
-                'Add Insight',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return Row(
+              children: [
+                Expanded(
+                  child: KemeticGold.text(
+                    'Your Insights',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: constraints.maxWidth * 0.55,
+                  ),
+                  child: TextButton.icon(
+                    onPressed: () => _openEditor(),
+                    icon: const Icon(
+                      Icons.add,
+                      color: KemeticGold.base,
+                      size: 18,
+                    ),
+                    label: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Add Insight',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 8),
         Text(

@@ -115,6 +115,8 @@ String? _asDmString(dynamic value) {
 class InboxRepo {
   final SupabaseClient _client;
   final ShareRepo _shareRepo;
+  static const String _shareFilingView = 'share_filing_items_client';
+  static const String _legacyInboxView = 'inbox_share_items_filtered';
 
   InboxRepo(this._client) : _shareRepo = ShareRepo(_client);
 
@@ -139,45 +141,37 @@ class InboxRepo {
   /// 3. After deletion: trigger clears imported_at, this returns false
   /// 4. Re-import: button reactivates because no matching flow exists
   Future<bool> isFlowCurrentlyImported(String shareId) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      _log('[InboxRepo] No user logged in');
+      return false;
+    }
+
     try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) {
-        _log('[InboxRepo] No user logged in');
-        return false;
-      }
-
-      // ✅ CORRECT: Look in user's flows table for a flow with this share_id
-      // This finds the USER'S imported copy, not the sender's original
-      final flowResponse = await _client
-          .from('flows')
+      final filedRows = await _client
+          .from('flow_filing_items_client')
           .select(
-            'id, active, is_hidden, is_reminder, notes, share_id, end_date',
+            'id, lifecycle, visible_in_active_list, visible_in_saved_list, share_id',
           )
-          .eq('user_id', userId) // User's flows only
-          .eq('share_id', shareId) // Linked to this inbox share
-          .maybeSingle();
+          .eq('user_id', userId)
+          .eq('share_id', shareId)
+          .eq('visible_in_active_list', true)
+          .limit(1);
+      final typedFiledRows = (filedRows as List).cast<Map<String, dynamic>>();
+      final filedFlow = typedFiledRows.isEmpty ? null : typedFiledRows.first;
 
-      // Flow is imported only when the linked row still classifies as an active
-      // user-facing flow.
-      final exists =
-          flowResponse != null &&
-          classifyFlowRecord(
-                active: flowResponse['active'] as bool? ?? false,
-                isHidden: (flowResponse['is_hidden'] as bool?) ?? false,
-                isReminder: (flowResponse['is_reminder'] as bool?) ?? false,
-                notes: flowResponse['notes'] as String?,
-              ) ==
-              FlowRecordKind.active;
+      final exists = filedFlow != null;
 
       if (kDebugMode) {
         _log('[InboxRepo] isFlowCurrentlyImported($shareId)');
         _log('[InboxRepo]   userId: $userId');
         _log('[InboxRepo]   exists: $exists');
-        if (flowResponse != null) {
-          _log('[InboxRepo]   flow_id: ${flowResponse['id']}');
-          _log('[InboxRepo]   active: ${flowResponse['active']}');
-          _log('[InboxRepo]   share_id: ${flowResponse['share_id']}');
-          _log('[InboxRepo]   end_date: ${flowResponse['end_date']}');
+        if (filedFlow != null) {
+          _log('[InboxRepo]   flow_id: ${filedFlow['id']}');
+          _log('[InboxRepo]   lifecycle: ${filedFlow['lifecycle']}');
+          _log(
+            '[InboxRepo]   visible_in_active_list: ${filedFlow['visible_in_active_list']}',
+          );
         } else {
           _log('[InboxRepo]   No flow found with share_id=$shareId');
         }
@@ -185,7 +179,31 @@ class InboxRepo {
 
       return exists;
     } catch (e) {
-      _log('[InboxRepo] ❌ Error checking import status: $e');
+      _log(
+        '[InboxRepo] Filing import status unavailable, using legacy check: $e',
+      );
+    }
+
+    try {
+      final flowResponse = await _client
+          .from('flows')
+          .select(
+            'id, active, is_hidden, is_reminder, notes, share_id, end_date',
+          )
+          .eq('user_id', userId)
+          .eq('share_id', shareId)
+          .maybeSingle();
+
+      return flowResponse != null &&
+          classifyFlowRecord(
+                active: flowResponse['active'] as bool? ?? false,
+                isHidden: (flowResponse['is_hidden'] as bool?) ?? false,
+                isReminder: (flowResponse['is_reminder'] as bool?) ?? false,
+                notes: flowResponse['notes'] as String?,
+              ) ==
+              FlowRecordKind.active;
+    } catch (e) {
+      _log('[InboxRepo] ❌ Legacy import status check failed: $e');
       return false;
     }
   }
@@ -216,11 +234,21 @@ class InboxRepo {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return [];
 
-      final response = await _client
-          .from('inbox_share_items_filtered')
-          .select()
-          .eq('recipient_id', userId)
-          .order('created_at', ascending: false);
+      dynamic response;
+      try {
+        response = await _client
+            .from(_shareFilingView)
+            .select()
+            .eq('recipient_id', userId)
+            .order('created_at', ascending: false);
+      } catch (e) {
+        _log('[InboxRepo] $_shareFilingView unavailable, using legacy: $e');
+        response = await _client
+            .from(_legacyInboxView)
+            .select()
+            .eq('recipient_id', userId)
+            .order('created_at', ascending: false);
+      }
 
       return (response as List)
           .map((json) => InboxShareItem.fromJson(json))

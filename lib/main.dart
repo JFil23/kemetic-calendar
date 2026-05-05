@@ -187,6 +187,8 @@ Future<void> main() async {
       ),
     );
 
+    await ProfileRepo(Supabase.instance.client).preloadLocalCaches();
+
     await AppWindowService.instance.ensureInitialized();
     await AppRestorationService.instance.initialize();
 
@@ -855,23 +857,28 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     String shareId, {
     String? senderId,
   }) async {
-    try {
-      final row = await supabase
-          .from('inbox_share_items_filtered')
-          .select()
-          .eq('share_id', shareId)
-          .maybeSingle();
-      if (row != null) {
-        final share = InboxShareItem.fromJson(row);
-        nav.push(
-          MaterialPageRoute(
-            builder: (_) => EventInviteDetailsPage(share: share),
-          ),
-        );
-        return;
+    for (final viewName in const [
+      'share_filing_items_client',
+      'inbox_share_items_filtered',
+    ]) {
+      try {
+        final row = await supabase
+            .from(viewName)
+            .select()
+            .eq('share_id', shareId)
+            .maybeSingle();
+        if (row != null) {
+          final share = InboxShareItem.fromJson(row);
+          nav.push(
+            MaterialPageRoute(
+              builder: (_) => EventInviteDetailsPage(share: share),
+            ),
+          );
+          return;
+        }
+      } catch (_) {
+        // Fall back to the next source.
       }
-    } catch (_) {
-      // Fall back below.
     }
 
     final directShare = await _loadEventInviteShare(shareId);

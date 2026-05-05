@@ -171,6 +171,7 @@ class _ProfilePageState extends State<ProfilePage>
   final GlobalKey _feedRevealHintKey = GlobalKey();
   UserProfile? _profile;
   bool _loading = true;
+  bool _cacheHydrating = true;
   bool _isFollowing = false;
   bool _followUpdating = false;
   List<FlowPost> _posts = const [];
@@ -221,6 +222,7 @@ class _ProfilePageState extends State<ProfilePage>
       vsync: this,
       duration: const Duration(milliseconds: 720),
     );
+    _seedPostedContentFromMemory();
     _loadProfile();
   }
 
@@ -238,32 +240,50 @@ class _ProfilePageState extends State<ProfilePage>
     super.dispose();
   }
 
+  void _seedPostedContentFromMemory() {
+    final cachedPosts = _repo.getCachedFlowPostsSync(widget.userId);
+    if (cachedPosts != null) {
+      _posts = cachedPosts;
+      _postsLoading = false;
+      _activePostIndex = _clampPostIndex(cachedPosts.length);
+    }
+
+    final cachedInsights = _repo.getCachedInsightPostsSync(widget.userId);
+    if (cachedInsights != null) {
+      _insightPosts = cachedInsights;
+      _insightPostsLoading = false;
+      _activeInsightPostIndex = _clampInsightPostIndex(cachedInsights.length);
+    }
+  }
+
   Future<void> _loadProfile({bool showSpinner = true}) async {
     final loadSerial = ++_profileLoadSerial;
+    unawaited(_restoreCachedPostedContent(loadSerial));
+
     final cachedProfile = _repo.getCachedProfileSync(widget.userId);
     if (cachedProfile != null) {
       setState(() {
         _profile = cachedProfile;
         _loading = false;
+        _cacheHydrating = false;
       });
     } else if (showSpinner) {
-      setState(() => _loading = true);
-    }
-
-    if (cachedProfile == null) {
-      unawaited(() async {
-        final restored = await _repo.restoreCachedProfile(widget.userId);
-        if (!mounted ||
-            loadSerial != _profileLoadSerial ||
-            restored == null ||
-            _profile != null) {
-          return;
-        }
+      final restored = await _repo.restoreCachedProfile(widget.userId);
+      if (!mounted || loadSerial != _profileLoadSerial) return;
+      if (restored != null) {
         setState(() {
           _profile = restored;
           _loading = false;
+          _cacheHydrating = false;
         });
-      }());
+      } else if (_profile == null) {
+        setState(() {
+          _loading = true;
+          _cacheHydrating = false;
+        });
+      }
+    } else if (_cacheHydrating) {
+      setState(() => _cacheHydrating = false);
     }
 
     final profileFuture = _repo.getProfile(widget.userId);
@@ -277,13 +297,22 @@ class _ProfilePageState extends State<ProfilePage>
     final isFollowing = await followFuture;
 
     if (!mounted || loadSerial != _profileLoadSerial) return;
+
+    if (profile == null) {
+      setState(() {
+        _isFollowing = isFollowing;
+        _loading = false;
+        _cacheHydrating = false;
+      });
+      return;
+    }
+
     setState(() {
       _profile = profile;
       _isFollowing = isFollowing;
       _loading = false;
+      _cacheHydrating = false;
     });
-
-    if (profile == null) return;
 
     unawaited(() async {
       final posts = await postsFuture;
@@ -298,8 +327,44 @@ class _ProfilePageState extends State<ProfilePage>
     }());
   }
 
+  Future<void> _restoreCachedPostedContent(int loadSerial) async {
+    final cachedPosts = _repo.getCachedFlowPostsSync(widget.userId);
+    if (cachedPosts != null && _postsLoading && mounted) {
+      _applyPosts(cachedPosts);
+    }
+
+    final cachedInsights = _repo.getCachedInsightPostsSync(widget.userId);
+    if (cachedInsights != null && _insightPostsLoading && mounted) {
+      _applyInsightPosts(cachedInsights);
+    }
+
+    if (cachedPosts != null && cachedInsights != null) return;
+
+    final results = await Future.wait<dynamic>([
+      cachedPosts == null
+          ? _repo.restoreCachedFlowPosts(widget.userId)
+          : Future<List<FlowPost>?>.value(null),
+      cachedInsights == null
+          ? _repo.restoreCachedInsightPosts(widget.userId)
+          : Future<List<InsightPost>?>.value(null),
+    ]);
+    if (!mounted || loadSerial != _profileLoadSerial) return;
+
+    final restoredPosts = results[0] as List<FlowPost>?;
+    if (restoredPosts != null && _postsLoading) {
+      _applyPosts(restoredPosts);
+    }
+
+    final restoredInsights = results[1] as List<InsightPost>?;
+    if (restoredInsights != null && _insightPostsLoading) {
+      _applyInsightPosts(restoredInsights);
+    }
+  }
+
   Future<void> _loadPosts() async {
-    setState(() => _postsLoading = true);
+    if (_posts.isEmpty) {
+      setState(() => _postsLoading = true);
+    }
     final posts = await _repo.getFlowPosts(widget.userId);
     if (!mounted) return;
     _applyPosts(posts);
@@ -327,7 +392,9 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> _loadInsightPosts() async {
-    setState(() => _insightPostsLoading = true);
+    if (_insightPosts.isEmpty) {
+      setState(() => _insightPostsLoading = true);
+    }
     final posts = await _repo.getInsightPosts(widget.userId);
     if (!mounted) return;
     _applyInsightPosts(posts);
@@ -976,13 +1043,18 @@ class _ProfilePageState extends State<ProfilePage>
         widget.openedFromCalendar && Navigator.of(context).canPop();
     final showBackdrop = !_loading && _profile != null;
     final title = _profile?.handle ?? 'Profile';
+    final hydratingLocalCache = _cacheHydrating && _profile == null;
+    final showBlockingLoader =
+        _loading && _profile == null && !hydratingLocalCache;
     final body = AnimatedSwitcher(
       duration: const Duration(milliseconds: 260),
       switchInCurve: Curves.easeOutCubic,
       switchOutCurve: Curves.easeInCubic,
       child: KeyedSubtree(
         key: ValueKey<Object>(
-          _loading
+          hydratingLocalCache
+              ? 'profile_cache_hydrating'
+              : showBlockingLoader
               ? 'profile_loading'
               : _profile == null
               ? 'profile_missing'
@@ -990,7 +1062,9 @@ class _ProfilePageState extends State<ProfilePage>
               ? 'profile_feed_mode'
               : 'profile_mode',
         ),
-        child: _loading
+        child: hydratingLocalCache
+            ? const SizedBox.expand()
+            : showBlockingLoader
             ? const Center(
                 child: CircularProgressIndicator(
                   valueColor: AlwaysStoppedAnimation<Color>(_profileGoldMid),
