@@ -9677,7 +9677,13 @@ class _CalendarPageState extends State<CalendarPage>
             )
             .map((row) => row.id)
             .toList();
-        await _deleteReminderOccurrenceRows(repo, inactiveIdsToDelete);
+        await _deleteReminderOccurrenceRows(
+          repo,
+          inactiveIdsToDelete,
+          semantic: 'reminder_inactive_prune',
+          suppressesClient: false,
+          sourceFeature: 'CalendarPage._syncReminderEvents.inactive',
+        );
         continue;
       }
 
@@ -9698,7 +9704,13 @@ class _CalendarPageState extends State<CalendarPage>
           staleIdsToDelete.add(row.id);
         }
       }
-      await _deleteReminderOccurrenceRows(repo, staleIdsToDelete);
+      await _deleteReminderOccurrenceRows(
+        repo,
+        staleIdsToDelete,
+        semantic: 'reminder_generated_prune',
+        suppressesClient: false,
+        sourceFeature: 'CalendarPage._syncReminderEvents.stale',
+      );
 
       final flowIdForReminder = await _findFlowIdByReminderUuid(
         rule.id,
@@ -9819,8 +9831,11 @@ class _CalendarPageState extends State<CalendarPage>
 
   Future<void> _deleteReminderOccurrenceRows(
     UserEventsRepo repo,
-    List<String> idsToDelete,
-  ) async {
+    List<String> idsToDelete, {
+    required String semantic,
+    required bool suppressesClient,
+    required String sourceFeature,
+  }) async {
     if (idsToDelete.isEmpty) return;
     List<String> filteredIds = idsToDelete;
     // Guard: ensure we only delete rows whose CID starts with reminder: to avoid nuking standalones.
@@ -9853,7 +9868,13 @@ class _CalendarPageState extends State<CalendarPage>
           '[syncReminderEvents] Deleting stale reminder occurrences ids=${filteredIds.join(", ")}',
         );
       }
-      await repo.deleteByIds(filteredIds);
+      await repo.deleteByIds(
+        filteredIds,
+        semantic: semantic,
+        suppressesClient: suppressesClient,
+        sourceFeature: sourceFeature,
+        deleteScope: 'reminder_occurrence_prune',
+      );
     }
   }
 
@@ -18299,7 +18320,13 @@ class _CalendarPageState extends State<CalendarPage>
         if (ghostStandaloneIds.isNotEmpty) {
           unawaited(() async {
             try {
-              await repo.deleteByIds(ghostStandaloneIds);
+              await repo.deleteByIds(
+                ghostStandaloneIds,
+                semantic: 'calendar_hydration_ghost_cleanup',
+                suppressesClient: false,
+                sourceFeature: 'CalendarPage._loadFromDisk',
+                deleteScope: 'standalone_ghost_cleanup',
+              );
             } catch (e, st) {
               if (kDebugMode) {
                 debugPrint(

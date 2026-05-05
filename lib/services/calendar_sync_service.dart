@@ -889,10 +889,17 @@ class CalendarSyncService {
     try {
       final rowsByCid = await _client
           .from('user_events')
-          .delete()
+          .select('id')
           .eq('user_id', user.id)
-          .like('client_event_id', 'native:%')
-          .select('id');
+          .like('client_event_id', 'native:%');
+      await _eventsRepo.deleteByClientIdPrefix(
+        'native:',
+        semantic: 'native_calendar_unlink',
+        suppressesClient: true,
+        sourceFeature:
+            'CalendarSyncService._purgeImportedNativeEventsFromSupabase',
+        deleteScope: 'native_client_id_prefix',
+      );
       deleted += (rowsByCid as List).length;
     } catch (e) {
       debugPrint(
@@ -903,10 +910,17 @@ class CalendarSyncService {
     try {
       final rowsByCategory = await _client
           .from('user_events')
-          .delete()
+          .select('id')
           .eq('user_id', user.id)
-          .eq('category', 'native_sync')
-          .select('id');
+          .eq('category', 'native_sync');
+      await _eventsRepo.deleteByCategory(
+        'native_sync',
+        semantic: 'native_calendar_unlink',
+        suppressesClient: true,
+        sourceFeature:
+            'CalendarSyncService._purgeImportedNativeEventsFromSupabase',
+        deleteScope: 'native_sync_category',
+      );
       deleted += (rowsByCategory as List).length;
     } catch (e) {
       debugPrint(
@@ -948,7 +962,14 @@ class CalendarSyncService {
       if (nativeByCid.containsKey(cid)) continue;
 
       try {
-        await _eventsRepo.deleteByClientId(cid);
+        await _eventsRepo.deleteByClientId(
+          cid,
+          semantic: 'native_calendar_prune',
+          suppressesClient: true,
+          sourceFeature:
+              'CalendarSyncService._removeStaleSupabaseNativeImports',
+          deleteScope: 'native_missing_from_device',
+        );
         debugPrint('[calendar-sync] deleted stale imported event cid=$cid');
       } catch (e) {
         debugPrint(

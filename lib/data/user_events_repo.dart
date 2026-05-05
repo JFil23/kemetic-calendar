@@ -197,6 +197,160 @@ class UserEventsRepo {
   UserEventsRepo(this._client);
   final SupabaseClient _client;
 
+  int _rpcCount(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
+  Map<String, dynamic> _semanticDeleteParams({
+    required String semantic,
+    required bool suppressesClient,
+    required String sourceFeature,
+    required String deleteScope,
+  }) {
+    return {
+      'p_delete_semantic': semantic,
+      'p_suppresses_client': suppressesClient,
+      'p_source_feature': sourceFeature,
+      'p_delete_scope': deleteScope,
+    };
+  }
+
+  Future<int> _deleteUserEventIdsSemantic(
+    List<String> ids, {
+    required String semantic,
+    required bool suppressesClient,
+    required String sourceFeature,
+    required String deleteScope,
+  }) async {
+    var deleted = 0;
+    final trimmedIds = ids
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toList(growable: false);
+    for (final chunk in _chunkList(trimmedIds, 200)) {
+      final result = await _client.rpc(
+        'delete_user_events_by_ids_semantic',
+        params: {
+          'p_ids': chunk,
+          ..._semanticDeleteParams(
+            semantic: semantic,
+            suppressesClient: suppressesClient,
+            sourceFeature: sourceFeature,
+            deleteScope: deleteScope,
+          ),
+        },
+      );
+      deleted += _rpcCount(result);
+    }
+    return deleted;
+  }
+
+  Future<int> _deleteUserEventsByClientIdSemantic(
+    String clientEventId, {
+    required String semantic,
+    required bool suppressesClient,
+    required String sourceFeature,
+    required String deleteScope,
+  }) async {
+    final trimmed = clientEventId.trim();
+    if (trimmed.isEmpty) return 0;
+    final result = await _client.rpc(
+      'delete_user_events_by_client_id_semantic',
+      params: {
+        'p_client_event_id': trimmed,
+        ..._semanticDeleteParams(
+          semantic: semantic,
+          suppressesClient: suppressesClient,
+          sourceFeature: sourceFeature,
+          deleteScope: deleteScope,
+        ),
+      },
+    );
+    return _rpcCount(result);
+  }
+
+  Future<int> _deleteUserEventsByClientIdPrefixSemantic(
+    String prefix, {
+    DateTime? fromUtc,
+    DateTime? untilUtc,
+    required String semantic,
+    required bool suppressesClient,
+    required String sourceFeature,
+    required String deleteScope,
+  }) async {
+    final trimmed = prefix.trim();
+    if (trimmed.isEmpty) return 0;
+    final result = await _client.rpc(
+      'delete_user_events_by_client_id_prefix_semantic',
+      params: {
+        'p_client_event_id_prefix': trimmed,
+        if (fromUtc != null) 'p_from_utc': fromUtc.toUtc().toIso8601String(),
+        if (untilUtc != null) 'p_until_utc': untilUtc.toUtc().toIso8601String(),
+        ..._semanticDeleteParams(
+          semantic: semantic,
+          suppressesClient: suppressesClient,
+          sourceFeature: sourceFeature,
+          deleteScope: deleteScope,
+        ),
+      },
+    );
+    return _rpcCount(result);
+  }
+
+  Future<int> _deleteUserEventsByFlowSemantic(
+    int flowId, {
+    DateTime? fromUtc,
+    DateTime? untilUtc,
+    required String semantic,
+    required bool suppressesClient,
+    required String sourceFeature,
+    required String deleteScope,
+  }) async {
+    if (flowId <= 0) return 0;
+    final result = await _client.rpc(
+      'delete_user_events_by_flow_semantic',
+      params: {
+        'p_flow_id': flowId,
+        if (fromUtc != null) 'p_from_utc': fromUtc.toUtc().toIso8601String(),
+        if (untilUtc != null) 'p_until_utc': untilUtc.toUtc().toIso8601String(),
+        ..._semanticDeleteParams(
+          semantic: semantic,
+          suppressesClient: suppressesClient,
+          sourceFeature: sourceFeature,
+          deleteScope: deleteScope,
+        ),
+      },
+    );
+    return _rpcCount(result);
+  }
+
+  Future<int> _deleteUserEventsByCategorySemantic(
+    String category, {
+    required String semantic,
+    required bool suppressesClient,
+    required String sourceFeature,
+    required String deleteScope,
+  }) async {
+    final trimmed = category.trim();
+    if (trimmed.isEmpty) return 0;
+    final result = await _client.rpc(
+      'delete_user_events_by_category_semantic',
+      params: {
+        'p_category': trimmed,
+        ..._semanticDeleteParams(
+          semantic: semantic,
+          suppressesClient: suppressesClient,
+          sourceFeature: sourceFeature,
+          deleteScope: deleteScope,
+        ),
+      },
+    );
+    return _rpcCount(result);
+  }
+
   Future<List<Map<String, dynamic>>> _loadStandaloneGhostRowsForFlow({
     required String userId,
     required int flowId,
@@ -540,36 +694,43 @@ class UserEventsRepo {
 
   Future<void> delete(String id) async {
     String? cidForLog;
+    int? flowIdForLog;
     try {
       final user = _client.auth.currentUser;
       if (user != null) {
         final row = await _client
             .from(_kTable)
-            .select('client_event_id')
+            .select('client_event_id,flow_local_id')
             .eq('user_id', user.id)
             .eq('id', id)
             .maybeSingle();
         cidForLog = (row?['client_event_id'] as String?);
+        flowIdForLog = (row?['flow_local_id'] as num?)?.toInt();
       }
     } catch (_) {}
     _log('delete($id) cid=${cidForLog ?? 'unknown'}');
     try {
-      final deleted = await _client
-          .from(_kTable)
-          .delete()
-          .eq('id', id)
-          .select('flow_local_id')
-          .maybeSingle();
+      final deletedCount = await _deleteUserEventIdsSemantic(
+        [id],
+        semantic: 'user_delete',
+        suppressesClient: true,
+        sourceFeature: 'UserEventsRepo.delete',
+        deleteScope: 'exact_occurrence',
+      );
 
-      _log('delete ✓');
+      if (deletedCount <= 0) {
+        _log('delete ⚠️ no rows for id=$id');
+        return;
+      }
 
-      final flowId = (deleted?['flow_local_id'] as num?)?.toInt();
-      if (flowId != null && flowId > 0) {
+      _log('delete ✓ deleted=$deletedCount');
+
+      if (flowIdForLog != null && flowIdForLog > 0) {
         unawaited(
           track(
             event: 'event_deleted',
             properties: {
-              'flow_id': flowId,
+              'flow_id': flowIdForLog,
               'event_id': id,
               'v': kAppEventsSchemaVersion,
             },
@@ -609,31 +770,56 @@ class UserEventsRepo {
     }
   }
 
-  Future<void> deleteByClientId(String clientEventId) async {
+  Future<void> deleteByClientId(
+    String clientEventId, {
+    String semantic = 'user_delete',
+    bool suppressesClient = true,
+    String sourceFeature = 'UserEventsRepo.deleteByClientId',
+    String deleteScope = 'exact_occurrence',
+  }) async {
     _log('deleteByClientId($clientEventId)');
     try {
       await Notify.cancelNotificationsForClientEventIds([clientEventId]);
 
-      final deletedRows = await _client
+      final existingRows = await _client
           .from(_kTable)
-          .delete()
-          .eq('client_event_id', clientEventId)
-          .select('id, flow_local_id');
+          .select('id, flow_local_id')
+          .eq('client_event_id', clientEventId);
 
-      final rows = deletedRows.cast<Map<String, dynamic>>();
+      final rows = existingRows.cast<Map<String, dynamic>>();
       if (rows.isEmpty) {
         _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
-        await recordDeletionTombstone(
-          clientEventId: clientEventId,
-          reason: 'delete_by_client_id_missing_row',
-        );
+        if (suppressesClient) {
+          await recordDeletionTombstone(
+            clientEventId: clientEventId,
+            reason: 'delete_by_client_id_missing_row',
+          );
+        }
+        return;
+      }
+
+      final deletedCount = await _deleteUserEventsByClientIdSemantic(
+        clientEventId,
+        semantic: semantic,
+        suppressesClient: suppressesClient,
+        sourceFeature: sourceFeature,
+        deleteScope: deleteScope,
+      );
+      if (deletedCount <= 0) {
+        _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
+        if (suppressesClient) {
+          await recordDeletionTombstone(
+            clientEventId: clientEventId,
+            reason: 'delete_by_client_id_missing_row',
+          );
+        }
         return;
       }
 
       final deletedId = rows.first['id'] as String?;
       final flowId = (rows.first['flow_local_id'] as num?)?.toInt();
       _log(
-        'deleteByClientId ✓ id=${deletedId ?? 'unknown'} cid=$clientEventId',
+        'deleteByClientId ✓ id=${deletedId ?? 'unknown'} cid=$clientEventId deleted=$deletedCount semantic=$semantic suppresses=$suppressesClient',
       );
 
       if (flowId != null && flowId > 0 && deletedId != null) {
@@ -652,10 +838,12 @@ class UserEventsRepo {
       if (e.code == 'PGRST116' ||
           e.message.contains('Results contain 0 rows')) {
         _log('deleteByClientId ⚠️ no rows for cid=$clientEventId');
-        await recordDeletionTombstone(
-          clientEventId: clientEventId,
-          reason: 'delete_by_client_id_missing_row',
-        );
+        if (suppressesClient) {
+          await recordDeletionTombstone(
+            clientEventId: clientEventId,
+            reason: 'delete_by_client_id_missing_row',
+          );
+        }
         return;
       }
       _log('deleteByClientId ✗ ${e.code} ${e.message}');
@@ -696,8 +884,15 @@ class UserEventsRepo {
   Future<void> deleteByClientIdPrefix(
     String prefix, {
     DateTime? fromUtc,
+    DateTime? untilUtc,
+    String semantic = 'user_delete',
+    bool suppressesClient = true,
+    String sourceFeature = 'UserEventsRepo.deleteByClientIdPrefix',
+    String deleteScope = 'client_id_prefix',
   }) async {
-    _log('deleteByClientIdPrefix($prefix, fromUtc=$fromUtc)');
+    _log(
+      'deleteByClientIdPrefix($prefix, fromUtc=$fromUtc, untilUtc=$untilUtc, semantic=$semantic, suppresses=$suppressesClient)',
+    );
     try {
       final user = _client.auth.currentUser;
       if (user == null) return;
@@ -713,6 +908,12 @@ class UserEventsRepo {
           fromUtc.toUtc().toIso8601String(),
         );
       }
+      if (untilUtc != null) {
+        selectQuery = selectQuery.lt(
+          'starts_at',
+          untilUtc.toUtc().toIso8601String(),
+        );
+      }
       final rowsToCancel = await selectQuery;
       final cidsToCancel = (rowsToCancel as List)
           .cast<Map<String, dynamic>>()
@@ -724,18 +925,17 @@ class UserEventsRepo {
         await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
       }
 
-      var query = _client
-          .from(_kTable)
-          .delete()
-          .eq('user_id', user.id)
-          .like('client_event_id', '$prefix%');
-      if (fromUtc != null) {
-        query = query.gte('starts_at', fromUtc.toUtc().toIso8601String());
-      }
+      final deletedCount = await _deleteUserEventsByClientIdPrefixSemantic(
+        prefix,
+        fromUtc: fromUtc,
+        untilUtc: untilUtc,
+        semantic: semantic,
+        suppressesClient: suppressesClient,
+        sourceFeature: sourceFeature,
+        deleteScope: deleteScope,
+      );
 
-      await query;
-
-      _log('deleteByClientIdPrefix ✓');
+      _log('deleteByClientIdPrefix ✓ deleted=$deletedCount');
     } on PostgrestException catch (e) {
       _log('deleteByClientIdPrefix ✗ ${e.code} ${e.message}');
       rethrow;
@@ -745,8 +945,61 @@ class UserEventsRepo {
     }
   }
 
+  /// Delete events by category through the semantic delete path.
+  Future<void> deleteByCategory(
+    String category, {
+    String semantic = 'user_delete',
+    bool suppressesClient = true,
+    String sourceFeature = 'UserEventsRepo.deleteByCategory',
+    String deleteScope = 'category',
+  }) async {
+    _log(
+      'deleteByCategory($category, semantic=$semantic, suppresses=$suppressesClient)',
+    );
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) return;
+
+      final rowsToCancel = await _client
+          .from(_kTable)
+          .select('client_event_id')
+          .eq('user_id', user.id)
+          .eq('category', category);
+      final cidsToCancel = (rowsToCancel as List)
+          .cast<Map<String, dynamic>>()
+          .map((row) => row['client_event_id'] as String?)
+          .whereType<String>()
+          .where((cid) => cid.trim().isNotEmpty)
+          .toSet();
+      if (cidsToCancel.isNotEmpty) {
+        await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
+      }
+
+      final deletedCount = await _deleteUserEventsByCategorySemantic(
+        category,
+        semantic: semantic,
+        suppressesClient: suppressesClient,
+        sourceFeature: sourceFeature,
+        deleteScope: deleteScope,
+      );
+      _log('deleteByCategory ✓ deleted=$deletedCount');
+    } on PostgrestException catch (e) {
+      _log('deleteByCategory ✗ ${e.code} ${e.message}');
+      rethrow;
+    } catch (e) {
+      _log('deleteByCategory ✗ $e');
+      rethrow;
+    }
+  }
+
   /// Delete events by a list of row ids (scoped to current user).
-  Future<void> deleteByIds(List<String> ids) async {
+  Future<void> deleteByIds(
+    List<String> ids, {
+    String semantic = 'user_delete',
+    bool suppressesClient = true,
+    String sourceFeature = 'UserEventsRepo.deleteByIds',
+    String deleteScope = 'exact_occurrence',
+  }) async {
     if (ids.isEmpty) return;
     List<({String id, String? clientEventId})> rowsForLog = const [];
     try {
@@ -771,12 +1024,16 @@ class UserEventsRepo {
       if (cidsToCancel.isNotEmpty) {
         await Notify.cancelNotificationsForClientEventIds(cidsToCancel);
       }
-      await _client
-          .from(_kTable)
-          .delete()
-          .eq('user_id', user.id)
-          .inFilter('id', ids);
-      _log('deleteByIds ✓');
+      final deletedCount = await _deleteUserEventIdsSemantic(
+        ids,
+        semantic: semantic,
+        suppressesClient: suppressesClient,
+        sourceFeature: sourceFeature,
+        deleteScope: deleteScope,
+      );
+      _log(
+        'deleteByIds ✓ deleted=$deletedCount semantic=$semantic suppresses=$suppressesClient',
+      );
     } on PostgrestException catch (e) {
       _log('deleteByIds ✗ ${e.code} ${e.message}');
       rethrow;
@@ -787,8 +1044,17 @@ class UserEventsRepo {
   }
 
   /// Delete Ma'at-generated events by flow id. Optionally from a given date forward.
-  Future<void> deleteByFlowId(int flowId, {DateTime? fromDate}) async {
-    _log('deleteByFlowId(flowId=$flowId, fromDate=$fromDate)');
+  Future<void> deleteByFlowId(
+    int flowId, {
+    DateTime? fromDate,
+    String semantic = 'user_delete',
+    bool suppressesClient = true,
+    String sourceFeature = 'UserEventsRepo.deleteByFlowId',
+    String deleteScope = 'flow',
+  }) async {
+    _log(
+      'deleteByFlowId(flowId=$flowId, fromDate=$fromDate, semantic=$semantic, suppresses=$suppressesClient)',
+    );
     try {
       DateTime? startDate;
       DateTime? endDateInclusive; // end date as stored (date at 00:00)
@@ -880,26 +1146,26 @@ class UserEventsRepo {
       }
 
       // 1) delete events explicitly tagged with flow_local_id
-      var q1 = _client.from(_kTable).delete().eq('flow_local_id', flowId);
-      if (fromDate != null) {
-        q1 = q1.gte('starts_at', fromDate.toUtc().toIso8601String());
-      }
-      await q1;
+      await _deleteUserEventsByFlowSemantic(
+        flowId,
+        fromUtc: fromDate?.toUtc(),
+        semantic: semantic,
+        suppressesClient: suppressesClient,
+        sourceFeature: sourceFeature,
+        deleteScope: deleteScope,
+      );
 
       // 2) also delete Ma'at-generated events in the flow's date window (handles legacy rows with no flow_local_id)
       if (user != null && (windowStart != null || windowEndExclusive != null)) {
-        var q2 = _client
-            .from(_kTable)
-            .delete()
-            .eq('user_id', user.id)
-            .like('client_event_id', 'maat:%');
-        if (windowStart != null) {
-          q2 = q2.gte('starts_at', windowStart.toIso8601String());
-        }
-        if (windowEndExclusive != null) {
-          q2 = q2.lt('starts_at', windowEndExclusive.toIso8601String());
-        }
-        await q2;
+        await _deleteUserEventsByClientIdPrefixSemantic(
+          'maat:',
+          fromUtc: windowStart,
+          untilUtc: windowEndExclusive,
+          semantic: semantic,
+          suppressesClient: suppressesClient,
+          sourceFeature: sourceFeature,
+          deleteScope: 'legacy_maat_flow_window',
+        );
       }
 
       if (user != null && orphanRows.isNotEmpty) {
@@ -909,11 +1175,13 @@ class UserEventsRepo {
             .where((id) => id.trim().isNotEmpty)
             .toList(growable: false);
         for (final chunk in _chunkList(orphanIds, 200)) {
-          await _client
-              .from(_kTable)
-              .delete()
-              .eq('user_id', user.id)
-              .inFilter('id', chunk);
+          await _deleteUserEventIdsSemantic(
+            chunk,
+            semantic: semantic,
+            suppressesClient: suppressesClient,
+            sourceFeature: sourceFeature,
+            deleteScope: 'orphan_flow_cleanup',
+          );
         }
       }
 
