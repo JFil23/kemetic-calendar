@@ -3859,6 +3859,12 @@ Gradient _glossFromColor(Color base) {
 typedef CreateNutritionReminder =
     Future<void> Function(NutritionReminderIntent intent);
 typedef DeleteNutritionReminder = Future<void> Function(String itemId);
+typedef _ReminderOccurrenceRow = ({
+  String id,
+  String? clientEventId,
+  String? detail,
+  DateTime startsAtUtc,
+});
 
 /// Intent data for creating a reminder from a nutrition item schedule
 class NutritionReminderIntent {
@@ -9644,9 +9650,9 @@ class _CalendarPageState extends State<CalendarPage>
       // Persist meta before generating occurrences to keep server source-of-truth in sync.
       await _ensureReminderRuleMeta(rule);
       final overriddenDates = <String>{};
-      final idsToDelete = <String>[];
+      List<_ReminderOccurrenceRow> existingRows = [];
       try {
-        final existingRows = await repo.getReminderOccurrenceRows(
+        existingRows = await repo.getReminderOccurrenceRows(
           'reminder:${rule.id}:',
           fromUtc: today,
         );
@@ -9658,57 +9664,42 @@ class _CalendarPageState extends State<CalendarPage>
               row.detail?.contains(_kReminderManualOverrideMarker) == true;
           if (hasOverride && datePart.isNotEmpty) {
             overriddenDates.add(datePart);
-          } else {
-            idsToDelete.add(row.id);
-          }
-        }
-        if (idsToDelete.isNotEmpty) {
-          List<String> filteredIds = idsToDelete;
-          // Guard: ensure we only delete rows whose CID starts with reminder: to avoid nuking standalones.
-          try {
-            final cids = await repo.getClientEventIdsByIds(idsToDelete);
-            final mismatched = <String>[];
-            if (kDebugMode && cids.isNotEmpty) {
-              debugPrint(
-                '[syncReminderEvents] existing reminder occurrences (id:cid) ${cids.map((r) => '${r.id}:${r.clientEventId ?? ''}').join(', ')}',
-              );
-            }
-            filteredIds = cids
-                .where(
-                  (row) => (row.clientEventId ?? '').startsWith('reminder:'),
-                )
-                .map((row) => row.id)
-                .toList();
-            mismatched.addAll(
-              cids
-                  .where(
-                    (row) => !(row.clientEventId ?? '').startsWith('reminder:'),
-                  )
-                  .map((row) => '${row.id}:${row.clientEventId ?? ''}'),
-            );
-            if (kDebugMode && mismatched.isNotEmpty) {
-              debugPrint(
-                '[syncReminderEvents] Skipping delete for non-reminder rows: ${mismatched.join(", ")}',
-              );
-            }
-          } catch (_) {}
-          if (filteredIds.isNotEmpty) {
-            if (kDebugMode) {
-              debugPrint(
-                '[syncReminderEvents] Deleting reminder occurrences ids=${filteredIds.join(", ")}',
-              );
-            }
-            await repo.deleteByIds(filteredIds);
           }
         }
       } catch (_) {}
 
       // If inactive, skip regeneration entirely.
       if (!rule.active) {
+        final inactiveIdsToDelete = existingRows
+            .where(
+              (row) =>
+                  row.detail?.contains(_kReminderManualOverrideMarker) != true,
+            )
+            .map((row) => row.id)
+            .toList();
+        await _deleteReminderOccurrenceRows(repo, inactiveIdsToDelete);
         continue;
       }
 
       final occurrences = _generateReminderOccurrences(rule, today, windowEnd);
+      final desiredDates = <String>{
+        for (final day in occurrences)
+          '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}',
+      };
+      final staleIdsToDelete = <String>[];
+      for (final row in existingRows) {
+        final cid = row.clientEventId ?? '';
+        final parts = cid.split(':');
+        final datePart = parts.isNotEmpty ? parts.last.trim() : '';
+        final hasOverride =
+            row.detail?.contains(_kReminderManualOverrideMarker) == true;
+        if (hasOverride) continue;
+        if (datePart.isEmpty || !desiredDates.contains(datePart)) {
+          staleIdsToDelete.add(row.id);
+        }
+      }
+      await _deleteReminderOccurrenceRows(repo, staleIdsToDelete);
+
       final flowIdForReminder = await _findFlowIdByReminderUuid(
         rule.id,
       ); // may be null/nonexistent
@@ -9823,6 +9814,46 @@ class _CalendarPageState extends State<CalendarPage>
       await _loadFromDisk();
     } else if (updateLocalCache && localCacheChanged) {
       _refreshNoteCacheUi();
+    }
+  }
+
+  Future<void> _deleteReminderOccurrenceRows(
+    UserEventsRepo repo,
+    List<String> idsToDelete,
+  ) async {
+    if (idsToDelete.isEmpty) return;
+    List<String> filteredIds = idsToDelete;
+    // Guard: ensure we only delete rows whose CID starts with reminder: to avoid nuking standalones.
+    try {
+      final cids = await repo.getClientEventIdsByIds(idsToDelete);
+      final mismatched = <String>[];
+      if (kDebugMode && cids.isNotEmpty) {
+        debugPrint(
+          '[syncReminderEvents] stale reminder occurrences (id:cid) ${cids.map((r) => '${r.id}:${r.clientEventId ?? ''}').join(', ')}',
+        );
+      }
+      filteredIds = cids
+          .where((row) => (row.clientEventId ?? '').startsWith('reminder:'))
+          .map((row) => row.id)
+          .toList();
+      mismatched.addAll(
+        cids
+            .where((row) => !(row.clientEventId ?? '').startsWith('reminder:'))
+            .map((row) => '${row.id}:${row.clientEventId ?? ''}'),
+      );
+      if (kDebugMode && mismatched.isNotEmpty) {
+        debugPrint(
+          '[syncReminderEvents] Skipping delete for non-reminder rows: ${mismatched.join(", ")}',
+        );
+      }
+    } catch (_) {}
+    if (filteredIds.isNotEmpty) {
+      if (kDebugMode) {
+        debugPrint(
+          '[syncReminderEvents] Deleting stale reminder occurrences ids=${filteredIds.join(", ")}',
+        );
+      }
+      await repo.deleteByIds(filteredIds);
     }
   }
 
