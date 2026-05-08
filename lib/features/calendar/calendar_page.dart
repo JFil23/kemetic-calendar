@@ -30838,18 +30838,26 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
               style: const TextStyle(color: Colors.white),
               decoration: _darkInput('Flow name'),
             ),
-            const SizedBox(height: 8),
-            // quick peek at overview (one-line, optional)
-            if (_overviewCtrl.text.trim().isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Text(
-                  _overviewCtrl.text.trim(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
+            const SizedBox(height: 14),
+            const Text(
+              'Overview',
+              style: TextStyle(color: _silver, fontSize: 12),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _overviewCtrl,
+              style: const TextStyle(color: Colors.white),
+              keyboardType: TextInputType.multiline,
+              textInputAction: TextInputAction.newline,
+              minLines: 4,
+              maxLines: 8,
+              decoration: _darkInput(
+                'Flow overview',
+                hint:
+                    'Describe the purpose, product list, outcomes, links, or context for this flow.',
               ),
+            ),
+            const SizedBox(height: 8),
 
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
