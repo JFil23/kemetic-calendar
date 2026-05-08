@@ -6,6 +6,24 @@ import '../data/share_repo.dart';
 import '../features/inbox/inbox_page.dart';
 import '../shared/glossy_text.dart';
 
+Widget _inboxGlyphIcon(Color iconColor) {
+  if (iconColor == KemeticGold.base) {
+    return KemeticGold.glyph(MeduNeterGlyphs.inbox);
+  }
+
+  return Text(
+    MeduNeterGlyphs.inbox,
+    style: TextStyle(
+      color: iconColor,
+      fontSize: 24,
+      fontWeight: FontWeight.w600,
+      height: 1,
+      fontFamily: 'GentiumPlus',
+      fontFamilyFallback: meduNeterFontFallback,
+    ),
+  );
+}
+
 class InboxUnreadDotOverlay extends StatelessWidget {
   final Widget child;
   final double top;
@@ -88,9 +106,7 @@ class InboxIconWithBadge extends StatelessWidget {
       shareRepo = ShareRepo(Supabase.instance.client);
     } on AssertionError {
       return IconButton(
-        icon: iconColor == KemeticGold.base
-            ? KemeticGold.icon(Icons.mail_outline)
-            : Icon(Icons.mail_outline, color: iconColor),
+        icon: _inboxGlyphIcon(iconColor),
         tooltip: 'Inbox',
         onPressed: () async {
           final importedFlowId = await Navigator.push(
@@ -117,10 +133,7 @@ class InboxIconWithBadge extends StatelessWidget {
       builder: (context, snapshot) {
         final unreadCount =
             (snapshot.data ?? const InboxUnreadState()).totalUnread;
-        final useGoldGradient = iconColor == KemeticGold.base;
-        final Widget iconWidget = useGoldGradient
-            ? KemeticGold.icon(Icons.mail_outline)
-            : Icon(Icons.mail_outline, color: iconColor);
+        final Widget iconWidget = _inboxGlyphIcon(iconColor);
 
         return Stack(
           clipBehavior: Clip.none,

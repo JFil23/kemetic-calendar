@@ -146,10 +146,7 @@ class KemeticDayViewHeader extends StatelessWidget {
                   ),
                   IconButton(
                     tooltip: 'My Profile',
-                    icon: const GlossyIcon(
-                      icon: Icons.person,
-                      gradient: goldGloss,
-                    ),
+                    icon: KemeticGold.glyph(MeduNeterGlyphs.profile, size: 20),
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     onPressed: () async {
                       if (onOpenProfile != null) {

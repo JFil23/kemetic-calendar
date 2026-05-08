@@ -42,7 +42,7 @@ class KemeticNodeListPage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             KemeticGold.text(
-              'sꜣt',
+              'Library',
               style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,

@@ -3683,19 +3683,23 @@ const double _kActionGridHPadding = 12.0;
 const double _kActionGridVPadding = 12.0;
 
 class _CalendarAction {
-  final IconData icon;
+  final IconData? icon;
+  final String? glyph;
+  final double glyphSize;
   final Gradient gradient;
   final String label;
   final bool showNotificationDot;
   final FutureOr<void> Function() onSelected;
 
   const _CalendarAction({
-    required this.icon,
+    this.icon,
+    this.glyph,
+    this.glyphSize = 22,
     required this.gradient,
     required this.label,
     this.showNotificationDot = false,
     required this.onSelected,
-  });
+  }) : assert(icon != null || glyph != null);
 }
 
 class _NotificationDotOverlay extends StatelessWidget {
@@ -3775,6 +3779,13 @@ class _CalendarActionsGrid extends StatelessWidget {
           itemCount: actions.length,
           itemBuilder: (ctx, index) {
             final action = actions[index];
+            final actionIcon = action.glyph != null
+                ? GlossyGlyph(
+                    glyph: action.glyph!,
+                    gradient: action.gradient,
+                    size: action.glyphSize,
+                  )
+                : _GlossyIcon(action.icon!, gradient: action.gradient);
             return InkWell(
               onTap: () => onSelected(action),
               borderRadius: BorderRadius.circular(12),
@@ -3788,13 +3799,15 @@ class _CalendarActionsGrid extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _NotificationDotOverlay(
-                      show: action.showNotificationDot,
-                      top: -4,
-                      right: -6,
-                      child: _GlossyIcon(
-                        action.icon,
-                        gradient: action.gradient,
+                    SizedBox(
+                      height: 30,
+                      child: Center(
+                        child: _NotificationDotOverlay(
+                          show: action.showNotificationDot,
+                          top: -4,
+                          right: -6,
+                          child: actionIcon,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -6886,9 +6899,21 @@ class _CalendarPageState extends State<CalendarPage>
         title: 'Ideas become your daily path.',
         description:
             'Generate Flows from any goal. Track easily. Reflect at decan\'s end. Share what you\'re building.',
-        primaryActionLabel: 'Start Building Today',
+        primaryActionLabel: 'Continue',
         visual: OnboardingActionPathVisual(),
         textBackplateOpacity: 0.60,
+        textBackplateBlurSigma: 14,
+      ),
+      const OnboardingSlide(
+        eyebrow: 'Shared growth',
+        title: 'Walk the rhythm with others.',
+        description:
+            'Share meaning, receive confirmation, and see how others are reading the same pattern.',
+        primaryActionLabel: 'Start Building Today',
+        visual: OnboardingSocialFeedVisual(),
+        backdropOpacity: 0.16,
+        backdropBlurSigma: 0,
+        textBackplateOpacity: 0.50,
         textBackplateBlurSigma: 14,
       ),
     ];
@@ -13520,56 +13545,59 @@ class _CalendarPageState extends State<CalendarPage>
   }) {
     return [
       _CalendarAction(
-        icon: Icons.menu_book_outlined,
+        glyph: MeduNeterGlyphs.journal,
         gradient: goldGloss,
         label: 'Journal',
         onSelected: _openJournalFromAppBar,
       ),
       _CalendarAction(
-        icon: Icons.wb_sunny_outlined,
+        glyph: MeduNeterGlyphs.planner,
         gradient: goldGloss,
         label: 'Planner',
         onSelected: () => _openPlannerPage(navigationContext: context),
       ),
       _CalendarAction(
-        icon: Icons.mail_outline,
+        glyph: MeduNeterGlyphs.inbox,
         gradient: goldGloss,
         label: 'Inbox',
         showNotificationDot: hasUnreadInbox,
         onSelected: _openInboxFromMenu,
       ),
       _CalendarAction(
-        icon: Icons.calendar_month_outlined,
+        glyph: MeduNeterGlyphs.calendars,
         gradient: goldGloss,
         label: 'Calendars',
         onSelected: _openSharedCalendarsSheet,
       ),
       _CalendarAction(
-        icon: Icons.psychology_alt_outlined,
+        glyph: MeduNeterGlyphs.reflections,
+        glyphSize: 18,
         gradient: goldGloss,
         label: 'Reflections',
         onSelected: _openReflectionsFromMenu,
       ),
       _CalendarAction(
-        icon: Icons.auto_awesome,
+        glyph: MeduNeterGlyphs.library,
+        glyphSize: 20,
         gradient: goldGloss,
-        label: 'sꜣt',
+        label: 'Library',
         onSelected: () => _openKemeticNodes(context),
       ),
       _CalendarAction(
-        icon: Icons.settings,
+        glyph: MeduNeterGlyphs.settings,
         gradient: goldGloss,
         label: 'Settings',
         onSelected: _openSettingsFromMenu,
       ),
       _CalendarAction(
-        icon: Icons.search,
+        glyph: MeduNeterGlyphs.search,
         gradient: silverGloss,
         label: 'Search',
         onSelected: _openSearch,
       ),
       _CalendarAction(
-        icon: Icons.view_timeline,
+        glyph: MeduNeterGlyphs.flowStudio,
+        glyphSize: 20,
         gradient: goldGloss,
         label: 'Flow Studio',
         onSelected: () => _getFlowStudioCallback()(null),
@@ -13798,7 +13826,7 @@ class _CalendarPageState extends State<CalendarPage>
         ),
         IconButton(
           tooltip: 'My Profile',
-          icon: const _GlossyIcon(Icons.person, gradient: goldGloss),
+          icon: KemeticGold.glyph(MeduNeterGlyphs.profile, size: 20),
           onPressed: () => _openProfile(context),
         ),
       ],

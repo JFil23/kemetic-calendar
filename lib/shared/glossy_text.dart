@@ -128,6 +128,68 @@ class GlossyIcon extends StatelessWidget {
   }
 }
 
+const List<String> meduNeterFontFallback = [
+  'Noto Sans Egyptian Hieroglyphs',
+  'NotoSansEgyptianHieroglyphs',
+  'NotoSans',
+  'Roboto',
+  'Arial',
+  'sans-serif',
+];
+
+class MeduNeterGlyphs {
+  const MeduNeterGlyphs._();
+
+  static const String journal = '𓏞';
+  static const String planner = '𓏥';
+  static const String inbox = '𓏛';
+  static const String calendars = '𓆳';
+  static const String profile = '𓀀';
+  static const String reflections = '𓋴𓇋𓄿';
+  static const String library = '𓉐𓏛';
+  static const String settings = '𓌀';
+  static const String search = '𓁹';
+  static const String flowStudio = '𓏞𓈖';
+}
+
+class GlossyGlyph extends StatelessWidget {
+  final String glyph;
+  final Gradient gradient;
+  final double size;
+  final TextStyle? style;
+
+  const GlossyGlyph({
+    super.key,
+    required this.glyph,
+    required this.gradient,
+    this.size = 24,
+    this.style,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final baseStyle = TextStyle(
+      color: Colors.white,
+      fontSize: size,
+      fontWeight: FontWeight.w600,
+      height: 1,
+      letterSpacing: 0,
+      fontFamily: 'GentiumPlus',
+      fontFamilyFallback: meduNeterFontFallback,
+    );
+
+    return GlossyText(
+      text: glyph,
+      gradient: gradient,
+      style: baseStyle.merge(style),
+      maxLines: 1,
+      softWrap: false,
+      overflow: TextOverflow.visible,
+      textAlign: TextAlign.center,
+    );
+  }
+}
+
 // ---- Single source of truth for gold styling ----
 class KemeticGold {
   static const Color light = goldLight;
@@ -156,5 +218,14 @@ class KemeticGold {
 
   static GlossyIcon icon(IconData icon, {double? size}) {
     return GlossyIcon(icon: icon, gradient: gloss, size: size);
+  }
+
+  static GlossyGlyph glyph(String glyph, {double? size, TextStyle? style}) {
+    return GlossyGlyph(
+      glyph: glyph,
+      gradient: gloss,
+      size: size ?? 24,
+      style: style,
+    );
   }
 }

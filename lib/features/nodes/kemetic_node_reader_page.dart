@@ -131,7 +131,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               KemeticGold.text(
-                'sꜣt',
+                'Library',
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,

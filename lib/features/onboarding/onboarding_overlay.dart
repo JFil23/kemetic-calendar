@@ -5,9 +5,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/features/calendar/day_view_chrome.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
+import 'package:mobile/features/profile/profile_backdrop_timeline.dart';
 import 'package:mobile/features/rhythm/theme/rhythm_theme.dart';
 import 'package:mobile/features/rhythm/widgets/rhythm_section_card.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/widgets/kemetic_heart_icon.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 
@@ -1580,6 +1582,1268 @@ class _OnboardingActionPathVisualState extends State<OnboardingActionPathVisual>
           );
         },
       ),
+    );
+  }
+}
+
+class OnboardingSocialFeedVisual extends StatefulWidget {
+  const OnboardingSocialFeedVisual({super.key});
+
+  @override
+  State<OnboardingSocialFeedVisual> createState() =>
+      _OnboardingSocialFeedVisualState();
+}
+
+class _OnboardingSocialFeedVisualState extends State<OnboardingSocialFeedVisual>
+    with TickerProviderStateMixin {
+  late final AnimationController _ambientController = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 18),
+  )..repeat();
+
+  late final AnimationController _feedController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 9000),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _ambientController.dispose();
+    _feedController.dispose();
+    super.dispose();
+  }
+
+  double _reveal(double value, double start, double end) {
+    if (value <= start) return 0;
+    if (value >= end) return 1;
+    return Curves.easeOutCubic.transform((value - start) / (end - start));
+  }
+
+  double _closeableReveal(
+    double value, {
+    required double openStart,
+    required double openEnd,
+    required double closeStart,
+    required double closeEnd,
+  }) {
+    return _reveal(value, openStart, openEnd) *
+        (1 - _reveal(value, closeStart, closeEnd));
+  }
+
+  double _pulse(double value, double start, double end) {
+    if (value <= start || value >= end) return 0;
+    final t = (value - start) / (end - start);
+    return math.sin(t * math.pi).clamp(0.0, 1.0).toDouble();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_ambientController, _feedController]),
+        builder: (context, _) {
+          final ambientT = _ambientController.value;
+          final feedT = _feedController.value;
+          final float = math.sin((ambientT * math.pi * 2) + 0.18) * 4.0;
+          final shimmer = 0.5 + 0.5 * math.sin(ambientT * math.pi * 2);
+          final detailProgress = _closeableReveal(
+            feedT,
+            openStart: 0.38,
+            openEnd: 0.50,
+            closeStart: 0.88,
+            closeEnd: 0.98,
+          );
+          final detailScroll = _reveal(feedT, 0.56, 0.82);
+          final tapProgress = _pulse(feedT, 0.30, 0.43);
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final height = constraints.maxHeight;
+
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  const Positioned.fill(
+                    child: ProfileDayCycleBackdrop(opacity: 0.82),
+                  ),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            const Color(0xFF004D76).withValues(alpha: 0.58),
+                            Colors.black.withValues(alpha: 0.12),
+                            Colors.black.withValues(alpha: 0.62),
+                            Colors.black.withValues(alpha: 0.96),
+                          ],
+                          stops: const [0.0, 0.26, 0.68, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Transform.translate(
+                    offset: Offset(0, float),
+                    child: _OnboardingSocialFeedCard(
+                      width: width,
+                      height: height,
+                      firstReveal: _reveal(feedT, 0.00, 0.28),
+                      secondReveal: _reveal(feedT, 0.18, 0.52),
+                      thirdReveal: _reveal(feedT, 0.36, 0.74),
+                      tapProgress: tapProgress,
+                      detailProgress: detailProgress,
+                      detailScroll: detailScroll,
+                      pulse: shimmer,
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _OnboardingSocialFeedCard extends StatelessWidget {
+  const _OnboardingSocialFeedCard({
+    required this.width,
+    required this.height,
+    required this.firstReveal,
+    required this.secondReveal,
+    required this.thirdReveal,
+    required this.tapProgress,
+    required this.detailProgress,
+    required this.detailScroll,
+    required this.pulse,
+  });
+
+  final double width;
+  final double height;
+  final double firstReveal;
+  final double secondReveal;
+  final double thirdReveal;
+  final double tapProgress;
+  final double detailProgress;
+  final double detailScroll;
+  final double pulse;
+
+  @override
+  Widget build(BuildContext context) {
+    final showRealFeedPreview = width >= 0;
+    if (showRealFeedPreview) {
+      return _OnboardingRealFeedScreen(
+        width: width,
+        height: height,
+        firstReveal: firstReveal,
+        secondReveal: secondReveal,
+        thirdReveal: thirdReveal,
+        tapProgress: tapProgress,
+        detailProgress: detailProgress,
+        detailScroll: detailScroll,
+        pulse: pulse,
+      );
+    }
+
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFF030303),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.42),
+            blurRadius: 32,
+            offset: const Offset(0, 16),
+          ),
+          BoxShadow(
+            color: KemeticGold.base.withValues(alpha: 0.10 + pulse * 0.06),
+            blurRadius: 28,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      KemeticGold.base.withValues(alpha: 0.12),
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.18),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [goldLight, gold, goldDeep],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: KemeticGold.base.withValues(alpha: 0.25),
+                              blurRadius: 18,
+                            ),
+                          ],
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'ḥ',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              fontFamily: 'GentiumPlus',
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const GlossyText(
+                              text: 'Shared Confirmation',
+                              gradient: goldGloss,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'GentiumPlus',
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Flows, insights, and witness from the field',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.58),
+                                fontSize: 11.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _OnboardingFeedPost(
+                    reveal: firstReveal,
+                    avatarText: 'A',
+                    label: 'Amina shared a practice',
+                    title: '10-day strength rhythm',
+                    body:
+                        'Building slowly. One offering to the body before the day scatters.',
+                    footer: '12 confirmations',
+                  ),
+                  const SizedBox(height: 10),
+                  _OnboardingFeedPost(
+                    reveal: secondReveal,
+                    avatarText: 'K',
+                    label: 'Khepri posted an insight',
+                    title: 'Today asked me to simplify.',
+                    body:
+                        'The pattern was not more effort. It was removing what fed chaos.',
+                    footer: '8 replies',
+                    compact: true,
+                  ),
+                  const SizedBox(height: 10),
+                  _OnboardingFeedPost(
+                    reveal: thirdReveal,
+                    avatarText: 'N',
+                    label: 'Nia witnessed your flow',
+                    title: 'This helped me name my own rhythm.',
+                    body:
+                        'Shared growth turns private insight into confirmation.',
+                    footer: 'Walk together',
+                    compact: true,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OnboardingRealFeedScreen extends StatelessWidget {
+  const _OnboardingRealFeedScreen({
+    required this.width,
+    required this.height,
+    required this.firstReveal,
+    required this.secondReveal,
+    required this.thirdReveal,
+    required this.tapProgress,
+    required this.detailProgress,
+    required this.detailScroll,
+    required this.pulse,
+  });
+
+  final double width;
+  final double height;
+  final double firstReveal;
+  final double secondReveal;
+  final double thirdReveal;
+  final double tapProgress;
+  final double detailProgress;
+  final double detailScroll;
+  final double pulse;
+
+  @override
+  Widget build(BuildContext context) {
+    final horizontal = width < 380 ? 22.0 : 30.0;
+    final topBarHeight = math.max(52.0, math.min(64.0, height * 0.085));
+    final headerTop = topBarHeight + 8;
+    final panelTop = math.max(headerTop + 96, height * 0.22);
+    final columnGap = width < 380 ? 10.0 : 14.0;
+    final cardGlow = 0.10 + (pulse * 0.04);
+
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: topBarHeight,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFF004D76).withValues(alpha: 0.96),
+                    const Color(0xFF004D76).withValues(alpha: 0.58),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.72, 1.0],
+                ),
+              ),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(horizontal, 10, horizontal, 8),
+                child: Row(
+                  children: [
+                    KemeticGold.icon(Icons.close, size: 28),
+                    const SizedBox(width: 28),
+                    const GlossyText(
+                      text: 'ḥꜣw',
+                      gradient: goldGloss,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        fontFamily: 'GentiumPlus',
+                      ),
+                    ),
+                    const Spacer(),
+                    KemeticGold.icon(Icons.add, size: 28),
+                    const SizedBox(width: 22),
+                    KemeticGold.icon(Icons.calendar_today, size: 26),
+                    const SizedBox(width: 22),
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        KemeticGold.icon(Icons.apps, size: 28),
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF4A58),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.black,
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 22),
+                    KemeticGold.icon(Icons.person, size: 28),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: headerTop,
+            left: horizontal,
+            right: horizontal,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const GlossyText(
+                  text: 'Shared Confirmation',
+                  gradient: goldGloss,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'GentiumPlus',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Flows and insights from the people you follow, plus the wider field of meaning.',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.70),
+                    fontSize: 14,
+                    height: 1.26,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: KemeticGold.light.withValues(alpha: 0.82),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Pull down at the top to return to profile',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.58),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            top: panelTop,
+            left: horizontal + 2,
+            right: horizontal + 2,
+            bottom: -height * 0.24,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.34),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: KemeticGold.base.withValues(alpha: 0.34),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.28),
+                    blurRadius: 26,
+                    offset: const Offset(0, 14),
+                  ),
+                  BoxShadow(
+                    color: KemeticGold.base.withValues(alpha: cardGlow),
+                    blurRadius: 24,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 30, 24, 24),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          children: [
+                            _OnboardingFeedPost(
+                              reveal: firstReveal,
+                              avatarText: 'ḥ',
+                              label: 'Your Flow',
+                              title:
+                                  '30-Day Flow: Conditioning the Subconscious for Wealth, A...',
+                              body: 'BigJFil',
+                              footer: 'Posted Thoth ...',
+                              tapProgress: tapProgress,
+                            ),
+                            const SizedBox(height: 16),
+                            _OnboardingFeedPost(
+                              reveal: thirdReveal,
+                              avatarText: 'ḥ',
+                              label: 'Following',
+                              title: 'Cooking and Art Mastery',
+                              body: 'October/potato\n@potato',
+                              footer: 'Posted Thoth ...',
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: columnGap),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            _OnboardingFeedPost(
+                              reveal: secondReveal,
+                              avatarText: 'ḥ',
+                              label: 'Your Flow',
+                              title: '10-Day Yoga Plan',
+                              body: 'BigJFil',
+                              footer: 'Posted Paopi (...',
+                              compact: true,
+                            ),
+                            const SizedBox(height: 16),
+                            _OnboardingFeedPost(
+                              reveal: thirdReveal,
+                              avatarText: 'ḥ',
+                              label: 'Your Flow',
+                              title:
+                                  'ḥꜣw Series: Ten Layers of Time\'s Presence',
+                              body: 'BigJFil',
+                              footer: 'Posted Mesut-...',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (detailProgress > 0)
+            Positioned(
+              top: math.max(topBarHeight + 48, height * 0.13),
+              left: horizontal + 12,
+              right: horizontal + 12,
+              bottom: 146,
+              child: _OnboardingPostDetailPreview(
+                progress: detailProgress,
+                scroll: detailScroll,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OnboardingFeedPost extends StatelessWidget {
+  const _OnboardingFeedPost({
+    required this.reveal,
+    required this.avatarText,
+    required this.label,
+    required this.title,
+    required this.body,
+    required this.footer,
+    this.compact = false,
+    this.tapProgress = 0,
+  });
+
+  final double reveal;
+  final String avatarText;
+  final String label;
+  final String title;
+  final String body;
+  final String footer;
+  final bool compact;
+  final double tapProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = label == 'Following'
+        ? const Color(0xFF16D7D4)
+        : label == 'Community'
+        ? KemeticGold.base
+        : const Color(0xFF7C4DFF);
+    final authorLines = body.split('\n');
+    final authorName = authorLines.first;
+    final authorHandle = authorLines.length > 1 ? authorLines[1] : null;
+    final reactions = label == 'Following'
+        ? 3
+        : compact
+        ? 1
+        : 2;
+    final replies = label == 'Following' ? 5 : 0;
+
+    return Opacity(
+      opacity: reveal,
+      child: Transform.translate(
+        offset: Offset(0, (1 - reveal) * 22),
+        child: Transform.scale(
+          scale: 1 + (tapProgress * 0.018),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                padding: EdgeInsets.fromLTRB(14, 14, 14, compact ? 14 : 18),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.46),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: KemeticGold.base.withValues(
+                      alpha: 0.28 + (tapProgress * 0.42),
+                    ),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.30),
+                      blurRadius: 18,
+                      offset: const Offset(0, 10),
+                    ),
+                    if (tapProgress > 0)
+                      BoxShadow(
+                        color: KemeticGold.base.withValues(
+                          alpha: 0.18 * tapProgress,
+                        ),
+                        blurRadius: 28,
+                        spreadRadius: 2,
+                      ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: accent.withValues(alpha: 0.34),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: accent,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: accent.withValues(alpha: 0.34),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: accent.withValues(alpha: 0.98),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.74),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: KemeticGold.base.withValues(alpha: 0.34),
+                            ),
+                          ),
+                          child: Center(
+                            child: KemeticGold.text(
+                              avatarText,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                fontFamily: 'GentiumPlus',
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                authorName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  fontFamily: 'GentiumPlus',
+                                ),
+                              ),
+                              if (authorHandle != null) ...[
+                                const SizedBox(height: 1),
+                                Text(
+                                  authorHandle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.52),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: compact ? 16 : 18),
+                    KemeticGold.text(
+                      title,
+                      maxLines: compact ? 3 : 5,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: compact ? 20 : 21,
+                        fontWeight: FontWeight.w800,
+                        height: 1.06,
+                        fontFamily: 'GentiumPlus',
+                      ),
+                    ),
+                    SizedBox(height: compact ? 16 : 18),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.schedule_outlined,
+                          size: 15,
+                          color: Colors.white.withValues(alpha: 0.46),
+                        ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            footer,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.54),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.north_east_rounded,
+                          size: 18,
+                          color: KemeticGold.light.withValues(alpha: 0.92),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: compact ? 18 : 22),
+                    Row(
+                      children: [
+                        KemeticHeartIcon(
+                          size: 22,
+                          color: label == 'Following'
+                              ? const Color(0xFFFF465A)
+                              : KemeticGold.base,
+                          filled: label == 'Following',
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$reactions',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          color: KemeticGold.base,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$replies',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (tapProgress > 0)
+                Positioned(
+                  right: 16 - (tapProgress * 2),
+                  top: 18 - (tapProgress * 2),
+                  child: Opacity(
+                    opacity: tapProgress,
+                    child: Container(
+                      width: 42 + (tapProgress * 12),
+                      height: 42 + (tapProgress * 12),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: KemeticGold.light.withValues(alpha: 0.13),
+                        border: Border.all(
+                          color: KemeticGold.light.withValues(alpha: 0.62),
+                        ),
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: KemeticGold.light,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OnboardingPostDetailPreview extends StatelessWidget {
+  const _OnboardingPostDetailPreview({
+    required this.progress,
+    required this.scroll,
+  });
+
+  final double progress;
+  final double scroll;
+
+  @override
+  Widget build(BuildContext context) {
+    final open = Curves.easeOutCubic.transform(progress.clamp(0.0, 1.0));
+    final scrollT = Curves.easeInOutCubic.transform(scroll.clamp(0.0, 1.0));
+    final scrollY = -128.0 * scrollT;
+
+    return Opacity(
+      opacity: open,
+      child: Transform.translate(
+        offset: Offset(0, (1 - open) * 28),
+        child: Transform.scale(
+          alignment: Alignment.topCenter,
+          scale: 0.94 + (0.06 * open),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.84),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: KemeticGold.base.withValues(alpha: 0.44),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.48),
+                  blurRadius: 34,
+                  offset: const Offset(0, 18),
+                ),
+                BoxShadow(
+                  color: KemeticGold.base.withValues(alpha: 0.14),
+                  blurRadius: 30,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            KemeticGold.base.withValues(alpha: 0.14),
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.28),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            KemeticGold.icon(Icons.close, size: 20),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: GlossyText(
+                                text: 'Flow detail',
+                                gradient: goldGloss,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  fontFamily: 'GentiumPlus',
+                                ),
+                              ),
+                            ),
+                            KemeticGold.icon(
+                              Icons.bookmark_add_outlined,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Expanded(
+                          child: ClipRect(
+                            child: Transform.translate(
+                              offset: Offset(0, scrollY),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _DetailPill(
+                                    label: 'Your Flow',
+                                    accent: const Color(0xFF7C4DFF),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 34,
+                                        height: 34,
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.76,
+                                          ),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: KemeticGold.base.withValues(
+                                              alpha: 0.34,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: KemeticGold.text(
+                                            'ḥ',
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w900,
+                                              fontFamily: 'GentiumPlus',
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      const Expanded(
+                                        child: Text(
+                                          'BigJFil',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w800,
+                                            fontFamily: 'GentiumPlus',
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  KemeticGold.text(
+                                    '30-Day Flow: Conditioning the Subconscious for Wealth, Abundance, and Order',
+                                    maxLines: 4,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w900,
+                                      height: 1.06,
+                                      fontFamily: 'GentiumPlus',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.schedule_outlined,
+                                        size: 15,
+                                        color: Colors.white.withValues(
+                                          alpha: 0.48,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 7),
+                                      Text(
+                                        'Posted Thoth 29',
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.58,
+                                          ),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      const KemeticHeartIcon(
+                                        size: 20,
+                                        color: Color(0xFFFF465A),
+                                        filled: true,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      const Text(
+                                        '2',
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Icon(
+                                        Icons.chat_bubble_outline_rounded,
+                                        color: KemeticGold.base,
+                                        size: 21,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      const Text(
+                                        '0',
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 22),
+                                  _DetailSection(
+                                    title: 'Practice rhythm',
+                                    body:
+                                        'A daily sequence for study, breath, food, body, and money attention. Each check-in turns intention into visible rhythm.',
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _DetailSection(
+                                    title: 'Today asks',
+                                    body:
+                                        'Notice where scattered desire can become order. Choose the smallest action that confirms the person you are becoming.',
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _DetailComment(
+                                    name: 'October/potato',
+                                    text:
+                                        'This helped me name the pattern I was already trying to build.',
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _DetailComment(
+                                    name: 'Nia',
+                                    text:
+                                        'Saved this flow for my next decan. The structure makes the work feel reachable.',
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.center,
+                          child: Container(
+                            width: 36,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: KemeticGold.base.withValues(alpha: 0.58),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailPill extends StatelessWidget {
+  const _DetailPill({required this.label, required this.accent});
+
+  final String label;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.34)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: accent.withValues(alpha: 0.98),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailSection extends StatelessWidget {
+  const _DetailSection({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.055),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          KemeticGold.text(
+            title,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            body,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.70),
+              fontSize: 12,
+              height: 1.32,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailComment extends StatelessWidget {
+  const _DetailComment({required this.name, required this.text});
+
+  final String name;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: KemeticGold.base.withValues(alpha: 0.16),
+            border: Border.all(color: KemeticGold.base.withValues(alpha: 0.28)),
+          ),
+          child: Center(
+            child: KemeticGold.text(
+              name.isEmpty ? '?' : name.substring(0, 1),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+            ),
+          ),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                text,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.64),
+                  fontSize: 11.5,
+                  height: 1.28,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

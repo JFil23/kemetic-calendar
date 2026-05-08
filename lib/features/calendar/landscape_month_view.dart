@@ -1072,7 +1072,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
               // Flow Studio button - OUTSIDE GestureDetector (no gesture interference)
               IconButton(
                 tooltip: 'Flow Studio',
-                icon: KemeticGold.icon(Icons.view_timeline),
+                icon: KemeticGold.glyph(MeduNeterGlyphs.flowStudio, size: 22),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 onPressed: widget.onManageFlows != null
                     ? () {

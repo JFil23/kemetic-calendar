@@ -65,7 +65,7 @@ class GlyphBackButton extends StatelessWidget {
               if (showLabel) ...[
                 const SizedBox(height: 2),
                 const Text(
-                  'sꜣt',
+                  'Library',
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 11,

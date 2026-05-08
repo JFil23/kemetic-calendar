@@ -1129,7 +1129,7 @@ class _ProfilePageState extends State<ProfilePage>
           if (_feedRevealed)
             IconButton(
               tooltip: 'Profile',
-              icon: _profileGoldIcon(Icons.person),
+              icon: _profileGoldGlyph(MeduNeterGlyphs.profile, size: 20),
               onPressed: () {
                 unawaited(_closeFeed());
               },
@@ -1137,7 +1137,7 @@ class _ProfilePageState extends State<ProfilePage>
           else if (!_isViewingOwnProfile)
             IconButton(
               tooltip: 'My Profile',
-              icon: _profileGoldIcon(Icons.person),
+              icon: _profileGoldGlyph(MeduNeterGlyphs.profile, size: 20),
               onPressed: _openMyProfileAction,
             ),
         ],
@@ -1371,6 +1371,14 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget _profileGoldIcon(IconData icon, {double? size}) {
     return GlossyIcon(icon: icon, gradient: _profileGoldGradient, size: size);
+  }
+
+  Widget _profileGoldGlyph(String glyph, {double? size}) {
+    return GlossyGlyph(
+      glyph: glyph,
+      gradient: _profileGoldGradient,
+      size: size ?? 24,
+    );
   }
 
   Widget _buildGlyphSignature(UserProfile profile) {
