@@ -5454,12 +5454,1088 @@ class _CalendarPageState extends State<CalendarPage>
     final changed = await SharedCalendarsSheet.show(
       context,
       repo: _sharedCalendarsRepo,
+      onAddEventRequested: _openCalendarScopedNoteDialog,
     );
     await _loadCalendarState();
     if (changed == true) {
       await _loadFromDisk();
     } else {
       _refreshNoteCacheUi();
+    }
+  }
+
+  Future<bool> _openCalendarScopedNoteDialog(
+    SharedCalendarSummary calendar,
+  ) async {
+    final calendarId = _normalizeCalendarId(calendar.id);
+    if (calendarId == null) return false;
+    final lockedCalendar = _calendarSummary(calendarId) ?? calendar;
+    if (!lockedCalendar.canEdit) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You can view this calendar, but you cannot edit it.'),
+        ),
+      );
+      return false;
+    }
+
+    final controllerTitle = TextEditingController();
+    final controllerLocation = TextEditingController();
+    final controllerDetail = TextEditingController();
+
+    int selYear = _today.kYear;
+    int selMonth = _today.kMonth;
+    int selDay = _today.kDay;
+    final initialGregorianDate = KemeticMath.toGregorian(
+      selYear,
+      selMonth,
+      selDay,
+    );
+    bool showGregorianDates = _showGregorian;
+    int gregYear = initialGregorianDate.year;
+    int gregMonth = initialGregorianDate.month;
+    int gregDay = initialGregorianDate.day;
+
+    int maxDayFor(int year, int month) =>
+        (month == 13) ? (KemeticMath.isLeapKemeticYear(year) ? 6 : 5) : 30;
+    int gregDayMax(int year, int month) =>
+        DateUtils.getDaysInMonth(year, month);
+
+    final int yearStart = _today.kYear - 200;
+    final yearCtrl = FixedExtentScrollController(
+      initialItem: (selYear - yearStart).clamp(0, 400).toInt(),
+    );
+    final monthCtrl = FixedExtentScrollController(
+      initialItem: (selMonth - 1).clamp(0, 12).toInt(),
+    );
+    final dayCtrl = FixedExtentScrollController(initialItem: selDay - 1);
+    final int gregYearStart = initialGregorianDate.year - 200;
+    final gregYearCtrl = FixedExtentScrollController(
+      initialItem: (gregYear - gregYearStart).clamp(0, 400).toInt(),
+    );
+    final gregMonthCtrl = FixedExtentScrollController(
+      initialItem: (gregMonth - 1).clamp(0, 11).toInt(),
+    );
+    final gregDayCtrl = FixedExtentScrollController(
+      initialItem: (gregDay - 1).clamp(0, 30).toInt(),
+    );
+
+    bool allDay = false;
+    TimeOfDay? startTime = const TimeOfDay(hour: 12, minute: 0);
+    TimeOfDay? endTime = const TimeOfDay(hour: 13, minute: 0);
+    String? selectedCategory;
+    int alertMinutesBefore = _alertNoneMinutes;
+    final initialColorIndex = _flowPalette.indexWhere(
+      (color) => color == lockedCalendar.color,
+    );
+    int selectedColorIndex = initialColorIndex >= 0 ? initialColorIndex : 0;
+    bool isSaving = false;
+    String? errorText;
+    bool controllersDisposed = false;
+
+    void scheduleDayPickerJump() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (controllersDisposed || !dayCtrl.hasClients) return;
+        dayCtrl.jumpToItem(selDay - 1);
+      });
+    }
+
+    void scheduleGregorianDayPickerJump() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (controllersDisposed || !gregDayCtrl.hasClients) return;
+        gregDayCtrl.jumpToItem(gregDay - 1);
+      });
+    }
+
+    void syncGregorianControllers() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (controllersDisposed) return;
+        if (gregYearCtrl.hasClients) {
+          gregYearCtrl.jumpToItem(
+            (gregYear - gregYearStart).clamp(0, 400).toInt(),
+          );
+        }
+        if (gregMonthCtrl.hasClients) {
+          gregMonthCtrl.jumpToItem((gregMonth - 1).clamp(0, 11).toInt());
+        }
+        if (gregDayCtrl.hasClients) {
+          gregDayCtrl.jumpToItem((gregDay - 1).clamp(0, 30).toInt());
+        }
+      });
+    }
+
+    void syncKemeticControllers() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (controllersDisposed) return;
+        if (yearCtrl.hasClients) {
+          yearCtrl.jumpToItem((selYear - yearStart).clamp(0, 400).toInt());
+        }
+        if (monthCtrl.hasClients) {
+          monthCtrl.jumpToItem((selMonth - 1).clamp(0, 12).toInt());
+        }
+        if (dayCtrl.hasClients) {
+          dayCtrl.jumpToItem((selDay - 1).clamp(0, 29).toInt());
+        }
+      });
+    }
+
+    void syncGregorianFromKemetic() {
+      final gregorian = KemeticMath.toGregorian(selYear, selMonth, selDay);
+      gregYear = gregorian.year;
+      gregMonth = gregorian.month;
+      gregDay = gregorian.day;
+    }
+
+    void syncKemeticFromGregorian() {
+      final kemetic = KemeticMath.fromGregorian(
+        DateUtils.dateOnly(DateTime(gregYear, gregMonth, gregDay)),
+      );
+      selYear = kemetic.kYear;
+      selMonth = kemetic.kMonth;
+      selDay = kemetic.kDay;
+    }
+
+    Future<void> pickStart(
+      BuildContext dialogCtx,
+      StateSetter setDialogState,
+    ) async {
+      final t = await showTimePicker(
+        context: dialogCtx,
+        initialTime: startTime ?? const TimeOfDay(hour: 12, minute: 0),
+        builder: (c, w) => Theme(
+          data: Theme.of(c).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: _gold,
+              surface: _bg,
+              onSurface: Colors.white,
+            ),
+          ),
+          child: w ?? const SizedBox.shrink(),
+        ),
+      );
+      if (t == null) return;
+      setDialogState(() {
+        startTime = t;
+        if (endTime != null && _toMinutes(endTime!) <= _toMinutes(t)) {
+          endTime = _addMinutes(t, 60);
+        }
+      });
+    }
+
+    Future<void> pickEnd(
+      BuildContext dialogCtx,
+      StateSetter setDialogState,
+    ) async {
+      final t = await showTimePicker(
+        context: dialogCtx,
+        initialTime:
+            endTime ??
+            (startTime != null
+                ? _addMinutes(startTime!, 60)
+                : const TimeOfDay(hour: 13, minute: 0)),
+        builder: (c, w) => Theme(
+          data: Theme.of(c).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: _gold,
+              surface: _bg,
+              onSurface: Colors.white,
+            ),
+          ),
+          child: w ?? const SizedBox.shrink(),
+        ),
+      );
+      if (t == null) return;
+      setDialogState(() {
+        endTime = t;
+        if (startTime != null && _toMinutes(t) <= _toMinutes(startTime!)) {
+          startTime = _addMinutes(t, -60);
+        }
+      });
+    }
+
+    Widget timeButton({
+      required String label,
+      required TimeOfDay? value,
+      required VoidCallback onTap,
+      required bool enabled,
+    }) {
+      final text = value == null ? '--:--' : _formatTimeOfDay(value);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Color(0xFFBFC3C7)),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 40,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: _silver, width: 1),
+              ),
+              onPressed: enabled ? onTap : null,
+              child: Text(text),
+            ),
+          ),
+        ],
+      );
+    }
+
+    try {
+      return await showDialog<bool>(
+            context: context,
+            barrierDismissible: !isSaving,
+            builder: (dialogCtx) {
+              final media = MediaQuery.of(dialogCtx);
+              return StatefulBuilder(
+                builder: (dialogCtx, setDialogState) {
+                  int dayCount = maxDayFor(selYear, selMonth);
+                  if (selDay > dayCount) {
+                    selDay = dayCount;
+                    if (dayCtrl.hasClients) scheduleDayPickerJump();
+                  }
+
+                  final titleG = KemeticMath.toGregorian(
+                    selYear,
+                    selMonth,
+                    selDay,
+                  );
+                  syncGregorianFromKemetic();
+                  final titleGradient = showGregorianDates
+                      ? whiteGloss
+                      : goldGloss;
+                  final wheelGradient = showGregorianDates
+                      ? blueGloss
+                      : goldGloss;
+                  final dateTitleStyle = const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'GentiumPlus',
+                    fontFamilyFallback: [
+                      'NotoSans',
+                      'Roboto',
+                      'Arial',
+                      'sans-serif',
+                    ],
+                  );
+
+                  Widget datePicker() {
+                    final titleWidget = Semantics(
+                      button: true,
+                      label: showGregorianDates
+                          ? 'Show Kemetic dates'
+                          : 'Show Gregorian dates',
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          setDialogState(() {
+                            showGregorianDates = !showGregorianDates;
+                            if (showGregorianDates) {
+                              syncGregorianFromKemetic();
+                              syncGregorianControllers();
+                            } else {
+                              syncKemeticFromGregorian();
+                              syncKemeticControllers();
+                            }
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Center(
+                            child: Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                _GlossyMonthNameText(
+                                  text: showGregorianDates
+                                      ? _gregMonthNames[titleG.month]
+                                      : _monthLabel(selMonth),
+                                  style: dateTitleStyle,
+                                  gradient: titleGradient,
+                                ),
+                                GlossyText(
+                                  text: showGregorianDates
+                                      ? ' ${titleG.day} • ${titleG.year}'
+                                      : ' $selDay • ${titleG.year}',
+                                  textAlign: TextAlign.center,
+                                  style: dateTitleStyle,
+                                  gradient: titleGradient,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.fade,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        titleWidget,
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          height: 128,
+                          child: showGregorianDates
+                              ? Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 4,
+                                      child: CupertinoPicker(
+                                        scrollController: gregMonthCtrl,
+                                        itemExtent: 32,
+                                        looping: true,
+                                        backgroundColor: const Color(
+                                          0x00121214,
+                                        ),
+                                        onSelectedItemChanged: (i) {
+                                          setDialogState(() {
+                                            gregMonth = (i % 12) + 1;
+                                            final max = gregDayMax(
+                                              gregYear,
+                                              gregMonth,
+                                            );
+                                            if (gregDay > max) {
+                                              gregDay = max;
+                                              if (gregDayCtrl.hasClients) {
+                                                scheduleGregorianDayPickerJump();
+                                              }
+                                            }
+                                            syncKemeticFromGregorian();
+                                          });
+                                        },
+                                        children: List<Widget>.generate(12, (
+                                          i,
+                                        ) {
+                                          final label = _gregMonthNames[i + 1];
+                                          return Center(
+                                            child: GlossyText(
+                                              text: label,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                              gradient: wheelGradient,
+                                            ),
+                                          );
+                                        }),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      flex: 3,
+                                      child: CupertinoPicker(
+                                        scrollController: gregDayCtrl,
+                                        itemExtent: 32,
+                                        looping: true,
+                                        backgroundColor: const Color(
+                                          0x00121214,
+                                        ),
+                                        onSelectedItemChanged: (i) {
+                                          setDialogState(() {
+                                            final max = gregDayMax(
+                                              gregYear,
+                                              gregMonth,
+                                            );
+                                            gregDay = (i % max) + 1;
+                                            syncKemeticFromGregorian();
+                                          });
+                                        },
+                                        children: List<Widget>.generate(
+                                          gregDayMax(gregYear, gregMonth),
+                                          (i) {
+                                            final d = i + 1;
+                                            return Center(
+                                              child: GlossyText(
+                                                text: '$d',
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                ),
+                                                gradient: wheelGradient,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      flex: 4,
+                                      child: CupertinoPicker(
+                                        scrollController: gregYearCtrl,
+                                        itemExtent: 32,
+                                        looping: false,
+                                        backgroundColor: const Color(
+                                          0x00121214,
+                                        ),
+                                        onSelectedItemChanged: (i) {
+                                          setDialogState(() {
+                                            gregYear = gregYearStart + i;
+                                            final max = gregDayMax(
+                                              gregYear,
+                                              gregMonth,
+                                            );
+                                            if (gregDay > max) {
+                                              gregDay = max;
+                                              if (gregDayCtrl.hasClients) {
+                                                scheduleGregorianDayPickerJump();
+                                              }
+                                            }
+                                            syncKemeticFromGregorian();
+                                          });
+                                        },
+                                        children: List<Widget>.generate(401, (
+                                          i,
+                                        ) {
+                                          final year = gregYearStart + i;
+                                          return Center(
+                                            child: GlossyText(
+                                              text: '$year',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                              gradient: wheelGradient,
+                                            ),
+                                          );
+                                        }),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 4,
+                                      child: CupertinoPicker(
+                                        scrollController: monthCtrl,
+                                        itemExtent: 32,
+                                        looping: true,
+                                        backgroundColor: const Color(
+                                          0x00121214,
+                                        ),
+                                        onSelectedItemChanged: (i) {
+                                          setDialogState(() {
+                                            selMonth = (i % 13) + 1;
+                                            final max = maxDayFor(
+                                              selYear,
+                                              selMonth,
+                                            );
+                                            if (selDay > max) {
+                                              selDay = max;
+                                              if (dayCtrl.hasClients) {
+                                                scheduleDayPickerJump();
+                                              }
+                                            }
+                                            syncGregorianFromKemetic();
+                                          });
+                                        },
+                                        children: List<Widget>.generate(13, (
+                                          i,
+                                        ) {
+                                          final m = i + 1;
+                                          final label = getMonthById(
+                                            m,
+                                          ).displayFull;
+                                          return Center(
+                                            child: _GlossyMonthNameText(
+                                              text: label,
+                                              gradient: wheelGradient,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          );
+                                        }),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      flex: 3,
+                                      child: CupertinoPicker(
+                                        scrollController: dayCtrl,
+                                        itemExtent: 32,
+                                        looping: true,
+                                        backgroundColor: const Color(
+                                          0x00121214,
+                                        ),
+                                        onSelectedItemChanged: (i) {
+                                          setDialogState(() {
+                                            final max = maxDayFor(
+                                              selYear,
+                                              selMonth,
+                                            );
+                                            selDay = (i % max) + 1;
+                                            syncGregorianFromKemetic();
+                                          });
+                                        },
+                                        children: List<Widget>.generate(
+                                          dayCount,
+                                          (i) {
+                                            final d = i + 1;
+                                            return Center(
+                                              child: GlossyText(
+                                                text: '$d',
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                ),
+                                                gradient: wheelGradient,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      flex: 4,
+                                      child: CupertinoPicker(
+                                        scrollController: yearCtrl,
+                                        itemExtent: 32,
+                                        looping: false,
+                                        backgroundColor: const Color(
+                                          0x00121214,
+                                        ),
+                                        onSelectedItemChanged: (i) {
+                                          setDialogState(() {
+                                            selYear = yearStart + i;
+                                            final max = maxDayFor(
+                                              selYear,
+                                              selMonth,
+                                            );
+                                            if (selDay > max) {
+                                              selDay = max;
+                                              if (dayCtrl.hasClients) {
+                                                scheduleDayPickerJump();
+                                              }
+                                            }
+                                            syncGregorianFromKemetic();
+                                          });
+                                        },
+                                        children: List<Widget>.generate(401, (
+                                          i,
+                                        ) {
+                                          final ky = yearStart + i;
+                                          final label = _gregYearLabelFor(
+                                            ky,
+                                            selMonth,
+                                          );
+                                          return Center(
+                                            child: GlossyText(
+                                              text: label,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                              gradient: wheelGradient,
+                                            ),
+                                          );
+                                        }),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  Future<void> saveNote() async {
+                    final title = controllerTitle.text.trim();
+                    final location = controllerLocation.text.trim();
+                    final detail = controllerDetail.text.trim();
+                    if (title.isEmpty) {
+                      setDialogState(() {
+                        errorText = 'Title is required.';
+                      });
+                      return;
+                    }
+                    if (!allDay && startTime != null && endTime != null) {
+                      if (_toMinutes(endTime!) <= _toMinutes(startTime!)) {
+                        endTime = _addMinutes(startTime!, 60);
+                      }
+                    }
+
+                    setDialogState(() {
+                      isSaving = true;
+                      errorText = null;
+                    });
+                    try {
+                      await _saveSingleNoteOnly(
+                        selYear: selYear,
+                        selMonth: selMonth,
+                        selDay: selDay,
+                        title: title,
+                        detail: detail.isEmpty ? null : detail,
+                        location: location.isEmpty ? null : location,
+                        calendarId: calendarId,
+                        calendarName: lockedCalendar.name,
+                        allDay: allDay,
+                        startTime: startTime,
+                        endTime: endTime,
+                        color: _flowPalette[selectedColorIndex],
+                        category: selectedCategory,
+                        alertMinutesBefore: alertMinutesBefore,
+                      );
+                      if (!dialogCtx.mounted) return;
+                      Navigator.of(dialogCtx).pop(true);
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Added to ${lockedCalendar.name}'),
+                        ),
+                      );
+                    } catch (e, stackTrace) {
+                      if (kDebugMode) {
+                        debugPrint('[CalendarScopedNote] save failed: $e');
+                        debugPrint('$stackTrace');
+                      }
+                      if (!dialogCtx.mounted) return;
+                      setDialogState(() {
+                        isSaving = false;
+                        errorText = 'Failed to save note: $e';
+                      });
+                    }
+                  }
+
+                  return AnimatedPadding(
+                    duration: const Duration(milliseconds: 160),
+                    curve: Curves.easeOut,
+                    padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+                    child: Dialog(
+                      backgroundColor: Colors.transparent,
+                      insetPadding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 24,
+                      ),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: 560,
+                          maxHeight: media.size.height * 0.66,
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: KemeticGold.base.withValues(alpha: 0.72),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                            child: DefaultTextStyle(
+                              style: const TextStyle(color: Colors.white),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: KemeticGold.text(
+                                          'Add note',
+                                          style: const TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                          maxLines: 1,
+                                          softWrap: false,
+                                          overflow: TextOverflow.fade,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Close',
+                                        onPressed: isSaving
+                                            ? null
+                                            : () =>
+                                                  Navigator.of(dialogCtx).pop(),
+                                        icon: const Icon(
+                                          Icons.close,
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  datePicker(),
+                                  const Divider(
+                                    height: 24,
+                                    color: Colors.white12,
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: const GlossyText(
+                                      text: 'Add note',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 16,
+                                      ),
+                                      gradient: silverGloss,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller: controllerTitle,
+                                    enabled: !isSaving,
+                                    style: const TextStyle(color: Colors.white),
+                                    decoration: _darkInput('Title'),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller: controllerLocation,
+                                    enabled: !isSaving,
+                                    style: const TextStyle(color: Colors.white),
+                                    decoration: _darkInput(
+                                      'Location or Video Call',
+                                      hint: 'e.g., Home • Zoom • https://meet…',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    controller: controllerDetail,
+                                    enabled: !isSaving,
+                                    style: const TextStyle(color: Colors.white),
+                                    maxLines: 3,
+                                    decoration: _darkInput(
+                                      'Details (optional)',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      'Category (optional)',
+                                      style:
+                                          Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium?.copyWith(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                          ) ??
+                                          const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        for (final cat in NoteCategory.all)
+                                          ChoiceChip(
+                                            label: Text(cat),
+                                            selected: selectedCategory == cat,
+                                            onSelected: isSaving
+                                                ? null
+                                                : (_) {
+                                                    setDialogState(() {
+                                                      selectedCategory = cat;
+                                                    });
+                                                  },
+                                            selectedColor: const Color(
+                                              0xFFD4AF37,
+                                            ).withValues(alpha: 0.2),
+                                            labelStyle: TextStyle(
+                                              color: selectedCategory == cat
+                                                  ? KemeticGold.base
+                                                  : Colors.white,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            backgroundColor: const Color(
+                                              0xFF1A1A1A,
+                                            ),
+                                            side: BorderSide(
+                                              color: selectedCategory == cat
+                                                  ? KemeticGold.base
+                                                  : Colors.white24,
+                                            ),
+                                          ),
+                                        ActionChip(
+                                          label: const Text(
+                                            'Clear',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          avatar: const Icon(
+                                            Icons.close,
+                                            size: 18,
+                                            color: Colors.white70,
+                                          ),
+                                          onPressed:
+                                              selectedCategory == null ||
+                                                  isSaving
+                                              ? null
+                                              : () {
+                                                  setDialogState(() {
+                                                    selectedCategory = null;
+                                                  });
+                                                },
+                                          backgroundColor: const Color(
+                                            0xFF1A1A1A,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  SwitchListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    value: allDay,
+                                    onChanged: isSaving
+                                        ? null
+                                        : (v) =>
+                                              setDialogState(() => allDay = v),
+                                    title: const GlossyText(
+                                      text: 'All-day',
+                                      style: TextStyle(fontSize: 14),
+                                      gradient: silverGloss,
+                                    ),
+                                    activeThumbColor: _gold,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: timeButton(
+                                          label: 'Starts',
+                                          value: startTime,
+                                          onTap: () => pickStart(
+                                            dialogCtx,
+                                            setDialogState,
+                                          ),
+                                          enabled: !allDay && !isSaving,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: timeButton(
+                                          label: 'Ends',
+                                          value: endTime,
+                                          onTap: () => pickEnd(
+                                            dialogCtx,
+                                            setDialogState,
+                                          ),
+                                          enabled: !allDay && !isSaving,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const GlossyText(
+                                          text: 'Calendar',
+                                          gradient: silverGloss,
+                                          style: TextStyle(fontSize: 14),
+                                        ),
+                                        Flexible(
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  lockedCalendar.name,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.fade,
+                                                  softWrap: false,
+                                                  style: TextStyle(
+                                                    color: lockedCalendar.color,
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Icon(
+                                                Icons.lock_outline,
+                                                size: 16,
+                                                color: lockedCalendar.color,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  InkWell(
+                                    onTap: isSaving
+                                        ? null
+                                        : () async {
+                                            final picked =
+                                                await _pickAlertMinutes(
+                                                  dialogCtx,
+                                                  alertMinutesBefore,
+                                                );
+                                            if (picked != null &&
+                                                dialogCtx.mounted) {
+                                              setDialogState(() {
+                                                alertMinutesBefore = picked;
+                                              });
+                                            }
+                                          },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const GlossyText(
+                                            text: 'Alert',
+                                            gradient: silverGloss,
+                                            style: TextStyle(fontSize: 14),
+                                          ),
+                                          Row(
+                                            children: [
+                                              GlossyText(
+                                                text: _alertLabelFor(
+                                                  alertMinutesBefore,
+                                                ),
+                                                gradient: goldGloss,
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Icon(
+                                                Icons.chevron_right,
+                                                size: 18,
+                                                color: Colors.white54,
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  const Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: GlossyText(
+                                      text: 'Color',
+                                      gradient: silverGloss,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    height: 36,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: _flowPalette.length,
+                                      itemBuilder: (_, i) {
+                                        final selected =
+                                            i == selectedColorIndex;
+                                        final color = _flowPalette[i];
+                                        return InkWell(
+                                          onTap: isSaving
+                                              ? null
+                                              : () {
+                                                  setDialogState(() {
+                                                    selectedColorIndex = i;
+                                                  });
+                                                },
+                                          borderRadius: BorderRadius.circular(
+                                            18,
+                                          ),
+                                          child: Container(
+                                            width: 30,
+                                            height: 30,
+                                            margin: const EdgeInsets.only(
+                                              right: 10,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              gradient: _glossFromColor(color),
+                                              border: Border.all(
+                                                color: selected
+                                                    ? _gold
+                                                    : Colors.white24,
+                                                width: selected ? 2.0 : 1.0,
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  if (errorText != null) ...[
+                                    const SizedBox(height: 10),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        errorText!,
+                                        style: const TextStyle(
+                                          color: Colors.redAccent,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 14),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: _gold,
+                                        foregroundColor: Colors.black,
+                                      ),
+                                      onPressed: isSaving ? null : saveNote,
+                                      child: isSaving
+                                          ? const SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.black,
+                                              ),
+                                            )
+                                          : const Text('Save'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ) ??
+          false;
+    } finally {
+      controllersDisposed = true;
+      controllerTitle.dispose();
+      controllerLocation.dispose();
+      controllerDetail.dispose();
+      yearCtrl.dispose();
+      monthCtrl.dispose();
+      dayCtrl.dispose();
+      gregYearCtrl.dispose();
+      gregMonthCtrl.dispose();
+      gregDayCtrl.dispose();
     }
   }
 
@@ -6983,6 +8059,7 @@ class _CalendarPageState extends State<CalendarPage>
         kYear,
         kMonth,
         kDay,
+        initialShowGregorian: payload['showGregorianDates'] == true,
         allowDateChange: payload['allowDateChange'] == true,
         initialStartTime: _timeOfDayFromSession(payload, 'start'),
         initialEndTime: _timeOfDayFromSession(payload, 'end'),
@@ -6995,6 +8072,7 @@ class _CalendarPageState extends State<CalendarPage>
         ),
         initialCategory: payload['category'] as String?,
         initialAlertMinutes: (payload['alertMinutesBefore'] as num?)?.toInt(),
+        initialCalendarId: payload['calendarId'] as String?,
         editingIndex: (payload['editingIndex'] as num?)?.toInt(),
       );
     });
@@ -15419,6 +16497,7 @@ class _CalendarPageState extends State<CalendarPage>
     int kMonth,
     int kDay, {
     bool allowDateChange = false,
+    bool? initialShowGregorian,
     bool persistAsRestoration = true,
     TimeOfDay? initialStartTime,
     TimeOfDay? initialEndTime,
@@ -15429,6 +16508,7 @@ class _CalendarPageState extends State<CalendarPage>
     Color? initialColor,
     String? initialCategory,
     int? initialAlertMinutes,
+    String? initialCalendarId,
     int? editingIndex,
   }) {
     // Ensure reminder rules are loaded before building the sheet so the list is populated.
@@ -15448,9 +16528,16 @@ class _CalendarPageState extends State<CalendarPage>
     int selYear = kYear;
     int selMonth = kMonth;
     int selDay = kDay;
+    final initialGregorianDate = KemeticMath.toGregorian(kYear, kMonth, kDay);
+    bool showGregorianDates = initialShowGregorian ?? _showGregorian;
+    int gregYear = initialGregorianDate.year;
+    int gregMonth = initialGregorianDate.month;
+    int gregDay = initialGregorianDate.day;
 
     int maxDayFor(int year, int month) =>
         (month == 13) ? (KemeticMath.isLeapKemeticYear(year) ? 6 : 5) : 30;
+    int gregDayMax(int year, int month) =>
+        DateUtils.getDaysInMonth(year, month);
 
     final int yearStart = _today.kYear - 200;
     final int yearItem = kYear - yearStart;
@@ -15461,6 +16548,16 @@ class _CalendarPageState extends State<CalendarPage>
       initialItem: (kMonth - 1).clamp(0, 12).toInt(),
     );
     final dayCtrl = FixedExtentScrollController(initialItem: (kDay - 1));
+    final int gregYearStart = initialGregorianDate.year - 200;
+    final gregYearCtrl = FixedExtentScrollController(
+      initialItem: (gregYear - gregYearStart).clamp(0, 400).toInt(),
+    );
+    final gregMonthCtrl = FixedExtentScrollController(
+      initialItem: (gregMonth - 1).clamp(0, 11).toInt(),
+    );
+    final gregDayCtrl = FixedExtentScrollController(
+      initialItem: (gregDay - 1).clamp(0, 30).toInt(),
+    );
     final initialEditingBucketKey = _kKey(kYear, kMonth, kDay);
     final initialEditingNote =
         editingIndex != null &&
@@ -15481,6 +16578,12 @@ class _CalendarPageState extends State<CalendarPage>
             if (!a.isPersonal && b.isPersonal) return 1;
             return a.name.toLowerCase().compareTo(b.name.toLowerCase());
           });
+    final normalizedInitialCalendarId = _normalizeCalendarId(initialCalendarId);
+    final initialCalendarCanEdit =
+        normalizedInitialCalendarId != null &&
+        availableCalendars.any(
+          (calendar) => calendar.id == normalizedInitialCalendarId,
+        );
 
     final rawInitialDetail = initialDetail ?? '';
     final strippedInitialDetail = _stripCidLines(rawInitialDetail);
@@ -15500,6 +16603,7 @@ class _CalendarPageState extends State<CalendarPage>
     int alertMinutesBefore = initialAlertMinutes ?? _alertNoneMinutes;
     String? selectedCalendarId =
         initialEditingNote?.calendarId ??
+        (initialCalendarCanEdit ? normalizedInitialCalendarId : null) ??
         _personalCalendarId ??
         (availableCalendars.isNotEmpty ? availableCalendars.first.id : null);
     String? selectedCalendarName =
@@ -15527,6 +16631,7 @@ class _CalendarPageState extends State<CalendarPage>
         'kYear': selYear,
         'kMonth': selMonth,
         'kDay': selDay,
+        'showGregorianDates': showGregorianDates,
         'allowDateChange': allowDateChange,
         'title': controllerTitle.text,
         'location': controllerLocation.text,
@@ -15579,6 +16684,9 @@ class _CalendarPageState extends State<CalendarPage>
       yearCtrl.dispose();
       monthCtrl.dispose();
       dayCtrl.dispose();
+      gregYearCtrl.dispose();
+      gregMonthCtrl.dispose();
+      gregDayCtrl.dispose();
     }
 
     void scheduleDayPickerJump() {
@@ -15588,6 +16696,65 @@ class _CalendarPageState extends State<CalendarPage>
         }
         dayCtrl.jumpToItem(selDay - 1);
       });
+    }
+
+    void scheduleGregorianDayPickerJump() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (sheetClosing ||
+            sheetControllersDisposed ||
+            !gregDayCtrl.hasClients) {
+          return;
+        }
+        gregDayCtrl.jumpToItem(gregDay - 1);
+      });
+    }
+
+    void syncGregorianControllers() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (sheetClosing || sheetControllersDisposed) return;
+        if (gregYearCtrl.hasClients) {
+          gregYearCtrl.jumpToItem(
+            (gregYear - gregYearStart).clamp(0, 400).toInt(),
+          );
+        }
+        if (gregMonthCtrl.hasClients) {
+          gregMonthCtrl.jumpToItem((gregMonth - 1).clamp(0, 11).toInt());
+        }
+        if (gregDayCtrl.hasClients) {
+          gregDayCtrl.jumpToItem((gregDay - 1).clamp(0, 30).toInt());
+        }
+      });
+    }
+
+    void syncKemeticControllers() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (sheetClosing || sheetControllersDisposed) return;
+        if (yearCtrl.hasClients) {
+          yearCtrl.jumpToItem((selYear - yearStart).clamp(0, 400).toInt());
+        }
+        if (monthCtrl.hasClients) {
+          monthCtrl.jumpToItem((selMonth - 1).clamp(0, 12).toInt());
+        }
+        if (dayCtrl.hasClients) {
+          dayCtrl.jumpToItem((selDay - 1).clamp(0, 29).toInt());
+        }
+      });
+    }
+
+    void syncGregorianFromKemetic() {
+      final gregorian = KemeticMath.toGregorian(selYear, selMonth, selDay);
+      gregYear = gregorian.year;
+      gregMonth = gregorian.month;
+      gregDay = gregorian.day;
+    }
+
+    void syncKemeticFromGregorian() {
+      final kemetic = KemeticMath.fromGregorian(
+        DateUtils.dateOnly(DateTime(gregYear, gregMonth, gregDay)),
+      );
+      selYear = kemetic.kYear;
+      selMonth = kemetic.kMonth;
+      selDay = kemetic.kDay;
     }
 
     try {
@@ -15641,8 +16808,20 @@ class _CalendarPageState extends State<CalendarPage>
                 selMonth,
                 selDay,
               ); // safe
-              final titleText =
-                  '${_monthLabel(selMonth)} $selDay • ${titleG.year}';
+              syncGregorianFromKemetic();
+              final titleGradient = showGregorianDates ? whiteGloss : goldGloss;
+              final wheelGradient = showGregorianDates ? blueGloss : goldGloss;
+              final dateTitleStyle = labelStyleWhite.copyWith(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                fontFamily: 'GentiumPlus',
+                fontFamilyFallback: const [
+                  'NotoSans',
+                  'Roboto',
+                  'Arial',
+                  'sans-serif',
+                ],
+              );
 
               final dayNotes = _getNotes(selYear, selMonth, selDay);
               final dayFlows = _getFlowOccurrences(selYear, selMonth, selDay);
@@ -15746,121 +16925,301 @@ class _CalendarPageState extends State<CalendarPage>
               }
 
               Widget datePicker() {
+                final titleWidget = Semantics(
+                  button: allowDateChange,
+                  label: showGregorianDates
+                      ? 'Show Kemetic dates'
+                      : 'Show Gregorian dates',
+                  child: GestureDetector(
+                    key: const ValueKey('day_sheet_date_toggle'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: !allowDateChange
+                        ? null
+                        : () {
+                            setSheetState(() {
+                              showGregorianDates = !showGregorianDates;
+                              if (showGregorianDates) {
+                                syncGregorianFromKemetic();
+                                syncGregorianControllers();
+                              } else {
+                                syncKemeticFromGregorian();
+                                syncKemeticControllers();
+                              }
+                            });
+                            persistDaySheetSession();
+                          },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Center(
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            _GlossyMonthNameText(
+                              text: showGregorianDates
+                                  ? _gregMonthNames[titleG.month]
+                                  : _monthLabel(selMonth),
+                              style: dateTitleStyle,
+                              gradient: titleGradient,
+                            ),
+                            GlossyText(
+                              text: showGregorianDates
+                                  ? ' ${titleG.day} • ${titleG.year}'
+                                  : ' $selDay • ${titleG.year}',
+                              textAlign: TextAlign.center,
+                              style: dateTitleStyle,
+                              gradient: titleGradient,
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.fade,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+
                 if (!allowDateChange) {
-                  return Text(titleText, style: labelStyleWhite);
+                  return titleWidget;
                 }
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      titleText,
-                      textAlign: TextAlign.center,
-                      style: labelStyleWhite,
-                    ),
+                    titleWidget,
                     const SizedBox(height: 6),
                     SizedBox(
                       height: 128,
-                      child: Row(
-                        children: [
-                          // Month
-                          Expanded(
-                            flex: 4,
-                            child: CupertinoPicker(
-                              scrollController: monthCtrl,
-                              itemExtent: 32,
-                              looping: true,
-                              backgroundColor: const Color(0x00121214),
-                              onSelectedItemChanged: (i) {
-                                setSheetState(() {
-                                  selMonth = (i % 13) + 1;
-                                  final max = maxDayFor(selYear, selMonth);
-                                  if (selDay > max) {
-                                    selDay = max;
-                                    if (dayCtrl.hasClients) {
-                                      scheduleDayPickerJump();
-                                    }
-                                  }
-                                });
-                                persistDaySheetSession();
-                              },
-                              children: List<Widget>.generate(13, (i) {
-                                final m = i + 1;
-                                final label = getMonthById(m).displayFull;
-                                return Center(
-                                  child: GlossyText(
-                                    text: label,
-                                    style: const TextStyle(fontSize: 14),
-                                    gradient: silverGloss,
+                      child: showGregorianDates
+                          ? Row(
+                              children: [
+                                Expanded(
+                                  flex: 4,
+                                  child: CupertinoPicker(
+                                    scrollController: gregMonthCtrl,
+                                    itemExtent: 32,
+                                    looping: true,
+                                    backgroundColor: const Color(0x00121214),
+                                    onSelectedItemChanged: (i) {
+                                      setSheetState(() {
+                                        gregMonth = (i % 12) + 1;
+                                        final max = gregDayMax(
+                                          gregYear,
+                                          gregMonth,
+                                        );
+                                        if (gregDay > max) {
+                                          gregDay = max;
+                                          if (gregDayCtrl.hasClients) {
+                                            scheduleGregorianDayPickerJump();
+                                          }
+                                        }
+                                        syncKemeticFromGregorian();
+                                      });
+                                      persistDaySheetSession();
+                                    },
+                                    children: List<Widget>.generate(12, (i) {
+                                      final label = _gregMonthNames[i + 1];
+                                      return Center(
+                                        child: GlossyText(
+                                          text: label,
+                                          style: const TextStyle(fontSize: 14),
+                                          gradient: wheelGradient,
+                                        ),
+                                      );
+                                    }),
                                   ),
-                                );
-                              }),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          // Day
-                          Expanded(
-                            flex: 3,
-                            child: CupertinoPicker(
-                              scrollController: dayCtrl,
-                              itemExtent: 32,
-                              looping: true,
-                              backgroundColor: const Color(0x00121214),
-                              onSelectedItemChanged: (i) {
-                                setSheetState(() {
-                                  final max = maxDayFor(selYear, selMonth);
-                                  selDay = (i % max) + 1;
-                                });
-                                persistDaySheetSession();
-                              },
-                              children: List<Widget>.generate(dayCount, (i) {
-                                final d = i + 1;
-                                return Center(
-                                  child: GlossyText(
-                                    text: '$d',
-                                    style: const TextStyle(fontSize: 14),
-                                    gradient: silverGloss,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  flex: 3,
+                                  child: CupertinoPicker(
+                                    scrollController: gregDayCtrl,
+                                    itemExtent: 32,
+                                    looping: true,
+                                    backgroundColor: const Color(0x00121214),
+                                    onSelectedItemChanged: (i) {
+                                      setSheetState(() {
+                                        final max = gregDayMax(
+                                          gregYear,
+                                          gregMonth,
+                                        );
+                                        gregDay = (i % max) + 1;
+                                        syncKemeticFromGregorian();
+                                      });
+                                      persistDaySheetSession();
+                                    },
+                                    children: List<Widget>.generate(
+                                      gregDayMax(gregYear, gregMonth),
+                                      (i) {
+                                        final d = i + 1;
+                                        return Center(
+                                          child: GlossyText(
+                                            text: '$d',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                            ),
+                                            gradient: wheelGradient,
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ),
-                                );
-                              }),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          // Year (gregorian label)
-                          Expanded(
-                            flex: 4,
-                            child: CupertinoPicker(
-                              scrollController: yearCtrl,
-                              itemExtent: 32,
-                              looping: false,
-                              backgroundColor: const Color(0x00121214),
-                              onSelectedItemChanged: (i) {
-                                setSheetState(() {
-                                  selYear = yearStart + i;
-                                  final max = maxDayFor(selYear, selMonth);
-                                  if (selDay > max) {
-                                    selDay = max;
-                                    if (dayCtrl.hasClients) {
-                                      scheduleDayPickerJump();
-                                    }
-                                  }
-                                });
-                                persistDaySheetSession();
-                              },
-                              children: List<Widget>.generate(401, (i) {
-                                final ky = yearStart + i;
-                                final label = _gregYearLabelFor(ky, selMonth);
-                                return Center(
-                                  child: GlossyText(
-                                    text: label,
-                                    style: const TextStyle(fontSize: 14),
-                                    gradient: silverGloss,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  flex: 4,
+                                  child: CupertinoPicker(
+                                    scrollController: gregYearCtrl,
+                                    itemExtent: 32,
+                                    looping: false,
+                                    backgroundColor: const Color(0x00121214),
+                                    onSelectedItemChanged: (i) {
+                                      setSheetState(() {
+                                        gregYear = gregYearStart + i;
+                                        final max = gregDayMax(
+                                          gregYear,
+                                          gregMonth,
+                                        );
+                                        if (gregDay > max) {
+                                          gregDay = max;
+                                          if (gregDayCtrl.hasClients) {
+                                            scheduleGregorianDayPickerJump();
+                                          }
+                                        }
+                                        syncKemeticFromGregorian();
+                                      });
+                                      persistDaySheetSession();
+                                    },
+                                    children: List<Widget>.generate(401, (i) {
+                                      final year = gregYearStart + i;
+                                      return Center(
+                                        child: GlossyText(
+                                          text: '$year',
+                                          style: const TextStyle(fontSize: 14),
+                                          gradient: wheelGradient,
+                                        ),
+                                      );
+                                    }),
                                   ),
-                                );
-                              }),
+                                ),
+                              ],
+                            )
+                          : Row(
+                              children: [
+                                Expanded(
+                                  flex: 4,
+                                  child: CupertinoPicker(
+                                    scrollController: monthCtrl,
+                                    itemExtent: 32,
+                                    looping: true,
+                                    backgroundColor: const Color(0x00121214),
+                                    onSelectedItemChanged: (i) {
+                                      setSheetState(() {
+                                        selMonth = (i % 13) + 1;
+                                        final max = maxDayFor(
+                                          selYear,
+                                          selMonth,
+                                        );
+                                        if (selDay > max) {
+                                          selDay = max;
+                                          if (dayCtrl.hasClients) {
+                                            scheduleDayPickerJump();
+                                          }
+                                        }
+                                        syncGregorianFromKemetic();
+                                      });
+                                      persistDaySheetSession();
+                                    },
+                                    children: List<Widget>.generate(13, (i) {
+                                      final m = i + 1;
+                                      final label = getMonthById(m).displayFull;
+                                      return Center(
+                                        child: _GlossyMonthNameText(
+                                          text: label,
+                                          gradient: wheelGradient,
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  flex: 3,
+                                  child: CupertinoPicker(
+                                    scrollController: dayCtrl,
+                                    itemExtent: 32,
+                                    looping: true,
+                                    backgroundColor: const Color(0x00121214),
+                                    onSelectedItemChanged: (i) {
+                                      setSheetState(() {
+                                        final max = maxDayFor(
+                                          selYear,
+                                          selMonth,
+                                        );
+                                        selDay = (i % max) + 1;
+                                        syncGregorianFromKemetic();
+                                      });
+                                      persistDaySheetSession();
+                                    },
+                                    children: List<Widget>.generate(dayCount, (
+                                      i,
+                                    ) {
+                                      final d = i + 1;
+                                      return Center(
+                                        child: GlossyText(
+                                          text: '$d',
+                                          style: const TextStyle(fontSize: 14),
+                                          gradient: wheelGradient,
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  flex: 4,
+                                  child: CupertinoPicker(
+                                    scrollController: yearCtrl,
+                                    itemExtent: 32,
+                                    looping: false,
+                                    backgroundColor: const Color(0x00121214),
+                                    onSelectedItemChanged: (i) {
+                                      setSheetState(() {
+                                        selYear = yearStart + i;
+                                        final max = maxDayFor(
+                                          selYear,
+                                          selMonth,
+                                        );
+                                        if (selDay > max) {
+                                          selDay = max;
+                                          if (dayCtrl.hasClients) {
+                                            scheduleDayPickerJump();
+                                          }
+                                        }
+                                        syncGregorianFromKemetic();
+                                      });
+                                      persistDaySheetSession();
+                                    },
+                                    children: List<Widget>.generate(401, (i) {
+                                      final ky = yearStart + i;
+                                      final label = _gregYearLabelFor(
+                                        ky,
+                                        selMonth,
+                                      );
+                                      return Center(
+                                        child: GlossyText(
+                                          text: label,
+                                          style: const TextStyle(fontSize: 14),
+                                          gradient: wheelGradient,
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
                     ),
                   ],
                 );

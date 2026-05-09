@@ -9,21 +9,33 @@ import '../../data/shared_calendars_repo.dart';
 import '../../features/profile/profile_search_page.dart';
 import '../../shared/glossy_text.dart';
 
+typedef SharedCalendarAddEventCallback =
+    Future<bool> Function(SharedCalendarSummary calendar);
+
 class SharedCalendarsSheet extends StatefulWidget {
-  const SharedCalendarsSheet({super.key, required this.repo});
+  const SharedCalendarsSheet({
+    super.key,
+    required this.repo,
+    this.onAddEventRequested,
+  });
 
   final SharedCalendarsRepo repo;
+  final SharedCalendarAddEventCallback? onAddEventRequested;
 
   static Future<bool?> show(
     BuildContext context, {
     required SharedCalendarsRepo repo,
+    SharedCalendarAddEventCallback? onAddEventRequested,
   }) {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => SharedCalendarsSheet(repo: repo),
+      builder: (_) => SharedCalendarsSheet(
+        repo: repo,
+        onAddEventRequested: onAddEventRequested,
+      ),
     );
   }
 
@@ -144,6 +156,29 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
         calendarColorValue: calendar.colorValue,
       );
     });
+  }
+
+  Future<void> _addEventToCalendar(SharedCalendarSummary calendar) async {
+    final handler = widget.onAddEventRequested;
+    if (_saving || handler == null) return;
+    setState(() => _saving = true);
+    try {
+      final didSave = await handler(calendar);
+      if (!mounted) return;
+      if (didSave) {
+        _changed = true;
+        await _reload(showLoading: false);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
 
   Future<void> _leaveCalendar(SharedCalendarSummary calendar) async {
@@ -382,7 +417,10 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       decoration: BoxDecoration(
         color: const Color(0xFF101114),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(
+          color: KemeticGold.base.withValues(alpha: 0.72),
+          width: 1.2,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -408,13 +446,15 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          KemeticGold.text(
                             calendar.name,
                             style: const TextStyle(
-                              color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                             ),
+                            maxLines: 1,
+                            softWrap: false,
+                            overflow: TextOverflow.fade,
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -480,18 +520,29 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
               Row(
                 children: [
                   if (calendar.canManageMembers)
-                    TextButton.icon(
+                    IconButton(
+                      tooltip: 'Invite',
                       onPressed: _saving
                           ? null
                           : () => _inviteToCalendar(calendar),
                       icon: Icon(Icons.person_add_alt_1, color: calendar.color),
-                      label: const Text('Invite'),
                     ),
                   if (calendar.role == SharedCalendarRole.owner)
-                    TextButton.icon(
+                    IconButton(
+                      tooltip: 'Edit',
                       onPressed: _saving ? null : () => _editCalendar(calendar),
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Edit'),
+                      icon: Icon(Icons.edit_outlined, color: calendar.color),
+                    ),
+                  if (calendar.canEdit && widget.onAddEventRequested != null)
+                    IconButton(
+                      tooltip: 'Add event',
+                      onPressed: _saving
+                          ? null
+                          : () => _addEventToCalendar(calendar),
+                      icon: Icon(
+                        Icons.add_circle_outline,
+                        color: calendar.color,
+                      ),
                     ),
                   const Spacer(),
                   TextButton(
@@ -689,7 +740,10 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       decoration: BoxDecoration(
         color: const Color(0xFF101114),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(
+          color: KemeticGold.base.withValues(alpha: 0.72),
+          width: 1.2,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -708,13 +762,15 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
+                  child: KemeticGold.text(
                     invite.calendarName,
                     style: const TextStyle(
-                      color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.fade,
                   ),
                 ),
                 Text(
