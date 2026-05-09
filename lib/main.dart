@@ -1173,7 +1173,7 @@ class AuthGate extends StatefulWidget {
   State<AuthGate> createState() => _AuthGateState();
 }
 
-class _AuthGateState extends State<AuthGate> {
+class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   StreamSubscription<AuthState>? _authSub;
   StreamSubscription<Uri>? _linkSub;
   AppLinks? _appLinks;
@@ -1211,6 +1211,7 @@ class _AuthGateState extends State<AuthGate> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _calendarSync = sharedCalendarSyncService(supabase);
 
     // React to auth changes (includes initialSession)
@@ -1235,11 +1236,29 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _authSub?.cancel();
     _linkSub?.cancel();
     _intentDataStreamSubscription?.cancel();
     unawaited(disposeSharedCalendarSyncService());
     super.dispose();
+  }
+
+  void _ensureDecanSchedules({required String scope, bool force = false}) {
+    if (supabase.auth.currentSession == null) return;
+    fireAndForgetGuarded(
+      scope,
+      _decanScheduler.ensureCurrentAndNextScheduled(force: force),
+      onError: _logAuthGateError,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) {
+      return;
+    }
+    _ensureDecanSchedules(scope: 'decan schedule resume');
   }
 
   // -- Keep a profiles row (id/email) for the user
@@ -1300,11 +1319,7 @@ class _AuthGateState extends State<AuthGate> {
       _scheduleSessionResumeCheck();
       if (!_scheduledDecans) {
         _scheduledDecans = true;
-        fireAndForgetGuarded(
-          'decan schedule',
-          _decanScheduler.ensureCurrentAndNextScheduled(),
-          onError: _logAuthGateError,
-        );
+        _ensureDecanSchedules(scope: 'decan schedule', force: true);
       }
       final autoCalendarSyncEnabled =
           await SettingsPrefs.autoCalendarSyncEnabled();
@@ -1320,6 +1335,7 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (ev == AuthChangeEvent.signedOut) {
+      _scheduledDecans = false;
       _sessionResumeChecked = false;
       await AppRestorationService.instance.clearBootFallbackIdentity();
       _calendarSync?.stop();

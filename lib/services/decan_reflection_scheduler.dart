@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../features/calendar/decan_metadata.dart';
@@ -22,7 +21,12 @@ class DecanWindow {
 }
 
 class DecanReflectionScheduler {
+  static const Duration _refreshThrottle = Duration(hours: 6);
+
   final SupabaseClient _client;
+  DateTime? _lastSuccessfulEnsureAt;
+  Future<void>? _ensureInFlight;
+
   DecanReflectionScheduler(this._client);
 
   String _detectTimeZone() {
@@ -111,24 +115,56 @@ class DecanReflectionScheduler {
     if (window.decanContextKey == null) {
       return;
     }
-    try {
-      await _client.functions.invoke(
-        'schedule_decan_reflection',
-        body: {
-          'decan_start': window.start.toIso8601String().split('T').first,
-          'decan_end': window.end.toIso8601String().split('T').first,
-          'decan_name': window.decanName,
-          'decan_theme': window.decanTheme,
-          'decan_context_key': window.decanContextKey,
-          'timezone': _detectTimeZone(),
-        },
-      );
-    } catch (e) {
-      debugPrint('[DecanReflectionScheduler] schedule error: $e');
+    final response = await _client.functions.invoke(
+      'schedule_decan_reflection',
+      body: {
+        'decan_start': window.start.toIso8601String().split('T').first,
+        'decan_end': window.end.toIso8601String().split('T').first,
+        'decan_name': window.decanName,
+        'decan_theme': window.decanTheme,
+        'decan_context_key': window.decanContextKey,
+        'timezone': _detectTimeZone(),
+      },
+    );
+
+    if (response.status >= 200 && response.status < 300) {
+      return;
     }
+
+    final data = response.data;
+    final detail = data is Map && data['error'] != null
+        ? data['error'].toString()
+        : data?.toString();
+    throw StateError(
+      'schedule_decan_reflection failed for ${window.decanContextKey} '
+      '(status ${response.status})'
+      '${detail == null || detail.isEmpty ? '' : ': $detail'}',
+    );
   }
 
-  Future<void> ensureCurrentAndNextScheduled() async {
+  Future<void> ensureCurrentAndNextScheduled({bool force = false}) {
+    final inFlight = _ensureInFlight;
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    final lastSuccessfulEnsureAt = _lastSuccessfulEnsureAt;
+    if (!force &&
+        lastSuccessfulEnsureAt != null &&
+        DateTime.now().difference(lastSuccessfulEnsureAt) < _refreshThrottle) {
+      return Future.value();
+    }
+
+    final future = _runEnsureCurrentAndNextScheduled();
+    _ensureInFlight = future.whenComplete(() {
+      if (identical(_ensureInFlight, future)) {
+        _ensureInFlight = null;
+      }
+    });
+    return _ensureInFlight!;
+  }
+
+  Future<void> _runEnsureCurrentAndNextScheduled() async {
     final now = DateTime.now();
     final current = _windowFor(now);
     await _scheduleWindow(current);
@@ -138,5 +174,7 @@ class DecanReflectionScheduler {
     if (next.start != current.start || next.end != current.end) {
       await _scheduleWindow(next);
     }
+
+    _lastSuccessfulEnsureAt = now;
   }
 }
