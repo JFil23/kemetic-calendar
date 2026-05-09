@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/navigation_fallback.dart';
 import '../../shared/glossy_text.dart';
 import 'kemetic_node_library.dart';
 import 'kemetic_node_model.dart';
-import 'kemetic_node_reader_page.dart';
 import 'widgets.dart';
 
 class KemeticNodeListPage extends StatelessWidget {
@@ -33,7 +34,7 @@ class KemeticNodeListPage extends StatelessWidget {
         leading: GlyphBackButton(
           showLabel: false,
           showCloseIcon: true,
-          onTap: () => Navigator.of(context).pop(),
+          onTap: () => popOrGo(context, '/'),
         ),
         titleSpacing: 0,
         title: Column(
@@ -88,11 +89,7 @@ class KemeticNodeListPage extends StatelessWidget {
               node: node,
               subtitle: _snippet(node),
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => KemeticNodeReaderPage(node: node),
-                  ),
-                );
+                context.push<void>('/nodes/${Uri.encodeComponent(node.id)}');
               },
             );
           },

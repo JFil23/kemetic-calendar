@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
+import '../../core/navigation_fallback.dart';
 import '../../data/profile_repo.dart';
 import '../../widgets/profile_avatar.dart';
 
@@ -11,12 +13,14 @@ class ProfileSearchPage extends StatefulWidget {
   final bool returnFullResult;
   final String titleText;
   final String hintText;
+  final String fallbackLocation;
 
   const ProfileSearchPage({
     super.key,
     this.returnFullResult = false,
     this.titleText = 'Find People',
     this.hintText = 'Search by @handle or display name',
+    this.fallbackLocation = '/profile/me',
   });
 
   @override
@@ -66,7 +70,12 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
   }
 
   void _selectUser(UserSearchResult user) {
-    Navigator.of(context).pop(widget.returnFullResult ? user : user.userId);
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop(widget.returnFullResult ? user : user.userId);
+      return;
+    }
+    context.go('/profile/${Uri.encodeComponent(user.userId)}');
   }
 
   @override
@@ -78,7 +87,7 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
         elevation: 0,
         leading: IconButton(
           icon: KemeticGold.icon(Icons.close),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => popOrGo(context, widget.fallbackLocation),
         ),
         title: Text(
           widget.titleText,

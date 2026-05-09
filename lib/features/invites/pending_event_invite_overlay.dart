@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
 import '../calendar/calendar_page.dart';
 import 'event_invite_action_row.dart';
-import 'event_invite_details_page.dart';
 
 class PendingEventInviteOverlay extends StatefulWidget {
   const PendingEventInviteOverlay({super.key});
@@ -56,8 +56,9 @@ class _PendingEventInviteOverlayState extends State<PendingEventInviteOverlay> {
   }
 
   void _openInvite(InboxShareItem invite) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => EventInviteDetailsPage(share: invite)),
+    context.push<void>(
+      '/event-invite/${Uri.encodeComponent(invite.shareId)}',
+      extra: invite,
     );
   }
 

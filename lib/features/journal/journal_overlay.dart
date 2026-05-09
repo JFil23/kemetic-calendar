@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'journal_controller.dart';
@@ -22,7 +23,6 @@ import '../../data/insight_link_repo.dart';
 import '../../data/insight_link_utils.dart';
 import '../../widgets/insight_link_text.dart';
 import '../nodes/kemetic_node_library.dart';
-import '../nodes/kemetic_node_reader_page.dart';
 import '../nodes/node_link_picker_sheet.dart';
 
 enum JournalPresentationMode { overlay, page }
@@ -291,9 +291,7 @@ class _JournalOverlayState extends State<JournalOverlay>
     if (node == null) return;
 
     FocusManager.instance.primaryFocus?.unfocus();
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => KemeticNodeReaderPage(node: node)),
-    );
+    context.push<void>('/nodes/${Uri.encodeComponent(node.id)}');
   }
 
   void _handleTextChanged(String text) {

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -63,22 +64,14 @@ class _MyCyclePageState extends State<MyCyclePage> {
     if (payload == null) return;
 
     if (payload.isTimed) {
-      await Navigator.of(context).push<bool>(
-        MaterialPageRoute<bool>(
-          builder: (_) => TimedRhythmEditorPage(
-            initial: payload.draft,
-            categoryDisplay: payload.category,
-          ),
-        ),
+      await context.push<bool>(
+        '/rhythm/editor/timed?category=${Uri.encodeComponent(payload.category)}',
+        extra: payload,
       );
     } else {
-      await Navigator.of(context).push<bool>(
-        MaterialPageRoute<bool>(
-          builder: (_) => UntimedRhythmEditorPage(
-            initial: payload.draft,
-            category: payload.category,
-          ),
-        ),
+      await context.push<bool>(
+        '/rhythm/editor/untimed?category=${Uri.encodeComponent(payload.category)}',
+        extra: payload,
       );
     }
   }
@@ -89,6 +82,10 @@ class _MyCyclePageState extends State<MyCyclePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => popOrGo(context, '/rhythm/today'),
+        ),
         title: const Text('My Cycle'),
         actions: [
           IconButton(
@@ -176,10 +173,8 @@ class _MyCyclePageState extends State<MyCyclePage> {
                   ),
                   secondaryAction: OutlinedButton.icon(
                     onPressed: () async {
-                      final ok = await Navigator.of(context).push<bool>(
-                        MaterialPageRoute<bool>(
-                          builder: (_) => const CustomRhythmEditorPage(),
-                        ),
+                      final ok = await context.push<bool>(
+                        '/rhythm/editor/custom',
                       );
                       if (ok == true && mounted) _refresh();
                     },

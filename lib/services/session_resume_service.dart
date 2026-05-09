@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
 import 'package:mobile/features/calendar/notify.dart';
-import 'package:mobile/services/app_restoration_service.dart';
+import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -292,7 +292,7 @@ class _SessionTrackedRouteState extends State<SessionTrackedRoute> {
     if (!widget.enabled) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(
-        AppRestorationService.instance.saveRouteLocation(widget.location),
+        RestorationCoordinator.instance.recordRouteLocation(widget.location),
       );
       unawaited(SessionResumeService.saveRouteLocation(widget.location));
     });
@@ -333,6 +333,7 @@ class _SessionLifecycleBridgeState extends State<SessionLifecycleBridge>
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
         unawaited(SessionResumeService.touch());
+        unawaited(RestorationCoordinator.instance.flush());
         break;
       case AppLifecycleState.resumed:
         unawaited(Notify.syncLocalDeliveryMode());

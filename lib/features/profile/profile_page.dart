@@ -4,9 +4,11 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/navigation_fallback.dart';
 import '../../data/profile_avatar_glyphs.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
@@ -16,12 +18,7 @@ import '../../data/profile_feed_item_model.dart';
 import '../../utils/detail_sanitizer.dart';
 import '../../utils/kemetic_date_format.dart';
 import '../../services/app_haptics.dart';
-import 'edit_profile_page.dart';
-import 'profile_search_page.dart';
-import 'flow_post_picker_page.dart';
-import 'flow_post_detail_page.dart';
-import 'insight_post_picker_page.dart';
-import 'insight_post_detail_page.dart';
+import '../../services/restoration_coordinator.dart';
 import '_post_glossy_helper.dart';
 import 'follow_list_page.dart';
 import '../calendar/calendar_page.dart';
@@ -159,7 +156,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const double _feedRevealViewportThreshold = 0.74;
   static const double _feedPullToCloseThreshold = 96;
   final _repo = ProfileRepo(Supabase.instance.client);
@@ -191,6 +188,13 @@ class _ProfilePageState extends State<ProfilePage>
   bool _calendarRevealNavigationInFlight = false;
   int _profileLoadSerial = 0;
   double _feedTopPullDistance = 0;
+  Timer? _continuitySaveDebounce;
+  bool _continuityRestored = false;
+  double? _pendingProfileScrollOffset;
+  double? _pendingFeedScrollOffset;
+  String? _pendingExpandedFeedIdentity;
+
+  String get _surfaceKey => 'profile:${widget.userId}';
 
   bool get _isViewingOwnProfile {
     final currentId = Supabase.instance.client.auth.currentUser?.id;
@@ -213,31 +217,150 @@ class _ProfilePageState extends State<ProfilePage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _postPageController = PageController(viewportFraction: 0.96);
     _insightPostPageController = PageController(viewportFraction: 0.96);
     _profileScrollController = ScrollController()
       ..addListener(_handleProfileScroll);
-    _feedScrollController = ScrollController()..addListener(_maybeLoadMoreFeed);
+    _feedScrollController = ScrollController()..addListener(_handleFeedScroll);
     _feedBloomController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 720),
     );
     _seedPostedContentFromMemory();
+    unawaited(_restoreContinuityState());
     _loadProfile();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _continuitySaveDebounce?.cancel();
+    unawaited(_persistContinuityState());
     _feedBloomController.dispose();
     _profileScrollController
       ..removeListener(_handleProfileScroll)
       ..dispose();
     _feedScrollController
-      ..removeListener(_maybeLoadMoreFeed)
+      ..removeListener(_handleFeedScroll)
       ..dispose();
     _postPageController.dispose();
     _insightPostPageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        unawaited(_persistContinuityState());
+        break;
+      case AppLifecycleState.resumed:
+        break;
+    }
+  }
+
+  Future<void> _restoreContinuityState() async {
+    final state = await RestorationCoordinator.instance.readSurfaceState(
+      _surfaceKey,
+    );
+    if (!mounted || state == null) {
+      _continuityRestored = true;
+      return;
+    }
+
+    final feedRevealed = state['feedRevealed'] == true;
+    _pendingProfileScrollOffset = (state['profileScrollOffset'] as num?)
+        ?.toDouble();
+    _pendingFeedScrollOffset = (state['feedScrollOffset'] as num?)?.toDouble();
+    _pendingExpandedFeedIdentity = (state['expandedFeedItem'] as String?)
+        ?.trim();
+    final activePostIndex = (state['activePostIndex'] as num?)?.toInt();
+    final activeInsightIndex = (state['activeInsightPostIndex'] as num?)
+        ?.toInt();
+
+    setState(() {
+      _feedRevealed = feedRevealed;
+      _showGregorianFeedDates = state['showGregorianFeedDates'] == true;
+      if (activePostIndex != null && activePostIndex >= 0) {
+        _activePostIndex = activePostIndex;
+      }
+      if (activeInsightIndex != null && activeInsightIndex >= 0) {
+        _activeInsightPostIndex = activeInsightIndex;
+      }
+      _continuityRestored = true;
+    });
+
+    if (feedRevealed) {
+      _feedBloomController.value = 1;
+      unawaited(_loadFeedPage(reset: true));
+    }
+    _applyPendingContinuityAfterFrame();
+  }
+
+  void _handleFeedScroll() {
+    _maybeLoadMoreFeed();
+    _scheduleContinuitySave();
+  }
+
+  void _scheduleContinuitySave() {
+    if (!_continuityRestored) {
+      return;
+    }
+    _continuitySaveDebounce?.cancel();
+    _continuitySaveDebounce = Timer(const Duration(milliseconds: 350), () {
+      unawaited(_persistContinuityState());
+    });
+  }
+
+  Future<void> _persistContinuityState() async {
+    final profileOffset = _profileScrollController.hasClients
+        ? _profileScrollController.offset
+        : _pendingProfileScrollOffset;
+    final feedOffset = _feedScrollController.hasClients
+        ? _feedScrollController.offset
+        : _pendingFeedScrollOffset;
+    await RestorationCoordinator.instance
+        .saveSurfaceState(_surfaceKey, <String, dynamic>{
+          'kind': 'profile',
+          'userId': widget.userId,
+          'isMyProfile': _isViewingOwnProfile,
+          'feedRevealed': _feedRevealed,
+          'showGregorianFeedDates': _showGregorianFeedDates,
+          'activePostIndex': _activePostIndex,
+          'activeInsightPostIndex': _activeInsightPostIndex,
+          if (profileOffset != null && profileOffset.isFinite)
+            'profileScrollOffset': math.max(0, profileOffset),
+          if (feedOffset != null && feedOffset.isFinite)
+            'feedScrollOffset': math.max(0, feedOffset),
+          if (_expandedFeedItem != null)
+            'expandedFeedItem': _feedItemIdentity(_expandedFeedItem!),
+          'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
+        });
+  }
+
+  void _applyPendingContinuityAfterFrame() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final profileOffset = _pendingProfileScrollOffset;
+      if (profileOffset != null && _profileScrollController.hasClients) {
+        final max = _profileScrollController.position.maxScrollExtent;
+        _profileScrollController.jumpTo(profileOffset.clamp(0.0, max));
+        _pendingProfileScrollOffset = null;
+      }
+
+      final feedOffset = _pendingFeedScrollOffset;
+      if (feedOffset != null && _feedScrollController.hasClients) {
+        final max = _feedScrollController.position.maxScrollExtent;
+        _feedScrollController.jumpTo(feedOffset.clamp(0.0, max));
+        _pendingFeedScrollOffset = null;
+      }
+    });
   }
 
   void _seedPostedContentFromMemory() {
@@ -430,6 +553,7 @@ class _ProfilePageState extends State<ProfilePage>
     if (_feedRevealed) {
       _maybeLoadMoreFeed();
     }
+    _scheduleContinuitySave();
   }
 
   void _maybeRevealFeedFromViewport() {
@@ -454,6 +578,7 @@ class _ProfilePageState extends State<ProfilePage>
     _feedTopPullDistance = 0;
     unawaited(AppHaptics.mediumImpact(reason: 'profile_feed_reveal'));
     setState(() => _feedRevealed = true);
+    _scheduleContinuitySave();
     unawaited(_feedBloomController.forward(from: 0));
     await _loadFeedPage(reset: true);
   }
@@ -470,6 +595,7 @@ class _ProfilePageState extends State<ProfilePage>
       _feedRevealed = false;
       _expandedFeedItem = null;
     });
+    _scheduleContinuitySave();
   }
 
   void _updateFeedPullDistance(double pullDistance) {
@@ -529,6 +655,7 @@ class _ProfilePageState extends State<ProfilePage>
     setState(() {
       _showGregorianFeedDates = !_showGregorianFeedDates;
     });
+    _scheduleContinuitySave();
   }
 
   Future<void> _loadFeedPage({bool reset = false}) async {
@@ -570,17 +697,24 @@ class _ProfilePageState extends State<ProfilePage>
     final updatedExpanded = expandedIdentity == null
         ? null
         : _findFeedItemByIdentity(merged, expandedIdentity);
+    final pendingExpanded = _pendingExpandedFeedIdentity == null
+        ? null
+        : _findFeedItemByIdentity(merged, _pendingExpandedFeedIdentity!);
     setState(() {
       _feedItems = merged;
       _feedLoading = false;
       _feedLoadingMore = false;
       _feedHasMore = loaded.length >= _profileFeedPageSize;
-      if (updatedExpanded != null) {
+      if (pendingExpanded != null) {
+        _expandedFeedItem = pendingExpanded;
+        _pendingExpandedFeedIdentity = null;
+      } else if (updatedExpanded != null) {
         _expandedFeedItem = updatedExpanded;
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      _applyPendingContinuityAfterFrame();
       _maybeLoadMoreFeed();
     });
   }
@@ -618,6 +752,7 @@ class _ProfilePageState extends State<ProfilePage>
       setState(() {
         _expandedFeedItem = resolved;
       });
+      _scheduleContinuitySave();
     }
     if (_feedScrollController.hasClients) {
       unawaited(
@@ -635,6 +770,7 @@ class _ProfilePageState extends State<ProfilePage>
     setState(() {
       _expandedFeedItem = null;
     });
+    _scheduleContinuitySave();
   }
 
   String _normalizedFeedPhrase(String value) {
@@ -999,30 +1135,14 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> _openCalendarMenu(BuildContext context) async {
-    final calendarState = CalendarPage.globalKey.currentState;
-    if (calendarState != null) {
-      await calendarState.showActionsMenuFromOutside(
-        context,
-        includeNewNote: false,
-      );
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Calendar actions are unavailable right now.'),
-      ),
+    await CalendarPage.showActionsMenuFromAnyContext(
+      context,
+      includeNewNote: false,
     );
   }
 
   Future<void> _openCalendarQuickAdd() async {
-    final calendarState = CalendarPage.globalKey.currentState;
-    if (calendarState != null) {
-      await calendarState.openQuickAddFromOutside();
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('New note is unavailable right now.')),
-    );
+    await CalendarPage.openQuickAddFromAnyContext(context);
   }
 
   Future<void> _openMyProfileAction() async {
@@ -1094,7 +1214,7 @@ class _ProfilePageState extends State<ProfilePage>
             ? null
             : IconButton(
                 icon: _profileGoldIcon(Icons.close),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => popOrGo(context, '/'),
               ),
         title: _feedRevealed
             ? _buildFeedDateModeToggle()
@@ -1567,48 +1687,9 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  Route<void> _profileRoute({
-    required String userId,
-    required bool isMyProfile,
-  }) {
-    if (!widget.openedFromCalendar) {
-      return MaterialPageRoute<void>(
-        builder: (_) => ProfilePage(userId: userId, isMyProfile: isMyProfile),
-      );
-    }
-
-    return PageRouteBuilder<void>(
-      pageBuilder: (_, animation, secondaryAnimation) => ProfilePage(
-        userId: userId,
-        isMyProfile: isMyProfile,
-        openedFromCalendar: true,
-      ),
-      transitionDuration: const Duration(milliseconds: 280),
-      reverseTransitionDuration: const Duration(milliseconds: 240),
-      transitionsBuilder: (_, animation, secondaryAnimation, child) {
-        final curved = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-          reverseCurve: Curves.easeInCubic,
-        );
-        final offset = Tween<Offset>(
-          begin: const Offset(1.0, 0.0),
-          end: Offset.zero,
-        ).animate(curved);
-        return SlideTransition(position: offset, child: child);
-      },
-    );
-  }
-
   Future<void> _replaceWithProfile(String userId) async {
     if (!mounted || userId == widget.userId) return;
-    final myId = Supabase.instance.client.auth.currentUser?.id;
-    await Navigator.of(context).pushReplacement(
-      _profileRoute(
-        userId: userId,
-        isMyProfile: myId != null && userId == myId,
-      ),
-    );
+    context.go('/profile/${Uri.encodeComponent(userId)}');
   }
 
   Widget _buildCalendarRevealSwipeGate() {
@@ -1625,26 +1706,25 @@ class _ProfilePageState extends State<ProfilePage>
     if (_calendarRevealNavigationInFlight || !mounted) return;
 
     final navigator = Navigator.of(context);
-    if (!navigator.canPop()) return;
 
     _calendarRevealNavigationInFlight = true;
     try {
-      await navigator.maybePop();
+      if (navigator.canPop()) {
+        await navigator.maybePop();
+      } else {
+        context.go('/');
+      }
     } finally {
       _calendarRevealNavigationInFlight = false;
     }
   }
 
   Future<void> _openFollowList(UserProfile profile, FollowListType type) async {
-    final selectedUserId = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (_) => FollowListPage(
-          userId: profile.id,
-          type: type,
-          userHandle: profile.handle,
-          userDisplayName: profile.effectiveName,
-        ),
-      ),
+    final segment = type == FollowListType.followers
+        ? 'followers'
+        : 'following';
+    final selectedUserId = await context.push<String>(
+      '/profile/${Uri.encodeComponent(profile.id)}/$segment',
     );
 
     if (!mounted || selectedUserId == null || selectedUserId == widget.userId) {
@@ -1665,18 +1745,7 @@ class _ProfilePageState extends State<ProfilePage>
       return;
     }
 
-    final calendarState = CalendarPage.globalKey.currentState;
-    if (calendarState != null) {
-      calendarState.openMyFlowsFromOutside();
-      return;
-    }
-
-    // Fallback: push CalendarPage and ask it to open My Flows on launch.
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => CalendarPage(openMyFlowsOnLaunch: true),
-      ),
-    );
+    unawaited(CalendarPage.openMyFlowsFromAnyContext(context));
   }
 
   Widget _buildFollowButton() {
@@ -1700,12 +1769,7 @@ class _ProfilePageState extends State<ProfilePage>
       label: 'Edit Profile',
       icon: Icons.edit_outlined,
       onPressed: () async {
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => EditProfilePage(initialProfile: _profile!),
-          ),
-        );
+        final result = await context.push<bool>('/profile/me/edit');
 
         if (result == true) {
           await _loadProfile();
@@ -1723,9 +1787,7 @@ class _ProfilePageState extends State<ProfilePage>
       label: 'Find People',
       icon: Icons.people_outline_rounded,
       onPressed: () async {
-        final selectedUserId = await Navigator.of(context).push<String>(
-          MaterialPageRoute(builder: (_) => const ProfileSearchPage()),
-        );
+        final selectedUserId = await context.push<String>('/profile-search');
 
         if (!mounted || selectedUserId == null) return;
 
@@ -2034,6 +2096,7 @@ class _ProfilePageState extends State<ProfilePage>
               setState(() {
                 _activePostIndex = index;
               });
+              _scheduleContinuitySave();
             },
             itemBuilder: (context, index) {
               return Padding(
@@ -2180,6 +2243,7 @@ class _ProfilePageState extends State<ProfilePage>
               setState(() {
                 _activeInsightPostIndex = index;
               });
+              _scheduleContinuitySave();
             },
             itemBuilder: (context, index) {
               final post = _insightPosts[index];
@@ -4072,11 +4136,9 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> _openInsightPost(InsightPost post) async {
-    final changed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) =>
-            InsightPostDetailPage(post: post, isOwner: _ownsInsightPost(post)),
-      ),
+    final changed = await context.push<bool>(
+      '/insight-post/${Uri.encodeComponent(post.id)}',
+      extra: post,
     );
     if (changed == true) {
       await _loadInsightPosts();
@@ -4134,15 +4196,13 @@ class _ProfilePageState extends State<ProfilePage>
 
   Future<void> _openPostDetails(int initialIndex) async {
     final post = _posts[initialIndex];
-    final changed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => FlowPostDetailPage(
-          post: post,
-          posts: _posts,
-          initialIndex: initialIndex,
-          isOwner: _isViewingOwnProfile,
-        ),
-      ),
+    final changed = await context.push<bool>(
+      '/flow-post/${Uri.encodeComponent(post.id)}',
+      extra: <String, Object?>{
+        'post': post,
+        'posts': _posts,
+        'initialIndex': initialIndex,
+      },
     );
     if (changed == true) {
       await _loadPosts();
@@ -4150,18 +4210,14 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> _openPostPicker() async {
-    final posted = await Navigator.of(
-      context,
-    ).push<bool>(MaterialPageRoute(builder: (_) => const FlowPostPickerPage()));
+    final posted = await context.push<bool>('/profile/flow-post-picker');
     if (posted == true) {
       await _loadPosts();
     }
   }
 
   Future<void> _openInsightPostPicker() async {
-    final posted = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const InsightPostPickerPage()),
-    );
+    final posted = await context.push<bool>('/profile/insight-post-picker');
     if (posted == true) {
       await _loadInsightPosts();
     }

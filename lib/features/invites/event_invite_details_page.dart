@@ -1,14 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/navigation_fallback.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
+import '../../shared/glossy_text.dart';
 import '../../utils/detail_sanitizer.dart';
 import '../calendar/calendar_page.dart';
 import '../inbox/conversation_user.dart';
-import '../inbox/inbox_conversation_page.dart';
 import 'event_invite_action_row.dart';
 
 class EventInviteDetailsPage extends StatefulWidget {
@@ -113,23 +115,19 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
     final otherUserId = openingSentInvite
         ? _share.recipientId
         : _share.senderId;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => InboxConversationPage(
-          otherUserId: otherUserId,
-          otherProfile: ConversationUser(
-            id: otherUserId,
-            displayName: openingSentInvite
-                ? _share.recipientDisplayName
-                : _share.senderName,
-            handle: openingSentInvite
-                ? _share.recipientHandle
-                : _share.senderHandle,
-            avatarUrl: openingSentInvite
-                ? _share.recipientAvatarUrl
-                : _share.senderAvatar,
-          ),
-        ),
+    context.push<void>(
+      '/inbox/conversation/${Uri.encodeComponent(otherUserId)}',
+      extra: ConversationUser(
+        id: otherUserId,
+        displayName: openingSentInvite
+            ? _share.recipientDisplayName
+            : _share.senderName,
+        handle: openingSentInvite
+            ? _share.recipientHandle
+            : _share.senderHandle,
+        avatarUrl: openingSentInvite
+            ? _share.recipientAvatarUrl
+            : _share.senderAvatar,
       ),
     );
   }
@@ -150,6 +148,10 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
+        leading: IconButton(
+          icon: KemeticGold.icon(Icons.arrow_back),
+          onPressed: () => popOrGo(context, '/inbox'),
+        ),
         title: const Text(
           'Event Invite',
           style: TextStyle(color: Colors.white),

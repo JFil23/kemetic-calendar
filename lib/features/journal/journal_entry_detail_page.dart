@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/navigation_fallback.dart';
 import '../../data/journal_repo.dart';
 import '../../shared/glossy_text.dart';
 import '../../data/insight_link_model.dart';
 import '../../data/insight_link_repo.dart';
 import '../../widgets/insight_link_text.dart';
 import '../nodes/kemetic_node_library.dart';
-import '../nodes/kemetic_node_reader_page.dart';
 
 class JournalEntryDetailPage extends StatefulWidget {
   final String entryId;
@@ -40,9 +41,11 @@ class _JournalEntryDetailPageState extends State<JournalEntryDetailPage> {
         final sourceId =
             'journal-${entry.gregDate.year}-${entry.gregDate.month.toString().padLeft(2, '0')}-${entry.gregDate.day.toString().padLeft(2, '0')}';
         _links = links
-            .where((l) =>
-                l.sourceType == InsightSourceType.journalEntry &&
-                l.sourceId == sourceId)
+            .where(
+              (l) =>
+                  l.sourceType == InsightSourceType.journalEntry &&
+                  l.sourceId == sourceId,
+            )
             .toList();
       } else {
         _links = [];
@@ -60,7 +63,7 @@ class _JournalEntryDetailPageState extends State<JournalEntryDetailPage> {
         elevation: 0,
         leading: IconButton(
           icon: KemeticGold.icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
+          onPressed: () => popOrGo(context, '/journal'),
         ),
         title: const Text(
           'Journal Entry',
@@ -74,42 +77,40 @@ class _JournalEntryDetailPageState extends State<JournalEntryDetailPage> {
               ),
             )
           : _entry == null
-              ? const Center(
-                  child: Text(
-                    'Entry not found.',
-                    style: TextStyle(color: Colors.white70),
+          ? const Center(
+              child: Text(
+                'Entry not found.',
+                style: TextStyle(color: Colors.white70),
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: RichText(
+                text: TextSpan(
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    height: 1.5,
                   ),
-                )
-              : Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        height: 1.5,
-                      ),
-                      children: InsightLinkSpanBuilder.build(
-                        text: _entry!.body,
-                        links: _links,
-                        baseStyle: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          height: 1.5,
-                        ),
-                        onTap: (link) {
-                          final node = KemeticNodeLibrary.resolve(link.targetId);
-                          if (node == null) return;
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => KemeticNodeReaderPage(node: node),
-                            ),
-                          );
-                        },
-                      ),
+                  children: InsightLinkSpanBuilder.build(
+                    text: _entry!.body,
+                    links: _links,
+                    baseStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      height: 1.5,
                     ),
+                    onTap: (link) {
+                      final node = KemeticNodeLibrary.resolve(link.targetId);
+                      if (node == null) return;
+                      context.push<void>(
+                        '/nodes/${Uri.encodeComponent(node.id)}',
+                      );
+                    },
                   ),
                 ),
+              ),
+            ),
     );
   }
 }

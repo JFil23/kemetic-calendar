@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -53,7 +54,13 @@ class _CommitmentTrackerPageState extends State<CommitmentTrackerPage> {
     final monthLabel = DateFormat.MMMM().format(DateTime.now());
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Commitment Tracker')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => popOrGo(context, '/rhythm/today'),
+        ),
+        title: const Text('Commitment Tracker'),
+      ),
       body: SafeArea(
         child: FutureBuilder<RhythmRepoResult<List<ContinuitySnapshot>>>(
           future: _future,

@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -14,7 +16,6 @@ import 'package:mobile/core/kemetic_converter.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
-import 'package:mobile/features/profile/profile_page.dart';
 import 'package:mobile/features/rhythm/rhythm_telemetry.dart';
 import 'package:mobile/features/rhythm/todo_day_window.dart';
 import 'package:mobile/features/rhythm/rhythm_user_messages.dart';
@@ -849,11 +850,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       return;
     }
     if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _DecanInfoPage(dayKey: dayKey, info: info),
-      ),
-    );
+    await context.push<void>('/rhythm/decan/${Uri.encodeComponent(dayKey)}');
   }
 
   DateTime _normalizeDate(DateTime date) =>
@@ -1117,32 +1114,14 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   Future<void> _openCalendarMenu(BuildContext context) async {
-    final calendarState = CalendarPage.globalKey.currentState;
-    if (calendarState != null) {
-      await calendarState.showActionsMenuFromOutside(
-        context,
-        includeNewNote: false,
-      );
-      return;
-    }
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Menu is unavailable right now.')),
+    await CalendarPage.showActionsMenuFromAnyContext(
+      context,
+      includeNewNote: false,
     );
   }
 
   Future<void> _openCalendarQuickAdd() async {
-    final calendarState = CalendarPage.globalKey.currentState;
-    if (calendarState != null) {
-      await calendarState.openQuickAddFromOutside();
-      return;
-    }
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('New note is unavailable right now.')),
-    );
+    await CalendarPage.openQuickAddFromAnyContext(context);
   }
 
   void _openProfilePage() {
@@ -1153,11 +1132,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       );
       return;
     }
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ProfilePage(userId: uid, isMyProfile: true),
-      ),
-    );
+    context.push<void>('/profile/${Uri.encodeComponent(uid)}');
   }
 
   void _onTodoPageChanged(int index) {
@@ -3456,11 +3431,14 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     if (_calendarRevealNavigationInFlight || !mounted) return;
 
     final navigator = Navigator.of(context);
-    if (!navigator.canPop()) return;
 
     _calendarRevealNavigationInFlight = true;
     try {
-      await navigator.maybePop();
+      if (navigator.canPop()) {
+        await navigator.maybePop();
+      } else {
+        context.go('/');
+      }
     } finally {
       _calendarRevealNavigationInFlight = false;
     }
@@ -3603,8 +3581,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 }
 
-class _DecanInfoPage extends StatelessWidget {
-  const _DecanInfoPage({required this.dayKey, required this.info});
+class DecanInfoPage extends StatelessWidget {
+  const DecanInfoPage({super.key, required this.dayKey, required this.info});
 
   final String dayKey;
   final KemeticDayInfo info;
@@ -3615,6 +3593,10 @@ class _DecanInfoPage extends StatelessWidget {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
+        leading: IconButton(
+          icon: KemeticGold.icon(Icons.arrow_back),
+          onPressed: () => popOrGo(context, '/rhythm/today'),
+        ),
         iconTheme: const IconThemeData(color: KemeticGold.base),
         title: KemeticGold.text(
           info.decanName,

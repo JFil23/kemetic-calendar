@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../data/event_filing_engine.dart';
 import '../../data/shared_calendar_models.dart';
 import '../../data/shared_calendars_repo.dart';
-import '../../features/profile/profile_search_page.dart';
 import '../../shared/glossy_text.dart';
 
 typedef SharedCalendarAddEventCallback =
@@ -17,15 +17,21 @@ class SharedCalendarsSheet extends StatefulWidget {
     super.key,
     required this.repo,
     this.onAddEventRequested,
+    this.initialExpandedCalendarIds = const <String>[],
+    this.onContinuityChanged,
   });
 
   final SharedCalendarsRepo repo;
   final SharedCalendarAddEventCallback? onAddEventRequested;
+  final List<String> initialExpandedCalendarIds;
+  final ValueChanged<Map<String, dynamic>>? onContinuityChanged;
 
   static Future<bool?> show(
     BuildContext context, {
     required SharedCalendarsRepo repo,
     SharedCalendarAddEventCallback? onAddEventRequested,
+    List<String> initialExpandedCalendarIds = const <String>[],
+    ValueChanged<Map<String, dynamic>>? onContinuityChanged,
   }) {
     return showModalBottomSheet<bool>(
       context: context,
@@ -35,6 +41,8 @@ class SharedCalendarsSheet extends StatefulWidget {
       builder: (_) => SharedCalendarsSheet(
         repo: repo,
         onAddEventRequested: onAddEventRequested,
+        initialExpandedCalendarIds: initialExpandedCalendarIds,
+        onContinuityChanged: onContinuityChanged,
       ),
     );
   }
@@ -66,8 +74,19 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   @override
   void initState() {
     super.initState();
+    _expandedCalendarIds.addAll(
+      widget.initialExpandedCalendarIds
+          .map((id) => id.trim())
+          .where((id) => id.isNotEmpty),
+    );
     unawaited(_restoreCachedSnapshot());
     _reload(showLoading: false);
+  }
+
+  void _notifyContinuityChanged() {
+    widget.onContinuityChanged?.call(<String, dynamic>{
+      'expandedCalendarIds': _expandedCalendarIds.toList(growable: false),
+    });
   }
 
   Future<void> _restoreCachedSnapshot() async {
@@ -77,6 +96,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       _snapshot = snapshot;
       _loading = false;
     });
+    unawaited(_hydrateExpandedCalendarEvents());
   }
 
   Future<void> _reload({bool showLoading = true}) async {
@@ -137,13 +157,10 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   }
 
   Future<void> _inviteToCalendar(SharedCalendarSummary calendar) async {
-    final userId = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (_) => const ProfileSearchPage(
-          titleText: 'Invite to Calendar',
-          hintText: 'Search by @handle or display name',
-        ),
-      ),
+    final userId = await context.push<String>(
+      '/profile-search'
+      '?title=${Uri.encodeComponent('Invite to Calendar')}'
+      '&hint=${Uri.encodeComponent('Search by @handle or display name')}',
     );
     if (userId == null || userId.trim().isEmpty) return;
 
@@ -242,6 +259,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
 
     if (_expandedCalendarIds.contains(calendarId)) {
       setState(() => _expandedCalendarIds.remove(calendarId));
+      _notifyContinuityChanged();
       return;
     }
 
@@ -251,6 +269,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       _calendarEventsById.remove(calendarId);
       _loadingCalendarEventIds.add(calendarId);
     });
+    _notifyContinuityChanged();
 
     try {
       final events = await widget.repo.getCalendarFiledEvents(calendarId);
@@ -266,6 +285,40 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
         _calendarEventErrorsById[calendarId] =
             'Could not load events for this calendar.';
       });
+    }
+  }
+
+  Future<void> _hydrateExpandedCalendarEvents() async {
+    final ids = _expandedCalendarIds
+        .where(
+          (id) =>
+              !_calendarEventsById.containsKey(id) &&
+              !_loadingCalendarEventIds.contains(id),
+        )
+        .toList(growable: false);
+    if (ids.isEmpty) return;
+
+    for (final calendarId in ids) {
+      if (!mounted) return;
+      setState(() {
+        _calendarEventErrorsById.remove(calendarId);
+        _loadingCalendarEventIds.add(calendarId);
+      });
+      try {
+        final events = await widget.repo.getCalendarFiledEvents(calendarId);
+        if (!mounted) return;
+        setState(() {
+          _calendarEventsById[calendarId] = events;
+          _loadingCalendarEventIds.remove(calendarId);
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _loadingCalendarEventIds.remove(calendarId);
+          _calendarEventErrorsById[calendarId] =
+              'Could not load events for this calendar.';
+        });
+      }
     }
   }
 

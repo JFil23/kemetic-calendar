@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
+import '../../core/navigation_fallback.dart';
 import '../../data/flow_post_model.dart';
 import '../../data/profile_repo.dart';
 import '../inbox/shared_flow_details_page.dart';
@@ -94,12 +95,16 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
                         key: ValueKey(_posts[index].id),
                         payloadJson: _payloadFor(_posts[index]),
                         showImportFooter: false,
+                        fallbackLocation:
+                            '/profile/${Uri.encodeComponent(_posts[index].userId)}',
                       );
                     },
                   )
                 : SharedFlowDetailsPage(
                     payloadJson: _payloadFor(post),
                     showImportFooter: false,
+                    fallbackLocation:
+                        '/profile/${Uri.encodeComponent(post.userId)}',
                   ),
           ),
           SafeArea(
@@ -244,6 +249,10 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
       );
       return;
     }
-    Navigator.of(context).pop(true);
+    popOrGo(
+      context,
+      '/profile/${Uri.encodeComponent(_activePost.userId)}',
+      result: true,
+    );
   }
 }

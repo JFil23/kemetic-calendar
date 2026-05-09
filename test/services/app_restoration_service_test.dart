@@ -11,6 +11,10 @@ String _snapshotKey({String userId = 'user-1', String windowId = 'window-1'}) {
 
 final Map<String, String> _debugCriticalSnapshots = <String, String>{};
 final Map<String, String> _debugLatestCriticalSnapshots = <String, String>{};
+final Map<String, Map<String, dynamic>> _debugRemoteWindowSnapshots =
+    <String, Map<String, dynamic>>{};
+final Map<String, Map<String, dynamic>> _debugRemoteLatestSnapshots =
+    <String, Map<String, dynamic>>{};
 String? _debugPlatformLastActiveUserId;
 
 void main() {
@@ -20,6 +24,19 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     AppRestorationService.debugUserIdResolver = () => 'user-1';
     AppWindowService.debugWindowIdResolver = () async => 'window-1';
+    AppRestorationService.debugRemoteWindowSnapshotReader =
+        (userId, deviceId, windowId) async =>
+            _debugRemoteWindowSnapshots['$userId:$deviceId:$windowId'];
+    AppRestorationService.debugRemoteLatestSnapshotReader = (userId) async =>
+        _debugRemoteLatestSnapshots[userId];
+    AppRestorationService.debugRemoteSnapshotWriter =
+        (userId, deviceId, windowId, snapshot) async {
+          _debugRemoteWindowSnapshots['$userId:$deviceId:$windowId'] =
+              Map<String, dynamic>.from(snapshot);
+          _debugRemoteLatestSnapshots[userId] = Map<String, dynamic>.from(
+            snapshot,
+          );
+        };
     AppRestorationService.debugCriticalSnapshotReader = (windowId) =>
         _debugCriticalSnapshots[windowId];
     AppRestorationService.debugCriticalSnapshotWriter = (windowId, serialized) {
@@ -49,12 +66,17 @@ void main() {
     };
     _debugCriticalSnapshots.clear();
     _debugLatestCriticalSnapshots.clear();
+    _debugRemoteWindowSnapshots.clear();
+    _debugRemoteLatestSnapshots.clear();
     _debugPlatformLastActiveUserId = null;
     AppWindowService.instance.resetForTesting();
   });
 
   tearDown(() {
     AppRestorationService.debugUserIdResolver = null;
+    AppRestorationService.debugRemoteWindowSnapshotReader = null;
+    AppRestorationService.debugRemoteLatestSnapshotReader = null;
+    AppRestorationService.debugRemoteSnapshotWriter = null;
     AppRestorationService.debugCriticalSnapshotReader = null;
     AppRestorationService.debugCriticalSnapshotWriter = null;
     AppRestorationService.debugLatestCriticalSnapshotReader = null;
@@ -64,6 +86,8 @@ void main() {
     AppWindowService.debugWindowIdResolver = null;
     _debugCriticalSnapshots.clear();
     _debugLatestCriticalSnapshots.clear();
+    _debugRemoteWindowSnapshots.clear();
+    _debugRemoteLatestSnapshots.clear();
     _debugPlatformLastActiveUserId = null;
     AppWindowService.instance.resetForTesting();
   });
@@ -101,6 +125,13 @@ void main() {
       'kDay': 12,
       'title': 'Morning offering',
     });
+    await AppRestorationService.instance.saveOverlayStack([
+      {'kind': 'calendar.flowStudio', 'mode': 'editor', 'editFlowId': 42},
+    ]);
+    await AppRestorationService.instance.saveEditorState(
+      'calendar.flowStudio.draft',
+      {'name': 'Morning discipline', 'selectionBase': 4},
+    );
 
     expect(await AppRestorationService.instance.readRouteLocation(), '/inbox');
 
@@ -122,6 +153,17 @@ void main() {
     final daySheet = await AppRestorationService.instance.readDaySheetState();
     expect(daySheet, isNotNull);
     expect(daySheet!['title'], 'Morning offering');
+
+    final overlays = await AppRestorationService.instance.readOverlayStack();
+    expect(overlays, hasLength(1));
+    expect(overlays.single['kind'], 'calendar.flowStudio');
+    expect(overlays.single['editFlowId'], 42);
+
+    final editor = await AppRestorationService.instance.readEditorState(
+      'calendar.flowStudio.draft',
+    );
+    expect(editor, isNotNull);
+    expect(editor!['name'], 'Morning discipline');
   });
 
   test(
@@ -405,4 +447,114 @@ void main() {
     expect(result.snapshot, isNull);
     expect(_debugCriticalSnapshots.containsKey('window-1'), isFalse);
   });
+
+  test('stores generic surface, overlay, editor, and cache hint state', () async {
+    await AppRestorationService.instance.saveRouteLocation('/profile/user-1');
+    await AppRestorationService.instance.saveSurfaceState('profile:user-1', {
+      'feedRevealed': true,
+      'profileScrollOffset': 1200.5,
+      'expandedFeedItem': 'flow:post-1',
+    });
+    await AppRestorationService.instance.saveOverlayStack([
+      {'kind': 'comment_sheet', 'postId': 'post-1'},
+    ]);
+    await AppRestorationService.instance.saveEditorState(
+      'inbox_conversation:user-2',
+      {'text': 'draft', 'selectionBase': 5, 'selectionExtent': 5},
+    );
+    await AppRestorationService.instance.saveCacheHints({
+      'profileUserId': 'user-1',
+    });
+    await AppRestorationService.instance.flushPendingWrites();
+
+    expect(
+      await AppRestorationService.instance.readSurfaceState('profile:user-1'),
+      containsPair('expandedFeedItem', 'flow:post-1'),
+    );
+    expect(
+      await AppRestorationService.instance.readOverlayStack(),
+      contains(containsPair('kind', 'comment_sheet')),
+    );
+    expect(
+      await AppRestorationService.instance.readEditorState(
+        'inbox_conversation:user-2',
+      ),
+      containsPair('text', 'draft'),
+    );
+    expect(
+      await AppRestorationService.instance.readCacheHints(),
+      containsPair('profileUserId', 'user-1'),
+    );
+    expect(
+      _debugRemoteLatestSnapshots['user-1']?['surfaces']?['profile:user-1']?['feedRevealed'],
+      isTrue,
+    );
+  });
+
+  test(
+    'adopts a backend latest snapshot when local state is missing',
+    () async {
+      _debugRemoteLatestSnapshots['user-1'] = {
+        'schemaVersion': AppRestorationService.schemaVersion,
+        'userId': 'user-1',
+        'windowId': 'remote-window',
+        'updatedAtMs': 9000,
+        'routeLocation': '/profile/user-1',
+        'surfaces': {
+          'profile:user-1': {'feedRevealed': true, 'feedScrollOffset': 42},
+        },
+      };
+
+      final location = await AppRestorationService.instance.readRouteLocation(
+        includeRemote: true,
+      );
+      expect(location, '/profile/user-1');
+
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+      expect(snapshot, isNotNull);
+      expect(snapshot!.windowId, 'window-1');
+      expect(snapshot.surfaces['profile:user-1']?['feedRevealed'], isTrue);
+
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_snapshotKey());
+      expect(raw, isNotNull);
+      expect(jsonDecode(raw!)['windowId'], 'window-1');
+    },
+  );
+
+  test(
+    'prefers a newer backend latest snapshot over a stale local root snapshot',
+    () async {
+      final staleLocal = {
+        'schemaVersion': AppRestorationService.schemaVersion,
+        'userId': 'user-1',
+        'windowId': 'window-1',
+        'updatedAtMs': 1000,
+        'routeLocation': '/',
+      };
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_snapshotKey(), jsonEncode(staleLocal));
+      _debugCriticalSnapshots['window-1'] = jsonEncode(staleLocal);
+      _debugRemoteLatestSnapshots['user-1'] = {
+        'schemaVersion': AppRestorationService.schemaVersion,
+        'userId': 'user-1',
+        'windowId': 'remote-window',
+        'updatedAtMs': 9000,
+        'routeLocation': '/profile/user-1',
+      };
+
+      final result = await AppRestorationService.instance.readBestSnapshot(
+        includeRemote: true,
+      );
+      expect(result.status, AppRestorationReadStatus.restored);
+      expect(result.source, 'remote_latest');
+      expect(result.snapshot?.routeLocation, '/profile/user-1');
+
+      final raw = prefs.getString(_snapshotKey());
+      expect(raw, isNotNull);
+      final adopted = jsonDecode(raw!) as Map<String, dynamic>;
+      expect(adopted['windowId'], 'window-1');
+      expect(adopted['routeLocation'], '/profile/user-1');
+    },
+  );
 }

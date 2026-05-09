@@ -49,8 +49,26 @@ void main() {
       ]);
       expect(
         saveRouteMatches,
-        unorderedEquals(<String>['lib/services/session_resume_service.dart']),
+        unorderedEquals(<String>['lib/services/restoration_coordinator.dart']),
       );
+    });
+
+    test('calendar action entrypoints stay centralized', () async {
+      final menuMatches = await _filesContainingAny(<String>[
+        'showActionsMenuFromOutside(',
+        'openQuickAddFromOutside(',
+      ]);
+      expect(
+        menuMatches,
+        unorderedEquals(<String>['lib/features/calendar/calendar_page.dart']),
+      );
+
+      final unavailableMatches = await _filesContainingAny(<String>[
+        'Menu is unavailable right now.',
+        'Calendar actions are unavailable right now.',
+        'New note is unavailable right now.',
+      ]);
+      expect(unavailableMatches, isEmpty);
     });
   });
 }

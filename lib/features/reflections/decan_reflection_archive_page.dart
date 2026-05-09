@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/navigation_fallback.dart';
 import '../../shared/glossy_text.dart';
 
 import '../../data/decan_reflection_repo.dart';
 import '../../data/decan_reflection_model.dart';
-import 'decan_reflection_detail_page.dart';
 
 class DecanReflectionArchivePage extends StatefulWidget {
   const DecanReflectionArchivePage({super.key});
 
   @override
-  State<DecanReflectionArchivePage> createState() => _DecanReflectionArchivePageState();
+  State<DecanReflectionArchivePage> createState() =>
+      _DecanReflectionArchivePageState();
 }
 
-class _DecanReflectionArchivePageState extends State<DecanReflectionArchivePage> {
+class _DecanReflectionArchivePageState
+    extends State<DecanReflectionArchivePage> {
   final _repo = DecanReflectionRepo(Supabase.instance.client);
   List<DecanReflection> _items = const [];
   bool _loading = true;
@@ -44,12 +47,16 @@ class _DecanReflectionArchivePageState extends State<DecanReflectionArchivePage>
         leading: IconButton(
           icon: KemeticGold.icon(Icons.arrow_back),
           tooltip: 'Back',
-          onPressed: () => Navigator.of(context).maybePop(),
+          onPressed: () => popOrGo(context, '/'),
         ),
         iconTheme: const IconThemeData(color: KemeticGold.base),
         title: const Text(
           'Decan Reflections',
-          style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       body: _loading
@@ -59,54 +66,60 @@ class _DecanReflectionArchivePageState extends State<DecanReflectionArchivePage>
               ),
             )
           : _items.isEmpty
-              ? Center(
-                  child: Text(
-                    'No reflections yet',
-                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
+          ? Center(
+              child: Text(
+                'No reflections yet',
+                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+              ),
+            )
+          : ListView.separated(
+              itemCount: _items.length,
+              separatorBuilder: (_, __) =>
+                  const Divider(color: Color(0xFF222222), height: 1),
+              itemBuilder: (context, index) {
+                final item = _items[index];
+                final dateRange =
+                    '${item.decanStart.toLocal().toIso8601String().split("T").first} → ${item.decanEnd.toLocal().toIso8601String().split("T").first}';
+                final preview = item.reflectionText.length > 120
+                    ? '${item.reflectionText.substring(0, 120)}…'
+                    : item.reflectionText;
+                return ListTile(
+                  onTap: () => context.push<void>(
+                    '/reflections/${Uri.encodeComponent(item.id)}',
                   ),
-                )
-              : ListView.separated(
-                  itemCount: _items.length,
-                  separatorBuilder: (_, __) => const Divider(color: Color(0xFF222222), height: 1),
-                  itemBuilder: (context, index) {
-                    final item = _items[index];
-                    final dateRange =
-                        '${item.decanStart.toLocal().toIso8601String().split("T").first} → ${item.decanEnd.toLocal().toIso8601String().split("T").first}';
-                    final preview = item.reflectionText.length > 120
-                        ? '${item.reflectionText.substring(0, 120)}…'
-                        : item.reflectionText;
-                    return ListTile(
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => DecanReflectionDetailPage(reflectionId: item.id),
-                          ),
-                        );
-                      },
-                      title: Text(
-                        item.decanName,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  title: Text(
+                    item.decanName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text(
+                        dateRange,
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 12,
+                        ),
                       ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 4),
-                          Text(
-                            dateRange,
-                            style: const TextStyle(color: Colors.white54, fontSize: 12),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            preview,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.white70, fontSize: 13),
-                          ),
-                        ],
+                      const SizedBox(height: 4),
+                      Text(
+                        preview,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
                       ),
-                    );
-                  },
-                ),
+                    ],
+                  ),
+                );
+              },
+            ),
     );
   }
 }

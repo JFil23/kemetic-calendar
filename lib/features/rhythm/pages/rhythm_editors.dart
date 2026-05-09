@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mobile/core/navigation_fallback.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/services/session_resume_service.dart';
 
@@ -202,6 +203,10 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => popOrGo(context, '/rhythm/mycycle'),
+        ),
         title: const Text('Timed rhythm'),
         actions: [
           TextButton(
@@ -377,7 +382,7 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
     setState(() => _saving = false);
     await SessionResumeService.clearResumeEntry(kind: kRhythmEditorResumeKind);
     if (!mounted) return;
-    Navigator.of(context).pop(true);
+    popOrGo(context, '/rhythm/mycycle', result: true);
   }
 }
 
@@ -463,6 +468,10 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => popOrGo(context, '/rhythm/mycycle'),
+        ),
         title: Text(widget.category),
         actions: [
           TextButton(
@@ -608,7 +617,7 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
     setState(() => _saving = false);
     await SessionResumeService.clearResumeEntry(kind: kRhythmEditorResumeKind);
     if (!mounted) return;
-    Navigator.of(context).pop(true);
+    popOrGo(context, '/rhythm/mycycle', result: true);
   }
 }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/navigation_fallback.dart';
 import '../../main.dart' show Events;
 import 'journal_controller.dart';
 import 'journal_overlay.dart';
@@ -46,7 +47,7 @@ class _JournalPageState extends State<JournalPage> {
       controller: widget.controller,
       isPortrait: isPortrait,
       presentationMode: JournalPresentationMode.page,
-      onClose: () => Navigator.of(context).maybePop(),
+      onClose: () => popOrGo(context, '/'),
     );
   }
 }

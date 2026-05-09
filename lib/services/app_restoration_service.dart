@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
+import '../data/app_restoration_repo.dart';
 import 'app_window_service.dart';
 import 'app_window_platform_stub.dart'
     if (dart.library.html) 'app_window_platform_web.dart'
@@ -29,6 +31,66 @@ Map<String, dynamic>? _asJsonMap(Object? raw) {
   return raw.map<String, dynamic>(
     (dynamic key, dynamic value) => MapEntry(key.toString(), value),
   );
+}
+
+Map<String, Map<String, dynamic>> _asJsonMapByKey(Object? raw) {
+  if (raw is! Map) {
+    return const <String, Map<String, dynamic>>{};
+  }
+  final result = <String, Map<String, dynamic>>{};
+  for (final entry in raw.entries) {
+    final key = entry.key.toString().trim();
+    final value = _asJsonMap(entry.value);
+    if (key.isNotEmpty && value != null) {
+      result[key] = value;
+    }
+  }
+  return Map<String, Map<String, dynamic>>.unmodifiable(result);
+}
+
+List<Map<String, dynamic>> _asJsonMapList(Object? raw) {
+  if (raw is! Iterable) {
+    return const <Map<String, dynamic>>[];
+  }
+  return raw
+      .map(_asJsonMap)
+      .whereType<Map<String, dynamic>>()
+      .map((entry) => Map<String, dynamic>.unmodifiable(entry))
+      .toList(growable: false);
+}
+
+Object? _coerceJsonValue(Object? value) {
+  if (value == null || value is String || value is num || value is bool) {
+    return value;
+  }
+  if (value is DateTime) {
+    return value.toUtc().toIso8601String();
+  }
+  if (value is Map) {
+    final result = <String, dynamic>{};
+    for (final entry in value.entries) {
+      final key = entry.key.toString().trim();
+      if (key.isNotEmpty) {
+        result[key] = _coerceJsonValue(entry.value);
+      }
+    }
+    return result;
+  }
+  if (value is Iterable) {
+    return value.map(_coerceJsonValue).toList(growable: false);
+  }
+  return value.toString();
+}
+
+Map<String, dynamic> _coerceJsonMap(Map<String, dynamic> raw) {
+  final result = <String, dynamic>{};
+  for (final entry in raw.entries) {
+    final key = entry.key.trim();
+    if (key.isNotEmpty) {
+      result[key] = _coerceJsonValue(entry.value);
+    }
+  }
+  return result;
 }
 
 int? _asInt(Object? raw) => (raw as num?)?.toInt();
@@ -305,6 +367,10 @@ class AppRestorationSnapshot {
     this.calendar,
     this.dayView,
     this.daySheet,
+    this.surfaces = const <String, Map<String, dynamic>>{},
+    this.overlayStack = const <Map<String, dynamic>>[],
+    this.editors = const <String, Map<String, dynamic>>{},
+    this.cacheHints,
   });
 
   final String userId;
@@ -314,6 +380,10 @@ class AppRestorationSnapshot {
   final CalendarRestorationState? calendar;
   final DayViewRestorationState? dayView;
   final Map<String, dynamic>? daySheet;
+  final Map<String, Map<String, dynamic>> surfaces;
+  final List<Map<String, dynamic>> overlayStack;
+  final Map<String, Map<String, dynamic>> editors;
+  final Map<String, dynamic>? cacheHints;
 
   static AppRestorationSnapshot? fromJson(Map<String, dynamic> raw) {
     final userId = (raw['userId'] as String?)?.trim();
@@ -336,6 +406,10 @@ class AppRestorationSnapshot {
       calendar: CalendarRestorationState.fromJson(raw['calendar']),
       dayView: DayViewRestorationState.fromJson(raw['dayView']),
       daySheet: _asJsonMap(daySheetRaw),
+      surfaces: _asJsonMapByKey(raw['surfaces']),
+      overlayStack: _asJsonMapList(raw['overlayStack']),
+      editors: _asJsonMapByKey(raw['editors']),
+      cacheHints: _asJsonMap(raw['cacheHints']),
     );
   }
 }
@@ -383,9 +457,25 @@ class AppRestorationService {
   static const String _keyPrefix = 'app_restoration_v1';
   static const String _latestUserKeyPrefix = 'app_restoration_latest_v2';
   static const String _lastActiveUserKey = 'app_restoration_last_user_v2';
+  static const String _deviceIdPrefsKey = 'app_restoration_device_id_v1';
   static final AppRestorationService instance = AppRestorationService._();
 
   static String? Function()? debugUserIdResolver;
+  static Future<Map<String, dynamic>?> Function(
+    String userId,
+    String deviceId,
+    String windowId,
+  )?
+  debugRemoteWindowSnapshotReader;
+  static Future<Map<String, dynamic>?> Function(String userId)?
+  debugRemoteLatestSnapshotReader;
+  static Future<void> Function(
+    String userId,
+    String deviceId,
+    String windowId,
+    Map<String, dynamic> snapshot,
+  )?
+  debugRemoteSnapshotWriter;
   static String? Function(String windowId)? debugCriticalSnapshotReader;
   static void Function(String windowId, String? serialized)?
   debugCriticalSnapshotWriter;
@@ -394,6 +484,11 @@ class AppRestorationService {
   debugLatestCriticalSnapshotWriter;
   static String? Function()? debugPlatformLastActiveUserIdReader;
   static void Function(String? userId)? debugPlatformLastActiveUserIdWriter;
+
+  String? _deviceId;
+  Future<String>? _deviceIdFuture;
+  Future<void> _mutationQueue = Future<void>.value();
+  Future<void> _remoteWriteQueue = Future<void>.value();
 
   Future<void> initialize() async {
     final windowId = await AppWindowService.instance.ensureInitialized();
@@ -424,6 +519,38 @@ class AppRestorationService {
       AppWindowService.instance.ensureInitialized();
 
   Future<SharedPreferences> _prefs() => SharedPreferences.getInstance();
+
+  Future<String> _currentDeviceId() {
+    final cached = _deviceId;
+    if (cached != null && cached.isNotEmpty) {
+      return Future<String>.value(cached);
+    }
+    final inFlight = _deviceIdFuture;
+    if (inFlight != null) {
+      return inFlight;
+    }
+    _deviceIdFuture = () async {
+      final prefs = await _prefs();
+      final existing = prefs.getString(_deviceIdPrefsKey)?.trim();
+      if (existing != null && existing.isNotEmpty) {
+        _deviceId = existing;
+        return existing;
+      }
+      final generated = const Uuid().v4();
+      await prefs.setString(_deviceIdPrefsKey, generated);
+      _deviceId = generated;
+      return generated;
+    }();
+    return _deviceIdFuture!;
+  }
+
+  AppRestorationRepo? _remoteRepo() {
+    try {
+      return AppRestorationRepo(Supabase.instance.client);
+    } catch (_) {
+      return null;
+    }
+  }
 
   String _prefsKey(String userId, String windowId) =>
       '$_keyPrefix:$userId:$windowId';
@@ -745,6 +872,91 @@ class AppRestorationService {
     );
   }
 
+  Future<_SnapshotCandidate?> _candidateFromRemoteRaw(
+    Map<String, dynamic>? raw, {
+    required String expectedUserId,
+    required String source,
+  }) async {
+    if (raw == null) {
+      return null;
+    }
+    final migrated = _migrateRawSnapshot(raw);
+    if (migrated == null) {
+      return null;
+    }
+    final snapshot = AppRestorationSnapshot.fromJson(migrated);
+    if (snapshot == null || snapshot.userId != expectedUserId) {
+      return null;
+    }
+    return _SnapshotCandidate(
+      snapshot: snapshot,
+      raw: migrated,
+      source: source,
+    );
+  }
+
+  Future<_SnapshotCandidate?> _loadRemoteWindowCandidate(
+    String userId,
+    String windowId,
+  ) async {
+    final deviceId = await _currentDeviceId();
+    final debugReader = debugRemoteWindowSnapshotReader;
+    if (debugReader != null) {
+      return _candidateFromRemoteRaw(
+        await debugReader(userId, deviceId, windowId),
+        expectedUserId: userId,
+        source: 'remote_window',
+      );
+    }
+
+    final repo = _remoteRepo();
+    if (repo == null) {
+      return null;
+    }
+    try {
+      final remote = await repo.readWindowSnapshot(
+        userId: userId,
+        deviceId: deviceId,
+        windowId: windowId,
+      );
+      return _candidateFromRemoteRaw(
+        remote?.snapshot,
+        expectedUserId: userId,
+        source: remote?.source ?? 'remote_window',
+      );
+    } catch (error) {
+      _log('remote window read skipped: $error');
+      return null;
+    }
+  }
+
+  Future<_SnapshotCandidate?> _loadRemoteLatestCandidate(String userId) async {
+    final debugReader = debugRemoteLatestSnapshotReader;
+    if (debugReader != null) {
+      return _candidateFromRemoteRaw(
+        await debugReader(userId),
+        expectedUserId: userId,
+        source: 'remote_latest',
+      );
+    }
+
+    final repo = _remoteRepo();
+    if (repo == null) {
+      return null;
+    }
+    try {
+      final remote = await repo.readLatestSnapshot(userId: userId);
+      return _candidateFromRemoteRaw(
+        remote?.snapshot,
+        expectedUserId: userId,
+        source: remote?.source ?? 'remote_latest',
+      );
+    } catch (error) {
+      _log('remote latest read skipped: $error');
+      return null;
+    }
+  }
+
   Future<_SnapshotCandidate?> _scanPrefsCandidatesForUser(
     String userId, {
     required bool clearIfInvalid,
@@ -814,6 +1026,7 @@ class AppRestorationService {
   Future<_SnapshotCandidate?> _readLatestSnapshotCandidateForUser(
     String userId, {
     required bool clearIfInvalid,
+    bool includeRemote = false,
   }) async {
     final latestPrefsCandidate = await _loadLatestPrefsCandidate(
       userId,
@@ -827,10 +1040,14 @@ class AppRestorationService {
       userId,
       clearIfInvalid: clearIfInvalid,
     );
+    final remoteLatestCandidate = includeRemote
+        ? await _loadRemoteLatestCandidate(userId)
+        : null;
     return _pickNewestCandidate(<_SnapshotCandidate>[
       if (latestPrefsCandidate != null) latestPrefsCandidate,
       if (latestCriticalCandidate != null) latestCriticalCandidate,
       if (scannedPrefsCandidate != null) scannedPrefsCandidate,
+      if (remoteLatestCandidate != null) remoteLatestCandidate,
     ]);
   }
 
@@ -838,17 +1055,52 @@ class AppRestorationService {
     String userId,
     String windowId, {
     required bool clearIfInvalid,
+    bool includeRemote = false,
   }) async {
     final currentWindowCandidate = await _readSnapshotCandidateForUser(
       userId,
       windowId,
       clearIfInvalid: clearIfInvalid,
     );
+    final remoteWindowCandidate = includeRemote
+        ? await _loadRemoteWindowCandidate(userId, windowId)
+        : null;
     final latestUserCandidate = await _readLatestSnapshotCandidateForUser(
       userId,
       clearIfInvalid: clearIfInvalid,
+      includeRemote: includeRemote,
     );
-    return currentWindowCandidate ?? latestUserCandidate;
+    if (currentWindowCandidate == null) {
+      return _pickNewestCandidate(<_SnapshotCandidate>[
+        if (remoteWindowCandidate != null) remoteWindowCandidate,
+        if (latestUserCandidate != null) latestUserCandidate,
+      ]);
+    }
+    if (!includeRemote) {
+      return currentWindowCandidate;
+    }
+
+    if (remoteWindowCandidate != null &&
+        remoteWindowCandidate.snapshot.updatedAtMs >
+            currentWindowCandidate.snapshot.updatedAtMs) {
+      return remoteWindowCandidate;
+    }
+
+    final currentRoute = currentWindowCandidate.snapshot.routeLocation?.trim();
+    final currentIsRootOrEmpty =
+        currentRoute == null || currentRoute.isEmpty || currentRoute == '/';
+    final latestRoute = latestUserCandidate?.snapshot.routeLocation?.trim();
+    final latestHasMeaningfulRoute =
+        latestRoute != null && latestRoute.isNotEmpty && latestRoute != '/';
+    if (currentIsRootOrEmpty &&
+        latestUserCandidate != null &&
+        latestHasMeaningfulRoute &&
+        latestUserCandidate.snapshot.updatedAtMs >
+            currentWindowCandidate.snapshot.updatedAtMs) {
+      return latestUserCandidate;
+    }
+
+    return currentWindowCandidate;
   }
 
   void _writeCriticalSnapshot(String windowId, String? serialized) {
@@ -877,9 +1129,49 @@ class AppRestorationService {
     app_window_platform.updateLatestCriticalSnapshot(userId, serialized);
   }
 
+  bool _isRemoteSource(String? source) =>
+      source != null && source.startsWith('remote_');
+
+  Future<void> _persistRawSnapshotLocally(
+    String userId,
+    String windowId,
+    Map<String, dynamic> raw,
+  ) async {
+    final encoded = jsonEncode(raw);
+    _writeCriticalSnapshot(windowId, encoded);
+    _writeLatestCriticalSnapshot(userId, encoded);
+    _writePlatformLastActiveUserId(userId);
+    final prefs = await _prefs();
+    await Future.wait<bool>(<Future<bool>>[
+      prefs.setString(_prefsKey(userId, windowId), encoded),
+      prefs.setString(_latestPrefsKey(userId), encoded),
+      prefs.setString(_lastActiveUserKey, userId),
+    ]);
+  }
+
+  Future<AppRestorationSnapshot?> _adoptRemoteSnapshot(
+    _SnapshotCandidate candidate,
+    String userId,
+    String windowId,
+  ) async {
+    final raw = Map<String, dynamic>.from(candidate.raw);
+    raw['schemaVersion'] = schemaVersion;
+    raw['userId'] = userId;
+    raw['windowId'] = windowId;
+    raw['updatedAtMs'] = DateTime.now().millisecondsSinceEpoch;
+    final snapshot = AppRestorationSnapshot.fromJson(raw);
+    if (snapshot == null) {
+      return null;
+    }
+    await _persistRawSnapshotLocally(userId, windowId, raw);
+    _log('adopted ${candidate.source} snapshot user=$userId window=$windowId');
+    return snapshot;
+  }
+
   Future<AppRestorationSnapshot?> readSnapshotForUser(
     String userId, {
     String? windowId,
+    bool includeRemote = false,
   }) async {
     final normalizedUserId = userId.trim();
     if (normalizedUserId.isEmpty) {
@@ -890,11 +1182,21 @@ class AppRestorationService {
       normalizedUserId,
       resolvedWindowId,
       clearIfInvalid: true,
+      includeRemote: includeRemote,
     );
+    if (candidate != null && _isRemoteSource(candidate.source)) {
+      return _adoptRemoteSnapshot(
+        candidate,
+        normalizedUserId,
+        resolvedWindowId,
+      );
+    }
     return candidate?.snapshot;
   }
 
-  Future<AppRestorationReadResult> readBestSnapshot() async {
+  Future<AppRestorationReadResult> readBestSnapshot({
+    bool includeRemote = false,
+  }) async {
     final windowId = await _currentWindowId();
     app_window_platform.registerCriticalSnapshotWindow(windowId);
     final activeUserId = await _currentUserId();
@@ -903,8 +1205,21 @@ class AppRestorationService {
         activeUserId,
         windowId,
         clearIfInvalid: true,
+        includeRemote: includeRemote,
       );
       if (candidate != null) {
+        final snapshot = _isRemoteSource(candidate.source)
+            ? await _adoptRemoteSnapshot(candidate, activeUserId, windowId)
+            : candidate.snapshot;
+        if (snapshot == null) {
+          return AppRestorationReadResult(
+            status: AppRestorationReadStatus.noSnapshot,
+            windowId: windowId,
+            activeUserId: activeUserId,
+            source: 'none',
+            reason: 'invalid_adopted_remote_snapshot',
+          );
+        }
         _log(
           'read status=restored source=${candidate.source} '
           'user=$activeUserId window=$windowId',
@@ -913,7 +1228,7 @@ class AppRestorationService {
           status: AppRestorationReadStatus.restored,
           windowId: windowId,
           activeUserId: activeUserId,
-          snapshot: candidate.snapshot,
+          snapshot: snapshot,
           source: candidate.source,
           reason: 'matched_current_user',
         );
@@ -985,15 +1300,25 @@ class AppRestorationService {
     ]);
   }
 
-  Future<AppRestorationSnapshot?> readSnapshot() async {
+  Future<AppRestorationSnapshot?> readSnapshot({
+    bool includeRemote = false,
+  }) async {
     final userId = await _currentUserId();
     if (userId == null) {
       return null;
     }
-    return readSnapshotForUser(userId);
+    return readSnapshotForUser(userId, includeRemote: includeRemote);
   }
 
   Future<void> _mutate(
+    void Function(Map<String, dynamic> current) update,
+  ) async {
+    final next = _mutationQueue.then((_) => _mutateNow(update));
+    _mutationQueue = next.catchError((_) {});
+    return next;
+  }
+
+  Future<void> _mutateNow(
     void Function(Map<String, dynamic> current) update,
   ) async {
     final userId = await _currentUserId();
@@ -1017,16 +1342,65 @@ class AppRestorationService {
     current['userId'] = userId;
     current['windowId'] = windowId;
     current['updatedAtMs'] = DateTime.now().millisecondsSinceEpoch;
-    final encoded = jsonEncode(current);
-    _writeCriticalSnapshot(windowId, encoded);
-    _writeLatestCriticalSnapshot(userId, encoded);
-    _writePlatformLastActiveUserId(userId);
-    final prefs = await _prefs();
-    await Future.wait<bool>(<Future<bool>>[
-      prefs.setString(_prefsKey(userId, windowId), encoded),
-      prefs.setString(_latestPrefsKey(userId), encoded),
-      prefs.setString(_lastActiveUserKey, userId),
-    ]);
+    await _persistRawSnapshotLocally(userId, windowId, current);
+    _scheduleRemoteSnapshotWrite(current);
+  }
+
+  void _scheduleRemoteSnapshotWrite(Map<String, dynamic> raw) {
+    final snapshot = Map<String, dynamic>.from(raw);
+    final next = _remoteWriteQueue.then(
+      (_) => _writeRemoteSnapshot(snapshot),
+      onError: (_) => _writeRemoteSnapshot(snapshot),
+    );
+    _remoteWriteQueue = next.catchError((_) {});
+    unawaited(_remoteWriteQueue);
+  }
+
+  Future<void> _writeRemoteSnapshot(Map<String, dynamic> raw) async {
+    final userId = (raw['userId'] as String?)?.trim();
+    final windowId = (raw['windowId'] as String?)?.trim();
+    final updatedAtMs = _asInt(raw['updatedAtMs']);
+    if (userId == null ||
+        userId.isEmpty ||
+        windowId == null ||
+        windowId.isEmpty ||
+        updatedAtMs == null) {
+      return;
+    }
+
+    final deviceId = await _currentDeviceId();
+    final debugWriter = debugRemoteSnapshotWriter;
+    if (debugWriter != null) {
+      await debugWriter(
+        userId,
+        deviceId,
+        windowId,
+        Map<String, dynamic>.from(raw),
+      );
+      return;
+    }
+
+    final repo = _remoteRepo();
+    if (repo == null) {
+      return;
+    }
+    try {
+      await repo.upsertSnapshots(
+        userId: userId,
+        deviceId: deviceId,
+        windowId: windowId,
+        schemaVersion: schemaVersion,
+        updatedAtMs: updatedAtMs,
+        snapshot: Map<String, dynamic>.from(raw),
+      );
+    } catch (error) {
+      _log('remote write skipped: $error');
+    }
+  }
+
+  Future<void> flushPendingWrites() async {
+    await _mutationQueue;
+    await _remoteWriteQueue;
   }
 
   Future<void> clearCurrentSnapshot() async {
@@ -1040,8 +1414,8 @@ class AppRestorationService {
     _writeCriticalSnapshot(windowId, null);
   }
 
-  Future<String?> readRouteLocation() async {
-    final snapshot = await readSnapshot();
+  Future<String?> readRouteLocation({bool includeRemote = false}) async {
+    final snapshot = await readSnapshot(includeRemote: includeRemote);
     final location = snapshot?.routeLocation?.trim();
     if (location == null || location.isEmpty) {
       return null;
@@ -1105,7 +1479,107 @@ class AppRestorationService {
       if (state == null || state.isEmpty) {
         current.remove('daySheet');
       } else {
-        current['daySheet'] = state;
+        current['daySheet'] = _coerceJsonMap(state);
+      }
+    });
+  }
+
+  Future<Map<String, dynamic>?> readSurfaceState(String key) async {
+    final normalizedKey = key.trim();
+    if (normalizedKey.isEmpty) {
+      return null;
+    }
+    final snapshot = await readSnapshot();
+    final state = snapshot?.surfaces[normalizedKey];
+    return state == null ? null : Map<String, dynamic>.from(state);
+  }
+
+  Future<void> saveSurfaceState(String key, Map<String, dynamic>? state) async {
+    final normalizedKey = key.trim();
+    if (normalizedKey.isEmpty) {
+      return;
+    }
+    await _mutate((current) {
+      final surfaces = _asJsonMapByKey(current['surfaces']);
+      final next = <String, Map<String, dynamic>>{...surfaces};
+      if (state == null || state.isEmpty) {
+        next.remove(normalizedKey);
+      } else {
+        next[normalizedKey] = _coerceJsonMap(state);
+      }
+      if (next.isEmpty) {
+        current.remove('surfaces');
+      } else {
+        current['surfaces'] = next;
+      }
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> readOverlayStack() async {
+    final snapshot = await readSnapshot();
+    return snapshot?.overlayStack
+            .map((entry) => Map<String, dynamic>.from(entry))
+            .toList(growable: false) ??
+        const <Map<String, dynamic>>[];
+  }
+
+  Future<void> saveOverlayStack(List<Map<String, dynamic>> overlayStack) async {
+    await _mutate((current) {
+      final next = overlayStack
+          .where((entry) => entry.isNotEmpty)
+          .map(_coerceJsonMap)
+          .toList(growable: false);
+      if (next.isEmpty) {
+        current.remove('overlayStack');
+      } else {
+        current['overlayStack'] = next;
+      }
+    });
+  }
+
+  Future<Map<String, dynamic>?> readEditorState(String key) async {
+    final normalizedKey = key.trim();
+    if (normalizedKey.isEmpty) {
+      return null;
+    }
+    final snapshot = await readSnapshot();
+    final state = snapshot?.editors[normalizedKey];
+    return state == null ? null : Map<String, dynamic>.from(state);
+  }
+
+  Future<void> saveEditorState(String key, Map<String, dynamic>? state) async {
+    final normalizedKey = key.trim();
+    if (normalizedKey.isEmpty) {
+      return;
+    }
+    await _mutate((current) {
+      final editors = _asJsonMapByKey(current['editors']);
+      final next = <String, Map<String, dynamic>>{...editors};
+      if (state == null || state.isEmpty) {
+        next.remove(normalizedKey);
+      } else {
+        next[normalizedKey] = _coerceJsonMap(state);
+      }
+      if (next.isEmpty) {
+        current.remove('editors');
+      } else {
+        current['editors'] = next;
+      }
+    });
+  }
+
+  Future<Map<String, dynamic>?> readCacheHints() async {
+    final snapshot = await readSnapshot();
+    final hints = snapshot?.cacheHints;
+    return hints == null ? null : Map<String, dynamic>.from(hints);
+  }
+
+  Future<void> saveCacheHints(Map<String, dynamic>? hints) async {
+    await _mutate((current) {
+      if (hints == null || hints.isEmpty) {
+        current.remove('cacheHints');
+      } else {
+        current['cacheHints'] = _coerceJsonMap(hints);
       }
     });
   }

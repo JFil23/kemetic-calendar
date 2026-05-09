@@ -19,8 +19,13 @@ import 'features/sharing/share_preview_page.dart';
 import 'features/inbox/inbox_page.dart';
 import 'features/inbox/inbox_conversation_page.dart';
 import 'features/inbox/conversation_user.dart';
+import 'features/inbox/shared_flow_details_entry.dart';
+import 'features/inbox/shared_flow_details_page.dart';
 import 'features/invites/event_invite_details_page.dart';
+import 'data/profile_model.dart';
 import 'data/profile_repo.dart';
+import 'data/flow_post_model.dart';
+import 'data/insight_post_model.dart';
 import 'data/profile_avatar_glyphs.dart';
 import 'data/share_models.dart';
 import 'utils/event_cid_util.dart';
@@ -36,16 +41,33 @@ import 'core/theme/app_theme.dart';
 import 'services/calendar_sync_service.dart';
 import 'services/push_notifications.dart';
 import 'services/decan_reflection_scheduler.dart';
+import 'features/journal/journal_controller.dart';
+import 'features/journal/journal_entry_detail_page.dart';
+import 'features/journal/journal_page.dart';
+import 'features/nodes/kemetic_node_library.dart';
+import 'features/nodes/kemetic_node_list_page.dart';
+import 'features/nodes/kemetic_node_reader_page.dart';
+import 'features/profile/edit_profile_page.dart';
 import 'features/profile/flow_post_detail_page.dart';
+import 'features/profile/flow_post_picker_page.dart';
+import 'features/profile/follow_list_page.dart';
+import 'features/profile/insight_post_detail_page.dart';
+import 'features/profile/insight_post_picker_page.dart';
 import 'features/profile/profile_page.dart';
+import 'features/profile/profile_search_page.dart';
+import 'features/reflections/decan_reflection_archive_page.dart';
 import 'features/rhythm/pages/commitment_tracker_page.dart';
 import 'features/rhythm/pages/my_cycle_page.dart';
+import 'features/rhythm/pages/rhythm_editors.dart';
 import 'features/rhythm/pages/todays_alignment_page.dart';
+import 'features/settings/settings_page.dart';
 import 'features/settings/settings_prefs.dart';
 import 'features/reflections/decan_reflection_detail_page.dart';
 import 'widgets/kemetic_keyboard.dart';
+import 'widgets/kemetic_day_info.dart';
 import 'services/app_restoration_service.dart';
 import 'services/app_window_service.dart';
+import 'services/restoration_coordinator.dart';
 import 'services/session_resume_service.dart';
 
 // Conditional import: on web we use URL cleanup + visibility hook; elsewhere no-ops.
@@ -110,6 +132,7 @@ final ValueNotifier<bool> _webAuthExchangeInProgress = ValueNotifier<bool>(
   false,
 );
 bool _deferSessionResumeForPushNavigation = false;
+String? _bootRestoredLocation;
 
 void _configureLogging() {
   if (kReleaseMode || kProfileMode) {
@@ -191,6 +214,7 @@ Future<void> main() async {
 
     await AppWindowService.instance.ensureInitialized();
     await AppRestorationService.instance.initialize();
+    _bootRestoredLocation = await _readBootRestoredLocation();
 
     // 🚨 Initialize notifications/push without blocking the first frame.
     // AuthGate will re-attempt on sign-in if these fail.
@@ -360,14 +384,60 @@ class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
 String _resolveInitialLocation() {
   final defaultRoute = PlatformDispatcher.instance.defaultRouteName.trim();
   if (defaultRoute.isEmpty || defaultRoute == Navigator.defaultRouteName) {
-    return '/';
+    return _bootRestoredLocation ?? '/';
   }
   return defaultRoute.startsWith('/') ? defaultRoute : '/$defaultRoute';
+}
+
+Future<String?> _readBootRestoredLocation() async {
+  final hasSession = Supabase.instance.client.auth.currentSession != null;
+  final result = await AppRestorationService.instance.readBestSnapshot(
+    includeRemote: hasSession,
+  );
+  if (result.status != AppRestorationReadStatus.restored &&
+      result.status != AppRestorationReadStatus.tentative) {
+    return null;
+  }
+  final overlayParentRoute = CalendarPage.restorableOverlayParentRouteFromStack(
+    result.snapshot?.overlayStack ?? const <Map<String, dynamic>>[],
+  );
+  final location = overlayParentRoute ?? result.snapshot?.routeLocation?.trim();
+  if (location == null || location.isEmpty || location == '/') {
+    return null;
+  }
+  return _isContinuityRouteLocation(location) ? location : null;
+}
+
+bool _isContinuityRouteLocation(String location) {
+  final uri = Uri.tryParse(location);
+  if (uri == null || !uri.path.startsWith('/')) {
+    return false;
+  }
+  final path = uri.path;
+  return path == '/' ||
+      path == '/inbox' ||
+      path == '/settings' ||
+      path == '/profile-search' ||
+      path == '/journal' ||
+      path == '/nodes' ||
+      path == '/reflections' ||
+      path.startsWith('/inbox/conversation/') ||
+      path.startsWith('/event-invite/') ||
+      path.startsWith('/shared-flow/') ||
+      path.startsWith('/profile/') ||
+      path.startsWith('/insight-post/') ||
+      path.startsWith('/flow-post/') ||
+      path.startsWith('/journal/entry/') ||
+      path.startsWith('/nodes/') ||
+      path.startsWith('/reflections/') ||
+      path.startsWith('/share/') ||
+      path.startsWith('/rhythm/');
 }
 
 final _router = GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: _resolveInitialLocation(),
+  restorationScopeId: AppWindowService.instance.restorationScopeId,
   observers: <NavigatorObserver>[routeObserver, TelemetryRouteObserver()],
   routes: [
     GoRoute(path: '/', builder: (context, state) => const AuthGate()),
@@ -390,6 +460,222 @@ final _router = GoRouter(
           child: const InboxPage(),
         );
       },
+    ),
+    GoRoute(
+      path: '/inbox/conversation/:userId',
+      builder: (context, state) {
+        final userId = Uri.decodeComponent(state.pathParameters['userId']!);
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: InboxConversationRoutePage(
+            otherUserId: userId,
+            extra: state.extra,
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/event-invite/:shareId',
+      builder: (context, state) {
+        final shareId = Uri.decodeComponent(state.pathParameters['shareId']!);
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: EventInviteRoutePage(shareId: shareId, extra: state.extra),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/shared-flow/:shareId',
+      builder: (context, state) {
+        final shareId = Uri.decodeComponent(state.pathParameters['shareId']!);
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: SharedFlowRoutePage(shareId: shareId, extra: state.extra),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/shared-flow/by-flow/:flowId',
+      builder: (context, state) {
+        final flowId = int.tryParse(state.pathParameters['flowId'] ?? '');
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: SharedFlowRoutePage(flowId: flowId),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/profile/:userId/followers',
+      builder: (context, state) {
+        final userId = Uri.decodeComponent(state.pathParameters['userId']!);
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: FollowListPage(userId: userId, type: FollowListType.followers),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/profile/:userId/following',
+      builder: (context, state) {
+        final userId = Uri.decodeComponent(state.pathParameters['userId']!);
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: FollowListPage(userId: userId, type: FollowListType.following),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/profile/me/edit',
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: EditProfileRoutePage(
+          requireCompletion:
+              state.uri.queryParameters['requireCompletion'] == '1',
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/profile-search',
+      builder: (context, state) {
+        final title = state.uri.queryParameters['title'];
+        final hint = state.uri.queryParameters['hint'];
+        final fallback = state.uri.queryParameters['fallback'];
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: ProfileSearchPage(
+            returnFullResult:
+                state.uri.queryParameters['returnFullResult'] == '1',
+            titleText: title?.trim().isNotEmpty == true
+                ? title!.trim()
+                : 'Find People',
+            hintText: hint?.trim().isNotEmpty == true
+                ? hint!.trim()
+                : 'Search by @handle or display name',
+            fallbackLocation: fallback?.trim().isNotEmpty == true
+                ? fallback!.trim()
+                : '/profile/me',
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/profile/flow-post-picker',
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: const FlowPostPickerPage(),
+      ),
+    ),
+    GoRoute(
+      path: '/profile/insight-post-picker',
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: const InsightPostPickerPage(),
+      ),
+    ),
+    GoRoute(
+      path: '/profile/:userId',
+      builder: (context, state) {
+        final rawUserId = Uri.decodeComponent(state.pathParameters['userId']!);
+        final currentUserId = supabase.auth.currentUser?.id;
+        final userId = rawUserId == 'me' ? currentUserId : rawUserId;
+        if (userId == null || userId.trim().isEmpty) {
+          return const AuthGate();
+        }
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: ProfilePage(
+            userId: userId,
+            isMyProfile: currentUserId != null && currentUserId == userId,
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/insight-post/:postId',
+      builder: (context, state) {
+        final postId = Uri.decodeComponent(state.pathParameters['postId']!);
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: InsightPostRoutePage(postId: postId, extra: state.extra),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/flow-post/:postId',
+      builder: (context, state) {
+        final postId = Uri.decodeComponent(state.pathParameters['postId']!);
+        final openComments =
+            state.uri.queryParameters['comments'] == '1' ||
+            state.uri.queryParameters['openComments'] == '1';
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: FlowPostRoutePage(
+            postId: postId,
+            openCommentsOnLoad: openComments,
+            extra: state.extra,
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/journal',
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: const JournalRoutePage(),
+      ),
+    ),
+    GoRoute(
+      path: '/journal/entry/:entryId',
+      builder: (context, state) {
+        final entryId = Uri.decodeComponent(state.pathParameters['entryId']!);
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: JournalEntryDetailPage(entryId: entryId),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/nodes',
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: const KemeticNodeListPage(),
+      ),
+    ),
+    GoRoute(
+      path: '/nodes/:nodeId',
+      builder: (context, state) {
+        final nodeId = Uri.decodeComponent(state.pathParameters['nodeId']!);
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: NodeReaderRoutePage(nodeId: nodeId),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/reflections',
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: const DecanReflectionArchivePage(),
+      ),
+    ),
+    GoRoute(
+      path: '/reflections/:reflectionId',
+      builder: (context, state) {
+        final reflectionId = Uri.decodeComponent(
+          state.pathParameters['reflectionId']!,
+        );
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: DecanReflectionDetailPage(reflectionId: reflectionId),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/settings',
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: const SettingsPage(),
+      ),
     ),
     GoRoute(
       path: '/share/:shareId',
@@ -429,6 +715,65 @@ final _router = GoRouter(
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
         child: const CommitmentTrackerPage(),
+      ),
+    ),
+    GoRoute(
+      path: '/rhythm/decan/:dayKey',
+      builder: (context, state) {
+        final dayKey = Uri.decodeComponent(state.pathParameters['dayKey']!);
+        final info = KemeticDayData.getInfoForDay(dayKey);
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: info == null
+              ? const _RouteMissingScaffold(
+                  message: 'Decan details are not available yet.',
+                  fallbackLocation: '/rhythm/today',
+                )
+              : DecanInfoPage(dayKey: dayKey, info: info),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/rhythm/editor/timed',
+      builder: (context, state) {
+        final resume = state.extra is RhythmEditorResumePayload
+            ? state.extra as RhythmEditorResumePayload
+            : null;
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: TimedRhythmEditorPage(
+            initial: resume?.draft,
+            categoryDisplay:
+                resume?.category ??
+                state.uri.queryParameters['category'] ??
+                'Rhythm of Day',
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/rhythm/editor/untimed',
+      builder: (context, state) {
+        final resume = state.extra is RhythmEditorResumePayload
+            ? state.extra as RhythmEditorResumePayload
+            : null;
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: UntimedRhythmEditorPage(
+            initial: resume?.draft,
+            category:
+                resume?.category ??
+                state.uri.queryParameters['category'] ??
+                'Custom',
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/rhythm/editor/custom',
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: const CustomRhythmEditorPage(),
       ),
     ),
   ],
@@ -697,7 +1042,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       return;
     }
 
-    final handled = await _handlePushNavigation(nav, data);
+    final handled = await _handlePushNavigation(data);
     if (!handled) {
       return;
     }
@@ -705,10 +1050,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     _rememberHandledPushNavigation(navigationKey);
   }
 
-  Future<bool> _handlePushNavigation(
-    NavigatorState nav,
-    Map<String, dynamic> data,
-  ) async {
+  Future<bool> _handlePushNavigation(Map<String, dynamic> data) async {
     final kind = _trimmedValue(data['kind'] ?? data['type']);
     if (kind == null) return false;
 
@@ -718,25 +1060,16 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     if (kind == 'decan_reflection' && reflectionId != null) {
       final uid = supabase.auth.currentUser?.id;
       if (uid == null) return false;
-      nav.push(
-        MaterialPageRoute(
-          builder: (_) => ProfilePage(userId: uid, isMyProfile: true),
-        ),
-      );
-      nav.push(
-        MaterialPageRoute(
-          builder: (_) => DecanReflectionDetailPage(reflectionId: reflectionId),
-        ),
-      );
+      _router.go('/reflections/${Uri.encodeComponent(reflectionId)}');
       return true;
     }
 
     if (kind == 'dm') {
       final senderId = _trimmedValue(data['sender_id'] ?? data['senderId']);
       if (senderId != null) {
-        await _openDmConversation(nav, senderId);
+        await _openDmConversation(senderId);
       } else {
-        nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+        _router.go('/inbox');
       }
       return true;
     }
@@ -745,17 +1078,17 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       final shareId = _trimmedValue(data['share_id'] ?? data['shareId']);
       final senderId = _trimmedValue(data['sender_id'] ?? data['senderId']);
       if (shareId != null) {
-        await _openEventInvite(nav, shareId, senderId: senderId);
+        await _openEventInvite(shareId, senderId: senderId);
       } else if (senderId != null) {
-        await _openDmConversation(nav, senderId);
+        await _openDmConversation(senderId);
       } else {
-        nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+        _router.go('/inbox');
       }
       return true;
     }
 
     if (kind == 'calendar_invite' || kind == 'calendar_invite_response') {
-      nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+      _router.go('/inbox');
       return true;
     }
 
@@ -768,12 +1101,11 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       );
       if (flowPostId != null) {
         await _openFlowPostActivity(
-          nav,
           flowPostId,
           openCommentsOnLoad: kind != 'flow_like',
         );
       } else {
-        nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+        _router.go('/inbox');
       }
       return true;
     }
@@ -801,7 +1133,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     return false;
   }
 
-  Future<void> _openDmConversation(NavigatorState nav, String senderId) async {
+  Future<void> _openDmConversation(String senderId) async {
     try {
       Map<String, dynamic>? profile;
       try {
@@ -827,16 +1159,12 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
         avatarGlyphIds: parseProfileAvatarGlyphIds(profile?['avatar_glyphs']),
       );
 
-      nav.push(
-        MaterialPageRoute(
-          builder: (_) => InboxConversationPage(
-            otherUserId: senderId,
-            otherProfile: otherProfile,
-          ),
-        ),
+      _router.go(
+        '/inbox/conversation/${Uri.encodeComponent(senderId)}',
+        extra: otherProfile,
       );
     } catch (_) {
-      nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+      _router.go('/inbox');
     }
   }
 
@@ -852,11 +1180,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
             text.contains('schema cache'));
   }
 
-  Future<void> _openEventInvite(
-    NavigatorState nav,
-    String shareId, {
-    String? senderId,
-  }) async {
+  Future<void> _openEventInvite(String shareId, {String? senderId}) async {
     for (final viewName in const [
       'share_filing_items_client',
       'inbox_share_items_filtered',
@@ -869,10 +1193,9 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
             .maybeSingle();
         if (row != null) {
           final share = InboxShareItem.fromJson(row);
-          nav.push(
-            MaterialPageRoute(
-              builder: (_) => EventInviteDetailsPage(share: share),
-            ),
+          _router.go(
+            '/event-invite/${Uri.encodeComponent(shareId)}',
+            extra: share,
           );
           return;
         }
@@ -883,19 +1206,18 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
 
     final directShare = await _loadEventInviteShare(shareId);
     if (directShare != null) {
-      nav.push(
-        MaterialPageRoute(
-          builder: (_) => EventInviteDetailsPage(share: directShare),
-        ),
+      _router.go(
+        '/event-invite/${Uri.encodeComponent(shareId)}',
+        extra: directShare,
       );
       return;
     }
 
     if (senderId != null) {
-      await _openDmConversation(nav, senderId);
+      await _openDmConversation(senderId);
       return;
     }
-    nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+    _router.go('/inbox');
   }
 
   Map<String, dynamic>? _coerceJsonMap(Object? raw) {
@@ -985,22 +1307,16 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
   }
 
   Future<void> _openFlowPostActivity(
-    NavigatorState nav,
     String flowPostId, {
     required bool openCommentsOnLoad,
   }) async {
     try {
       final post = await ProfileRepo(supabase).getFlowPostById(flowPostId);
       if (post != null) {
-        final currentUserId = supabase.auth.currentUser?.id;
-        nav.push(
-          MaterialPageRoute(
-            builder: (_) => FlowPostDetailPage(
-              post: post,
-              isOwner: currentUserId != null && post.userId == currentUserId,
-              openCommentsOnLoad: openCommentsOnLoad,
-            ),
-          ),
+        _router.go(
+          '/flow-post/${Uri.encodeComponent(flowPostId)}'
+          '${openCommentsOnLoad ? '?comments=1' : ''}',
+          extra: post,
         );
         return;
       }
@@ -1008,7 +1324,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       // Fall back below.
     }
 
-    nav.push(MaterialPageRoute(builder: (_) => const InboxPage()));
+    _router.go('/inbox');
   }
 
   Future<void> _openCalendarEventFromPush(String clientEventId) async {
@@ -1051,8 +1367,28 @@ class _LaunchShellState extends State<_LaunchShell>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_restoreDetachedCalendarOverlayAfterBoot());
       _dismissOverlay();
     });
+  }
+
+  Future<void> _restoreDetachedCalendarOverlayAfterBoot() async {
+    for (var attempt = 0; attempt < 30; attempt++) {
+      if (!mounted) return;
+      final navContext = _rootNavigatorKey.currentContext;
+      if (navContext != null) {
+        if (!navContext.mounted) return;
+        final currentLocation = _router.routerDelegate.currentConfiguration.uri
+            .toString();
+        final restored =
+            await CalendarPage.restoreDetachedCalendarOverlayFromAnyContext(
+              navContext,
+              currentLocation: currentLocation,
+            );
+        if (restored) return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    }
   }
 
   Future<void> _dismissOverlay() async {
@@ -1163,6 +1499,709 @@ class _ShimmeringLaunchWordState extends State<_ShimmeringLaunchWord>
           ),
         );
       },
+    );
+  }
+}
+
+class InboxConversationRoutePage extends StatefulWidget {
+  const InboxConversationRoutePage({
+    super.key,
+    required this.otherUserId,
+    this.extra,
+  });
+
+  final String otherUserId;
+  final Object? extra;
+
+  static String editorKey(String otherUserId) =>
+      'inbox_conversation:${otherUserId.trim()}';
+
+  @override
+  State<InboxConversationRoutePage> createState() =>
+      _InboxConversationRoutePageState();
+}
+
+class _InboxConversationRoutePageState
+    extends State<InboxConversationRoutePage> {
+  late Future<({ConversationUser profile, String? draftText})> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant InboxConversationRoutePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.otherUserId != widget.otherUserId ||
+        oldWidget.extra != widget.extra) {
+      _future = _load();
+    }
+  }
+
+  Future<({ConversationUser profile, String? draftText})> _load() async {
+    final extraProfile = _profileFromExtra(widget.extra);
+    final profile = extraProfile ?? await _loadConversationUser();
+    final textValue = await RestorationCoordinator.instance
+        .readTextEditingValue(
+          InboxConversationRoutePage.editorKey(widget.otherUserId),
+        );
+    return (
+      profile: profile,
+      draftText: textValue?.text ?? _draftFromExtra(widget.extra),
+    );
+  }
+
+  ConversationUser? _profileFromExtra(Object? extra) {
+    if (extra is ConversationUser) {
+      return extra;
+    }
+    if (extra is Map) {
+      final raw = extra['profile'];
+      if (raw is ConversationUser) {
+        return raw;
+      }
+    }
+    return null;
+  }
+
+  String? _draftFromExtra(Object? extra) {
+    if (extra is! Map) {
+      return null;
+    }
+    final draft = extra['initialDraftText'] as String?;
+    final normalized = draft?.trim();
+    return normalized == null || normalized.isEmpty ? null : draft;
+  }
+
+  Future<ConversationUser> _loadConversationUser() async {
+    final cached = await ProfileRepo(
+      supabase,
+    ).restoreCachedProfile(widget.otherUserId);
+    final live =
+        cached ?? await ProfileRepo(supabase).getProfile(widget.otherUserId);
+    if (live != null) {
+      return ConversationUser(
+        id: live.id,
+        displayName: live.displayName,
+        handle: live.handle,
+        avatarUrl: live.avatarUrl,
+        avatarGlyphIds: live.avatarGlyphIds,
+      );
+    }
+    return ConversationUser(id: widget.otherUserId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<({ConversationUser profile, String? draftText})>(
+      future: _future,
+      builder: (context, snapshot) {
+        final data = snapshot.data;
+        if (data != null) {
+          return InboxConversationPage(
+            otherUserId: widget.otherUserId,
+            otherProfile: data.profile,
+            initialDraftText: data.draftText,
+          );
+        }
+        return const _RouteLoadingScaffold();
+      },
+    );
+  }
+}
+
+class FlowPostRoutePage extends StatefulWidget {
+  const FlowPostRoutePage({
+    super.key,
+    required this.postId,
+    required this.openCommentsOnLoad,
+    this.extra,
+  });
+
+  final String postId;
+  final bool openCommentsOnLoad;
+  final Object? extra;
+
+  @override
+  State<FlowPostRoutePage> createState() => _FlowPostRoutePageState();
+}
+
+class _FlowPostRoutePageState extends State<FlowPostRoutePage> {
+  late Future<({FlowPost post, List<FlowPost>? posts, int initialIndex})?>
+  _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant FlowPostRoutePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.postId != widget.postId || oldWidget.extra != widget.extra) {
+      _future = _load();
+    }
+  }
+
+  Future<({FlowPost post, List<FlowPost>? posts, int initialIndex})?>
+  _load() async {
+    final extra = widget.extra;
+    if (extra is FlowPost && extra.id == widget.postId) {
+      return (post: extra, posts: null, initialIndex: 0);
+    }
+    if (extra is Map) {
+      final raw = extra['post'];
+      final postsRaw = extra['posts'];
+      final posts = postsRaw is List<FlowPost> ? postsRaw : null;
+      final initialIndex = (extra['initialIndex'] as num?)?.toInt() ?? 0;
+      if (raw is FlowPost && raw.id == widget.postId) {
+        return (post: raw, posts: posts, initialIndex: initialIndex);
+      }
+    }
+    final post = await ProfileRepo(supabase).getFlowPostById(widget.postId);
+    if (post == null) {
+      return null;
+    }
+    return (post: post, posts: null, initialIndex: 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<
+      ({FlowPost post, List<FlowPost>? posts, int initialIndex})?
+    >(
+      future: _future,
+      builder: (context, snapshot) {
+        final data = snapshot.data;
+        if (data != null) {
+          final currentUserId = supabase.auth.currentUser?.id;
+          return FlowPostDetailPage(
+            post: data.post,
+            posts: data.posts,
+            initialIndex: data.initialIndex,
+            isOwner: currentUserId != null && data.post.userId == currentUserId,
+            openCommentsOnLoad: widget.openCommentsOnLoad,
+          );
+        }
+        if (snapshot.connectionState == ConnectionState.done) {
+          return _RouteMissingScaffold(
+            message: 'This post is no longer available.',
+            fallbackLocation: '/profile/me',
+          );
+        }
+        return const _RouteLoadingScaffold();
+      },
+    );
+  }
+}
+
+class EventInviteRoutePage extends StatefulWidget {
+  const EventInviteRoutePage({super.key, required this.shareId, this.extra});
+
+  final String shareId;
+  final Object? extra;
+
+  @override
+  State<EventInviteRoutePage> createState() => _EventInviteRoutePageState();
+}
+
+class _EventInviteRoutePageState extends State<EventInviteRoutePage> {
+  late Future<InboxShareItem?> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant EventInviteRoutePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.shareId != widget.shareId ||
+        oldWidget.extra != widget.extra) {
+      _future = _load();
+    }
+  }
+
+  Future<InboxShareItem?> _load() async {
+    final extra = widget.extra;
+    if (extra is InboxShareItem && extra.shareId == widget.shareId) {
+      return extra;
+    }
+    return _loadInboxShareItemForRoute(
+      widget.shareId,
+      expectedKind: InboxShareKind.event,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<InboxShareItem?>(
+      future: _future,
+      builder: (context, snapshot) {
+        final share = snapshot.data;
+        if (share != null) {
+          return EventInviteDetailsPage(share: share);
+        }
+        if (snapshot.connectionState == ConnectionState.done) {
+          return const _RouteMissingScaffold(
+            message: 'This invite is no longer available.',
+            fallbackLocation: '/inbox',
+          );
+        }
+        return const _RouteLoadingScaffold();
+      },
+    );
+  }
+}
+
+class SharedFlowRoutePage extends StatefulWidget {
+  const SharedFlowRoutePage({super.key, this.shareId, this.flowId, this.extra});
+
+  final String? shareId;
+  final int? flowId;
+  final Object? extra;
+
+  @override
+  State<SharedFlowRoutePage> createState() => _SharedFlowRoutePageState();
+}
+
+class _SharedFlowRoutePageState extends State<SharedFlowRoutePage> {
+  late Future<InboxShareItem?> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant SharedFlowRoutePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.shareId != widget.shareId ||
+        oldWidget.flowId != widget.flowId ||
+        oldWidget.extra != widget.extra) {
+      _future = _load();
+    }
+  }
+
+  Future<InboxShareItem?> _load() async {
+    final extra = widget.extra;
+    if (extra is InboxShareItem &&
+        widget.shareId != null &&
+        extra.shareId == widget.shareId) {
+      return extra;
+    }
+    final shareId = widget.shareId;
+    if (shareId == null || shareId.trim().isEmpty) {
+      return null;
+    }
+    return _loadInboxShareItemForRoute(
+      shareId,
+      expectedKind: InboxShareKind.flow,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final flowId = widget.flowId;
+    if (flowId != null) {
+      return SharedFlowDetailsPage(flowId: flowId);
+    }
+    return FutureBuilder<InboxShareItem?>(
+      future: _future,
+      builder: (context, snapshot) {
+        final share = snapshot.data;
+        if (share != null && share.isFlow) {
+          return SharedFlowDetailsEntry(share: share);
+        }
+        if (snapshot.connectionState == ConnectionState.done) {
+          return const _RouteMissingScaffold(
+            message: 'This shared flow is no longer available.',
+            fallbackLocation: '/inbox',
+          );
+        }
+        return const _RouteLoadingScaffold();
+      },
+    );
+  }
+}
+
+class EditProfileRoutePage extends StatefulWidget {
+  const EditProfileRoutePage({super.key, this.requireCompletion = false});
+
+  final bool requireCompletion;
+
+  @override
+  State<EditProfileRoutePage> createState() => _EditProfileRoutePageState();
+}
+
+class _EditProfileRoutePageState extends State<EditProfileRoutePage> {
+  late Future<UserProfile?> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<UserProfile?> _load() async {
+    final profile = await ProfileRepo(supabase).getMyProfile();
+    if (profile != null) {
+      return profile;
+    }
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null || userId.trim().isEmpty) {
+      return null;
+    }
+    return UserProfile(
+      id: userId,
+      isDiscoverable: true,
+      allowIncomingShares: true,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<UserProfile?>(
+      future: _future,
+      builder: (context, snapshot) {
+        final profile = snapshot.data;
+        if (profile != null) {
+          return EditProfilePage(
+            initialProfile: profile,
+            requireCompletion: widget.requireCompletion,
+          );
+        }
+        if (snapshot.connectionState == ConnectionState.done) {
+          return const _RouteMissingScaffold(
+            message: 'Profile could not be loaded.',
+            fallbackLocation: '/profile/me',
+          );
+        }
+        return const _RouteLoadingScaffold();
+      },
+    );
+  }
+}
+
+class JournalRoutePage extends StatefulWidget {
+  const JournalRoutePage({super.key});
+
+  @override
+  State<JournalRoutePage> createState() => _JournalRoutePageState();
+}
+
+class _JournalRoutePageState extends State<JournalRoutePage> {
+  late final JournalController _controller = JournalController(supabase);
+  late final Future<void> _future = _controller.init();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done) {
+          return JournalPage(
+            controller: _controller,
+            entryPoint: 'restored_route',
+          );
+        }
+        return const _RouteLoadingScaffold();
+      },
+    );
+  }
+}
+
+class NodeReaderRoutePage extends StatelessWidget {
+  const NodeReaderRoutePage({super.key, required this.nodeId});
+
+  final String nodeId;
+
+  @override
+  Widget build(BuildContext context) {
+    final node = KemeticNodeLibrary.resolve(nodeId);
+    if (node == null) {
+      return const _RouteMissingScaffold(
+        message: 'This library entry is no longer available.',
+        fallbackLocation: '/nodes',
+      );
+    }
+    return KemeticNodeReaderPage(node: node);
+  }
+}
+
+class InsightPostRoutePage extends StatefulWidget {
+  const InsightPostRoutePage({super.key, required this.postId, this.extra});
+
+  final String postId;
+  final Object? extra;
+
+  @override
+  State<InsightPostRoutePage> createState() => _InsightPostRoutePageState();
+}
+
+class _InsightPostRoutePageState extends State<InsightPostRoutePage> {
+  late Future<InsightPost?> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant InsightPostRoutePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.postId != widget.postId || oldWidget.extra != widget.extra) {
+      _future = _load();
+    }
+  }
+
+  Future<InsightPost?> _load() async {
+    final extra = widget.extra;
+    if (extra is InsightPost && extra.id == widget.postId) {
+      return extra;
+    }
+    if (extra is Map) {
+      final raw = extra['post'];
+      if (raw is InsightPost && raw.id == widget.postId) {
+        return raw;
+      }
+    }
+    try {
+      final row = await supabase
+          .from('insight_posts')
+          .select(
+            'id, user_id, insight_entry_id, node_id, body_text, entry_date, '
+            'is_hidden, created_at, updated_at, '
+            'nodes(slug, title, glyph), '
+            'profiles(handle, display_name, avatar_url, avatar_glyphs)',
+          )
+          .eq('id', widget.postId)
+          .maybeSingle();
+      if (row == null) {
+        return null;
+      }
+      return InsightPost.fromJson(Map<String, dynamic>.from(row as Map));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<InsightPost?>(
+      future: _future,
+      builder: (context, snapshot) {
+        final post = snapshot.data;
+        if (post != null) {
+          final currentUserId = supabase.auth.currentUser?.id;
+          return InsightPostDetailPage(
+            post: post,
+            isOwner: currentUserId != null && currentUserId == post.userId,
+          );
+        }
+        if (snapshot.connectionState == ConnectionState.done) {
+          return const _RouteMissingScaffold(
+            message: 'This insight is no longer available.',
+            fallbackLocation: '/profile/me',
+          );
+        }
+        return const _RouteLoadingScaffold();
+      },
+    );
+  }
+}
+
+String? _trimmedRouteValue(Object? raw) {
+  if (raw == null) return null;
+  final text = raw.toString().trim();
+  return text.isEmpty ? null : text;
+}
+
+Map<String, dynamic>? _coerceRouteJsonMap(Object? raw) {
+  if (raw is Map<String, dynamic>) {
+    return raw;
+  }
+  if (raw is Map) {
+    return Map<String, dynamic>.from(raw);
+  }
+  if (raw is String) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
+}
+
+DateTime? _parseRouteDateTimeValue(Object? raw) {
+  final text = _trimmedRouteValue(raw);
+  return text == null ? null : DateTime.tryParse(text);
+}
+
+Future<InboxShareItem?> _loadInboxShareItemForRoute(
+  String shareId, {
+  InboxShareKind? expectedKind,
+}) async {
+  for (final viewName in const [
+    'share_filing_items_client',
+    'inbox_share_items_filtered',
+  ]) {
+    try {
+      final row = await supabase
+          .from(viewName)
+          .select()
+          .eq('share_id', shareId)
+          .maybeSingle();
+      final json = _coerceRouteJsonMap(row);
+      if (json == null) {
+        continue;
+      }
+      final item = InboxShareItem.tryFromJson(json);
+      if (item == null) {
+        continue;
+      }
+      if (expectedKind == null || item.kind == expectedKind) {
+        return item;
+      }
+    } catch (_) {
+      // Try the next source.
+    }
+  }
+
+  if (expectedKind == InboxShareKind.event) {
+    return _loadDirectEventInviteShareForRoute(shareId);
+  }
+  return null;
+}
+
+Future<InboxShareItem?> _loadDirectEventInviteShareForRoute(
+  String shareId,
+) async {
+  try {
+    final raw = await supabase
+        .from('event_shares')
+        .select(
+          'id, event_id, recipient_id, sender_id, payload_json, '
+          'created_at, viewed_at, imported_at, deleted_at, '
+          'response_status, responded_at, '
+          'sender:profiles!event_shares_sender_id_fkey(handle, display_name, avatar_url), '
+          'recipient:profiles!event_shares_recipient_id_fkey(handle, display_name, avatar_url)',
+        )
+        .eq('id', shareId)
+        .maybeSingle();
+
+    final row = _coerceRouteJsonMap(raw);
+    if (row == null) {
+      return null;
+    }
+
+    final payload = _coerceRouteJsonMap(row['payload_json']);
+    final sender = _coerceRouteJsonMap(row['sender']);
+    final recipient = _coerceRouteJsonMap(row['recipient']);
+    final createdAt =
+        _parseRouteDateTimeValue(row['created_at']) ?? DateTime.now().toUtc();
+
+    return InboxShareItem(
+      shareId: _trimmedRouteValue(row['id']) ?? shareId,
+      kind: InboxShareKind.event,
+      recipientId: _trimmedRouteValue(row['recipient_id']) ?? '',
+      senderId: _trimmedRouteValue(row['sender_id']) ?? '',
+      senderHandle: _trimmedRouteValue(sender?['handle']),
+      senderName: _trimmedRouteValue(sender?['display_name']),
+      senderAvatar: _trimmedRouteValue(sender?['avatar_url']),
+      payloadId: _trimmedRouteValue(row['event_id']) ?? shareId,
+      title:
+          _trimmedRouteValue(payload?['title'] ?? payload?['name']) ??
+          'Event Invite',
+      createdAt: createdAt,
+      viewedAt: _parseRouteDateTimeValue(row['viewed_at']),
+      importedAt: _parseRouteDateTimeValue(row['imported_at']),
+      deletedAt: _parseRouteDateTimeValue(row['deleted_at']),
+      eventDate: _parseRouteDateTimeValue(
+        payload?['starts_at'] ?? payload?['startsAt'],
+      ),
+      payloadJson: payload,
+      responseStatus: EventInviteResponseStatus.fromDbValue(
+        _trimmedRouteValue(row['response_status']),
+      ),
+      respondedAt: _parseRouteDateTimeValue(row['responded_at']),
+      recipientHandle: _trimmedRouteValue(recipient?['handle']),
+      recipientDisplayName: _trimmedRouteValue(recipient?['display_name']),
+      recipientAvatarUrl: _trimmedRouteValue(recipient?['avatar_url']),
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
+class _RouteLoadingScaffold extends StatelessWidget {
+  const _RouteLoadingScaffold();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+        ),
+      ),
+    );
+  }
+}
+
+class _RouteMissingScaffold extends StatelessWidget {
+  const _RouteMissingScaffold({
+    required this.message,
+    required this.fallbackLocation,
+  });
+
+  final String message;
+  final String fallbackLocation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => context.go(fallbackLocation),
+                child: KemeticGold.text(
+                  'Return',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1361,17 +2400,35 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         _deferSessionResumeForPushNavigation) {
       return;
     }
+    final overlayParentRoute =
+        CalendarPage.restorableOverlayParentRouteFromStack(
+          await AppRestorationService.instance.readOverlayStack(),
+        );
     final savedLocation =
-        await AppRestorationService.instance.readRouteLocation() ??
+        overlayParentRoute ??
+        await AppRestorationService.instance.readRouteLocation(
+          includeRemote: true,
+        ) ??
         await SessionResumeService.readRouteLocation();
     if (!mounted ||
         savedLocation == null ||
         _deferSessionResumeForPushNavigation ||
         savedLocation.isEmpty ||
-        savedLocation == '/') {
+        savedLocation == '/' ||
+        !_isContinuityRouteLocation(savedLocation)) {
       return;
     }
     _router.go(savedLocation);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navContext = _rootNavigatorKey.currentContext;
+      if (navContext == null) return;
+      unawaited(
+        CalendarPage.restoreDetachedCalendarOverlayFromAnyContext(
+          navContext,
+          currentLocation: savedLocation,
+        ),
+      );
+    });
   }
 
   // -- Log app_open once per cold start after auth is present

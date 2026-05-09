@@ -5,16 +5,16 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/navigation_fallback.dart';
 import 'package:mobile/services/app_haptics.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
 import '../../repositories/inbox_repo.dart';
-import 'shared_flow_details_entry.dart';
 import 'conversation_user.dart';
-import '../invites/event_invite_details_page.dart';
-import '../profile/profile_page.dart';
+import '../../services/restoration_coordinator.dart';
 import '../../services/session_resume_service.dart';
 import '../../widgets/kemetic_heart_icon.dart';
 import '../../widgets/profile_avatar.dart';
@@ -51,6 +51,8 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
   bool _messageLikesUnavailable = false;
   String _messageLikeSignature = '';
 
+  String get _editorKey => 'inbox_conversation:${widget.otherUserId}';
+
   @override
   void initState() {
     super.initState();
@@ -73,6 +75,25 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
   }
 
   void _persistResumeState() {
+    if (_messageController.text.trim().isEmpty) {
+      unawaited(RestorationCoordinator.instance.clearEditorState(_editorKey));
+    } else {
+      unawaited(
+        RestorationCoordinator.instance.saveTextEditingValue(
+          key: _editorKey,
+          value: _messageController.value,
+          metadata: <String, dynamic>{
+            'kind': _resumeKind,
+            'otherUserId': widget.otherUserId,
+            'displayName': widget.otherProfile.displayName,
+            'handle': widget.otherProfile.handle,
+            'avatarUrl': widget.otherProfile.avatarUrl,
+            'avatarGlyphIds': widget.otherProfile.avatarGlyphIds,
+            'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
+          },
+        ),
+      );
+    }
     unawaited(
       SessionResumeService.saveResumeEntry(
         baseRoute: '/inbox',
@@ -111,6 +132,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
         text: text,
       );
       _messageController.clear();
+      unawaited(RestorationCoordinator.instance.clearEditorState(_editorKey));
       _persistResumeState();
       _scrollToBottom();
     } catch (e) {
@@ -317,7 +339,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
         elevation: 0,
         leading: IconButton(
           icon: KemeticGold.icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => popOrGo(context, '/inbox'),
         ),
         title: Row(
           children: [
@@ -350,10 +372,8 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
             tooltip: 'View profile',
             icon: KemeticGold.icon(Icons.person),
             onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ProfilePage(userId: widget.otherUserId),
-                ),
+              context.push<void>(
+                '/profile/${Uri.encodeComponent(widget.otherUserId)}',
               );
             },
           ),
@@ -458,26 +478,16 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                     );
                                   }
                                   if (share.isEvent) {
-                                    await Navigator.push<void>(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => EventInviteDetailsPage(
-                                          share: share,
-                                        ),
-                                      ),
+                                    await context.push<void>(
+                                      '/event-invite/${Uri.encodeComponent(share.shareId)}',
+                                      extra: share,
                                     );
                                     return;
                                   }
-                                  final importedFlowId =
-                                      await Navigator.push<int>(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              SharedFlowDetailsEntry(
-                                                share: share,
-                                              ),
-                                        ),
-                                      );
+                                  final importedFlowId = await context.push<int>(
+                                    '/shared-flow/${Uri.encodeComponent(share.shareId)}',
+                                    extra: share,
+                                  );
 
                                   if (importedFlowId != null &&
                                       mounted &&

@@ -6,6 +6,7 @@
 
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:mobile/core/navigation_fallback.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -1828,39 +1829,25 @@ class _DayViewPageState extends State<DayViewPage> {
                       );
                     },
                     onToggleDateDisplay: _toggleDateDisplay,
-                    onClose: () => Navigator.pop(context),
+                    onClose: () => popOrGo(context, '/'),
                     onJumpToToday: _jumpToToday,
                     onOpenQuickAdd:
                         widget.onOpenQuickAdd ??
                         (btnCtx) async {
-                          final state = CalendarPage.globalKey.currentState;
-                          if (state != null) {
-                            await state.openQuickAddFromOutside();
-                            return;
-                          }
-                          if (!btnCtx.mounted) return;
-                          ScaffoldMessenger.of(btnCtx).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'New note is unavailable right now.',
-                              ),
-                            ),
-                          );
+                          await CalendarPage.openQuickAddFromAnyContext(btnCtx);
                         },
                     onShowActionsMenu:
                         widget.onShowActionsMenu ??
                         (btnCtx) async {
-                          await CalendarPage.globalKey.currentState
-                              ?.showActionsMenuFromOutside(
-                                btnCtx,
-                                includeNewNote: false,
-                              );
+                          await CalendarPage.showActionsMenuFromAnyContext(
+                            btnCtx,
+                            includeNewNote: false,
+                          );
                         },
                     onOpenProfile:
                         widget.onOpenProfile ??
                         (ctx) async {
-                          await CalendarPage.globalKey.currentState
-                              ?.openProfileFromOutside(ctx);
+                          await CalendarPage.openProfileFromAnyContext(ctx);
                         },
                     dateButtonBuilder: (context, currentGregorian) {
                       final headerDateLabel = _buildHeaderDateLabel(
@@ -4301,7 +4288,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     final isReminder = currentEvent.isReminder;
 
     if (flow != null) {
-      final enabled = CalendarPage.globalKey.currentState?.mounted ?? false;
+      final enabled = CalendarPage.hasMountedHost;
       return TextButton.icon(
         onPressed: enabled
             ? () async {

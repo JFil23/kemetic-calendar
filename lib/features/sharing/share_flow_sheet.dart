@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:async';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
 import '../../data/profile_repo.dart';
-import '../inbox/inbox_conversation_page.dart';
 import '../inbox/conversation_user.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../widgets/profile_avatar.dart';
@@ -899,17 +899,15 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
           final user = _recipientUsersById[userId];
 
           if (user != null && mounted) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => InboxConversationPage(
-                  otherUserId: userId,
-                  otherProfile: ConversationUser(
-                    id: userId,
-                    displayName: user.displayName,
-                    handle: user.handle,
-                    avatarUrl: user.avatarUrl,
-                  ),
-                ),
+            final router = GoRouter.of(context);
+            Navigator.of(context).pop();
+            router.push(
+              '/inbox/conversation/${Uri.encodeComponent(userId)}',
+              extra: ConversationUser(
+                id: userId,
+                displayName: user.displayName,
+                handle: user.handle,
+                avatarUrl: user.avatarUrl,
               ),
             );
             return; // 🔑 Don't also pop the sheet

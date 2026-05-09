@@ -4,6 +4,7 @@ import 'package:mobile/services/app_haptics.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/navigation_fallback.dart';
 import '../../data/insight_entry_model.dart';
 import '../../data/insight_entry_repo.dart';
 import '../../data/insight_post_model.dart';
@@ -101,7 +102,7 @@ class _InsightPostPickerPageState extends State<InsightPostPickerPage> {
         backgroundColor: KemeticGold.base,
       ),
     );
-    Navigator.of(context).pop(true);
+    popOrGo(context, '/profile/me', result: true);
   }
 
   String _previewText(String value) {
@@ -116,6 +117,10 @@ class _InsightPostPickerPageState extends State<InsightPostPickerPage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF000000),
         elevation: 0.5,
+        leading: IconButton(
+          icon: KemeticGold.icon(Icons.close),
+          onPressed: () => popOrGo(context, '/profile/me'),
+        ),
         title: const Text(
           'Insight Studio',
           style: TextStyle(color: Colors.white),

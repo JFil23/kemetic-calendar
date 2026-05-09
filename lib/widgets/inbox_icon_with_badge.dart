@@ -1,9 +1,9 @@
 // lib/widgets/inbox_icon_with_badge.dart
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/share_repo.dart';
-import '../features/inbox/inbox_page.dart';
 import '../shared/glossy_text.dart';
 
 Widget _inboxGlyphIcon(Color iconColor) {
@@ -109,10 +109,7 @@ class InboxIconWithBadge extends StatelessWidget {
         icon: _inboxGlyphIcon(iconColor),
         tooltip: 'Inbox',
         onPressed: () async {
-          final importedFlowId = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const InboxPage()),
-          );
+          final importedFlowId = await context.push<int?>('/inbox');
 
           if (onImportFlow != null && importedFlowId != null) {
             await onImportFlow!(importedFlowId);
@@ -142,10 +139,7 @@ class InboxIconWithBadge extends StatelessWidget {
               icon: iconWidget,
               tooltip: 'Inbox',
               onPressed: () async {
-                final importedFlowId = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const InboxPage()),
-                );
+                final importedFlowId = await context.push<int?>('/inbox');
 
                 // Handle import callback first
                 if (onImportFlow != null && importedFlowId != null) {

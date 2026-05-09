@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/navigation_fallback.dart';
 import '../../shared/glossy_text.dart';
 import '../../widgets/insight_link_text.dart';
 import 'kemetic_node_library.dart';
@@ -96,9 +97,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
 
   void _handleBackNavigation() {
     if (_popNode()) return;
-    if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
-    }
+    popOrGo(context, '/nodes');
   }
 
   @override

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
+import '../../core/navigation_fallback.dart';
 import '../../services/calendar_sync_service.dart';
 import '../../services/push_notifications.dart';
 import '../../services/speech/speech_service.dart';
@@ -1062,7 +1063,7 @@ class _SettingsPageState extends State<SettingsPage> {
         automaticallyImplyLeading: false,
         leading: IconButton(
           icon: KemeticGold.icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).maybePop(),
+          onPressed: () => popOrGo(context, '/'),
         ),
         title: const Text('Settings', style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: KemeticGold.base),

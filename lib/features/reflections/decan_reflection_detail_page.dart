@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/navigation_fallback.dart';
 import '../../shared/glossy_text.dart';
 
 import '../../data/decan_reflection_repo.dart';
@@ -11,7 +13,6 @@ import '../../data/insight_link_utils.dart';
 import '../../widgets/insight_link_text.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/node_link_picker_sheet.dart';
-import '../nodes/kemetic_node_reader_page.dart';
 
 class DecanReflectionDetailPage extends StatefulWidget {
   final String reflectionId;
@@ -98,9 +99,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   void _handleLinkTap(InsightLink link) {
     final node = KemeticNodeLibrary.resolve(link.targetId);
     if (node == null) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => KemeticNodeReaderPage(node: node)),
-    );
+    context.push<void>('/nodes/${Uri.encodeComponent(node.id)}');
   }
 
   void _showSelectionRequiredMessage() {
@@ -232,7 +231,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
         leading: IconButton(
           icon: KemeticGold.icon(Icons.arrow_back),
           tooltip: 'Back',
-          onPressed: () => Navigator.of(context).maybePop(),
+          onPressed: () => popOrGo(context, '/reflections'),
         ),
         iconTheme: const IconThemeData(color: KemeticGold.base),
         title: Text(

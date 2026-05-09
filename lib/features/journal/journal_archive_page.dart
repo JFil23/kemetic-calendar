@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/insight_link_model.dart';
@@ -15,7 +16,6 @@ import '../../widgets/insight_link_text.dart';
 import '../calendar/calendar_page.dart' show KemeticMath;
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
 import '../nodes/kemetic_node_library.dart';
-import '../nodes/kemetic_node_reader_page.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'journal_badge_utils.dart';
 import 'journal_controller.dart';
@@ -165,9 +165,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final node = KemeticNodeLibrary.resolve(link.targetId);
     if (node == null || !mounted) return;
 
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => KemeticNodeReaderPage(node: node)),
-    );
+    await context.push<void>('/nodes/${Uri.encodeComponent(node.id)}');
   }
 
   void _saveEntry() async {

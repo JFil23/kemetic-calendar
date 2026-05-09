@@ -24,7 +24,6 @@ import 'dart:convert';
 import 'day_view.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
-import '../profile/profile_page.dart';
 import '../profile/edit_profile_page.dart';
 import '../journal/journal_controller.dart';
 import '../../core/ui_guards.dart';
@@ -74,12 +73,12 @@ import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
 import '../../services/push_notifications.dart';
 import '../../services/app_restoration_service.dart';
+import '../../services/restoration_coordinator.dart';
 import '../../services/session_resume_service.dart';
 import '../../core/push_intent_bus.dart';
 import '../../widgets/flow_start_date_picker.dart';
 import '../../utils/external_link_utils.dart';
 import 'track_sky_flow.dart';
-import '../inbox/inbox_page.dart';
 import '../reflections/decan_reflection_archive_page.dart';
 import '../settings/settings_page.dart';
 import '../settings/settings_prefs.dart';
@@ -3682,6 +3681,11 @@ const double _kActionGridSpacing = 12.0;
 const double _kActionGridHPadding = 12.0;
 const double _kActionGridVPadding = 12.0;
 
+RenderBox? _renderBoxForContext(BuildContext context) {
+  final renderObject = context.findRenderObject();
+  return renderObject is RenderBox ? renderObject : null;
+}
+
 class _CalendarAction {
   final IconData? icon;
   final String? glyph;
@@ -4426,6 +4430,14 @@ GlobalKey keyForMonthHeader(int ky, int km) {
   );
 }
 
+enum _CalendarDetachedLaunchAction {
+  quickAdd,
+  sharedCalendars,
+  flowStudio,
+  myFlows,
+  search,
+}
+
 class CalendarPage extends StatefulWidget {
   final int? initialFlowIdToEdit;
   final bool openMyFlowsOnLaunch;
@@ -4439,6 +4451,1258 @@ class CalendarPage extends StatefulWidget {
   // Global key for accessing calendar state from other pages
   static final GlobalKey<_CalendarPageState> globalKey =
       GlobalKey<_CalendarPageState>();
+  static _CalendarDetachedLaunchAction? _pendingDetachedLaunchAction;
+  static bool _detachedCalendarOverlayRestoreInFlight = false;
+  static String? _lastDetachedCalendarOverlayRestoreKey;
+
+  static _CalendarPageState? get _mountedState {
+    final state = globalKey.currentState;
+    if (state == null || !state.mounted) return null;
+    return state;
+  }
+
+  static bool get hasMountedHost => _mountedState != null;
+
+  static bool _isRootRouteLocation(String location) {
+    final uri = Uri.tryParse(location.trim());
+    return uri == null || uri.path.isEmpty || uri.path == '/';
+  }
+
+  static String _currentRouteLocationForContext(BuildContext context) {
+    try {
+      final location = GoRouterState.of(context).uri.toString().trim();
+      if (location.isNotEmpty) return location;
+    } catch (_) {
+      // Contexts from popup/menu routes may not carry a GoRouterState.
+    }
+
+    try {
+      final location = GoRouter.of(
+        context,
+      ).routerDelegate.currentConfiguration.uri.toString().trim();
+      if (location.isNotEmpty) return location;
+    } catch (_) {
+      // Fall through to the calendar root.
+    }
+
+    return '/';
+  }
+
+  static bool _shouldUseMountedCalendarHost(BuildContext context) {
+    final state = _mountedState;
+    if (state == null) return false;
+    return _isRootRouteLocation(_currentRouteLocationForContext(context));
+  }
+
+  static List<String> _stringListFromRestorationValue(Object? raw) {
+    if (raw is! Iterable) return const <String>[];
+    return raw
+        .map((value) => value.toString().trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  static Map<String, dynamic>? _restorableCalendarOverlayFromStack(
+    List<Map<String, dynamic>> stack,
+  ) {
+    for (final entry in stack.reversed) {
+      final kind = (entry['kind'] as String?)?.trim();
+      if (kind == _kCalendarOverlayKindSharedCalendars ||
+          kind == _kCalendarOverlayKindFlowStudio) {
+        return Map<String, dynamic>.from(entry);
+      }
+    }
+    return null;
+  }
+
+  static String? restorableOverlayParentRouteFromStack(
+    List<Map<String, dynamic>> stack,
+  ) {
+    final overlay = _restorableCalendarOverlayFromStack(stack);
+    final parentRoute = (overlay?['parentRoute'] as String?)?.trim();
+    if (parentRoute == null ||
+        parentRoute.isEmpty ||
+        _isRootRouteLocation(parentRoute)) {
+      return null;
+    }
+    return parentRoute;
+  }
+
+  static Future<void> _saveDetachedCalendarOverlayState({
+    required String parentRoute,
+    required String kind,
+    required Map<String, dynamic> state,
+  }) async {
+    final normalizedParentRoute = parentRoute.trim().isEmpty
+        ? '/'
+        : parentRoute.trim();
+    await RestorationCoordinator.instance.recordRouteLocation(
+      normalizedParentRoute,
+    );
+    await SessionResumeService.saveRouteLocation(normalizedParentRoute);
+    await RestorationCoordinator.instance.saveOverlayStack(
+      <Map<String, dynamic>>[
+        <String, dynamic>{
+          'kind': kind.trim(),
+          'parentRoute': normalizedParentRoute,
+          'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
+          ...state,
+        },
+      ],
+    );
+  }
+
+  static Future<void> _clearDetachedCalendarOverlayState(String kind) async {
+    final stack = await RestorationCoordinator.instance.readOverlayStack();
+    final next = stack
+        .where((entry) => entry['kind'] != kind)
+        .toList(growable: false);
+    await RestorationCoordinator.instance.saveOverlayStack(next);
+  }
+
+  static Future<void> showActionsMenuFromAnyContext(
+    BuildContext context, {
+    bool includeNewNote = true,
+  }) async {
+    final state = _mountedState;
+    if (state != null) {
+      await state.showActionsMenuFromOutside(
+        context,
+        includeNewNote: includeNewNote,
+      );
+      return;
+    }
+    await _showDetachedActionsMenu(context, includeNewNote: includeNewNote);
+  }
+
+  static Future<void> openQuickAddFromAnyContext(BuildContext context) async {
+    final state = _mountedState;
+    if (state != null) {
+      await state.openQuickAddFromOutside();
+      return;
+    }
+    _routeHomeForDetachedLaunch(
+      context,
+      _CalendarDetachedLaunchAction.quickAdd,
+    );
+  }
+
+  static Future<void> openMyFlowsFromAnyContext(BuildContext context) async {
+    if (_shouldUseMountedCalendarHost(context)) {
+      await _mountedState!.openMyFlowsFromOutside();
+      return;
+    }
+    await openFlowStudioFromAnyContext(
+      context,
+      restorationState: const <String, dynamic>{
+        'mode': _kFlowStudioModeMyFlows,
+      },
+    );
+  }
+
+  static Future<void> openSharedCalendarsFromAnyContext(
+    BuildContext context, {
+    Map<String, dynamic>? restorationState,
+  }) async {
+    if (_shouldUseMountedCalendarHost(context)) {
+      await _mountedState!._openSharedCalendarsSheet(
+        restorationState: restorationState,
+      );
+      return;
+    }
+    await _openDetachedSharedCalendarsSheet(
+      context,
+      restorationState: restorationState,
+    );
+  }
+
+  static Future<void> openFlowStudioFromAnyContext(
+    BuildContext context, {
+    Map<String, dynamic>? restorationState,
+  }) async {
+    if (_shouldUseMountedCalendarHost(context)) {
+      final state = _mountedState!;
+      final mode = (restorationState?['mode'] as String?)?.trim();
+      if (mode == _kFlowStudioModeMyFlows) {
+        state._openMyFlowsList(
+          initialFlowId: (restorationState?['initialFlowId'] as num?)?.toInt(),
+        );
+      } else if (restorationState == null || restorationState.isEmpty) {
+        state._getFlowStudioCallback()(null);
+      } else {
+        await state._restoreFlowStudioOverlay(restorationState);
+      }
+      return;
+    }
+    await _openDetachedFlowStudioSheet(
+      context,
+      restorationState:
+          restorationState ??
+          const <String, dynamic>{'mode': _kFlowStudioModeHub},
+    );
+  }
+
+  static Future<void> openProfileFromAnyContext(BuildContext context) async {
+    final state = _mountedState;
+    if (state != null) {
+      await state.openProfileFromOutside(context);
+      return;
+    }
+
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please log in to view your profile')),
+        );
+      }
+      return;
+    }
+    if (!context.mounted) return;
+    context.push<void>('/profile/${Uri.encodeComponent(userId)}');
+  }
+
+  static void _routeHomeForDetachedLaunch(
+    BuildContext context,
+    _CalendarDetachedLaunchAction action,
+  ) {
+    _pendingDetachedLaunchAction = action;
+    if (!context.mounted) return;
+    context.go('/');
+  }
+
+  static Future<void> _showDetachedActionsMenu(
+    BuildContext context, {
+    bool includeNewNote = true,
+  }) async {
+    final overlayRenderObject = Navigator.of(
+      context,
+      rootNavigator: true,
+    ).overlay?.context.findRenderObject();
+    if (overlayRenderObject is! RenderBox) return;
+
+    final buttonBox = _renderBoxForContext(context);
+    final anchorRect = buttonBox == null
+        ? Rect.fromLTWH(
+            overlayRenderObject.size.width - 64,
+            MediaQuery.maybeOf(context)?.padding.top ?? 16,
+            48,
+            48,
+          )
+        : (() {
+            final anchorOffset = buttonBox.localToGlobal(
+              Offset.zero,
+              ancestor: overlayRenderObject,
+            );
+            return Rect.fromLTWH(
+              anchorOffset.dx,
+              anchorOffset.dy,
+              buttonBox.size.width,
+              buttonBox.size.height,
+            );
+          })();
+
+    final baseActions = _detachedCalendarActions(
+      context,
+      includeNewNote: includeNewNote,
+    );
+    final rows =
+        (baseActions.length + _kActionGridColumns - 1) ~/ _kActionGridColumns;
+    final double menuWidth =
+        _kActionGridHPadding * 2 +
+        _kActionGridColumns * _kActionTileWidth +
+        (_kActionGridColumns - 1) * _kActionGridSpacing;
+    final double menuHeight =
+        _kActionGridVPadding * 2 +
+        rows * _kActionTileHeight +
+        (rows - 1) * _kActionGridSpacing;
+    final shareRepo = ShareRepo(Supabase.instance.client);
+
+    final position = RelativeRect.fromRect(
+      Rect.fromLTWH(
+        anchorRect.left,
+        anchorRect.bottom,
+        anchorRect.width,
+        menuHeight,
+      ),
+      Offset.zero & overlayRenderObject.size,
+    );
+
+    final selected = await showMenu<_CalendarAction>(
+      context: context,
+      useRootNavigator: true,
+      position: position,
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Colors.white12),
+      ),
+      items: [
+        PopupMenuItem<_CalendarAction>(
+          enabled: false,
+          padding: EdgeInsets.zero,
+          height: menuHeight,
+          child: Container(
+            width: menuWidth,
+            height: menuHeight,
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: StreamBuilder<InboxUnreadState>(
+              initialData: shareRepo.currentUnreadState,
+              stream: shareRepo.watchUnreadState(),
+              builder: (menuContext, snapshot) {
+                final hasUnreadInbox =
+                    (snapshot.data ?? const InboxUnreadState()).hasUnread;
+                final actions = _detachedCalendarActions(
+                  context,
+                  hasUnreadInbox: hasUnreadInbox,
+                  includeNewNote: includeNewNote,
+                );
+
+                return _CalendarActionsGrid(
+                  actions: actions,
+                  onSelected: (action) {
+                    Navigator.of(menuContext, rootNavigator: true).pop(action);
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (selected == null || !context.mounted) return;
+    await selected.onSelected();
+  }
+
+  static List<_CalendarAction> _detachedCalendarActions(
+    BuildContext context, {
+    bool hasUnreadInbox = false,
+    bool includeNewNote = true,
+  }) {
+    return [
+      _CalendarAction(
+        glyph: MeduNeterGlyphs.journal,
+        gradient: goldGloss,
+        label: 'Journal',
+        onSelected: () {
+          if (!context.mounted) return;
+          context.go('/journal');
+        },
+      ),
+      _CalendarAction(
+        glyph: MeduNeterGlyphs.planner,
+        gradient: goldGloss,
+        label: 'Planner',
+        onSelected: () {
+          if (!context.mounted) return;
+          context.go('/rhythm/today');
+        },
+      ),
+      _CalendarAction(
+        glyph: MeduNeterGlyphs.inbox,
+        gradient: goldGloss,
+        label: 'Inbox',
+        showNotificationDot: hasUnreadInbox,
+        onSelected: () {
+          if (!context.mounted) return;
+          context.go('/inbox');
+        },
+      ),
+      _CalendarAction(
+        glyph: MeduNeterGlyphs.calendars,
+        gradient: goldGloss,
+        label: 'Calendars',
+        onSelected: () => openSharedCalendarsFromAnyContext(context),
+      ),
+      _CalendarAction(
+        glyph: MeduNeterGlyphs.reflections,
+        glyphSize: 18,
+        gradient: goldGloss,
+        label: 'Reflections',
+        onSelected: () {
+          if (!context.mounted) return;
+          context.go('/reflections');
+        },
+      ),
+      _CalendarAction(
+        glyph: MeduNeterGlyphs.library,
+        glyphSize: 20,
+        gradient: goldGloss,
+        label: 'Library',
+        onSelected: () {
+          if (!context.mounted) return;
+          context.go('/nodes');
+        },
+      ),
+      _CalendarAction(
+        glyph: MeduNeterGlyphs.settings,
+        gradient: goldGloss,
+        label: 'Settings',
+        onSelected: () {
+          if (!context.mounted) return;
+          context.go('/settings');
+        },
+      ),
+      _CalendarAction(
+        glyph: MeduNeterGlyphs.search,
+        gradient: silverGloss,
+        label: 'Search',
+        onSelected: () => _routeHomeForDetachedLaunch(
+          context,
+          _CalendarDetachedLaunchAction.search,
+        ),
+      ),
+      _CalendarAction(
+        glyph: MeduNeterGlyphs.flowStudio,
+        glyphSize: 20,
+        gradient: goldGloss,
+        label: 'Flow Studio',
+        onSelected: () => openFlowStudioFromAnyContext(context),
+      ),
+      if (includeNewNote)
+        _CalendarAction(
+          icon: Icons.add,
+          gradient: goldGloss,
+          label: 'New note',
+          onSelected: () => _routeHomeForDetachedLaunch(
+            context,
+            _CalendarDetachedLaunchAction.quickAdd,
+          ),
+        ),
+    ];
+  }
+
+  static Future<void> _openDetachedSharedCalendarsSheet(
+    BuildContext context, {
+    Map<String, dynamic>? restorationState,
+  }) async {
+    if (!context.mounted) return;
+    final parentRoute = _currentRouteLocationForContext(context);
+    final initialExpandedCalendarIds = _stringListFromRestorationValue(
+      restorationState?['expandedCalendarIds'],
+    );
+    await _saveDetachedCalendarOverlayState(
+      parentRoute: parentRoute,
+      kind: _kCalendarOverlayKindSharedCalendars,
+      state: <String, dynamic>{
+        'expandedCalendarIds': initialExpandedCalendarIds,
+      },
+    );
+    if (!context.mounted) return;
+
+    try {
+      await SharedCalendarsSheet.show(
+        context,
+        repo: SharedCalendarsRepo(Supabase.instance.client),
+        initialExpandedCalendarIds: initialExpandedCalendarIds,
+        onContinuityChanged: (state) {
+          unawaited(
+            _saveDetachedCalendarOverlayState(
+              parentRoute: parentRoute,
+              kind: _kCalendarOverlayKindSharedCalendars,
+              state: state,
+            ),
+          );
+        },
+      );
+    } finally {
+      await _clearDetachedCalendarOverlayState(
+        _kCalendarOverlayKindSharedCalendars,
+      );
+    }
+  }
+
+  static bool _isTabletForContext(BuildContext context) =>
+      MediaQuery.sizeOf(context).shortestSide >= 600;
+
+  static String _formatDetachedGregorian(DateTime? d) => d == null
+      ? '--'
+      : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  static List<FlowRule> _parseDetachedFlowRowRules(List<dynamic> rules) {
+    if (rules.isEmpty) return const [];
+    final parsed = <FlowRule>[];
+    for (final raw in rules) {
+      if (raw is! Map) continue;
+      try {
+        parsed.add(CalendarPage.ruleFromJson(Map<String, dynamic>.from(raw)));
+      } catch (_) {
+        // Skip malformed rows from older records without dropping the flow.
+      }
+    }
+    return parsed;
+  }
+
+  static _Flow _flowFromFiledRowDetached(FlowRow row) {
+    return _Flow(
+      id: row.id,
+      calendarId: row.calendarId,
+      name: row.name,
+      color: Color(rgbToArgb(row.color)),
+      active: row.active,
+      isSaved: row.isSaved,
+      savedAt: row.savedAt,
+      rules: _parseDetachedFlowRowRules(row.rules),
+      start: row.startDate?.toLocal(),
+      end: row.endDate?.toLocal(),
+      notes: row.notes,
+      shareId: row.shareId,
+      isHidden: row.isHidden,
+      isReminder: row.isReminder,
+      reminderUuid: row.reminderUuid,
+    );
+  }
+
+  static _MyFlowsFilingSnapshot _myFlowsFilingSnapshotFromRowsDetached(
+    List<FlowRow> rows,
+  ) {
+    final flows = <_Flow>[];
+    final activeIds = <int>{};
+    final savedIds = <int>{};
+    final totalCounts = <int, int>{};
+    final remainingCounts = <int, int>{};
+
+    for (final row in rows) {
+      flows.add(_flowFromFiledRowDetached(row));
+      if (row.visibleInActiveList) activeIds.add(row.id);
+      if (row.visibleInSavedList) savedIds.add(row.id);
+      totalCounts[row.id] = row.totalEventCount;
+      remainingCounts[row.id] = row.remainingLiveEventCount;
+    }
+
+    return _MyFlowsFilingSnapshot(
+      flows: List<_Flow>.unmodifiable(flows),
+      activeFlowIds: Set<int>.unmodifiable(activeIds),
+      savedFlowIds: Set<int>.unmodifiable(savedIds),
+      totalEventCounts: Map<int, int>.unmodifiable(totalCounts),
+      remainingEventCounts: Map<int, int>.unmodifiable(remainingCounts),
+    );
+  }
+
+  static _MyFlowsFilingSnapshot? _cachedDetachedMyFlowsFilingSnapshot(
+    FlowsRepo repo,
+  ) {
+    final cachedRows = repo.cachedMyFiledFlowsSync();
+    if (cachedRows == null) return null;
+    return _myFlowsFilingSnapshotFromRowsDetached(cachedRows);
+  }
+
+  static Future<_MyFlowsFilingSnapshot> _loadDetachedMyFlowsFilingSnapshot(
+    FlowsRepo repo,
+  ) async {
+    final cachedRows = await repo.restoreCachedFiledFlows();
+    if (cachedRows != null) {
+      unawaited(repo.refreshMyFiledFlows());
+      return _myFlowsFilingSnapshotFromRowsDetached(cachedRows);
+    }
+    final rows = await repo.refreshMyFiledFlows();
+    return _myFlowsFilingSnapshotFromRowsDetached(rows);
+  }
+
+  static bool _snapshotHasActiveMaatInstanceFor(
+    _MyFlowsFilingSnapshot? snapshot,
+    String tplKey,
+  ) {
+    if (snapshot == null) return false;
+    final today = DateUtils.dateOnly(DateTime.now());
+    return snapshot.flows.any((flow) {
+      final meta = notesDecode(flow.notes);
+      if (meta.maatKey != tplKey || !flow.active) return false;
+      if (!snapshot.activeFlowIds.contains(flow.id)) return false;
+      for (final rule in flow.rules) {
+        if (rule is _RuleDates &&
+            rule.dates.any((d) => !DateUtils.dateOnly(d).isBefore(today))) {
+          return true;
+        }
+      }
+      return false;
+    });
+  }
+
+  static Future<String?> _loadHeadlessPersonalCalendarId() async {
+    final repo = SharedCalendarsRepo(Supabase.instance.client);
+    try {
+      final cached = await repo.restoreCachedSnapshot();
+      final cachedId = cached?.personalCalendarId?.trim();
+      if (cachedId != null && cachedId.isNotEmpty) return cachedId;
+    } catch (_) {
+      // Fall through to a live snapshot.
+    }
+    try {
+      final snapshot = await repo.loadSnapshot();
+      final id = snapshot.personalCalendarId?.trim();
+      return id == null || id.isEmpty ? null : id;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<int> _addMaatFlowInstanceHeadless({
+    required _MaatFlowTemplate template,
+    DateTime? startDate,
+    bool? useKemetic,
+    TrackSkyTimeZone? trackSkyTimeZone,
+    int? alertMinutesBefore,
+  }) async {
+    final personalCalendarId = await _loadHeadlessPersonalCalendarId();
+    if (template.kind == _MaatFlowTemplateKind.trackSky) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final flowData = await loadTrackSkyFlowData(timezone);
+      final events = upcomingTrackSkyEvents(flowData);
+      if (events.isEmpty) return -1;
+
+      final dates = <DateTime>{
+        for (final event in events)
+          DateUtils.dateOnly(trackSkyEventStartLocal(event, timezone)),
+      };
+      final orderedDates = dates.toList()..sort();
+      final alertMinutes = alertMinutesBefore ?? _alertNoneMinutes;
+      final flow = _Flow(
+        id: -1,
+        calendarId: personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: orderedDates.last,
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'sky_tz=${timezone.key}',
+        ].join(';'),
+      );
+      final planned = <_PlannedNote>[];
+      for (final event in events) {
+        final startLocal = trackSkyEventStartLocal(event, timezone);
+        final endLocal = trackSkyEventEndLocal(event, timezone);
+        final dayOnly = DateUtils.dateOnly(startLocal);
+        final k = KemeticMath.fromGregorian(dayOnly);
+        planned.add(
+          _PlannedNote(
+            ky: k.kYear,
+            km: k.kMonth,
+            kd: k.kDay,
+            note: _Note(
+              title: event.title,
+              detail: _encodeDetailWithMeta(
+                event.detailText,
+                alertMinutes: alertMinutes,
+              ),
+              allDay: event.schedule.allDay,
+              start: event.schedule.allDay
+                  ? null
+                  : TimeOfDay(hour: startLocal.hour, minute: startLocal.minute),
+              end: event.schedule.allDay
+                  ? null
+                  : TimeOfDay(hour: endLocal.hour, minute: endLocal.minute),
+              category: event.category,
+              alertOffsetMinutes: alertMinutes,
+            ),
+          ),
+        );
+      }
+      return await persistFlowStudioResultHeadless(
+            _FlowStudioResult(savedFlow: flow, plannedNotes: planned),
+          ) ??
+          -1;
+    }
+
+    if (startDate == null) return -1;
+    final dates = <DateTime>{};
+    final useKemeticStart = useKemetic == true;
+    final firstG = useKemeticStart
+        ? (() {
+            final k = KemeticMath.fromGregorian(startDate);
+            return KemeticMath.toGregorian(k.kYear, k.kMonth, k.kDay);
+          })()
+        : DateUtils.dateOnly(startDate);
+    for (var i = 0; i < 10; i++) {
+      dates.add(DateUtils.dateOnly(firstG.add(Duration(days: i))));
+    }
+
+    final flow = _Flow(
+      id: -1,
+      calendarId: personalCalendarId,
+      name: template.title,
+      color: template.color,
+      active: true,
+      rules: <FlowRule>[
+        _RuleDates(
+          dates: dates,
+          allDay: false,
+          start: const TimeOfDay(hour: 9, minute: 0),
+          end: const TimeOfDay(hour: 10, minute: 0),
+        ),
+      ],
+      start: firstG,
+      end: firstG.add(const Duration(days: 9)),
+      notes: [
+        useKemeticStart ? 'mode=kemetic' : 'mode=gregorian',
+        'split=1',
+        if (template.overview.trim().isNotEmpty)
+          'ov=${Uri.encodeComponent(template.overview.trim())}',
+        'maat=${template.key}',
+      ].join(';'),
+    );
+
+    final planned = <_PlannedNote>[];
+    var dayIndex = 0;
+    final ordered = dates.toList()..sort();
+    for (final g in ordered) {
+      final k = KemeticMath.fromGregorian(g);
+      final day = template.days[dayIndex];
+      for (final slot in day.notes) {
+        planned.add(
+          _PlannedNote(
+            ky: k.kYear,
+            km: k.kMonth,
+            kd: k.kDay,
+            note: _Note(
+              title: slot.title,
+              detail: slot.detail,
+              allDay: false,
+              start: slot.start,
+              end: slot.end,
+            ),
+          ),
+        );
+      }
+      dayIndex++;
+    }
+
+    return await persistFlowStudioResultHeadless(
+          _FlowStudioResult(savedFlow: flow, plannedNotes: planned),
+        ) ??
+        -1;
+  }
+
+  static Future<void> _endFlowHeadless(int flowId) async {
+    await UserEventsRepo(Supabase.instance.client).endFlow(
+      flowId: flowId,
+      endedAtLocal: DateTime.now(),
+      deleteAllMaterialized: true,
+    );
+  }
+
+  static Future<T?> _pushDetachedFlowStudioRoute<T>(
+    NavigatorState navigator,
+    Route<T> route, {
+    required String parentRoute,
+    required Map<String, dynamic> visibleState,
+    required Map<String, dynamic> returnState,
+  }) async {
+    await _saveDetachedCalendarOverlayState(
+      parentRoute: parentRoute,
+      kind: _kCalendarOverlayKindFlowStudio,
+      state: visibleState,
+    );
+    try {
+      return await navigator.push<T>(route);
+    } finally {
+      if (navigator.mounted) {
+        await _saveDetachedCalendarOverlayState(
+          parentRoute: parentRoute,
+          kind: _kCalendarOverlayKindFlowStudio,
+          state: returnState,
+        );
+      }
+    }
+  }
+
+  static Future<_FlowStudioResult?> _pushDetachedFlowStudioEditor(
+    NavigatorState navigator, {
+    required String parentRoute,
+    required FlowsRepo flowsRepo,
+    int? editFlowId,
+    ImportFlowData? importData,
+    required Map<String, dynamic> returnState,
+  }) {
+    return _pushDetachedFlowStudioRoute<_FlowStudioResult>(
+      navigator,
+      MaterialPageRoute<_FlowStudioResult>(
+        builder: (_) => _FlowStudioPage(
+          existingFlows:
+              _cachedDetachedMyFlowsFilingSnapshot(flowsRepo)?.flows ??
+              const <_Flow>[],
+          editFlowId: editFlowId,
+          importData: importData,
+          onContinuityChanged: (state) {
+            unawaited(
+              _saveDetachedCalendarOverlayState(
+                parentRoute: parentRoute,
+                kind: _kCalendarOverlayKindFlowStudio,
+                state: state,
+              ),
+            );
+          },
+        ),
+      ),
+      parentRoute: parentRoute,
+      visibleState: <String, dynamic>{
+        'mode': _kFlowStudioModeEditor,
+        if (editFlowId != null) 'editFlowId': editFlowId,
+      },
+      returnState: returnState,
+    );
+  }
+
+  static Future<int?> _pushDetachedMaatFlowTemplateDetail(
+    NavigatorState navigator,
+    _MaatFlowTemplate template, {
+    required String parentRoute,
+    required Map<String, dynamic> returnState,
+  }) {
+    return _pushDetachedFlowStudioRoute<int?>(
+      navigator,
+      MaterialPageRoute<int?>(
+        builder: (_) => _MaatFlowTemplateDetailPage(
+          template: template,
+          addInstance: _addMaatFlowInstanceHeadless,
+        ),
+      ),
+      parentRoute: parentRoute,
+      visibleState: <String, dynamic>{
+        'mode': _kFlowStudioModeMaatTemplate,
+        'templateKey': template.key,
+      },
+      returnState: returnState,
+    );
+  }
+
+  static Widget _buildDetachedMyFlowsPage({
+    required NavigatorState navigator,
+    required String parentRoute,
+    required FlowsRepo flowsRepo,
+    int? initialFlowId,
+  }) {
+    if (initialFlowId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!navigator.mounted) return;
+        unawaited(
+          _pushDetachedFlowStudioEditor(
+            navigator,
+            parentRoute: parentRoute,
+            flowsRepo: flowsRepo,
+            editFlowId: initialFlowId,
+            returnState: const <String, dynamic>{
+              'mode': _kFlowStudioModeMyFlows,
+            },
+          ),
+        );
+      });
+    }
+
+    return _FlowsViewerPage(
+      loadFilingSnapshot: () => _loadDetachedMyFlowsFilingSnapshot(flowsRepo),
+      initialFilingSnapshot: _cachedDetachedMyFlowsFilingSnapshot(flowsRepo),
+      fmtGregorian: _formatDetachedGregorian,
+      onCreateNew: () async {
+        final edited = await _pushDetachedFlowStudioEditor(
+          navigator,
+          parentRoute: parentRoute,
+          flowsRepo: flowsRepo,
+          returnState: const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
+        );
+        await _saveDetachedCalendarOverlayState(
+          parentRoute: parentRoute,
+          kind: _kCalendarOverlayKindFlowStudio,
+          state: const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
+        );
+        if (edited != null) {
+          await persistFlowStudioResultHeadless(edited);
+        }
+      },
+      onEditFlow: (id) async {
+        final edited = await _pushDetachedFlowStudioEditor(
+          navigator,
+          parentRoute: parentRoute,
+          flowsRepo: flowsRepo,
+          editFlowId: id,
+          returnState: const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
+        );
+        await _saveDetachedCalendarOverlayState(
+          parentRoute: parentRoute,
+          kind: _kCalendarOverlayKindFlowStudio,
+          state: const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
+        );
+        if (edited != null) {
+          await persistFlowStudioResultHeadless(edited);
+        }
+      },
+      onEndFlow: _endFlowHeadless,
+      onImportFlow: (_) async {
+        await flowsRepo.refreshMyFiledFlows();
+      },
+    );
+  }
+
+  static Widget _buildDetachedMaatFlowsListPage({
+    required NavigatorState navigator,
+    required String parentRoute,
+    required FlowsRepo flowsRepo,
+  }) {
+    final cachedSnapshot = _cachedDetachedMyFlowsFilingSnapshot(flowsRepo);
+    return _MaatFlowsListPage(
+      title: 'ḥꜣw',
+      templates: kMaatFlowTemplates,
+      hasActiveForKey: (key) =>
+          _snapshotHasActiveMaatInstanceFor(cachedSnapshot, key),
+      onPickTemplate: (template) async {
+        final importedFlowId = await _pushDetachedMaatFlowTemplateDetail(
+          navigator,
+          template,
+          parentRoute: parentRoute,
+          returnState: const <String, dynamic>{
+            'mode': _kFlowStudioModeMaatFlows,
+          },
+        );
+        if (importedFlowId != null && importedFlowId > 0 && navigator.mounted) {
+          navigator.pop(importedFlowId);
+        }
+      },
+      onCreateNew: () async {
+        final edited = await _pushDetachedFlowStudioEditor(
+          navigator,
+          parentRoute: parentRoute,
+          flowsRepo: flowsRepo,
+          returnState: const <String, dynamic>{
+            'mode': _kFlowStudioModeMaatFlows,
+          },
+        );
+        if (edited != null) {
+          await persistFlowStudioResultHeadless(edited);
+        }
+      },
+    );
+  }
+
+  static Widget _buildDetachedFlowStudioRoot({
+    required BuildContext innerCtx,
+    required String parentRoute,
+    required FlowsRepo flowsRepo,
+    required Map<String, dynamic> restorationState,
+  }) {
+    final navigator = Navigator.of(innerCtx);
+    final mode = (restorationState['mode'] as String?)?.trim();
+
+    if (mode == _kFlowStudioModeEditor) {
+      final editFlowId = (restorationState['editFlowId'] as num?)?.toInt();
+      return _FlowStudioPage(
+        existingFlows:
+            _cachedDetachedMyFlowsFilingSnapshot(flowsRepo)?.flows ??
+            const <_Flow>[],
+        editFlowId: editFlowId,
+        onContinuityChanged: (state) {
+          unawaited(
+            _saveDetachedCalendarOverlayState(
+              parentRoute: parentRoute,
+              kind: _kCalendarOverlayKindFlowStudio,
+              state: state,
+            ),
+          );
+        },
+      );
+    }
+
+    if (mode == _kFlowStudioModeMyFlows) {
+      return _buildDetachedMyFlowsPage(
+        navigator: navigator,
+        parentRoute: parentRoute,
+        flowsRepo: flowsRepo,
+        initialFlowId: (restorationState['initialFlowId'] as num?)?.toInt(),
+      );
+    }
+
+    if (mode == _kFlowStudioModeMaatFlows ||
+        mode == _kFlowStudioModeMaatTemplate) {
+      final templateKey = (restorationState['templateKey'] as String?)?.trim();
+      if (mode == _kFlowStudioModeMaatTemplate &&
+          templateKey != null &&
+          templateKey.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!navigator.mounted) return;
+          for (final template in kMaatFlowTemplates) {
+            if (template.key != templateKey) continue;
+            unawaited(
+              _pushDetachedMaatFlowTemplateDetail(
+                navigator,
+                template,
+                parentRoute: parentRoute,
+                returnState: const <String, dynamic>{
+                  'mode': _kFlowStudioModeMaatFlows,
+                },
+              ),
+            );
+            break;
+          }
+        });
+      }
+      return _buildDetachedMaatFlowsListPage(
+        navigator: navigator,
+        parentRoute: parentRoute,
+        flowsRepo: flowsRepo,
+      );
+    }
+
+    return _FlowHubPage(
+      openMyFlows: () {
+        unawaited(
+          _pushDetachedFlowStudioRoute<void>(
+            navigator,
+            MaterialPageRoute<void>(
+              builder: (ctx) => _buildDetachedMyFlowsPage(
+                navigator: Navigator.of(ctx),
+                parentRoute: parentRoute,
+                flowsRepo: flowsRepo,
+              ),
+            ),
+            parentRoute: parentRoute,
+            visibleState: const <String, dynamic>{
+              'mode': _kFlowStudioModeMyFlows,
+            },
+            returnState: const <String, dynamic>{'mode': _kFlowStudioModeHub},
+          ),
+        );
+      },
+      openMaatFlows: () {
+        unawaited(
+          _pushDetachedFlowStudioRoute<int?>(
+            navigator,
+            MaterialPageRoute<int?>(
+              builder: (ctx) => _buildDetachedMaatFlowsListPage(
+                navigator: Navigator.of(ctx),
+                parentRoute: parentRoute,
+                flowsRepo: flowsRepo,
+              ),
+            ),
+            parentRoute: parentRoute,
+            visibleState: const <String, dynamic>{
+              'mode': _kFlowStudioModeMaatFlows,
+            },
+            returnState: const <String, dynamic>{'mode': _kFlowStudioModeHub},
+          ).then((importedFlowId) async {
+            if (importedFlowId != null && importedFlowId > 0) {
+              await flowsRepo.refreshMyFiledFlows();
+            }
+          }),
+        );
+      },
+      onCreateNew: () {
+        unawaited(
+          _pushDetachedFlowStudioEditor(
+            navigator,
+            parentRoute: parentRoute,
+            flowsRepo: flowsRepo,
+            returnState: const <String, dynamic>{'mode': _kFlowStudioModeHub},
+          ).then((edited) async {
+            if (edited != null) {
+              await persistFlowStudioResultHeadless(edited);
+            }
+          }),
+        );
+      },
+    );
+  }
+
+  static Future<void> _openDetachedFlowStudioSheet(
+    BuildContext context, {
+    required Map<String, dynamic> restorationState,
+  }) async {
+    if (!context.mounted) return;
+    final parentRoute = _currentRouteLocationForContext(context);
+    final mode = (restorationState['mode'] as String?)?.trim();
+    final continuityState = <String, dynamic>{
+      'mode': mode == null || mode.isEmpty ? _kFlowStudioModeHub : mode,
+      if (restorationState['initialFlowId'] != null)
+        'initialFlowId': restorationState['initialFlowId'],
+      if (restorationState['editFlowId'] != null)
+        'editFlowId': restorationState['editFlowId'],
+      if (restorationState['templateKey'] != null)
+        'templateKey': restorationState['templateKey'],
+    };
+    await _saveDetachedCalendarOverlayState(
+      parentRoute: parentRoute,
+      kind: _kCalendarOverlayKindFlowStudio,
+      state: continuityState,
+    );
+    if (!context.mounted) return;
+
+    final flowsRepo = FlowsRepo(Supabase.instance.client);
+    UiGuards.disableJournalSwipe();
+    try {
+      final isTablet = _isTabletForContext(context);
+      final result = await showModalBottomSheet<_FlowStudioResult?>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        barrierColor: Colors.black54,
+        useSafeArea: true,
+        useRootNavigator: true,
+        isDismissible: !isTablet,
+        enableDrag: !isTablet,
+        builder: (outerCtx) {
+          Widget buildNavigator() {
+            return Navigator(
+              onGenerateInitialRoutes: (nav, initial) {
+                return [
+                  MaterialPageRoute(
+                    builder: (innerCtx) => _buildDetachedFlowStudioRoot(
+                      innerCtx: innerCtx,
+                      parentRoute: parentRoute,
+                      flowsRepo: flowsRepo,
+                      restorationState: continuityState,
+                    ),
+                  ),
+                ];
+              },
+            );
+          }
+
+          if (isTablet) {
+            return SafeArea(
+              child: FractionallySizedBox(
+                heightFactor: 0.9,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child: Material(
+                    color: Colors.black,
+                    child: Column(
+                      children: [
+                        Align(
+                          alignment: Alignment.topRight,
+                          child: IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: () => Navigator.of(outerCtx).pop(),
+                          ),
+                        ),
+                        Expanded(child: buildNavigator()),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return DraggableScrollableSheet(
+            initialChildSize: 0.8,
+            minChildSize: 0.4,
+            maxChildSize: 1.0,
+            snap: true,
+            snapSizes: const <double>[0.8, 1.0],
+            expand: false,
+            builder: (innerCtx, scrollController) {
+              return ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
+                child: Material(
+                  color: Colors.black,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 10),
+                      Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(child: buildNavigator()),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+
+      if (result != null) {
+        await persistFlowStudioResultHeadless(result);
+      }
+    } finally {
+      await _clearDetachedCalendarOverlayState(_kCalendarOverlayKindFlowStudio);
+      await RestorationCoordinator.instance.saveEditorState(
+        _kFlowStudioDraftEditorKey,
+        null,
+      );
+      UiGuards.enableJournalSwipe();
+    }
+  }
+
+  static bool _sameRouteLocation(String a, String b) {
+    final aUri = Uri.tryParse(a.trim());
+    final bUri = Uri.tryParse(b.trim());
+    if (aUri == null || bUri == null) return a.trim() == b.trim();
+    return aUri.path == bUri.path && aUri.query == bUri.query;
+  }
+
+  static Future<bool> restoreDetachedCalendarOverlayFromAnyContext(
+    BuildContext context, {
+    String? currentLocation,
+  }) async {
+    if (_detachedCalendarOverlayRestoreInFlight) return false;
+    final snapshot = await RestorationCoordinator.instance.readBestSnapshot(
+      includeRemote: Supabase.instance.client.auth.currentSession != null,
+    );
+    final overlay = _restorableCalendarOverlayFromStack(
+      snapshot.snapshot?.overlayStack ?? const <Map<String, dynamic>>[],
+    );
+    if (overlay == null) return false;
+    if (!context.mounted) return false;
+
+    final parentRoute = (overlay['parentRoute'] as String?)?.trim();
+    if (parentRoute == null ||
+        parentRoute.isEmpty ||
+        _isRootRouteLocation(parentRoute)) {
+      return false;
+    }
+
+    final activeLocation = currentLocation?.trim().isNotEmpty == true
+        ? currentLocation!.trim()
+        : _currentRouteLocationForContext(context);
+    if (!_sameRouteLocation(activeLocation, parentRoute)) return false;
+
+    final restoreKey =
+        '${overlay['kind']}|$parentRoute|${overlay['updatedAtMs']}|'
+        '${overlay['mode']}|${overlay['templateKey']}|'
+        '${overlay['initialFlowId']}|${overlay['editFlowId']}';
+    if (_lastDetachedCalendarOverlayRestoreKey == restoreKey) return false;
+
+    _lastDetachedCalendarOverlayRestoreKey = restoreKey;
+    _detachedCalendarOverlayRestoreInFlight = true;
+    try {
+      if (overlay['kind'] == _kCalendarOverlayKindSharedCalendars) {
+        await _openDetachedSharedCalendarsSheet(
+          context,
+          restorationState: overlay,
+        );
+        return true;
+      }
+
+      if (overlay['kind'] == _kCalendarOverlayKindFlowStudio) {
+        await _openDetachedFlowStudioSheet(context, restorationState: overlay);
+        return true;
+      }
+    } finally {
+      _detachedCalendarOverlayRestoreInFlight = false;
+    }
+    return false;
+  }
 
   static Future<void> shareFlowFromEvent(EventItem event) async {
     final state = globalKey.currentState;
@@ -4554,7 +5818,6 @@ class CalendarPage extends StatefulWidget {
     _FlowStudioResult r,
   ) async {
     final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-    final flowsRepo = FlowsRepo(Supabase.instance.client);
 
     // Deletes
     final deleteId = r.deleteFlowId;
@@ -4866,6 +6129,8 @@ class _CalendarPageState extends State<CalendarPage>
   bool _pendingAuthResolutionForRestore = false;
   String? _tentativeRestorationUserId;
   bool _restorationInteractedSinceBoot = false;
+  bool _calendarOverlayRestoreAttempted = false;
+  bool _calendarOverlayRestoreInFlight = false;
 
   /* ───── today + notes + flows state ───── */
 
@@ -5450,12 +6715,292 @@ class _CalendarPageState extends State<CalendarPage>
     await _requestStartupRun(reason: reason);
   }
 
-  Future<void> _openSharedCalendarsSheet() async {
+  List<String> _stringListFromRestoration(Object? raw) {
+    if (raw is! Iterable) return const <String>[];
+    return raw
+        .map((value) => value.toString().trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Future<void> _saveCalendarOverlayState(
+    String kind,
+    Map<String, dynamic> state,
+  ) async {
+    final normalizedKind = kind.trim();
+    if (normalizedKind.isEmpty) return;
+    await AppRestorationService.instance.saveOverlayStack(
+      <Map<String, dynamic>>[
+        <String, dynamic>{
+          'kind': normalizedKind,
+          'parentRoute': '/',
+          'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
+          ...state,
+        },
+      ],
+    );
+  }
+
+  Future<void> _clearCalendarOverlayState(String kind) async {
+    final stack = await AppRestorationService.instance.readOverlayStack();
+    final next = stack
+        .where((entry) => entry['kind'] != kind)
+        .toList(growable: false);
+    await AppRestorationService.instance.saveOverlayStack(next);
+  }
+
+  void _schedulePersistentOverlayRestore({required String reason}) {
+    if (_calendarOverlayRestoreAttempted || _calendarOverlayRestoreInFlight) {
+      return;
+    }
+    _calendarOverlayRestoreAttempted = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_restorePersistentCalendarOverlay(reason: reason));
+    });
+  }
+
+  bool _schedulePendingDetachedLaunchActionIfAny() {
+    final action = CalendarPage._pendingDetachedLaunchAction;
+    if (action == null) return false;
+    CalendarPage._pendingDetachedLaunchAction = null;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      switch (action) {
+        case _CalendarDetachedLaunchAction.quickAdd:
+          unawaited(_openQuickAddSheet());
+          break;
+        case _CalendarDetachedLaunchAction.sharedCalendars:
+          unawaited(_openSharedCalendarsSheet());
+          break;
+        case _CalendarDetachedLaunchAction.flowStudio:
+          _getFlowStudioCallback()(null);
+          break;
+        case _CalendarDetachedLaunchAction.myFlows:
+          _openMyFlowsList();
+          break;
+        case _CalendarDetachedLaunchAction.search:
+          _openSearch();
+          break;
+      }
+    });
+    return true;
+  }
+
+  Future<void> _restorePersistentCalendarOverlay({
+    required String reason,
+  }) async {
+    if (_calendarOverlayRestoreInFlight) return;
+    _calendarOverlayRestoreInFlight = true;
+    try {
+      final stack = await AppRestorationService.instance.readOverlayStack();
+      if (!mounted || stack.isEmpty) return;
+      final overlay = stack.lastWhere(
+        (entry) =>
+            entry['kind'] == _kCalendarOverlayKindSharedCalendars ||
+            entry['kind'] == _kCalendarOverlayKindFlowStudio,
+        orElse: () => const <String, dynamic>{},
+      );
+      if (overlay.isEmpty) return;
+
+      if (overlay['kind'] == _kCalendarOverlayKindSharedCalendars) {
+        await _openSharedCalendarsSheet(restorationState: overlay);
+        return;
+      }
+
+      if (overlay['kind'] == _kCalendarOverlayKindFlowStudio) {
+        await _restoreFlowStudioOverlay(overlay);
+      }
+    } finally {
+      _calendarOverlayRestoreInFlight = false;
+    }
+  }
+
+  Future<void> _restoreFlowStudioOverlay(Map<String, dynamic> overlay) async {
+    final mode = (overlay['mode'] as String?)?.trim();
+    if (mode == _kFlowStudioModeMyFlows) {
+      _openMyFlowsList(
+        initialFlowId: (overlay['initialFlowId'] as num?)?.toInt(),
+      );
+      return;
+    }
+
+    if (mode == _kFlowStudioModeEditor) {
+      final draft = _FlowStudioDraft.fromJson(
+        await AppRestorationService.instance.readEditorState(
+          _kFlowStudioDraftEditorKey,
+        ),
+      );
+      final editFlowId =
+          draft?.editingFlowId ?? (overlay['editFlowId'] as num?)?.toInt();
+      await _openFlowStudioSheet(
+        continuityState: <String, dynamic>{
+          'mode': _kFlowStudioModeEditor,
+          if (editFlowId != null) 'editFlowId': editFlowId,
+        },
+        rootBuilder: (_) =>
+            _FlowStudioPage(existingFlows: _flows, editFlowId: editFlowId),
+      );
+      return;
+    }
+
+    if (mode == _kFlowStudioModeMaatFlows ||
+        mode == _kFlowStudioModeMaatTemplate) {
+      final templateKey = (overlay['templateKey'] as String?)?.trim();
+      await _openFlowStudioSheet(
+        continuityState: <String, dynamic>{
+          'mode': mode,
+          if (templateKey != null && templateKey.isNotEmpty)
+            'templateKey': templateKey,
+        },
+        rootBuilder: (innerCtx) {
+          if (mode == _kFlowStudioModeMaatTemplate &&
+              templateKey != null &&
+              templateKey.isNotEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              final template = _maatTemplateForKey(templateKey);
+              if (template == null || !mounted || !innerCtx.mounted) return;
+              unawaited(
+                _pushMaatFlowTemplateDetail(
+                  Navigator.of(innerCtx),
+                  template,
+                  returnState: const <String, dynamic>{
+                    'mode': _kFlowStudioModeMaatFlows,
+                  },
+                ),
+              );
+            });
+          }
+          return _buildMaatFlowsListPage(innerCtx);
+        },
+      );
+      return;
+    }
+
+    _getFlowStudioCallback()(null);
+  }
+
+  _MaatFlowTemplate? _maatTemplateForKey(String key) {
+    final trimmed = key.trim();
+    if (trimmed.isEmpty) return null;
+    for (final template in kMaatFlowTemplates) {
+      if (template.key == trimmed) return template;
+    }
+    return null;
+  }
+
+  Future<T?> _pushFlowStudioRoute<T>(
+    NavigatorState navigator,
+    Route<T> route, {
+    required Map<String, dynamic> visibleState,
+    required Map<String, dynamic> returnState,
+  }) async {
+    await _saveCalendarOverlayState(
+      _kCalendarOverlayKindFlowStudio,
+      visibleState,
+    );
+    try {
+      return await navigator.push<T>(route);
+    } finally {
+      if (mounted && navigator.mounted) {
+        await _saveCalendarOverlayState(
+          _kCalendarOverlayKindFlowStudio,
+          returnState,
+        );
+      }
+    }
+  }
+
+  Future<_FlowStudioResult?> _pushFlowStudioEditor(
+    NavigatorState navigator, {
+    int? editFlowId,
+    ImportFlowData? importData,
+    required Map<String, dynamic> returnState,
+  }) {
+    return _pushFlowStudioRoute<_FlowStudioResult>(
+      navigator,
+      MaterialPageRoute<_FlowStudioResult>(
+        builder: (_) => _FlowStudioPage(
+          existingFlows: _flows,
+          editFlowId: editFlowId,
+          importData: importData,
+        ),
+      ),
+      visibleState: <String, dynamic>{
+        'mode': _kFlowStudioModeEditor,
+        if (editFlowId != null) 'editFlowId': editFlowId,
+      },
+      returnState: returnState,
+    );
+  }
+
+  Future<int?> _pushMaatFlowTemplateDetail(
+    NavigatorState navigator,
+    _MaatFlowTemplate template, {
+    required Map<String, dynamic> returnState,
+  }) {
+    return _pushFlowStudioRoute<int?>(
+      navigator,
+      MaterialPageRoute<int?>(
+        builder: (_) => _MaatFlowTemplateDetailPage(
+          template: template,
+          addInstance:
+              ({
+                required _MaatFlowTemplate template,
+                DateTime? startDate,
+                bool? useKemetic,
+                TrackSkyTimeZone? trackSkyTimeZone,
+                int? alertMinutesBefore,
+              }) async {
+                final id = await _addMaatFlowInstance(
+                  template: template,
+                  startDate: startDate,
+                  useKemetic: useKemetic ?? false,
+                  trackSkyTimeZone: trackSkyTimeZone,
+                  alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
+                );
+                return id;
+              },
+        ),
+      ),
+      visibleState: <String, dynamic>{
+        'mode': _kFlowStudioModeMaatTemplate,
+        'templateKey': template.key,
+      },
+      returnState: returnState,
+    );
+  }
+
+  Future<void> _openSharedCalendarsSheet({
+    Map<String, dynamic>? restorationState,
+  }) async {
+    await _saveCalendarOverlayState(
+      _kCalendarOverlayKindSharedCalendars,
+      <String, dynamic>{
+        'expandedCalendarIds': _stringListFromRestoration(
+          restorationState?['expandedCalendarIds'],
+        ),
+      },
+    );
+    if (!mounted) return;
     final changed = await SharedCalendarsSheet.show(
       context,
       repo: _sharedCalendarsRepo,
       onAddEventRequested: _openCalendarScopedNoteDialog,
+      initialExpandedCalendarIds: _stringListFromRestoration(
+        restorationState?['expandedCalendarIds'],
+      ),
+      onContinuityChanged: (state) {
+        unawaited(
+          _saveCalendarOverlayState(
+            _kCalendarOverlayKindSharedCalendars,
+            state,
+          ),
+        );
+      },
     );
+    await _clearCalendarOverlayState(_kCalendarOverlayKindSharedCalendars);
     await _loadCalendarState();
     if (changed == true) {
       await _loadFromDisk();
@@ -7900,7 +9445,18 @@ class _CalendarPageState extends State<CalendarPage>
         unawaited(
           _restoreMyFlowsFilingSnapshotCache(reason: 'auth:${event.name}'),
         );
-        unawaited(_requestInitialStartupRun(reason: 'auth:${event.name}'));
+        unawaited(
+          _requestInitialStartupRun(reason: 'auth:${event.name}').then((_) {
+            if (!mounted ||
+                widget.initialFlowIdToEdit != null ||
+                widget.openMyFlowsOnLaunch) {
+              return;
+            }
+            if (!_schedulePendingDetachedLaunchActionIfAny()) {
+              _schedulePersistentOverlayRestore(reason: 'auth:${event.name}');
+            }
+          }),
+        );
         return;
       }
       if (event == AuthChangeEvent.tokenRefreshed) {
@@ -8380,13 +9936,8 @@ class _CalendarPageState extends State<CalendarPage>
 
     UiGuards.disableJournalSwipe();
     try {
-      final updated = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(
-          builder: (_) => EditProfilePage(
-            initialProfile: profile,
-            requireCompletion: requireCompletion,
-          ),
-        ),
+      final updated = await context.push<bool>(
+        '/profile/me/edit?requireCompletion=${requireCompletion ? 1 : 0}',
       );
       return updated == true || (shouldReplayPrompts && !requireCompletion);
     } finally {
@@ -14694,10 +16245,12 @@ class _CalendarPageState extends State<CalendarPage>
     BuildContext context, {
     bool includeNewNote = true,
   }) async {
-    final buttonBox = context.findRenderObject() as RenderBox?;
-    final overlay =
-        Navigator.of(context).overlay?.context.findRenderObject() as RenderBox?;
-    if (buttonBox == null || overlay == null) return;
+    final buttonBox = _renderBoxForContext(context);
+    final overlayRenderObject = Navigator.of(
+      context,
+    ).overlay?.context.findRenderObject();
+    if (buttonBox == null || overlayRenderObject is! RenderBox) return;
+    final overlay = overlayRenderObject;
 
     final anchorOffset = buttonBox.localToGlobal(
       Offset.zero,
@@ -14911,34 +16464,6 @@ class _CalendarPageState extends State<CalendarPage>
     );
   }
 
-  Route<void> _profileRoute({
-    required String userId,
-    bool openedFromCalendarSwipe = false,
-  }) {
-    return PageRouteBuilder<void>(
-      pageBuilder: (_, animation, secondaryAnimation) => ProfilePage(
-        userId: userId,
-        isMyProfile: true,
-        openedFromCalendar: true,
-        openedFromCalendarSwipe: openedFromCalendarSwipe,
-      ),
-      transitionDuration: const Duration(milliseconds: 280),
-      reverseTransitionDuration: const Duration(milliseconds: 240),
-      transitionsBuilder: (_, animation, secondaryAnimation, child) {
-        final curved = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-          reverseCurve: Curves.easeInCubic,
-        );
-        final offset = Tween<Offset>(
-          begin: const Offset(1.0, 0.0),
-          end: Offset.zero,
-        ).animate(curved);
-        return SlideTransition(position: offset, child: child);
-      },
-    );
-  }
-
   Future<void> _openProfile(
     BuildContext context, {
     bool openedFromCalendarSwipe = false,
@@ -14955,13 +16480,7 @@ class _CalendarPageState extends State<CalendarPage>
     UiGuards.disableJournalSwipe();
     _profileNavigationInFlight = true;
     try {
-      await Navigator.push(
-        context,
-        _profileRoute(
-          userId: userId,
-          openedFromCalendarSwipe: openedFromCalendarSwipe,
-        ),
-      );
+      await context.push<void>('/profile/${Uri.encodeComponent(userId)}');
     } finally {
       _profileNavigationInFlight = false;
       UiGuards.enableJournalSwipe();
@@ -14991,48 +16510,10 @@ class _CalendarPageState extends State<CalendarPage>
 
     UiGuards.disableJournalSwipe();
     try {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => JournalPage(
-            controller: _journalController,
-            entryPoint: 'app_bar_button',
-          ),
-        ),
-      );
+      await context.push<void>('/journal');
     } finally {
       UiGuards.enableJournalSwipe();
     }
-  }
-
-  Route<void> _plannerRoute({bool edgeSwipeTransition = false}) {
-    if (!edgeSwipeTransition) {
-      return MaterialPageRoute<void>(
-        builder: (_) => const TodaysAlignmentPage(openedFromCalendar: true),
-      );
-    }
-
-    return PageRouteBuilder<void>(
-      pageBuilder: (_, animation, secondaryAnimation) =>
-          const TodaysAlignmentPage(
-            openedFromCalendar: true,
-            openedFromCalendarSwipe: true,
-          ),
-      transitionDuration: const Duration(milliseconds: 260),
-      reverseTransitionDuration: const Duration(milliseconds: 220),
-      transitionsBuilder: (_, animation, secondaryAnimation, child) {
-        final curved = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-          reverseCurve: Curves.easeInCubic,
-        );
-        final offset = Tween<Offset>(
-          begin: const Offset(-1.0, 0.0),
-          end: Offset.zero,
-        ).animate(curved);
-        return SlideTransition(position: offset, child: child);
-      },
-    );
   }
 
   Future<void> _openPlannerPage({
@@ -15044,48 +16525,34 @@ class _CalendarPageState extends State<CalendarPage>
     _plannerNavigationInFlight = true;
     try {
       final navContext = navigationContext ?? context;
-      await Navigator.of(
-        navContext,
-      ).push(_plannerRoute(edgeSwipeTransition: edgeSwipeTransition));
+      await navContext.push<void>('/rhythm/today');
     } finally {
       _plannerNavigationInFlight = false;
     }
   }
 
   Future<void> _openInboxFromMenu() async {
-    final importedFlowId = await Navigator.push<int?>(
-      context,
-      MaterialPageRoute(builder: (_) => const InboxPage()),
-    );
+    final importedFlowId = await context.push<int?>('/inbox');
     if (importedFlowId != null) {
       await _loadFromDisk();
     }
   }
 
   Future<void> _openReflectionsFromMenu() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const DecanReflectionArchivePage()),
-    );
+    await context.push<void>('/reflections');
   }
 
   Future<void> _openKemeticNodes(BuildContext context) async {
     UiGuards.disableJournalSwipe();
     try {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const KemeticNodeListPage()),
-      );
+      await context.push<void>('/nodes');
     } finally {
       UiGuards.enableJournalSwipe();
     }
   }
 
   Future<void> _openSettingsFromMenu() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const SettingsPage()),
-    );
+    await context.push<void>('/settings');
   }
 
   /* ───── Search ───── */
@@ -15264,24 +16731,74 @@ class _CalendarPageState extends State<CalendarPage>
   // Slide-up Flow Studio shell with inner Navigator and draggable behavior
   Future<void> _openFlowStudioSheet({
     required Widget Function(BuildContext innerCtx) rootBuilder,
+    Map<String, dynamic> continuityState = const <String, dynamic>{
+      'mode': _kFlowStudioModeHub,
+    },
   }) async {
+    await _saveCalendarOverlayState(
+      _kCalendarOverlayKindFlowStudio,
+      continuityState,
+    );
     UiGuards.disableJournalSwipe();
     final isTablet = _isTablet(context);
-    final result = await showModalBottomSheet<_FlowStudioResult?>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black54,
-      useSafeArea: true,
-      useRootNavigator: true,
-      isDismissible: isTablet ? false : true,
-      enableDrag: isTablet ? false : true,
-      builder: (outerCtx) {
-        if (isTablet) {
-          return SafeArea(
-            child: FractionallySizedBox(
-              heightFactor: 0.9,
-              child: ClipRRect(
+    try {
+      final result = await showModalBottomSheet<_FlowStudioResult?>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        barrierColor: Colors.black54,
+        useSafeArea: true,
+        useRootNavigator: true,
+        isDismissible: isTablet ? false : true,
+        enableDrag: isTablet ? false : true,
+        builder: (outerCtx) {
+          if (isTablet) {
+            return SafeArea(
+              child: FractionallySizedBox(
+                heightFactor: 0.9,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child: Material(
+                    color: Colors.black,
+                    child: Column(
+                      children: [
+                        Align(
+                          alignment: Alignment.topRight,
+                          child: IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: () => Navigator.of(outerCtx).pop(),
+                          ),
+                        ),
+                        Expanded(
+                          child: Navigator(
+                            onGenerateInitialRoutes: (nav, initial) {
+                              return [
+                                MaterialPageRoute(
+                                  builder: (ctx) => rootBuilder(ctx),
+                                ),
+                              ];
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return DraggableScrollableSheet(
+            initialChildSize: 0.8,
+            minChildSize: 0.4,
+            maxChildSize: 1.0,
+            snap: true,
+            snapSizes: const [0.8, 1.0],
+            expand: false,
+            builder: (innerCtx, scrollController) {
+              return ClipRRect(
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(16),
                 ),
@@ -15289,13 +16806,16 @@ class _CalendarPageState extends State<CalendarPage>
                   color: Colors.black,
                   child: Column(
                     children: [
-                      Align(
-                        alignment: Alignment.topRight,
-                        child: IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white),
-                          onPressed: () => Navigator.of(outerCtx).pop(),
+                      const SizedBox(height: 10),
+                      Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
+                      const SizedBox(height: 8),
                       Expanded(
                         child: Navigator(
                           onGenerateInitialRoutes: (nav, initial) {
@@ -15310,149 +16830,148 @@ class _CalendarPageState extends State<CalendarPage>
                     ],
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           );
-        }
+        },
+      );
 
-        return DraggableScrollableSheet(
-          initialChildSize: 0.8,
-          minChildSize: 0.4,
-          maxChildSize: 1.0,
-          snap: true,
-          snapSizes: const [0.8, 1.0],
-          expand: false,
-          builder: (innerCtx, scrollController) {
-            return ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
-              child: Material(
-                color: Colors.black,
-                child: Column(
-                  children: [
-                    const SizedBox(height: 10),
-                    Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: Navigator(
-                        onGenerateInitialRoutes: (nav, initial) {
-                          return [
-                            MaterialPageRoute(
-                              builder: (ctx) => rootBuilder(ctx),
-                            ),
-                          ];
+      if (result != null) {
+        await _applyFlowStudioResult(result);
+      }
+    } finally {
+      await _clearCalendarOverlayState(_kCalendarOverlayKindFlowStudio);
+      await AppRestorationService.instance.saveEditorState(
+        _kFlowStudioDraftEditorKey,
+        null,
+      );
+      UiGuards.enableJournalSwipe();
+    }
+  }
+
+  // Directly open My Flows list (no Flow Hub chooser).
+  void _openMyFlowsList({int? initialFlowId}) {
+    unawaited(
+      _saveCalendarOverlayState(
+        _kCalendarOverlayKindFlowStudio,
+        <String, dynamic>{
+          'mode': _kFlowStudioModeMyFlows,
+          if (initialFlowId != null) 'initialFlowId': initialFlowId,
+        },
+      ),
+    );
+    UiGuards.disableJournalSwipe();
+    final isTab = _isTablet(context);
+    unawaited(() async {
+      try {
+        final result = await showModalBottomSheet<_FlowStudioResult?>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          barrierColor: Colors.black54,
+          useSafeArea: true,
+          useRootNavigator: true,
+          isDismissible: !isTab,
+          enableDrag: !isTab,
+          builder: (modalCtx) {
+            return FractionallySizedBox(
+              heightFactor: 0.9,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
+                child: Navigator(
+                  onGenerateInitialRoutes: (nav, __) {
+                    return [
+                      MaterialPageRoute(
+                        builder: (ctx2) {
+                          // If a flowId was provided, push editor after first frame.
+                          if (initialFlowId != null) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              unawaited(
+                                _pushFlowStudioEditor(
+                                  nav,
+                                  editFlowId: initialFlowId,
+                                  returnState: const <String, dynamic>{
+                                    'mode': _kFlowStudioModeMyFlows,
+                                  },
+                                ),
+                              );
+                            });
+                          }
+
+                          return _FlowsViewerPage(
+                            loadFilingSnapshot: _loadMyFlowsFilingSnapshot,
+                            initialFilingSnapshot:
+                                _cachedMyFlowsFilingSnapshot(),
+                            fmtGregorian: (d) => d == null
+                                ? '--'
+                                : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
+                            onCreateNew: () async {
+                              final edited = await _pushFlowStudioEditor(
+                                nav,
+                                returnState: const <String, dynamic>{
+                                  'mode': _kFlowStudioModeMyFlows,
+                                },
+                              );
+                              await _saveCalendarOverlayState(
+                                _kCalendarOverlayKindFlowStudio,
+                                const <String, dynamic>{
+                                  'mode': _kFlowStudioModeMyFlows,
+                                },
+                              );
+                              if (edited != null) {
+                                await _persistFlowStudioResult(edited);
+                              }
+                              await _loadFromDisk();
+                            },
+                            onEditFlow: (id) async {
+                              final edited = await _pushFlowStudioEditor(
+                                nav,
+                                editFlowId: id,
+                                returnState: const <String, dynamic>{
+                                  'mode': _kFlowStudioModeMyFlows,
+                                },
+                              );
+                              await _saveCalendarOverlayState(
+                                _kCalendarOverlayKindFlowStudio,
+                                const <String, dynamic>{
+                                  'mode': _kFlowStudioModeMyFlows,
+                                },
+                              );
+                              if (edited != null) {
+                                await _persistFlowStudioResult(edited);
+                              }
+                              await _loadFromDisk();
+                            },
+                            onEndFlow: (id) => _endFlow(id),
+                            onImportFlow: (importedFlowId) async {
+                              if (importedFlowId != null) {
+                                await _loadFromDisk();
+                              }
+                            },
+                            onAppendToJournal: _journalInitialized
+                                ? (text) =>
+                                      _journalController.appendToToday(text)
+                                : null,
+                          );
                         },
                       ),
-                    ),
-                  ],
+                    ];
+                  },
                 ),
               ),
             );
           },
         );
-      },
-    );
-
-    if (result != null) {
-      await _applyFlowStudioResult(result);
-    }
-
-    UiGuards.enableJournalSwipe();
-  }
-
-  // Directly open My Flows list (no Flow Hub chooser).
-  void _openMyFlowsList({int? initialFlowId}) {
-    final isTab = _isTablet(context);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black54,
-      useSafeArea: true,
-      useRootNavigator: true,
-      isDismissible: !isTab,
-      enableDrag: !isTab,
-      builder: (modalCtx) {
-        return FractionallySizedBox(
-          heightFactor: 0.9,
-          child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: Navigator(
-              onGenerateInitialRoutes: (nav, __) {
-                return [
-                  MaterialPageRoute(
-                    builder: (ctx2) {
-                      // If a flowId was provided, push editor after first frame.
-                      if (initialFlowId != null) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          nav.push(
-                            MaterialPageRoute(
-                              builder: (_) => _FlowStudioPage(
-                                existingFlows: _flows,
-                                editFlowId: initialFlowId,
-                              ),
-                            ),
-                          );
-                        });
-                      }
-
-                      return _FlowsViewerPage(
-                        loadFilingSnapshot: _loadMyFlowsFilingSnapshot,
-                        initialFilingSnapshot: _cachedMyFlowsFilingSnapshot(),
-                        fmtGregorian: (d) => d == null
-                            ? '--'
-                            : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
-                        onCreateNew: () async {
-                          final edited = await nav.push<_FlowStudioResult>(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  _FlowStudioPage(existingFlows: _flows),
-                            ),
-                          );
-                          if (edited != null)
-                            await _persistFlowStudioResult(edited);
-                          await _loadFromDisk();
-                        },
-                        onEditFlow: (id) async {
-                          final edited = await nav.push<_FlowStudioResult>(
-                            MaterialPageRoute(
-                              builder: (_) => _FlowStudioPage(
-                                existingFlows: _flows,
-                                editFlowId: id,
-                              ),
-                            ),
-                          );
-                          if (edited != null)
-                            await _persistFlowStudioResult(edited);
-                          await _loadFromDisk();
-                        },
-                        onEndFlow: (id) => _endFlow(id),
-                        onImportFlow: (importedFlowId) async {
-                          if (importedFlowId != null) {
-                            await _loadFromDisk();
-                          }
-                        },
-                        onAppendToJournal: _journalInitialized
-                            ? (text) => _journalController.appendToToday(text)
-                            : null,
-                      );
-                    },
-                  ),
-                ];
-              },
-            ),
-          ),
-        );
-      },
-    );
+        if (result != null) {
+          await _applyFlowStudioResult(result);
+        }
+      } finally {
+        await _clearCalendarOverlayState(_kCalendarOverlayKindFlowStudio);
+        UiGuards.enableJournalSwipe();
+      }
+    }());
   }
 
   /// Public entrypoint so other screens (e.g., Profile) can open Flow Studio's
@@ -15461,6 +16980,36 @@ class _CalendarPageState extends State<CalendarPage>
     await _loadFromDisk(source: 'open_my_flows_from_outside');
     if (!mounted) return;
     _openMyFlowsList();
+  }
+
+  Widget _buildMaatFlowsListPage(BuildContext listCtx) {
+    final navigator = Navigator.of(listCtx);
+    return _MaatFlowsListPage(
+      title: 'ḥꜣw',
+      templates: kMaatFlowTemplates,
+      hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
+      onPickTemplate: (tpl) async {
+        final importedFlowId = await _pushMaatFlowTemplateDetail(
+          navigator,
+          tpl,
+          returnState: const <String, dynamic>{
+            'mode': _kFlowStudioModeMaatFlows,
+          },
+        );
+        if (importedFlowId != null && importedFlowId > 0 && listCtx.mounted) {
+          Navigator.of(listCtx).pop(importedFlowId);
+        }
+      },
+      onCreateNew: () async {
+        final edited = await _pushFlowStudioEditor(
+          navigator,
+          returnState: const <String, dynamic>{
+            'mode': _kFlowStudioModeMaatFlows,
+          },
+        );
+        if (edited != null) await _persistFlowStudioResult(edited);
+      },
+    );
   }
 
   // Manage Flows callback: jump straight to My Flows (or specific flow editor if id provided).
@@ -15489,118 +17038,88 @@ class _CalendarPageState extends State<CalendarPage>
         rootBuilder: (innerCtx) {
           return _FlowHubPage(
             openMyFlows: () {
-              Navigator.of(innerCtx).push(
-                MaterialPageRoute(
-                  builder: (ctx2) => _FlowsViewerPage(
-                    loadFilingSnapshot: _loadMyFlowsFilingSnapshot,
-                    initialFilingSnapshot: _cachedMyFlowsFilingSnapshot(),
-                    fmtGregorian: (d) => d == null
-                        ? '--'
-                        : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
-                    onCreateNew: () async {
-                      final edited = await Navigator.of(innerCtx)
-                          .push<_FlowStudioResult>(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  _FlowStudioPage(existingFlows: _flows),
-                            ),
-                          );
-                      if (edited != null)
-                        await _persistFlowStudioResult(edited);
-                      // ✅ Refresh calendar data after flow operations
-                      await _loadFromDisk();
-                    },
-                    onEditFlow: (id) async {
-                      final edited = await Navigator.of(innerCtx)
-                          .push<_FlowStudioResult>(
-                            MaterialPageRoute(
-                              builder: (_) => _FlowStudioPage(
-                                existingFlows: _flows,
-                                editFlowId: id,
-                              ),
-                            ),
-                          );
-                      if (edited != null)
-                        await _persistFlowStudioResult(edited);
-                      // ✅ Refresh calendar data after flow operations
-                      await _loadFromDisk();
-                    },
-                    onEndFlow: (id) => _endFlow(id),
-                    onImportFlow: (importedFlowId) async {
-                      if (importedFlowId != null) {
+              unawaited(
+                _pushFlowStudioRoute<void>(
+                  Navigator.of(innerCtx),
+                  MaterialPageRoute<void>(
+                    builder: (ctx2) => _FlowsViewerPage(
+                      loadFilingSnapshot: _loadMyFlowsFilingSnapshot,
+                      initialFilingSnapshot: _cachedMyFlowsFilingSnapshot(),
+                      fmtGregorian: (d) => d == null
+                          ? '--'
+                          : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
+                      onCreateNew: () async {
+                        final edited = await _pushFlowStudioEditor(
+                          Navigator.of(innerCtx),
+                          returnState: const <String, dynamic>{
+                            'mode': _kFlowStudioModeMyFlows,
+                          },
+                        );
+                        if (edited != null) {
+                          await _persistFlowStudioResult(edited);
+                        }
                         await _loadFromDisk();
-                      }
-                    },
-                    onAppendToJournal: _journalInitialized
-                        ? (text) => _journalController.appendToToday(text)
-                        : null,
+                      },
+                      onEditFlow: (id) async {
+                        final edited = await _pushFlowStudioEditor(
+                          Navigator.of(innerCtx),
+                          editFlowId: id,
+                          returnState: const <String, dynamic>{
+                            'mode': _kFlowStudioModeMyFlows,
+                          },
+                        );
+                        if (edited != null) {
+                          await _persistFlowStudioResult(edited);
+                        }
+                        await _loadFromDisk();
+                      },
+                      onEndFlow: (id) => _endFlow(id),
+                      onImportFlow: (importedFlowId) async {
+                        if (importedFlowId != null) {
+                          await _loadFromDisk();
+                        }
+                      },
+                      onAppendToJournal: _journalInitialized
+                          ? (text) => _journalController.appendToToday(text)
+                          : null,
+                    ),
                   ),
+                  visibleState: const <String, dynamic>{
+                    'mode': _kFlowStudioModeMyFlows,
+                  },
+                  returnState: const <String, dynamic>{
+                    'mode': _kFlowStudioModeHub,
+                  },
                 ),
               );
             },
             openMaatFlows: () {
-              Navigator.of(innerCtx).push(
-                MaterialPageRoute(
-                  builder: (ctx3) => _MaatFlowsListPage(
-                    title: 'ḥꜣw',
-                    templates: kMaatFlowTemplates,
-                    hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
-                    onPickTemplate: (tpl) async {
-                      final importedFlowId = await Navigator.of(ctx3)
-                          .push<int?>(
-                            MaterialPageRoute(
-                              builder: (ctx4) => _MaatFlowTemplateDetailPage(
-                                template: tpl,
-                                addInstance:
-                                    ({
-                                      required _MaatFlowTemplate template,
-                                      DateTime? startDate,
-                                      bool? useKemetic,
-                                      TrackSkyTimeZone? trackSkyTimeZone,
-                                      int? alertMinutesBefore,
-                                    }) async {
-                                      final id = await _addMaatFlowInstance(
-                                        template: template,
-                                        startDate: startDate,
-                                        useKemetic: useKemetic ?? false,
-                                        trackSkyTimeZone: trackSkyTimeZone,
-                                        alertMinutesBefore:
-                                            alertMinutesBefore ??
-                                            _alertNoneMinutes,
-                                      );
-                                      return id;
-                                    },
-                              ),
-                            ),
-                          );
-                      if (importedFlowId != null &&
-                          importedFlowId > 0 &&
-                          ctx3.mounted) {
-                        Navigator.of(ctx3).pop(importedFlowId);
-                      }
-                    },
-                    onCreateNew: () async {
-                      final edited = await Navigator.of(innerCtx)
-                          .push<_FlowStudioResult>(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  _FlowStudioPage(existingFlows: _flows),
-                            ),
-                          );
-                      if (edited != null)
-                        await _persistFlowStudioResult(edited);
-                    },
+              unawaited(
+                _pushFlowStudioRoute<int?>(
+                  Navigator.of(innerCtx),
+                  MaterialPageRoute<int?>(
+                    builder: (ctx3) => _buildMaatFlowsListPage(ctx3),
                   ),
-                ),
+                  visibleState: const <String, dynamic>{
+                    'mode': _kFlowStudioModeMaatFlows,
+                  },
+                  returnState: const <String, dynamic>{
+                    'mode': _kFlowStudioModeHub,
+                  },
+                ).then((importedFlowId) async {
+                  if (importedFlowId != null && importedFlowId > 0) {
+                    await _loadFromDisk();
+                  }
+                }),
               );
             },
             onCreateNew: () async {
-              final edited = await Navigator.of(innerCtx)
-                  .push<_FlowStudioResult>(
-                    MaterialPageRoute(
-                      builder: (_) => _FlowStudioPage(existingFlows: _flows),
-                    ),
-                  );
+              final edited = await _pushFlowStudioEditor(
+                Navigator.of(innerCtx),
+                returnState: const <String, dynamic>{
+                  'mode': _kFlowStudioModeHub,
+                },
+              );
               if (edited != null) await _persistFlowStudioResult(edited);
             },
           );
@@ -15611,6 +17130,10 @@ class _CalendarPageState extends State<CalendarPage>
 
   void _openFlowEditorDirectly(int flowId) {
     _openFlowStudioSheet(
+      continuityState: <String, dynamic>{
+        'mode': _kFlowStudioModeEditor,
+        'editFlowId': flowId,
+      },
       rootBuilder: (innerCtx) {
         return _FlowStudioPage(
           // Force DB load for full fidelity (rules/notes) when editing.
@@ -15623,6 +17146,7 @@ class _CalendarPageState extends State<CalendarPage>
 
   void _openFlowsViewer() {
     _openFlowStudioSheet(
+      continuityState: const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
       rootBuilder: (innerCtx) {
         return _FlowsViewerPage(
           loadFilingSnapshot: _loadMyFlowsFilingSnapshot,
@@ -15631,21 +17155,31 @@ class _CalendarPageState extends State<CalendarPage>
               ? '--'
               : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
           onCreateNew: () async {
-            final edited = await Navigator.of(innerCtx).push<_FlowStudioResult>(
-              MaterialPageRoute(
-                builder: (_) => _FlowStudioPage(existingFlows: _flows),
-              ),
+            final edited = await _pushFlowStudioEditor(
+              Navigator.of(innerCtx),
+              returnState: const <String, dynamic>{
+                'mode': _kFlowStudioModeMyFlows,
+              },
+            );
+            await _saveCalendarOverlayState(
+              _kCalendarOverlayKindFlowStudio,
+              const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
             );
             if (edited != null) await _persistFlowStudioResult(edited);
             // ✅ Refresh calendar data after flow operations
             await _loadFromDisk();
           },
           onEditFlow: (id) async {
-            final edited = await Navigator.of(innerCtx).push<_FlowStudioResult>(
-              MaterialPageRoute(
-                builder: (_) =>
-                    _FlowStudioPage(existingFlows: _flows, editFlowId: id),
-              ),
+            final edited = await _pushFlowStudioEditor(
+              Navigator.of(innerCtx),
+              editFlowId: id,
+              returnState: const <String, dynamic>{
+                'mode': _kFlowStudioModeMyFlows,
+              },
+            );
+            await _saveCalendarOverlayState(
+              _kCalendarOverlayKindFlowStudio,
+              const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
             );
             if (edited != null) await _persistFlowStudioResult(edited);
             // ✅ Refresh calendar data after flow operations
@@ -19203,6 +20737,8 @@ class _CalendarPageState extends State<CalendarPage>
             _openFlowEditorDirectly(targetFlowId);
           } else if (widget.openMyFlowsOnLaunch) {
             _openMyFlowsList();
+          } else if (!_schedulePendingDetachedLaunchActionIfAny()) {
+            _schedulePersistentOverlayRestore(reason: 'init');
           }
         });
       } else {
@@ -19225,11 +20761,22 @@ class _CalendarPageState extends State<CalendarPage>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _openMyFlowsList();
       });
+    } else {
+      _schedulePendingDetachedLaunchActionIfAny();
     }
 
     if (_pendingInitialHydration &&
         Supabase.instance.client.auth.currentUser != null) {
-      _requestInitialStartupRun(reason: 'init-pending');
+      _requestInitialStartupRun(reason: 'init-pending').then((_) {
+        if (!mounted ||
+            widget.initialFlowIdToEdit != null ||
+            widget.openMyFlowsOnLaunch) {
+          return;
+        }
+        if (!_schedulePendingDetachedLaunchActionIfAny()) {
+          _schedulePersistentOverlayRestore(reason: 'init-pending');
+        }
+      });
     }
   }
 
@@ -28105,6 +29652,14 @@ class _AlertOption {
 
 // Sentinel for "no alert" selection in Flow Studio note drafts.
 const int _alertNoneMinutes = -1;
+const String _kCalendarOverlayKindSharedCalendars = 'calendar.sharedCalendars';
+const String _kCalendarOverlayKindFlowStudio = 'calendar.flowStudio';
+const String _kFlowStudioDraftEditorKey = 'calendar.flowStudio.draft';
+const String _kFlowStudioModeHub = 'hub';
+const String _kFlowStudioModeMyFlows = 'myFlows';
+const String _kFlowStudioModeMaatFlows = 'maatFlows';
+const String _kFlowStudioModeMaatTemplate = 'maatTemplate';
+const String _kFlowStudioModeEditor = 'editor';
 
 const List<_AlertOption> _alertOptions = [
   _AlertOption('None', _alertNoneMinutes),
@@ -28128,6 +29683,39 @@ String _alertLabelFor(int? minutes) {
   );
   return match.label;
 }
+
+Map<String, dynamic>? _flowStudioJsonMap(Object? raw) {
+  if (raw is! Map) return null;
+  return raw.map<String, dynamic>(
+    (dynamic key, dynamic value) => MapEntry(key.toString(), value),
+  );
+}
+
+List<int> _flowStudioIntList(Object? raw) {
+  if (raw is! Iterable) return const <int>[];
+  return raw
+      .map((value) => (value as num?)?.toInt())
+      .whereType<int>()
+      .toList(growable: false);
+}
+
+Map<String, Set<int>> _flowStudioIntSetMap(Object? raw) {
+  final map = _flowStudioJsonMap(raw);
+  if (map == null) return const <String, Set<int>>{};
+  return map.map(
+    (key, value) => MapEntry(key, _flowStudioIntList(value).toSet()),
+  );
+}
+
+DateTime? _flowStudioDateFromJson(Object? raw) {
+  final text = raw as String?;
+  if (text == null || text.trim().isEmpty) return null;
+  final parsed = DateTime.tryParse(text);
+  return parsed == null ? null : DateUtils.dateOnly(parsed.toLocal());
+}
+
+String? _flowStudioDateToJson(DateTime? date) =>
+    date == null ? null : DateUtils.dateOnly(date).toIso8601String();
 
 Future<int?> _pickAlertMinutes(BuildContext context, int? current) {
   return showCupertinoModalPopup<int>(
@@ -28169,6 +29757,12 @@ Future<int?> _pickAlertMinutes(BuildContext context, int? current) {
 
 /// Lightweight inputs holder for one planned note.
 class _NoteDraft {
+  _NoteDraft({VoidCallback? onChanged}) {
+    if (onChanged != null) {
+      attachChangeListener(onChanged);
+    }
+  }
+
   final titleCtrl = TextEditingController();
   final locationCtrl = TextEditingController();
   final detailCtrl = TextEditingController();
@@ -28181,6 +29775,21 @@ class _NoteDraft {
   bool usesFlowAlertDefault = true;
   String? actionId;
   Map<String, dynamic>? behaviorPayload;
+  VoidCallback? _changeListener;
+
+  void attachChangeListener(VoidCallback listener) {
+    if (_changeListener == listener) return;
+    final previous = _changeListener;
+    if (previous != null) {
+      titleCtrl.removeListener(previous);
+      locationCtrl.removeListener(previous);
+      detailCtrl.removeListener(previous);
+    }
+    _changeListener = listener;
+    titleCtrl.addListener(listener);
+    locationCtrl.addListener(listener);
+    detailCtrl.addListener(listener);
+  }
 
   _Note toNote({required int flowAlertMinutesBefore}) {
     final t = titleCtrl.text.trim();
@@ -28206,6 +29815,12 @@ class _NoteDraft {
   }
 
   void dispose() {
+    final listener = _changeListener;
+    if (listener != null) {
+      titleCtrl.removeListener(listener);
+      locationCtrl.removeListener(listener);
+      detailCtrl.removeListener(listener);
+    }
     titleCtrl.dispose();
     locationCtrl.dispose();
     detailCtrl.dispose();
@@ -28261,8 +29876,45 @@ class _DraftNoteData {
     );
   }
 
-  _NoteDraft toDraft() {
-    final d = _NoteDraft();
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'title': title,
+      'location': location,
+      'detail': detail,
+      'allDay': allDay,
+      if (startMinutes != null) 'startMinutes': startMinutes,
+      if (endMinutes != null) 'endMinutes': endMinutes,
+      if (category != null) 'category': category,
+      'alertMinutesBefore': alertMinutesBefore,
+      'usesFlowAlertDefault': usesFlowAlertDefault,
+      if (actionId != null) 'actionId': actionId,
+      if (behaviorPayload != null) 'behaviorPayload': behaviorPayload,
+    };
+  }
+
+  static _DraftNoteData? fromJson(Object? raw) {
+    final json = _flowStudioJsonMap(raw);
+    if (json == null) return null;
+    final startMinutes = (json['startMinutes'] as num?)?.toInt();
+    final endMinutes = (json['endMinutes'] as num?)?.toInt();
+    return _DraftNoteData(
+      title: json['title'] as String? ?? '',
+      location: json['location'] as String? ?? '',
+      detail: json['detail'] as String? ?? '',
+      allDay: json['allDay'] == true,
+      startMinutes: startMinutes,
+      endMinutes: endMinutes,
+      category: json['category'] as String?,
+      alertMinutesBefore:
+          (json['alertMinutesBefore'] as num?)?.toInt() ?? _alertNoneMinutes,
+      usesFlowAlertDefault: json['usesFlowAlertDefault'] != false,
+      actionId: json['actionId'] as String?,
+      behaviorPayload: _flowStudioJsonMap(json['behaviorPayload']),
+    );
+  }
+
+  _NoteDraft toDraft({VoidCallback? onChanged}) {
+    final d = _NoteDraft(onChanged: onChanged);
     d.titleCtrl.text = title;
     d.locationCtrl.text = location;
     d.detailCtrl.text = detail;
@@ -28335,6 +29987,99 @@ class _FlowStudioDraft {
     required this.flowAlertMinutesBefore,
     required this.flowAlertMixed,
   });
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      if (editingFlowId != null) 'editingFlowId': editingFlowId,
+      'editingIsHidden': editingIsHidden,
+      if (calendarId != null) 'calendarId': calendarId,
+      'name': name,
+      'active': active,
+      'selectedColorIndex': selectedColorIndex,
+      'useKemetic': useKemetic,
+      if (_flowStudioDateToJson(startDate) != null)
+        'startDate': _flowStudioDateToJson(startDate),
+      if (_flowStudioDateToJson(endDate) != null)
+        'endDate': _flowStudioDateToJson(endDate),
+      'splitByPeriod': splitByPeriod,
+      'selectedDecanDays': selectedDecanDays.toList(growable: false),
+      'selectedWeekdays': selectedWeekdays.toList(growable: false),
+      'perDecanSel': perDecanSel.map(
+        (key, value) => MapEntry(key, value.toList(growable: false)),
+      ),
+      'perWeekSel': perWeekSel.map(
+        (key, value) => MapEntry(key, value.toList(growable: false)),
+      ),
+      'draftsByDay': draftsByDay.map(
+        (key, value) =>
+            MapEntry(key, value.map((note) => note.toJson()).toList()),
+      ),
+      'draftsByPattern': draftsByPattern.map(
+        (key, value) => MapEntry(key, value.toJson()),
+      ),
+      'overview': overview,
+      'isAIGeneratedFlow': isAIGeneratedFlow,
+      'flowAlertMinutesBefore': flowAlertMinutesBefore,
+      'flowAlertMixed': flowAlertMixed,
+    };
+  }
+
+  static _FlowStudioDraft? fromJson(Object? raw) {
+    final json = _flowStudioJsonMap(raw);
+    if (json == null) return null;
+
+    final draftsByDay = <String, List<_DraftNoteData>>{};
+    final rawDraftsByDay = _flowStudioJsonMap(json['draftsByDay']);
+    if (rawDraftsByDay != null) {
+      for (final entry in rawDraftsByDay.entries) {
+        final notes = entry.value is Iterable
+            ? (entry.value as Iterable)
+                  .map(_DraftNoteData.fromJson)
+                  .whereType<_DraftNoteData>()
+                  .toList(growable: false)
+            : const <_DraftNoteData>[];
+        if (notes.isNotEmpty) {
+          draftsByDay[entry.key] = notes;
+        }
+      }
+    }
+
+    final draftsByPattern = <String, _DraftNoteData>{};
+    final rawDraftsByPattern = _flowStudioJsonMap(json['draftsByPattern']);
+    if (rawDraftsByPattern != null) {
+      for (final entry in rawDraftsByPattern.entries) {
+        final note = _DraftNoteData.fromJson(entry.value);
+        if (note != null) {
+          draftsByPattern[entry.key] = note;
+        }
+      }
+    }
+
+    return _FlowStudioDraft(
+      editingFlowId: (json['editingFlowId'] as num?)?.toInt(),
+      editingIsHidden: json['editingIsHidden'] == true,
+      calendarId: (json['calendarId'] as String?)?.trim(),
+      name: json['name'] as String? ?? '',
+      active: json['active'] != false,
+      selectedColorIndex: (json['selectedColorIndex'] as num?)?.toInt() ?? 0,
+      useKemetic: json['useKemetic'] == true,
+      startDate: _flowStudioDateFromJson(json['startDate']),
+      endDate: _flowStudioDateFromJson(json['endDate']),
+      splitByPeriod: json['splitByPeriod'] == true,
+      selectedDecanDays: _flowStudioIntList(json['selectedDecanDays']).toSet(),
+      selectedWeekdays: _flowStudioIntList(json['selectedWeekdays']).toSet(),
+      perDecanSel: _flowStudioIntSetMap(json['perDecanSel']),
+      perWeekSel: _flowStudioIntSetMap(json['perWeekSel']),
+      draftsByDay: draftsByDay,
+      draftsByPattern: draftsByPattern,
+      overview: json['overview'] as String? ?? '',
+      isAIGeneratedFlow: json['isAIGeneratedFlow'] == true,
+      flowAlertMinutesBefore:
+          (json['flowAlertMinutesBefore'] as num?)?.toInt() ??
+          _alertNoneMinutes,
+      flowAlertMixed: json['flowAlertMixed'] == true,
+    );
+  }
 }
 
 /// One concrete selected day derived from the chips.
@@ -28432,20 +30177,26 @@ class _FlowStudioPage extends StatefulWidget {
     required this.existingFlows,
     this.editFlowId,
     this.importData,
+    this.onContinuityChanged,
     super.key,
   });
 
   final List<_Flow> existingFlows;
   final int? editFlowId;
   final ImportFlowData? importData;
+  final ValueChanged<Map<String, dynamic>>? onContinuityChanged;
 
   @override
   State<_FlowStudioPage> createState() => _FlowStudioPageState();
 }
 
-class _FlowStudioPageState extends State<_FlowStudioPage> {
+class _FlowStudioPageState extends State<_FlowStudioPage>
+    with WidgetsBindingObserver {
   static _FlowStudioDraft? _sessionDraft;
   bool _suppressDraftSave = false;
+  bool _nameControllerReady = false;
+  bool _draftListenersInstalled = false;
+  Timer? _draftPersistDebounce;
   _Flow? _editing;
 
   // basic
@@ -28611,7 +30362,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   }
 
   _NoteDraft _newDraftUsingFlowAlertDefault() {
-    final draft = _NoteDraft();
+    final draft = _NoteDraft(onChanged: _schedulePersistentDraftSave);
     draft.alertMinutesBefore = _flowAlertMinutesBefore;
     draft.usesFlowAlertDefault = true;
     return draft;
@@ -28809,12 +30560,24 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
         ..clear()
         ..addAll(
           draft.draftsByDay.map(
-            (k, list) => MapEntry(k, list.map((n) => n.toDraft()).toList()),
+            (k, list) => MapEntry(
+              k,
+              list
+                  .map(
+                    (n) => n.toDraft(onChanged: _schedulePersistentDraftSave),
+                  )
+                  .toList(),
+            ),
           ),
         );
       _draftsByPattern
         ..clear()
-        ..addAll(draft.draftsByPattern.map((k, n) => MapEntry(k, n.toDraft())));
+        ..addAll(
+          draft.draftsByPattern.map(
+            (k, n) =>
+                MapEntry(k, n.toDraft(onChanged: _schedulePersistentDraftSave)),
+          ),
+        );
 
       _overviewCtrl.text = draft.overview;
       _isAIGeneratedFlow = draft.isAIGeneratedFlow;
@@ -28826,8 +30589,102 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     });
   }
 
-  void _clearSessionDraft() {
+  void _clearSessionDraft({bool clearPersistent = true}) {
     _sessionDraft = null;
+    if (clearPersistent) {
+      unawaited(
+        AppRestorationService.instance.saveEditorState(
+          _kFlowStudioDraftEditorKey,
+          null,
+        ),
+      );
+    }
+  }
+
+  void _markNameControllerReady() {
+    _nameControllerReady = true;
+    _installDraftListeners();
+  }
+
+  void _installDraftListeners() {
+    if (!_nameControllerReady || _draftListenersInstalled) return;
+    _draftListenersInstalled = true;
+    _nameCtrl.addListener(_schedulePersistentDraftSave);
+    _overviewCtrl.addListener(_schedulePersistentDraftSave);
+  }
+
+  void _markFlowEditorVisible() {
+    final state = <String, dynamic>{
+      'mode': _kFlowStudioModeEditor,
+      if (widget.editFlowId != null) 'editFlowId': widget.editFlowId,
+    };
+    final onContinuityChanged = widget.onContinuityChanged;
+    if (onContinuityChanged != null) {
+      onContinuityChanged(state);
+      return;
+    }
+    final pageState = CalendarPage.globalKey.currentState;
+    if (pageState == null) return;
+    unawaited(
+      pageState._saveCalendarOverlayState(
+        _kCalendarOverlayKindFlowStudio,
+        state,
+      ),
+    );
+  }
+
+  void _schedulePersistentDraftSave() {
+    if (_suppressDraftSave || !_nameControllerReady) return;
+    _draftPersistDebounce?.cancel();
+    _draftPersistDebounce = Timer(const Duration(milliseconds: 500), () {
+      unawaited(_persistDraftNow(reason: 'debounced'));
+    });
+  }
+
+  Future<void> _persistDraftNow({required String reason}) async {
+    if (_suppressDraftSave || !_nameControllerReady) return;
+    final draft = _captureDraft();
+    if (draft == null) {
+      await AppRestorationService.instance.saveEditorState(
+        _kFlowStudioDraftEditorKey,
+        null,
+      );
+      return;
+    }
+    await AppRestorationService.instance
+        .saveEditorState(_kFlowStudioDraftEditorKey, <String, dynamic>{
+          ...draft.toJson(),
+          'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
+          'reason': reason,
+        });
+  }
+
+  Future<void> _restorePersistentDraftIfAny({int? expectedEditFlowId}) async {
+    final raw = await AppRestorationService.instance.readEditorState(
+      _kFlowStudioDraftEditorKey,
+    );
+    final draft = _FlowStudioDraft.fromJson(raw);
+    if (!mounted || draft == null) return;
+    if (expectedEditFlowId != null &&
+        draft.editingFlowId != expectedEditFlowId) {
+      return;
+    }
+    _restoreDraft(draft);
+    _schedulePersistentDraftSave();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        unawaited(_persistDraftNow(reason: 'lifecycle:${state.name}'));
+        break;
+      case AppLifecycleState.resumed:
+        break;
+    }
   }
 
   static const _wdLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -30594,6 +32451,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       _syncReady = true;
       _applySelectionToDrafts();
     });
+    _markFlowEditorVisible();
+    _schedulePersistentDraftSave();
   }
 
   /// Load AI-generated flow by ID and populate Flow Studio
@@ -31222,7 +33081,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       final dateKey = dayKey(kYear, kMonth, kDay);
 
       // Create draft
-      final draft = _NoteDraft();
+      final draft = _NoteDraft(onChanged: _schedulePersistentDraftSave);
 
       // Populate controllers
       draft.titleCtrl.text = title;
@@ -31282,6 +33141,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   /// Initialize Flow Studio from inbox import data
   Future<void> _initializeFromImport(ImportFlowData data) async {
     _nameCtrl = TextEditingController(text: data.name);
+    _markNameControllerReady();
     _selectedCalendarId = _defaultCalendarId();
     _active = true;
     _isLoadingFlow = true;
@@ -31456,11 +33316,14 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     }
 
     _nameCtrl = TextEditingController();
+    _markNameControllerReady();
     _active = true;
     _isLoadingFlow = true;
 
     _loadFlowByIdFromDb(flowId)
-        .then((_) {
+        .then((_) async {
+          if (!mounted) return;
+          await _restorePersistentDraftIfAny(expectedEditFlowId: flowId);
           if (!mounted) return;
           setState(() {
             _isLoadingFlow = false;
@@ -31480,6 +33343,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     if (kDebugMode) {
       print(
@@ -31490,6 +33354,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
 
     if (widget.importData != null) {
       _initializeFromImport(widget.importData!);
+      _markFlowEditorVisible();
       return;
     }
 
@@ -31507,6 +33372,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       // Initialize for new flow creation
       _editing = null;
       _nameCtrl = TextEditingController();
+      _markNameControllerReady();
       _selectedCalendarId = _defaultCalendarId();
       _active = true;
       _useKemetic = false;
@@ -31519,18 +33385,34 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
       if (_sessionDraft != null) {
         _restoreDraft(_sessionDraft!);
         _sessionDraft = null;
+      } else {
+        unawaited(_restorePersistentDraftIfAny());
       }
     }
+    _markFlowEditorVisible();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _draftPersistDebounce?.cancel();
     if (!_suppressDraftSave) {
       _sessionDraft = _captureDraft();
+      unawaited(_persistDraftNow(reason: 'dispose'));
     } else {
       _sessionDraft = null;
+      unawaited(
+        AppRestorationService.instance.saveEditorState(
+          _kFlowStudioDraftEditorKey,
+          null,
+        ),
+      );
     }
 
+    if (_draftListenersInstalled) {
+      _nameCtrl.removeListener(_schedulePersistentDraftSave);
+      _overviewCtrl.removeListener(_schedulePersistentDraftSave);
+    }
     _nameCtrl.dispose();
     _overviewCtrl.dispose();
     for (final dayList in _draftsByDay.values) {
@@ -32012,12 +33894,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
   // ---------- close handler ----------
 
   Future<void> _handleClose() async {
-    // ✅ FIX: Check if we can actually pop
-    if (!Navigator.of(context).canPop()) {
-      debugPrint('[FlowStudio] ⚠️ Cannot pop - navigation stack empty');
-      return;
-    }
-
     // Check if this is an AI-generated flow that hasn't been saved yet
     final shouldDelete = _isAIGeneratedFlow && _editing != null;
 
@@ -32084,9 +33960,15 @@ class _FlowStudioPageState extends State<_FlowStudioPage> {
     }
 
     // Regular cancel (no deletion)
-    // ✅ FIX: Check canPop again before final pop
-    if (mounted && Navigator.of(context).canPop()) {
-      Navigator.pop(context);
+    if (!mounted) return;
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    if (rootNavigator.canPop()) {
+      rootNavigator.pop();
     }
   }
 

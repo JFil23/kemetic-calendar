@@ -2,7 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/navigation_fallback.dart';
 import '../../core/push_intent_bus.dart';
 import '../../data/share_models.dart';
 import '../../data/shared_calendar_models.dart';
@@ -10,17 +12,12 @@ import '../../data/share_repo.dart';
 import '../../data/shared_calendars_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../repositories/inbox_repo.dart';
-import 'inbox_conversation_page.dart';
 import 'conversation_user.dart';
 import '../../data/profile_repo.dart';
 import '../../utils/detail_sanitizer.dart';
 import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
-import '../profile/flow_post_detail_page.dart';
-import '../profile/profile_page.dart';
-import '../profile/profile_search_page.dart';
-import '../invites/event_invite_details_page.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../services/session_resume_service.dart';
 import '../../widgets/kemetic_heart_icon.dart';
@@ -304,7 +301,7 @@ class _InboxPageState extends State<InboxPage> {
         elevation: 0,
         leading: IconButton(
           icon: KemeticGold.icon(Icons.close),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => popOrGo(context, '/'),
         ),
         title: Row(
           mainAxisSize: MainAxisSize.min,
@@ -350,14 +347,12 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Future<void> _openUserSearch() async {
-    final selectedUser = await Navigator.of(context).push<UserSearchResult>(
-      MaterialPageRoute(
-        builder: (_) => const ProfileSearchPage(
-          returnFullResult: true,
-          titleText: 'New Message',
-          hintText: 'Search people to message',
-        ),
-      ),
+    final selectedUser = await context.push<UserSearchResult>(
+      '/profile-search'
+      '?returnFullResult=1'
+      '&title=${Uri.encodeComponent('New Message')}'
+      '&hint=${Uri.encodeComponent('Search people to message')}'
+      '&fallback=${Uri.encodeComponent('/inbox')}',
     );
 
     if (!mounted || selectedUser == null) return;
@@ -417,14 +412,12 @@ class _InboxPageState extends State<InboxPage> {
     required ConversationUser otherProfile,
     String? initialDraftText,
   }) {
-    return Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => InboxConversationPage(
-          otherUserId: otherUserId,
-          otherProfile: otherProfile,
-          initialDraftText: initialDraftText,
-        ),
-      ),
+    return context.push<void>(
+      '/inbox/conversation/${Uri.encodeComponent(otherUserId)}',
+      extra: <String, Object?>{
+        'profile': otherProfile,
+        if (initialDraftText != null) 'initialDraftText': initialDraftText,
+      },
     );
   }
 
@@ -812,13 +805,10 @@ class _InboxPageState extends State<InboxPage> {
           ],
         ],
       ),
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => EventInviteDetailsPage(share: invite),
-          ),
-        );
-      },
+      onTap: () => context.push<void>(
+        '/event-invite/${Uri.encodeComponent(invite.shareId)}',
+        extra: invite,
+      ),
     );
   }
 
@@ -965,9 +955,7 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   void _openProfile(String userId) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => ProfilePage(userId: userId)));
+    context.push<void>('/profile/${Uri.encodeComponent(userId)}');
   }
 
   Future<void> _openActivity(InboxActivityItem activity) async {
@@ -994,15 +982,10 @@ class _InboxPageState extends State<InboxPage> {
       return;
     }
 
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => FlowPostDetailPage(
-          post: post,
-          isOwner: currentUserId != null && post.userId == currentUserId,
-          openCommentsOnLoad: activity.type == InboxActivityType.comment,
-        ),
-      ),
+    await context.push<void>(
+      '/flow-post/${Uri.encodeComponent(flowPostId)}'
+      '${activity.type == InboxActivityType.comment ? '?comments=1' : ''}',
+      extra: post,
     );
   }
 
@@ -1846,6 +1829,8 @@ class _InboxPageState extends State<InboxPage> {
     if (clientEventId != null && clientEventId.isNotEmpty) {
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
+      } else {
+        context.go('/');
       }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         emitCalendarPushOpenIntent(clientEventId);
@@ -2268,10 +2253,9 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
           child: ElevatedButton(
             onPressed: () async {
               final messenger = ScaffoldMessenger.maybeOf(context);
-              final flowId = await Navigator.of(context).push<int>(
-                MaterialPageRoute(
-                  builder: (_) => InboxFlowDetailsPage(item: widget.item),
-                ),
+              final flowId = await context.push<int>(
+                '/shared-flow/${Uri.encodeComponent(widget.item.shareId)}',
+                extra: widget.item,
               );
               if (!context.mounted) return;
               if (flowId != null) {

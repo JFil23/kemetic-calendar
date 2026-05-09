@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import '../../core/navigation_fallback.dart';
 import '../../data/profile_avatar_glyphs.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
@@ -157,7 +158,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (!mounted) return;
 
       if (success) {
-        Navigator.pop(context, true); // Return true to indicate success
+        popOrGo(context, '/profile/me', result: true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -202,7 +203,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ? null
               : IconButton(
                   icon: KemeticGold.icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => popOrGo(context, '/profile/me'),
                 ),
           title: Text(
             pageTitle,

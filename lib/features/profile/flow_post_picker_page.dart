@@ -4,6 +4,7 @@ import 'package:mobile/services/app_haptics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
+import '../../core/navigation_fallback.dart';
 import '../../data/flows_repo.dart';
 import '../../data/profile_repo.dart';
 import '_post_glossy_helper.dart';
@@ -118,7 +119,7 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
         backgroundColor: KemeticGold.base,
       ),
     );
-    Navigator.of(context).pop(true);
+    popOrGo(context, '/profile/me', result: true);
   }
 
   @override
@@ -133,6 +134,10 @@ class _FlowPostPickerPageState extends State<FlowPostPickerPage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF000000),
         elevation: 0.5,
+        leading: IconButton(
+          icon: KemeticGold.icon(Icons.close),
+          onPressed: () => popOrGo(context, '/profile/me'),
+        ),
         title: const Text('Flow Studio', style: TextStyle(color: Colors.white)),
         actions: [
           if (_posting)

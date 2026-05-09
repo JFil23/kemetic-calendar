@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/navigation_fallback.dart';
 import '../../data/insight_post_model.dart';
 import '../../data/profile_repo.dart';
 import '../../utils/kemetic_date_format.dart';
@@ -57,7 +58,10 @@ class _InsightPostDetailPageState extends State<InsightPostDetailPage> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: IconButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
+                      onPressed: () => popOrGo(
+                        context,
+                        '/profile/${Uri.encodeComponent(post.userId)}',
+                      ),
                       icon: const Icon(Icons.close, color: KemeticGold.base),
                     ),
                   ),
@@ -243,7 +247,10 @@ class _InsightPostDetailPageState extends State<InsightPostDetailPage> {
 
   Widget _buildDoneButton() {
     return OutlinedButton(
-      onPressed: () => Navigator.of(context).maybePop(),
+      onPressed: () => popOrGo(
+        context,
+        '/profile/${Uri.encodeComponent(widget.post.userId)}',
+      ),
       style: OutlinedButton.styleFrom(
         foregroundColor: Colors.white,
         side: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
@@ -289,6 +296,10 @@ class _InsightPostDetailPageState extends State<InsightPostDetailPage> {
       );
       return;
     }
-    Navigator.of(context).pop(true);
+    popOrGo(
+      context,
+      '/profile/${Uri.encodeComponent(widget.post.userId)}',
+      result: true,
+    );
   }
 }

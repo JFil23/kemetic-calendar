@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
+import '../../core/navigation_fallback.dart';
 import '../../data/profile_repo.dart';
 import '../../widgets/profile_avatar.dart';
 
@@ -72,7 +74,10 @@ class _FollowListPageState extends State<FollowListPage> {
         elevation: 0,
         leading: IconButton(
           icon: KemeticGold.icon(Icons.close),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => popOrGo(
+            context,
+            '/profile/${Uri.encodeComponent(widget.userId)}',
+          ),
         ),
         title: Text(
           _title,
@@ -182,7 +187,14 @@ class _FollowListPageState extends State<FollowListPage> {
                   )
                 : null,
             trailing: KemeticGold.icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).pop(user.userId),
+            onTap: () {
+              final navigator = Navigator.of(context);
+              if (navigator.canPop()) {
+                navigator.pop(user.userId);
+              } else {
+                context.go('/profile/${Uri.encodeComponent(user.userId)}');
+              }
+            },
           );
         },
       ),

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart' show DateUtils;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/navigation_fallback.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
 import '../../data/flows_repo.dart';
@@ -41,6 +42,7 @@ class SharedFlowDetailsPage extends StatefulWidget {
   final bool showImportFooter;
   final bool showRemoveButton;
   final Future<void> Function()? onRemove;
+  final String fallbackLocation;
 
   const SharedFlowDetailsPage({
     Key? key,
@@ -50,6 +52,7 @@ class SharedFlowDetailsPage extends StatefulWidget {
     this.showImportFooter = true,
     this.showRemoveButton = false,
     this.onRemove,
+    this.fallbackLocation = '/inbox',
   }) : assert(
          share != null || flowId != null || payloadJson != null,
          'Either share, flowId, or payloadJson must be provided',
@@ -374,7 +377,13 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Scaffold(
-            appBar: AppBar(backgroundColor: Colors.black),
+            appBar: AppBar(
+              backgroundColor: Colors.black,
+              leading: IconButton(
+                icon: KemeticGold.icon(Icons.arrow_back),
+                onPressed: () => popOrGo(context, widget.fallbackLocation),
+              ),
+            ),
             body: Center(child: Text('Error: ${snapshot.error}')),
           );
         }
@@ -408,6 +417,10 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           appBar: AppBar(
             backgroundColor: Colors.black,
             elevation: 0.5,
+            leading: IconButton(
+              icon: KemeticGold.icon(Icons.arrow_back),
+              onPressed: () => popOrGo(context, widget.fallbackLocation),
+            ),
             title: const Text('Flow', style: TextStyle(color: Colors.white)),
           ),
           body: Column(
@@ -961,13 +974,12 @@ class _ImportedFlowFooter extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => CalendarPage(initialFlowIdToEdit: flowId),
-            ),
-          );
+        onPressed: () async {
+          final openedOnMountedHost = CalendarPage.hasMountedHost;
+          await CalendarPage.openMyFlowsFromAnyContext(context);
+          if (openedOnMountedHost && context.mounted) {
+            popOrGo(context, '/');
+          }
         },
         child: const Text('Edit Flow'),
       ),
