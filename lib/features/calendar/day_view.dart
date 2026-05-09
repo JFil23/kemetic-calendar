@@ -1272,6 +1272,8 @@ class DayViewPage extends StatefulWidget {
 }
 
 class _DayViewPageState extends State<DayViewPage> {
+  static const double _miniCalendarHorizontalPadding = 8.0;
+  static const double _miniCalendarChipMargin = 2.0;
   late PageController _pageController;
   late int _currentKy;
   late int _currentKm;
@@ -1295,6 +1297,7 @@ class _DayViewPageState extends State<DayViewPage> {
 
   // 🔧 ADD THIS: Persistent scroll controller for mini calendar
   late ScrollController _miniCalendarScrollController;
+  bool _autoCenterMiniCalendar = true;
 
   // 🔧 NEW: Orientation tracking for bidirectional lock
   Orientation? _lastOrientation;
@@ -1319,20 +1322,10 @@ class _DayViewPageState extends State<DayViewPage> {
     );
     _savedScrollOffset = widget.initialScrollOffset;
     _pageController = PageController(initialPage: _centerPage);
-
-    // 🔧 Initialize mini calendar scroll controller with starting position
-    final dayCount = _currentKm == 13
-        ? (KemeticMath.isLeapKemeticYear(_currentKy) ? 6 : 5)
-        : 30;
-    final initialScroll =
-        ((_currentKd - 5).clamp(
-          0,
-          (dayCount - 10).clamp(0, dayCount),
-        )).toDouble() *
-        34; // 30 width + 4 margin
-    _miniCalendarScrollController = ScrollController(
-      initialScrollOffset: initialScroll,
-    );
+    _miniCalendarScrollController = ScrollController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _centerMiniCalendarOnDay(_currentKd, animated: false, force: true);
+    });
     _scheduleDayCardRevealCoachmarkCheck();
   }
 
@@ -1359,12 +1352,13 @@ class _DayViewPageState extends State<DayViewPage> {
         _currentKy = widget.initialKy;
         _currentKm = widget.initialKm;
         _currentKd = widget.initialKd ?? 1;
+        _autoCenterMiniCalendar = true;
         if (_pageController.hasClients) {
           _pageController.jumpToPage(_centerPage); // reset paging anchor
         }
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollMiniCalendarToCenter(_currentKd); // keep gold circle centered
+        _centerMiniCalendarOnDay(_currentKd, animated: false, force: true);
       });
     }
   }
@@ -1472,7 +1466,7 @@ class _DayViewPageState extends State<DayViewPage> {
     if (_isJumpingToToday) return;
 
     // Animate mini calendar when day changes
-    _scrollMiniCalendar();
+    _scheduleMiniCalendarCentering(_currentKd);
     _reportRestorationState(immediate: true);
   }
 
@@ -1524,6 +1518,7 @@ class _DayViewPageState extends State<DayViewPage> {
     // Reset saved scroll so the timeline recenters on the current time.
     _savedScrollOffset = null;
     _isJumpingToToday = true;
+    _autoCenterMiniCalendar = true;
 
     try {
       await _pageController.animateToPage(
@@ -1538,49 +1533,72 @@ class _DayViewPageState extends State<DayViewPage> {
         _currentKd = today.kDay;
         _gridInstance++; // rebuild grid to honor cleared scroll offset
       });
-      _scrollMiniCalendarToCenter(_currentKd);
+      _centerMiniCalendarOnDay(_currentKd, force: true);
       _reportRestorationState(immediate: true);
     } finally {
       _isJumpingToToday = false;
     }
   }
 
-  // 🔧 ADD THIS METHOD: Animates the mini calendar scroll
-  void _scrollMiniCalendar() {
-    if (!_miniCalendarScrollController.hasClients) return;
-
-    final dayCount = _currentKm == 13
-        ? (KemeticMath.isLeapKemeticYear(_currentKy) ? 6 : 5)
-        : 30;
-
-    // Calculate target scroll position (keep current day around position 5)
-    final targetScroll =
-        ((_currentKd - 5).clamp(
-          0,
-          (dayCount - 10).clamp(0, dayCount),
-        )).toDouble() *
-        34; // 30 width + 4 margin
-
-    // Animate to the new position
-    _miniCalendarScrollController.animateTo(
-      targetScroll,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-    );
+  void _handleMiniCalendarManualScrollStart() {
+    _autoCenterMiniCalendar = false;
   }
 
-  void _scrollMiniCalendarToCenter(int day) {
-    // tune to your chip size/gaps; 34.0 is a common width
-    const chipW = 34.0;
-    const centerIndex = 5; // places selection near the middle of the row
-    final target = (day - centerIndex).clamp(0, 27) * chipW;
-    if (_miniCalendarScrollController.hasClients) {
-      _miniCalendarScrollController.animateTo(
-        target.toDouble(),
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-      );
+  double _miniCalendarChipExtent() {
+    final daySize = expandedTouchTargetMinDimension(
+      context,
+      fallback: 30,
+      minSize: 44,
+    );
+    return daySize + (_miniCalendarChipMargin * 2);
+  }
+
+  double _miniCalendarTargetOffsetForDay(int day) {
+    final position = _miniCalendarScrollController.position;
+    final daySize = expandedTouchTargetMinDimension(
+      context,
+      fallback: 30,
+      minSize: 44,
+    );
+    final itemExtent = _miniCalendarChipExtent();
+    final dayIndex = day - 1;
+    final selectedCenter =
+        _miniCalendarHorizontalPadding +
+        _miniCalendarChipMargin +
+        (daySize / 2) +
+        (dayIndex * itemExtent);
+    final rawOffset = selectedCenter - (position.viewportDimension / 2);
+    return rawOffset.clamp(0.0, position.maxScrollExtent).toDouble();
+  }
+
+  void _scheduleMiniCalendarCentering(int day, {bool force = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _centerMiniCalendarOnDay(day, force: force);
+    });
+  }
+
+  void _centerMiniCalendarOnDay(
+    int day, {
+    bool animated = true,
+    bool force = false,
+  }) {
+    if (!mounted || !_miniCalendarScrollController.hasClients) return;
+    if (!_autoCenterMiniCalendar && !force) return;
+
+    final target = _miniCalendarTargetOffsetForDay(day);
+    final current = _miniCalendarScrollController.offset;
+    if ((current - target).abs() < 0.5) return;
+
+    if (!animated) {
+      _miniCalendarScrollController.jumpTo(target);
+      return;
     }
+
+    _miniCalendarScrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+    );
   }
 
   Map<int, FlowData> _currentFlowChromeIndex() =>
@@ -1683,7 +1701,7 @@ class _DayViewPageState extends State<DayViewPage> {
       _currentKm = km;
       _currentKd = kd;
     });
-    _scrollMiniCalendarToCenter(kd);
+    _scheduleMiniCalendarCentering(kd, force: true);
   }
 
   // 🔧 NEW: Convert Kemetic date to total days for navigation
@@ -1782,6 +1800,8 @@ class _DayViewPageState extends State<DayViewPage> {
                     showGregorian: _showGregorian,
                     getMonthName: widget.getMonthName,
                     miniCalendarScrollController: _miniCalendarScrollController,
+                    onMiniCalendarManualScrollStart:
+                        _handleMiniCalendarManualScrollStart,
                     onSelectDay: (day) {
                       final currentGregorian = KemeticMath.toGregorian(
                         _currentKy,

@@ -584,6 +584,145 @@ void main() {
         expect(find.text(kemeticLabel), findsOneWidget);
       },
     );
+
+    testWidgets('toggling to Gregorian updates the mini day strip labels too', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+
+      const ky = 1;
+      const km = 2;
+      const kd = 5;
+      final selectedGregorian = KemeticMath.toGregorian(ky, km, kd);
+      final previousGregorian = KemeticMath.toGregorian(ky, km, kd - 1);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DayViewPage(
+            initialKy: ky,
+            initialKm: km,
+            initialKd: kd,
+            showGregorian: false,
+            notesForDay: (_, __, ___) => const [],
+            flowIndex: const {},
+            getMonthName: (month) {
+              switch (month) {
+                case 1:
+                  return 'Thoth (Tḥwty)';
+                case 2:
+                  return 'Paopi (Mnḫt)';
+                default:
+                  return 'Month $month';
+              }
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('$kd'), findsWidgets);
+      expect(find.text('${selectedGregorian.day}'), findsNothing);
+      expect(find.text('${previousGregorian.day}'), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('day_view_month_toggle')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('${selectedGregorian.day}'), findsOneWidget);
+      expect(find.text('${previousGregorian.day}'), findsOneWidget);
+    });
+
+    testWidgets(
+      'current day stays centered in the mini date strip by default',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: DayViewPage(
+              initialKy: 1,
+              initialKm: 2,
+              initialKd: 10,
+              showGregorian: false,
+              notesForDay: (_, __, ___) => const [],
+              flowIndex: const {},
+              getMonthName: (month) => 'Month $month',
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          tester
+              .getCenter(find.byKey(const ValueKey('day_view_mini_chip_10')))
+              .dx,
+          closeTo(_screenCenterX(tester), 1.0),
+        );
+
+        await tester.drag(find.byType(PageView), const Offset(-320, 0));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester
+              .getCenter(find.byKey(const ValueKey('day_view_mini_chip_11')))
+              .dx,
+          closeTo(_screenCenterX(tester), 1.0),
+        );
+      },
+    );
+
+    testWidgets(
+      'manual mini date strip movement disables further auto-centering',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: DayViewPage(
+              initialKy: 1,
+              initialKm: 2,
+              initialKd: 10,
+              showGregorian: false,
+              notesForDay: (_, __, ___) => const [],
+              flowIndex: const {},
+              getMonthName: (month) => 'Month $month',
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.drag(
+          find.byKey(const ValueKey('day_view_mini_calendar')),
+          const Offset(-120, 0),
+        );
+        await tester.pumpAndSettle();
+
+        final screenCenter = _screenCenterX(tester);
+        expect(
+          (tester
+                      .getCenter(
+                        find.byKey(const ValueKey('day_view_mini_chip_10')),
+                      )
+                      .dx -
+                  screenCenter)
+              .abs(),
+          greaterThan(40.0),
+        );
+
+        await tester.drag(find.byType(PageView), const Offset(-320, 0));
+        await tester.pumpAndSettle();
+
+        expect(
+          (tester
+                      .getCenter(
+                        find.byKey(const ValueKey('day_view_mini_chip_11')),
+                      )
+                      .dx -
+                  screenCenter)
+              .abs(),
+          greaterThan(40.0),
+        );
+      },
+    );
   });
 }
 
@@ -659,6 +798,9 @@ double _detailSheetPageHeight(WidgetTester tester) {
   );
   return tester.getSize(sizedBox).height;
 }
+
+double _screenCenterX(WidgetTester tester) =>
+    tester.getSize(find.byType(Scaffold)).width / 2;
 
 const Map<int, FlowData> _defaultFlowIndex = {
   1: FlowData(id: 1, name: 'Practice', color: Colors.green, active: true),

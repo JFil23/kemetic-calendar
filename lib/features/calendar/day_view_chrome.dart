@@ -30,6 +30,7 @@ class KemeticDayViewHeader extends StatelessWidget {
     required this.dateButtonBuilder,
     this.miniCalendarScrollController,
     this.onSelectDay,
+    this.onMiniCalendarManualScrollStart,
     this.onToggleDateDisplay,
     this.onClose,
     this.onJumpToToday,
@@ -47,6 +48,7 @@ class KemeticDayViewHeader extends StatelessWidget {
   dateButtonBuilder;
   final ScrollController? miniCalendarScrollController;
   final ValueChanged<int>? onSelectDay;
+  final VoidCallback? onMiniCalendarManualScrollStart;
   final VoidCallback? onToggleDateDisplay;
   final VoidCallback? onClose;
   final VoidCallback? onJumpToToday;
@@ -159,54 +161,70 @@ class KemeticDayViewHeader extends StatelessWidget {
             ),
             SizedBox(
               height: miniCalendarHeight,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                itemCount: dayCount,
-                controller: miniCalendarScrollController,
-                itemBuilder: (context, index) {
-                  final day = index + 1;
-                  final isCurrentDay = day == currentKd;
-                  final isToday =
-                      today.kYear == currentKy &&
-                      today.kMonth == currentKm &&
-                      today.kDay == day;
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  if (notification is ScrollStartNotification &&
+                      notification.dragDetails != null) {
+                    onMiniCalendarManualScrollStart?.call();
+                  }
+                  return false;
+                },
+                child: ListView.builder(
+                  key: const ValueKey('day_view_mini_calendar'),
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  itemCount: dayCount,
+                  controller: miniCalendarScrollController,
+                  itemBuilder: (context, index) {
+                    final day = index + 1;
+                    final isCurrentDay = day == currentKd;
+                    final isToday =
+                        today.kYear == currentKy &&
+                        today.kMonth == currentKm &&
+                        today.kDay == day;
+                    final displayLabel = showGregorian
+                        ? '${KemeticMath.toGregorian(currentKy, currentKm, day).day}'
+                        : '$day';
 
-                  return GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: onSelectDay == null ? null : () => onSelectDay!(day),
-                    child: Container(
-                      width: miniCalendarDaySize,
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      alignment: Alignment.center,
+                    return GestureDetector(
+                      key: ValueKey('day_view_mini_chip_$day'),
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onSelectDay == null
+                          ? null
+                          : () => onSelectDay!(day),
                       child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: isCurrentDay
-                              ? Border.all(color: _dayViewGold, width: 1.5)
-                              : null,
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$day',
-                            style: _dayViewMiniCalendarNumberStyle.copyWith(
-                              color: isToday
-                                  ? _dayViewGold
-                                  : (isCurrentDay
-                                        ? const Color(0xFFAAAAAA)
-                                        : Colors.white54),
-                              fontWeight: isCurrentDay || isToday
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
+                        width: miniCalendarDaySize,
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: isCurrentDay
+                                ? Border.all(color: _dayViewGold, width: 1.5)
+                                : null,
+                          ),
+                          child: Center(
+                            child: Text(
+                              displayLabel,
+                              style: _dayViewMiniCalendarNumberStyle.copyWith(
+                                color: isToday
+                                    ? _dayViewGold
+                                    : (isCurrentDay
+                                          ? const Color(0xFFAAAAAA)
+                                          : Colors.white54),
+                                fontWeight: isCurrentDay || isToday
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 8),
