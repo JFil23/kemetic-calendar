@@ -4536,11 +4536,8 @@ class CalendarPage extends StatefulWidget {
     final normalizedParentRoute = parentRoute.trim().isEmpty
         ? '/'
         : parentRoute.trim();
-    await RestorationCoordinator.instance.recordRouteLocation(
+    await RestorationCoordinator.instance.recordRouteLocationWithOverlayStack(
       normalizedParentRoute,
-    );
-    await SessionResumeService.saveRouteLocation(normalizedParentRoute);
-    await RestorationCoordinator.instance.saveOverlayStack(
       <Map<String, dynamic>>[
         <String, dynamic>{
           'kind': kind.trim(),
@@ -4550,9 +4547,16 @@ class CalendarPage extends StatefulWidget {
         },
       ],
     );
+    await SessionResumeService.saveRouteLocation(normalizedParentRoute);
+    unawaited(RestorationCoordinator.instance.flush());
   }
 
   static Future<void> _clearDetachedCalendarOverlayState(String kind) async {
+    if (RestorationCoordinator
+        .instance
+        .shouldPreserveOverlayForLifecycleClose) {
+      return;
+    }
     final stack = await RestorationCoordinator.instance.readOverlayStack();
     final next = stack
         .where((entry) => entry['kind'] != kind)
@@ -5208,7 +5212,10 @@ class CalendarPage extends StatefulWidget {
     try {
       return await navigator.push<T>(route);
     } finally {
-      if (navigator.mounted) {
+      if (navigator.mounted &&
+          !RestorationCoordinator
+              .instance
+              .shouldPreserveOverlayForLifecycleClose) {
         await _saveDetachedCalendarOverlayState(
           parentRoute: parentRoute,
           kind: _kCalendarOverlayKindFlowStudio,
@@ -6739,9 +6746,15 @@ class _CalendarPageState extends State<CalendarPage>
         },
       ],
     );
+    unawaited(RestorationCoordinator.instance.flush());
   }
 
   Future<void> _clearCalendarOverlayState(String kind) async {
+    if (RestorationCoordinator
+        .instance
+        .shouldPreserveOverlayForLifecycleClose) {
+      return;
+    }
     final stack = await AppRestorationService.instance.readOverlayStack();
     final next = stack
         .where((entry) => entry['kind'] != kind)
@@ -6756,7 +6769,7 @@ class _CalendarPageState extends State<CalendarPage>
     _calendarOverlayRestoreAttempted = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(_restorePersistentCalendarOverlay(reason: reason));
+      unawaited(_restorePersistentCalendarOverlayWithRetries(reason: reason));
     });
   }
 
@@ -6788,30 +6801,56 @@ class _CalendarPageState extends State<CalendarPage>
     return true;
   }
 
-  Future<void> _restorePersistentCalendarOverlay({
+  Future<void> _restorePersistentCalendarOverlayWithRetries({
     required String reason,
   }) async {
-    if (_calendarOverlayRestoreInFlight) return;
+    var restored = false;
+    try {
+      for (var attempt = 0; attempt < 30; attempt++) {
+        if (!mounted) return;
+        restored = await _restorePersistentCalendarOverlay(
+          reason: '$reason:$attempt',
+        );
+        if (restored) return;
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+      }
+    } finally {
+      if (!restored) {
+        _calendarOverlayRestoreAttempted = false;
+      }
+    }
+  }
+
+  Future<bool> _restorePersistentCalendarOverlay({
+    required String reason,
+  }) async {
+    if (_calendarOverlayRestoreInFlight) return false;
     _calendarOverlayRestoreInFlight = true;
     try {
-      final stack = await AppRestorationService.instance.readOverlayStack();
-      if (!mounted || stack.isEmpty) return;
+      final snapshot = await RestorationCoordinator.instance.readBestSnapshot(
+        includeRemote: Supabase.instance.client.auth.currentSession != null,
+      );
+      final stack =
+          snapshot.snapshot?.overlayStack ?? const <Map<String, dynamic>>[];
+      if (!mounted || stack.isEmpty) return false;
       final overlay = stack.lastWhere(
         (entry) =>
             entry['kind'] == _kCalendarOverlayKindSharedCalendars ||
             entry['kind'] == _kCalendarOverlayKindFlowStudio,
         orElse: () => const <String, dynamic>{},
       );
-      if (overlay.isEmpty) return;
+      if (overlay.isEmpty) return false;
 
       if (overlay['kind'] == _kCalendarOverlayKindSharedCalendars) {
         await _openSharedCalendarsSheet(restorationState: overlay);
-        return;
+        return true;
       }
 
       if (overlay['kind'] == _kCalendarOverlayKindFlowStudio) {
         await _restoreFlowStudioOverlay(overlay);
+        return true;
       }
+      return false;
     } finally {
       _calendarOverlayRestoreInFlight = false;
     }
@@ -6903,7 +6942,11 @@ class _CalendarPageState extends State<CalendarPage>
     try {
       return await navigator.push<T>(route);
     } finally {
-      if (mounted && navigator.mounted) {
+      if (mounted &&
+          navigator.mounted &&
+          !RestorationCoordinator
+              .instance
+              .shouldPreserveOverlayForLifecycleClose) {
         await _saveCalendarOverlayState(
           _kCalendarOverlayKindFlowStudio,
           returnState,
@@ -9445,6 +9488,11 @@ class _CalendarPageState extends State<CalendarPage>
         unawaited(
           _restoreMyFlowsFilingSnapshotCache(reason: 'auth:${event.name}'),
         );
+        if (widget.initialFlowIdToEdit == null &&
+            !widget.openMyFlowsOnLaunch &&
+            CalendarPage._pendingDetachedLaunchAction == null) {
+          _schedulePersistentOverlayRestore(reason: 'auth-early:${event.name}');
+        }
         unawaited(
           _requestInitialStartupRun(reason: 'auth:${event.name}').then((_) {
             if (!mounted ||
@@ -9630,6 +9678,9 @@ class _CalendarPageState extends State<CalendarPage>
         initialAlertMinutes: (payload['alertMinutesBefore'] as num?)?.toInt(),
         initialCalendarId: payload['calendarId'] as String?,
         editingIndex: (payload['editingIndex'] as num?)?.toInt(),
+        editingSourceKYear: (payload['editingSourceKYear'] as num?)?.toInt(),
+        editingSourceKMonth: (payload['editingSourceKMonth'] as num?)?.toInt(),
+        editingSourceKDay: (payload['editingSourceKDay'] as num?)?.toInt(),
       );
     });
   }
@@ -9710,7 +9761,7 @@ class _CalendarPageState extends State<CalendarPage>
           localMatch.kYear,
           localMatch.kMonth,
           localMatch.kDay,
-          allowDateChange: false,
+          allowDateChange: true,
           persistAsRestoration: false,
           initialTitle: note.title,
           initialLocation: note.location,
@@ -14923,7 +14974,7 @@ class _CalendarPageState extends State<CalendarPage>
         ky,
         km,
         kd,
-        allowDateChange: false,
+        allowDateChange: true,
         initialTitle: note.title,
         initialLocation: note.location,
         initialDetail: note.detail,
@@ -18044,6 +18095,9 @@ class _CalendarPageState extends State<CalendarPage>
     int? initialAlertMinutes,
     String? initialCalendarId,
     int? editingIndex,
+    int? editingSourceKYear,
+    int? editingSourceKMonth,
+    int? editingSourceKDay,
   }) {
     // Ensure reminder rules are loaded before building the sheet so the list is populated.
     _loadReminderRules();
@@ -18092,7 +18146,14 @@ class _CalendarPageState extends State<CalendarPage>
     final gregDayCtrl = FixedExtentScrollController(
       initialItem: (gregDay - 1).clamp(0, 30).toInt(),
     );
-    final initialEditingBucketKey = _kKey(kYear, kMonth, kDay);
+    final sourceEditingKYear = editingSourceKYear ?? kYear;
+    final sourceEditingKMonth = editingSourceKMonth ?? kMonth;
+    final sourceEditingKDay = editingSourceKDay ?? kDay;
+    final initialEditingBucketKey = _kKey(
+      sourceEditingKYear,
+      sourceEditingKMonth,
+      sourceEditingKDay,
+    );
     final initialEditingNote =
         editingIndex != null &&
             _notes[initialEditingBucketKey] != null &&
@@ -18180,6 +18241,11 @@ class _CalendarPageState extends State<CalendarPage>
         'alertMinutesBefore': alertMinutesBefore,
         'calendarId': selectedCalendarId,
         'editingIndex': editingIndex,
+        'editingSourceKYear': editingIndex == null ? null : sourceEditingKYear,
+        'editingSourceKMonth': editingIndex == null
+            ? null
+            : sourceEditingKMonth,
+        'editingSourceKDay': editingIndex == null ? null : sourceEditingKDay,
       };
     }
 
@@ -18359,13 +18425,7 @@ class _CalendarPageState extends State<CalendarPage>
 
               final dayNotes = _getNotes(selYear, selMonth, selDay);
               final dayFlows = _getFlowOccurrences(selYear, selMonth, selDay);
-              final editingBucketKey = _kKey(selYear, selMonth, selDay);
-              final editingNote =
-                  editingIndex != null &&
-                      _notes[editingBucketKey] != null &&
-                      editingIndex! < _notes[editingBucketKey]!.length
-                  ? _notes[editingBucketKey]![editingIndex!]
-                  : null;
+              final editingNote = initialEditingNote;
               final selectedCalendar = selectedCalendarId == null
                   ? null
                   : _calendarSummariesById[selectedCalendarId];
@@ -19324,10 +19384,12 @@ class _CalendarPageState extends State<CalendarPage>
                               ),
 
                             const Divider(height: 16, color: Colors.white12),
-                            const Align(
+                            Align(
                               alignment: Alignment.centerLeft,
                               child: GlossyText(
-                                text: 'Add note',
+                                text: editingIndex == null
+                                    ? 'Add note'
+                                    : 'Edit note',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 16,
@@ -20129,9 +20191,9 @@ class _CalendarPageState extends State<CalendarPage>
                                       _flowPalette[selectedColorIndex];
 
                                   final bucketKey = _kKey(
-                                    selYear,
-                                    selMonth,
-                                    selDay,
+                                    sourceEditingKYear,
+                                    sourceEditingKMonth,
+                                    sourceEditingKDay,
                                   );
                                   final existingNote = editingIndex != null
                                       ? (_notes[bucketKey] != null &&
@@ -20146,9 +20208,9 @@ class _CalendarPageState extends State<CalendarPage>
                                               (existingNote.flowId == null ||
                                                   existingNote.flowId == -1)
                                           ? _buildCid(
-                                              ky: selYear,
-                                              km: selMonth,
-                                              kd: selDay,
+                                              ky: sourceEditingKYear,
+                                              km: sourceEditingKMonth,
+                                              kd: sourceEditingKDay,
                                               title: existingNote.title,
                                               startHour:
                                                   existingNote.start?.hour,
@@ -20269,9 +20331,9 @@ class _CalendarPageState extends State<CalendarPage>
                                         existingNote != null) {
                                       if (updatedExistingStandalone) {
                                         _removeLocalNoteOnly(
-                                          selYear,
-                                          selMonth,
-                                          selDay,
+                                          sourceEditingKYear,
+                                          sourceEditingKMonth,
+                                          sourceEditingKDay,
                                           editingIndex!,
                                         );
                                       } else {
@@ -20283,16 +20345,16 @@ class _CalendarPageState extends State<CalendarPage>
                                                 saveResult.clientEventId;
                                         if (cidMatches) {
                                           _removeLocalNoteOnly(
-                                            selYear,
-                                            selMonth,
-                                            selDay,
+                                            sourceEditingKYear,
+                                            sourceEditingKMonth,
+                                            sourceEditingKDay,
                                             editingIndex!,
                                           );
                                         } else {
                                           await _deleteNote(
-                                            selYear,
-                                            selMonth,
-                                            selDay,
+                                            sourceEditingKYear,
+                                            sourceEditingKMonth,
+                                            sourceEditingKDay,
                                             editingIndex!,
                                           );
                                         }
@@ -20730,6 +20792,11 @@ class _CalendarPageState extends State<CalendarPage>
       // 1) Load reminder rules + schedule their instances, then load flows/events
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
+        if (widget.initialFlowIdToEdit == null &&
+            !widget.openMyFlowsOnLaunch &&
+            CalendarPage._pendingDetachedLaunchAction == null) {
+          _schedulePersistentOverlayRestore(reason: 'init-early');
+        }
         _requestInitialStartupRun(reason: 'init').then((_) {
           final targetFlowId = widget.initialFlowIdToEdit;
           if (!mounted) return;
@@ -29463,7 +29530,7 @@ class _EventsTab extends StatelessWidget {
                                   ),
                                   _chip(
                                     gregLabel,
-                                    icon: Icons.calendar_today_outlined,
+                                    icon: Icons.calendar_today,
                                     maxWidth: chipMaxWidth,
                                   ),
                                   if (e.flowName != null &&

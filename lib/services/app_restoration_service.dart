@@ -93,6 +93,15 @@ Map<String, dynamic> _coerceJsonMap(Map<String, dynamic> raw) {
   return result;
 }
 
+List<Map<String, dynamic>> _coerceOverlayStack(
+  List<Map<String, dynamic>> overlayStack,
+) {
+  return overlayStack
+      .where((entry) => entry.isNotEmpty)
+      .map(_coerceJsonMap)
+      .toList(growable: false);
+}
+
 int? _asInt(Object? raw) => (raw as num?)?.toInt();
 
 bool _isLeapKemeticYear(int kYear) => ((kYear - 1) % 4 + 4) % 4 == 2;
@@ -1100,6 +1109,16 @@ class AppRestorationService {
       return latestUserCandidate;
     }
 
+    final latestHasOverlay =
+        latestUserCandidate?.snapshot.overlayStack.isNotEmpty == true;
+    if (latestUserCandidate != null &&
+        latestHasOverlay &&
+        currentWindowCandidate.snapshot.overlayStack.isEmpty &&
+        latestUserCandidate.snapshot.updatedAtMs >
+            currentWindowCandidate.snapshot.updatedAtMs) {
+      return latestUserCandidate;
+    }
+
     return currentWindowCandidate;
   }
 
@@ -1433,6 +1452,25 @@ class AppRestorationService {
     });
   }
 
+  Future<void> saveRouteLocationWithOverlayStack(
+    String location,
+    List<Map<String, dynamic>> overlayStack,
+  ) async {
+    final normalized = location.trim();
+    if (normalized.isEmpty) {
+      return;
+    }
+    await _mutate((current) {
+      current['routeLocation'] = normalized;
+      final next = _coerceOverlayStack(overlayStack);
+      if (next.isEmpty) {
+        current.remove('overlayStack');
+      } else {
+        current['overlayStack'] = next;
+      }
+    });
+  }
+
   Future<CalendarRestorationState?> readCalendarState() async {
     return (await readSnapshot())?.calendar;
   }
@@ -1525,10 +1563,7 @@ class AppRestorationService {
 
   Future<void> saveOverlayStack(List<Map<String, dynamic>> overlayStack) async {
     await _mutate((current) {
-      final next = overlayStack
-          .where((entry) => entry.isNotEmpty)
-          .map(_coerceJsonMap)
-          .toList(growable: false);
+      final next = _coerceOverlayStack(overlayStack);
       if (next.isEmpty) {
         current.remove('overlayStack');
       } else {

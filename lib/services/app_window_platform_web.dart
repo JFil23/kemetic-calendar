@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:js_interop';
 
 import 'package:uuid/uuid.dart';
@@ -14,11 +15,17 @@ const String _criticalSnapshotStorageKeyPrefix =
 const String _latestCriticalSnapshotStorageKeyPrefix =
     'kemetic.restoration.critical.latest.v2:';
 const String _lastActiveUserStorageKey = 'kemetic.restoration.last_user.v2';
+const String _windowClaimStorageKeyPrefix = 'kemetic.window_claim.v1:';
+const Duration _windowClaimHeartbeatInterval = Duration(seconds: 10);
+const Duration _windowClaimLiveTtl = Duration(hours: 24);
+const Duration _windowClaimReloadGrace = Duration(seconds: 8);
 
 bool _lifecycleListenersInstalled = false;
 final List<WebLifecycleLogger> _lifecycleLoggers = <WebLifecycleLogger>[];
 String? _criticalSnapshotWindowId;
 String? _latestCriticalSnapshot;
+String? _claimedWindowId;
+Timer? _windowClaimHeartbeat;
 
 bool _isUsableWindowId(String? raw) {
   final value = raw?.trim();
@@ -26,6 +33,15 @@ bool _isUsableWindowId(String? raw) {
 }
 
 String _generateWindowId() => const Uuid().v4();
+
+final String _pageInstanceId = _generateWindowId();
+
+int? _readInt(Object? raw) {
+  if (raw is int) return raw;
+  if (raw is num) return raw.toInt();
+  if (raw is String) return int.tryParse(raw);
+  return null;
+}
 
 String? _readSessionStorageWindowId() {
   try {
@@ -66,26 +82,130 @@ void _mirrorWindowIdIntoWindowName(String windowId) {
   }
 }
 
+String _windowClaimStorageKey(String windowId) =>
+    '$_windowClaimStorageKeyPrefix$windowId';
+
+Map<String, Object?>? _readWindowClaim(String windowId) {
+  try {
+    final raw = web.window.localStorage
+        .getItem(_windowClaimStorageKey(windowId))
+        ?.trim();
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) {
+      return null;
+    }
+    return decoded.map<String, Object?>(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
+void _writeWindowClaim(String windowId, {bool closing = false}) {
+  final normalized = windowId.trim();
+  if (normalized.isEmpty) {
+    return;
+  }
+  final now = DateTime.now().millisecondsSinceEpoch;
+  try {
+    web.window.localStorage.setItem(
+      _windowClaimStorageKey(normalized),
+      jsonEncode(<String, Object?>{
+        'owner': _pageInstanceId,
+        'updatedAtMs': now,
+        if (closing) 'closingAtMs': now,
+      }),
+    );
+  } catch (_) {
+    // Best-effort only on web.
+  }
+}
+
+bool _isClaimActiveForAnotherPage(String windowId) {
+  final claim = _readWindowClaim(windowId);
+  final owner = claim?['owner']?.toString().trim();
+  if (owner == null || owner.isEmpty || owner == _pageInstanceId) {
+    return false;
+  }
+  final updatedAtMs = _readInt(claim?['updatedAtMs']);
+  if (updatedAtMs == null) {
+    return false;
+  }
+  final now = DateTime.now().millisecondsSinceEpoch;
+  final closingAtMs = _readInt(claim?['closingAtMs']);
+  if (closingAtMs != null &&
+      now - closingAtMs <= _windowClaimReloadGrace.inMilliseconds) {
+    return false;
+  }
+  return now - updatedAtMs <= _windowClaimLiveTtl.inMilliseconds;
+}
+
+void _markWindowClaimClosing() {
+  final windowId = _claimedWindowId?.trim();
+  if (windowId == null || windowId.isEmpty) {
+    return;
+  }
+  _windowClaimHeartbeat?.cancel();
+  _windowClaimHeartbeat = null;
+  _writeWindowClaim(windowId, closing: true);
+}
+
+void _ensureWindowClaimHeartbeat(String windowId) {
+  final normalized = windowId.trim();
+  if (normalized.isEmpty) {
+    return;
+  }
+  if (_claimedWindowId == normalized && _windowClaimHeartbeat != null) {
+    _writeWindowClaim(normalized);
+    return;
+  }
+  _windowClaimHeartbeat?.cancel();
+  _claimedWindowId = normalized;
+  _writeWindowClaim(normalized);
+  _windowClaimHeartbeat = Timer.periodic(_windowClaimHeartbeatInterval, (_) {
+    if (_claimedWindowId == normalized) {
+      _writeWindowClaim(normalized);
+    }
+  });
+  _ensureLifecycleListenersInstalled();
+}
+
+String _claimResolvedWindowId(String candidate) {
+  var normalized = candidate.trim();
+  if (!_isUsableWindowId(normalized)) {
+    normalized = _generateWindowId();
+  }
+  if (_isClaimActiveForAnotherPage(normalized)) {
+    for (var attempt = 0; attempt < 6; attempt++) {
+      final forked = _generateWindowId();
+      normalized = forked;
+      if (!_isClaimActiveForAnotherPage(forked)) {
+        break;
+      }
+    }
+  }
+  _writeSessionStorageWindowId(normalized);
+  _mirrorWindowIdIntoWindowName(normalized);
+  _ensureWindowClaimHeartbeat(normalized);
+  return normalized;
+}
+
 Future<String> resolvePlatformWindowId() async {
   final sessionWindowId = _readSessionStorageWindowId();
   if (_isUsableWindowId(sessionWindowId)) {
-    final normalized = sessionWindowId!.trim();
-    _mirrorWindowIdIntoWindowName(normalized);
-    return normalized;
+    return _claimResolvedWindowId(sessionWindowId!.trim());
   }
 
   final namedWindowId = _readWindowNameWindowId();
   if (_isUsableWindowId(namedWindowId)) {
-    final normalized = namedWindowId!.trim();
-    _writeSessionStorageWindowId(normalized);
-    _mirrorWindowIdIntoWindowName(normalized);
-    return normalized;
+    return _claimResolvedWindowId(namedWindowId!.trim());
   }
 
-  final generated = _generateWindowId();
-  _writeSessionStorageWindowId(generated);
-  _mirrorWindowIdIntoWindowName(generated);
-  return generated;
+  return _claimResolvedWindowId(_generateWindowId());
 }
 
 String _criticalSnapshotStorageKey(String windowId) =>
@@ -127,6 +247,10 @@ void _ensureLifecycleListenersInstalled() {
   web.window.addEventListener(
     'pageshow',
     ((web.Event event) {
+      final windowId = _claimedWindowId;
+      if (windowId != null && windowId.isNotEmpty) {
+        _ensureWindowClaimHeartbeat(windowId);
+      }
       final persisted = (event as web.PageTransitionEvent).persisted;
       _emitLifecycleEvent('pageshow', <String, Object?>{
         'persisted': persisted,
@@ -138,39 +262,49 @@ void _ensureLifecycleListenersInstalled() {
     'visibilitychange',
     ((web.Event _) {
       final state = web.document.visibilityState;
-      if (state == 'hidden') {
-        _persistLatestCriticalSnapshot();
-      }
       _emitLifecycleEvent('visibilitychange', <String, Object?>{
         'state': state,
       });
+      if (state == 'hidden') {
+        final windowId = _claimedWindowId;
+        if (windowId != null && windowId.isNotEmpty) {
+          _writeWindowClaim(windowId);
+        }
+        _persistLatestCriticalSnapshot();
+      }
     }).toJS,
   );
 
   web.window.addEventListener(
     'pagehide',
     ((web.Event event) {
-      _persistLatestCriticalSnapshot();
       final persisted = (event as web.PageTransitionEvent).persisted;
       _emitLifecycleEvent('pagehide', <String, Object?>{
         'persisted': persisted,
       });
+      _persistLatestCriticalSnapshot();
+      _markWindowClaimClosing();
     }).toJS,
   );
 
   web.window.addEventListener(
     'beforeunload',
     ((web.Event _) {
-      _persistLatestCriticalSnapshot();
       _emitLifecycleEvent('beforeunload', const <String, Object?>{});
+      _persistLatestCriticalSnapshot();
+      _markWindowClaimClosing();
     }).toJS,
   );
 
   web.document.addEventListener(
     'freeze',
     ((web.Event _) {
-      _persistLatestCriticalSnapshot();
       _emitLifecycleEvent('freeze', const <String, Object?>{});
+      final windowId = _claimedWindowId;
+      if (windowId != null && windowId.isNotEmpty) {
+        _writeWindowClaim(windowId);
+      }
+      _persistLatestCriticalSnapshot();
     }).toJS,
   );
 }

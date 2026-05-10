@@ -54,12 +54,16 @@ class AppWindowService {
     return _windowIdFuture!;
   }
 
-  void installWebLifecycleLogging() {
+  void installWebLifecycleLogging({
+    app_window_platform.WebLifecycleLogger? onEvent,
+  }) {
+    if (onEvent != null) {
+      app_window_platform.installWebLifecycleLogging(onEvent);
+    }
     if (_webLifecycleLoggingInstalled) {
       return;
     }
     _webLifecycleLoggingInstalled = true;
-
     app_window_platform.installWebLifecycleLogging((event, detail) {
       if (!kDebugMode) {
         return;

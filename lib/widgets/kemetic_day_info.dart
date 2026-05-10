@@ -21834,6 +21834,7 @@ class KemeticDayButton extends StatefulWidget {
   final String dayKey;
   final int kYear;
   final bool openOnTap;
+  final bool autoOpen;
   final VoidCallback? onOpen;
 
   const KemeticDayButton({
@@ -21842,6 +21843,7 @@ class KemeticDayButton extends StatefulWidget {
     required this.dayKey,
     required this.kYear,
     this.openOnTap = false,
+    this.autoOpen = false,
     this.onOpen,
   });
 
@@ -21853,6 +21855,33 @@ class _KemeticDayButtonState extends State<KemeticDayButton> {
   final KemeticDayDropdownController _controller =
       KemeticDayDropdownController();
   final GlobalKey _buttonKey = GlobalKey();
+  bool _autoOpenConsumed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleAutoOpenIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(covariant KemeticDayButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.autoOpen != widget.autoOpen ||
+        oldWidget.dayKey != widget.dayKey ||
+        oldWidget.kYear != widget.kYear) {
+      _autoOpenConsumed = false;
+    }
+    _scheduleAutoOpenIfNeeded();
+  }
+
+  void _scheduleAutoOpenIfNeeded() {
+    if (!widget.autoOpen || _autoOpenConsumed) return;
+    _autoOpenConsumed = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showDropdown();
+    });
+  }
 
   void _showDropdown() {
     final RenderBox? renderBox =

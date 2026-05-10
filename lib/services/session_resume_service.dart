@@ -327,6 +327,7 @@ class _SessionLifecycleBridgeState extends State<SessionLifecycleBridge>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    RestorationCoordinator.instance.noteLifecycleState(state);
     switch (state) {
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:

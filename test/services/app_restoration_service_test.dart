@@ -557,4 +557,94 @@ void main() {
       expect(adopted['routeLocation'], '/profile/user-1');
     },
   );
+
+  test(
+    'stores route and overlay stack atomically for sheet continuity',
+    () async {
+      final criticalWrites = <Map<String, dynamic>>[];
+      AppRestorationService
+          .debugCriticalSnapshotWriter = (windowId, serialized) {
+        if (serialized == null || serialized.trim().isEmpty) {
+          _debugCriticalSnapshots.remove(windowId);
+          return;
+        }
+        _debugCriticalSnapshots[windowId] = serialized;
+        criticalWrites.add(Map<String, dynamic>.from(jsonDecode(serialized)));
+      };
+
+      await AppRestorationService.instance.saveRouteLocationWithOverlayStack(
+        '/rhythm/today',
+        <Map<String, dynamic>>[
+          <String, dynamic>{
+            'kind': 'calendar.flowStudio',
+            'parentRoute': '/rhythm/today',
+            'mode': 'hub',
+          },
+        ],
+      );
+      await AppRestorationService.instance.flushPendingWrites();
+
+      expect(criticalWrites, hasLength(1));
+      expect(criticalWrites.single['routeLocation'], '/rhythm/today');
+      expect(
+        criticalWrites.single['overlayStack'],
+        contains(
+          allOf(
+            containsPair('kind', 'calendar.flowStudio'),
+            containsPair('parentRoute', '/rhythm/today'),
+          ),
+        ),
+      );
+
+      final result = await AppRestorationService.instance.readBestSnapshot();
+      expect(result.snapshot?.routeLocation, '/rhythm/today');
+      expect(
+        result.snapshot?.overlayStack.single['kind'],
+        'calendar.flowStudio',
+      );
+    },
+  );
+
+  test(
+    'best snapshot can recover a newer latest overlay when current window is stale',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _snapshotKey(),
+        jsonEncode(<String, dynamic>{
+          'schemaVersion': AppRestorationService.schemaVersion,
+          'userId': 'user-1',
+          'windowId': 'window-1',
+          'updatedAtMs': 1000,
+          'routeLocation': '/rhythm/today',
+        }),
+      );
+      await prefs.setString(
+        'app_restoration_latest_v2:user-1',
+        jsonEncode(<String, dynamic>{
+          'schemaVersion': AppRestorationService.schemaVersion,
+          'userId': 'user-1',
+          'windowId': 'window-1',
+          'updatedAtMs': 2000,
+          'routeLocation': '/rhythm/today',
+          'overlayStack': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'kind': 'calendar.sharedCalendars',
+              'parentRoute': '/rhythm/today',
+            },
+          ],
+        }),
+      );
+
+      final result = await AppRestorationService.instance.readBestSnapshot(
+        includeRemote: true,
+      );
+
+      expect(result.snapshot?.updatedAtMs, 2000);
+      expect(
+        result.snapshot?.overlayStack.single['kind'],
+        'calendar.sharedCalendars',
+      );
+    },
+  );
 }

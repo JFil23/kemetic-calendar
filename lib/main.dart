@@ -233,13 +233,49 @@ final supabase = Supabase.instance.client;
 
 void _startWebBootTasks() {
   if (!kIsWeb) return;
-  AppWindowService.instance.installWebLifecycleLogging();
+  AppWindowService.instance.installWebLifecycleLogging(
+    onEvent: _handleWebContinuityLifecycleEvent,
+  );
   _webAuthExchangeInProgress.value = Uri.base.queryParameters.containsKey(
     'code',
   );
   _installVisibilityRefresh();
   unawaited(_completeWebOAuthIfNeeded());
   unawaited(_rehydrateSessionOnce());
+}
+
+void _handleWebContinuityLifecycleEvent(
+  String event,
+  Map<String, Object?> detail,
+) {
+  switch (event) {
+    case 'visibilitychange':
+      final state = detail['state']?.toString();
+      if (state == 'hidden') {
+        RestorationCoordinator.instance.noteLifecycleState(
+          AppLifecycleState.hidden,
+        );
+        unawaited(RestorationCoordinator.instance.flush());
+      } else if (state == 'visible') {
+        RestorationCoordinator.instance.noteLifecycleState(
+          AppLifecycleState.resumed,
+        );
+      }
+      break;
+    case 'pagehide':
+    case 'beforeunload':
+    case 'freeze':
+      RestorationCoordinator.instance.noteLifecycleState(
+        AppLifecycleState.detached,
+      );
+      unawaited(RestorationCoordinator.instance.flush());
+      break;
+    case 'pageshow':
+      RestorationCoordinator.instance.noteLifecycleState(
+        AppLifecycleState.resumed,
+      );
+      break;
+  }
 }
 
 Future<void> _completeWebOAuthIfNeeded() async {
@@ -698,10 +734,13 @@ final _router = GoRouter(
     ),
     GoRoute(
       path: '/rhythm/today',
-      builder: (context, state) => SessionTrackedRoute(
-        location: state.uri.toString(),
-        child: const TodaysAlignmentPage(),
-      ),
+      builder: (context, state) {
+        final openDayCard = state.uri.queryParameters['openDayCard'] == '1';
+        return SessionTrackedRoute(
+          location: openDayCard ? '/rhythm/today' : state.uri.toString(),
+          child: TodaysAlignmentPage(openDayCardOnLoad: openDayCard),
+        );
+      },
     ),
     GoRoute(
       path: '/rhythm/todo',

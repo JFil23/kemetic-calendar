@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../settings/settings_prefs.dart';
 
@@ -39,6 +40,8 @@ class Notify {
   static bool _localReconcileInProgress = false;
   static bool _localReconcileQueued = false;
   static bool _localReconcileNeedsRefresh = false;
+  static bool? _canScheduleExactAlarms;
+  static bool _loggedInexactAlarmFallback = false;
 
   static String _notificationIdentity(
     String clientEventId,
@@ -545,6 +548,9 @@ class Notify {
     try {
       final exactGranted = await androidSpecific
           ?.requestExactAlarmsPermission();
+      if (exactGranted != null) {
+        _canScheduleExactAlarms = exactGranted;
+      }
       _log('requestExactAlarmsPermission() => $exactGranted');
     } catch (e) {
       _log('requestExactAlarmsPermission() threw: $e (safe to ignore)');
@@ -982,6 +988,7 @@ class Notify {
       iOS: iosDetails,
     );
 
+    var scheduleMode = await _androidScheduleMode();
     try {
       await _plugin.zonedSchedule(
         id,
@@ -990,14 +997,74 @@ class Notify {
         tzScheduled,
         details,
         payload: payload,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: scheduleMode,
       );
 
       _log('✅ Notification $id scheduled successfully');
     } catch (e) {
+      if (scheduleMode != AndroidScheduleMode.inexactAllowWhileIdle &&
+          _isExactAlarmDenied(e)) {
+        _canScheduleExactAlarms = false;
+        scheduleMode = AndroidScheduleMode.inexactAllowWhileIdle;
+        _logInexactAlarmFallback();
+        await _plugin.zonedSchedule(
+          id,
+          title,
+          body,
+          tzScheduled,
+          details,
+          payload: payload,
+          androidScheduleMode: scheduleMode,
+        );
+        _log('✅ Notification $id scheduled with inexact fallback');
+        return;
+      }
       _log('❌ Error scheduling notification $id: $e');
       rethrow;
     }
+  }
+
+  static Future<AndroidScheduleMode> _androidScheduleMode() async {
+    final androidSpecific = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (androidSpecific == null) return AndroidScheduleMode.exactAllowWhileIdle;
+
+    var canScheduleExact = _canScheduleExactAlarms;
+    if (canScheduleExact == null) {
+      try {
+        canScheduleExact = await androidSpecific
+            .canScheduleExactNotifications();
+      } catch (e) {
+        canScheduleExact = false;
+        _log('canScheduleExactNotifications() threw: $e');
+      }
+      _canScheduleExactAlarms = canScheduleExact;
+    }
+
+    if (canScheduleExact == false) {
+      _logInexactAlarmFallback();
+      return AndroidScheduleMode.inexactAllowWhileIdle;
+    }
+
+    return AndroidScheduleMode.exactAllowWhileIdle;
+  }
+
+  static bool _isExactAlarmDenied(Object error) {
+    if (error is PlatformException) {
+      return error.code == 'exact_alarms_not_permitted';
+    }
+    return error.toString().contains('exact_alarms_not_permitted');
+  }
+
+  static void _logInexactAlarmFallback() {
+    if (_loggedInexactAlarmFallback) return;
+    _loggedInexactAlarmFallback = true;
+    _log(
+      'Exact alarm permission is not granted; local notifications will use '
+      'inexact Android scheduling on this device.',
+    );
   }
 
   /// **PRIVATE**: Persist notification to Supabase

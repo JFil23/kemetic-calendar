@@ -100,6 +100,12 @@ class ProfileRepo {
       const insightPostsPrefix = '$_kInsightPostsCacheKeyPrefix:';
 
       for (final key in keys) {
+        if (!key.startsWith(profilePrefix) &&
+            !key.startsWith(flowPostsPrefix) &&
+            !key.startsWith(insightPostsPrefix)) {
+          continue;
+        }
+
         final raw = prefs.getString(key);
         if (raw == null || raw.isEmpty) continue;
 

@@ -24,5 +24,63 @@
             "type": "image/png",
             "purpose": "maskable any"
         }
+    ],
+    "screenshots": [
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "label": "Kemetic Calendar"
+        }
+    ],
+    "launch_handler": {
+        "client_mode": ["navigate-existing", "auto"]
+    },
+    "shortcuts": [
+        {
+            "name": "Today",
+            "short_name": "Today",
+            "description": "Open today's planner.",
+            "url": "/rhythm/today?source=shortcut",
+            "icons": [
+                { "src": "icons/Icon-192.png", "sizes": "192x192", "type": "image/png" }
+            ]
+        },
+        {
+            "name": "Daily reflection",
+            "short_name": "Reflect",
+            "description": "Open today's planner with the day card expanded.",
+            "url": "/rhythm/today?openDayCard=1&source=shortcut",
+            "icons": [
+                { "src": "icons/Icon-192.png", "sizes": "192x192", "type": "image/png" }
+            ]
+        }
+    ],
+    "widgets": [
+        {
+            "name": "Daily reflection",
+            "short_name": "Reflection",
+            "description": "Shows today's reflection question.",
+            "tag": "daily-reflection",
+            "template": "daily-reflection-template",
+            "ms_ac_template": "/widgets/daily-reflection.template.json",
+            "data": "/widgets/daily-reflection-data.json",
+            "type": "application/json",
+            "auth": false,
+            "update": 3600,
+            "multiple": false,
+            "icons": [
+                { "src": "icons/Icon-192.png", "sizes": "192x192", "type": "image/png" }
+            ],
+            "screenshots": [
+                {
+                    "src": "icons/Icon-512.png",
+                    "sizes": "512x512",
+                    "type": "image/png",
+                    "label": "Daily reflection widget",
+                    "platform": "Windows"
+                }
+            ]
+        }
     ]
 }

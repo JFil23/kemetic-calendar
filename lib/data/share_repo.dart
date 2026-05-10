@@ -121,6 +121,8 @@ class ShareRepo {
   static const String _legacyInboxView = 'inbox_share_items_filtered';
   static const String _inboxItemsCacheKeyPrefix = 'inbox:shares:v1';
   static const String _activityCacheKeyPrefix = 'inbox:activity:v1';
+  static const String _manualDeleteTombstonesKey =
+      'calendar:manual_delete_tombstones';
   static final StreamController<void> _activitySeenChangedController =
       StreamController<void>.broadcast();
   static final Map<String, _InboxUnreadTracker> _unreadTrackers = {};
@@ -1669,6 +1671,9 @@ class ShareRepo {
     }
 
     if (ok) {
+      if (responseStatus == EventInviteResponseStatus.accepted) {
+        await _clearLocalEventInviteImportTombstone(shareId);
+      }
       try {
         await syncAcceptedInviteCalendarImports();
       } catch (e, st) {
@@ -1680,6 +1685,31 @@ class ShareRepo {
     }
 
     return ok;
+  }
+
+  Future<void> _clearLocalEventInviteImportTombstone(String shareId) async {
+    final trimmedShareId = shareId.trim();
+    if (trimmedShareId.isEmpty) return;
+
+    final tombstoneCid = 'event_share:$trimmedShareId';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored =
+          prefs.getStringList(_manualDeleteTombstonesKey) ?? const <String>[];
+      if (stored.isEmpty) return;
+
+      final next = stored
+          .where((cid) => cid.trim() != tombstoneCid)
+          .toList(growable: false);
+      if (next.length == stored.length) return;
+
+      await prefs.setStringList(_manualDeleteTombstonesKey, next);
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[ShareRepo] clearing invite tombstone failed: $e');
+        debugPrint('$st');
+      }
+    }
   }
 
   Future<bool> _confirmEventInviteResponse({

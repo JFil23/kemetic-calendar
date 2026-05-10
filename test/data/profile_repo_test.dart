@@ -90,6 +90,7 @@ void main() {
   test('preloadLocalCaches hydrates profile and post memory caches', () async {
     const userId = 'user-profile-cache-3';
     SharedPreferences.setMockInitialValues({
+      'app:has_seen_onboarding': true,
       'profile:summary:v1:$userId': jsonEncode({
         'id': userId,
         'handle': 'october',

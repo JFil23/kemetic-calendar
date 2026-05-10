@@ -20,6 +20,8 @@ import 'package:mobile/features/rhythm/rhythm_telemetry.dart';
 import 'package:mobile/features/rhythm/todo_day_window.dart';
 import 'package:mobile/features/rhythm/rhythm_user_messages.dart';
 import 'package:mobile/services/app_haptics.dart';
+import 'package:mobile/services/daily_reflection_widget_bridge.dart'
+    if (dart.library.html) 'package:mobile/services/daily_reflection_widget_bridge_web.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/inbox_icon_with_badge.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
@@ -42,11 +44,13 @@ class TodaysAlignmentPage extends StatefulWidget {
     this.embedded = false,
     this.openedFromCalendar = false,
     this.openedFromCalendarSwipe = false,
+    this.openDayCardOnLoad = false,
   });
 
   final bool embedded;
   final bool openedFromCalendar;
   final bool openedFromCalendarSwipe;
+  final bool openDayCardOnLoad;
 
   @override
   State<TodaysAlignmentPage> createState() => _TodaysAlignmentPageState();
@@ -119,6 +123,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   bool _nutritionFormOpen = false;
   bool _calendarRevealNavigationInFlight = false;
   Timer? _sessionPersistDebounce;
+  String? _lastPublishedWidgetReflectionKey;
 
   bool get _tracksSessionState =>
       !widget.embedded &&
@@ -148,7 +153,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
     _bindSessionListeners();
     final restoreFuture = _restoreSessionState();
-    _future = restoreFuture.then((_) => _load());
+    _future = restoreFuture.then((_) => _load()).then((_) {
+      _publishDailyReflectionWidgetData();
+    });
     unawaited(restoreFuture.then((_) => _loadNotes()));
     unawaited(_loadNutrition());
     unawaited(_loadNutritionStates());
@@ -839,6 +846,26 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     return null;
   }
 
+  void _publishDailyReflectionWidgetData() {
+    final plannerAction = _todayPlannerAction();
+    if (plannerAction == null) return;
+    final date = DateFormat('yyyy-MM-dd').format(_todayLocal);
+    final publishKey =
+        '$date|${plannerAction.dayKey}|${plannerAction.kYear}|${plannerAction.reflection}';
+    if (_lastPublishedWidgetReflectionKey == publishKey) return;
+    _lastPublishedWidgetReflectionKey = publishKey;
+
+    unawaited(
+      publishDailyReflectionWidgetData(
+        date: date,
+        dateLabel: _formatDateLabel(_todayLocal, short: true),
+        dayKey: plannerAction.dayKey,
+        kYear: plannerAction.kYear,
+        question: plannerAction.reflection,
+      ),
+    );
+  }
+
   Future<void> _openDecanInfo() async {
     final dayKey = _nutritionDayKeyForActivePage();
     final info = KemeticDayData.getInfoForDay(dayKey);
@@ -940,7 +967,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     _midnightTimer = Timer(duration, () {
       if (!mounted) return;
       setState(() {
-        _future = _load();
+        _future = _load().then((_) {
+          _publishDailyReflectionWidgetData();
+        });
       });
       unawaited(_loadNutrition());
       unawaited(_loadNutritionStates());
@@ -3179,6 +3208,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
               KemeticDayButton(
                 dayKey: plannerAction.dayKey,
                 kYear: plannerAction.kYear,
+                autoOpen: widget.openDayCardOnLoad,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Center(

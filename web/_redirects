@@ -13,4 +13,5 @@
 /main.dart.js /main.dart.js 200
 /manifest.json /manifest.json 200
 /version.json /version.json 200
+/widgets/* /widgets/:splat 200
 /* /index.html 200

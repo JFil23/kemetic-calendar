@@ -8,6 +8,10 @@ class RestorationCoordinator {
   RestorationCoordinator._();
 
   static final RestorationCoordinator instance = RestorationCoordinator._();
+  static const Duration _lifecycleOverlayPreserveWindow = Duration(seconds: 3);
+
+  AppLifecycleState _lastLifecycleState = AppLifecycleState.resumed;
+  DateTime? _lastExitLifecycleAt;
 
   Future<void> recordRouteLocation(String location) {
     final normalized = location.trim();
@@ -15,6 +19,50 @@ class RestorationCoordinator {
       return Future<void>.value();
     }
     return AppRestorationService.instance.saveRouteLocation(normalized);
+  }
+
+  Future<void> recordRouteLocationWithOverlayStack(
+    String location,
+    List<Map<String, dynamic>> overlayStack,
+  ) {
+    final normalized = location.trim();
+    if (normalized.isEmpty) {
+      return Future<void>.value();
+    }
+    return AppRestorationService.instance.saveRouteLocationWithOverlayStack(
+      normalized,
+      overlayStack,
+    );
+  }
+
+  void noteLifecycleState(AppLifecycleState state) {
+    _lastLifecycleState = state;
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        _lastExitLifecycleAt = DateTime.now();
+        break;
+      case AppLifecycleState.resumed:
+        _lastExitLifecycleAt = null;
+        break;
+    }
+  }
+
+  bool get shouldPreserveOverlayForLifecycleClose {
+    switch (_lastLifecycleState) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        return true;
+      case AppLifecycleState.resumed:
+        final lastExit = _lastExitLifecycleAt;
+        return lastExit != null &&
+            DateTime.now().difference(lastExit) <
+                _lifecycleOverlayPreserveWindow;
+    }
   }
 
   Future<Map<String, dynamic>?> readSurfaceState(String key) {

@@ -70,6 +70,26 @@ void main() {
       ]);
       expect(unavailableMatches, isEmpty);
     });
+
+    test('today toolbar actions use the calendar glyph', () async {
+      final deprecatedTodayIconMatches = await _filesContainingAny(<String>[
+        'Icons.calendar_today_outlined',
+      ]);
+      expect(deprecatedTodayIconMatches, isEmpty);
+
+      final calendarIconMatches = await _filesContainingAny(<String>[
+        'Icons.today',
+      ]);
+      expect(
+        calendarIconMatches,
+        containsAll(<String>[
+          'lib/features/calendar/calendar_page.dart',
+          'lib/features/calendar/day_view_chrome.dart',
+          'lib/features/profile/profile_page.dart',
+          'lib/features/rhythm/pages/todays_alignment_page.dart',
+        ]),
+      );
+    });
   });
 }
 

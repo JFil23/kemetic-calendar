@@ -1,0 +1,1101 @@
+{
+  "schema": 1,
+  "source": "KemeticDayData.dayInfoMap.decanFlow.reflection",
+  "days": {
+    "epagomenal_1_1": {
+      "question": "\"What in my life must not remain in pieces?\""
+    },
+    "epagomenal_2_1": {
+      "question": "\"What changes when I look from height instead of from entanglement?\""
+    },
+    "epagomenal_3_1": {
+      "question": "\"What dangerous force in me needs governance, not denial?\""
+    },
+    "epagomenal_4_1": {
+      "question": "\"What needs precise wisdom more than more force right now?\""
+    },
+    "epagomenal_5_1": {
+      "question": "\"What must be closed cleanly before I cross the threshold?\""
+    },
+    "hathor_10_1": {
+      "question": "\"Who/what held me up while I was in the flood?\""
+    },
+    "hathor_11_2": {
+      "question": "\"Who is actually walking next to me?\""
+    },
+    "hathor_12_2": {
+      "question": "\"Are we moving in sync or stepping on each other?\""
+    },
+    "hathor_13_2": {
+      "question": "\"Where am I letting 'love' or 'duty' become exploitation?\""
+    },
+    "hathor_14_2": {
+      "question": "\"Can I say what's not working without attacking who I love?\""
+    },
+    "hathor_15_2": {
+      "question": "\"What shared system needs fixing so both of us can breathe?\""
+    },
+    "hathor_16_2": {
+      "question": "\"Do we defend each other's dignity when the other isn't there?\""
+    },
+    "hathor_17_2": {
+      "question": "\"Do we name and praise what we built side-by-side?\""
+    },
+    "hathor_18_2": {
+      "question": "\"How do we make this smoother for both of us, not just efficient for one of us?\""
+    },
+    "hathor_19_2": {
+      "question": "\"Can we be peaceful in the same room without performing?\""
+    },
+    "hathor_1_1": {
+      "question": "\"What did I make it through?\""
+    },
+    "hathor_20_2": {
+      "question": "\"Do we both understand this isn't casual — this is sacred alignment work?\""
+    },
+    "hathor_21_3": {
+      "question": "\"Am I still covering a self that has already begun to heal?\""
+    },
+    "hathor_22_3": {
+      "question": "\"What part of my image deserves to match my actual growth?\""
+    },
+    "hathor_23_3": {
+      "question": "\"What beauty feels honest on me?\""
+    },
+    "hathor_24_3": {
+      "question": "\"What does my voice sound like when I am not bracing?\""
+    },
+    "hathor_25_3": {
+      "question": "\"Can I be visible without performing desperation?\""
+    },
+    "hathor_26_3": {
+      "question": "\"Can I remain open without becoming unclear?\""
+    },
+    "hathor_27_3": {
+      "question": "\"Do I treat my body like a worthy house for my spirit?\""
+    },
+    "hathor_28_3": {
+      "question": "\"Does my presence improve the field I enter?\""
+    },
+    "hathor_29_3": {
+      "question": "\"Can I stay luminous without becoming unstable?\""
+    },
+    "hathor_2_1": {
+      "question": "\"Is my body safe and calm?\""
+    },
+    "hathor_30_3": {
+      "question": "\"What now shines in me because it has been genuinely restored?\""
+    },
+    "hathor_3_1": {
+      "question": "\"What clutter pulls me out of balance?\""
+    },
+    "hathor_4_1": {
+      "question": "\"What beauty actually restores me (not numbs me)?\""
+    },
+    "hathor_5_1": {
+      "question": "\"Does my daily space reflect the life I say I'm living?\""
+    },
+    "hathor_6_1": {
+      "question": "\"Who needs to feel me present, calm, and loving — not fixing, just present?\""
+    },
+    "hathor_7_1": {
+      "question": "\"Can my presence make the space softer for someone else today?\""
+    },
+    "hathor_8_1": {
+      "question": "\"Can I work in a way that doesn't grind my spirit?\""
+    },
+    "hathor_9_1": {
+      "question": "\"Do I move like I believe I deserve balanced joy?\""
+    },
+    "henti_10_1": {
+      "question": "What now properly stands at the front of my life?"
+    },
+    "henti_11_2": {
+      "question": "What actually holds first place inside me?"
+    },
+    "henti_12_2": {
+      "question": "What keeps trying to dethrone what I know should lead?"
+    },
+    "henti_13_2": {
+      "question": "Where has my inner order drifted?"
+    },
+    "henti_14_2": {
+      "question": "What has been standing in front that has no right to lead me?"
+    },
+    "henti_15_2": {
+      "question": "Does my inward reason match my outward claim?"
+    },
+    "henti_16_2": {
+      "question": "What have I been letting in that weakens the true front line?"
+    },
+    "henti_17_2": {
+      "question": "Can I honor what is first even when no one sees it?"
+    },
+    "henti_18_2": {
+      "question": "What temptation keeps trying to pull me off the true front?"
+    },
+    "henti_19_2": {
+      "question": "What is my life quietly proving sits first within me?"
+    },
+    "henti_1_1": {
+      "question": "What must now come forward?"
+    },
+    "henti_20_2": {
+      "question": "What have I now truly placed first in my heart?"
+    },
+    "henti_21_3": {
+      "question": "“Is what stands first actually guiding anything?”"
+    },
+    "henti_22_3": {
+      "question": "“What is still out of line behind what should lead?”"
+    },
+    "henti_23_3": {
+      "question": "“What keeps trying to act like my true guide?”"
+    },
+    "henti_24_3": {
+      "question": "“Have I made the true priority plain enough to follow?”"
+    },
+    "henti_25_3": {
+      "question": "“Can someone see what leads me by how I move?”"
+    },
+    "henti_26_3": {
+      "question": "“What keeps the front line from slipping backward?”"
+    },
+    "henti_27_3": {
+      "question": "“What order must be taught so confusion stops repeating?”"
+    },
+    "henti_28_3": {
+      "question": "“Where is the true priority still vulnerable to being displaced?”"
+    },
+    "henti_29_3": {
+      "question": "“What has changed because I truly let this lead?”"
+    },
+    "henti_2_1": {
+      "question": "Have I positioned this for action, or only thought about it?"
+    },
+    "henti_30_3": {
+      "question": "“What now stands first strongly enough to guide what follows?”"
+    },
+    "henti_3_1": {
+      "question": "What is blocking the rightful front of my life?"
+    },
+    "henti_4_1": {
+      "question": "What am I tempted to avoid by staying busy with lesser things?"
+    },
+    "henti_5_1": {
+      "question": "Does this now stand clearly enough to be handled?"
+    },
+    "henti_6_1": {
+      "question": "What is truly leading my day right now?"
+    },
+    "henti_7_1": {
+      "question": "Can I remain present before what matters?"
+    },
+    "henti_8_1": {
+      "question": "What still needs readiness before this can function?"
+    },
+    "henti_9_1": {
+      "question": "Have I let false priorities move ahead of what is real?"
+    },
+    "hnsw_10_1": {
+      "question": "What is the right purpose of what I have now gathered?"
+    },
+    "hnsw_11_2": {
+      "question": "“Am I ready to carry what I worked to receive?”"
+    },
+    "hnsw_12_2": {
+      "question": "“Where am I acting surprised by the weight of my own harvest?”"
+    },
+    "hnsw_13_2": {
+      "question": "“What in me must become stronger to hold this well?”"
+    },
+    "hnsw_14_2": {
+      "question": "“What is making the load heavier through avoidable disorder?”"
+    },
+    "hnsw_15_2": {
+      "question": "“What must I carry myself, and what should be shared?”"
+    },
+    "hnsw_16_2": {
+      "question": "“What needs firmer structure now that it is in hand?”"
+    },
+    "hnsw_17_2": {
+      "question": "“Can I remain faithful after the excitement is gone?”"
+    },
+    "hnsw_18_2": {
+      "question": "“What or who is getting strained under this weight?”"
+    },
+    "hnsw_19_2": {
+      "question": "“Where is the weight exposing weakness I need to repair?”"
+    },
+    "hnsw_1_1": {
+      "question": "What is actually ready now?"
+    },
+    "hnsw_20_2": {
+      "question": "“Am I becoming a person who stays steady when life gets heavy?”"
+    },
+    "hnsw_21_3": {
+      "question": "What must become stronger so this does not rest only on strain?"
+    },
+    "hnsw_22_3": {
+      "question": "Where is support still too thin for the load?"
+    },
+    "hnsw_23_3": {
+      "question": "What burden am I still carrying chaotically?"
+    },
+    "hnsw_24_3": {
+      "question": "What could still spoil if I stop tending it?"
+    },
+    "hnsw_25_3": {
+      "question": "Where does heaviness tempt me to lower the standard?"
+    },
+    "hnsw_26_3": {
+      "question": "Who else needs support if this harvest is going to hold?"
+    },
+    "hnsw_27_3": {
+      "question": "Have I started acting like burden excuses decline?"
+    },
+    "hnsw_28_3": {
+      "question": "What must be repositioned so this can endure?"
+    },
+    "hnsw_29_3": {
+      "question": "What is this weight making of me?"
+    },
+    "hnsw_2_1": {
+      "question": "What cannot be left standing any longer?"
+    },
+    "hnsw_30_3": {
+      "question": "Am I becoming a structure others can safely build upon?"
+    },
+    "hnsw_3_1": {
+      "question": "What must be made sharper before I begin?"
+    },
+    "hnsw_4_1": {
+      "question": "Where do I need action, not more watching?"
+    },
+    "hnsw_5_1": {
+      "question": "What am I at risk of dropping after finally earning it?"
+    },
+    "hnsw_6_1": {
+      "question": "How do I turn loose gain into something stable?"
+    },
+    "hnsw_7_1": {
+      "question": "Am I willing to carry what I asked to receive?"
+    },
+    "hnsw_8_1": {
+      "question": "Where is the gathered gain still vulnerable?"
+    },
+    "hnsw_9_1": {
+      "question": "What did this harvest truly produce?"
+    },
+    "ipt_10_1": {
+      "question": "“What have I now made worthy of keeping?”"
+    },
+    "ipt_11_2": {
+      "question": "“What in me is still too disorderly for what I now carry?”"
+    },
+    "ipt_12_2": {
+      "question": "“Where am I still handling something valuable too loosely?”"
+    },
+    "ipt_13_2": {
+      "question": "“What have I been tolerating that no longer matches the level I need?”"
+    },
+    "ipt_14_2": {
+      "question": "“What is cluttering the inside of me?”"
+    },
+    "ipt_15_2": {
+      "question": "“Is my reason for order clean, or is it hiding fear, vanity, or control?”"
+    },
+    "ipt_16_2": {
+      "question": "“What changes when I touch this with more care?”"
+    },
+    "ipt_17_2": {
+      "question": "“What could decay inside me if I leave it untended?”"
+    },
+    "ipt_18_2": {
+      "question": "“Can the quality I want be felt in how I move today?”"
+    },
+    "ipt_19_2": {
+      "question": "“Does my inner order hold when life stops being ideal?”"
+    },
+    "ipt_1_1": {
+      "question": "“What in my life needs a worthy place to live?”"
+    },
+    "ipt_20_2": {
+      "question": "“How am I becoming more worthy of what I keep?”"
+    },
+    "ipt_21_3": {
+      "question": "What is ready to emerge from keeping into guidance?"
+    },
+    "ipt_22_3": {
+      "question": "What is now beginning in concrete terms?"
+    },
+    "ipt_23_3": {
+      "question": "What can now be brought out because it is finally ready?"
+    },
+    "ipt_24_3": {
+      "question": "What first act makes this beginning undeniable?"
+    },
+    "ipt_25_3": {
+      "question": "What could contaminate this new phase before it strengthens?"
+    },
+    "ipt_26_3": {
+      "question": "Am I trying to force what should unfold in order?"
+    },
+    "ipt_27_3": {
+      "question": "What have I already learned that must govern this start?"
+    },
+    "ipt_28_3": {
+      "question": "Does this new start actually fit the life I am building?"
+    },
+    "ipt_29_3": {
+      "question": "What is truly rising now?"
+    },
+    "ipt_2_1": {
+      "question": "“Am I trying to store something valuable in the wrong container?”"
+    },
+    "ipt_30_3": {
+      "question": "What must govern this beginning so it becomes lasting good?"
+    },
+    "ipt_3_1": {
+      "question": "“What form is no longer good enough for what I carry?”"
+    },
+    "ipt_4_1": {
+      "question": "“Can I reach what matters when I actually need it?”"
+    },
+    "ipt_5_1": {
+      "question": "“What have I made harder to use because I left it unclear?”"
+    },
+    "ipt_6_1": {
+      "question": "“What needs more careful preservation from me?”"
+    },
+    "ipt_7_1": {
+      "question": "“Does this space honor what I’m asking it to hold?”"
+    },
+    "ipt_8_1": {
+      "question": "“Where would better form make right action easier?”"
+    },
+    "ipt_9_1": {
+      "question": "“Does this structure hold under use?”"
+    },
+    "kaherka_10_1": {
+      "question": "\"What has now been made harder to lose?\""
+    },
+    "kaherka_11_2": {
+      "question": "\"What sits at the center of my order right now?\""
+    },
+    "kaherka_12_2": {
+      "question": "\"What is pulling at the center that should not have access?\""
+    },
+    "kaherka_13_2": {
+      "question": "\"Am I actively nourishing what I claim is central?\""
+    },
+    "kaherka_14_2": {
+      "question": "\"What tension is quietly gathering at the center?\""
+    },
+    "kaherka_15_2": {
+      "question": "\"What law must stay clear if this is to remain whole?\""
+    },
+    "kaherka_16_2": {
+      "question": "\"What impurity is sitting too close to what I most need to protect?\""
+    },
+    "kaherka_17_2": {
+      "question": "\"What simple act keeps proving it deserves to remain?\""
+    },
+    "kaherka_18_2": {
+      "question": "\"Where is slippage starting to appear?\""
+    },
+    "kaherka_19_2": {
+      "question": "\"Am I trusting what I built, or still acting like nothing can help me?\""
+    },
+    "kaherka_1_1": {
+      "question": "\"What in my life is ready to be secured instead of merely admired?\""
+    },
+    "kaherka_20_2": {
+      "question": "\"What at my core is now harder to shake?\""
+    },
+    "kaherka_21_3": {
+      "question": "\"Can I treat this work as sacred instead of resenting it?\""
+    },
+    "kaherka_22_3": {
+      "question": "\"What do I need in hand before I start raising form?\""
+    },
+    "kaherka_23_3": {
+      "question": "\"Where does this begin, and what boundary gives it shape?\""
+    },
+    "kaherka_24_3": {
+      "question": "\"Is it standing in the real world yet, even in rough form?\""
+    },
+    "kaherka_25_3": {
+      "question": "\"Does this thing reflect my values, or is it just productive?\""
+    },
+    "kaherka_26_3": {
+      "question": "\"Where could this fall apart if I don't shore it up now?\""
+    },
+    "kaherka_27_3": {
+      "question": "\"Is it pleasing to enter, to hold, to use?\""
+    },
+    "kaherka_28_3": {
+      "question": "\"Who or what am I acknowledging as co-creator here?\""
+    },
+    "kaherka_29_3": {
+      "question": "\"Is this now part of how I live — or is it just a nice idea sitting in a corner?\""
+    },
+    "kaherka_2_1": {
+      "question": "\"What is the first knot that keeps this from drifting?\""
+    },
+    "kaherka_30_3": {
+      "question": "\"If I disappeared tomorrow, could someone see this and know who I was and what I served?\""
+    },
+    "kaherka_3_1": {
+      "question": "\"Where would this unravel first if I ignored it?\""
+    },
+    "kaherka_4_1": {
+      "question": "\"Can this survive real life, or only ideal conditions?\""
+    },
+    "kaherka_5_1": {
+      "question": "\"Am I securing this in Ma'at, or trying to over-control it?\""
+    },
+    "kaherka_6_1": {
+      "question": "\"Does my structure reflect what I truly intend?\""
+    },
+    "kaherka_7_1": {
+      "question": "\"What is helping this stay together, and have I respected it?\""
+    },
+    "kaherka_8_1": {
+      "question": "\"Where does this need more give, and where does it need more discipline?\""
+    },
+    "kaherka_9_1": {
+      "question": "\"Why is this worth holding in the first place?\""
+    },
+    "mswtRa_10_1": {
+      "question": "\"What now lives in my world that was only hidden before?\""
+    },
+    "mswtRa_11_2": {
+      "question": "\"What must be rearranged in me now that this exists?\""
+    },
+    "mswtRa_12_2": {
+      "question": "\"What in me is afraid of what has just begun?\""
+    },
+    "mswtRa_13_2": {
+      "question": "\"Have I truly accepted that this new life now asks something of me?\""
+    },
+    "mswtRa_14_2": {
+      "question": "\"Where am I still standing at a distance from what I asked to be born?\""
+    },
+    "mswtRa_15_2": {
+      "question": "\"What in my inner climate could weaken this before it grows?\""
+    },
+    "mswtRa_16_2": {
+      "question": "\"Does my heart now stand with what has emerged?\""
+    },
+    "mswtRa_17_2": {
+      "question": "\"Where am I still divided about carrying this?\""
+    },
+    "mswtRa_18_2": {
+      "question": "\"What new kind of care is this birth demanding from me?\""
+    },
+    "mswtRa_19_2": {
+      "question": "\"Do my private habits make this new life safer or shakier?\""
+    },
+    "mswtRa_1_1": {
+      "question": "\"What is truly ready to emerge now?\""
+    },
+    "mswtRa_20_2": {
+      "question": "\"What have I now fully accepted into my care?\""
+    },
+    "mswtRa_21_3": {
+      "question": "\"What newly born thing should now start leading?\""
+    },
+    "mswtRa_22_3": {
+      "question": "\"What still moves as though this birth never happened?\""
+    },
+    "mswtRa_23_3": {
+      "question": "\"What still threatens what is trying to live?\""
+    },
+    "mswtRa_24_3": {
+      "question": "\"Have I given this new life a rightful place?\""
+    },
+    "mswtRa_25_3": {
+      "question": "\"Can my life now reveal what has been born?\""
+    },
+    "mswtRa_26_3": {
+      "question": "\"What will keep this new life from fading into memory?\""
+    },
+    "mswtRa_27_3": {
+      "question": "\"How should this new life now change the world around me?\""
+    },
+    "mswtRa_28_3": {
+      "question": "\"What past force is still trying to reclaim the chamber?\""
+    },
+    "mswtRa_29_3": {
+      "question": "\"What is now living strongly enough to be trusted?\""
+    },
+    "mswtRa_2_1": {
+      "question": "\"What must be protected while it is still new?\""
+    },
+    "mswtRa_30_3": {
+      "question": "\"What is this new life now for?\""
+    },
+    "mswtRa_3_1": {
+      "question": "\"What exactly is being born through me now?\""
+    },
+    "mswtRa_4_1": {
+      "question": "\"What makes this birth tangible instead of imagined?\""
+    },
+    "mswtRa_5_1": {
+      "question": "\"What must I feed now so it does not weaken at birth?\""
+    },
+    "mswtRa_6_1": {
+      "question": "\"Am I expecting ripeness from what has only just emerged?\""
+    },
+    "mswtRa_7_1": {
+      "question": "\"What rhythm will keep this birth alive?\""
+    },
+    "mswtRa_8_1": {
+      "question": "\"Where is this new thing still easiest to injure?\""
+    },
+    "mswtRa_9_1": {
+      "question": "\"Am I ready to care for what I asked to be born?\""
+    },
+    "paophi_10_1": {
+      "question": "\"How does my work stabilize Ma’at around me?\""
+    },
+    "paophi_11_2": {
+      "question": "\"Who depends on me staying connected, not disappearing?\""
+    },
+    "paophi_12_2": {
+      "question": "\"What can I send that proves “you are not abandoned”?\""
+    },
+    "paophi_13_2": {
+      "question": "\"How do I keep this connection alive without chaos?\""
+    },
+    "paophi_14_2": {
+      "question": "\"Is this relationship mutual, or am I draining or being drained?\""
+    },
+    "paophi_15_2": {
+      "question": "\"Who is holding it down in silence, and have I honored them?\""
+    },
+    "paophi_16_2": {
+      "question": "\"Where is Ma’at wobbling right now, and how can I steady it?\""
+    },
+    "paophi_17_2": {
+      "question": "\"What tone am I sending into rooms I'm not physically in?\""
+    },
+    "paophi_18_2": {
+      "question": "\"Where is the connection weakening because no one is tending it?\""
+    },
+    "paophi_19_2": {
+      "question": "\"How do I stay whole while serving many points at once?\""
+    },
+    "paophi_1_1": {
+      "question": "\"What work is truly mine to move?\""
+    },
+    "paophi_20_2": {
+      "question": "\"What have I helped keep connected — and will I keep feeding it?\""
+    },
+    "paophi_21_3": {
+      "question": "\"What survived this labor in good form?\""
+    },
+    "paophi_22_3": {
+      "question": "\"What must be washed off so the truth of this cycle can be seen?\""
+    },
+    "paophi_23_3": {
+      "question": "\"What deserves adornment because it has proven faithful?\""
+    },
+    "paophi_24_3": {
+      "question": "\"Who or what helped this season stand?\""
+    },
+    "paophi_25_3": {
+      "question": "\"What carried more than it should have, and how do I honor it now?\""
+    },
+    "paophi_26_3": {
+      "question": "\"What remains valuable but dispersed?\""
+    },
+    "paophi_27_3": {
+      "question": "\"What from this labor deserves to become lasting structure?\""
+    },
+    "paophi_28_3": {
+      "question": "\"Can I look at what stands without immediately demanding more?\""
+    },
+    "paophi_29_3": {
+      "question": "\"What became beautiful because I stayed with it?\""
+    },
+    "paophi_2_1": {
+      "question": "\"Who is moving beside me in this season?\""
+    },
+    "paophi_30_3": {
+      "question": "\"What in my life now shines because I did not drop it?\""
+    },
+    "paophi_3_1": {
+      "question": "\"Can I continue this rhythm for 10 days without collapse?\""
+    },
+    "paophi_4_1": {
+      "question": "\"Do I see my labor as honor or insult?\""
+    },
+    "paophi_5_1": {
+      "question": "\"Where can balanced effort keep us all upright?\""
+    },
+    "paophi_6_1": {
+      "question": "\"Does this weight belong to my purpose?\""
+    },
+    "paophi_7_1": {
+      "question": "\"Does my language reflect who I actually am?\""
+    },
+    "paophi_8_1": {
+      "question": "\"What restores the one holding the load?\""
+    },
+    "paophi_9_1": {
+      "question": "\"Where is this going, and who will it feed?\""
+    },
+    "rekhnedjes_10_1": {
+      "question": "What kind of person am I becoming through how I carry this?"
+    },
+    "rekhnedjes_11_2": {
+      "question": "What truly rules me when no one is watching?"
+    },
+    "rekhnedjes_12_2": {
+      "question": "What desire in me keeps trying to sit on the throne?"
+    },
+    "rekhnedjes_13_2": {
+      "question": "What reaction still lowers my dignity?"
+    },
+    "rekhnedjes_14_2": {
+      "question": "What is the law beneath my bearing?"
+    },
+    "rekhnedjes_15_2": {
+      "question": "If no one praised me, would I still do this well?"
+    },
+    "rekhnedjes_16_2": {
+      "question": "What kind of pressure still makes me leave myself?"
+    },
+    "rekhnedjes_17_2": {
+      "question": "What grows stronger in me when I do not rush to speak?"
+    },
+    "rekhnedjes_18_2": {
+      "question": "Where is my heart still divided?"
+    },
+    "rekhnedjes_19_2": {
+      "question": "What have I been allowing inside that weakens my rule?"
+    },
+    "rekhnedjes_1_1": {
+      "question": "Can I begin without trying to impress?"
+    },
+    "rekhnedjes_20_2": {
+      "question": "What is becoming steady at the center of me?"
+    },
+    "rekhnedjes_21_3": {
+      "question": "Does my presence bring order or extra friction?"
+    },
+    "rekhnedjes_22_3": {
+      "question": "What changes when I stop tolerating low-grade disorder?"
+    },
+    "rekhnedjes_23_3": {
+      "question": "Could someone learn quality just by watching how I move?"
+    },
+    "rekhnedjes_24_3": {
+      "question": "What small habit has been lowering the standard?"
+    },
+    "rekhnedjes_25_3": {
+      "question": "How am I using my strength to protect, not dominate?"
+    },
+    "rekhnedjes_26_3": {
+      "question": "Do my words carry weight or just volume?"
+    },
+    "rekhnedjes_27_3": {
+      "question": "What duty deserves to be done with honor today?"
+    },
+    "rekhnedjes_28_3": {
+      "question": "Can another life safely rest some weight on me?"
+    },
+    "rekhnedjes_29_3": {
+      "question": "What proof do my actions give of who I claim to be?"
+    },
+    "rekhnedjes_2_1": {
+      "question": "What needs shielding before it is asked to stand alone?"
+    },
+    "rekhnedjes_30_3": {
+      "question": "Am I becoming honorable in a way others can actually use?"
+    },
+    "rekhnedjes_3_1": {
+      "question": "Where am I tempted to display what still needs quiet growth?"
+    },
+    "rekhnedjes_4_1": {
+      "question": "Does my basic conduct reflect value?"
+    },
+    "rekhnedjes_5_1": {
+      "question": "What in me wants appearance more than substance?"
+    },
+    "rekhnedjes_6_1": {
+      "question": "What principle must be stronger in me than my moods?"
+    },
+    "rekhnedjes_7_1": {
+      "question": "Am I handling what I’ve been given with reverence or appetite?"
+    },
+    "rekhnedjes_8_1": {
+      "question": "What changes when I stop moving like I am chased?"
+    },
+    "rekhnedjes_9_1": {
+      "question": "If I said nothing, would the work still speak well for me?"
+    },
+    "rekhwer_10_1": {
+      "question": "What now stands that did not exist before?"
+    },
+    "rekhwer_11_2": {
+      "question": "What in my craft still lacks inward guidance?"
+    },
+    "rekhwer_12_2": {
+      "question": "Where does rushing cause me to lose quality?"
+    },
+    "rekhwer_13_2": {
+      "question": "What small misalignment is distorting the whole?"
+    },
+    "rekhwer_14_2": {
+      "question": "Is my method worthy of repetition?"
+    },
+    "rekhwer_15_2": {
+      "question": "Where would more care increase true mastery?"
+    },
+    "rekhwer_16_2": {
+      "question": "Am I guiding my power, or wasting it?"
+    },
+    "rekhwer_17_2": {
+      "question": "Would my example teach correctness without words?"
+    },
+    "rekhwer_18_2": {
+      "question": "What motion in my life looks active but produces little?"
+    },
+    "rekhwer_19_2": {
+      "question": "Does my conduct truly match my stated purpose?"
+    },
+    "rekhwer_1_1": {
+      "question": "What am I responsible for forming now?"
+    },
+    "rekhwer_20_2": {
+      "question": "What inner law is now shaping how I work?"
+    },
+    "rekhwer_21_3": {
+      "question": "What in my life is actually ready to be trusted?"
+    },
+    "rekhwer_22_3": {
+      "question": "Where am I still pretending something is sound when it is not?"
+    },
+    "rekhwer_23_3": {
+      "question": "What must be honed so I stop tearing through life with a dull edge?"
+    },
+    "rekhwer_24_3": {
+      "question": "What needs correction now so it does not fail later?"
+    },
+    "rekhwer_25_3": {
+      "question": "Is my strength serving order, or only serving impulse?"
+    },
+    "rekhwer_26_3": {
+      "question": "What is mine to keep alive from here forward?"
+    },
+    "rekhwer_27_3": {
+      "question": "What will poison the next cycle if I keep feeding it?"
+    },
+    "rekhwer_28_3": {
+      "question": "What deserves my steady hand beyond today’s mood?"
+    },
+    "rekhwer_29_3": {
+      "question": "Can I let truth be measured exactly as it is?"
+    },
+    "rekhwer_2_1": {
+      "question": "Have I actually set the boundaries of this work?"
+    },
+    "rekhwer_30_3": {
+      "question": "Am I ready to be used in the work of Ma’at, not just praised for enduring?"
+    },
+    "rekhwer_3_1": {
+      "question": "What have I done that makes this real?"
+    },
+    "rekhwer_4_1": {
+      "question": "What is in the way of clean formation?"
+    },
+    "rekhwer_5_1": {
+      "question": "Am I working with truth or assumption?"
+    },
+    "rekhwer_6_1": {
+      "question": "Is this sustainable or just intense?"
+    },
+    "rekhwer_7_1": {
+      "question": "Do I break my own structure under pressure?"
+    },
+    "rekhwer_8_1": {
+      "question": "Where is this structure still fragile?"
+    },
+    "rekhwer_9_1": {
+      "question": "Does everything I’m doing actually belong here?"
+    },
+    "renwet_10_1": {
+      "question": "What kind of steward must I be for what has now entered my hands?"
+    },
+    "renwet_11_2": {
+      "question": "What is this blessing awakening in me?"
+    },
+    "renwet_12_2": {
+      "question": "Where has increase started feeding my image of myself?"
+    },
+    "renwet_13_2": {
+      "question": "What am I afraid will be taken from me?"
+    },
+    "renwet_14_2": {
+      "question": "Where has comfort started loosening my discipline?"
+    },
+    "renwet_15_2": {
+      "question": "Am I keeping wisely, or clutching out of fear?"
+    },
+    "renwet_16_2": {
+      "question": "What should be circulating instead of sitting locked in me?"
+    },
+    "renwet_17_2": {
+      "question": "Have I become too quickly accustomed to what once was a prayer?"
+    },
+    "renwet_18_2": {
+      "question": "Where has ease made me sloppier than Ma’at allows?"
+    },
+    "renwet_19_2": {
+      "question": "Does what I possess answer to my principles?"
+    },
+    "renwet_1_1": {
+      "question": "What has actually come into my life that I need to stop overlooking?"
+    },
+    "renwet_20_2": {
+      "question": "What must remain true in me, even as more arrives?"
+    },
+    "renwet_21_3": {
+      "question": "Do I truly know what is in my hands now?"
+    },
+    "renwet_22_3": {
+      "question": "Am I distributing by wisdom or by impulse?"
+    },
+    "renwet_23_3": {
+      "question": "What is leaking from my life because I have not guarded it well?"
+    },
+    "renwet_24_3": {
+      "question": "What would make this increase dependable instead of temporary?"
+    },
+    "renwet_25_3": {
+      "question": "Can I protect what matters without worshiping control?"
+    },
+    "renwet_26_3": {
+      "question": "Who becomes safer because I handled this well?"
+    },
+    "renwet_27_3": {
+      "question": "What do I need to teach so blessing does not die with me?"
+    },
+    "renwet_28_3": {
+      "question": "What is rotting the store from within?"
+    },
+    "renwet_29_3": {
+      "question": "What remains real after all the movement?"
+    },
+    "renwet_2_1": {
+      "question": "Do I know the right place for what I’ve received?"
+    },
+    "renwet_30_3": {
+      "question": "Am I becoming a person others can trust to handle increase well?"
+    },
+    "renwet_3_1": {
+      "question": "Have I honored the source before centering myself?"
+    },
+    "renwet_4_1": {
+      "question": "Who around me still needs to be fed by what has come in?"
+    },
+    "renwet_5_1": {
+      "question": "Can I face the increase clearly without exaggerating it?"
+    },
+    "renwet_6_1": {
+      "question": "Who helped carry me into this gain?"
+    },
+    "renwet_7_1": {
+      "question": "Am I receiving from this source wisely, or am I draining it?"
+    },
+    "renwet_8_1": {
+      "question": "Who or what needs my gratitude made plain today?"
+    },
+    "renwet_9_1": {
+      "question": "Can I keep this increase safe without becoming fearful or stingy?"
+    },
+    "sefbedet_10_1": {
+      "question": "\"What will I keep alive through consistency, not hype?\""
+    },
+    "sefbedet_11_2": {
+      "question": "\"Where is chaos sneaking in?\""
+    },
+    "sefbedet_12_2": {
+      "question": "\"What is quietly eating my field at night?\""
+    },
+    "sefbedet_13_2": {
+      "question": "\"What will I put in place tonight so I wake safer tomorrow?\""
+    },
+    "sefbedet_14_2": {
+      "question": "\"What am I allowing near me that Ma'at would drive into the sand?\""
+    },
+    "sefbedet_15_2": {
+      "question": "\"Where am I running too hot to stay fertile?\""
+    },
+    "sefbedet_16_2": {
+      "question": "\"What I saved — is it actually safe?\""
+    },
+    "sefbedet_17_2": {
+      "question": "\"Who has access to me that should not?\""
+    },
+    "sefbedet_18_2": {
+      "question": "\"Where did life escape my hands?\""
+    },
+    "sefbedet_19_2": {
+      "question": "\"Have I spoken my law out loud?\""
+    },
+    "sefbedet_1_1": {
+      "question": "\"Have I shaped a stable place for life to sit?\""
+    },
+    "sefbedet_20_2": {
+      "question": "\"Do I see threats early enough, or only after damage is done?\""
+    },
+    "sefbedet_21_3": {
+      "question": "\"Where am I still braced for danger that has already passed?\""
+    },
+    "sefbedet_22_3": {
+      "question": "\"What survived because of my care?\""
+    },
+    "sefbedet_23_3": {
+      "question": "\"Who will be fed by what I protected?\""
+    },
+    "sefbedet_24_3": {
+      "question": "\"Where can I release control without inviting chaos?\""
+    },
+    "sefbedet_25_3": {
+      "question": "\"Am I maintaining the one who carries nourishment?\""
+    },
+    "sefbedet_26_3": {
+      "question": "\"What will remain because I kept it alive?\""
+    },
+    "sefbedet_27_3": {
+      "question": "\"Do I permit joy only after collapse, or can I receive it in balance?\""
+    },
+    "sefbedet_28_3": {
+      "question": "\"Can I receive what feeds me without rushing or shrinking?\""
+    },
+    "sefbedet_29_3": {
+      "question": "\"Can I trust what I built enough to stop hovering over it?\""
+    },
+    "sefbedet_2_1": {
+      "question": "\"Where am I cracked from neglect and in need of moisture?\""
+    },
+    "sefbedet_30_3": {
+      "question": "\"How do I enter the next cycle as keeper, not casualty?\""
+    },
+    "sefbedet_3_1": {
+      "question": "\"What deserves to be rooted in me right now?\""
+    },
+    "sefbedet_4_1": {
+      "question": "\"Did I actually nourish what I claimed I cared about?\""
+    },
+    "sefbedet_5_1": {
+      "question": "\"What new growth needs shielding from noise and chaos?\""
+    },
+    "sefbedet_6_1": {
+      "question": "\"Is my body still acting like I'm in crisis even though I'm not?\""
+    },
+    "sefbedet_7_1": {
+      "question": "\"Do I treat my sources of support as sacred or as automatic?\""
+    },
+    "sefbedet_8_1": {
+      "question": "\"Is my giving Ma'at-balanced or am I draining myself?\""
+    },
+    "sefbedet_9_1": {
+      "question": "\"Can I point to proof of order — or am I telling a story?\""
+    },
+    "thoth_10_1": {
+      "question": "\"Is this word now stronger — or was it false?\""
+    },
+    "thoth_11_2": {
+      "question": "\"Who benefits from my effort besides me?\""
+    },
+    "thoth_12_2": {
+      "question": "\"Did value actually circulate, or did I only take?\""
+    },
+    "thoth_13_2": {
+      "question": "\"What changed because I showed up in person?\""
+    },
+    "thoth_14_2": {
+      "question": "\"What becomes stronger when I stop being loose?\""
+    },
+    "thoth_15_2": {
+      "question": "\"Where am I spending more force than the work requires?\""
+    },
+    "thoth_16_2": {
+      "question": "\"Who helps me remember my proper shape?\""
+    },
+    "thoth_17_2": {
+      "question": "\"What deserves a more disciplined promise?\""
+    },
+    "thoth_18_2": {
+      "question": "\"Can I receive without becoming swollen or ashamed?\""
+    },
+    "thoth_19_2": {
+      "question": "\"How do I return what was given so the circuit stays alive?\""
+    },
+    "thoth_1_1": {
+      "question": "\"Is this statement something I can stand inside — or just something I want to hear?\""
+    },
+    "thoth_20_2": {
+      "question": "\"What from this decan deserves to travel forward?\""
+    },
+    "thoth_21_3": {
+      "question": "\"What deserves to be kept steady instead of constantly reinvented?\""
+    },
+    "thoth_22_3": {
+      "question": "\"What should be recorded before memory begins to loosen it?\""
+    },
+    "thoth_23_3": {
+      "question": "\"What does my environment reveal about the condition of my rule?\""
+    },
+    "thoth_24_3": {
+      "question": "\"What have I built that now needs guarding more than growing?\""
+    },
+    "thoth_25_3": {
+      "question": "\"Can I let the work stand without needing my mouth to enlarge it?\""
+    },
+    "thoth_26_3": {
+      "question": "\"Where has looseness begun to enter my order?\""
+    },
+    "thoth_27_3": {
+      "question": "\"What has become too heavy, too loud, or too neglected?\""
+    },
+    "thoth_28_3": {
+      "question": "\"Do I know how to honor continuity without getting bored?\""
+    },
+    "thoth_29_3": {
+      "question": "\"What still needs tending before this month can close cleanly?\""
+    },
+    "thoth_2_1": {
+      "question": "\"Where do I exaggerate what I can carry?\""
+    },
+    "thoth_30_3": {
+      "question": "\"What has been truly established in me this month?\""
+    },
+    "thoth_3_1": {
+      "question": "\"What disorder have I been allowing to stand?\""
+    },
+    "thoth_4_1": {
+      "question": "\"Does this name carry weight — or is it empty sound?\""
+    },
+    "thoth_5_1": {
+      "question": "\"Where did my word fail to stand?\""
+    },
+    "thoth_6_1": {
+      "question": "\"Did I give in balance — or for recognition?\""
+    },
+    "thoth_7_1": {
+      "question": "\"What leaves my mouth when I am not guarding it?\""
+    },
+    "thoth_8_1": {
+      "question": "\"Does this feel like invention — or recognition?\""
+    },
+    "thoth_9_1": {
+      "question": "\"Would someone else recognize this as alignment?\""
+    }
+  }
+}

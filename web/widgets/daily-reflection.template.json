@@ -1,0 +1,38 @@
+{
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "selectAction": {
+    "type": "Action.Execute",
+    "verb": "open-planner"
+  },
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "Daily reflection",
+      "weight": "Bolder",
+      "size": "Medium",
+      "wrap": true
+    },
+    {
+      "type": "TextBlock",
+      "text": "${dateLabel}",
+      "isSubtle": true,
+      "spacing": "Small",
+      "wrap": true
+    },
+    {
+      "type": "TextBlock",
+      "text": "${question}",
+      "wrap": true,
+      "spacing": "Medium"
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.Execute",
+      "title": "Open planner",
+      "verb": "open-planner"
+    }
+  ]
+}
