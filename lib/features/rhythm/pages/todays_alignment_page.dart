@@ -83,6 +83,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   final TextEditingController _commitmentInputController =
       TextEditingController();
   final TextEditingController _noteInputController = TextEditingController();
+  final ScrollController _plannerScrollController = ScrollController();
   late PageController _todoPageController;
   final PageController _notePageController = PageController(
     viewportFraction: 0.9,
@@ -93,6 +94,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   int? _pendingTodoPageIndex;
   bool _pendingTodoPageAnimate = false;
   bool _todoPageJumpScheduled = false;
+  final GlobalKey _todoSectionKey = GlobalKey();
+  String? _pendingTodoSectionRevealKey;
+  String? _lastRevealedTodoSectionKey;
 
   final TextEditingController _nutritionNutrientController =
       TextEditingController();
@@ -196,6 +200,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     _sessionPersistDebounce?.cancel();
     _commitmentInputController.dispose();
     _noteInputController.dispose();
+    _plannerScrollController.dispose();
     _todoPageController.dispose();
     _notePageController.dispose();
     _nutritionNutrientController.dispose();
@@ -593,6 +598,56 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
   bool get _shouldOpenDayCardOnLoad =>
       widget.openDayCardOnLoad || widget.launchIntent?.openDayCard == true;
+
+  String? get _todoSectionRevealKey {
+    final intent = widget.launchIntent;
+    if (intent?.route != '/rhythm/todo') return null;
+    return intent!.launchToken ?? intent.routeLocation;
+  }
+
+  void _scheduleTodoSectionReveal() {
+    final launchKey = _todoSectionRevealKey;
+    if (launchKey == null ||
+        launchKey == _lastRevealedTodoSectionKey ||
+        launchKey == _pendingTodoSectionRevealKey) {
+      return;
+    }
+    _pendingTodoSectionRevealKey = launchKey;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _revealTodoSectionForLaunch(launchKey);
+    });
+  }
+
+  void _revealTodoSectionForLaunch(String launchKey, {int attempt = 0}) {
+    if (!mounted) return;
+    if (launchKey != _todoSectionRevealKey) {
+      if (_pendingTodoSectionRevealKey == launchKey) {
+        _pendingTodoSectionRevealKey = null;
+      }
+      return;
+    }
+
+    final targetContext = _todoSectionKey.currentContext;
+    if (targetContext == null || !_plannerScrollController.hasClients) {
+      if (attempt < 12) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _revealTodoSectionForLaunch(launchKey, attempt: attempt + 1);
+        });
+      } else if (_pendingTodoSectionRevealKey == launchKey) {
+        _pendingTodoSectionRevealKey = null;
+      }
+      return;
+    }
+
+    Scrollable.ensureVisible(
+      targetContext,
+      duration: const Duration(milliseconds: 360),
+      curve: Curves.easeOutCubic,
+      alignment: 0.04,
+    );
+    _lastRevealedTodoSectionKey = launchKey;
+    _pendingTodoSectionRevealKey = null;
+  }
 
   String _nutritionChecksPrefsKeyForUser(String? uid) =>
       'today_alignment_nutrition_checks${uid == null ? '' : '_$uid'}';
@@ -3161,8 +3216,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
         final progress = _progress();
         final plannerAction = _todayPlannerAction();
+        _scheduleTodoSectionReveal();
 
         final list = ListView(
+          controller: _plannerScrollController,
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
             RhythmSectionCard(
@@ -3254,163 +3311,167 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             const SizedBox(height: 14),
             _buildNutritionSection(),
             const SizedBox(height: 14),
-            RhythmSectionCard(
-              title: 'To Do',
-              subtitle:
-                  'Add what you want to move for this day. Press return or tap Add.',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_month_rounded,
-                        size: 18,
-                        color: _dateAccentColor(),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _formatDateLabel(_activeTodoDay, short: true),
-                          style: RhythmTheme.subheading.copyWith(
-                            color: _dateAccentColor(),
-                            fontWeight: FontWeight.w700,
-                          ),
+            KeyedSubtree(
+              key: _todoSectionKey,
+              child: RhythmSectionCard(
+                title: 'To Do',
+                subtitle:
+                    'Add what you want to move for this day. Press return or tap Add.',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_month_rounded,
+                          size: 18,
+                          color: _dateAccentColor(),
                         ),
-                      ),
-                      ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: _commitmentInputController,
-                        builder: (context, value, child) {
-                          final hasText = value.text.trim().isNotEmpty;
-                          return ElevatedButton.icon(
-                            style: withExpandedTouchTargets(
-                              context,
-                              ElevatedButton.styleFrom(
-                                backgroundColor: RhythmTheme.aurora,
-                                foregroundColor: Colors.black,
-                                disabledBackgroundColor: Colors.white
-                                    .withValues(alpha: 0.08),
-                                disabledForegroundColor: Colors.white38,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
-                                ),
-                                visualDensity: VisualDensity.compact,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                            ),
-                            onPressed: hasText
-                                ? () => unawaited(_commitNewTodo())
-                                : null,
-                            icon: const Icon(Icons.add, size: 16),
-                            label: const Text('Add'),
-                          );
-                        },
-                      ),
-                      if (_sameDay(_activeTodoDay, _todayLocal))
                         const SizedBox(width: 8),
-                      if (_sameDay(_activeTodoDay, _todayLocal))
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white12),
-                          ),
-                          child: const Text(
-                            'Today',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
+                        Expanded(
+                          child: Text(
+                            _formatDateLabel(_activeTodoDay, short: true),
+                            style: RhythmTheme.subheading.copyWith(
+                              color: _dateAccentColor(),
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _commitmentInputController,
-                    style: RhythmTheme.subheading,
-                    decoration: InputDecoration(
-                      hintText:
-                          'Type a commitment, then press return or tap Add',
-                      hintStyle: RhythmTheme.subheading.copyWith(
-                        color: Colors.white38,
-                      ),
-                      filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.06),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.12),
+                        ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _commitmentInputController,
+                          builder: (context, value, child) {
+                            final hasText = value.text.trim().isNotEmpty;
+                            return ElevatedButton.icon(
+                              style: withExpandedTouchTargets(
+                                context,
+                                ElevatedButton.styleFrom(
+                                  backgroundColor: RhythmTheme.aurora,
+                                  foregroundColor: Colors.black,
+                                  disabledBackgroundColor: Colors.white
+                                      .withValues(alpha: 0.08),
+                                  disabledForegroundColor: Colors.white38,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                              onPressed: hasText
+                                  ? () => unawaited(_commitNewTodo())
+                                  : null,
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('Add'),
+                            );
+                          },
                         ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.12),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: RhythmTheme.aurora.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      isDense: true,
+                        if (_sameDay(_activeTodoDay, _todayLocal))
+                          const SizedBox(width: 8),
+                        if (_sameDay(_activeTodoDay, _todayLocal))
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white12),
+                            ),
+                            child: const Text(
+                              'Today',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                    textCapitalization: TextCapitalization.sentences,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => unawaited(_commitNewTodo()),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: _todoPageHeightEstimate(),
-                    child: PageView.builder(
-                      controller: _todoPageController,
-                      physics: const BouncingScrollPhysics(),
-                      onPageChanged: _onTodoPageChanged,
-                      itemCount: _todoDays.length,
-                      itemBuilder: (context, index) {
-                        final day = _todoDays[index];
-                        return _buildTodoDayPage(day);
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      for (int i = 0; i < _todoDays.length; i++)
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          height: 8,
-                          width: _activeTodoDayIndex == i ? 18 : 8,
-                          decoration: BoxDecoration(
-                            color: _activeTodoDayIndex == i
-                                ? RhythmTheme.aurora
-                                : Colors.white.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(20),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _commitmentInputController,
+                      style: RhythmTheme.subheading,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Type a commitment, then press return or tap Add',
+                        hintStyle: RhythmTheme.subheading.copyWith(
+                          color: Colors.white38,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.06),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.12),
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Swipe to review the previous 2 days or plan 2 days ahead.',
-                    textAlign: TextAlign.center,
-                    style: RhythmTheme.label.copyWith(color: Colors.white54),
-                  ),
-                ],
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.12),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: RhythmTheme.aurora.withValues(alpha: 0.6),
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        isDense: true,
+                      ),
+                      textCapitalization: TextCapitalization.sentences,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => unawaited(_commitNewTodo()),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: _todoPageHeightEstimate(),
+                      child: PageView.builder(
+                        controller: _todoPageController,
+                        physics: const BouncingScrollPhysics(),
+                        onPageChanged: _onTodoPageChanged,
+                        itemCount: _todoDays.length,
+                        itemBuilder: (context, index) {
+                          final day = _todoDays[index];
+                          return _buildTodoDayPage(day);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        for (int i = 0; i < _todoDays.length; i++)
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            height: 8,
+                            width: _activeTodoDayIndex == i ? 18 : 8,
+                            decoration: BoxDecoration(
+                              color: _activeTodoDayIndex == i
+                                  ? RhythmTheme.aurora
+                                  : Colors.white.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Swipe to review the previous 2 days or plan 2 days ahead.',
+                      textAlign: TextAlign.center,
+                      style: RhythmTheme.label.copyWith(color: Colors.white54),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 14),

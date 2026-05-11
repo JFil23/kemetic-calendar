@@ -102,6 +102,38 @@ class RhythmTodo {
   final RhythmItemState state;
 }
 
+class RhythmTodoDraft {
+  const RhythmTodoDraft({
+    required this.title,
+    this.notes,
+    this.dueDate,
+    this.dueTime,
+    this.metadata = const <String, dynamic>{},
+  });
+
+  final String title;
+  final String? notes;
+  final DateTime? dueDate;
+  final TimeOfDay? dueTime;
+  final Map<String, dynamic> metadata;
+
+  RhythmTodoDraft copyWith({
+    String? title,
+    String? notes,
+    DateTime? dueDate,
+    TimeOfDay? dueTime,
+    Map<String, dynamic>? metadata,
+  }) {
+    return RhythmTodoDraft(
+      title: title ?? this.title,
+      notes: notes ?? this.notes,
+      dueDate: dueDate ?? this.dueDate,
+      dueTime: dueTime ?? this.dueTime,
+      metadata: metadata ?? this.metadata,
+    );
+  }
+}
+
 class RhythmNote {
   const RhythmNote({
     required this.id,

@@ -258,6 +258,69 @@ class RhythmRepo {
     }
   }
 
+  Future<RhythmRepoResult<List<RhythmTodo>>> insertTodos(
+    List<RhythmTodoDraft> drafts,
+  ) async {
+    final uid = _userId;
+    if (uid == null) {
+      return const RhythmRepoResult(
+        data: <RhythmTodo>[],
+        friendlyError: 'Not signed in',
+      );
+    }
+    final rows = drafts
+        .map((draft) {
+          final title = draft.title.trim();
+          if (title.isEmpty) return null;
+          final dueDate = draft.dueDate == null
+              ? null
+              : DateFormat(
+                  'yyyy-MM-dd',
+                ).format(DateUtils.dateOnly(draft.dueDate!));
+          return <String, dynamic>{
+            'user_id': uid,
+            'title': title,
+            if (draft.notes?.trim().isNotEmpty == true)
+              'notes': draft.notes!.trim(),
+            if (dueDate != null) 'due_date': dueDate,
+            if (draft.dueTime != null) 'due_time': _formatDbTime(draft.dueTime),
+            'show_on_checklist': true,
+            'show_on_calendar': true,
+            'status': 'pending',
+            if (draft.metadata.isNotEmpty) 'metadata': draft.metadata,
+          };
+        })
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
+    if (rows.isEmpty) return const RhythmRepoResult(data: <RhythmTodo>[]);
+
+    try {
+      final response = await _client
+          .from('todos')
+          .insert(rows)
+          .select(
+            'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
+          );
+      final todos = response
+          .map<RhythmTodo>(
+            (row) => _todoFromRow(Map<String, dynamic>.from(row)),
+          )
+          .toList(growable: false);
+      return RhythmRepoResult(data: todos);
+    } catch (e) {
+      if (_isMissingTable(e)) {
+        return const RhythmRepoResult(
+          data: <RhythmTodo>[],
+          missingTables: true,
+        );
+      }
+      return RhythmRepoResult(
+        data: const <RhythmTodo>[],
+        friendlyError: _friendlyMessage(e),
+      );
+    }
+  }
+
   Future<RhythmRepoResult<bool>> updateTodoState(
     String todoId,
     RhythmItemState state,

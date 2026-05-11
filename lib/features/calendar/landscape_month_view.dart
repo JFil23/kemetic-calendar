@@ -2670,87 +2670,25 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   }
 
   Widget _buildEventDetailPrimaryAction({
+    required BuildContext rootContext,
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
   }) {
-    final currentEvent = target.event;
-    final flow = _chromeFlowForId(currentEvent.flowId);
-    final isReminder = currentEvent.isReminder;
-
-    if (flow != null) {
-      final enabled = CalendarPage.globalKey.currentState?.mounted ?? false;
-      return TextButton.icon(
-        onPressed: enabled
-            ? () async {
-                Navigator.pop(sheetContext);
-                await CalendarPage.shareFlowFromEvent(currentEvent);
-              }
-            : null,
-        icon: enabled
-            ? KemeticGold.icon(Icons.share_outlined)
-            : const Icon(Icons.share_outlined, color: Color(0xFF404040)),
-        label: enabled
-            ? KemeticGold.text(
-                'Share Flow',
-                style: _landscapeActionTextStyle.copyWith(fontSize: 15),
-              )
-            : const Text(
-                'Share Flow',
-                style: TextStyle(color: Color(0xFF404040)),
-              ),
-      );
-    }
-
-    if (isReminder) {
-      final enabled =
-          widget.onEditReminder != null && currentEvent.reminderId != null;
-      return TextButton.icon(
-        onPressed: enabled
-            ? () async {
-                Navigator.pop(sheetContext);
-                await widget.onEditReminder!(currentEvent.reminderId!);
-              }
-            : null,
-        icon: enabled
-            ? KemeticGold.icon(Icons.notifications_active_outlined)
-            : const Icon(
-                Icons.notifications_active_outlined,
-                color: Color(0xFF404040),
-              ),
-        label: enabled
-            ? KemeticGold.text(
-                'Reminder',
-                style: _landscapeActionTextStyle.copyWith(fontSize: 15),
-              )
-            : const Text(
-                'Reminder',
-                style: TextStyle(color: Color(0xFF404040)),
-              ),
-      );
-    }
-
-    final enabled = widget.onEditNote != null;
     return TextButton.icon(
-      onPressed: enabled
-          ? () async {
-              Navigator.pop(sheetContext);
-              await widget.onEditNote!(
-                target.ky,
-                target.km,
-                target.kd,
-                currentEvent,
-              );
-            }
-          : null,
-      icon: enabled
-          ? KemeticGold.icon(Icons.note_alt_outlined)
-          : const Icon(Icons.note_alt_outlined, color: Color(0xFF404040)),
-      label: enabled
-          ? KemeticGold.text(
-              'Note',
-              style: _landscapeActionTextStyle.copyWith(fontSize: 15),
-            )
-          : const Text('Note', style: TextStyle(color: Color(0xFF404040))),
+      onPressed: () async {
+        Navigator.pop(sheetContext);
+        final handled = await CalendarPage.makeTodoFromEventTarget(target);
+        if (!handled && rootContext.mounted) {
+          ScaffoldMessenger.of(
+            rootContext,
+          ).showSnackBar(const SnackBar(content: Text('Could not add to-do.')));
+        }
+      },
+      icon: KemeticGold.icon(Icons.playlist_add_check),
+      label: KemeticGold.text(
+        'Make to-do',
+        style: _landscapeActionTextStyle.copyWith(fontSize: 15),
+      ),
     );
   }
 
@@ -2774,16 +2712,18 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             target.kd,
             sheetContext: sheetContext,
           );
-        } else if (value == 'edit' && flow != null && actionableFlow) {
+        } else if (value == 'share') {
           Navigator.pop(sheetContext);
-          widget.onManageFlows?.call(flow.id);
-        } else if (value == 'invite_people') {
-          Navigator.pop(sheetContext);
-          if (isReminder && widget.onShareReminder != null) {
+          if (flow != null && !isReminder) {
+            await CalendarPage.shareFlowFromEvent(currentEvent);
+          } else if (isReminder && widget.onShareReminder != null) {
             await widget.onShareReminder!(currentEvent);
           } else if (widget.onShareNote != null) {
             await widget.onShareNote!(currentEvent);
           }
+        } else if (value == 'edit' && flow != null && actionableFlow) {
+          Navigator.pop(sheetContext);
+          widget.onManageFlows?.call(flow.id);
         } else if (value == 'save' &&
             flow != null &&
             actionableFlow &&
@@ -2824,6 +2764,26 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               ],
             ),
           ),
+        if (flow != null ||
+            (isReminder && widget.onShareReminder != null) ||
+            (flow == null && !isReminder && widget.onShareNote != null))
+          PopupMenuItem(
+            value: 'share',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.share_outlined),
+                const SizedBox(width: 12),
+                Text(
+                  flow != null
+                      ? 'Share Flow'
+                      : isReminder
+                      ? 'Share Reminder'
+                      : 'Share Note',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
         if (flow != null &&
             actionableFlow &&
             !isReminder &&
@@ -2835,20 +2795,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                 KemeticGold.icon(Icons.edit),
                 const SizedBox(width: 12),
                 const Text('Edit Flow', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if (flow != null && !isReminder && widget.onShareNote != null)
-          PopupMenuItem(
-            value: 'invite_people',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.person_add_alt_1),
-                const SizedBox(width: 12),
-                const Text(
-                  'Invite People',
-                  style: TextStyle(color: Colors.white),
-                ),
               ],
             ),
           ),
@@ -2882,20 +2828,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               ],
             ),
           ),
-        if (isReminder && widget.onShareReminder != null)
-          PopupMenuItem(
-            value: 'invite_people',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.person_add_alt_1),
-                const SizedBox(width: 12),
-                const Text(
-                  'Invite People',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
         if (flow == null && !isReminder && widget.onEditNote != null)
           PopupMenuItem(
             value: 'edit_note',
@@ -2907,25 +2839,12 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               ],
             ),
           ),
-        if (flow == null && !isReminder && widget.onShareNote != null)
-          PopupMenuItem(
-            value: 'invite_people',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.person_add_alt_1),
-                const SizedBox(width: 12),
-                const Text(
-                  'Invite People',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
       ],
     );
   }
 
   Widget _buildEventDetailBottomActionRow({
+    required BuildContext rootContext,
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
     required ValueChanged<DayViewSheetEventTarget> onTargetChanged,
@@ -2941,6 +2860,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _buildEventDetailPrimaryAction(
+          rootContext: rootContext,
           sheetContext: sheetContext,
           target: target,
         ),
@@ -2974,6 +2894,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   }
 
   void _showEventDetail(EventItem event, int day) {
+    final rootContext = context;
     final sheetDataListenable = widget.dataVersion ?? _kLandscapeZeroListenable;
     final currentTarget = ValueNotifier<DayViewSheetEventTarget>(
       DayViewSheetEventTarget(
@@ -3117,6 +3038,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                                 ),
                                 const SizedBox(height: 10),
                                 _buildEventDetailBottomActionRow(
+                                  rootContext: rootContext,
                                   sheetContext: sheetContext,
                                   target: target,
                                   onTargetChanged: moveToTarget,

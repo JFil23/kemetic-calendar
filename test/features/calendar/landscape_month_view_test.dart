@@ -65,13 +65,62 @@ void main() {
         expect(committedMonth!.km, 5);
       },
     );
+
+    testWidgets('detail sheets match day view action placement', (
+      tester,
+    ) async {
+      await _setLandscapeViewport(tester);
+      EventItem? sharedEvent;
+
+      await tester.pumpWidget(
+        _LandscapePagerHarness(
+          notesForDay: (ky, km, kd) => kd == 1
+              ? const [
+                  NoteData(
+                    clientEventId: 'landscape-note',
+                    title: 'Landscape note',
+                    allDay: false,
+                    start: TimeOfDay(hour: 0, minute: 0),
+                    end: TimeOfDay(hour: 1, minute: 0),
+                  ),
+                ]
+              : const <NoteData>[],
+          onShareNote: (event) async {
+            sharedEvent = event;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Landscape note'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Make to-do'), findsOneWidget);
+      expect(find.text('Share Note'), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      expect(find.text('Share Note'), findsOneWidget);
+      await tester.tap(find.text('Share Note'));
+      await tester.pumpAndSettle();
+
+      expect(sharedEvent, isNotNull);
+      expect(sharedEvent!.title, 'Landscape note');
+      expect(sharedEvent!.clientEventId, 'landscape-note');
+    });
   });
 }
 
 class _LandscapePagerHarness extends StatelessWidget {
-  const _LandscapePagerHarness({this.onVisibleMonthCommitted});
+  const _LandscapePagerHarness({
+    this.notesForDay,
+    this.onVisibleMonthCommitted,
+    this.onShareNote,
+  });
 
+  final List<NoteData> Function(int ky, int km, int kd)? notesForDay;
   final void Function(int ky, int km)? onVisibleMonthCommitted;
+  final Future<void> Function(EventItem event)? onShareNote;
 
   @override
   Widget build(BuildContext context) {
@@ -81,10 +130,11 @@ class _LandscapePagerHarness extends StatelessWidget {
           initialKy: 6267,
           initialKm: 4,
           showGregorian: false,
-          notesForDay: (_, __, ___) => const <NoteData>[],
+          notesForDay: notesForDay ?? ((_, __, ___) => const <NoteData>[]),
           flowIndex: const <int, FlowData>{},
           getMonthName: (km) => 'Month $km',
           onVisibleMonthCommitted: onVisibleMonthCommitted,
+          onShareNote: onShareNote,
         ),
       ),
     );

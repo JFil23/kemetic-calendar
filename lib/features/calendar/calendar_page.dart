@@ -92,6 +92,9 @@ import '../onboarding/calendar_month_coachmark.dart';
 import '../onboarding/calendar_toggle_coachmark.dart';
 import '../onboarding/onboarding_overlay.dart';
 import '../onboarding/onboarding_storage.dart';
+import '../rhythm/data/rhythm_repo.dart';
+import '../rhythm/event_todo_action.dart';
+import '../rhythm/event_todo_builder.dart';
 import '../rhythm/data/planner_badge_repo.dart';
 import '../rhythm/pages/todays_alignment_page.dart';
 
@@ -5727,6 +5730,14 @@ class CalendarPage extends StatefulWidget {
     return state._endFlowFromEventTarget(target);
   }
 
+  static Future<bool> makeTodoFromEventTarget(
+    DayViewSheetEventTarget target,
+  ) async {
+    final state = _mountedState;
+    if (state == null) return false;
+    return state._makeTodoFromEventTarget(target);
+  }
+
   static String detailSheetCalendarButtonLabel(EventItem event) {
     final state = globalKey.currentState;
     if (state == null || !state.mounted) return 'Calendar';
@@ -6181,6 +6192,7 @@ class _CalendarPageState extends State<CalendarPage>
   // Repository instances
   late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
   late final JournalRepo _journalRepo = JournalRepo(Supabase.instance.client);
+  late final RhythmRepo _rhythmRepo = RhythmRepo(Supabase.instance.client);
   late final PlannerBadgeRepo _plannerBadgeRepo = PlannerBadgeRepo(
     Supabase.instance.client,
   );
@@ -17558,6 +17570,71 @@ class _CalendarPageState extends State<CalendarPage>
     return true;
   }
 
+  Future<bool> _makeTodoFromEventTarget(DayViewSheetEventTarget target) async {
+    final event = target.event;
+    final flow = _calendarChromeFlowDataForId(event.flowId);
+    final eventDate = KemeticMath.toGregorian(target.ky, target.km, target.kd);
+    final dueDate = DateTime(eventDate.year, eventDate.month, eventDate.day);
+    final dueTime = event.allDay ? null : _timeOfDayFromMinute(event.startMin);
+    final source = EventTodoSource(
+      title: event.title,
+      detail: event.detail,
+      location: event.location,
+      flowName: flow?.name,
+      isFlow: event.flowId != null && !event.isReminder,
+      isReminder: event.isReminder,
+    );
+    final sourceMetadata = <String, dynamic>{
+      'source': 'calendar_event_make_todo',
+      'source_title': event.title,
+      'source_kemetic_date': '${target.ky}-${target.km}-${target.kd}',
+      if (event.id?.trim().isNotEmpty == true) 'event_id': event.id!.trim(),
+      if (event.clientEventId?.trim().isNotEmpty == true)
+        'client_event_id': event.clientEventId!.trim(),
+      if (event.flowId != null) 'flow_id': event.flowId,
+      if (flow?.name.trim().isNotEmpty == true) 'flow_name': flow!.name.trim(),
+      if (event.reminderId?.trim().isNotEmpty == true)
+        'reminder_id': event.reminderId!.trim(),
+      if (event.isReminder) 'is_reminder': true,
+    };
+    final result = await makeEventTodos(
+      source: source,
+      dueDate: dueDate,
+      dueTime: dueTime,
+      metadata: sourceMetadata,
+      insertTodos: _rhythmRepo.insertTodos,
+    );
+    if (!mounted) return false;
+    if (!result.success || result.plannerLocation == null) {
+      _showMakeTodoError(result.errorMessage ?? 'Could not add to-do.');
+      return false;
+    }
+    _openPlannerTodoList(result.plannerLocation!);
+    return true;
+  }
+
+  TimeOfDay _timeOfDayFromMinute(int minuteOfDay) {
+    final clamped = minuteOfDay.clamp(0, 23 * 60 + 59).toInt();
+    return TimeOfDay(hour: clamped ~/ 60, minute: clamped % 60);
+  }
+
+  void _showMakeTodoError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _openPlannerTodoList(String location) {
+    if (!mounted) return;
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    if (rootNavigator.canPop()) {
+      rootNavigator.popUntil((route) => route.isFirst);
+    }
+    if (!mounted) return;
+    context.go(location);
+  }
+
   Future<void> _endFlow(int flowId, {DateTime? endedAtLocal}) async {
     final repo = UserEventsRepo(Supabase.instance.client);
     final effectiveEndedAtLocal = endedAtLocal ?? DateTime.now();
@@ -27205,84 +27282,21 @@ class _MainCalendarEventDetailSheetState
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
   }) {
-    final currentEvent = target.event;
-    final flow = widget.flowResolver?.call(currentEvent.flowId);
-    final isReminder = currentEvent.isReminder;
-
-    if (flow != null) {
-      final enabled = CalendarPage.globalKey.currentState?.mounted ?? false;
-      return TextButton.icon(
-        onPressed: enabled
-            ? () async {
-                Navigator.pop(sheetContext);
-                await CalendarPage.shareFlowFromEvent(currentEvent);
-              }
-            : null,
-        icon: enabled
-            ? KemeticGold.icon(Icons.share_outlined)
-            : const Icon(Icons.share_outlined, color: Color(0xFF404040)),
-        label: enabled
-            ? KemeticGold.text(
-                'Share Flow',
-                style: _actionTextStyle.copyWith(fontSize: 15),
-              )
-            : const Text(
-                'Share Flow',
-                style: TextStyle(color: Color(0xFF404040)),
-              ),
-      );
-    }
-
-    if (isReminder) {
-      final enabled =
-          widget.onEditReminder != null && currentEvent.reminderId != null;
-      return TextButton.icon(
-        onPressed: enabled
-            ? () async {
-                Navigator.pop(sheetContext);
-                await widget.onEditReminder!(currentEvent.reminderId!);
-              }
-            : null,
-        icon: enabled
-            ? KemeticGold.icon(Icons.notifications_active_outlined)
-            : const Icon(
-                Icons.notifications_active_outlined,
-                color: Color(0xFF404040),
-              ),
-        label: enabled
-            ? KemeticGold.text(
-                'Reminder',
-                style: _actionTextStyle.copyWith(fontSize: 15),
-              )
-            : const Text(
-                'Reminder',
-                style: TextStyle(color: Color(0xFF404040)),
-              ),
-      );
-    }
-
-    final enabled = widget.onEditNote != null;
     return TextButton.icon(
-      onPressed: enabled
-          ? () async {
-              Navigator.pop(sheetContext);
-              await widget.onEditNote!(
-                target.ky,
-                target.km,
-                target.kd,
-                currentEvent,
-              );
-            }
-          : null,
-      icon: enabled
-          ? KemeticGold.icon(Icons.note_alt_outlined)
-          : const Icon(Icons.note_alt_outlined, color: Color(0xFF404040)),
-      label: enabled
-          ? KemeticGold.text(
-              'Note',
-              style: _actionTextStyle.copyWith(fontSize: 15),
-            )
-          : const Text('Note', style: TextStyle(color: Color(0xFF404040))),
+      onPressed: () async {
+        Navigator.pop(sheetContext);
+        final handled = await CalendarPage.makeTodoFromEventTarget(target);
+        if (!handled && widget.hostContext.mounted) {
+          ScaffoldMessenger.maybeOf(widget.hostContext)?.showSnackBar(
+            const SnackBar(content: Text('Could not add to-do.')),
+          );
+        }
+      },
+      icon: KemeticGold.icon(Icons.playlist_add_check),
+      label: KemeticGold.text(
+        'Make to-do',
+        style: _actionTextStyle.copyWith(fontSize: 15),
+      ),
     );
   }
 
@@ -27303,18 +27317,20 @@ class _MainCalendarEventDetailSheetState
       onSelected: (value) async {
         if (value == 'journal') {
           await _handleAddToJournal(currentEvent, sheetContext: sheetContext);
+        } else if (value == 'share') {
+          Navigator.pop(sheetContext);
+          if (hasFlow && !isReminder) {
+            await CalendarPage.shareFlowFromEvent(currentEvent);
+          } else if (isReminder && widget.onShareReminder != null) {
+            await widget.onShareReminder!(currentEvent);
+          } else if (widget.onShareNote != null) {
+            await widget.onShareNote!(currentEvent);
+          }
         } else if (value == 'edit' &&
             actionableFlow &&
             widget.onManageFlows != null) {
           Navigator.pop(sheetContext);
           widget.onManageFlows!(flow!.id);
-        } else if (value == 'invite_people') {
-          Navigator.pop(sheetContext);
-          if (isReminder && widget.onShareReminder != null) {
-            await widget.onShareReminder!(currentEvent);
-          } else if (widget.onShareNote != null) {
-            await widget.onShareNote!(currentEvent);
-          }
         } else if (value == 'save' && actionableFlow && flow != null) {
           Navigator.pop(sheetContext);
           await _saveFlow(flow.id);
@@ -27352,6 +27368,26 @@ class _MainCalendarEventDetailSheetState
               ],
             ),
           ),
+        if (hasFlow ||
+            (isReminder && widget.onShareReminder != null) ||
+            (!hasFlow && !isReminder && widget.onShareNote != null))
+          PopupMenuItem(
+            value: 'share',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.share_outlined),
+                const SizedBox(width: 12),
+                Text(
+                  hasFlow
+                      ? 'Share Flow'
+                      : isReminder
+                      ? 'Share Reminder'
+                      : 'Share Note',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
         if (hasFlow &&
             actionableFlow &&
             !isReminder &&
@@ -27363,20 +27399,6 @@ class _MainCalendarEventDetailSheetState
                 KemeticGold.icon(Icons.edit),
                 const SizedBox(width: 12),
                 const Text('Edit Flow', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if (hasFlow && !isReminder && widget.onShareNote != null)
-          PopupMenuItem(
-            value: 'invite_people',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.person_add_alt_1),
-                const SizedBox(width: 12),
-                const Text(
-                  'Invite People',
-                  style: TextStyle(color: Colors.white),
-                ),
               ],
             ),
           ),
@@ -27407,20 +27429,6 @@ class _MainCalendarEventDetailSheetState
               ],
             ),
           ),
-        if (isReminder && widget.onShareReminder != null)
-          PopupMenuItem(
-            value: 'invite_people',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.person_add_alt_1),
-                const SizedBox(width: 12),
-                const Text(
-                  'Invite People',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
         if (!hasFlow && !isReminder && widget.onEditNote != null)
           PopupMenuItem(
             value: 'edit_note',
@@ -27429,20 +27437,6 @@ class _MainCalendarEventDetailSheetState
                 KemeticGold.icon(Icons.edit),
                 const SizedBox(width: 12),
                 const Text('Edit Note', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if (!hasFlow && !isReminder && widget.onShareNote != null)
-          PopupMenuItem(
-            value: 'invite_people',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.person_add_alt_1),
-                const SizedBox(width: 12),
-                const Text(
-                  'Invite People',
-                  style: TextStyle(color: Colors.white),
-                ),
               ],
             ),
           ),

@@ -283,10 +283,12 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('1:00 PM – 2:00 PM'), findsOneWidget);
+        expect(find.text('Make to-do'), findsOneWidget);
 
         await tester.tap(find.byIcon(Icons.more_vert));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Invite People'));
+        expect(find.text('Share Note'), findsOneWidget);
+        await tester.tap(find.text('Share Note'));
         await tester.pumpAndSettle();
 
         expect(sharedEvent, isNotNull);
@@ -373,9 +375,16 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Archived Practice Flow'), findsWidgets);
-        expect(find.text('Share Flow'), findsOneWidget);
+        expect(find.text('Make to-do'), findsOneWidget);
+        expect(find.text('Share Flow'), findsNothing);
         expect(find.text('End Flow'), findsOneWidget);
         expect(find.text('End Note'), findsNothing);
+
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+        expect(find.text('Share Flow'), findsOneWidget);
+        await tester.tapAt(const Offset(10, 10));
+        await tester.pumpAndSettle();
 
         await tester.tap(find.text('End Flow'));
         await tester.pumpAndSettle();
@@ -417,9 +426,14 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Cooking and Art Mastery'), findsWidgets);
-        expect(find.text('Share Flow'), findsOneWidget);
+        expect(find.text('Make to-do'), findsOneWidget);
+        expect(find.text('Share Flow'), findsNothing);
         expect(find.text('End Flow'), findsOneWidget);
         expect(find.text('End Note'), findsNothing);
+
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+        expect(find.text('Share Flow'), findsOneWidget);
       },
     );
 
@@ -507,6 +521,47 @@ void main() {
         final finalHeight = _detailSheetPageHeight(tester);
         expect(find.text('Family Salon D'), findsWidgets);
         expect(finalHeight, closeTo(initialHeight, 0.01));
+      },
+    );
+
+    testWidgets(
+      'reminder detail sheet exposes make todo and shares from the menu',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        EventItem? sharedReminder;
+
+        await tester.pumpWidget(
+          _PagedReminderDayViewHarness(
+            notes: [
+              _timedReminderNote(
+                clientEventId: 'cid-reminder-share',
+                reminderId: 'reminder-share',
+                title: 'Journal every day',
+                startHour: 10,
+              ),
+            ],
+            onShareReminder: (event) async {
+              sharedReminder = event;
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Journal every day'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Make to-do'), findsOneWidget);
+        expect(find.text('Share Reminder'), findsNothing);
+
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+        expect(find.text('Share Reminder'), findsOneWidget);
+        await tester.tap(find.text('Share Reminder'));
+        await tester.pumpAndSettle();
+
+        expect(sharedReminder, isNotNull);
+        expect(sharedReminder!.title, 'Journal every day');
+        expect(sharedReminder!.reminderId, 'reminder-share');
       },
     );
   });
@@ -955,9 +1010,13 @@ class _SheetPersistenceHarness extends StatelessWidget {
 }
 
 class _PagedReminderDayViewHarness extends StatelessWidget {
-  const _PagedReminderDayViewHarness({required this.notes});
+  const _PagedReminderDayViewHarness({
+    required this.notes,
+    this.onShareReminder,
+  });
 
   final List<NoteData> notes;
+  final Future<void> Function(EventItem event)? onShareReminder;
 
   @override
   Widget build(BuildContext context) {
@@ -1008,6 +1067,7 @@ class _PagedReminderDayViewHarness extends StatelessWidget {
           showGregorian: false,
           flowIndex: const {},
           initialScrollOffset: 9 * 60,
+          onShareReminder: onShareReminder,
           resolveAdjacentEvent: resolveAdjacent,
           resolveCurrentEventTarget: resolveCurrent,
         ),
