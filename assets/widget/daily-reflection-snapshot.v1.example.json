@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "kind": "daily_reflection",
+  "generatedAt": "2026-05-09T07:00:00-07:00",
+  "validForLocalDate": "2026-05-09",
+  "timezone": "America/Los_Angeles",
+  "locale": "en-US",
+  "reflection": "\"What survived this labor in good form?\"",
+  "kemeticDate": {
+    "display": "Phaophi 21",
+    "dayKey": "paophi_21_3",
+    "kYear": 2
+  },
+  "intent": {
+    "url": "https://maat.app/rhythm/today?openDayCard=1&source=ios_widget&date=2026-05-09&tz=America%2FLos_Angeles",
+    "route": "/rhythm/today",
+    "params": {
+      "openDayCard": "1",
+      "source": "ios_widget",
+      "date": "2026-05-09",
+      "tz": "America/Los_Angeles"
+    }
+  },
+  "expiresAt": "2026-05-10T00:05:00-07:00",
+  "authRequired": false,
+  "sourceVersion": "daily-reflection-days.v1"
+}

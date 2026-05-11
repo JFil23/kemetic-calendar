@@ -93,6 +93,7 @@ flutter:
   assets:
     - env/dev.json
     - assets/icons/dendera_zodiac_gold.png
+    - assets/widget/
     - assets/ma_at_flows/
     - assets/profile/day_cycle_alt_2/
 

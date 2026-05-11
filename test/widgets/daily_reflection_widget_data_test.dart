@@ -12,15 +12,30 @@ void main() {
       'days': _buildReflectionDays(),
     };
 
-    final file = File('web/widgets/daily-reflection-days.json');
+    final sharedFile = File('assets/widget/daily-reflection-days.json');
+    final webFile = File('web/widgets/daily-reflection-days.json');
+    final iosWidgetFile = File(
+      'ios/DailyReflectionWidget/daily-reflection-days.json',
+    );
     if (Platform.environment['UPDATE_DAILY_REFLECTION_WIDGET_DATA'] == '1') {
-      file.writeAsStringSync(
-        '${const JsonEncoder.withIndent('  ').convert(expected)}\n',
-      );
+      final body = '${const JsonEncoder.withIndent('  ').convert(expected)}\n';
+      sharedFile
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(body);
+      webFile
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(body);
+      iosWidgetFile
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(body);
     }
 
-    final actual = jsonDecode(file.readAsStringSync());
-    expect(actual, expected);
+    final sharedActual = jsonDecode(sharedFile.readAsStringSync());
+    final webActual = jsonDecode(webFile.readAsStringSync());
+    final iosWidgetActual = jsonDecode(iosWidgetFile.readAsStringSync());
+    expect(sharedActual, expected);
+    expect(webActual, expected);
+    expect(iosWidgetActual, expected);
   });
 }
 

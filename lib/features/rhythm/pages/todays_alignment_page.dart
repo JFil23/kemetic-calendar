@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/core/planner_launch_intent.dart';
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:mobile/core/touch_targets.dart';
@@ -45,12 +46,14 @@ class TodaysAlignmentPage extends StatefulWidget {
     this.openedFromCalendar = false,
     this.openedFromCalendarSwipe = false,
     this.openDayCardOnLoad = false,
+    this.launchIntent,
   });
 
   final bool embedded;
   final bool openedFromCalendar;
   final bool openedFromCalendarSwipe;
   final bool openDayCardOnLoad;
+  final PlannerLaunchIntent? launchIntent;
 
   @override
   State<TodaysAlignmentPage> createState() => _TodaysAlignmentPageState();
@@ -168,6 +171,24 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         ),
       );
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant TodaysAlignmentPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.launchIntent?.routeLocation !=
+            widget.launchIntent?.routeLocation ||
+        oldWidget.openDayCardOnLoad != widget.openDayCardOnLoad) {
+      _todoDays = buildTodoDayWindow(anchorDay: _todayLocal);
+      _todosByDay = {for (final day in _todoDays) day: <RhythmTodo>[]};
+      _activeNutritionDayIndex = (_currentDecanDay() - 1).clamp(0, 9);
+      _future = _load().then((_) {
+        _publishDailyReflectionWidgetData();
+      });
+      unawaited(_loadNutrition());
+      unawaited(_loadNutritionStates());
+      _scheduleMidnightRefresh();
+    }
   }
 
   @override
@@ -567,7 +588,11 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
   String? get _currentUserId => Supabase.instance.client.auth.currentUser?.id;
 
-  DateTime get _todayLocal => DateUtils.dateOnly(DateTime.now());
+  DateTime get _todayLocal =>
+      DateUtils.dateOnly(widget.launchIntent?.localDate ?? DateTime.now());
+
+  bool get _shouldOpenDayCardOnLoad =>
+      widget.openDayCardOnLoad || widget.launchIntent?.openDayCard == true;
 
   String _nutritionChecksPrefsKeyForUser(String? uid) =>
       'today_alignment_nutrition_checks${uid == null ? '' : '_$uid'}';
@@ -3208,7 +3233,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
               KemeticDayButton(
                 dayKey: plannerAction.dayKey,
                 kYear: plannerAction.kYear,
-                autoOpen: widget.openDayCardOnLoad,
+                autoOpen: _shouldOpenDayCardOnLoad,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Center(

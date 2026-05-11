@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import 'planner_launch_intent.dart';
+
 @immutable
 abstract class AppLinkIntent {
   const AppLinkIntent();
@@ -34,10 +36,24 @@ class ShareAppLinkIntent extends AppLinkIntent {
   }
 }
 
+@immutable
+class PlannerAppLinkIntent extends AppLinkIntent {
+  final PlannerLaunchIntent plannerIntent;
+
+  const PlannerAppLinkIntent(this.plannerIntent);
+
+  String get routeLocation => plannerIntent.routeLocation;
+}
+
 class AppLinkIntentParser {
   static AppLinkIntent? parse(Uri uri) {
     if (_looksLikeAuthCallback(uri)) {
       return AuthAppLinkIntent(uri);
+    }
+
+    final plannerIntent = PlannerLaunchIntent.parse(uri);
+    if (plannerIntent != null) {
+      return PlannerAppLinkIntent(plannerIntent);
     }
 
     return _parseShareLink(uri);

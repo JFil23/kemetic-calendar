@@ -90,6 +90,133 @@ void main() {
         ]),
       );
     });
+
+    test('calendar sheet continuity keeps the boot retry restorer', () async {
+      final main = await File('lib/main.dart').readAsString();
+      final calendar = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+
+      expect(main, contains('_restoreDetachedCalendarOverlayAfterBoot'));
+      expect(main, contains('restoreDetachedCalendarOverlayFromAnyContext'));
+      expect(
+        calendar,
+        contains('RestorationCoordinator.instance.readBestSnapshot'),
+      );
+      expect(main, isNot(contains('CalendarContinuityOverlayHost')));
+      expect(calendar, isNot(contains('CalendarContinuityOverlayHost')));
+    });
+
+    test(
+      'calendar sheet continuity retries after route and auth settle',
+      () async {
+        final main = await File('lib/main.dart').readAsString();
+        final bootRetry = _sourceBetween(
+          main,
+          'Future<void> _restoreDetachedCalendarOverlayAfterBoot() async',
+          'Future<void> _dismissOverlay() async',
+        );
+        final authResume = _sourceBetween(
+          main,
+          'Future<void> _maybeResumeSessionRoute() async',
+          '// -- Log app_open once per cold start after auth is present',
+        );
+
+        expect(
+          main,
+          contains('unawaited(_restoreDetachedCalendarOverlayAfterBoot())'),
+        );
+        expect(bootRetry, contains('attempt < 30'));
+        expect(bootRetry, contains('Duration(milliseconds: 150)'));
+        expect(bootRetry, contains('_rootNavigatorKey.currentContext'));
+        expect(bootRetry, contains('currentConfiguration.uri'));
+        expect(
+          bootRetry,
+          contains('restoreDetachedCalendarOverlayFromAnyContext'),
+        );
+        expect(bootRetry, contains('currentLocation: currentLocation'));
+
+        expect(authResume, contains('restorableOverlayParentRouteFromStack'));
+        expect(authResume, contains('readOverlayStack()'));
+        expect(authResume, contains('readRouteLocation('));
+        expect(authResume, contains('includeRemote: true'));
+        expect(authResume, contains('_router.go(savedLocation)'));
+        expect(authResume, contains('addPostFrameCallback'));
+        expect(
+          authResume,
+          contains('restoreDetachedCalendarOverlayFromAnyContext'),
+        );
+        expect(authResume, contains('currentLocation: savedLocation'));
+      },
+    );
+
+    test(
+      'calendar sheets save and restore from atomic overlay snapshots',
+      () async {
+        final calendar = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final saveDetached = _sourceBetween(
+          calendar,
+          'static Future<void> _saveDetachedCalendarOverlayState({',
+          'static Future<void> _clearDetachedCalendarOverlayState',
+        );
+        final clearDetached = _sourceBetween(
+          calendar,
+          'static Future<void> _clearDetachedCalendarOverlayState',
+          'static Future<void> showActionsMenuFromAnyContext',
+        );
+        final restoreDetached = _sourceBetween(
+          calendar,
+          'static Future<bool> restoreDetachedCalendarOverlayFromAnyContext',
+          'static Future<void> shareFlowFromEvent',
+        );
+        final rootRestore = _sourceBetween(
+          calendar,
+          'Future<void> _restorePersistentCalendarOverlayWithRetries',
+          'Future<void> _restoreFlowStudioOverlay',
+        );
+
+        expect(saveDetached, contains('recordRouteLocationWithOverlayStack'));
+        expect(saveDetached, contains("'parentRoute': normalizedParentRoute"));
+        expect(
+          saveDetached,
+          contains('SessionResumeService.saveRouteLocation'),
+        );
+        expect(saveDetached, contains('RestorationCoordinator.instance.flush'));
+
+        expect(
+          clearDetached,
+          contains('shouldPreserveOverlayForLifecycleClose'),
+        );
+        expect(clearDetached, contains('readOverlayStack()'));
+        expect(clearDetached, contains('saveOverlayStack(next)'));
+
+        expect(restoreDetached, contains('readBestSnapshot'));
+        expect(
+          restoreDetached,
+          contains(
+            'includeRemote: Supabase.instance.client.auth.currentSession != null',
+          ),
+        );
+        expect(
+          restoreDetached,
+          contains('_sameRouteLocation(activeLocation, parentRoute)'),
+        );
+        expect(
+          restoreDetached,
+          contains('_lastDetachedCalendarOverlayRestoreKey'),
+        );
+        expect(restoreDetached, contains('_openDetachedSharedCalendarsSheet'));
+        expect(restoreDetached, contains('_openDetachedFlowStudioSheet'));
+
+        expect(rootRestore, contains('attempt < 30'));
+        expect(rootRestore, contains('Duration(milliseconds: 150)'));
+        expect(rootRestore, contains('readBestSnapshot'));
+        expect(rootRestore, contains('_openSharedCalendarsSheet'));
+        expect(rootRestore, contains('_restoreFlowStudioOverlay'));
+      },
+    );
   });
 }
 
@@ -109,3 +236,11 @@ Future<List<String>> _filesContainingAny(List<String> needles) async {
 }
 
 String _normalizePath(String path) => path.replaceAll('\\', '/');
+
+String _sourceBetween(String source, String start, String end) {
+  final startIndex = source.indexOf(start);
+  expect(startIndex, isNot(-1), reason: 'Missing source marker: $start');
+  final endIndex = source.indexOf(end, startIndex + start.length);
+  expect(endIndex, isNot(-1), reason: 'Missing source marker: $end');
+  return source.substring(startIndex, endIndex);
+}

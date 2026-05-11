@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import EventKit
+import WidgetKit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -57,7 +58,14 @@ import EventKit
     }
 
     GeneratedPluginRegistrant.register(with: self)
+    reloadDailyReflectionWidgetTimeline()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  private func reloadDailyReflectionWidgetTimeline() {
+    if #available(iOS 14.0, *) {
+      WidgetCenter.shared.reloadTimelines(ofKind: "DailyReflectionWidget")
+    }
   }
 
   private func handleRequestPermissions(result: @escaping FlutterResult) {

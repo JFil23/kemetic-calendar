@@ -7,17 +7,21 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		09D574D9BE633C3BEFE6FFB6 /* DailyReflectionWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6F03EC69AB08399023346372 /* DailyReflectionWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A61D41018B7C4F76B2E10001 /* DayCycle in Resources */ = {isa = PBXBuildFile; fileRef = A61D41028B7C4F76B2E10002 /* DayCycle */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
+		37D5500D7F6DB5BC298B666C /* daily-reflection-days.json in Resources */ = {isa = PBXBuildFile; fileRef = 0124514F8DE04BA67EB725B5 /* daily-reflection-days.json */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		56E9EACAF6AE05F03D5D6670 /* libPods-Runner.a in Frameworks */ = {isa = PBXBuildFile; fileRef = CABDFDE19750EACB3FDF4298 /* libPods-Runner.a */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
-		B2A1D1E32C7E4B2F00C1F4A0 /* GentiumPlus-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B2A1D1E12C7E4B2F00C1F4A0 /* GentiumPlus-Regular.ttf */; };
-		B2A1D1E42C7E4B2F00C1F4A0 /* GentiumPlus-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B2A1D1E22C7E4B2F00C1F4A0 /* GentiumPlus-Bold.ttf */; };
+		7DF4602E5D5E9FAA1A51489D /* DailyReflectionWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF8A09CD56D812817C5BBD0E /* DailyReflectionWidget.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		988EE288BF00EA70B67680F8 /* libPods-RunnerTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3AC6CF0B66A789EE27696B23 /* libPods-RunnerTests.a */; };
+		B2A1D1E32C7E4B2F00C1F4A0 /* GentiumPlus-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B2A1D1E12C7E4B2F00C1F4A0 /* GentiumPlus-Regular.ttf */; };
+		B2A1D1E42C7E4B2F00C1F4A0 /* GentiumPlus-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B2A1D1E22C7E4B2F00C1F4A0 /* GentiumPlus-Bold.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -27,6 +31,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 97C146ED1CF9000F007C117D;
 			remoteInfo = Runner;
+		};
+		868D43A53D2D793C2117F52F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EAC9A8D94F6778581CC6E9B8;
+			remoteInfo = DailyReflectionWidgetExtension;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -41,9 +52,21 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DB4AC674EAB3665F6F3B33B0 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				09D574D9BE633C3BEFE6FFB6 /* DailyReflectionWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0124514F8DE04BA67EB725B5 /* daily-reflection-days.json */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.json; path = "daily-reflection-days.json"; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		30946A253E903C3A1B908DE6 /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
@@ -53,6 +76,7 @@
 		3AC6CF0B66A789EE27696B23 /* libPods-RunnerTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-RunnerTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		57DF3B6F7BB4529318A421B6 /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
+		6F03EC69AB08399023346372 /* DailyReflectionWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DailyReflectionWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
@@ -63,14 +87,18 @@
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		B576D2F02D1D8A2F0095A1E5 /* RunnerDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RunnerDebug.entitlements; sourceTree = "<group>"; };
-		B576D2F12D1D8A2F0095A1E5 /* RunnerRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RunnerRelease.entitlements; sourceTree = "<group>"; };
-		A7B5BF25F13AB891C1338757 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
-		CABDFDE19750EACB3FDF4298 /* libPods-Runner.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Runner.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		CB873344B0686BD25494A1C3 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
+		A61D41028B7C4F76B2E10002 /* DayCycle */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; path = DayCycle; sourceTree = "<group>"; };
+			A7B5BF25F13AB891C1338757 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
+			B2A1D1E12C7E4B2F00C1F4A0 /* GentiumPlus-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GentiumPlus-Regular.ttf"; sourceTree = "<group>"; };
+			B2A1D1E22C7E4B2F00C1F4A0 /* GentiumPlus-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GentiumPlus-Bold.ttf"; sourceTree = "<group>"; };
+			B576D2F02D1D8A2F0095A1E5 /* RunnerDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RunnerDebug.entitlements; sourceTree = "<group>"; };
+			B576D2F12D1D8A2F0095A1E5 /* RunnerRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RunnerRelease.entitlements; sourceTree = "<group>"; };
+			CABDFDE19750EACB3FDF4298 /* libPods-Runner.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Runner.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+			CB873344B0686BD25494A1C3 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
+			D1A1B3012D5E4001A0B0C001 /* DailyReflectionWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DailyReflectionWidget.entitlements; sourceTree = "<group>"; };
+			E191D9F7F40877F9561E64CC /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+			EF8A09CD56D812817C5BBD0E /* DailyReflectionWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DailyReflectionWidget.swift; sourceTree = "<group>"; };
 		F2D88ABF5E23D110ADC208EA /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
-		B2A1D1E12C7E4B2F00C1F4A0 /* GentiumPlus-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GentiumPlus-Regular.ttf"; sourceTree = "<group>"; };
-		B2A1D1E22C7E4B2F00C1F4A0 /* GentiumPlus-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GentiumPlus-Bold.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,6 +107,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				988EE288BF00EA70B67680F8 /* libPods-RunnerTests.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		36727289CA0F78F27948DEF1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -93,11 +128,19 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0D57FF5876123D00D7CC2F40 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
 		2E9DD001556F2B38AAD77FC7 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				CABDFDE19750EACB3FDF4298 /* libPods-Runner.a */,
 				3AC6CF0B66A789EE27696B23 /* libPods-RunnerTests.a */,
+				0D57FF5876123D00D7CC2F40 /* iOS */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -143,6 +186,7 @@
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				2EA8E83D8065A1CAB6499FDF /* Pods */,
 				2E9DD001556F2B38AAD77FC7 /* Frameworks */,
+				980BF8E1FFE86BE4C2C90617 /* DailyReflectionWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -151,6 +195,7 @@
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
+				6F03EC69AB08399023346372 /* DailyReflectionWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -171,6 +216,19 @@
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
+			sourceTree = "<group>";
+		};
+		980BF8E1FFE86BE4C2C90617 /* DailyReflectionWidget */ = {
+			isa = PBXGroup;
+			children = (
+				EF8A09CD56D812817C5BBD0E /* DailyReflectionWidget.swift */,
+				E191D9F7F40877F9561E64CC /* Info.plist */,
+				D1A1B3012D5E4001A0B0C001 /* DailyReflectionWidget.entitlements */,
+				0124514F8DE04BA67EB725B5 /* daily-reflection-days.json */,
+				A61D41028B7C4F76B2E10002 /* DayCycle */,
+			);
+			name = DailyReflectionWidget;
+			path = DailyReflectionWidget;
 			sourceTree = "<group>";
 		};
 		B2A1D1E02C7E4B2F00C1F4A0 /* Fonts */ = {
@@ -215,17 +273,36 @@
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
+				DB4AC674EAB3665F6F3B33B0 /* Embed Foundation Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				0B317C77A0E5083612D39A80 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				C299EDF17E74E76EBDCB9BCA /* PBXTargetDependency */,
 			);
 			name = Runner;
 			productName = Runner;
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
 			productType = "com.apple.product-type.application";
+		};
+		EAC9A8D94F6778581CC6E9B8 /* DailyReflectionWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1F307A6096BC52E9D644A8B5 /* Build configuration list for PBXNativeTarget "DailyReflectionWidgetExtension" */;
+			buildPhases = (
+				6D86A43E81FF8DBC19E00191 /* Sources */,
+				36727289CA0F78F27948DEF1 /* Frameworks */,
+				099FCFC5C6BDDB395CC841F1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = DailyReflectionWidgetExtension;
+			productName = DailyReflectionWidgetExtension;
+			productReference = 6F03EC69AB08399023346372 /* DailyReflectionWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -245,6 +322,10 @@
 						CreatedOnToolsVersion = 7.3.1;
 						LastSwiftMigration = 1100;
 					};
+					EAC9A8D94F6778581CC6E9B8 = {
+						CreatedOnToolsVersion = 16.0;
+						DevelopmentTeam = LMKLY8MR2X;
+					};
 				};
 			};
 			buildConfigurationList = 97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */;
@@ -262,11 +343,21 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
+				EAC9A8D94F6778581CC6E9B8 /* DailyReflectionWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		099FCFC5C6BDDB395CC841F1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				37D5500D7F6DB5BC298B666C /* daily-reflection-days.json in Resources */,
+				A61D41018B7C4F76B2E10001 /* DayCycle in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		331C807F294A63A400263BE5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -414,6 +505,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6D86A43E81FF8DBC19E00191 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7DF4602E5D5E9FAA1A51489D /* DailyReflectionWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		97C146EA1CF9000F007C117D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -430,6 +529,12 @@
 			isa = PBXTargetDependency;
 			target = 97C146ED1CF9000F007C117D /* Runner */;
 			targetProxy = 331C8085294A63A400263BE5 /* PBXContainerItemProxy */;
+		};
+		C299EDF17E74E76EBDCB9BCA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = DailyReflectionWidgetExtension;
+			target = EAC9A8D94F6778581CC6E9B8 /* DailyReflectionWidgetExtension */;
+			targetProxy = 868D43A53D2D793C2117F52F /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -511,9 +616,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/RunnerDebug.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CODE_SIGN_ENTITLEMENTS = Runner/RunnerDebug.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = LMKLY8MR2X;
 				ENABLE_BITCODE = NO;
@@ -539,7 +644,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jaralephillips.hawcalendar.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -557,7 +662,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jaralephillips.hawcalendar.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
@@ -573,13 +678,68 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jaralephillips.hawcalendar.RunnerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
 			};
 			name = Profile;
+		};
+		67482A67E2812EBA3D91B314 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+					APPLICATION_EXTENSION_API_ONLY = YES;
+					CLANG_ENABLE_OBJC_WEAK = NO;
+					CODE_SIGN_ENTITLEMENTS = DailyReflectionWidget/DailyReflectionWidget.entitlements;
+					CODE_SIGN_STYLE = Automatic;
+					CURRENT_PROJECT_VERSION = 1;
+					DEVELOPMENT_TEAM = LMKLY8MR2X;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = DailyReflectionWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jaralephillips.hawcalendar.DailyReflectionWidgetExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		698F61AAD8A55173E815F7E4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+					APPLICATION_EXTENSION_API_ONLY = YES;
+					CLANG_ENABLE_OBJC_WEAK = NO;
+					CODE_SIGN_ENTITLEMENTS = DailyReflectionWidget/DailyReflectionWidget.entitlements;
+					CODE_SIGN_STYLE = Automatic;
+					CURRENT_PROJECT_VERSION = 1;
+					DEVELOPMENT_TEAM = LMKLY8MR2X;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = DailyReflectionWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jaralephillips.hawcalendar.DailyReflectionWidgetExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
 		};
 		97C147031CF9000F007C117D /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -698,9 +858,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/RunnerRelease.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CODE_SIGN_ENTITLEMENTS = Runner/RunnerRelease.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = LMKLY8MR2X;
 				ENABLE_BITCODE = NO;
@@ -725,9 +885,9 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/RunnerRelease.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CODE_SIGN_ENTITLEMENTS = Runner/RunnerRelease.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = LMKLY8MR2X;
 				ENABLE_BITCODE = NO;
@@ -745,9 +905,47 @@
 			};
 			name = Release;
 		};
+		E33C9A3247087EBAC018353B /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+					APPLICATION_EXTENSION_API_ONLY = YES;
+					CLANG_ENABLE_OBJC_WEAK = NO;
+					CODE_SIGN_ENTITLEMENTS = DailyReflectionWidget/DailyReflectionWidget.entitlements;
+					CODE_SIGN_STYLE = Automatic;
+					CURRENT_PROJECT_VERSION = 1;
+					DEVELOPMENT_TEAM = LMKLY8MR2X;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = DailyReflectionWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jaralephillips.hawcalendar.DailyReflectionWidgetExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Profile;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1F307A6096BC52E9D644A8B5 /* Build configuration list for PBXNativeTarget "DailyReflectionWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				698F61AAD8A55173E815F7E4 /* Release */,
+				67482A67E2812EBA3D91B314 /* Debug */,
+				E33C9A3247087EBAC018353B /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

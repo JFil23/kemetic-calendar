@@ -35,6 +35,7 @@ import 'shared/glossy_text.dart';
 import 'utils/hive_local_storage_web.dart';
 import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
+import 'core/planner_launch_intent.dart';
 import 'core/push_intent_bus.dart';
 import 'core/shared_file_intent.dart';
 import 'core/theme/app_theme.dart';
@@ -470,11 +471,27 @@ bool _isContinuityRouteLocation(String location) {
       path.startsWith('/rhythm/');
 }
 
+String? _redirectExternalAppLink(Uri uri) {
+  if (uri.scheme.isEmpty && uri.host.isEmpty) {
+    return null;
+  }
+
+  final intent = AppLinkIntent.parse(uri);
+  if (intent is PlannerAppLinkIntent) {
+    return intent.routeLocation;
+  }
+  if (intent is ShareAppLinkIntent) {
+    return intent.routeLocation;
+  }
+  return null;
+}
+
 final _router = GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: _resolveInitialLocation(),
   restorationScopeId: AppWindowService.instance.restorationScopeId,
   observers: <NavigatorObserver>[routeObserver, TelemetryRouteObserver()],
+  redirect: (context, state) => _redirectExternalAppLink(state.uri),
   routes: [
     GoRoute(path: '/', builder: (context, state) => const AuthGate()),
     GoRoute(
@@ -735,19 +752,26 @@ final _router = GoRouter(
     GoRoute(
       path: '/rhythm/today',
       builder: (context, state) {
-        final openDayCard = state.uri.queryParameters['openDayCard'] == '1';
+        final launchIntent =
+            PlannerLaunchIntent.parse(state.uri) ??
+            PlannerLaunchIntent.fallbackForRoute('/rhythm/today');
         return SessionTrackedRoute(
-          location: openDayCard ? '/rhythm/today' : state.uri.toString(),
-          child: TodaysAlignmentPage(openDayCardOnLoad: openDayCard),
+          location: launchIntent.sessionLocation,
+          child: TodaysAlignmentPage(launchIntent: launchIntent),
         );
       },
     ),
     GoRoute(
       path: '/rhythm/todo',
-      builder: (context, state) => SessionTrackedRoute(
-        location: state.uri.toString(),
-        child: const TodaysAlignmentPage(),
-      ),
+      builder: (context, state) {
+        final launchIntent =
+            PlannerLaunchIntent.parse(state.uri) ??
+            PlannerLaunchIntent.fallbackForRoute('/rhythm/todo');
+        return SessionTrackedRoute(
+          location: launchIntent.sessionLocation,
+          child: TodaysAlignmentPage(launchIntent: launchIntent),
+        );
+      },
     ),
     GoRoute(
       path: '/rhythm/tracker',
@@ -2259,6 +2283,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   DateTime? _lastHandledLinkAt;
   String? _lastHandledSharedFilesSignature;
   DateTime? _lastHandledSharedFilesAt;
+  PlannerLaunchIntent? _pendingPlannerLaunchIntent;
 
   StreamSubscription? _intentDataStreamSubscription;
 
@@ -2360,6 +2385,11 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       await _ensureProfile(); // keep profiles hydrated with email
       await UserEventsRepo.refreshTelemetrySettings(supabase);
       await _logAppOpenOnce(); // one-shot per cold start
+      final pendingPlannerLaunch = _pendingPlannerLaunchIntent;
+      if (pendingPlannerLaunch != null) {
+        _pendingPlannerLaunchIntent = null;
+        _routeToPlanner(pendingPlannerLaunch);
+      }
       fireAndForgetGuarded(
         'notify init',
         _initNotificationsSafely(),
@@ -2569,6 +2599,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         ? 'auth:${intent.uri}'
         : intent is ShareAppLinkIntent
         ? 'share:${intent.routeLocation}'
+        : intent is PlannerAppLinkIntent
+        ? 'planner:${intent.routeLocation}'
         : 'unknown:${uri.toString()}';
 
     if (_shouldSkipDuplicateLink(signature)) {
@@ -2582,6 +2614,11 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
     if (intent is ShareAppLinkIntent) {
       _routeToSharedFlow(intent);
+      return;
+    }
+
+    if (intent is PlannerAppLinkIntent) {
+      _routeToPlanner(intent.plannerIntent);
     }
   }
 
@@ -2610,6 +2647,30 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
   void _routeToSharedFlow(ShareAppLinkIntent intent) {
     final location = intent.routeLocation;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _router.go(location);
+    });
+  }
+
+  void _routeToPlanner(PlannerLaunchIntent intent) {
+    _deferSessionResumeForPushNavigation = true;
+
+    if (supabase.auth.currentSession == null) {
+      _pendingPlannerLaunchIntent = intent;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _router.go('/');
+      });
+      return;
+    }
+
+    final resolvedIntent = intent.openDayCard
+        ? intent.withLaunchToken(
+            DateTime.now().microsecondsSinceEpoch.toString(),
+          )
+        : intent;
+    final location = resolvedIntent.routeLocation;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _router.go(location);

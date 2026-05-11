@@ -9,7 +9,10 @@ void main() {
       );
 
       expect(intent, isA<AuthAppLinkIntent>());
-      expect((intent as AuthAppLinkIntent).uri.queryParameters['code'], 'abc123');
+      expect(
+        (intent as AuthAppLinkIntent).uri.queryParameters['code'],
+        'abc123',
+      );
     });
 
     test('parses auth callbacks from fragment tokens', () {
@@ -28,16 +31,24 @@ void main() {
       );
 
       expect(intent, isA<ShareAppLinkIntent>());
-      expect((intent as ShareAppLinkIntent).routeLocation, '/share/share-123?token=secret');
+      expect(
+        (intent as ShareAppLinkIntent).routeLocation,
+        '/share/share-123?token=secret',
+      );
     });
 
     test('trims share ids and prefers explicit query share ids', () {
       final intent = AppLinkIntent.parse(
-        Uri.parse('https://maat.app/share/path-share?share=%20share-123%20&t=%20secret%20'),
+        Uri.parse(
+          'https://maat.app/share/path-share?share=%20share-123%20&t=%20secret%20',
+        ),
       );
 
       expect(intent, isA<ShareAppLinkIntent>());
-      expect((intent as ShareAppLinkIntent).routeLocation, '/share/share-123?token=secret');
+      expect(
+        (intent as ShareAppLinkIntent).routeLocation,
+        '/share/share-123?token=secret',
+      );
     });
 
     test('parses share links from maat.app path segments', () {
@@ -55,7 +66,10 @@ void main() {
       );
 
       expect(intent, isA<ShareAppLinkIntent>());
-      expect((intent as ShareAppLinkIntent).routeLocation, '/share/share-789?token=invite-token');
+      expect(
+        (intent as ShareAppLinkIntent).routeLocation,
+        '/share/share-789?token=invite-token',
+      );
     });
 
     test('parses documented maat flow links', () {
@@ -64,7 +78,10 @@ void main() {
       );
 
       expect(intent, isA<ShareAppLinkIntent>());
-      expect((intent as ShareAppLinkIntent).routeLocation, '/share/share-999?token=secret-token');
+      expect(
+        (intent as ShareAppLinkIntent).routeLocation,
+        '/share/share-999?token=secret-token',
+      );
     });
 
     test('parses maat.app short links', () {
@@ -73,7 +90,10 @@ void main() {
       );
 
       expect(intent, isA<ShareAppLinkIntent>());
-      expect((intent as ShareAppLinkIntent).routeLocation, '/share/share-short-id');
+      expect(
+        (intent as ShareAppLinkIntent).routeLocation,
+        '/share/share-short-id',
+      );
     });
 
     test('parses maat custom-scheme short links', () {
@@ -85,6 +105,32 @@ void main() {
       expect(
         (intent as ShareAppLinkIntent).routeLocation,
         '/share/share-short-id?token=short-token',
+      );
+    });
+
+    test('parses planner widget universal links', () {
+      final intent = AppLinkIntent.parse(
+        Uri.parse(
+          'https://maat.app/rhythm/today?openDayCard=1&source=ios_widget&date=2026-05-09&tz=America%2FLos_Angeles',
+        ),
+      );
+
+      expect(intent, isA<PlannerAppLinkIntent>());
+      expect(
+        (intent as PlannerAppLinkIntent).routeLocation,
+        '/rhythm/today?openDayCard=1&source=ios_widget&date=2026-05-09&tz=America%2FLos_Angeles',
+      );
+    });
+
+    test('parses planner widget custom-scheme links', () {
+      final intent = AppLinkIntent.parse(
+        Uri.parse('maat://rhythm/today?openDayCard=1&source=ios_widget'),
+      );
+
+      expect(intent, isA<PlannerAppLinkIntent>());
+      expect(
+        (intent as PlannerAppLinkIntent).routeLocation,
+        '/rhythm/today?openDayCard=1&source=ios_widget',
       );
     });
 

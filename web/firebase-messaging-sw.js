@@ -104,6 +104,31 @@ function todayLocalDateKey() {
   ].join('-');
 }
 
+function dailyReflectionTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function dailyReflectionLocale() {
+  return cleanWidgetString(self.navigator?.language, 'en-US');
+}
+
+function dailyReflectionExpiresAt() {
+  const now = new Date();
+  return new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+    0,
+    5,
+    0,
+    0,
+  ).toISOString();
+}
+
 function cleanWidgetString(value, fallback) {
   if (typeof value !== 'string') return fallback;
   const trimmed = value.trim();
@@ -116,15 +141,49 @@ function normalizeDailyReflectionWidgetPayload(raw) {
   const safeDate = /^\d{4}-\d{2}-\d{2}$/.test(date)
     ? date
     : todayLocalDateKey();
+  const dateLabel = cleanWidgetString(payload.dateLabel, 'Daily reflection');
+  const dayKey = cleanWidgetString(payload.dayKey, '');
+  const kYear = Number.isFinite(Number(payload.kYear))
+    ? Number(payload.kYear)
+    : null;
+  const question = cleanWidgetString(
+    payload.question || payload.reflection,
+    "Open the planner to refresh today's reflection.",
+  );
+  const timezone = cleanWidgetString(payload.timezone, dailyReflectionTimeZone());
+  const locale = cleanWidgetString(payload.locale, dailyReflectionLocale());
+  const intentUrl = buildDailyReflectionPlannerUrl(safeDate);
   return {
+    schemaVersion: 1,
+    kind: 'daily_reflection',
+    generatedAt: new Date().toISOString(),
+    validForLocalDate: safeDate,
+    timezone,
+    locale,
+    reflection: question,
+    kemeticDate: {
+      display: dateLabel,
+      dayKey,
+      kYear,
+    },
+    intent: {
+      url: intentUrl,
+      route: '/rhythm/today',
+      params: {
+        openDayCard: '1',
+        source: 'widget',
+        date: safeDate,
+        ...(timezone ? { tz: timezone } : {}),
+      },
+    },
+    expiresAt: dailyReflectionExpiresAt(),
+    authRequired: false,
+    sourceVersion: 'daily-reflection-days.v1',
     date: safeDate,
-    dateLabel: cleanWidgetString(payload.dateLabel, 'Daily reflection'),
-    dayKey: cleanWidgetString(payload.dayKey, ''),
-    kYear: Number.isFinite(Number(payload.kYear)) ? Number(payload.kYear) : null,
-    question: cleanWidgetString(
-      payload.question,
-      "Open the planner to refresh today's reflection.",
-    ),
+    dateLabel,
+    dayKey,
+    kYear,
+    question,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -134,6 +193,8 @@ function buildDailyReflectionPlannerUrl(date) {
   plannerUrl.searchParams.set('openDayCard', '1');
   plannerUrl.searchParams.set('source', 'widget');
   plannerUrl.searchParams.set('date', date || todayLocalDateKey());
+  const timezone = dailyReflectionTimeZone();
+  if (timezone) plannerUrl.searchParams.set('tz', timezone);
   return plannerUrl.toString();
 }
 
