@@ -45,7 +45,6 @@ class RestorationCoordinator {
         _lastExitLifecycleAt = DateTime.now();
         break;
       case AppLifecycleState.resumed:
-        _lastExitLifecycleAt = null;
         break;
     }
   }

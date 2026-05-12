@@ -4456,6 +4456,8 @@ class CalendarPage extends StatefulWidget {
       GlobalKey<_CalendarPageState>();
   static _CalendarDetachedLaunchAction? _pendingDetachedLaunchAction;
   static bool _detachedCalendarOverlayRestoreInFlight = false;
+  static bool _detachedSharedCalendarsSheetOpenOrOpening = false;
+  static bool _detachedFlowStudioSheetOpenOrOpening = false;
   static String? _lastDetachedCalendarOverlayRestoreKey;
 
   static _CalendarPageState? get _mountedState {
@@ -4901,6 +4903,8 @@ class CalendarPage extends StatefulWidget {
       },
     );
     if (!context.mounted) return;
+    if (_detachedSharedCalendarsSheetOpenOrOpening) return;
+    _detachedSharedCalendarsSheetOpenOrOpening = true;
 
     try {
       await SharedCalendarsSheet.show(
@@ -4918,9 +4922,13 @@ class CalendarPage extends StatefulWidget {
         },
       );
     } finally {
-      await _clearDetachedCalendarOverlayState(
-        _kCalendarOverlayKindSharedCalendars,
-      );
+      try {
+        await _clearDetachedCalendarOverlayState(
+          _kCalendarOverlayKindSharedCalendars,
+        );
+      } finally {
+        _detachedSharedCalendarsSheetOpenOrOpening = false;
+      }
     }
   }
 
@@ -5545,6 +5553,8 @@ class CalendarPage extends StatefulWidget {
       state: continuityState,
     );
     if (!context.mounted) return;
+    if (_detachedFlowStudioSheetOpenOrOpening) return;
+    _detachedFlowStudioSheetOpenOrOpening = true;
 
     final flowsRepo = FlowsRepo(Supabase.instance.client);
     UiGuards.disableJournalSwipe();
@@ -5645,12 +5655,18 @@ class CalendarPage extends StatefulWidget {
         await persistFlowStudioResultHeadless(result);
       }
     } finally {
-      await _clearDetachedCalendarOverlayState(_kCalendarOverlayKindFlowStudio);
-      await RestorationCoordinator.instance.saveEditorState(
-        _kFlowStudioDraftEditorKey,
-        null,
-      );
-      UiGuards.enableJournalSwipe();
+      try {
+        await _clearDetachedCalendarOverlayState(
+          _kCalendarOverlayKindFlowStudio,
+        );
+        await RestorationCoordinator.instance.saveEditorState(
+          _kFlowStudioDraftEditorKey,
+          null,
+        );
+        UiGuards.enableJournalSwipe();
+      } finally {
+        _detachedFlowStudioSheetOpenOrOpening = false;
+      }
     }
   }
 
@@ -6149,6 +6165,8 @@ class _CalendarPageState extends State<CalendarPage>
   bool _restorationInteractedSinceBoot = false;
   bool _calendarOverlayRestoreAttempted = false;
   bool _calendarOverlayRestoreInFlight = false;
+  bool _sharedCalendarsSheetOpenOrOpening = false;
+  bool _flowStudioSheetOpenOrOpening = false;
 
   /* ───── today + notes + flows state ───── */
 
@@ -7039,28 +7057,34 @@ class _CalendarPageState extends State<CalendarPage>
       },
     );
     if (!mounted) return;
-    final changed = await SharedCalendarsSheet.show(
-      context,
-      repo: _sharedCalendarsRepo,
-      onAddEventRequested: _openCalendarScopedNoteDialog,
-      initialExpandedCalendarIds: _stringListFromRestoration(
-        restorationState?['expandedCalendarIds'],
-      ),
-      onContinuityChanged: (state) {
-        unawaited(
-          _saveCalendarOverlayState(
-            _kCalendarOverlayKindSharedCalendars,
-            state,
-          ),
-        );
-      },
-    );
-    await _clearCalendarOverlayState(_kCalendarOverlayKindSharedCalendars);
-    await _loadCalendarState();
-    if (changed == true) {
-      await _loadFromDisk();
-    } else {
-      _refreshNoteCacheUi();
+    if (_sharedCalendarsSheetOpenOrOpening) return;
+    _sharedCalendarsSheetOpenOrOpening = true;
+    try {
+      final changed = await SharedCalendarsSheet.show(
+        context,
+        repo: _sharedCalendarsRepo,
+        onAddEventRequested: _openCalendarScopedNoteDialog,
+        initialExpandedCalendarIds: _stringListFromRestoration(
+          restorationState?['expandedCalendarIds'],
+        ),
+        onContinuityChanged: (state) {
+          unawaited(
+            _saveCalendarOverlayState(
+              _kCalendarOverlayKindSharedCalendars,
+              state,
+            ),
+          );
+        },
+      );
+      await _clearCalendarOverlayState(_kCalendarOverlayKindSharedCalendars);
+      await _loadCalendarState();
+      if (changed == true) {
+        await _loadFromDisk();
+      } else {
+        _refreshNoteCacheUi();
+      }
+    } finally {
+      _sharedCalendarsSheetOpenOrOpening = false;
     }
   }
 
@@ -16802,6 +16826,8 @@ class _CalendarPageState extends State<CalendarPage>
       _kCalendarOverlayKindFlowStudio,
       continuityState,
     );
+    if (!mounted || _flowStudioSheetOpenOrOpening) return;
+    _flowStudioSheetOpenOrOpening = true;
     UiGuards.disableJournalSwipe();
     final isTablet = _isTablet(context);
     try {
@@ -16903,12 +16929,16 @@ class _CalendarPageState extends State<CalendarPage>
         await _applyFlowStudioResult(result);
       }
     } finally {
-      await _clearCalendarOverlayState(_kCalendarOverlayKindFlowStudio);
-      await AppRestorationService.instance.saveEditorState(
-        _kFlowStudioDraftEditorKey,
-        null,
-      );
-      UiGuards.enableJournalSwipe();
+      try {
+        await _clearCalendarOverlayState(_kCalendarOverlayKindFlowStudio);
+        await AppRestorationService.instance.saveEditorState(
+          _kFlowStudioDraftEditorKey,
+          null,
+        );
+        UiGuards.enableJournalSwipe();
+      } finally {
+        _flowStudioSheetOpenOrOpening = false;
+      }
     }
   }
 
@@ -16923,6 +16953,8 @@ class _CalendarPageState extends State<CalendarPage>
         },
       ),
     );
+    if (!mounted || _flowStudioSheetOpenOrOpening) return;
+    _flowStudioSheetOpenOrOpening = true;
     UiGuards.disableJournalSwipe();
     final isTab = _isTablet(context);
     unawaited(() async {
@@ -17031,8 +17063,12 @@ class _CalendarPageState extends State<CalendarPage>
           await _applyFlowStudioResult(result);
         }
       } finally {
-        await _clearCalendarOverlayState(_kCalendarOverlayKindFlowStudio);
-        UiGuards.enableJournalSwipe();
+        try {
+          await _clearCalendarOverlayState(_kCalendarOverlayKindFlowStudio);
+          UiGuards.enableJournalSwipe();
+        } finally {
+          _flowStudioSheetOpenOrOpening = false;
+        }
       }
     }());
   }

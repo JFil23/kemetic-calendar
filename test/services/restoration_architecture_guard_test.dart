@@ -108,6 +108,30 @@ void main() {
     });
 
     test(
+      'overlay lifecycle preserve window survives resumed callbacks',
+      () async {
+        final coordinator = await File(
+          'lib/services/restoration_coordinator.dart',
+        ).readAsString();
+        final noteLifecycle = _sourceBetween(
+          coordinator,
+          'void noteLifecycleState(AppLifecycleState state)',
+          'bool get shouldPreserveOverlayForLifecycleClose',
+        );
+        final preserveWindow = _sourceBetween(
+          coordinator,
+          'bool get shouldPreserveOverlayForLifecycleClose',
+          'Future<Map<String, dynamic>?> readSurfaceState',
+        );
+
+        expect(noteLifecycle, contains('case AppLifecycleState.resumed:'));
+        expect(noteLifecycle, isNot(contains('_lastExitLifecycleAt = null')));
+        expect(preserveWindow, contains('DateTime.now().difference(lastExit)'));
+        expect(preserveWindow, contains('_lifecycleOverlayPreserveWindow'));
+      },
+    );
+
+    test(
       'calendar sheet continuity retries after route and auth settle',
       () async {
         final main = await File('lib/main.dart').readAsString();
@@ -215,6 +239,122 @@ void main() {
         expect(rootRestore, contains('readBestSnapshot'));
         expect(rootRestore, contains('_openSharedCalendarsSheet'));
         expect(rootRestore, contains('_restoreFlowStudioOverlay'));
+      },
+    );
+
+    test(
+      'calendar sheet entrypoints de-dupe active presentations only',
+      () async {
+        final main = await File('lib/main.dart').readAsString();
+        final calendar = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final detachedShared = _sourceBetween(
+          calendar,
+          'static Future<void> _openDetachedSharedCalendarsSheet',
+          'static bool _isTabletForContext',
+        );
+        final detachedFlow = _sourceBetween(
+          calendar,
+          'static Future<void> _openDetachedFlowStudioSheet',
+          'static bool _sameRouteLocation',
+        );
+        final rootShared = _sourceBetween(
+          calendar,
+          'Future<void> _openSharedCalendarsSheet',
+          'Future<bool> _openCalendarScopedNoteDialog',
+        );
+        final rootFlow = _sourceBetween(
+          calendar,
+          'Future<void> _openFlowStudioSheet',
+          '// Directly open My Flows list',
+        );
+        final myFlows = _sourceBetween(
+          calendar,
+          'void _openMyFlowsList',
+          '/// Public entrypoint so other screens',
+        );
+
+        expect(main, contains('_dismissOverlay();'));
+        expect(
+          main,
+          isNot(contains('waitForInitialCalendarOverlayPresentation')),
+        );
+        expect(calendar, isNot(contains('restoreWithoutAnimation')));
+        expect(calendar, isNot(contains('AnimationStyle.noAnimation')));
+
+        expect(
+          calendar,
+          contains('static bool _detachedSharedCalendarsSheetOpenOrOpening'),
+        );
+        expect(
+          calendar,
+          contains('static bool _detachedFlowStudioSheetOpenOrOpening'),
+        );
+        expect(calendar, contains('bool _sharedCalendarsSheetOpenOrOpening'));
+        expect(calendar, contains('bool _flowStudioSheetOpenOrOpening'));
+
+        expect(
+          detachedShared,
+          contains('if (_detachedSharedCalendarsSheetOpenOrOpening) return;'),
+        );
+        expect(
+          detachedFlow,
+          contains('if (_detachedFlowStudioSheetOpenOrOpening) return;'),
+        );
+        expect(
+          rootShared,
+          contains('if (_sharedCalendarsSheetOpenOrOpening) return;'),
+        );
+        expect(
+          rootFlow,
+          contains('if (!mounted || _flowStudioSheetOpenOrOpening) return;'),
+        );
+        expect(
+          myFlows,
+          contains('if (!mounted || _flowStudioSheetOpenOrOpening) return;'),
+        );
+
+        expect(
+          detachedShared.indexOf('_saveDetachedCalendarOverlayState'),
+          lessThan(
+            detachedShared.indexOf(
+              'if (_detachedSharedCalendarsSheetOpenOrOpening) return;',
+            ),
+          ),
+        );
+        expect(
+          detachedFlow.indexOf('_saveDetachedCalendarOverlayState'),
+          lessThan(
+            detachedFlow.indexOf(
+              'if (_detachedFlowStudioSheetOpenOrOpening) return;',
+            ),
+          ),
+        );
+        expect(
+          rootShared.indexOf('_saveCalendarOverlayState'),
+          lessThan(
+            rootShared.indexOf(
+              'if (_sharedCalendarsSheetOpenOrOpening) return;',
+            ),
+          ),
+        );
+        expect(
+          rootFlow.indexOf('_saveCalendarOverlayState'),
+          lessThan(
+            rootFlow.indexOf(
+              'if (!mounted || _flowStudioSheetOpenOrOpening) return;',
+            ),
+          ),
+        );
+        expect(
+          myFlows.indexOf('_saveCalendarOverlayState'),
+          lessThan(
+            myFlows.indexOf(
+              'if (!mounted || _flowStudioSheetOpenOrOpening) return;',
+            ),
+          ),
+        );
       },
     );
   });
