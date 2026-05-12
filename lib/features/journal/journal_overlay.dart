@@ -1,8 +1,11 @@
 // lib/features/journal/journal_overlay.dart
 // FIXES: 1) Toolbar overflow, 2) Layered coexistence, 3) Drawing undo
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:mobile/core/daily_reflection_question.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
@@ -55,6 +58,7 @@ class _JournalOverlayState extends State<JournalOverlay>
   late ScrollController _scrollController;
   late ScrollController _badgeScrollController;
   late FocusNode _focusNode;
+  Timer? _placeholderRefreshTimer;
 
   double _dragOffset = 0;
 
@@ -119,6 +123,7 @@ class _JournalOverlayState extends State<JournalOverlay>
     _animationController.forward();
 
     _loadLinks();
+    _schedulePlaceholderRefresh();
 
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted &&
@@ -130,6 +135,7 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   @override
   void dispose() {
+    _placeholderRefreshTimer?.cancel();
     _animationController.dispose();
     _textController.dispose();
     _scrollController.dispose();
@@ -138,6 +144,22 @@ class _JournalOverlayState extends State<JournalOverlay>
     widget.controller.onDraftChanged = null;
     super.dispose();
   }
+
+  void _schedulePlaceholderRefresh() {
+    _placeholderRefreshTimer?.cancel();
+    final now = DateTime.now();
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    final duration = tomorrow.difference(now) + const Duration(seconds: 1);
+    _placeholderRefreshTimer = Timer(duration, () {
+      if (!mounted) return;
+      setState(() {});
+      _schedulePlaceholderRefresh();
+    });
+  }
+
+  String get _journalPlaceholderText =>
+      dailyReflectionQuestionForDate(DateTime.now())?.question ??
+      'Write your day…';
 
   void _onDraftChanged() {
     if (mounted && !FeatureFlags.hasRichText) {
@@ -827,6 +849,7 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   Widget _buildTextLayer() {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final placeholderText = _journalPlaceholderText;
 
     if (FeatureFlags.hasRichText && widget.controller.currentDocument != null) {
       final doc = widget.controller.currentDocument!;
@@ -846,6 +869,7 @@ class _JournalOverlayState extends State<JournalOverlay>
         highlightedRanges: _linkedTextRanges(),
         insightLinks: _insightLinks,
         onInsightLinkTap: _handleLinkTap,
+        placeholderText: placeholderText,
       );
     }
 
@@ -858,9 +882,9 @@ class _JournalOverlayState extends State<JournalOverlay>
       expands: true,
       textAlignVertical: TextAlignVertical.top,
       style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
-      decoration: const InputDecoration(
-        hintText: 'Write your day…',
-        hintStyle: TextStyle(color: Color(0xFF666666), fontSize: 16),
+      decoration: InputDecoration(
+        hintText: placeholderText,
+        hintStyle: const TextStyle(color: Color(0xFF666666), fontSize: 16),
         border: InputBorder.none,
         contentPadding: EdgeInsets.zero,
       ),

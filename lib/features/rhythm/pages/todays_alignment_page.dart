@@ -9,6 +9,7 @@ import 'package:mobile/core/planner_launch_intent.dart';
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:mobile/core/touch_targets.dart';
+import 'package:mobile/core/daily_reflection_question.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mobile/data/nutrition_repo.dart';
@@ -860,18 +861,16 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   ({String dayKey, int kYear, String reflection})? _todayPlannerAction() {
-    final kd = _kemeticConverter.fromGregorian(_todayLocal);
-    final dayKey = kemeticDayKey(kd.epagomenal ? 13 : kd.month, kd.day);
-    final info = KemeticDayData.getInfoForDay(dayKey);
-    if (info == null) return null;
-
-    for (final flowDay in info.decanFlow) {
-      if (flowDay.day == kd.day) {
-        return (dayKey: dayKey, kYear: kd.year, reflection: flowDay.reflection);
-      }
-    }
-
-    return null;
+    final dailyQuestion = dailyReflectionQuestionForDate(
+      _todayLocal,
+      converter: _kemeticConverter,
+    );
+    if (dailyQuestion == null) return null;
+    return (
+      dayKey: dailyQuestion.dayKey,
+      kYear: dailyQuestion.kYear,
+      reflection: dailyQuestion.question,
+    );
   }
 
   void _publishDailyReflectionWidgetData() {

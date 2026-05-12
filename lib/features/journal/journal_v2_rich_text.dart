@@ -546,6 +546,7 @@ class RichTextEditor extends StatefulWidget {
   final List<TextRange> highlightedRanges;
   final List<InsightLink> insightLinks;
   final ValueChanged<InsightLink>? onInsightLinkTap;
+  final String? placeholderText;
 
   const RichTextEditor({
     super.key,
@@ -557,6 +558,7 @@ class RichTextEditor extends StatefulWidget {
     this.highlightedRanges = const [],
     this.insightLinks = const [],
     this.onInsightLinkTap,
+    this.placeholderText,
   });
 
   @override
@@ -895,30 +897,56 @@ class RichTextEditorState extends State<RichTextEditor> {
   }
 
   Widget _buildEditableView(double bottomInset) {
-    return TextField(
-      controller: _controller,
-      focusNode: _focusNode,
-      maxLines: null,
-      expands: true,
-      scrollController: _textScrollController,
-      readOnly: widget.readOnly,
-      keyboardType: TextInputType.multiline,
-      textInputAction: TextInputAction.newline,
-      scrollPhysics: const BouncingScrollPhysics(),
-      scrollPadding: EdgeInsets.only(bottom: bottomInset + 32),
-      enableInteractiveSelection: !widget.readOnly,
-      onTapAlwaysCalled: true,
-      textAlignVertical: TextAlignVertical.top,
-      style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
-      inputFormatters: _formatters,
-      cursorColor: KemeticGold.base,
-      decoration: const InputDecoration(
-        border: InputBorder.none,
-        hintText: 'Write your day…',
-        hintStyle: TextStyle(color: Color(0xFF666666), fontSize: 16),
-      ),
-      onTap: _handleEditableTap,
-      onChanged: _handleTextChanged,
+    final placeholderText = widget.placeholderText?.trim();
+    final showPlaceholder =
+        placeholderText != null &&
+        placeholderText.isNotEmpty &&
+        _controller.text.trim().isEmpty &&
+        !widget.readOnly;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          maxLines: null,
+          expands: true,
+          scrollController: _textScrollController,
+          readOnly: widget.readOnly,
+          keyboardType: TextInputType.multiline,
+          textInputAction: TextInputAction.newline,
+          scrollPhysics: const BouncingScrollPhysics(),
+          scrollPadding: EdgeInsets.only(bottom: bottomInset + 32),
+          enableInteractiveSelection: !widget.readOnly,
+          onTapAlwaysCalled: true,
+          textAlignVertical: TextAlignVertical.top,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            height: 1.5,
+          ),
+          inputFormatters: _formatters,
+          cursorColor: KemeticGold.base,
+          decoration: const InputDecoration(
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+          ),
+          onTap: _handleEditableTap,
+          onChanged: _handleTextChanged,
+        ),
+        if (showPlaceholder)
+          IgnorePointer(
+            child: Text(
+              placeholderText,
+              style: const TextStyle(
+                color: Color(0xFF666666),
+                fontSize: 16,
+                height: 1.5,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
