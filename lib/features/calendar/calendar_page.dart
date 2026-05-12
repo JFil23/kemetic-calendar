@@ -80,6 +80,7 @@ import '../../widgets/flow_start_date_picker.dart';
 import '../../utils/external_link_utils.dart';
 import 'track_sky_flow.dart';
 import 'dawn_house_rite_flow.dart';
+import 'evening_threshold_rite_flow.dart';
 import '../reflections/decan_reflection_archive_page.dart';
 import '../settings/settings_page.dart';
 import '../settings/settings_prefs.dart';
@@ -4383,7 +4384,12 @@ class _MaatFlowDay {
        ];
 }
 
-enum _MaatFlowTemplateKind { sequence, trackSky, dawnHouseRite }
+enum _MaatFlowTemplateKind {
+  sequence,
+  trackSky,
+  dawnHouseRite,
+  eveningThresholdRite,
+}
 
 class _MaatFlowTemplate {
   final String key; // stable identifier (e.g., "wealth-economy")
@@ -4418,6 +4424,13 @@ final List<_MaatFlowTemplate> kMaatFlowTemplates = [
     color: const Color(0xFFEFA25C),
     kind: _MaatFlowTemplateKind.dawnHouseRite,
   ),
+  _MaatFlowTemplate(
+    key: kEveningThresholdRiteFlowKey,
+    title: kEveningThresholdRiteTitle,
+    overview: kEveningThresholdRiteOverview,
+    color: const Color(0xFF6F58D9),
+    kind: _MaatFlowTemplateKind.eveningThresholdRite,
+  ),
 ];
 
 String _maatFlowTemplateDurationLabel(_MaatFlowTemplate template) {
@@ -4425,6 +4438,7 @@ String _maatFlowTemplateDurationLabel(_MaatFlowTemplate template) {
     case _MaatFlowTemplateKind.trackSky:
       return 'Ongoing';
     case _MaatFlowTemplateKind.dawnHouseRite:
+    case _MaatFlowTemplateKind.eveningThresholdRite:
       return '30 days';
     case _MaatFlowTemplateKind.sequence:
       return '${template.days.isEmpty ? 10 : template.days.length} days';
@@ -5084,6 +5098,9 @@ class CalendarPage extends StatefulWidget {
     int? alertMinutesBefore,
     bool? dawnDiscreetMode,
     DawnHouseRiteLens? dawnLens,
+    bool? eveningDiscreetMode,
+    EveningThresholdRiteLens? eveningLens,
+    int? eveningFallbackMinutesAfterMidnight,
   }) async {
     final personalCalendarId = await _loadHeadlessPersonalCalendarId();
     if (template.kind == _MaatFlowTemplateKind.trackSky) {
@@ -5239,6 +5256,116 @@ class CalendarPage extends StatefulWidget {
             lens: lens,
           ),
           caller: 'dawn_house_rite_join_headless',
+        );
+      }
+
+      return flowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.eveningThresholdRite) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final discreet = eveningDiscreetMode == true;
+      final lens = eveningLens ?? EveningThresholdRiteLens.neutral;
+      final fallbackMinutes =
+          eveningFallbackMinutesAfterMidnight ??
+          kEveningThresholdDefaultFallbackMinutes;
+      final firstG = DateUtils.dateOnly(
+        startDate ??
+            defaultEveningThresholdRiteStartDate(
+              timezone,
+              fallbackMinutesAfterMidnight: fallbackMinutes,
+            ),
+      );
+      final occurrences = <EveningThresholdOccurrenceSchedule>[
+        for (var i = 0; i < kEveningThresholdRiteDays.length; i++)
+          eveningThresholdScheduleForDate(
+            firstG.add(Duration(days: i)),
+            timezone,
+            fallbackMinutesAfterMidnight: fallbackMinutes,
+          ),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+      final flow = _Flow(
+        id: -1,
+        calendarId: personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: orderedDates.last,
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'evening_tz=${timezone.key}',
+          'evening_discreet=${discreet ? 1 : 0}',
+          'evening_lens=${lens.key}',
+          'evening_fallback=$fallbackMinutes',
+        ].join(';'),
+      );
+
+      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+      final flowId = await userEventsRepo.upsertFlow(
+        id: null,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: flow.notes,
+        rules: jsonEncode(
+          flow.rules.map(_CalendarPageState.ruleToJson).toList(),
+        ),
+        originType: 'template',
+      );
+
+      for (var i = 0; i < kEveningThresholdRiteDays.length; i++) {
+        final day = kEveningThresholdRiteDays[i];
+        final occurrence = occurrences[i];
+        final k = KemeticMath.fromGregorian(
+          DateUtils.dateOnly(occurrence.startLocal),
+        );
+        final title = eveningThresholdRiteEventTitle(day);
+        final cid = EventCidUtil.buildClientEventId(
+          ky: k.kYear,
+          km: k.kMonth,
+          kd: k.kDay,
+          title: title,
+          startHour: occurrence.startLocal.hour,
+          startMinute: occurrence.startLocal.minute,
+          allDay: false,
+          flowId: flowId,
+        );
+        await userEventsRepo.upsertByClientId(
+          clientEventId: cid,
+          title: title,
+          startsAtUtc: occurrence.startUtc,
+          detail: eveningThresholdRiteDetailText(
+            day,
+            discreet: discreet,
+            lens: lens,
+          ),
+          allDay: false,
+          endsAtUtc: occurrence.endUtc,
+          calendarId: personalCalendarId,
+          flowLocalId: flowId,
+          category: 'Ritual',
+          actionId: eveningThresholdRiteActionId(day),
+          behaviorPayload: eveningThresholdRiteBehaviorPayload(
+            day: day,
+            schedule: occurrence,
+            discreet: discreet,
+            lens: lens,
+          ),
+          caller: 'evening_threshold_rite_join_headless',
         );
       }
 
@@ -7146,6 +7273,9 @@ class _CalendarPageState extends State<CalendarPage>
                 int? alertMinutesBefore,
                 bool? dawnDiscreetMode,
                 DawnHouseRiteLens? dawnLens,
+                bool? eveningDiscreetMode,
+                EveningThresholdRiteLens? eveningLens,
+                int? eveningFallbackMinutesAfterMidnight,
               }) async {
                 final id = await _addMaatFlowInstance(
                   template: template,
@@ -7155,6 +7285,11 @@ class _CalendarPageState extends State<CalendarPage>
                   alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
                   dawnDiscreetMode: dawnDiscreetMode ?? false,
                   dawnLens: dawnLens ?? DawnHouseRiteLens.neutral,
+                  eveningDiscreetMode: eveningDiscreetMode ?? false,
+                  eveningLens: eveningLens ?? EveningThresholdRiteLens.neutral,
+                  eveningFallbackMinutesAfterMidnight:
+                      eveningFallbackMinutesAfterMidnight ??
+                      kEveningThresholdDefaultFallbackMinutes,
                 );
                 return id;
               },
@@ -17463,6 +17598,10 @@ class _CalendarPageState extends State<CalendarPage>
     int alertMinutesBefore = _alertNoneMinutes,
     bool dawnDiscreetMode = false,
     DawnHouseRiteLens dawnLens = DawnHouseRiteLens.neutral,
+    bool eveningDiscreetMode = false,
+    EveningThresholdRiteLens eveningLens = EveningThresholdRiteLens.neutral,
+    int eveningFallbackMinutesAfterMidnight =
+        kEveningThresholdDefaultFallbackMinutes,
   }) async {
     if (template.kind == _MaatFlowTemplateKind.trackSky) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
@@ -17753,6 +17892,185 @@ class _CalendarPageState extends State<CalendarPage>
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Could not create Dawn House Rite events.'),
+            ),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.eveningThresholdRite) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final firstG = DateUtils.dateOnly(
+        startDate ??
+            defaultEveningThresholdRiteStartDate(
+              timezone,
+              fallbackMinutesAfterMidnight: eveningFallbackMinutesAfterMidnight,
+            ),
+      );
+      final occurrences = <EveningThresholdOccurrenceSchedule>[
+        for (var i = 0; i < kEveningThresholdRiteDays.length; i++)
+          eveningThresholdScheduleForDate(
+            firstG.add(Duration(days: i)),
+            timezone,
+            fallbackMinutesAfterMidnight: eveningFallbackMinutesAfterMidnight,
+          ),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: orderedDates.last,
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'evening_tz=${timezone.key}',
+          'evening_discreet=${eveningDiscreetMode ? 1 : 0}',
+          'evening_lens=${eveningLens.key}',
+          'evening_fallback=$eveningFallbackMinutesAfterMidnight',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          debugPrint('[eveningThresholdRite] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (var i = 0; i < kEveningThresholdRiteDays.length; i++) {
+          final day = kEveningThresholdRiteDays[i];
+          final occurrence = occurrences[i];
+          final kyKmKd = KemeticMath.fromGregorian(
+            DateUtils.dateOnly(occurrence.startLocal),
+          );
+          final startTod = TimeOfDay(
+            hour: occurrence.startLocal.hour,
+            minute: occurrence.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: occurrence.endLocal.hour,
+            minute: occurrence.endLocal.minute,
+          );
+          final title = eveningThresholdRiteEventTitle(day);
+          final detail = eveningThresholdRiteDetailText(
+            day,
+            discreet: eveningDiscreetMode,
+            lens: eveningLens,
+          );
+          final behaviorPayload = eveningThresholdRiteBehaviorPayload(
+            day: day,
+            schedule: occurrence,
+            discreet: eveningDiscreetMode,
+            lens: eveningLens,
+          );
+          final clientEventId = _buildCid(
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            title: title,
+            startHour: startTod.hour,
+            startMinute: startTod.minute,
+            allDay: false,
+            flowId: serverFlowId,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: _alertNoneMinutes,
+            actionId: eveningThresholdRiteActionId(day),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: _alertNoneMinutes,
+            actionId: eveningThresholdRiteActionId(day),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: occurrence.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: occurrence.endUtc,
+            category: 'Ritual',
+            flowLocalId: serverFlowId,
+            actionId: eveningThresholdRiteActionId(day),
+            behaviorPayload: behaviorPayload,
+            caller: 'evening_threshold_rite_join',
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          debugPrint('[eveningThresholdRite] event creation failed: $e');
+          debugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not create Evening Threshold Rite events.'),
             ),
           );
         }
@@ -37435,6 +37753,9 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     int? alertMinutesBefore,
     bool? dawnDiscreetMode,
     DawnHouseRiteLens? dawnLens,
+    bool? eveningDiscreetMode,
+    EveningThresholdRiteLens? eveningLens,
+    int? eveningFallbackMinutesAfterMidnight,
   })
   addInstance;
 
@@ -37451,6 +37772,11 @@ class _MaatFlowTemplateDetailPageState
   DawnHouseRiteLens _dawnLens = DawnHouseRiteLens.neutral;
   bool _dawnStartDateTouched = false;
   bool _dawnJoinInFlight = false;
+  bool _eveningDiscreetMode = false;
+  EveningThresholdRiteLens _eveningLens = EveningThresholdRiteLens.neutral;
+  bool _eveningStartDateTouched = false;
+  int _eveningFallbackMinutes = kEveningThresholdDefaultFallbackMinutes;
+  bool _eveningJoinInFlight = false;
 
   @override
   void initState() {
@@ -37460,6 +37786,12 @@ class _MaatFlowTemplateDetailPageState
       _trackSkyFuture = loadTrackSkyFlowData(_previewTrackSkyTimeZone);
     } else if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
       _picked = defaultDawnHouseRiteStartDate(_previewTrackSkyTimeZone);
+    } else if (widget.template.kind ==
+        _MaatFlowTemplateKind.eveningThresholdRite) {
+      _picked = defaultEveningThresholdRiteStartDate(
+        _previewTrackSkyTimeZone,
+        fallbackMinutesAfterMidnight: _eveningFallbackMinutes,
+      );
     }
   }
 
@@ -37865,6 +38197,9 @@ class _MaatFlowTemplateDetailPageState
                               if (widget.template.kind ==
                                   _MaatFlowTemplateKind.dawnHouseRite) {
                                 _dawnStartDateTouched = true;
+                              } else if (widget.template.kind ==
+                                  _MaatFlowTemplateKind.eveningThresholdRite) {
+                                _eveningStartDateTouched = true;
                               }
                             });
                             Navigator.pop(sheetCtx);
@@ -37898,6 +38233,13 @@ class _MaatFlowTemplateDetailPageState
       } else if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite &&
           !_dawnStartDateTouched) {
         _picked = defaultDawnHouseRiteStartDate(timezone);
+      } else if (widget.template.kind ==
+              _MaatFlowTemplateKind.eveningThresholdRite &&
+          !_eveningStartDateTouched) {
+        _picked = defaultEveningThresholdRiteStartDate(
+          timezone,
+          fallbackMinutesAfterMidnight: _eveningFallbackMinutes,
+        );
       }
     });
   }
@@ -37917,6 +38259,63 @@ class _MaatFlowTemplateDetailPageState
       case DawnHouseRiteLens.protection:
         return 'Protection adds a short focus on clean boundaries, safety, and guarding against disorder.';
     }
+  }
+
+  String _eveningLensExplanation(EveningThresholdRiteLens lens) {
+    switch (lens) {
+      case EveningThresholdRiteLens.neutral:
+        return 'Neutral keeps the standard evening rite text with no added emphasis.';
+      case EveningThresholdRiteLens.solar:
+        return 'Solar adds a short focus on sunset as the beginning of the hidden solar journey.';
+      case EveningThresholdRiteLens.ancestor:
+        return 'Ancestor adds a short focus on memory, lineage, and quiet remembrance.';
+      case EveningThresholdRiteLens.household:
+        return 'Household adds a short focus on rooms, shared resources, and evening speech at home.';
+      case EveningThresholdRiteLens.protection:
+        return 'Protection adds a short focus on boundaries that protect rest, safety, truth, or peace.';
+      case EveningThresholdRiteLens.hiddenRenewal:
+        return 'Hidden Renewal adds a short focus on rest as restoration after the visible day closes.';
+    }
+  }
+
+  TimeOfDay _timeOfDayFromMinutes(int minutes) {
+    final normalized = minutes.clamp(0, (24 * 60) - 1).toInt();
+    return TimeOfDay(hour: normalized ~/ 60, minute: normalized % 60);
+  }
+
+  int _minutesFromTimeOfDay(TimeOfDay time) {
+    return (time.hour * 60) + time.minute;
+  }
+
+  Future<void> _pickEveningFallbackTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _timeOfDayFromMinutes(_eveningFallbackMinutes),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: _gold,
+              onPrimary: Colors.black,
+              surface: Color(0xFF101115),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _eveningFallbackMinutes = _minutesFromTimeOfDay(picked);
+      if (!_eveningStartDateTouched &&
+          widget.template.kind == _MaatFlowTemplateKind.eveningThresholdRite) {
+        _picked = defaultEveningThresholdRiteStartDate(
+          _previewTrackSkyTimeZone,
+          fallbackMinutesAfterMidnight: _eveningFallbackMinutes,
+        );
+      }
+    });
   }
 
   Future<void> _joinDawnHouseRiteFlow(DateTime selectedStart) async {
@@ -37958,6 +38357,49 @@ class _MaatFlowTemplateDetailPageState
     }
     setState(() {
       _dawnJoinInFlight = false;
+    });
+  }
+
+  Future<void> _joinEveningThresholdRiteFlow(DateTime selectedStart) async {
+    if (_eveningJoinInFlight) return;
+    setState(() {
+      _eveningJoinInFlight = true;
+    });
+
+    final int id;
+    try {
+      id = await widget.addInstance(
+        template: widget.template,
+        startDate: selectedStart,
+        trackSkyTimeZone: _previewTrackSkyTimeZone,
+        eveningDiscreetMode: _eveningDiscreetMode,
+        eveningLens: _eveningLens,
+        eveningFallbackMinutesAfterMidnight: _eveningFallbackMinutes,
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[eveningThresholdRite] join failed: $e');
+        debugPrint('$st');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not join Evening Threshold Rite. Please retry.'),
+        ),
+      );
+      setState(() {
+        _eveningJoinInFlight = false;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    if (id > 0) {
+      Navigator.of(context).pop(id);
+      return;
+    }
+    setState(() {
+      _eveningJoinInFlight = false;
     });
   }
 
@@ -38772,6 +39214,299 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
+  Widget _buildEveningThresholdRiteDayTile(
+    BuildContext context,
+    EveningThresholdRiteDay day,
+  ) {
+    final detail = eveningThresholdRiteDetailText(
+      day,
+      discreet: _eveningDiscreetMode,
+      lens: _eveningLens,
+    );
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B0C0F),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+          collapsedIconColor: _silver,
+          iconColor: _gold,
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          title: Text(
+            eveningThresholdRiteEventTitle(day),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Text(
+              day.section,
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ),
+          children: [
+            Text(
+              detail,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13.5,
+                height: 1.45,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEveningThresholdRiteScaffold(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final buttonWidth = math.min(media.size.width - 32, 280.0);
+    final ctaBottom = media.padding.bottom + 12;
+    final l10n = MaterialLocalizations.of(context);
+    final selectedStart =
+        _picked ??
+        defaultEveningThresholdRiteStartDate(
+          _previewTrackSkyTimeZone,
+          fallbackMinutesAfterMidnight: _eveningFallbackMinutes,
+        );
+    final firstSchedule = eveningThresholdScheduleForDate(
+      selectedStart,
+      _previewTrackSkyTimeZone,
+      fallbackMinutesAfterMidnight: _eveningFallbackMinutes,
+    );
+    final lastSchedule = eveningThresholdScheduleForDate(
+      selectedStart.add(Duration(days: kEveningThresholdRiteDays.length - 1)),
+      _previewTrackSkyTimeZone,
+      fallbackMinutesAfterMidnight: _eveningFallbackMinutes,
+    );
+    final firstTime = l10n.formatTimeOfDay(
+      TimeOfDay(
+        hour: firstSchedule.startLocal.hour,
+        minute: firstSchedule.startLocal.minute,
+      ),
+    );
+    final lastTime = l10n.formatTimeOfDay(
+      TimeOfDay(
+        hour: lastSchedule.startLocal.hour,
+        minute: lastSchedule.startLocal.minute,
+      ),
+    );
+    final fallbackTime = l10n.formatTimeOfDay(
+      _timeOfDayFromMinutes(_eveningFallbackMinutes),
+    );
+
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0.5,
+        title: GlossyText(
+          text: widget.template.title,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          gradient: goldGloss,
+        ),
+      ),
+      body: Stack(
+        children: [
+          ListView(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, ctaBottom + 96),
+            children: [
+              GlossyText(
+                text: widget.template.title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+                gradient: goldGloss,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.template.overview,
+                style: const TextStyle(color: Colors.white, height: 1.35),
+              ),
+              const SizedBox(height: 16),
+              const GlossyText(
+                text: 'Timezone',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                gradient: silverGloss,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: TrackSkyTimeZone.values.map((timezone) {
+                  return ChoiceChip(
+                    label: Text(timezone.shortLabel),
+                    selected: _previewTrackSkyTimeZone == timezone,
+                    onSelected: (_) => _setTrackSkyPreviewTimeZone(timezone),
+                    selectedColor: _gold,
+                    labelStyle: TextStyle(
+                      color: _previewTrackSkyTimeZone == timezone
+                          ? Colors.black
+                          : Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    backgroundColor: const Color(0xFF15171B),
+                    side: const BorderSide(color: Colors.white24),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Estimated from ${firstSchedule.referenceLocation.name} for ${_previewTrackSkyTimeZone.label}. First evening: ${l10n.formatShortDate(selectedStart)} at $firstTime. Final evening: ${l10n.formatShortDate(lastSchedule.startLocal)} at $lastTime.',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'The default schedule is sunset + 20 minutes. If sunset data is unavailable, the app uses your fallback evening time: $fallbackTime.',
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: silver, width: 1.25),
+                        alignment: Alignment.centerLeft,
+                      ),
+                      onPressed: _pickDate,
+                      child: Text('Start: ${_fmtGregorian(selectedStart)}'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: silver, width: 1.25),
+                        alignment: Alignment.centerLeft,
+                      ),
+                      onPressed: _pickEveningFallbackTime,
+                      child: Text('Fallback: $fallbackTime'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                activeThumbColor: _gold,
+                value: _eveningDiscreetMode,
+                onChanged: (value) {
+                  setState(() {
+                    _eveningDiscreetMode = value;
+                  });
+                },
+                title: const Text(
+                  'Discreet mode',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: const Text(
+                  'Changes wording only. Turn this on when the rite needs to look ordinary in public or shared space; event text avoids visible ritual terms such as altar, offering, incense, flame, and spoken recitation.',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const GlossyText(
+                text: 'Lens',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                gradient: silverGloss,
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'A lens adds a short emphasis to each evening’s guidance. It does not change the sunset timing, duration, fallback time, or thirty-day sequence.',
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: EveningThresholdRiteLens.values.map((lens) {
+                  return ChoiceChip(
+                    label: Text(lens.label),
+                    selected: _eveningLens == lens,
+                    onSelected: (_) {
+                      setState(() {
+                        _eveningLens = lens;
+                      });
+                    },
+                    selectedColor: _gold,
+                    labelStyle: TextStyle(
+                      color: _eveningLens == lens ? Colors.black : Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    backgroundColor: const Color(0xFF15171B),
+                    side: const BorderSide(color: Colors.white24),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _eveningLensExplanation(_eveningLens),
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12.5,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const GlossyText(
+                text: '30-Day Outline',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                gradient: silverGloss,
+              ),
+              const SizedBox(height: 8),
+              ...kEveningThresholdRiteDays.map(
+                (day) => _buildEveningThresholdRiteDayTile(context, day),
+              ),
+            ],
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: ctaBottom,
+            child: _buildTemplateStickyJoinButton(
+              buttonWidth: buttonWidth,
+              text: _eveningJoinInFlight ? 'Joining…' : 'Join Flow',
+              onPressed: _eveningJoinInFlight
+                  ? null
+                  : () => _joinEveningThresholdRiteFlow(selectedStart),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSequenceScaffold(BuildContext context) {
     final l10n = MaterialLocalizations.of(context);
     return Scaffold(
@@ -38916,6 +39651,9 @@ class _MaatFlowTemplateDetailPageState
     }
     if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
       return _buildDawnHouseRiteScaffold(context);
+    }
+    if (widget.template.kind == _MaatFlowTemplateKind.eveningThresholdRite) {
+      return _buildEveningThresholdRiteScaffold(context);
     }
     return _buildSequenceScaffold(context);
   }

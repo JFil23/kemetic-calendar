@@ -19,6 +19,7 @@ import 'day_view_chrome.dart';
 import 'landscape_month_view.dart';
 import 'track_sky_flow.dart';
 import 'dawn_house_rite_flow.dart';
+import 'evening_threshold_rite_flow.dart';
 import '../onboarding/day_view_date_coachmark.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
@@ -72,6 +73,10 @@ bool _isTrackSkyFlowName(String? name) {
 
 bool _isDawnHouseRiteFlowName(String? name) {
   return name?.trim().toLowerCase() == kDawnHouseRiteTitle.toLowerCase();
+}
+
+bool _isEveningThresholdRiteFlowName(String? name) {
+  return name?.trim().toLowerCase() == kEveningThresholdRiteTitle.toLowerCase();
 }
 
 const Gradient _dawnHouseRiteFlowGloss = LinearGradient(
@@ -160,6 +165,88 @@ Widget _buildDawnHouseRiteAccent({required bool compact, double size = 24}) {
               borderRadius: BorderRadius.vertical(
                 top: Radius.elliptical(size, size * 0.34),
               ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+const Gradient _eveningThresholdRiteFlowGloss = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color(0xFFF4EEFF),
+    Color(0xFFB9C7FF),
+    Color(0xFFFFE7A8),
+    Color(0xFF7FE0D4),
+  ],
+  stops: [0.0, 0.38, 0.62, 1.0],
+);
+
+const LinearGradient _eveningThresholdRiteCardGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+    Color(0xFF030611),
+    Color(0xFF111634),
+    Color(0xFF193248),
+    Color(0xFF2B254E),
+  ],
+  stops: [0.0, 0.36, 0.7, 1.0],
+);
+
+Widget _buildEveningThresholdRiteAccent({
+  required bool compact,
+  double size = 24,
+}) {
+  final moonSize = compact ? size * 0.32 : size * 0.4;
+  return SizedBox(
+    width: size + 10,
+    height: size,
+    child: Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: 4,
+          top: 4,
+          child: Container(
+            width: moonSize,
+            height: moonSize,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFF4EEFF).withValues(alpha: 0.94),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFAFC6FF).withValues(alpha: 0.45),
+                  blurRadius: compact ? 6 : 9,
+                ),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          left: moonSize * 0.52 + 4,
+          top: 3,
+          child: Container(
+            width: moonSize,
+            height: moonSize,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color(0xFF111634),
+            ),
+          ),
+        ),
+        Positioned(
+          right: size * 0.16,
+          top: size * 0.18,
+          child: Container(
+            width: compact ? 2.2 : 3,
+            height: compact ? 2.2 : 3,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFF7F0FF).withValues(alpha: 0.86),
             ),
           ),
         ),
@@ -2572,7 +2659,7 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     final sections = <({String heading, String body})>[];
     final headingPattern = RegExp(
-      r"^(Purpose|Action|Words|Ma'at act|Order act|Lens|Cycle|Completion)\s*:?\s*(.*)$",
+      r"^(Purpose|Action|Words|Quiet line|Ma'at act|Order act|Evening act|Lens|Cycle|Completion)\s*:?\s*(.*)$",
       caseSensitive: false,
     );
     final buffer = <String>[];
@@ -2646,7 +2733,8 @@ class _DayViewGridState extends State<DayViewGrid> {
           if (section.heading.isNotEmpty)
             Text(section.heading, style: headingStyle),
           if (section.heading.isNotEmpty) const SizedBox(height: 3),
-          if (section.heading.toLowerCase() == 'words')
+          if (section.heading.toLowerCase() == 'words' ||
+              section.heading.toLowerCase() == 'quiet line')
             Text(
               section.body,
               style: bodyStyle.copyWith(
@@ -3721,6 +3809,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     final flow = _chromeFlowForId(event.flowId);
     final isTrackSky = _isTrackSkyFlowName(flow?.name);
     final isDawnHouseRite = _isDawnHouseRiteFlowName(flow?.name);
+    final isEveningThresholdRite = _isEveningThresholdRiteFlowName(flow?.name);
     final trackSkySpec = isTrackSky ? _trackSkyCardSpecForEvent(event) : null;
 
     // 🔍 DEBUG: Log block being rendered
@@ -3734,7 +3823,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     final double height = _eventVisualHeight(event);
 
     final borderRadius = BorderRadius.circular(
-      isTrackSky || isDawnHouseRite ? 8 : 4,
+      isTrackSky || isDawnHouseRite || isEveningThresholdRite ? 8 : 4,
     );
 
     if (isTrackSky) {
@@ -3924,6 +4013,115 @@ class _DayViewGridState extends State<DayViewGrid> {
       );
     }
 
+    if (isEveningThresholdRite) {
+      return Container(
+        width: block.width,
+        height: height,
+        margin: const EdgeInsets.only(right: 4, bottom: 2),
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isPreview ? 0.16 : 0.28),
+              blurRadius: kIsWeb ? 8 : 12,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: const Color(
+                0xFF66D7CF,
+              ).withValues(alpha: isPreview ? 0.07 : 0.15),
+              blurRadius: kIsWeb ? 10 : 14,
+              spreadRadius: -3,
+            ),
+          ],
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: _eveningThresholdRiteCardGradient,
+                  borderRadius: borderRadius,
+                  border: Border.all(
+                    color: const Color(
+                      0xFF7FE0D4,
+                    ).withValues(alpha: isPreview ? 0.58 : 0.82),
+                    width: 0.9,
+                  ),
+                ),
+              ),
+            ),
+            IgnorePointer(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            const Color(0xB0030611),
+                            const Color(0x74030611),
+                            const Color(0x24030611),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.38, 0.68, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: durationMinutes < 80 ? 2 : 2.5,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            const Color(0xFF8CDAD1).withValues(alpha: 0.08),
+                            const Color(0xFF8CDAD1).withValues(alpha: 0.42),
+                            const Color(0xFFFFE4A3).withValues(alpha: 0.22),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 6,
+                    child: Opacity(
+                      opacity: isPreview ? 0.78 : 1.0,
+                      child: _buildEveningThresholdRiteAccent(
+                        compact: durationMinutes < 80,
+                        size: math.min(height - 16, 25),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 11,
+                vertical: event.isReminder ? 4 : 4,
+              ),
+              child: _buildEventTextContents(
+                event,
+                durationMinutes,
+                isPreview: isPreview,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final fillColor = isPreview
         ? event.color.withValues(alpha: 0.12)
         : event.color.withValues(alpha: 0.2);
@@ -3963,7 +4161,11 @@ class _DayViewGridState extends State<DayViewGrid> {
     final bool hasFlow = flow != null;
     final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
     final bool isDawnHouseRite = _isDawnHouseRiteFlowName(flow?.name);
-    final bool isGraphicFlow = isTrackSky || isDawnHouseRite;
+    final bool isEveningThresholdRite = _isEveningThresholdRiteFlowName(
+      flow?.name,
+    );
+    final bool isGraphicFlow =
+        isTrackSky || isDawnHouseRite || isEveningThresholdRite;
     final trackSkySpec = isTrackSky ? _trackSkyCardSpecForEvent(event) : null;
 
     final showTitle = event.title.trim().isNotEmpty;
@@ -3976,6 +4178,8 @@ class _DayViewGridState extends State<DayViewGrid> {
         ? trackSkySpec!.titleColor.withValues(alpha: isPreview ? 0.94 : 1.0)
         : isDawnHouseRite
         ? const Color(0xFFFFF6E3).withValues(alpha: isPreview ? 0.92 : 1.0)
+        : isEveningThresholdRite
+        ? const Color(0xFFF2F0FF).withValues(alpha: isPreview ? 0.92 : 1.0)
         : (isPreview ? Colors.white70 : Colors.white);
     final flowColor = hasFlow && !isGraphicFlow
         ? event.color.withValues(alpha: isPreview ? 0.75 : 1.0)
@@ -3984,6 +4188,8 @@ class _DayViewGridState extends State<DayViewGrid> {
         ? trackSkySpec!.detailColor.withValues(alpha: isPreview ? 0.78 : 0.96)
         : isDawnHouseRite
         ? const Color(0xFFFFDEB2).withValues(alpha: isPreview ? 0.74 : 0.92)
+        : isEveningThresholdRite
+        ? const Color(0xFFE9D6FF).withValues(alpha: isPreview ? 0.74 : 0.92)
         : Colors.white.withValues(alpha: isPreview ? 0.55 : 0.7);
     final titleMaxLines = (event.isReminder || hasFlow || durationMinutes < 90)
         ? 1
@@ -4109,6 +4315,18 @@ class _DayViewGridState extends State<DayViewGrid> {
                   overflow: TextOverflow.ellipsis,
                   gradient: _dawnHouseRiteFlowGloss,
                 )
+              : isEveningThresholdRite
+              ? buildTrackSkyText(
+                  flow.name,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: trackSkyFlowNameColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  gradient: _eveningThresholdRiteFlowGloss,
+                )
               : Text(
                   flow.name,
                   style: TextStyle(
@@ -4136,6 +4354,17 @@ class _DayViewGridState extends State<DayViewGrid> {
                   overflow: TextOverflow.ellipsis,
                 )
               : isDawnHouseRite
+              ? buildTrackSkyText(
+                  event.title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: titleColor,
+                  ),
+                  maxLines: titleMaxLines,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : isEveningThresholdRite
               ? buildTrackSkyText(
                   event.title,
                   style: TextStyle(
@@ -4179,6 +4408,20 @@ class _DayViewGridState extends State<DayViewGrid> {
                     fontWeight: FontWeight.w400,
                     color: const Color(
                       0xFFFFE8C6,
+                    ).withValues(alpha: isPreview ? 0.78 : 0.9),
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : isEveningThresholdRite
+              ? buildTrackSkyText(
+                  hasFlow ? '(flow block)' : '(scheduled)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                    color: const Color(
+                      0xFFDDEAFF,
                     ).withValues(alpha: isPreview ? 0.78 : 0.9),
                     fontStyle: FontStyle.italic,
                   ),
@@ -4367,6 +4610,9 @@ class _DayViewGridState extends State<DayViewGrid> {
         currentEvent.detail != null && currentEvent.detail!.contains('Source:');
     final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
     final bool isDawnHouseRite = _isDawnHouseRiteFlowName(flow?.name);
+    final bool isEveningThresholdRite = _isEveningThresholdRiteFlowName(
+      flow?.name,
+    );
     final trackSkySpec = isTrackSky
         ? _trackSkyCardSpecForEvent(currentEvent)
         : null;
@@ -4381,8 +4627,10 @@ class _DayViewGridState extends State<DayViewGrid> {
               ? skyMetaSpec!.background
               : isDawnHouseRite
               ? _dawnHouseRiteCardGradient
+              : isEveningThresholdRite
+              ? _eveningThresholdRiteCardGradient
               : null,
-          color: isTrackSky || isDawnHouseRite
+          color: isTrackSky || isDawnHouseRite || isEveningThresholdRite
               ? null
               : flow.color.withValues(alpha: 0.16),
           border: isTrackSky
@@ -4393,10 +4641,14 @@ class _DayViewGridState extends State<DayViewGrid> {
               ? Border.all(
                   color: const Color(0xFFFFD08A).withValues(alpha: 0.8),
                 )
+              : isEveningThresholdRite
+              ? Border.all(
+                  color: const Color(0xFF7FE0D4).withValues(alpha: 0.78),
+                )
               : null,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: isTrackSky || isDawnHouseRite
+        child: isTrackSky || isDawnHouseRite || isEveningThresholdRite
             ? Text(
                 flow.name,
                 maxLines: 1,
@@ -4406,7 +4658,9 @@ class _DayViewGridState extends State<DayViewGrid> {
                   fontWeight: FontWeight.w700,
                   color: isTrackSky
                       ? skyMetaSpec!.titleColor
-                      : const Color(0xFFFFF6E3),
+                      : isDawnHouseRite
+                      ? const Color(0xFFFFF6E3)
+                      : const Color(0xFFF2F0FF),
                   shadows: [
                     Shadow(
                       color: Colors.black.withValues(alpha: 0.42),
@@ -4544,7 +4798,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 return const SizedBox.shrink();
               }
 
-              if (isDawnHouseRite) {
+              if (isDawnHouseRite || isEveningThresholdRite) {
                 return _buildDawnHouseRiteDetailText(displayDetail);
               }
 
