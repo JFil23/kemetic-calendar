@@ -165,12 +165,179 @@ void main() {
         expect(authResume, contains('readRouteLocation('));
         expect(authResume, contains('includeRemote: true'));
         expect(authResume, contains('_router.go(savedLocation)'));
+        expect(
+          authResume,
+          isNot(contains('restorableRouteLocationFromSnapshot')),
+        );
+        expect(
+          authResume,
+          isNot(contains("savedLocation.startsWith('/calendar/')")),
+        );
         expect(authResume, contains('addPostFrameCallback'));
         expect(
           authResume,
           contains('restoreDetachedCalendarOverlayFromAnyContext'),
         );
         expect(authResume, contains('currentLocation: savedLocation'));
+      },
+    );
+
+    test('calendar action menus preserve non-calendar parent routes', () async {
+      final calendar = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final actionEntrypoints = _sourceBetween(
+        calendar,
+        'static Future<void> showActionsMenuFromAnyContext',
+        'static Future<void> openMyFlowsFromAnyContext',
+      );
+
+      expect(actionEntrypoints, contains('_shouldUseMountedCalendarHost'));
+      expect(actionEntrypoints, contains('_showDetachedActionsMenu'));
+      expect(actionEntrypoints, contains('_routeHomeForDetachedLaunch'));
+      expect(
+        actionEntrypoints,
+        isNot(
+          contains(
+            'final state = _mountedState;\n'
+            '    if (state != null)',
+          ),
+        ),
+      );
+    });
+
+    test('calendar launch keeps page and sheet state split', () async {
+      final main = await File('lib/main.dart').readAsString();
+      final calendar = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final bootRestore = _sourceBetween(
+        main,
+        'Future<String?> _readBootRestoredLocation() async',
+        'bool _isContinuityRouteLocation(String location)',
+      );
+      final routes = _sourceBetween(
+        main,
+        'final _router = GoRouter(',
+        '/* ───────────────────────── App Widgets',
+      );
+      final parentResolver = _sourceBetween(
+        calendar,
+        'static String? restorableOverlayParentRouteFromStack',
+        'static Future<void> _saveDetachedCalendarOverlayState',
+      );
+      final authRoot = _sourceBetween(main, '// Authenticated', '  }\n}');
+
+      expect(bootRestore, contains('restorableOverlayParentRouteFromStack'));
+      expect(bootRestore, contains('result.snapshot?.routeLocation?.trim()'));
+      expect(
+        bootRestore.indexOf('restorableOverlayParentRouteFromStack'),
+        lessThan(bootRestore.indexOf('result.snapshot?.routeLocation?.trim()')),
+      );
+      expect(
+        bootRestore,
+        isNot(contains('restorableRouteLocationFromSnapshot')),
+      );
+      expect(bootRestore, isNot(contains('dayView')));
+
+      expect(parentResolver, contains('_isRootRouteLocation(parentRoute)'));
+      expect(parentResolver, contains('return null;'));
+      expect(parentResolver, contains('return parentRoute;'));
+
+      expect(authRoot, contains("SessionTrackedRoute(location: '/'"));
+      expect(routes, isNot(contains("path: '/calendar'")));
+      expect(routes, isNot(contains("path: 'day/:kYear/:kMonth/:kDay'")));
+      expect(routes, isNot(contains("path: 'shared-calendars'")));
+      expect(routes, isNot(contains("path: 'flow-studio'")));
+      expect(main, isNot(contains('ModalBottomSheetRoute<Object?>')));
+      expect(calendar, isNot(contains('restorableRouteLocationFromSnapshot')));
+      expect(calendar, isNot(contains('/calendar/day/')));
+      expect(calendar, isNot(contains('_CalendarMountedStateBuilder')));
+      expect(calendar, isNot(contains('_buildRestoredFlowStudioRouteSheet')));
+    });
+
+    test('Ma’at template restoration seeds initial routes', () async {
+      final calendar = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final rootRestore = _sourceBetween(
+        calendar,
+        'Future<void> _restoreFlowStudioOverlay',
+        '_MaatFlowTemplate? _maatTemplateForKey',
+      );
+      final detachedRestore = _sourceBetween(
+        calendar,
+        'static List<Route<dynamic>> _detachedFlowStudioInitialRoutes({',
+        'static Future<void> _openDetachedFlowStudioSheet',
+      );
+
+      expect(rootRestore, contains('initialRoutesBuilder'));
+      expect(rootRestore, contains('listRoute, detailRoute'));
+      expect(rootRestore, isNot(contains('addPostFrameCallback')));
+      expect(detachedRestore, contains('listRoute, detailRoute'));
+      expect(detachedRestore, isNot(contains('addPostFrameCallback')));
+    });
+
+    test(
+      'day view continuity restores open routes without startup clearing',
+      () async {
+        final calendar = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final loadPersistedViewState = _sourceBetween(
+          calendar,
+          'Future<void> _loadPersistedViewState',
+          '/// ✅ Helper: Calculate max days in a Kemetic month',
+        );
+        final restoreDayView = _sourceBetween(
+          calendar,
+          'Future<void> _restorePersistentDayViewIfNeeded',
+          'void _applyTodayFallbackAfterRestore',
+        );
+        final dayViewNavigation = _sourceBetween(
+          calendar,
+          'void _openDayView',
+          '/* ───── Day Sheet ───── */',
+        );
+
+        expect(
+          calendar,
+          contains('static const bool _restoreDayViewRouteOnStartup = true;'),
+        );
+        expect(
+          calendar,
+          isNot(contains("reason: 'startup_calendar_fallback'")),
+        );
+        expect(
+          loadPersistedViewState,
+          isNot(contains('_clearPersistedDayViewOpenState')),
+        );
+        expect(
+          loadPersistedViewState,
+          contains('_pendingPersistentDayViewState'),
+        );
+        expect(loadPersistedViewState, contains('savedDayView.isOpen'));
+        expect(
+          loadPersistedViewState,
+          contains('_schedulePersistentDayViewRestore'),
+        );
+
+        expect(restoreDayView, contains('_openDayView('));
+        expect(restoreDayView, contains('if (attempt >= 20)'));
+        expect(
+          restoreDayView.indexOf('_persistentDayViewRestoreAttempted = true'),
+          lessThan(restoreDayView.indexOf('_openDayView(')),
+        );
+
+        expect(
+          dayViewNavigation,
+          contains('shouldPreserveOverlayForLifecycleClose'),
+        );
+        expect(dayViewNavigation, contains("reason: 'day_view_closed'"));
+        expect(
+          dayViewNavigation.indexOf('if (!preserveForLifecycle)'),
+          lessThan(dayViewNavigation.indexOf("reason: 'day_view_closed'")),
+        );
       },
     );
 
@@ -203,6 +370,7 @@ void main() {
 
         expect(saveDetached, contains('recordRouteLocationWithOverlayStack'));
         expect(saveDetached, contains("'parentRoute': normalizedParentRoute"));
+        expect(saveDetached, contains("'parentSurface'"));
         expect(
           saveDetached,
           contains('SessionResumeService.saveRouteLocation'),
@@ -237,8 +405,62 @@ void main() {
         expect(rootRestore, contains('attempt < 30'));
         expect(rootRestore, contains('Duration(milliseconds: 150)'));
         expect(rootRestore, contains('readBestSnapshot'));
+        expect(rootRestore, contains('savedDayView'));
+        expect(rootRestore, contains('_persistentDayViewRestoreAttempted'));
+        expect(rootRestore, contains('claimRestoreSurface'));
         expect(rootRestore, contains('_openSharedCalendarsSheet'));
         expect(rootRestore, contains('_restoreFlowStudioOverlay'));
+      },
+    );
+
+    test(
+      'restore ownership is launch scoped and user navigation can suppress it',
+      () async {
+        final main = await File('lib/main.dart').readAsString();
+        final calendar = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final coordinator = await File(
+          'lib/services/restoration_coordinator.dart',
+        ).readAsString();
+        final todayCommand = _sourceBetween(
+          calendar,
+          'static void openMainCalendarAtToday',
+          '// Static method for parsing rules from JSON',
+        );
+        final dayViewRestore = _sourceBetween(
+          calendar,
+          'Future<void> _restorePersistentDayViewIfNeeded',
+          'void _applyTodayFallbackAfterRestore',
+        );
+        final launchDismiss = _sourceBetween(
+          main,
+          'Future<void> _dismissOverlay() async',
+          '@override\n  void dispose()',
+        );
+
+        expect(coordinator, contains('enum RestorationRestoreReason'));
+        expect(coordinator, contains('claimRestoreSurface'));
+        expect(coordinator, contains('suppressRestoreForUserNavigation'));
+        expect(coordinator, contains('calendarDayViewSurface'));
+        expect(coordinator, contains('calendarOverlayStackSurface'));
+
+        expect(main, contains('beginLaunchRestore'));
+        expect(main, contains('RestorationRestoreReason.coldLaunch'));
+        expect(main, contains('RestorationRestoreReason.authResume'));
+        expect(
+          launchDismiss,
+          contains('waitForInitialCalendarRestorationToSettle'),
+        );
+
+        expect(todayCommand, contains('suppressRestoreForUserNavigation'));
+        expect(todayCommand, contains('recordRouteLocation'));
+        expect(todayCommand, contains("router.go('/')"));
+        expect(todayCommand, isNot(contains('return;\n    }\n    router.go')));
+
+        expect(dayViewRestore, contains('canRestoreSurface'));
+        expect(dayViewRestore, contains('claimRestoreSurface'));
+        expect(dayViewRestore, contains('requireRootTarget: true'));
       },
     );
 
@@ -298,10 +520,22 @@ void main() {
           detachedShared,
           contains('if (_detachedSharedCalendarsSheetOpenOrOpening) return;'),
         );
+        expect(detachedShared, contains('!context.mounted'));
+        expect(
+          detachedShared,
+          contains('shouldPreserveOverlayForLifecycleClose'),
+        );
+        expect(detachedShared, contains('if (!preserveForLifecycle)'));
         expect(
           detachedFlow,
           contains('if (_detachedFlowStudioSheetOpenOrOpening) return;'),
         );
+        expect(detachedFlow, contains('!context.mounted'));
+        expect(
+          detachedFlow,
+          contains('shouldPreserveOverlayForLifecycleClose'),
+        );
+        expect(detachedFlow, contains('if (!preserveForLifecycle)'));
         expect(
           rootShared,
           contains('if (_sharedCalendarsSheetOpenOrOpening) return;'),
@@ -310,6 +544,8 @@ void main() {
           rootFlow,
           contains('if (!mounted || _flowStudioSheetOpenOrOpening) return;'),
         );
+        expect(rootFlow, contains('shouldPreserveOverlayForLifecycleClose'));
+        expect(rootFlow, contains('if (!preserveForLifecycle)'));
         expect(
           myFlows,
           contains('if (!mounted || _flowStudioSheetOpenOrOpening) return;'),

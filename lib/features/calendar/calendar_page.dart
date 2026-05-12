@@ -4566,6 +4566,102 @@ class CalendarPage extends StatefulWidget {
     return parentRoute;
   }
 
+  static String _parentSurfaceForRoute(String parentRoute) {
+    final uri = Uri.tryParse(parentRoute.trim());
+    final path = uri?.path ?? parentRoute.trim();
+    if (path.isEmpty || path == '/') return _kCalendarParentSurfaceRoot;
+    if (path.startsWith('/profile/')) return _kProfileParentSurface;
+    if (path == '/rhythm/today') return _kPlannerTodayParentSurface;
+    if (path.startsWith('/rhythm/')) return _kPlannerParentSurface;
+    return _kRouteParentSurface;
+  }
+
+  static String _calendarOverlayRestoreSurfaceKey(
+    Map<String, dynamic> overlay,
+  ) {
+    final kind = (overlay['kind'] as String?)?.trim() ?? '';
+    final parentRoute = (overlay['parentRoute'] as String?)?.trim() ?? '/';
+    final parentSurface = (overlay['parentSurface'] as String?)?.trim() ?? '';
+    return '${RestorationCoordinator.calendarOverlayStackSurface}|'
+        '$kind|$parentRoute|$parentSurface|${overlay['updatedAtMs']}|'
+        '${overlay['mode']}|${overlay['templateKey']}|'
+        '${overlay['initialFlowId']}|${overlay['editFlowId']}';
+  }
+
+  static Future<void> waitForInitialCalendarRestorationToSettle({
+    Duration timeout = const Duration(milliseconds: 3600),
+  }) async {
+    final snapshot = await RestorationCoordinator.instance.readBestSnapshot(
+      includeRemote: Supabase.instance.client.auth.currentSession != null,
+    );
+    final savedDayView = snapshot.snapshot?.dayView;
+    final overlay = _restorableCalendarOverlayFromStack(
+      snapshot.snapshot?.overlayStack ?? const <Map<String, dynamic>>[],
+    );
+    final shouldWaitForDayView =
+        savedDayView != null &&
+        savedDayView.isOpen &&
+        RestorationCoordinator.instance.canRestoreSurface(
+          RestorationCoordinator.calendarDayViewSurface,
+          requireRootTarget: true,
+        );
+    final overlayKey = overlay == null
+        ? null
+        : _calendarOverlayRestoreSurfaceKey(overlay);
+    final parentRoute = (overlay?['parentRoute'] as String?)?.trim();
+    final shouldWaitForRootOverlay =
+        overlay != null &&
+        (parentRoute == null ||
+            parentRoute.isEmpty ||
+            _isRootRouteLocation(parentRoute)) &&
+        overlayKey != null &&
+        RestorationCoordinator.instance.canRestoreSurface(
+          overlayKey,
+          requireRootTarget: true,
+        );
+    final shouldWaitForDetachedOverlay =
+        overlay != null &&
+        parentRoute != null &&
+        parentRoute.isNotEmpty &&
+        !_isRootRouteLocation(parentRoute) &&
+        overlayKey != null &&
+        RestorationCoordinator.instance.canRestoreSurface(overlayKey);
+
+    if (!shouldWaitForDayView &&
+        !shouldWaitForRootOverlay &&
+        !shouldWaitForDetachedOverlay) {
+      return;
+    }
+
+    final overlayRestoreKey = overlayKey ?? '';
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      final state = _mountedState;
+      final dayViewSettled =
+          !shouldWaitForDayView ||
+          state == null ||
+          state._persistentDayViewRestoreAttempted;
+      final rootOverlaySettled =
+          !shouldWaitForRootOverlay ||
+          state == null ||
+          state._calendarOverlayRestorePresentationStarted ||
+          !RestorationCoordinator.instance.canRestoreSurface(
+            overlayRestoreKey,
+            requireRootTarget: true,
+          );
+      final detachedOverlaySettled =
+          !shouldWaitForDetachedOverlay ||
+          _detachedSharedCalendarsSheetOpenOrOpening ||
+          _detachedFlowStudioSheetOpenOrOpening ||
+          !RestorationCoordinator.instance.canRestoreSurface(overlayRestoreKey);
+
+      if (dayViewSettled && rootOverlaySettled && detachedOverlaySettled) {
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+    }
+  }
+
   static Future<void> _saveDetachedCalendarOverlayState({
     required String parentRoute,
     required String kind,
@@ -4580,6 +4676,7 @@ class CalendarPage extends StatefulWidget {
         <String, dynamic>{
           'kind': kind.trim(),
           'parentRoute': normalizedParentRoute,
+          'parentSurface': _parentSurfaceForRoute(normalizedParentRoute),
           'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
           ...state,
         },
@@ -4606,9 +4703,8 @@ class CalendarPage extends StatefulWidget {
     BuildContext context, {
     bool includeNewNote = true,
   }) async {
-    final state = _mountedState;
-    if (state != null) {
-      await state.showActionsMenuFromOutside(
+    if (_shouldUseMountedCalendarHost(context)) {
+      await _mountedState!.showActionsMenuFromOutside(
         context,
         includeNewNote: includeNewNote,
       );
@@ -4618,9 +4714,8 @@ class CalendarPage extends StatefulWidget {
   }
 
   static Future<void> openQuickAddFromAnyContext(BuildContext context) async {
-    final state = _mountedState;
-    if (state != null) {
-      await state.openQuickAddFromOutside();
+    if (_shouldUseMountedCalendarHost(context)) {
+      await _mountedState!.openQuickAddFromOutside();
       return;
     }
     _routeHomeForDetachedLaunch(
@@ -4956,9 +5051,16 @@ class CalendarPage extends StatefulWidget {
       );
     } finally {
       try {
-        await _clearDetachedCalendarOverlayState(
-          _kCalendarOverlayKindSharedCalendars,
-        );
+        final preserveForLifecycle =
+            !context.mounted ||
+            RestorationCoordinator
+                .instance
+                .shouldPreserveOverlayForLifecycleClose;
+        if (!preserveForLifecycle) {
+          await _clearDetachedCalendarOverlayState(
+            _kCalendarOverlayKindSharedCalendars,
+          );
+        }
       } finally {
         _detachedSharedCalendarsSheetOpenOrOpening = false;
       }
@@ -5777,6 +5879,72 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
+  static List<Route<dynamic>> _detachedFlowStudioInitialRoutes({
+    required String parentRoute,
+    required FlowsRepo flowsRepo,
+    required Map<String, dynamic> restorationState,
+  }) {
+    final mode = (restorationState['mode'] as String?)?.trim();
+    final templateKey = (restorationState['templateKey'] as String?)?.trim();
+    if (mode != _kFlowStudioModeMaatTemplate ||
+        templateKey == null ||
+        templateKey.isEmpty) {
+      return <Route<dynamic>>[
+        MaterialPageRoute<dynamic>(
+          builder: (innerCtx) => _buildDetachedFlowStudioRoot(
+            innerCtx: innerCtx,
+            parentRoute: parentRoute,
+            flowsRepo: flowsRepo,
+            restorationState: restorationState,
+          ),
+        ),
+      ];
+    }
+
+    _MaatFlowTemplate? template;
+    for (final candidate in kMaatFlowTemplates) {
+      if (candidate.key == templateKey) {
+        template = candidate;
+        break;
+      }
+    }
+
+    final listRoute = MaterialPageRoute<dynamic>(
+      builder: (innerCtx) => _buildDetachedMaatFlowsListPage(
+        navigator: Navigator.of(innerCtx),
+        parentRoute: parentRoute,
+        flowsRepo: flowsRepo,
+      ),
+    );
+    if (template == null) return <Route<dynamic>>[listRoute];
+
+    final detailRoute = MaterialPageRoute<int?>(
+      builder: (_) => _MaatFlowTemplateDetailPage(
+        template: template!,
+        addInstance: _addMaatFlowInstanceHeadless,
+      ),
+    );
+    unawaited(
+      detailRoute.popped.then((importedFlowId) async {
+        if (RestorationCoordinator
+            .instance
+            .shouldPreserveOverlayForLifecycleClose) {
+          return;
+        }
+        await _saveDetachedCalendarOverlayState(
+          parentRoute: parentRoute,
+          kind: _kCalendarOverlayKindFlowStudio,
+          state: const <String, dynamic>{'mode': _kFlowStudioModeMaatFlows},
+        );
+        if (importedFlowId != null && importedFlowId > 0) {
+          unawaited(flowsRepo.refreshMyFiledFlows());
+        }
+      }),
+    );
+
+    return <Route<dynamic>>[listRoute, detailRoute];
+  }
+
   static Future<void> _openDetachedFlowStudioSheet(
     BuildContext context, {
     required Map<String, dynamic> restorationState,
@@ -5819,16 +5987,11 @@ class CalendarPage extends StatefulWidget {
           Widget buildNavigator() {
             return Navigator(
               onGenerateInitialRoutes: (nav, initial) {
-                return [
-                  MaterialPageRoute(
-                    builder: (innerCtx) => _buildDetachedFlowStudioRoot(
-                      innerCtx: innerCtx,
-                      parentRoute: parentRoute,
-                      flowsRepo: flowsRepo,
-                      restorationState: continuityState,
-                    ),
-                  ),
-                ];
+                return _detachedFlowStudioInitialRoutes(
+                  parentRoute: parentRoute,
+                  flowsRepo: flowsRepo,
+                  restorationState: continuityState,
+                );
               },
             );
           }
@@ -5902,13 +6065,20 @@ class CalendarPage extends StatefulWidget {
       }
     } finally {
       try {
-        await _clearDetachedCalendarOverlayState(
-          _kCalendarOverlayKindFlowStudio,
-        );
-        await RestorationCoordinator.instance.saveEditorState(
-          _kFlowStudioDraftEditorKey,
-          null,
-        );
+        final preserveForLifecycle =
+            !context.mounted ||
+            RestorationCoordinator
+                .instance
+                .shouldPreserveOverlayForLifecycleClose;
+        if (!preserveForLifecycle) {
+          await _clearDetachedCalendarOverlayState(
+            _kCalendarOverlayKindFlowStudio,
+          );
+          await RestorationCoordinator.instance.saveEditorState(
+            _kFlowStudioDraftEditorKey,
+            null,
+          );
+        }
         UiGuards.enableJournalSwipe();
       } finally {
         _detachedFlowStudioSheetOpenOrOpening = false;
@@ -5949,11 +6119,11 @@ class CalendarPage extends StatefulWidget {
         : _currentRouteLocationForContext(context);
     if (!_sameRouteLocation(activeLocation, parentRoute)) return false;
 
-    final restoreKey =
-        '${overlay['kind']}|$parentRoute|${overlay['updatedAtMs']}|'
-        '${overlay['mode']}|${overlay['templateKey']}|'
-        '${overlay['initialFlowId']}|${overlay['editFlowId']}';
+    final restoreKey = _calendarOverlayRestoreSurfaceKey(overlay);
     if (_lastDetachedCalendarOverlayRestoreKey == restoreKey) return false;
+    if (!RestorationCoordinator.instance.claimRestoreSurface(restoreKey)) {
+      return false;
+    }
 
     _lastDetachedCalendarOverlayRestoreKey = restoreKey;
     _detachedCalendarOverlayRestoreInFlight = true;
@@ -6024,19 +6194,66 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
+  static void _scheduleTodayJumpAfterNavigation({
+    required bool animate,
+    int attempt = 0,
+  }) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final state = globalKey.currentState;
+      if (state != null && state.mounted) {
+        state.jumpToTodayFromOutside(animate: animate);
+        return;
+      }
+      if (attempt >= 20) return;
+      unawaited(
+        Future<void>.delayed(const Duration(milliseconds: 50)).then((_) {
+          _scheduleTodayJumpAfterNavigation(
+            animate: animate,
+            attempt: attempt + 1,
+          );
+        }),
+      );
+    });
+  }
+
+  static Future<void> _clearCalendarContinuityForTodayCommand() async {
+    await RestorationCoordinator.instance.saveOverlayStack(
+      const <Map<String, dynamic>>[],
+    );
+    final dayViewState = await AppRestorationService.instance
+        .readDayViewState();
+    if (dayViewState != null && dayViewState.isOpen) {
+      await AppRestorationService.instance.saveDayViewState(
+        dayViewState.copyWith(isOpen: false),
+      );
+    }
+  }
+
   static void openMainCalendarAtToday(
     BuildContext context, {
     bool animate = false,
   }) {
+    RestorationCoordinator.instance.suppressRestoreForUserNavigation(
+      reason: 'calendar_today_command',
+      surfaces: const <String>[
+        RestorationCoordinator.calendarDayViewSurface,
+        RestorationCoordinator.calendarOverlayStackSurface,
+        RestorationCoordinator.plannerSurface,
+      ],
+    );
+    CalendarPage._pendingDetachedLaunchAction = null;
+    _mountedState?._suppressPendingRestoresForUserNavigation();
+    unawaited(RestorationCoordinator.instance.recordRouteLocation('/'));
+    unawaited(SessionResumeService.saveRouteLocation('/'));
+    unawaited(_clearCalendarContinuityForTodayCommand());
+
+    final router = GoRouter.of(context);
     final rootNavigator = Navigator.of(context, rootNavigator: true);
     if (rootNavigator.canPop()) {
       rootNavigator.popUntil((route) => route.isFirst);
-      return;
     }
-    GoRouter.of(context).go('/');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      globalKey.currentState?.jumpToTodayFromOutside(animate: animate);
-    });
+    router.go('/');
+    _scheduleTodayJumpAfterNavigation(animate: animate);
   }
 
   // Static method for parsing rules from JSON (used by inbox import)
@@ -6411,6 +6628,7 @@ class _CalendarPageState extends State<CalendarPage>
   bool _restorationInteractedSinceBoot = false;
   bool _calendarOverlayRestoreAttempted = false;
   bool _calendarOverlayRestoreInFlight = false;
+  bool _calendarOverlayRestorePresentationStarted = false;
   bool _sharedCalendarsSheetOpenOrOpening = false;
   bool _flowStudioSheetOpenOrOpening = false;
 
@@ -7006,6 +7224,19 @@ class _CalendarPageState extends State<CalendarPage>
         .toList(growable: false);
   }
 
+  Map<String, dynamic> _calendarOverlayParentMetadata() {
+    final dayViewState = _activeDayViewRestorationState;
+    if (dayViewState != null && dayViewState.isOpen) {
+      return <String, dynamic>{
+        'parentSurface': _kCalendarParentSurfaceDayView,
+        'dayView': dayViewState.toJson(),
+      };
+    }
+    return const <String, dynamic>{
+      'parentSurface': _kCalendarParentSurfaceRoot,
+    };
+  }
+
   Future<void> _saveCalendarOverlayState(
     String kind,
     Map<String, dynamic> state,
@@ -7017,6 +7248,7 @@ class _CalendarPageState extends State<CalendarPage>
         <String, dynamic>{
           'kind': normalizedKind,
           'parentRoute': '/',
+          ..._calendarOverlayParentMetadata(),
           'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
           ...state,
         },
@@ -7026,9 +7258,10 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _clearCalendarOverlayState(String kind) async {
-    if (RestorationCoordinator
-        .instance
-        .shouldPreserveOverlayForLifecycleClose) {
+    if (!mounted ||
+        RestorationCoordinator
+            .instance
+            .shouldPreserveOverlayForLifecycleClose) {
       return;
     }
     final stack = await AppRestorationService.instance.readOverlayStack();
@@ -7042,7 +7275,13 @@ class _CalendarPageState extends State<CalendarPage>
     if (_calendarOverlayRestoreAttempted || _calendarOverlayRestoreInFlight) {
       return;
     }
+    if (RestorationCoordinator.instance.isRestoreSurfaceSuppressed(
+      RestorationCoordinator.calendarOverlayStackSurface,
+    )) {
+      return;
+    }
     _calendarOverlayRestoreAttempted = true;
+    _calendarOverlayRestorePresentationStarted = false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(_restorePersistentCalendarOverlayWithRetries(reason: reason));
@@ -7117,6 +7356,32 @@ class _CalendarPageState extends State<CalendarPage>
       );
       if (overlay.isEmpty) return false;
 
+      final parentRoute = (overlay['parentRoute'] as String?)?.trim();
+      if (parentRoute != null &&
+          parentRoute.isNotEmpty &&
+          !CalendarPage._isRootRouteLocation(parentRoute)) {
+        return false;
+      }
+
+      final savedDayView = snapshot.snapshot?.dayView;
+      if (_restoreDayViewRouteOnStartup &&
+          savedDayView != null &&
+          savedDayView.isOpen &&
+          !_persistentDayViewRestoreAttempted) {
+        return false;
+      }
+
+      final restoreKey = CalendarPage._calendarOverlayRestoreSurfaceKey(
+        overlay,
+      );
+      if (!RestorationCoordinator.instance.claimRestoreSurface(
+        restoreKey,
+        requireRootTarget: true,
+      )) {
+        return true;
+      }
+
+      _calendarOverlayRestorePresentationStarted = true;
       if (overlay['kind'] == _kCalendarOverlayKindSharedCalendars) {
         await _openSharedCalendarsSheet(restorationState: overlay);
         return true;
@@ -7169,26 +7434,76 @@ class _CalendarPageState extends State<CalendarPage>
           if (templateKey != null && templateKey.isNotEmpty)
             'templateKey': templateKey,
         },
-        rootBuilder: (innerCtx) {
-          if (mode == _kFlowStudioModeMaatTemplate &&
-              templateKey != null &&
-              templateKey.isNotEmpty) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              final template = _maatTemplateForKey(templateKey);
-              if (template == null || !mounted || !innerCtx.mounted) return;
-              unawaited(
-                _pushMaatFlowTemplateDetail(
-                  Navigator.of(innerCtx),
-                  template,
-                  returnState: const <String, dynamic>{
-                    'mode': _kFlowStudioModeMaatFlows,
-                  },
-                ),
-              );
-            });
-          }
-          return _buildMaatFlowsListPage(innerCtx);
-        },
+        rootBuilder: _buildMaatFlowsListPage,
+        initialRoutesBuilder:
+            mode == _kFlowStudioModeMaatTemplate &&
+                templateKey != null &&
+                templateKey.isNotEmpty
+            ? (navigator) {
+                final template = _maatTemplateForKey(templateKey);
+                final listRoute = MaterialPageRoute<dynamic>(
+                  builder: (ctx) => _buildMaatFlowsListPage(ctx),
+                );
+                if (template == null) return <Route<dynamic>>[listRoute];
+
+                final detailRoute = MaterialPageRoute<int?>(
+                  builder: (_) => _MaatFlowTemplateDetailPage(
+                    template: template,
+                    addInstance:
+                        ({
+                          required _MaatFlowTemplate template,
+                          DateTime? startDate,
+                          bool? useKemetic,
+                          TrackSkyTimeZone? trackSkyTimeZone,
+                          int? alertMinutesBefore,
+                          bool? dawnDiscreetMode,
+                          DawnHouseRiteLens? dawnLens,
+                          bool? eveningDiscreetMode,
+                          EveningThresholdRiteLens? eveningLens,
+                          int? eveningFallbackMinutesAfterMidnight,
+                        }) async {
+                          final id = await _addMaatFlowInstance(
+                            template: template,
+                            startDate: startDate,
+                            useKemetic: useKemetic ?? false,
+                            trackSkyTimeZone: trackSkyTimeZone,
+                            alertMinutesBefore:
+                                alertMinutesBefore ?? _alertNoneMinutes,
+                            dawnDiscreetMode: dawnDiscreetMode ?? false,
+                            dawnLens: dawnLens ?? DawnHouseRiteLens.neutral,
+                            eveningDiscreetMode: eveningDiscreetMode ?? false,
+                            eveningLens:
+                                eveningLens ?? EveningThresholdRiteLens.neutral,
+                            eveningFallbackMinutesAfterMidnight:
+                                eveningFallbackMinutesAfterMidnight ??
+                                kEveningThresholdDefaultFallbackMinutes,
+                          );
+                          return id;
+                        },
+                  ),
+                );
+                unawaited(
+                  detailRoute.popped.then((importedFlowId) async {
+                    if (!mounted ||
+                        RestorationCoordinator
+                            .instance
+                            .shouldPreserveOverlayForLifecycleClose) {
+                      return;
+                    }
+                    await _saveCalendarOverlayState(
+                      _kCalendarOverlayKindFlowStudio,
+                      const <String, dynamic>{
+                        'mode': _kFlowStudioModeMaatFlows,
+                      },
+                    );
+                    if (importedFlowId != null && importedFlowId > 0) {
+                      await _loadFromDisk();
+                    }
+                  }),
+                );
+                return <Route<dynamic>>[listRoute, detailRoute];
+              }
+            : null,
       );
       return;
     }
@@ -9288,9 +9603,9 @@ class _CalendarPageState extends State<CalendarPage>
 
   // Keep calendar position only for the active short-lived session.
   static const bool _rememberLastView = true;
-  // Cold launch should land on CalendarPage. A saved day-view state may anchor
-  // the calendar date, but it should not push the DayView route by itself.
-  static const bool _restoreDayViewRouteOnStartup = false;
+  // Day View is part of continuity state. A saved open Day View should be
+  // restored after the calendar has rebuilt its initial viewport.
+  static const bool _restoreDayViewRouteOnStartup = true;
 
   int? _lastViewKy; // last centered Kemetic year
   int? _lastViewKm; // last centered Kemetic month (1..13)
@@ -10810,36 +11125,29 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<void> _clearPersistedDayViewOpenState(
-    DayViewRestorationState state, {
-    required String reason,
-  }) async {
-    if (!state.isOpen) return;
-    final closedState = state.copyWith(isOpen: false);
-    _activeDayViewRestorationState = closedState;
-    try {
-      await AppRestorationService.instance.saveDayViewState(closedState);
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint(
-          '[restoration] failed to clear day_view open state '
-          'reason=$reason error=$e',
-        );
-      }
-      return;
-    }
-    if (kDebugMode) {
-      debugPrint(
-        '[restoration] cleared day_view open state reason=$reason '
-        'ky=${closedState.kYear} km=${closedState.kMonth} '
-        'kd=${closedState.kDay}',
-      );
+  void _suppressPendingRestoresForUserNavigation() {
+    _pendingPersistentDayViewState = null;
+    _persistentDayViewRestoreAttempted = true;
+    _calendarOverlayRestoreAttempted = true;
+    final dayViewState = _activeDayViewRestorationState;
+    if (dayViewState != null && dayViewState.isOpen) {
+      final closedState = dayViewState.copyWith(isOpen: false);
+      _activeDayViewRestorationState = closedState;
+      unawaited(_persistDayViewState(closedState, reason: 'today_command'));
     }
   }
 
   void _schedulePersistentDayViewRestore() {
     if (!_restoreDayViewRouteOnStartup) {
       _persistentDayViewRestoreAttempted = true;
+      return;
+    }
+    if (!RestorationCoordinator.instance.canRestoreSurface(
+      RestorationCoordinator.calendarDayViewSurface,
+      requireRootTarget: true,
+    )) {
+      _persistentDayViewRestoreAttempted = true;
+      _pendingPersistentDayViewState = null;
       return;
     }
     if (_persistentDayViewRestoreAttempted ||
@@ -10857,13 +11165,24 @@ class _CalendarPageState extends State<CalendarPage>
       _persistentDayViewRestoreAttempted = true;
       return;
     }
+    if (!RestorationCoordinator.instance.canRestoreSurface(
+      RestorationCoordinator.calendarDayViewSurface,
+      requireRootTarget: true,
+    )) {
+      _persistentDayViewRestoreAttempted = true;
+      _pendingPersistentDayViewState = null;
+      return;
+    }
     final state = _pendingPersistentDayViewState;
     if (state == null || !state.isOpen) {
       _persistentDayViewRestoreAttempted = true;
       return;
     }
     if (!_restored || !_initialViewportSettled) {
-      if (attempt >= 20) return;
+      if (attempt >= 20) {
+        _persistentDayViewRestoreAttempted = true;
+        return;
+      }
       await Future<void>.delayed(const Duration(milliseconds: 120));
       if (!mounted) return;
       return _restorePersistentDayViewIfNeeded(attempt + 1);
@@ -10889,6 +11208,13 @@ class _CalendarPageState extends State<CalendarPage>
 
     _persistentDayViewRestoreAttempted = true;
     if (!mounted) return;
+    if (!RestorationCoordinator.instance.claimRestoreSurface(
+      RestorationCoordinator.calendarDayViewSurface,
+      requireRootTarget: true,
+    )) {
+      _pendingPersistentDayViewState = null;
+      return;
+    }
     _openDayView(
       context,
       state.kYear,
@@ -11016,17 +11342,12 @@ class _CalendarPageState extends State<CalendarPage>
       var savedCalendar = snapshot?.calendar;
       final savedDayView = snapshot?.dayView;
       final shouldRestoreDayViewRoute =
-          _restoreDayViewRouteOnStartup && !readResult.isTentative;
-
-      if (!shouldRestoreDayViewRoute &&
+          _restoreDayViewRouteOnStartup &&
           !readResult.isTentative &&
-          savedDayView != null &&
-          savedDayView.isOpen) {
-        await _clearPersistedDayViewOpenState(
-          savedDayView,
-          reason: 'startup_calendar_fallback',
-        );
-      }
+          RestorationCoordinator.instance.canRestoreSurface(
+            RestorationCoordinator.calendarDayViewSurface,
+            requireRootTarget: true,
+          );
 
       if (savedCalendar == null && !readResult.isTentative) {
         final legacyState = await SessionResumeService.readScopedState(
@@ -17085,6 +17406,8 @@ class _CalendarPageState extends State<CalendarPage>
     Map<String, dynamic> continuityState = const <String, dynamic>{
       'mode': _kFlowStudioModeHub,
     },
+    List<Route<dynamic>> Function(NavigatorState navigator)?
+    initialRoutesBuilder,
   }) async {
     await _saveCalendarOverlayState(
       _kCalendarOverlayKindFlowStudio,
@@ -17127,6 +17450,8 @@ class _CalendarPageState extends State<CalendarPage>
                         Expanded(
                           child: Navigator(
                             onGenerateInitialRoutes: (nav, initial) {
+                              final routes = initialRoutesBuilder?.call(nav);
+                              if (routes != null) return routes;
                               return [
                                 MaterialPageRoute(
                                   builder: (ctx) => rootBuilder(ctx),
@@ -17172,6 +17497,8 @@ class _CalendarPageState extends State<CalendarPage>
                       Expanded(
                         child: Navigator(
                           onGenerateInitialRoutes: (nav, initial) {
+                            final routes = initialRoutesBuilder?.call(nav);
+                            if (routes != null) return routes;
                             return [
                               MaterialPageRoute(
                                 builder: (ctx) => rootBuilder(ctx),
@@ -17194,11 +17521,18 @@ class _CalendarPageState extends State<CalendarPage>
       }
     } finally {
       try {
+        final preserveForLifecycle =
+            !mounted ||
+            RestorationCoordinator
+                .instance
+                .shouldPreserveOverlayForLifecycleClose;
         await _clearCalendarOverlayState(_kCalendarOverlayKindFlowStudio);
-        await AppRestorationService.instance.saveEditorState(
-          _kFlowStudioDraftEditorKey,
-          null,
-        );
+        if (!preserveForLifecycle) {
+          await AppRestorationService.instance.saveEditorState(
+            _kFlowStudioDraftEditorKey,
+            null,
+          );
+        }
         UiGuards.enableJournalSwipe();
       } finally {
         _flowStudioSheetOpenOrOpening = false;
@@ -18567,12 +18901,19 @@ class _CalendarPageState extends State<CalendarPage>
         ),
       ),
     ).then((_) {
-      final closedState =
-          (_activeDayViewRestorationState ?? initialDayViewState).copyWith(
-            isOpen: false,
-          );
-      _activeDayViewRestorationState = closedState;
-      unawaited(_persistDayViewState(closedState, reason: 'day_view_closed'));
+      final preserveForLifecycle =
+          !mounted ||
+          RestorationCoordinator
+              .instance
+              .shouldPreserveOverlayForLifecycleClose;
+      if (!preserveForLifecycle) {
+        final closedState =
+            (_activeDayViewRestorationState ?? initialDayViewState).copyWith(
+              isOpen: false,
+            );
+        _activeDayViewRestorationState = closedState;
+        unawaited(_persistDayViewState(closedState, reason: 'day_view_closed'));
+      }
       // ✅ Save state when returning from day view
       if (mounted) {
         final ky = _lastViewKy ?? kYear;
@@ -30375,6 +30716,12 @@ class _AlertOption {
 const int _alertNoneMinutes = -1;
 const String _kCalendarOverlayKindSharedCalendars = 'calendar.sharedCalendars';
 const String _kCalendarOverlayKindFlowStudio = 'calendar.flowStudio';
+const String _kCalendarParentSurfaceRoot = 'calendar.root';
+const String _kCalendarParentSurfaceDayView = 'calendar.dayView';
+const String _kProfileParentSurface = 'profile.page';
+const String _kPlannerTodayParentSurface = 'planner.today';
+const String _kPlannerParentSurface = 'planner.page';
+const String _kRouteParentSurface = 'route.page';
 const String _kFlowStudioDraftEditorKey = 'calendar.flowStudio.draft';
 const String _kFlowStudioModeHub = 'hub';
 const String _kFlowStudioModeMyFlows = 'myFlows';

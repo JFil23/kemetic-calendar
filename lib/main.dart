@@ -216,6 +216,10 @@ Future<void> main() async {
     await AppWindowService.instance.ensureInitialized();
     await AppRestorationService.instance.initialize();
     _bootRestoredLocation = await _readBootRestoredLocation();
+    RestorationCoordinator.instance.beginLaunchRestore(
+      reason: RestorationRestoreReason.coldLaunch,
+      targetLocation: _bootRestoredLocation ?? '/',
+    );
 
     // 🚨 Initialize notifications/push without blocking the first frame.
     // AuthGate will re-attempt on sign-in if these fail.
@@ -1457,6 +1461,7 @@ class _LaunchShellState extends State<_LaunchShell>
   Future<void> _dismissOverlay() async {
     await Future<void>.delayed(const Duration(milliseconds: 950));
     await _waitForWebAuthExchangeToSettle();
+    await CalendarPage.waitForInitialCalendarRestorationToSettle();
     if (!mounted) return;
     await _fadeController.forward();
     if (!mounted) return;
@@ -2487,6 +2492,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         !_isContinuityRouteLocation(savedLocation)) {
       return;
     }
+    RestorationCoordinator.instance.beginLaunchRestore(
+      reason: RestorationRestoreReason.authResume,
+      targetLocation: savedLocation,
+    );
     _router.go(savedLocation);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final navContext = _rootNavigatorKey.currentContext;

@@ -4,14 +4,124 @@ import 'package:flutter/widgets.dart';
 
 import 'app_restoration_service.dart';
 
+enum RestorationRestoreReason {
+  coldLaunch,
+  authResume,
+  foregroundResume,
+  userNavigation,
+}
+
 class RestorationCoordinator {
   RestorationCoordinator._();
 
   static final RestorationCoordinator instance = RestorationCoordinator._();
   static const Duration _lifecycleOverlayPreserveWindow = Duration(seconds: 3);
+  static const String calendarDayViewSurface = 'calendar.dayView';
+  static const String calendarOverlayStackSurface = 'calendar.overlayStack';
+  static const String plannerSurface = 'planner';
 
   AppLifecycleState _lastLifecycleState = AppLifecycleState.resumed;
   DateTime? _lastExitLifecycleAt;
+  RestorationRestoreReason _restoreReason = RestorationRestoreReason.coldLaunch;
+  String? _restoreTargetLocation = '/';
+  final Set<String> _consumedRestoreSurfaces = <String>{};
+  final Set<String> _suppressedRestoreSurfaces = <String>{};
+
+  RestorationRestoreReason get restoreReason => _restoreReason;
+
+  void beginLaunchRestore({
+    required RestorationRestoreReason reason,
+    String? targetLocation,
+  }) {
+    assert(reason != RestorationRestoreReason.userNavigation);
+    _restoreReason = reason;
+    _restoreTargetLocation = _normalizeLocation(targetLocation) ?? '/';
+    _consumedRestoreSurfaces.clear();
+    _suppressedRestoreSurfaces.clear();
+  }
+
+  void suppressRestoreForUserNavigation({
+    required String reason,
+    Iterable<String> surfaces = const <String>[],
+  }) {
+    assert(reason.trim().isNotEmpty);
+    _restoreReason = RestorationRestoreReason.userNavigation;
+    _restoreTargetLocation = null;
+    _suppressedRestoreSurfaces.addAll(
+      surfaces.map((surface) => surface.trim()).where((surface) {
+        return surface.isNotEmpty;
+      }),
+    );
+  }
+
+  bool canRestoreSurface(String surface, {bool requireRootTarget = false}) {
+    final normalized = surface.trim();
+    if (normalized.isEmpty) return false;
+    if (!_isLaunchRestoreReason(_restoreReason)) return false;
+    if (_surfaceMatchesAny(normalized, _suppressedRestoreSurfaces)) {
+      return false;
+    }
+    if (_consumedRestoreSurfaces.contains(normalized)) return false;
+    if (requireRootTarget && !_isRootLocation(_restoreTargetLocation)) {
+      return false;
+    }
+    return true;
+  }
+
+  bool claimRestoreSurface(String surface, {bool requireRootTarget = false}) {
+    final normalized = surface.trim();
+    if (!canRestoreSurface(normalized, requireRootTarget: requireRootTarget)) {
+      return false;
+    }
+    _consumedRestoreSurfaces.add(normalized);
+    return true;
+  }
+
+  void markRestoreSurfaceConsumed(String surface) {
+    final normalized = surface.trim();
+    if (normalized.isNotEmpty) {
+      _consumedRestoreSurfaces.add(normalized);
+    }
+  }
+
+  bool isRestoreSurfaceSuppressed(String surface) {
+    final normalized = surface.trim();
+    if (normalized.isEmpty) return false;
+    return _surfaceMatchesAny(normalized, _suppressedRestoreSurfaces);
+  }
+
+  static bool _isLaunchRestoreReason(RestorationRestoreReason reason) {
+    switch (reason) {
+      case RestorationRestoreReason.coldLaunch:
+      case RestorationRestoreReason.authResume:
+      case RestorationRestoreReason.foregroundResume:
+        return true;
+      case RestorationRestoreReason.userNavigation:
+        return false;
+    }
+  }
+
+  static bool _surfaceMatchesAny(String surface, Set<String> candidates) {
+    for (final candidate in candidates) {
+      if (surface == candidate || surface.startsWith('$candidate|')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static String? _normalizeLocation(String? location) {
+    final normalized = location?.trim();
+    if (normalized == null || normalized.isEmpty) return null;
+    return normalized;
+  }
+
+  static bool _isRootLocation(String? location) {
+    final normalized = _normalizeLocation(location);
+    if (normalized == null) return true;
+    final uri = Uri.tryParse(normalized);
+    return uri == null || uri.path.isEmpty || uri.path == '/';
+  }
 
   Future<void> recordRouteLocation(String location) {
     final normalized = location.trim();
