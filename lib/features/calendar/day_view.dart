@@ -18,6 +18,7 @@ import 'calendar_page.dart';
 import 'day_view_chrome.dart';
 import 'landscape_month_view.dart';
 import 'track_sky_flow.dart';
+import 'dawn_house_rite_flow.dart';
 import '../onboarding/day_view_date_coachmark.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
@@ -67,6 +68,104 @@ const TextStyle _goldHeaderStyle = TextStyle(
 bool _isTrackSkyFlowName(String? name) {
   final normalized = name?.trim().toLowerCase();
   return normalized == 'follow the sky' || normalized == 'track the sky';
+}
+
+bool _isDawnHouseRiteFlowName(String? name) {
+  return name?.trim().toLowerCase() == kDawnHouseRiteTitle.toLowerCase();
+}
+
+const Gradient _dawnHouseRiteFlowGloss = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color(0xFFFFE8B8),
+    Color(0xFFF3A55E),
+    Color(0xFFFFF3D6),
+    Color(0xFFE98E52),
+  ],
+  stops: [0.0, 0.34, 0.66, 1.0],
+);
+
+const LinearGradient _dawnHouseRiteCardGradient = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [
+    Color(0xFF12152C),
+    Color(0xFF3A315D),
+    Color(0xFFB56A6E),
+    Color(0xFFF2B45F),
+  ],
+  stops: [0.0, 0.38, 0.76, 1.0],
+);
+
+Widget _buildDawnHouseRiteAccent({required bool compact, double size = 24}) {
+  final sunSize = compact ? size * 0.46 : size * 0.56;
+  return SizedBox(
+    width: size + 10,
+    height: size,
+    child: Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: 1,
+          right: 1,
+          bottom: 7,
+          child: Container(
+            height: 1.5,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  Color(0xFFFFE7B5),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          right: 4,
+          bottom: 7,
+          child: Container(
+            width: sunSize,
+            height: sunSize,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFFFD27A),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFFC166).withValues(alpha: 0.5),
+                  blurRadius: compact ? 7 : 11,
+                  spreadRadius: compact ? 0 : 1,
+                ),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          right: 1,
+          bottom: 0,
+          child: Container(
+            width: size + 7,
+            height: size * 0.36,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFF331E32).withValues(alpha: 0.72),
+                  const Color(0xFF130E1C).withValues(alpha: 0.92),
+                ],
+              ),
+              borderRadius: BorderRadius.vertical(
+                top: Radius.elliptical(size, size * 0.34),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 enum _TrackSkyCardKind {
@@ -2465,6 +2564,104 @@ class _DayViewGridState extends State<DayViewGrid> {
     return spans;
   }
 
+  List<({String heading, String body})> _dawnHouseRiteDetailSections(
+    String detail,
+  ) {
+    final cleaned = _stripCidLines(detail).trim();
+    if (cleaned.isEmpty) return const <({String heading, String body})>[];
+
+    final sections = <({String heading, String body})>[];
+    final headingPattern = RegExp(
+      r"^(Purpose|Action|Words|Ma'at act|Order act|Lens|Cycle|Completion)\s*:?\s*(.*)$",
+      caseSensitive: false,
+    );
+    final buffer = <String>[];
+    String? activeHeading;
+
+    void flush() {
+      final heading = activeHeading?.trim() ?? '';
+      final body = buffer.join('\n').trim();
+      final lowerHeading = heading.toLowerCase();
+      buffer.clear();
+      activeHeading = null;
+      if (body.isEmpty ||
+          lowerHeading == 'cycle' ||
+          lowerHeading == 'completion') {
+        return;
+      }
+      sections.add((heading: heading, body: body));
+    }
+
+    for (final rawLine in cleaned.split(RegExp(r'\r?\n'))) {
+      final line = rawLine.trim();
+      if (line.isEmpty) continue;
+      final match = headingPattern.firstMatch(line);
+      if (match != null) {
+        flush();
+        final heading = match.group(1)!.trim();
+        final lowerHeading = heading.toLowerCase();
+        if (lowerHeading == 'cycle' || lowerHeading == 'completion') {
+          activeHeading = null;
+          continue;
+        }
+        activeHeading = heading;
+        final inlineBody = match.group(2)?.trim();
+        if (inlineBody != null && inlineBody.isNotEmpty) {
+          buffer.add(inlineBody);
+        }
+        continue;
+      }
+
+      if (activeHeading == null) {
+        sections.add((heading: '', body: line));
+      } else {
+        buffer.add(line);
+      }
+    }
+    flush();
+
+    return sections;
+  }
+
+  Widget _buildDawnHouseRiteDetailText(String detail) {
+    final sections = _dawnHouseRiteDetailSections(detail);
+    if (sections.isEmpty) return const SizedBox.shrink();
+
+    const headingStyle = TextStyle(
+      color: Color(0xFFFFD486),
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      height: 1.2,
+    );
+    const bodyStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 14,
+      height: 1.38,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final section in sections) ...[
+          if (section.heading.isNotEmpty)
+            Text(section.heading, style: headingStyle),
+          if (section.heading.isNotEmpty) const SizedBox(height: 3),
+          if (section.heading.toLowerCase() == 'words')
+            Text(
+              section.body,
+              style: bodyStyle.copyWith(
+                color: const Color(0xFFFFEED4),
+                fontStyle: FontStyle.italic,
+              ),
+            )
+          else
+            Text(section.body, style: bodyStyle),
+          if (section != sections.last) const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
   void _scrollToSavedOrCurrentTime() {
     if (!_scrollController.hasClients || _hasScrolledToInitial) return;
 
@@ -3523,6 +3720,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     final event = block.event;
     final flow = _chromeFlowForId(event.flowId);
     final isTrackSky = _isTrackSkyFlowName(flow?.name);
+    final isDawnHouseRite = _isDawnHouseRiteFlowName(flow?.name);
     final trackSkySpec = isTrackSky ? _trackSkyCardSpecForEvent(event) : null;
 
     // 🔍 DEBUG: Log block being rendered
@@ -3535,7 +3733,9 @@ class _DayViewGridState extends State<DayViewGrid> {
     final int durationMinutes = (event.endMin - event.startMin).clamp(15, 180);
     final double height = _eventVisualHeight(event);
 
-    final borderRadius = BorderRadius.circular(isTrackSky ? 8 : 4);
+    final borderRadius = BorderRadius.circular(
+      isTrackSky || isDawnHouseRite ? 8 : 4,
+    );
 
     if (isTrackSky) {
       return Container(
@@ -3634,6 +3834,96 @@ class _DayViewGridState extends State<DayViewGrid> {
       );
     }
 
+    if (isDawnHouseRite) {
+      return Container(
+        width: block.width,
+        height: height,
+        margin: const EdgeInsets.only(right: 4, bottom: 2),
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isPreview ? 0.16 : 0.28),
+              blurRadius: kIsWeb ? 8 : 12,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: const Color(
+                0xFFFFB765,
+              ).withValues(alpha: isPreview ? 0.08 : 0.16),
+              blurRadius: kIsWeb ? 10 : 14,
+              spreadRadius: -3,
+            ),
+          ],
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: _dawnHouseRiteCardGradient,
+                  borderRadius: borderRadius,
+                  border: Border.all(
+                    color: const Color(
+                      0xFFFFD08A,
+                    ).withValues(alpha: isPreview ? 0.68 : 0.9),
+                    width: 0.9,
+                  ),
+                ),
+              ),
+            ),
+            IgnorePointer(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            const Color(0x9C090914),
+                            const Color(0x63090914),
+                            const Color(0x16090914),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.38, 0.68, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 6,
+                    child: Opacity(
+                      opacity: isPreview ? 0.78 : 1.0,
+                      child: _buildDawnHouseRiteAccent(
+                        compact: durationMinutes < 80,
+                        size: math.min(height - 16, 25),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: 11,
+                vertical: event.isReminder ? 4 : 4,
+              ),
+              child: _buildEventTextContents(
+                event,
+                durationMinutes,
+                isPreview: isPreview,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final fillColor = isPreview
         ? event.color.withValues(alpha: 0.12)
         : event.color.withValues(alpha: 0.2);
@@ -3672,6 +3962,8 @@ class _DayViewGridState extends State<DayViewGrid> {
     final flow = _chromeFlowForId(event.flowId);
     final bool hasFlow = flow != null;
     final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
+    final bool isDawnHouseRite = _isDawnHouseRiteFlowName(flow?.name);
+    final bool isGraphicFlow = isTrackSky || isDawnHouseRite;
     final trackSkySpec = isTrackSky ? _trackSkyCardSpecForEvent(event) : null;
 
     final showTitle = event.title.trim().isNotEmpty;
@@ -3682,12 +3974,16 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
     final titleColor = isTrackSky
         ? trackSkySpec!.titleColor.withValues(alpha: isPreview ? 0.94 : 1.0)
+        : isDawnHouseRite
+        ? const Color(0xFFFFF6E3).withValues(alpha: isPreview ? 0.92 : 1.0)
         : (isPreview ? Colors.white70 : Colors.white);
-    final flowColor = hasFlow && !isTrackSky
+    final flowColor = hasFlow && !isGraphicFlow
         ? event.color.withValues(alpha: isPreview ? 0.75 : 1.0)
         : null;
     final locationColor = isTrackSky
         ? trackSkySpec!.detailColor.withValues(alpha: isPreview ? 0.78 : 0.96)
+        : isDawnHouseRite
+        ? const Color(0xFFFFDEB2).withValues(alpha: isPreview ? 0.74 : 0.92)
         : Colors.white.withValues(alpha: isPreview ? 0.55 : 0.7);
     final titleMaxLines = (event.isReminder || hasFlow || durationMinutes < 90)
         ? 1
@@ -3801,6 +4097,18 @@ class _DayViewGridState extends State<DayViewGrid> {
                   overflow: TextOverflow.ellipsis,
                   gradient: _trackSkyFlowGoldGloss,
                 )
+              : isDawnHouseRite
+              ? buildTrackSkyText(
+                  flow.name,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: trackSkyFlowNameColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  gradient: _dawnHouseRiteFlowGloss,
+                )
               : Text(
                   flow.name,
                   style: TextStyle(
@@ -3811,7 +4119,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-          SizedBox(height: isTrackSky ? 1 : 2),
+          SizedBox(height: isGraphicFlow ? 1 : 2),
         ],
 
         // Note title - only render if meaningful
@@ -3821,6 +4129,17 @@ class _DayViewGridState extends State<DayViewGrid> {
                   event.title,
                   style: TextStyle(
                     fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: titleColor,
+                  ),
+                  maxLines: titleMaxLines,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : isDawnHouseRite
+              ? buildTrackSkyText(
+                  event.title,
+                  style: TextStyle(
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: titleColor,
                   ),
@@ -3847,6 +4166,20 @@ class _DayViewGridState extends State<DayViewGrid> {
                     color: trackSkySpec!.labelColor.withValues(
                       alpha: isPreview ? 0.8 : 0.9,
                     ),
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : isDawnHouseRite
+              ? buildTrackSkyText(
+                  hasFlow ? '(flow block)' : '(scheduled)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                    color: const Color(
+                      0xFFFFE8C6,
+                    ).withValues(alpha: isPreview ? 0.78 : 0.9),
                     fontStyle: FontStyle.italic,
                   ),
                   maxLines: 1,
@@ -3884,7 +4217,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         ],
 
         // Location (clickable)
-        if (showLocation && !isTrackSky)
+        if (showLocation && !isGraphicFlow)
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: InkWell(
@@ -4033,6 +4366,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     final bool isNutrition =
         currentEvent.detail != null && currentEvent.detail!.contains('Source:');
     final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
+    final bool isDawnHouseRite = _isDawnHouseRiteFlowName(flow?.name);
     final trackSkySpec = isTrackSky
         ? _trackSkyCardSpecForEvent(currentEvent)
         : null;
@@ -4043,16 +4377,26 @@ class _DayViewGridState extends State<DayViewGrid> {
       metaChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          gradient: isTrackSky ? skyMetaSpec!.background : null,
-          color: isTrackSky ? null : flow.color.withValues(alpha: 0.16),
+          gradient: isTrackSky
+              ? skyMetaSpec!.background
+              : isDawnHouseRite
+              ? _dawnHouseRiteCardGradient
+              : null,
+          color: isTrackSky || isDawnHouseRite
+              ? null
+              : flow.color.withValues(alpha: 0.16),
           border: isTrackSky
               ? Border.all(
                   color: skyMetaSpec!.borderColor.withValues(alpha: 0.78),
                 )
+              : isDawnHouseRite
+              ? Border.all(
+                  color: const Color(0xFFFFD08A).withValues(alpha: 0.8),
+                )
               : null,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: isTrackSky
+        child: isTrackSky || isDawnHouseRite
             ? Text(
                 flow.name,
                 maxLines: 1,
@@ -4060,7 +4404,9 @@ class _DayViewGridState extends State<DayViewGrid> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: skyMetaSpec!.titleColor,
+                  color: isTrackSky
+                      ? skyMetaSpec!.titleColor
+                      : const Color(0xFFFFF6E3),
                   shadows: [
                     Shadow(
                       color: Colors.black.withValues(alpha: 0.42),
@@ -4196,6 +4542,10 @@ class _DayViewGridState extends State<DayViewGrid> {
                     }();
               if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
                 return const SizedBox.shrink();
+              }
+
+              if (isDawnHouseRite) {
+                return _buildDawnHouseRiteDetailText(displayDetail);
               }
 
               return RichText(

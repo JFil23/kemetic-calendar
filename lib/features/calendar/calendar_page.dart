@@ -79,6 +79,7 @@ import '../../core/push_intent_bus.dart';
 import '../../widgets/flow_start_date_picker.dart';
 import '../../utils/external_link_utils.dart';
 import 'track_sky_flow.dart';
+import 'dawn_house_rite_flow.dart';
 import '../reflections/decan_reflection_archive_page.dart';
 import '../settings/settings_page.dart';
 import '../settings/settings_prefs.dart';
@@ -4382,7 +4383,7 @@ class _MaatFlowDay {
        ];
 }
 
-enum _MaatFlowTemplateKind { sequence, trackSky }
+enum _MaatFlowTemplateKind { sequence, trackSky, dawnHouseRite }
 
 class _MaatFlowTemplate {
   final String key; // stable identifier (e.g., "wealth-economy")
@@ -4410,7 +4411,25 @@ final List<_MaatFlowTemplate> kMaatFlowTemplates = [
     color: _trackSkySignifierBase,
     kind: _MaatFlowTemplateKind.trackSky,
   ),
+  _MaatFlowTemplate(
+    key: kDawnHouseRiteFlowKey,
+    title: kDawnHouseRiteTitle,
+    overview: kDawnHouseRiteOverview,
+    color: const Color(0xFFEFA25C),
+    kind: _MaatFlowTemplateKind.dawnHouseRite,
+  ),
 ];
+
+String _maatFlowTemplateDurationLabel(_MaatFlowTemplate template) {
+  switch (template.kind) {
+    case _MaatFlowTemplateKind.trackSky:
+      return 'Ongoing';
+    case _MaatFlowTemplateKind.dawnHouseRite:
+      return '30 days';
+    case _MaatFlowTemplateKind.sequence:
+      return '${template.days.isEmpty ? 10 : template.days.length} days';
+  }
+}
 
 /* ─────────────────────────── CALENDAR PAGE (flows + notes) ─────────────────────────── */
 
@@ -5063,6 +5082,8 @@ class CalendarPage extends StatefulWidget {
     bool? useKemetic,
     TrackSkyTimeZone? trackSkyTimeZone,
     int? alertMinutesBefore,
+    bool? dawnDiscreetMode,
+    DawnHouseRiteLens? dawnLens,
   }) async {
     final personalCalendarId = await _loadHeadlessPersonalCalendarId();
     if (template.kind == _MaatFlowTemplateKind.trackSky) {
@@ -5129,6 +5150,99 @@ class CalendarPage extends StatefulWidget {
             _FlowStudioResult(savedFlow: flow, plannedNotes: planned),
           ) ??
           -1;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final discreet = dawnDiscreetMode == true;
+      final lens = dawnLens ?? DawnHouseRiteLens.neutral;
+      final firstG = DateUtils.dateOnly(
+        startDate ?? defaultDawnHouseRiteStartDate(timezone),
+      );
+      final occurrences = <DawnHouseRiteOccurrenceSchedule>[
+        for (var i = 0; i < kDawnHouseRiteDays.length; i++)
+          dawnHouseRiteScheduleForDate(firstG.add(Duration(days: i)), timezone),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+      final flow = _Flow(
+        id: -1,
+        calendarId: personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: orderedDates.last,
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'dawn_tz=${timezone.key}',
+          'dawn_discreet=${discreet ? 1 : 0}',
+          'dawn_lens=${lens.key}',
+        ].join(';'),
+      );
+
+      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+      final flowId = await userEventsRepo.upsertFlow(
+        id: null,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: flow.notes,
+        rules: jsonEncode(
+          flow.rules.map(_CalendarPageState.ruleToJson).toList(),
+        ),
+        originType: 'template',
+      );
+
+      for (var i = 0; i < kDawnHouseRiteDays.length; i++) {
+        final day = kDawnHouseRiteDays[i];
+        final occurrence = occurrences[i];
+        final k = KemeticMath.fromGregorian(
+          DateUtils.dateOnly(occurrence.startLocal),
+        );
+        final cid = EventCidUtil.buildClientEventId(
+          ky: k.kYear,
+          km: k.kMonth,
+          kd: k.kDay,
+          title: dawnHouseRiteEventTitle(day),
+          startHour: occurrence.startLocal.hour,
+          startMinute: occurrence.startLocal.minute,
+          allDay: false,
+          flowId: flowId,
+        );
+        await userEventsRepo.upsertByClientId(
+          clientEventId: cid,
+          title: dawnHouseRiteEventTitle(day),
+          startsAtUtc: occurrence.startUtc,
+          detail: dawnHouseRiteDetailText(day, discreet: discreet, lens: lens),
+          allDay: false,
+          endsAtUtc: occurrence.endUtc,
+          calendarId: personalCalendarId,
+          flowLocalId: flowId,
+          category: 'Ritual',
+          actionId: dawnHouseRiteActionId(day),
+          behaviorPayload: dawnHouseRiteBehaviorPayload(
+            day: day,
+            schedule: occurrence,
+            discreet: discreet,
+            lens: lens,
+          ),
+          caller: 'dawn_house_rite_join_headless',
+        );
+      }
+
+      return flowId;
     }
 
     if (startDate == null) return -1;
@@ -5384,7 +5498,12 @@ class CalendarPage extends StatefulWidget {
           },
         );
         if (importedFlowId != null && importedFlowId > 0 && navigator.mounted) {
-          navigator.pop(importedFlowId);
+          unawaited(flowsRepo.refreshMyFiledFlows());
+          if (navigator.canPop()) {
+            navigator.pop(importedFlowId);
+          } else {
+            Navigator.of(navigator.context, rootNavigator: true).pop();
+          }
         }
       },
       onCreateNew: () async {
@@ -7025,6 +7144,8 @@ class _CalendarPageState extends State<CalendarPage>
                 bool? useKemetic,
                 TrackSkyTimeZone? trackSkyTimeZone,
                 int? alertMinutesBefore,
+                bool? dawnDiscreetMode,
+                DawnHouseRiteLens? dawnLens,
               }) async {
                 final id = await _addMaatFlowInstance(
                   template: template,
@@ -7032,6 +7153,8 @@ class _CalendarPageState extends State<CalendarPage>
                   useKemetic: useKemetic ?? false,
                   trackSkyTimeZone: trackSkyTimeZone,
                   alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
+                  dawnDiscreetMode: dawnDiscreetMode ?? false,
+                  dawnLens: dawnLens ?? DawnHouseRiteLens.neutral,
                 );
                 return id;
               },
@@ -14029,6 +14152,8 @@ class _CalendarPageState extends State<CalendarPage>
     bool isReminder = false,
     String? reminderId,
     int? alertOffsetMinutes,
+    String? actionId,
+    Map<String, dynamic>? behaviorPayload,
     bool notify = true,
   }) {
     final shouldSkip =
@@ -14075,6 +14200,10 @@ class _CalendarPageState extends State<CalendarPage>
         isReminder: isReminder,
         reminderId: reminderId,
         alertOffsetMinutes: alertOffsetMinutes,
+        actionId: actionId,
+        behaviorPayload: behaviorPayload == null
+            ? null
+            : Map<String, dynamic>.from(behaviorPayload),
       ),
     );
     // Do not schedule notifications here; scheduling is handled by the caller.
@@ -17096,7 +17225,12 @@ class _CalendarPageState extends State<CalendarPage>
           },
         );
         if (importedFlowId != null && importedFlowId > 0 && listCtx.mounted) {
-          Navigator.of(listCtx).pop(importedFlowId);
+          final listNavigator = Navigator.of(listCtx);
+          if (listNavigator.canPop()) {
+            listNavigator.pop(importedFlowId);
+          } else {
+            Navigator.of(listCtx, rootNavigator: true).pop();
+          }
         }
       },
       onCreateNew: () async {
@@ -17327,6 +17461,8 @@ class _CalendarPageState extends State<CalendarPage>
     bool useKemetic = false,
     TrackSkyTimeZone? trackSkyTimeZone,
     int alertMinutesBefore = _alertNoneMinutes,
+    bool dawnDiscreetMode = false,
+    DawnHouseRiteLens dawnLens = DawnHouseRiteLens.neutral,
   }) async {
     if (template.kind == _MaatFlowTemplateKind.trackSky) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
@@ -17454,6 +17590,176 @@ class _CalendarPageState extends State<CalendarPage>
             );
           } catch (_) {}
         });
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final firstG = DateUtils.dateOnly(
+        startDate ?? defaultDawnHouseRiteStartDate(timezone),
+      );
+      final occurrences = <DawnHouseRiteOccurrenceSchedule>[
+        for (var i = 0; i < kDawnHouseRiteDays.length; i++)
+          dawnHouseRiteScheduleForDate(firstG.add(Duration(days: i)), timezone),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: orderedDates.last,
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'dawn_tz=${timezone.key}',
+          'dawn_discreet=${dawnDiscreetMode ? 1 : 0}',
+          'dawn_lens=${dawnLens.key}',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          debugPrint('[dawnHouseRite] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (var i = 0; i < kDawnHouseRiteDays.length; i++) {
+          final day = kDawnHouseRiteDays[i];
+          final occurrence = occurrences[i];
+          final kyKmKd = KemeticMath.fromGregorian(
+            DateUtils.dateOnly(occurrence.startLocal),
+          );
+          final startTod = TimeOfDay(
+            hour: occurrence.startLocal.hour,
+            minute: occurrence.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: occurrence.endLocal.hour,
+            minute: occurrence.endLocal.minute,
+          );
+          final title = dawnHouseRiteEventTitle(day);
+          final detail = dawnHouseRiteDetailText(
+            day,
+            discreet: dawnDiscreetMode,
+            lens: dawnLens,
+          );
+          final behaviorPayload = dawnHouseRiteBehaviorPayload(
+            day: day,
+            schedule: occurrence,
+            discreet: dawnDiscreetMode,
+            lens: dawnLens,
+          );
+          final clientEventId = _buildCid(
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            title: title,
+            startHour: startTod.hour,
+            startMinute: startTod.minute,
+            allDay: false,
+            flowId: serverFlowId,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: _alertNoneMinutes,
+            actionId: dawnHouseRiteActionId(day),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: _alertNoneMinutes,
+            actionId: dawnHouseRiteActionId(day),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: occurrence.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: occurrence.endUtc,
+            category: 'Ritual',
+            flowLocalId: serverFlowId,
+            actionId: dawnHouseRiteActionId(day),
+            behaviorPayload: behaviorPayload,
+            caller: 'dawn_house_rite_join',
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          debugPrint('[dawnHouseRite] event creation failed: $e');
+          debugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not create Dawn House Rite events.'),
+            ),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
       }
 
       setState(() {});
@@ -37081,7 +37387,7 @@ class _MaatFlowsListPage extends StatelessWidget {
                     gradient: goldGloss,
                   ),
                   subtitle: Text(
-                    '${t.kind == _MaatFlowTemplateKind.trackSky ? 'Ongoing' : '10 days'} • ${t.overview.isEmpty ? '—' : 'Tap for details'}',
+                    '${_maatFlowTemplateDurationLabel(t)} • ${t.overview.isEmpty ? '—' : 'Tap for details'}',
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                   trailing: added
@@ -37127,6 +37433,8 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     bool? useKemetic,
     TrackSkyTimeZone? trackSkyTimeZone,
     int? alertMinutesBefore,
+    bool? dawnDiscreetMode,
+    DawnHouseRiteLens? dawnLens,
   })
   addInstance;
 
@@ -37139,6 +37447,10 @@ class _MaatFlowTemplateDetailPageState
     extends State<_MaatFlowTemplateDetailPage> {
   late TrackSkyTimeZone _previewTrackSkyTimeZone;
   Future<TrackSkyFlowData>? _trackSkyFuture;
+  bool _dawnDiscreetMode = false;
+  DawnHouseRiteLens _dawnLens = DawnHouseRiteLens.neutral;
+  bool _dawnStartDateTouched = false;
+  bool _dawnJoinInFlight = false;
 
   @override
   void initState() {
@@ -37146,6 +37458,8 @@ class _MaatFlowTemplateDetailPageState
     _previewTrackSkyTimeZone = detectTrackSkyTimeZone();
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
       _trackSkyFuture = loadTrackSkyFlowData(_previewTrackSkyTimeZone);
+    } else if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
+      _picked = defaultDawnHouseRiteStartDate(_previewTrackSkyTimeZone);
     }
   }
 
@@ -37548,6 +37862,10 @@ class _MaatFlowTemplateDetailPageState
                             setState(() {
                               _useKemetic = localKemetic;
                               _picked = chosen;
+                              if (widget.template.kind ==
+                                  _MaatFlowTemplateKind.dawnHouseRite) {
+                                _dawnStartDateTouched = true;
+                              }
                             });
                             Navigator.pop(sheetCtx);
                           },
@@ -37575,7 +37893,71 @@ class _MaatFlowTemplateDetailPageState
     }
     setState(() {
       _previewTrackSkyTimeZone = timezone;
-      _trackSkyFuture = loadTrackSkyFlowData(timezone);
+      if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
+        _trackSkyFuture = loadTrackSkyFlowData(timezone);
+      } else if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite &&
+          !_dawnStartDateTouched) {
+        _picked = defaultDawnHouseRiteStartDate(timezone);
+      }
+    });
+  }
+
+  String _dawnLensExplanation(DawnHouseRiteLens lens) {
+    switch (lens) {
+      case DawnHouseRiteLens.neutral:
+        return 'Neutral keeps the standard rite text with no added emphasis.';
+      case DawnHouseRiteLens.solar:
+        return 'Solar adds a short focus on first light, renewal, and restored direction.';
+      case DawnHouseRiteLens.ancestor:
+        return 'Ancestor adds a short focus on memory, lineage, and the remembered dead.';
+      case DawnHouseRiteLens.household:
+        return 'Household adds a short focus on rooms, shared resources, and relationships at home.';
+      case DawnHouseRiteLens.thothic:
+        return 'Thothic adds a short focus on recordkeeping, measure, and truthful observation.';
+      case DawnHouseRiteLens.protection:
+        return 'Protection adds a short focus on clean boundaries, safety, and guarding against disorder.';
+    }
+  }
+
+  Future<void> _joinDawnHouseRiteFlow(DateTime selectedStart) async {
+    if (_dawnJoinInFlight) return;
+    setState(() {
+      _dawnJoinInFlight = true;
+    });
+
+    final int id;
+    try {
+      id = await widget.addInstance(
+        template: widget.template,
+        startDate: selectedStart,
+        trackSkyTimeZone: _previewTrackSkyTimeZone,
+        dawnDiscreetMode: _dawnDiscreetMode,
+        dawnLens: _dawnLens,
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[dawnHouseRite] join failed: $e');
+        debugPrint('$st');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not join Dawn House Rite. Please retry.'),
+        ),
+      );
+      setState(() {
+        _dawnJoinInFlight = false;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    if (id > 0) {
+      Navigator.of(context).pop(id);
+      return;
+    }
+    setState(() {
+      _dawnJoinInFlight = false;
     });
   }
 
@@ -37944,6 +38326,36 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
+  Widget _buildTemplateStickyJoinButton({
+    required double buttonWidth,
+    required VoidCallback? onPressed,
+    String text = 'Join Flow',
+  }) {
+    return Center(
+      child: SizedBox(
+        width: buttonWidth,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF090A0D),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(999),
+            ),
+            side: const BorderSide(color: _gold, width: 1.15),
+            elevation: 0,
+          ),
+          onPressed: onPressed,
+          child: GlossyText(
+            text: text,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            gradient: goldGloss,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTrackSkyScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
@@ -38090,28 +38502,269 @@ class _MaatFlowTemplateDetailPageState
             left: 0,
             right: 0,
             bottom: ctaBottom,
-            child: Center(
-              child: SizedBox(
-                width: buttonWidth,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF090A0D),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(999),
+            child: _buildTemplateStickyJoinButton(
+              buttonWidth: buttonWidth,
+              onPressed: _openTrackSkyJoinSheet,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDawnHouseRiteDayTile(
+    BuildContext context,
+    DawnHouseRiteDay day,
+  ) {
+    final detail = dawnHouseRiteDetailText(
+      day,
+      discreet: _dawnDiscreetMode,
+      lens: _dawnLens,
+    );
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B0C0F),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+          collapsedIconColor: _silver,
+          iconColor: _gold,
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          title: Text(
+            dawnHouseRiteEventTitle(day),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Text(
+              day.section,
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ),
+          children: [
+            Text(
+              detail,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13.5,
+                height: 1.45,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDawnHouseRiteScaffold(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final buttonWidth = math.min(media.size.width - 32, 280.0);
+    final ctaBottom = media.padding.bottom + 12;
+    final l10n = MaterialLocalizations.of(context);
+    final selectedStart =
+        _picked ?? defaultDawnHouseRiteStartDate(_previewTrackSkyTimeZone);
+    final firstSchedule = dawnHouseRiteScheduleForDate(
+      selectedStart,
+      _previewTrackSkyTimeZone,
+    );
+    final lastSchedule = dawnHouseRiteScheduleForDate(
+      selectedStart.add(Duration(days: kDawnHouseRiteDays.length - 1)),
+      _previewTrackSkyTimeZone,
+    );
+    final firstTime = l10n.formatTimeOfDay(
+      TimeOfDay(
+        hour: firstSchedule.startLocal.hour,
+        minute: firstSchedule.startLocal.minute,
+      ),
+    );
+    final lastTime = l10n.formatTimeOfDay(
+      TimeOfDay(
+        hour: lastSchedule.startLocal.hour,
+        minute: lastSchedule.startLocal.minute,
+      ),
+    );
+
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0.5,
+        title: GlossyText(
+          text: widget.template.title,
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          gradient: goldGloss,
+        ),
+      ),
+      body: Stack(
+        children: [
+          ListView(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, ctaBottom + 96),
+            children: [
+              GlossyText(
+                text: widget.template.title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+                gradient: goldGloss,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.template.overview,
+                style: const TextStyle(color: Colors.white, height: 1.35),
+              ),
+              const SizedBox(height: 16),
+              const GlossyText(
+                text: 'Timezone',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                gradient: silverGloss,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: TrackSkyTimeZone.values.map((timezone) {
+                  return ChoiceChip(
+                    label: Text(timezone.shortLabel),
+                    selected: _previewTrackSkyTimeZone == timezone,
+                    onSelected: (_) => _setTrackSkyPreviewTimeZone(timezone),
+                    selectedColor: _gold,
+                    labelStyle: TextStyle(
+                      color: _previewTrackSkyTimeZone == timezone
+                          ? Colors.black
+                          : Colors.white,
+                      fontWeight: FontWeight.w600,
                     ),
-                    side: const BorderSide(color: _gold, width: 1.15),
-                    elevation: 0,
+                    backgroundColor: const Color(0xFF15171B),
+                    side: const BorderSide(color: Colors.white24),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Estimated from ${firstSchedule.referenceLocation.name} for ${_previewTrackSkyTimeZone.label}. First dawn: ${l10n.formatShortDate(selectedStart)} at $firstTime. Final dawn: ${l10n.formatShortDate(lastSchedule.startLocal)} at $lastTime.',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: silver, width: 1.25),
+                    alignment: Alignment.centerLeft,
                   ),
-                  onPressed: _openTrackSkyJoinSheet,
-                  child: const GlossyText(
-                    text: 'Join Flow',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                    gradient: goldGloss,
+                  onPressed: _pickDate,
+                  child: Text('Start: ${_fmtGregorian(selectedStart)}'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                activeThumbColor: _gold,
+                value: _dawnDiscreetMode,
+                onChanged: (value) {
+                  setState(() {
+                    _dawnDiscreetMode = value;
+                  });
+                },
+                title: const Text(
+                  'Discreet mode',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: const Text(
+                  'Changes wording only. Turn this on when the rite needs to look ordinary in public or shared space; event text avoids visible ritual terms such as altar, shrine, offering, incense, flame, deity names, and ma’at.',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 12,
+                    height: 1.35,
                   ),
                 ),
               ),
+              const SizedBox(height: 10),
+              const GlossyText(
+                text: 'Lens',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                gradient: silverGloss,
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'A lens adds a short emphasis to each day’s guidance. It does not change the dawn times, duration, or thirty-day sequence.',
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: DawnHouseRiteLens.values.map((lens) {
+                  return ChoiceChip(
+                    label: Text(lens.label),
+                    selected: _dawnLens == lens,
+                    onSelected: (_) {
+                      setState(() {
+                        _dawnLens = lens;
+                      });
+                    },
+                    selectedColor: _gold,
+                    labelStyle: TextStyle(
+                      color: _dawnLens == lens ? Colors.black : Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    backgroundColor: const Color(0xFF15171B),
+                    side: const BorderSide(color: Colors.white24),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _dawnLensExplanation(_dawnLens),
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12.5,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const GlossyText(
+                text: '30-Day Outline',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                gradient: silverGloss,
+              ),
+              const SizedBox(height: 8),
+              ...kDawnHouseRiteDays.map(
+                (day) => _buildDawnHouseRiteDayTile(context, day),
+              ),
+            ],
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: ctaBottom,
+            child: _buildTemplateStickyJoinButton(
+              buttonWidth: buttonWidth,
+              text: _dawnJoinInFlight ? 'Joining…' : 'Join Flow',
+              onPressed: _dawnJoinInFlight
+                  ? null
+                  : () => _joinDawnHouseRiteFlow(selectedStart),
             ),
           ),
         ],
@@ -38260,6 +38913,9 @@ class _MaatFlowTemplateDetailPageState
   Widget build(BuildContext context) {
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
       return _buildTrackSkyScaffold(context);
+    }
+    if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
+      return _buildDawnHouseRiteScaffold(context);
     }
     return _buildSequenceScaffold(context);
   }
