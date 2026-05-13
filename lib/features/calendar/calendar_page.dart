@@ -3695,6 +3695,7 @@ class _CalendarAction {
   final Gradient gradient;
   final String label;
   final bool showNotificationDot;
+  final bool dispatchBeforeClose;
   final FutureOr<void> Function() onSelected;
 
   const _CalendarAction({
@@ -3704,6 +3705,7 @@ class _CalendarAction {
     required this.gradient,
     required this.label,
     this.showNotificationDot = false,
+    this.dispatchBeforeClose = false,
     required this.onSelected,
   }) : assert(icon != null || glyph != null);
 }
@@ -4842,6 +4844,9 @@ class CalendarPage extends StatefulWidget {
     BuildContext context, {
     bool includeNewNote = true,
     void Function(String location)? onNavigate,
+    Future<void> Function()? onOpenCalendars,
+    Future<void> Function()? onOpenFlowStudio,
+    Future<void> Function()? onOpenNewNote,
     required Future<void> Function() closeMenu,
   }) {
     return _CalendarActionsMenuPanel(
@@ -4850,8 +4855,16 @@ class CalendarPage extends StatefulWidget {
         hasUnreadInbox: hasUnreadInbox,
         includeNewNote: includeNewNote,
         onNavigate: onNavigate,
+        onOpenCalendars: onOpenCalendars,
+        onOpenFlowStudio: onOpenFlowStudio,
+        onOpenNewNote: onOpenNewNote,
       ),
       onSelected: (action) async {
+        if (action.dispatchBeforeClose) {
+          await action.onSelected();
+          await closeMenu();
+          return;
+        }
         await closeMenu();
         await action.onSelected();
       },
@@ -5195,6 +5208,9 @@ class CalendarPage extends StatefulWidget {
     bool hasUnreadInbox = false,
     bool includeNewNote = true,
     void Function(String location)? onNavigate,
+    Future<void> Function()? onOpenCalendars,
+    Future<void> Function()? onOpenFlowStudio,
+    Future<void> Function()? onOpenNewNote,
   }) {
     void navigate(String location) {
       if (onNavigate != null) {
@@ -5210,12 +5226,14 @@ class CalendarPage extends StatefulWidget {
         glyph: MeduNeterGlyphs.journal,
         gradient: goldGloss,
         label: 'Journal',
+        dispatchBeforeClose: true,
         onSelected: () => navigate('/journal'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.planner,
         gradient: goldGloss,
         label: 'Planner',
+        dispatchBeforeClose: true,
         onSelected: () => navigate('/rhythm/today'),
       ),
       _CalendarAction(
@@ -5223,19 +5241,22 @@ class CalendarPage extends StatefulWidget {
         gradient: goldGloss,
         label: 'Inbox',
         showNotificationDot: hasUnreadInbox,
+        dispatchBeforeClose: true,
         onSelected: () => navigate('/inbox'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.calendars,
         gradient: goldGloss,
         label: 'Calendars',
-        onSelected: () => openSharedCalendarsFromAnyContext(context),
+        onSelected:
+            onOpenCalendars ?? () => openSharedCalendarsFromAnyContext(context),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.reflections,
         glyphSize: 18,
         gradient: goldGloss,
         label: 'Reflections',
+        dispatchBeforeClose: true,
         onSelected: () => navigate('/reflections'),
       ),
       _CalendarAction(
@@ -5243,18 +5264,21 @@ class CalendarPage extends StatefulWidget {
         glyphSize: 20,
         gradient: goldGloss,
         label: 'Library',
+        dispatchBeforeClose: true,
         onSelected: () => navigate('/nodes'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.settings,
         gradient: goldGloss,
         label: 'Settings',
+        dispatchBeforeClose: true,
         onSelected: () => navigate('/settings'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.home,
         gradient: goldGloss,
         label: 'Home',
+        dispatchBeforeClose: true,
         onSelected: () => navigate('/'),
       ),
       _CalendarAction(
@@ -5262,18 +5286,21 @@ class CalendarPage extends StatefulWidget {
         glyphSize: 20,
         gradient: goldGloss,
         label: 'Flow Studio',
-        onSelected: () => openFlowStudioFromAnyContext(context),
+        onSelected:
+            onOpenFlowStudio ?? () => openFlowStudioFromAnyContext(context),
       ),
       if (includeNewNote)
         _CalendarAction(
           icon: Icons.add,
           gradient: goldGloss,
           label: 'New note',
-          onSelected: () => _routeHomeForDetachedLaunch(
-            context,
-            _CalendarDetachedLaunchAction.quickAdd,
-            onNavigate: onNavigate,
-          ),
+          onSelected:
+              onOpenNewNote ??
+              () => _routeHomeForDetachedLaunch(
+                context,
+                _CalendarDetachedLaunchAction.quickAdd,
+                onNavigate: onNavigate,
+              ),
         ),
     ];
   }

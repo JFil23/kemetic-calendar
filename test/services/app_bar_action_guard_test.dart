@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -31,7 +32,7 @@ void main() {
   });
 
   group('app bar action guard', () {
-    testWidgets('floating menu route buttons close and navigate explicitly', (
+    testWidgets('detached menu buttons close and dispatch in every path', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1170, 2532);
@@ -40,6 +41,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final navigations = <String>[];
+      final launchedSheets = <String>[];
       var closeCount = 0;
 
       await tester.pumpWidget(
@@ -48,8 +50,11 @@ void main() {
             body: Builder(
               builder: (context) => CalendarPage.buildDetachedActionsMenuPanel(
                 context,
-                includeNewNote: false,
+                includeNewNote: true,
                 onNavigate: navigations.add,
+                onOpenCalendars: () async => launchedSheets.add('Calendars'),
+                onOpenFlowStudio: () async => launchedSheets.add('Flow Studio'),
+                onOpenNewNote: () async => launchedSheets.add('New note'),
                 closeMenu: () async {
                   closeCount += 1;
                 },
@@ -78,11 +83,122 @@ void main() {
           reason: '${entry.key} should route to ${entry.value}',
         );
       }
+      expect(navigations, expectedRoutes.values.toList(growable: false));
 
-      expect(closeCount, expectedRoutes.length);
-      for (final label in <String>['Calendars', 'Flow Studio']) {
-        expect(find.text(label), findsOneWidget);
+      const sheetActions = <String>['Calendars', 'Flow Studio', 'New note'];
+      for (final label in sheetActions) {
+        await tester.tap(find.text(label));
+        await tester.pump();
+        expect(
+          launchedSheets.last,
+          label,
+          reason: '$label should dispatch its sheet/action callback',
+        );
       }
+
+      expect(closeCount, expectedRoutes.length + sheetActions.length);
+      expect(launchedSheets, sheetActions);
+    });
+
+    testWidgets('detached Home dispatches before close animation completes', (
+      tester,
+    ) async {
+      final navigations = <String>[];
+      var closeStarted = false;
+      final closeCompleter = Completer<void>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => CalendarPage.buildDetachedActionsMenuPanel(
+                context,
+                includeNewNote: false,
+                onNavigate: navigations.add,
+                closeMenu: () async {
+                  closeStarted = true;
+                  await closeCompleter.future;
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Home'));
+      await tester.pump();
+
+      expect(navigations, <String>['/']);
+      expect(closeStarted, isTrue);
+
+      closeCompleter.complete();
+      await tester.pump();
+    });
+
+    testWidgets('detached sheet actions close before dispatching sheets', (
+      tester,
+    ) async {
+      final launchedSheets = <String>[];
+      var closeFinished = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => CalendarPage.buildDetachedActionsMenuPanel(
+                context,
+                includeNewNote: true,
+                onOpenCalendars: () async {
+                  if (closeFinished) launchedSheets.add('Calendars');
+                },
+                closeMenu: () async {
+                  closeFinished = true;
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Calendars'));
+      await tester.pump();
+
+      expect(closeFinished, isTrue);
+      expect(launchedSheets, <String>['Calendars']);
+    });
+
+    test('calendar-host menu buttons keep expected handlers', () async {
+      final source = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final actions = _sourceBetween(
+        source,
+        'List<_CalendarAction> _calendarActions(',
+        'Future<void> _showActionsMenu(',
+      );
+
+      _expectCalendarMenuAction(actions, 'Journal', '_openJournalFromAppBar');
+      _expectCalendarMenuAction(actions, 'Planner', '_openPlannerPage');
+      _expectCalendarMenuAction(actions, 'Inbox', '_openInboxFromMenu');
+      _expectCalendarMenuAction(
+        actions,
+        'Calendars',
+        '_openSharedCalendarsSheet',
+      );
+      _expectCalendarMenuAction(
+        actions,
+        'Reflections',
+        '_openReflectionsFromMenu',
+      );
+      _expectCalendarMenuAction(actions, 'Library', '_openKemeticNodes');
+      _expectCalendarMenuAction(actions, 'Settings', '_openSettingsFromMenu');
+      _expectCalendarMenuAction(actions, 'Home', "context.go('/')");
+      _expectCalendarMenuAction(
+        actions,
+        'Flow Studio',
+        '_getFlowStudioCallback',
+      );
+      _expectCalendarMenuAction(actions, 'New note', '_openQuickAddSheet');
     });
 
     test('main calendar app bar actions keep expected handlers', () async {
@@ -165,6 +281,24 @@ void main() {
         '_openMyProfileAction',
       ]);
     });
+
+    test(
+      'global bottom menu is available on profile and feed routes',
+      () async {
+        final source = await File('lib/main.dart').readAsString();
+        final shell = _sourceBetween(
+          source,
+          'class _GlobalFloatingMenuShellState',
+          'class _GlobalMenuBarrier',
+        );
+
+        expect(shell, contains('CalendarPage.buildDetachedActionsMenuPanel'));
+        expect(shell, contains('if (supabase.auth.currentSession == null'));
+        expect(shell, isNot(contains('_usesProfileAppBarMenu')));
+        expect(shell, isNot(contains("segments.first != 'profile'")));
+        expect(shell, isNot(contains("segments.first == 'profile'")));
+      },
+    );
 
     test('inbox app bars keep expected handlers', () async {
       final inbox = await File(
@@ -467,6 +601,32 @@ void _expectTooltipAction(
     reason:
         'No "$tooltip" action contained all expected markers: '
         '${expectedNeedles.join(', ')}',
+  );
+}
+
+void _expectCalendarMenuAction(
+  String source,
+  String label,
+  String expectedNeedle,
+) {
+  final labelIndex = source.indexOf("label: '$label'");
+  expect(labelIndex, isNot(-1), reason: 'Missing menu action "$label"');
+
+  final actionStart = source.lastIndexOf('_CalendarAction(', labelIndex);
+  expect(actionStart, isNot(-1), reason: 'Missing action block for "$label"');
+  final nextActionStart = source.indexOf(
+    '_CalendarAction(',
+    labelIndex + label.length,
+  );
+  final block = source.substring(
+    actionStart,
+    nextActionStart == -1 ? source.length : nextActionStart,
+  );
+
+  expect(
+    block,
+    contains(expectedNeedle),
+    reason: 'Menu action "$label" must keep expected handler',
   );
 }
 

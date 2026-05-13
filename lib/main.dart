@@ -1054,28 +1054,12 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     WidgetsBinding.instance.ensureVisualUpdate();
   }
 
-  bool _usesProfileAppBarMenu(Uri uri) {
-    final segments = uri.pathSegments
-        .where((segment) => segment.trim().isNotEmpty)
-        .toList(growable: false);
-    if (segments.isEmpty || segments.first != 'profile') return false;
-    const nonFeedProfileRoutes = <String>{
-      'flow-post-picker',
-      'insight-post-picker',
-    };
-    if (segments.length >= 2 && nonFeedProfileRoutes.contains(segments[1])) {
-      return false;
-    }
-    return true;
-  }
-
   bool get _shouldMountFloatingMenu {
     if (!_launchOverlayDismissed.value) return false;
     if (supabase.auth.currentSession == null &&
         !(kDebugMode && _debugForceGlobalFloatingMenu)) {
       return false;
     }
-    if (_usesProfileAppBarMenu(_readRouterUri())) return false;
     return true;
   }
 
