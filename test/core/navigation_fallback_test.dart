@@ -32,7 +32,7 @@ void main() {
     expect(find.text('restored page'), findsNothing);
   });
 
-  testWidgets('popOrGo pops when a route exists below the current page', (
+  testWidgets('popOrGo replaces the route even when a page exists below', (
     tester,
   ) async {
     final router = GoRouter(
@@ -53,6 +53,10 @@ void main() {
           builder: (context, state) =>
               const _FallbackClosePage(fallbackLocation: '/missing'),
         ),
+        GoRoute(
+          path: '/missing',
+          builder: (context, state) => const _NamedPage(label: 'missing'),
+        ),
       ],
     );
 
@@ -64,7 +68,8 @@ void main() {
     await tester.tap(find.text('close'));
     await tester.pumpAndSettle();
 
-    expect(find.text('open'), findsOneWidget);
+    expect(find.text('missing'), findsOneWidget);
+    expect(find.text('open'), findsNothing);
     expect(find.text('restored page'), findsNothing);
   });
 }

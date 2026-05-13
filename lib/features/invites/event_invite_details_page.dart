@@ -115,7 +115,7 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
     final otherUserId = openingSentInvite
         ? _share.recipientId
         : _share.senderId;
-    context.push<void>(
+    context.go(
       '/inbox/conversation/${Uri.encodeComponent(otherUserId)}',
       extra: ConversationUser(
         id: otherUserId,

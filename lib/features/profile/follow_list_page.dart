@@ -188,12 +188,7 @@ class _FollowListPageState extends State<FollowListPage> {
                 : null,
             trailing: KemeticGold.icon(Icons.chevron_right),
             onTap: () {
-              final navigator = Navigator.of(context);
-              if (navigator.canPop()) {
-                navigator.pop(user.userId);
-              } else {
-                context.go('/profile/${Uri.encodeComponent(user.userId)}');
-              }
+              context.go('/profile/${Uri.encodeComponent(user.userId)}');
             },
           );
         },

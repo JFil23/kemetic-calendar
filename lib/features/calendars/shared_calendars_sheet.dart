@@ -36,6 +36,7 @@ class SharedCalendarsSheet extends StatefulWidget {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => SharedCalendarsSheet(
@@ -160,7 +161,8 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
     final userId = await context.push<String>(
       '/profile-search'
       '?title=${Uri.encodeComponent('Invite to Calendar')}'
-      '&hint=${Uri.encodeComponent('Search by @handle or display name')}',
+      '&hint=${Uri.encodeComponent('Search by @handle or display name')}'
+      '&select=picker',
     );
     if (userId == null || userId.trim().isEmpty) return;
 

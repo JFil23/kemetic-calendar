@@ -313,7 +313,7 @@ class _JournalOverlayState extends State<JournalOverlay>
     if (node == null) return;
 
     FocusManager.instance.primaryFocus?.unfocus();
-    context.push<void>('/nodes/${Uri.encodeComponent(node.id)}');
+    context.go('/nodes/${Uri.encodeComponent(node.id)}');
   }
 
   void _handleTextChanged(String text) {

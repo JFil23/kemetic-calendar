@@ -1350,9 +1350,10 @@ class DayViewPage extends StatefulWidget {
   final int? focusFlowId; // highlight a flow's events
   final String? focusTitle; // highlight by title when flow id missing
   final void Function(int?)? onManageFlows; // NEW: Callback to open My Flows
-  final Future<void> Function(BuildContext context)? onShowActionsMenu;
   final Future<void> Function(BuildContext context)? onOpenQuickAdd;
+  final Future<void> Function(BuildContext context)? onOpenSearch;
   final Future<void> Function(BuildContext context)? onOpenProfile;
+  final VoidCallback? onClose;
   final void Function(int ky, int km, int kd)? onAddNote;
   final Future<void> Function(int ky, int km, int kd, EventItem event)?
   onDeleteNote;
@@ -1430,9 +1431,10 @@ class DayViewPage extends StatefulWidget {
     this.focusFlowId,
     this.focusTitle,
     this.onManageFlows, // NEW
-    this.onShowActionsMenu,
     this.onOpenQuickAdd,
+    this.onOpenSearch,
     this.onOpenProfile,
+    this.onClose,
     this.onAddNote, // 🔧 NEW
     this.onDeleteNote,
     this.onEditNote,
@@ -1794,6 +1796,21 @@ class _DayViewPageState extends State<DayViewPage> {
   Set<int> _currentActiveLedgerFlowIds() =>
       widget.activeLedgerFlowIdsBuilder?.call() ?? widget.activeLedgerFlowIds;
 
+  void _closeDayView() {
+    final close = widget.onClose;
+    if (close != null) {
+      close();
+      return;
+    }
+
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+    popOrGo(context, '/');
+  }
+
   List<EventItem> _eventsForKemeticDay(int ky, int km, int kd) {
     final notes = _dedupeDayNotesForUi(widget.notesForDay(ky, km, kd));
     return _sortedEventsForDay(
@@ -2015,20 +2032,17 @@ class _DayViewPageState extends State<DayViewPage> {
                       );
                     },
                     onToggleDateDisplay: _toggleDateDisplay,
-                    onClose: () => popOrGo(context, '/'),
+                    onClose: _closeDayView,
                     onJumpToToday: _jumpToToday,
                     onOpenQuickAdd:
                         widget.onOpenQuickAdd ??
                         (btnCtx) async {
                           await CalendarPage.openQuickAddFromAnyContext(btnCtx);
                         },
-                    onShowActionsMenu:
-                        widget.onShowActionsMenu ??
+                    onOpenSearch:
+                        widget.onOpenSearch ??
                         (btnCtx) async {
-                          await CalendarPage.showActionsMenuFromAnyContext(
-                            btnCtx,
-                            includeNewNote: false,
-                          );
+                          await CalendarPage.openSearchFromAnyContext(btnCtx);
                         },
                     onOpenProfile:
                         widget.onOpenProfile ??

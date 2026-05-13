@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/core/planner_launch_intent.dart';
 import 'package:mobile/core/navigation_fallback.dart';
-import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/core/daily_reflection_question.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,7 +24,7 @@ import 'package:mobile/services/app_haptics.dart';
 import 'package:mobile/services/daily_reflection_widget_bridge.dart'
     if (dart.library.html) 'package:mobile/services/daily_reflection_widget_bridge_web.dart';
 import 'package:mobile/shared/glossy_text.dart';
-import 'package:mobile/widgets/inbox_icon_with_badge.dart';
+import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/services/session_resume_service.dart';
@@ -125,7 +124,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   bool _nutritionStatesLoaded = false;
   int _activeNutritionDayIndex = 0;
   bool _nutritionFormOpen = false;
-  bool _calendarRevealNavigationInFlight = false;
   Timer? _sessionPersistDebounce;
   String? _lastPublishedWidgetReflectionKey;
 
@@ -904,7 +902,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       return;
     }
     if (!mounted) return;
-    await context.push<void>('/rhythm/decan/${Uri.encodeComponent(dayKey)}');
+    context.go('/rhythm/decan/${Uri.encodeComponent(dayKey)}');
   }
 
   DateTime _normalizeDate(DateTime date) =>
@@ -1169,13 +1167,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     return '$dayText · $timeText';
   }
 
-  Future<void> _openCalendarMenu(BuildContext context) async {
-    await CalendarPage.showActionsMenuFromAnyContext(
-      context,
-      includeNewNote: false,
-    );
-  }
-
   Future<void> _openCalendarQuickAdd() async {
     await CalendarPage.openQuickAddFromAnyContext(context);
   }
@@ -1188,7 +1179,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       );
       return;
     }
-    context.push<void>('/profile/${Uri.encodeComponent(uid)}');
+    context.go('/profile/${Uri.encodeComponent(uid)}');
   }
 
   void _onTodoPageChanged(int index) {
@@ -3503,33 +3494,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
   }
 
-  Widget _buildCalendarRevealSwipeGate() {
-    return PageNavigationEdgeSwipe(
-      direction: PageNavigationSwipeDirection.rightToLeft,
-      enabled: !_calendarRevealNavigationInFlight,
-      onCommit: () {
-        unawaited(_returnToCalendarFromSwipe());
-      },
-    );
-  }
-
-  Future<void> _returnToCalendarFromSwipe() async {
-    if (_calendarRevealNavigationInFlight || !mounted) return;
-
-    final navigator = Navigator.of(context);
-
-    _calendarRevealNavigationInFlight = true;
-    try {
-      if (navigator.canPop()) {
-        await navigator.maybePop();
-      } else {
-        context.go('/');
-      }
-    } finally {
-      _calendarRevealNavigationInFlight = false;
-    }
-  }
-
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       automaticallyImplyLeading: !widget.openedFromCalendarSwipe,
@@ -3554,32 +3518,35 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         ),
       ),
       actions: [
-        IconButton(
+        KemeticAppBarAction(
           tooltip: 'New note',
-          icon: const GlossyIcon(icon: Icons.add, gradient: goldGloss),
+          icon: const GlossyIcon(
+            icon: Icons.add,
+            gradient: goldGloss,
+            size: 23,
+          ),
           onPressed: () {
             unawaited(_openCalendarQuickAdd());
           },
         ),
-        IconButton(
+        KemeticAppBarAction(
+          tooltip: 'Search notes',
+          icon: const KemeticAppBarSearchIcon(),
+          onPressed: () {
+            unawaited(CalendarPage.openSearchFromAnyContext(context));
+          },
+        ),
+        KemeticAppBarAction(
           tooltip: 'Today',
-          icon: const GlossyIcon(icon: Icons.today, gradient: goldGloss),
+          icon: const KemeticAppBarTodayIcon(),
           onPressed: () => CalendarPage.openMainCalendarAtToday(context),
         ),
-        Builder(
-          builder: (btnCtx) => IconButton(
-            tooltip: 'Menu',
-            icon: const InboxUnreadDotOverlay(
-              child: GlossyIcon(icon: Icons.apps, gradient: goldGloss),
-            ),
-            onPressed: () => _openCalendarMenu(btnCtx),
-          ),
-        ),
-        IconButton(
+        KemeticAppBarAction(
           tooltip: 'My Profile',
-          icon: const GlossyIcon(icon: Icons.person, gradient: goldGloss),
+          icon: const KemeticAppBarProfileIcon(),
           onPressed: _openProfilePage,
         ),
+        const SizedBox(width: 20),
       ],
     );
   }
@@ -3592,18 +3559,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       return content;
     }
 
-    final canRevealCalendar =
-        widget.openedFromCalendar && Navigator.of(context).canPop();
-
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: _buildAppBar(),
-      body: Stack(
-        children: [
-          content,
-          if (canRevealCalendar) _buildCalendarRevealSwipeGate(),
-        ],
-      ),
+      body: content,
     );
   }
 

@@ -99,7 +99,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   void _handleLinkTap(InsightLink link) {
     final node = KemeticNodeLibrary.resolve(link.targetId);
     if (node == null) return;
-    context.push<void>('/nodes/${Uri.encodeComponent(node.id)}');
+    context.go('/nodes/${Uri.encodeComponent(node.id)}');
   }
 
   void _showSelectionRequiredMessage() {

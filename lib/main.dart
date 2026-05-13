@@ -35,6 +35,7 @@ import 'shared/glossy_text.dart';
 import 'utils/hive_local_storage_web.dart';
 import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
+import 'core/global_menu_routes.dart';
 import 'core/planner_launch_intent.dart';
 import 'core/push_intent_bus.dart';
 import 'core/shared_file_intent.dart';
@@ -64,6 +65,7 @@ import 'features/rhythm/pages/todays_alignment_page.dart';
 import 'features/settings/settings_page.dart';
 import 'features/settings/settings_prefs.dart';
 import 'features/reflections/decan_reflection_detail_page.dart';
+import 'widgets/inbox_icon_with_badge.dart';
 import 'widgets/kemetic_keyboard.dart';
 import 'widgets/kemetic_day_info.dart';
 import 'services/app_restoration_service.dart';
@@ -392,6 +394,72 @@ class Events {
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 const Color _launchBackdrop = Color(0xFF171518);
+final ValueNotifier<int> _floatingMenuModalDepth = ValueNotifier<int>(0);
+final ValueNotifier<bool> _launchOverlayDismissed = ValueNotifier<bool>(false);
+final _FloatingMenuRouteObserver _floatingMenuRouteObserver =
+    _FloatingMenuRouteObserver();
+const Duration _floatingMenuModalSettleDelay = Duration(milliseconds: 80);
+const Duration _globalBottomMenuBarTransitionDuration = Duration(
+  milliseconds: 220,
+);
+const Curve _globalBottomMenuBarTransitionCurve = Curves.easeOutCubic;
+const bool _debugForceGlobalFloatingMenu = bool.fromEnvironment(
+  'FORCE_GLOBAL_MENU_FOR_TESTING',
+);
+
+class _FloatingMenuRouteObserver extends NavigatorObserver {
+  bool _suppressesFloatingMenu(Route<dynamic> route) {
+    if (route.settings.name == calendarActionsMenuRouteName) return false;
+    return route is PopupRoute;
+  }
+
+  void _adjustDepth(int delta) {
+    final next = _floatingMenuModalDepth.value + delta;
+    _floatingMenuModalDepth.value = next < 0 ? 0 : next;
+  }
+
+  void _decrementAfterRouteSettles(Route<dynamic> route) {
+    if (route is TransitionRoute<dynamic>) {
+      unawaited(
+        route.completed.whenComplete(() async {
+          await Future<void>.delayed(_floatingMenuModalSettleDelay);
+          _adjustDepth(-1);
+        }),
+      );
+      return;
+    }
+    _adjustDepth(-1);
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    if (_suppressesFloatingMenu(route)) _adjustDepth(1);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    if (_suppressesFloatingMenu(route)) _decrementAfterRouteSettles(route);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didRemove(route, previousRoute);
+    if (_suppressesFloatingMenu(route)) _decrementAfterRouteSettles(route);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    if (oldRoute != null && _suppressesFloatingMenu(oldRoute)) {
+      _decrementAfterRouteSettles(oldRoute);
+    }
+    if (newRoute != null && _suppressesFloatingMenu(newRoute)) {
+      _adjustDepth(1);
+    }
+  }
+}
 
 /* ───────────────────────── Telemetry Route Observer ───────────────────────── */
 
@@ -494,7 +562,11 @@ final _router = GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: _resolveInitialLocation(),
   restorationScopeId: AppWindowService.instance.restorationScopeId,
-  observers: <NavigatorObserver>[routeObserver, TelemetryRouteObserver()],
+  observers: <NavigatorObserver>[
+    routeObserver,
+    _floatingMenuRouteObserver,
+    TelemetryRouteObserver(),
+  ],
   redirect: (context, state) => _redirectExternalAppLink(state.uri),
   routes: [
     GoRoute(path: '/', builder: (context, state) => const AuthGate()),
@@ -611,6 +683,7 @@ final _router = GoRouter(
             fallbackLocation: fallback?.trim().isNotEmpty == true
                 ? fallback!.trim()
                 : '/profile/me',
+            selectionMode: state.uri.queryParameters['select'] ?? 'profile',
           ),
         );
       },
@@ -870,14 +943,399 @@ class MyApp extends StatelessWidget {
           child: SessionLifecycleBridge(
             child: PushIntentBridge(
               child: _LaunchShell(
-                child: KemeticKeyboardHost(
-                  child: child ?? const SizedBox.shrink(),
+                child: _GlobalFloatingMenuShell(
+                  router: _router,
+                  child: KemeticKeyboardHost(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 ),
               ),
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _GlobalFloatingMenuShell extends StatefulWidget {
+  const _GlobalFloatingMenuShell({required this.router, required this.child});
+
+  final GoRouter router;
+  final Widget child;
+
+  @override
+  State<_GlobalFloatingMenuShell> createState() =>
+      _GlobalFloatingMenuShellState();
+}
+
+class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
+    with WidgetsBindingObserver {
+  Uri _currentUri = Uri(path: '/');
+  StreamSubscription<AuthState>? _authSub;
+  bool _menuMounted = false;
+  bool _menuOpen = false;
+  bool _rebuildScheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _currentUri = _readRouterUri();
+    widget.router.routerDelegate.addListener(_handleRouteChanged);
+    widget.router.routeInformationProvider.addListener(_handleRouteChanged);
+    _floatingMenuModalDepth.addListener(_handleMenuVisibilityChanged);
+    _launchOverlayDismissed.addListener(_handleMenuVisibilityChanged);
+    _authSub = supabase.auth.onAuthStateChange.listen((_) {
+      _scheduleRebuild();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _GlobalFloatingMenuShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.router == widget.router) return;
+    oldWidget.router.routerDelegate.removeListener(_handleRouteChanged);
+    oldWidget.router.routeInformationProvider.removeListener(
+      _handleRouteChanged,
+    );
+    _currentUri = _readRouterUri();
+    widget.router.routerDelegate.addListener(_handleRouteChanged);
+    widget.router.routeInformationProvider.addListener(_handleRouteChanged);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    widget.router.routerDelegate.removeListener(_handleRouteChanged);
+    widget.router.routeInformationProvider.removeListener(_handleRouteChanged);
+    _floatingMenuModalDepth.removeListener(_handleMenuVisibilityChanged);
+    _launchOverlayDismissed.removeListener(_handleMenuVisibilityChanged);
+    unawaited(_authSub?.cancel());
+    super.dispose();
+  }
+
+  @override
+  Future<bool> didPopRoute() => _handleBackButton();
+
+  Uri _readRouterUri() {
+    final delegateUri = widget.router.routerDelegate.currentConfiguration.uri;
+    if (delegateUri.path.isNotEmpty) return delegateUri;
+    return widget.router.routeInformationProvider.value.uri;
+  }
+
+  void _handleRouteChanged() {
+    final nextUri = _readRouterUri();
+    if (nextUri == _currentUri) return;
+    _currentUri = nextUri;
+    if (_menuMounted) {
+      _menuMounted = false;
+      _menuOpen = false;
+    }
+    _scheduleRebuild();
+  }
+
+  void _handleMenuVisibilityChanged() {
+    if (_floatingMenuModalDepth.value > 0 && _menuMounted) {
+      _menuMounted = false;
+      _menuOpen = false;
+    }
+    _scheduleRebuild();
+  }
+
+  void _scheduleRebuild() {
+    if (!mounted || _rebuildScheduled) return;
+    _rebuildScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _rebuildScheduled = false;
+      if (!mounted) return;
+      setState(() {});
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  bool _usesProfileAppBarMenu(Uri uri) {
+    final segments = uri.pathSegments
+        .where((segment) => segment.trim().isNotEmpty)
+        .toList(growable: false);
+    if (segments.isEmpty || segments.first != 'profile') return false;
+    const nonFeedProfileRoutes = <String>{
+      'flow-post-picker',
+      'insight-post-picker',
+    };
+    if (segments.length >= 2 && nonFeedProfileRoutes.contains(segments[1])) {
+      return false;
+    }
+    return true;
+  }
+
+  bool get _shouldMountFloatingMenu {
+    if (!_launchOverlayDismissed.value) return false;
+    if (supabase.auth.currentSession == null &&
+        !(kDebugMode && _debugForceGlobalFloatingMenu)) {
+      return false;
+    }
+    if (_usesProfileAppBarMenu(_readRouterUri())) return false;
+    return true;
+  }
+
+  bool get _shouldActivateFloatingMenu =>
+      _shouldMountFloatingMenu && _floatingMenuModalDepth.value == 0;
+
+  void _handleFloatingMenuPressed() {
+    if (_menuOpen) {
+      unawaited(_closeFloatingMenu());
+      return;
+    }
+    _openFloatingMenu();
+  }
+
+  void _openFloatingMenu() {
+    if (!_shouldActivateFloatingMenu) return;
+    setState(() {
+      _menuMounted = true;
+      _menuOpen = true;
+    });
+  }
+
+  Future<void> _closeFloatingMenu() async {
+    if (!_menuMounted) return;
+    setState(() => _menuOpen = false);
+    await Future<void>.delayed(_globalBottomMenuBarTransitionDuration);
+    if (!mounted || _menuOpen) return;
+    setState(() => _menuMounted = false);
+  }
+
+  void _navigateFromMenu(String location) {
+    _router.go(location);
+  }
+
+  Future<bool> _handleBackButton() async {
+    if (!_menuMounted || !_menuOpen) return false;
+    await _closeFloatingMenu();
+    return true;
+  }
+
+  Widget _buildFloatingActionsPanel(BuildContext context) {
+    final menuContext =
+        _rootNavigatorKey.currentState?.overlay?.context ??
+        _rootNavigatorKey.currentContext ??
+        context;
+    return CalendarPage.buildDetachedActionsMenuPanel(
+      menuContext,
+      includeNewNote: false,
+      onNavigate: _navigateFromMenu,
+      closeMenu: _closeFloatingMenu,
+    );
+  }
+
+  void _handleMenuDragEnd(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity > 80) {
+      unawaited(_closeFloatingMenu());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shouldMountFloatingMenu = _shouldMountFloatingMenu;
+    final shouldActivateFloatingMenu = _shouldActivateFloatingMenu;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        widget.child,
+        if (shouldMountFloatingMenu && _menuMounted) ...[
+          Positioned.fill(
+            child: _GlobalMenuBarrier(
+              visible: _menuOpen,
+              onDismiss: _closeFloatingMenu,
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onVerticalDragEnd: _handleMenuDragEnd,
+              child: AnimatedSlide(
+                offset: _menuOpen ? Offset.zero : const Offset(0, 1),
+                duration: _globalBottomMenuBarTransitionDuration,
+                curve: _globalBottomMenuBarTransitionCurve,
+                child: AnimatedOpacity(
+                  opacity: _menuOpen ? 1 : 0,
+                  duration: _globalBottomMenuBarTransitionDuration,
+                  curve: _globalBottomMenuBarTransitionCurve,
+                  child: _buildFloatingActionsPanel(context),
+                ),
+              ),
+            ),
+          ),
+        ],
+        if (shouldMountFloatingMenu)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _GlobalBottomMenuBar(
+              visible: shouldActivateFloatingMenu,
+              onPressed: _handleFloatingMenuPressed,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _GlobalMenuBarrier extends StatelessWidget {
+  const _GlobalMenuBarrier({required this.visible, required this.onDismiss});
+
+  final bool visible;
+  final Future<void> Function() onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: visible ? 1 : 0,
+      duration: _globalBottomMenuBarTransitionDuration,
+      curve: _globalBottomMenuBarTransitionCurve,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => unawaited(onDismiss()),
+        child: const ColoredBox(color: Color(0x73000000)),
+      ),
+    );
+  }
+}
+
+class _GlobalBottomMenuBar extends StatelessWidget {
+  const _GlobalBottomMenuBar({required this.visible, required this.onPressed});
+
+  final bool visible;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.paddingOf(context).bottom;
+    final visualHeight = 50 + bottomPadding;
+    final hitHeight = 112 + bottomPadding;
+
+    return IgnorePointer(
+      ignoring: !visible,
+      child: ExcludeSemantics(
+        excluding: !visible,
+        child: AnimatedSlide(
+          offset: visible ? Offset.zero : const Offset(0, 1.08),
+          duration: _globalBottomMenuBarTransitionDuration,
+          curve: _globalBottomMenuBarTransitionCurve,
+          child: AnimatedOpacity(
+            opacity: visible ? 1 : 0,
+            duration: _globalBottomMenuBarTransitionDuration,
+            curve: _globalBottomMenuBarTransitionCurve,
+            child: Semantics(
+              label: 'Menu',
+              button: true,
+              child: Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerUp: (_) => onPressed(),
+                child: SizedBox(
+                  height: hitHeight,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: SizedBox(
+                      height: visualHeight,
+                      child: DecoratedBox(
+                        decoration: const BoxDecoration(
+                          color: Color(0xF6000000),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0xB3000000),
+                              blurRadius: 18,
+                              offset: Offset(0, -8),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: bottomPadding),
+                          child: const Center(child: _FloatingMenuGlyph()),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FloatingMenuGlyph extends StatelessWidget {
+  const _FloatingMenuGlyph();
+
+  @override
+  Widget build(BuildContext context) {
+    return InboxUnreadDotOverlay(
+      top: 1,
+      right: 0,
+      size: 6.5,
+      dotColor: const Color(0xFFFF3B30),
+      borderColor: const Color(0xFF07080A),
+      borderWidth: 1.05,
+      child: const _MenuGlyphText(size: 22, boxSize: 30, yOffset: -1.3),
+    );
+  }
+}
+
+class _MenuGlyphText extends StatelessWidget {
+  const _MenuGlyphText({
+    required this.size,
+    required this.boxSize,
+    this.yOffset = 0,
+  });
+
+  final double size;
+  final double boxSize;
+  final double yOffset;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: boxSize,
+      child: Center(
+        child: Transform.translate(
+          offset: Offset(0, yOffset),
+          child: ShaderMask(
+            shaderCallback: (bounds) => goldGloss.createShader(bounds),
+            blendMode: BlendMode.srcIn,
+            child: Text(
+              '𓉹',
+              textAlign: TextAlign.center,
+              strutStyle: StrutStyle(
+                fontSize: size,
+                height: 1,
+                forceStrutHeight: true,
+              ),
+              textHeightBehavior: const TextHeightBehavior(
+                applyHeightToFirstAscent: false,
+                applyHeightToLastDescent: false,
+              ),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: size,
+                height: 1,
+                letterSpacing: 0,
+                fontWeight: FontWeight.w500,
+                fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                fontFamilyFallback: meduNeterFontFallback,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1433,6 +1891,7 @@ class _LaunchShellState extends State<_LaunchShell>
   @override
   void initState() {
     super.initState();
+    _launchOverlayDismissed.value = false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_restoreDetachedCalendarOverlayAfterBoot());
       _dismissOverlay();
@@ -1466,6 +1925,7 @@ class _LaunchShellState extends State<_LaunchShell>
     await _fadeController.forward();
     if (!mounted) return;
     setState(() => _dismissed = true);
+    _launchOverlayDismissed.value = true;
   }
 
   @override

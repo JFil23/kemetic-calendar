@@ -40,10 +40,9 @@ Future<void> openRhythmAddFlow(
   if (!context.mounted || selected == null) return;
 
   if (selected == 'Restoration') {
-    final ok = await context.push<bool>(
+    context.go(
       '/rhythm/editor/untimed?category=${Uri.encodeComponent(selected)}',
     );
-    if (ok == true) onSaved?.call();
     return;
   }
 
@@ -75,14 +74,12 @@ Future<void> openRhythmAddFlow(
   if (!context.mounted || mode == null) return;
 
   if (mode == 'timed') {
-    final ok = await context.push<bool>(
+    context.go(
       '/rhythm/editor/timed?category=${Uri.encodeComponent(selected)}',
     );
-    if (ok == true) onSaved?.call();
   } else {
-    final ok = await context.push<bool>(
+    context.go(
       '/rhythm/editor/untimed?category=${Uri.encodeComponent(selected)}',
     );
-    if (ok == true) onSaved?.call();
   }
 }

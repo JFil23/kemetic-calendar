@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
-import 'package:mobile/widgets/inbox_icon_with_badge.dart';
+import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 import 'package:mobile/widgets/month_name_text.dart';
 
@@ -35,7 +35,7 @@ class KemeticDayViewHeader extends StatelessWidget {
     this.onClose,
     this.onJumpToToday,
     this.onOpenQuickAdd,
-    this.onShowActionsMenu,
+    this.onOpenSearch,
     this.onOpenProfile,
   });
 
@@ -53,7 +53,7 @@ class KemeticDayViewHeader extends StatelessWidget {
   final VoidCallback? onClose;
   final VoidCallback? onJumpToToday;
   final Future<void> Function(BuildContext context)? onOpenQuickAdd;
-  final Future<void> Function(BuildContext context)? onShowActionsMenu;
+  final Future<void> Function(BuildContext context)? onOpenSearch;
   final Future<void> Function(BuildContext context)? onOpenProfile;
 
   @override
@@ -96,6 +96,7 @@ class KemeticDayViewHeader extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
+                    tooltip: 'Close',
                     icon: KemeticGold.icon(Icons.close),
                     onPressed: onClose ?? () {},
                   ),
@@ -120,35 +121,24 @@ class KemeticDayViewHeader extends StatelessWidget {
                         },
                       ),
                     ),
+                  if (onOpenSearch != null)
+                    IconButton(
+                      tooltip: 'Search notes',
+                      icon: const KemeticAppBarSearchIcon(),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      onPressed: () async {
+                        await onOpenSearch!(context);
+                      },
+                    ),
                   IconButton(
                     tooltip: 'Today',
-                    icon: const GlossyIcon(
-                      icon: Icons.today,
-                      gradient: goldGloss,
-                    ),
+                    icon: const KemeticAppBarTodayIcon(),
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     onPressed: onJumpToToday ?? () {},
                   ),
-                  Builder(
-                    builder: (btnCtx) => IconButton(
-                      tooltip: 'Menu',
-                      icon: const InboxUnreadDotOverlay(
-                        child: GlossyIcon(
-                          icon: Icons.apps,
-                          gradient: goldGloss,
-                        ),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      onPressed: () async {
-                        if (onShowActionsMenu != null) {
-                          await onShowActionsMenu!(btnCtx);
-                        }
-                      },
-                    ),
-                  ),
                   IconButton(
                     tooltip: 'My Profile',
-                    icon: KemeticGold.glyph(MeduNeterGlyphs.profile, size: 20),
+                    icon: const KemeticAppBarProfileIcon(),
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     onPressed: () async {
                       if (onOpenProfile != null) {

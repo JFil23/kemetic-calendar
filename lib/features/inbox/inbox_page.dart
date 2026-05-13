@@ -20,6 +20,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../services/session_resume_service.dart';
+import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/kemetic_heart_icon.dart';
 import '../../widgets/profile_avatar.dart';
 import '../calendars/shared_calendars_sheet.dart';
@@ -335,45 +336,25 @@ class _InboxPageState extends State<InboxPage> {
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: 'New message',
-            icon: KemeticGold.icon(Icons.search),
+          KemeticAppBarAction(
+            tooltip: 'Search people',
+            icon: const KemeticAppBarSearchIcon(),
             onPressed: _openUserSearch,
           ),
+          const SizedBox(width: 20),
         ],
       ),
       body: _buildBody(),
     );
   }
 
-  Future<void> _openUserSearch() async {
-    final selectedUser = await context.push<UserSearchResult>(
+  void _openUserSearch() {
+    context.go(
       '/profile-search'
-      '?returnFullResult=1'
+      '?select=conversation'
       '&title=${Uri.encodeComponent('New Message')}'
       '&hint=${Uri.encodeComponent('Search people to message')}'
       '&fallback=${Uri.encodeComponent('/inbox')}',
-    );
-
-    if (!mounted || selectedUser == null) return;
-
-    final currentUserId = _inboxRepo.currentUserId;
-    if (currentUserId != null && selectedUser.userId == currentUserId) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You cannot message yourself')),
-      );
-      return;
-    }
-
-    _openConversation(
-      otherUserId: selectedUser.userId,
-      otherProfile: ConversationUser(
-        id: selectedUser.userId,
-        displayName: selectedUser.displayName,
-        handle: selectedUser.handle,
-        avatarUrl: selectedUser.avatarUrl,
-        avatarGlyphIds: selectedUser.avatarGlyphIds,
-      ),
     );
   }
 
@@ -407,12 +388,12 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
-  Future<void> _openConversation({
+  void _openConversation({
     required String otherUserId,
     required ConversationUser otherProfile,
     String? initialDraftText,
   }) {
-    return context.push<void>(
+    context.go(
       '/inbox/conversation/${Uri.encodeComponent(otherUserId)}',
       extra: <String, Object?>{
         'profile': otherProfile,
@@ -805,7 +786,7 @@ class _InboxPageState extends State<InboxPage> {
           ],
         ],
       ),
-      onTap: () => context.push<void>(
+      onTap: () => context.go(
         '/event-invite/${Uri.encodeComponent(invite.shareId)}',
         extra: invite,
       ),
@@ -955,7 +936,7 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   void _openProfile(String userId) {
-    context.push<void>('/profile/${Uri.encodeComponent(userId)}');
+    context.go('/profile/${Uri.encodeComponent(userId)}');
   }
 
   Future<void> _openActivity(InboxActivityItem activity) async {
@@ -982,7 +963,7 @@ class _InboxPageState extends State<InboxPage> {
       return;
     }
 
-    await context.push<void>(
+    context.go(
       '/flow-post/${Uri.encodeComponent(flowPostId)}'
       '${activity.type == InboxActivityType.comment ? '?comments=1' : ''}',
       extra: post,
@@ -1827,11 +1808,7 @@ class _InboxPageState extends State<InboxPage> {
 
     final clientEventId = notification.calendarClientEventId;
     if (clientEventId != null && clientEventId.isNotEmpty) {
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      } else {
-        context.go('/');
-      }
+      context.go('/');
       WidgetsBinding.instance.addPostFrameCallback((_) {
         emitCalendarPushOpenIntent(clientEventId);
       });
@@ -2239,11 +2216,6 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
     );
   }
 
-  Future<void> _handleRefresh() async {
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    widget.onImportComplete();
-  }
-
   Widget _buildActionButtons() {
     return Column(
       children: [
@@ -2253,18 +2225,11 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
           child: ElevatedButton(
             onPressed: () async {
               final messenger = ScaffoldMessenger.maybeOf(context);
-              final flowId = await context.push<int>(
+              context.go(
                 '/shared-flow/${Uri.encodeComponent(widget.item.shareId)}',
                 extra: widget.item,
               );
-              if (!context.mounted) return;
-              if (flowId != null) {
-                await _handleRefresh();
-                if (!mounted) return;
-                messenger?.showSnackBar(
-                  const SnackBar(content: Text('Flow imported')),
-                );
-              }
+              messenger?.hideCurrentSnackBar();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: KemeticGold.base,

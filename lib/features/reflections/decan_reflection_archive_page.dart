@@ -84,7 +84,7 @@ class _DecanReflectionArchivePageState
                     ? '${item.reflectionText.substring(0, 120)}…'
                     : item.reflectionText;
                 return ListTile(
-                  onTap: () => context.push<void>(
+                  onTap: () => context.go(
                     '/reflections/${Uri.encodeComponent(item.id)}',
                   ),
                   title: Text(

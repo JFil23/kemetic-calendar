@@ -109,14 +109,9 @@ class InboxIconWithBadge extends StatelessWidget {
         icon: _inboxGlyphIcon(iconColor),
         tooltip: 'Inbox',
         onPressed: () async {
-          final importedFlowId = await context.push<int?>('/inbox');
-
-          if (onImportFlow != null && importedFlowId != null) {
-            await onImportFlow!(importedFlowId);
-          }
-
+          context.go('/inbox');
           if (onRefreshAsync != null) {
-            await onRefreshAsync!(importedFlowId);
+            await onRefreshAsync!(null);
           } else if (onRefreshSync != null) {
             onRefreshSync!();
           }
@@ -139,16 +134,9 @@ class InboxIconWithBadge extends StatelessWidget {
               icon: iconWidget,
               tooltip: 'Inbox',
               onPressed: () async {
-                final importedFlowId = await context.push<int?>('/inbox');
-
-                // Handle import callback first
-                if (onImportFlow != null && importedFlowId != null) {
-                  await onImportFlow!(importedFlowId);
-                }
-
-                // Handle both refresh callback types
+                context.go('/inbox');
                 if (onRefreshAsync != null) {
-                  await onRefreshAsync!(importedFlowId);
+                  await onRefreshAsync!(null);
                 } else if (onRefreshSync != null) {
                   onRefreshSync!();
                 }

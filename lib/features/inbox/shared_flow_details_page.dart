@@ -687,7 +687,10 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                   minimum: const EdgeInsets.all(16),
                   child: data.isImported
                       ? _ImportedFlowFooter(flowId: data.flowId!)
-                      : _SharedFlowImportFooter(flowData: data),
+                      : _SharedFlowImportFooter(
+                          flowData: data,
+                          fallbackLocation: widget.fallbackLocation,
+                        ),
                 ),
             ],
           ),
@@ -989,9 +992,13 @@ class _ImportedFlowFooter extends StatelessWidget {
 
 class _SharedFlowImportFooter extends StatefulWidget {
   final _SharedFlowData flowData;
+  final String fallbackLocation;
 
-  const _SharedFlowImportFooter({Key? key, required this.flowData})
-    : super(key: key);
+  const _SharedFlowImportFooter({
+    Key? key,
+    required this.flowData,
+    required this.fallbackLocation,
+  }) : super(key: key);
 
   @override
   State<_SharedFlowImportFooter> createState() =>
@@ -1109,7 +1116,7 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
                           ),
                         );
                         if (!context.mounted) return;
-                        Navigator.pop<int>(context, flowId);
+                        popOrGo(context, widget.fallbackLocation);
                       } else {
                         setState(() => _isWorking = false);
                       }

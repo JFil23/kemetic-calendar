@@ -16,6 +16,7 @@ import '../../repositories/inbox_repo.dart';
 import 'conversation_user.dart';
 import '../../services/restoration_coordinator.dart';
 import '../../services/session_resume_service.dart';
+import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/kemetic_heart_icon.dart';
 import '../../widgets/profile_avatar.dart';
 
@@ -370,11 +371,9 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
         actions: [
           IconButton(
             tooltip: 'View profile',
-            icon: KemeticGold.icon(Icons.person),
+            icon: const KemeticAppBarProfileIcon(),
             onPressed: () {
-              context.push<void>(
-                '/profile/${Uri.encodeComponent(widget.otherUserId)}',
-              );
+              context.go('/profile/${Uri.encodeComponent(widget.otherUserId)}');
             },
           ),
         ],
@@ -478,30 +477,16 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                     );
                                   }
                                   if (share.isEvent) {
-                                    await context.push<void>(
+                                    context.go(
                                       '/event-invite/${Uri.encodeComponent(share.shareId)}',
                                       extra: share,
                                     );
                                     return;
                                   }
-                                  final importedFlowId = await context.push<int>(
+                                  context.go(
                                     '/shared-flow/${Uri.encodeComponent(share.shareId)}',
                                     extra: share,
                                   );
-
-                                  if (importedFlowId != null &&
-                                      mounted &&
-                                      context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Flow imported successfully! Open Flow Studio to edit.',
-                                        ),
-                                        backgroundColor: KemeticGold.base,
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-                                  }
                                 },
                           onDoubleTap: isText
                               ? () => _toggleMessageLike(share)

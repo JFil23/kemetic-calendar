@@ -89,7 +89,7 @@ class KemeticNodeListPage extends StatelessWidget {
               node: node,
               subtitle: _snippet(node),
               onTap: () {
-                context.push<void>('/nodes/${Uri.encodeComponent(node.id)}');
+                context.go('/nodes/${Uri.encodeComponent(node.id)}');
               },
             );
           },

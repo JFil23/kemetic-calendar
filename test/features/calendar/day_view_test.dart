@@ -567,6 +567,53 @@ void main() {
   });
 
   group('DayViewPage header toggle', () {
+    testWidgets('close button dismisses a pushed day view route', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (routeContext) => DayViewPage(
+                          initialKy: 1,
+                          initialKm: 2,
+                          initialKd: 5,
+                          showGregorian: false,
+                          notesForDay: (ky, km, kd) => const [],
+                          flowIndex: const {},
+                          getMonthName: (month) => 'Month $month',
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('Open day view'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open day view'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DayViewPage), findsOneWidget);
+      expect(find.text('Open day view'), findsNothing);
+
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DayViewPage), findsNothing);
+      expect(find.text('Open day view'), findsOneWidget);
+    });
+
     testWidgets(
       'tapping the month label toggles the day header between Kemetic and Gregorian labels',
       (tester) async {

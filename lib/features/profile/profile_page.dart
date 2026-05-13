@@ -5,7 +5,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
@@ -25,7 +24,7 @@ import '../calendar/calendar_page.dart';
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
 import 'flow_post_engagement_row.dart';
 import 'package:mobile/shared/glossy_text.dart';
-import '../../widgets/inbox_icon_with_badge.dart';
+import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/profile_avatar.dart';
 import 'profile_backdrop_timeline.dart';
 
@@ -185,7 +184,6 @@ class _ProfilePageState extends State<ProfilePage>
   bool _feedCloseInFlight = false;
   int _activePostIndex = 0;
   int _activeInsightPostIndex = 0;
-  bool _calendarRevealNavigationInFlight = false;
   int _profileLoadSerial = 0;
   double _feedTopPullDistance = 0;
   Timer? _continuitySaveDebounce;
@@ -1134,13 +1132,6 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
-  Future<void> _openCalendarMenu(BuildContext context) async {
-    await CalendarPage.showActionsMenuFromAnyContext(
-      context,
-      includeNewNote: false,
-    );
-  }
-
   Future<void> _openCalendarQuickAdd() async {
     await CalendarPage.openQuickAddFromAnyContext(context);
   }
@@ -1159,8 +1150,6 @@ class _ProfilePageState extends State<ProfilePage>
 
   @override
   Widget build(BuildContext context) {
-    final canRevealCalendar =
-        widget.openedFromCalendar && Navigator.of(context).canPop();
     final showBackdrop = !_loading && _profile != null;
     final title = _profile?.handle ?? 'Profile';
     final hydratingLocalCache = _cacheHydrating && _profile == null;
@@ -1227,39 +1216,40 @@ class _ProfilePageState extends State<ProfilePage>
                 ),
               ),
         actions: [
-          IconButton(
+          KemeticAppBarAction(
             tooltip: 'New note',
-            icon: _profileGoldIcon(Icons.add),
+            icon: _profileGoldIcon(Icons.add, size: 23),
             onPressed: () {
               unawaited(_openCalendarQuickAdd());
             },
           ),
-          IconButton(
+          KemeticAppBarAction(
+            tooltip: 'Search notes',
+            icon: const KemeticAppBarSearchIcon(gradient: _profileGoldGradient),
+            onPressed: () {
+              unawaited(CalendarPage.openSearchFromAnyContext(context));
+            },
+          ),
+          KemeticAppBarAction(
             tooltip: 'Today',
-            icon: _profileGoldIcon(Icons.today),
+            icon: const KemeticAppBarTodayIcon(gradient: _profileGoldGradient),
             onPressed: () => CalendarPage.openMainCalendarAtToday(context),
           ),
-          Builder(
-            builder: (btnCtx) => IconButton(
-              tooltip: 'Menu',
-              icon: InboxUnreadDotOverlay(child: _profileGoldIcon(Icons.apps)),
-              onPressed: () => _openCalendarMenu(btnCtx),
-            ),
-          ),
           if (_feedRevealed)
-            IconButton(
+            KemeticAppBarAction(
               tooltip: 'Profile',
-              icon: _profileGoldGlyph(MeduNeterGlyphs.profile, size: 20),
+              icon: const KemeticAppBarProfileIcon(),
               onPressed: () {
                 unawaited(_closeFeed());
               },
             )
           else if (!_isViewingOwnProfile)
-            IconButton(
+            KemeticAppBarAction(
               tooltip: 'My Profile',
-              icon: _profileGoldGlyph(MeduNeterGlyphs.profile, size: 20),
+              icon: const KemeticAppBarProfileIcon(),
               onPressed: _openMyProfileAction,
             ),
+          const SizedBox(width: 20),
         ],
       ),
       body: Stack(
@@ -1307,7 +1297,6 @@ class _ProfilePageState extends State<ProfilePage>
             ),
           ],
           body,
-          if (canRevealCalendar) _buildCalendarRevealSwipeGate(),
         ],
       ),
     );
@@ -1692,46 +1681,11 @@ class _ProfilePageState extends State<ProfilePage>
     context.go('/profile/${Uri.encodeComponent(userId)}');
   }
 
-  Widget _buildCalendarRevealSwipeGate() {
-    return PageNavigationEdgeSwipe(
-      direction: PageNavigationSwipeDirection.leftToRight,
-      enabled: !_calendarRevealNavigationInFlight,
-      onCommit: () {
-        unawaited(_returnToCalendarFromSwipe());
-      },
-    );
-  }
-
-  Future<void> _returnToCalendarFromSwipe() async {
-    if (_calendarRevealNavigationInFlight || !mounted) return;
-
-    final navigator = Navigator.of(context);
-
-    _calendarRevealNavigationInFlight = true;
-    try {
-      if (navigator.canPop()) {
-        await navigator.maybePop();
-      } else {
-        context.go('/');
-      }
-    } finally {
-      _calendarRevealNavigationInFlight = false;
-    }
-  }
-
-  Future<void> _openFollowList(UserProfile profile, FollowListType type) async {
+  void _openFollowList(UserProfile profile, FollowListType type) {
     final segment = type == FollowListType.followers
         ? 'followers'
         : 'following';
-    final selectedUserId = await context.push<String>(
-      '/profile/${Uri.encodeComponent(profile.id)}/$segment',
-    );
-
-    if (!mounted || selectedUserId == null || selectedUserId == widget.userId) {
-      return;
-    }
-
-    await _replaceWithProfile(selectedUserId);
+    context.go('/profile/${Uri.encodeComponent(profile.id)}/$segment');
   }
 
   void _onActiveFlowsTap() {
@@ -1768,13 +1722,7 @@ class _ProfilePageState extends State<ProfilePage>
     return _buildActionButton(
       label: 'Edit Profile',
       icon: Icons.edit_outlined,
-      onPressed: () async {
-        final result = await context.push<bool>('/profile/me/edit');
-
-        if (result == true) {
-          await _loadProfile();
-        }
-      },
+      onPressed: () => context.go('/profile/me/edit'),
       filled: true,
       backgroundColor: _profileGoldBase,
       foregroundColor: const Color(0xFF1C1204),
@@ -1786,18 +1734,7 @@ class _ProfilePageState extends State<ProfilePage>
     return _buildActionButton(
       label: 'Find People',
       icon: Icons.people_outline_rounded,
-      onPressed: () async {
-        final selectedUserId = await context.push<String>('/profile-search');
-
-        if (!mounted || selectedUserId == null) return;
-
-        if (selectedUserId == widget.userId) {
-          await _loadProfile(showSpinner: false);
-          return;
-        }
-
-        await _replaceWithProfile(selectedUserId);
-      },
+      onPressed: () => context.go('/profile-search'),
       foregroundColor: _profileGoldText,
       borderColor: _profileGoldMid.withValues(alpha: 0.42),
     );
@@ -4135,17 +4072,8 @@ class _ProfilePageState extends State<ProfilePage>
     return SizedBox.expand(child: card);
   }
 
-  Future<void> _openInsightPost(InsightPost post) async {
-    final changed = await context.push<bool>(
-      '/insight-post/${Uri.encodeComponent(post.id)}',
-      extra: post,
-    );
-    if (changed == true) {
-      await _loadInsightPosts();
-      if (_feedRevealed) {
-        await _loadFeedPage(reset: true);
-      }
-    }
+  void _openInsightPost(InsightPost post) {
+    context.go('/insight-post/${Uri.encodeComponent(post.id)}', extra: post);
   }
 
   bool get _useGregorianPostDates => _feedRevealed && _showGregorianFeedDates;
@@ -4194,9 +4122,9 @@ class _ProfilePageState extends State<ProfilePage>
     return normalized.isEmpty ? 'Untitled insight' : normalized;
   }
 
-  Future<void> _openPostDetails(int initialIndex) async {
+  void _openPostDetails(int initialIndex) {
     final post = _posts[initialIndex];
-    final changed = await context.push<bool>(
+    context.go(
       '/flow-post/${Uri.encodeComponent(post.id)}',
       extra: <String, Object?>{
         'post': post,
@@ -4204,23 +4132,14 @@ class _ProfilePageState extends State<ProfilePage>
         'initialIndex': initialIndex,
       },
     );
-    if (changed == true) {
-      await _loadPosts();
-    }
   }
 
-  Future<void> _openPostPicker() async {
-    final posted = await context.push<bool>('/profile/flow-post-picker');
-    if (posted == true) {
-      await _loadPosts();
-    }
+  void _openPostPicker() {
+    context.go('/profile/flow-post-picker');
   }
 
-  Future<void> _openInsightPostPicker() async {
-    final posted = await context.push<bool>('/profile/insight-post-picker');
-    if (posted == true) {
-      await _loadInsightPosts();
-    }
+  void _openInsightPostPicker() {
+    context.go('/profile/insight-post-picker');
   }
 
   Future<void> _savePost(FlowPost post) async {

@@ -145,10 +145,13 @@ class MeduNeterGlyphs {
   static const String inbox = '𓏛';
   static const String calendars = '𓆳';
   static const String profile = '𓀀';
+  static const String profileAppBar = '𓁶';
   static const String reflections = '𓋴𓇋𓄿';
   static const String library = '𓉐𓏛';
+  static const String home = '𓉐';
   static const String settings = '𓌀';
   static const String search = '𓁹';
+  static const String today = '𓇳';
   static const String flowStudio = '𓏞𓈖';
 }
 

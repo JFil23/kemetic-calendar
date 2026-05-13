@@ -56,7 +56,7 @@ class _PendingEventInviteOverlayState extends State<PendingEventInviteOverlay> {
   }
 
   void _openInvite(InboxShareItem invite) {
-    context.push<void>(
+    context.go(
       '/event-invite/${Uri.encodeComponent(invite.shareId)}',
       extra: invite,
     );

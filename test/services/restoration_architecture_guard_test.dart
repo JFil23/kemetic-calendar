@@ -74,21 +74,28 @@ void main() {
     test('today toolbar actions use the calendar glyph', () async {
       final deprecatedTodayIconMatches = await _filesContainingAny(<String>[
         'Icons.calendar_today_outlined',
+        'Icons.today',
       ]);
       expect(deprecatedTodayIconMatches, isEmpty);
 
-      final calendarIconMatches = await _filesContainingAny(<String>[
-        'Icons.today',
+      final todayGlyphMatches = await _filesContainingAny(<String>[
+        'KemeticAppBarTodayIcon',
       ]);
       expect(
-        calendarIconMatches,
+        todayGlyphMatches,
         containsAll(<String>[
           'lib/features/calendar/calendar_page.dart',
           'lib/features/calendar/day_view_chrome.dart',
           'lib/features/profile/profile_page.dart',
           'lib/features/rhythm/pages/todays_alignment_page.dart',
+          'lib/widgets/kemetic_app_bar_action.dart',
         ]),
       );
+
+      final glyphDefinitionMatches = await _filesContainingAny(<String>[
+        "static const String today = '𓇳'",
+      ]);
+      expect(glyphDefinitionMatches, <String>['lib/shared/glossy_text.dart']);
     });
 
     test('calendar sheet continuity keeps the boot retry restorer', () async {

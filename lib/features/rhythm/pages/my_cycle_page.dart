@@ -64,12 +64,12 @@ class _MyCyclePageState extends State<MyCyclePage> {
     if (payload == null) return;
 
     if (payload.isTimed) {
-      await context.push<bool>(
+      context.go(
         '/rhythm/editor/timed?category=${Uri.encodeComponent(payload.category)}',
         extra: payload,
       );
     } else {
-      await context.push<bool>(
+      context.go(
         '/rhythm/editor/untimed?category=${Uri.encodeComponent(payload.category)}',
         extra: payload,
       );
@@ -167,17 +167,12 @@ class _MyCyclePageState extends State<MyCyclePage> {
                   message:
                       'Start light. Choose a daily rhythm or craft your own anchor.',
                   primaryAction: ElevatedButton.icon(
-                    onPressed: () => context.push('/rhythm/today'),
+                    onPressed: () => context.go('/rhythm/today'),
                     icon: const Icon(Icons.auto_fix_high_rounded),
                     label: const Text('Start with Rhythm of Day'),
                   ),
                   secondaryAction: OutlinedButton.icon(
-                    onPressed: () async {
-                      final ok = await context.push<bool>(
-                        '/rhythm/editor/custom',
-                      );
-                      if (ok == true && mounted) _refresh();
-                    },
+                    onPressed: () => context.go('/rhythm/editor/custom'),
                     icon: const Icon(Icons.add_rounded),
                     label: const Text('Add a custom item'),
                   ),
@@ -197,7 +192,7 @@ class _MyCyclePageState extends State<MyCyclePage> {
                     _ShortcutChip(
                       icon: Icons.brightness_5_rounded,
                       label: 'Planner',
-                      onTap: () => context.push('/rhythm/today'),
+                      onTap: () => context.go('/rhythm/today'),
                     ),
                   ],
                 ),

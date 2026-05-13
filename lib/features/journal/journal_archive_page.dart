@@ -165,7 +165,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final node = KemeticNodeLibrary.resolve(link.targetId);
     if (node == null || !mounted) return;
 
-    await context.push<void>('/nodes/${Uri.encodeComponent(node.id)}');
+    context.go('/nodes/${Uri.encodeComponent(node.id)}');
   }
 
   void _saveEntry() async {

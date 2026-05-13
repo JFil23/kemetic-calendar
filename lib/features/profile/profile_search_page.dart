@@ -7,6 +7,7 @@ import 'package:mobile/shared/glossy_text.dart';
 
 import '../../core/navigation_fallback.dart';
 import '../../data/profile_repo.dart';
+import '../../features/inbox/conversation_user.dart';
 import '../../widgets/profile_avatar.dart';
 
 class ProfileSearchPage extends StatefulWidget {
@@ -14,6 +15,7 @@ class ProfileSearchPage extends StatefulWidget {
   final String titleText;
   final String hintText;
   final String fallbackLocation;
+  final String selectionMode;
 
   const ProfileSearchPage({
     super.key,
@@ -21,6 +23,7 @@ class ProfileSearchPage extends StatefulWidget {
     this.titleText = 'Find People',
     this.hintText = 'Search by @handle or display name',
     this.fallbackLocation = '/profile/me',
+    this.selectionMode = 'profile',
   });
 
   @override
@@ -70,9 +73,31 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
   }
 
   void _selectUser(UserSearchResult user) {
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.pop(widget.returnFullResult ? user : user.userId);
+    if (widget.returnFullResult || widget.selectionMode == 'picker') {
+      final navigator = Navigator.of(context);
+      if (navigator.canPop()) {
+        navigator.pop(widget.returnFullResult ? user : user.userId);
+        return;
+      }
+    }
+    if (widget.selectionMode == 'conversation') {
+      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+      if (currentUserId != null && currentUserId == user.userId) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You cannot message yourself')),
+        );
+        return;
+      }
+      context.go(
+        '/inbox/conversation/${Uri.encodeComponent(user.userId)}',
+        extra: ConversationUser(
+          id: user.userId,
+          displayName: user.displayName,
+          handle: user.handle,
+          avatarUrl: user.avatarUrl,
+          avatarGlyphIds: user.avatarGlyphIds,
+        ),
+      );
       return;
     }
     context.go('/profile/${Uri.encodeComponent(user.userId)}');

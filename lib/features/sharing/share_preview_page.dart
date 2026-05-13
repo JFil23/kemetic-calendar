@@ -97,11 +97,6 @@ class _SharePreviewPageState extends State<SharePreviewPage> {
   }
 
   void _closePreview() {
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.pop();
-      return;
-    }
     context.go('/');
   }
 
@@ -493,7 +488,9 @@ class _SharePreviewPageState extends State<SharePreviewPage> {
               decoration: BoxDecoration(
                 color: const Color(0xFF0D0D0F),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: KemeticGold.base.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: KemeticGold.base.withValues(alpha: 0.3),
+                ),
               ),
               child: Text(
                 _formatSchedule(schedule),

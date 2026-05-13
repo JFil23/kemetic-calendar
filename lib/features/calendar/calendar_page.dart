@@ -51,7 +51,9 @@ import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/widgets/month_name_text.dart';
+import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/core/day_key.dart';
+import 'package:mobile/core/global_menu_routes.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/core/kemetic_converter.dart';
 import 'package:flutter/gestures.dart';
@@ -3686,11 +3688,6 @@ const double _kActionGridSpacing = 12.0;
 const double _kActionGridHPadding = 12.0;
 const double _kActionGridVPadding = 12.0;
 
-RenderBox? _renderBoxForContext(BuildContext context) {
-  final renderObject = context.findRenderObject();
-  return renderObject is RenderBox ? renderObject : null;
-}
-
 class _CalendarAction {
   final IconData? icon;
   final String? glyph;
@@ -3759,7 +3756,7 @@ class _CalendarActionsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final rows =
         (actions.length + _kActionGridColumns - 1) ~/ _kActionGridColumns;
-    final double width =
+    const double defaultWidth =
         _kActionGridHPadding * 2 +
         _kActionGridColumns * _kActionTileWidth +
         (_kActionGridColumns - 1) * _kActionGridSpacing;
@@ -3768,74 +3765,184 @@ class _CalendarActionsGrid extends StatelessWidget {
         rows * _kActionTileHeight +
         (rows - 1) * _kActionGridSpacing;
 
-    return SizedBox(
-      width: width,
-      height: height,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: _kActionGridHPadding,
-          vertical: _kActionGridVPadding,
-        ),
-        child: GridView.builder(
-          physics: const NeverScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: _kActionGridColumns,
-            mainAxisSpacing: _kActionGridSpacing,
-            crossAxisSpacing: _kActionGridSpacing,
-            childAspectRatio: _kActionTileWidth / _kActionTileHeight,
-          ),
-          itemCount: actions.length,
-          itemBuilder: (ctx, index) {
-            final action = actions[index];
-            final actionIcon = action.glyph != null
-                ? GlossyGlyph(
-                    glyph: action.glyph!,
-                    gradient: action.gradient,
-                    size: action.glyphSize,
-                  )
-                : _GlossyIcon(action.icon!, gradient: action.gradient);
-            return InkWell(
-              onTap: () => onSelected(action),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                height: _kActionTileHeight,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF111111),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final constrainedWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : defaultWidth;
+        final width = math.min(defaultWidth, constrainedWidth);
+        final tileWidth = math.max(
+          1.0,
+          (width -
+                  _kActionGridHPadding * 2 -
+                  (_kActionGridColumns - 1) * _kActionGridSpacing) /
+              _kActionGridColumns,
+        );
+
+        return SizedBox(
+          width: width,
+          height: height,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: _kActionGridHPadding,
+              vertical: _kActionGridVPadding,
+            ),
+            child: GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: _kActionGridColumns,
+                mainAxisSpacing: _kActionGridSpacing,
+                crossAxisSpacing: _kActionGridSpacing,
+                childAspectRatio: tileWidth / _kActionTileHeight,
+              ),
+              itemCount: actions.length,
+              itemBuilder: (ctx, index) {
+                final action = actions[index];
+                final actionIcon = action.glyph != null
+                    ? GlossyGlyph(
+                        glyph: action.glyph!,
+                        gradient: action.gradient,
+                        size: action.glyphSize,
+                      )
+                    : _GlossyIcon(action.icon!, gradient: action.gradient);
+                return InkWell(
+                  onTap: () => onSelected(action),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      height: 30,
-                      child: Center(
-                        child: _NotificationDotOverlay(
-                          show: action.showNotificationDot,
-                          top: -4,
-                          right: -6,
-                          child: actionIcon,
+                  child: Container(
+                    height: _kActionTileHeight,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF111111),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          height: 30,
+                          child: Center(
+                            child: _NotificationDotOverlay(
+                              show: action.showNotificationDot,
+                              top: -4,
+                              right: -6,
+                              child: actionIcon,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 8),
+                        Text(
+                          action.label,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            height: 1.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      action.label,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        height: 1.2,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+Future<_CalendarAction?> _showCalendarActionsBottomSheet({
+  required BuildContext context,
+  required List<_CalendarAction> Function(bool hasUnreadInbox) actionsBuilder,
+}) {
+  return showModalBottomSheet<_CalendarAction>(
+    context: context,
+    useRootNavigator: true,
+    isDismissible: true,
+    enableDrag: true,
+    isScrollControlled: true,
+    useSafeArea: false,
+    routeSettings: const RouteSettings(name: calendarActionsMenuRouteName),
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black45,
+    clipBehavior: Clip.none,
+    builder: (sheetContext) {
+      return _CalendarActionsMenuPanel(
+        actionsBuilder: actionsBuilder,
+        onSelected: (action) async {
+          Navigator.of(sheetContext, rootNavigator: true).pop(action);
+        },
+      );
+    },
+  );
+}
+
+class _CalendarActionsMenuPanel extends StatelessWidget {
+  const _CalendarActionsMenuPanel({
+    required this.actionsBuilder,
+    required this.onSelected,
+  });
+
+  final List<_CalendarAction> Function(bool hasUnreadInbox) actionsBuilder;
+  final Future<void> Function(_CalendarAction action) onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final shareRepo = ShareRepo(Supabase.instance.client);
+
+    return Align(
+      widthFactor: 1,
+      heightFactor: 1,
+      alignment: Alignment.bottomCenter,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            color: Color(0xF6000000),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0xB3000000),
+                blurRadius: 18,
+                offset: Offset(0, -8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 38,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(999),
                 ),
               ),
-            );
-          },
+              const SizedBox(height: 8),
+              StreamBuilder<InboxUnreadState>(
+                initialData: shareRepo.currentUnreadState,
+                stream: shareRepo.watchUnreadState(),
+                builder: (context, snapshot) {
+                  final hasUnreadInbox =
+                      (snapshot.data ?? const InboxUnreadState()).hasUnread;
+                  return _CalendarActionsGrid(
+                    actions: actionsBuilder(hasUnreadInbox),
+                    onSelected: (action) {
+                      unawaited(onSelected(action));
+                    },
+                  );
+                },
+              ),
+              SizedBox(height: media.padding.bottom + 62),
+            ],
+          ),
         ),
       ),
     );
@@ -4488,6 +4595,7 @@ class CalendarPage extends StatefulWidget {
   static final GlobalKey<_CalendarPageState> globalKey =
       GlobalKey<_CalendarPageState>();
   static _CalendarDetachedLaunchAction? _pendingDetachedLaunchAction;
+  static ({int ky, int km, int kd})? _pendingDetachedSearchDay;
   static bool _detachedCalendarOverlayRestoreInFlight = false;
   static bool _detachedSharedCalendarsSheetOpenOrOpening = false;
   static bool _detachedFlowStudioSheetOpenOrOpening = false;
@@ -4702,6 +4810,7 @@ class CalendarPage extends StatefulWidget {
   static Future<void> showActionsMenuFromAnyContext(
     BuildContext context, {
     bool includeNewNote = true,
+    void Function(String location)? onNavigate,
   }) async {
     if (_shouldUseMountedCalendarHost(context)) {
       await _mountedState!.showActionsMenuFromOutside(
@@ -4710,7 +4819,43 @@ class CalendarPage extends StatefulWidget {
       );
       return;
     }
-    await _showDetachedActionsMenu(context, includeNewNote: includeNewNote);
+    await _showDetachedActionsMenu(
+      context,
+      includeNewNote: includeNewNote,
+      onNavigate: onNavigate,
+    );
+  }
+
+  static Future<void> showDetachedActionsMenuFromAnyContext(
+    BuildContext context, {
+    bool includeNewNote = true,
+    void Function(String location)? onNavigate,
+  }) async {
+    await _showDetachedActionsMenu(
+      context,
+      includeNewNote: includeNewNote,
+      onNavigate: onNavigate,
+    );
+  }
+
+  static Widget buildDetachedActionsMenuPanel(
+    BuildContext context, {
+    bool includeNewNote = true,
+    void Function(String location)? onNavigate,
+    required Future<void> Function() closeMenu,
+  }) {
+    return _CalendarActionsMenuPanel(
+      actionsBuilder: (hasUnreadInbox) => _detachedCalendarActions(
+        context,
+        hasUnreadInbox: hasUnreadInbox,
+        includeNewNote: includeNewNote,
+        onNavigate: onNavigate,
+      ),
+      onSelected: (action) async {
+        await closeMenu();
+        await action.onSelected();
+      },
+    );
   }
 
   static Future<void> openQuickAddFromAnyContext(BuildContext context) async {
@@ -4722,6 +4867,219 @@ class CalendarPage extends StatefulWidget {
       context,
       _CalendarDetachedLaunchAction.quickAdd,
     );
+  }
+
+  static Future<void> openSearchFromAnyContext(BuildContext context) async {
+    if (_shouldUseMountedCalendarHost(context)) {
+      _mountedState!._openSearchForContext(context);
+      return;
+    }
+    final snapshot = await _loadWarmStartSearchSnapshot();
+    if (!context.mounted) return;
+    await _showEventSearch(
+      context: context,
+      notes: snapshot.notes,
+      flows: snapshot.flows,
+      openDay: (ky, km, kd) {
+        Navigator.of(context).pop();
+        _routeHomeForSearchDay(context, ky: ky, km: km, kd: kd);
+      },
+    );
+  }
+
+  static Future<({Map<String, List<_Note>> notes, List<_Flow> flows})>
+  _loadWarmStartSearchSnapshot() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id.trim();
+    if (userId == null || userId.isEmpty) {
+      return (notes: <String, List<_Note>>{}, flows: <_Flow>[]);
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(
+        '${_CalendarPageState._kWarmStartCacheKeyPrefix}:$userId',
+      );
+      if (raw == null || raw.trim().isEmpty) {
+        return (notes: <String, List<_Note>>{}, flows: <_Flow>[]);
+      }
+
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) {
+        return (notes: <String, List<_Note>>{}, flows: <_Flow>[]);
+      }
+      final json = Map<String, dynamic>.from(decoded);
+      final snapshotUserId = (json['userId'] as String?)?.trim();
+      if (snapshotUserId != null &&
+          snapshotUserId.isNotEmpty &&
+          snapshotUserId != userId) {
+        return (notes: <String, List<_Note>>{}, flows: <_Flow>[]);
+      }
+
+      final flows = ((json['flows'] as List?) ?? const [])
+          .map(_deserializeWarmStartSearchFlow)
+          .whereType<_Flow>()
+          .toList(growable: false);
+      final notesByDay = <String, List<_Note>>{};
+      final notesRaw = json['notes'];
+      if (notesRaw is Map) {
+        notesRaw.forEach((key, value) {
+          if (value is! List) return;
+          final notes = value
+              .map(_deserializeWarmStartSearchNote)
+              .whereType<_Note>()
+              .toList(growable: false);
+          if (notes.isNotEmpty) {
+            notesByDay[key.toString()] = notes;
+          }
+        });
+      }
+
+      return (notes: notesByDay, flows: flows);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[search] warm-start cache unavailable: $e');
+      }
+      return (notes: <String, List<_Note>>{}, flows: <_Flow>[]);
+    }
+  }
+
+  static _Flow? _deserializeWarmStartSearchFlow(Object? raw) {
+    if (raw is! Map) return null;
+    try {
+      final json = Map<String, dynamic>.from(raw);
+      final id = (json['id'] as num?)?.toInt();
+      final name = json['name'] as String?;
+      final colorValue = (json['color'] as num?)?.toInt();
+      if (id == null || name == null || colorValue == null) return null;
+      final rulesRaw = (json['rules'] as List?) ?? const [];
+      final rules = <FlowRule>[];
+      for (final item in rulesRaw.whereType<Map>()) {
+        try {
+          rules.add(CalendarPage.ruleFromJson(Map<String, dynamic>.from(item)));
+        } catch (_) {
+          // Ignore malformed cached rules; search still works without them.
+        }
+      }
+      return _Flow(
+        id: id,
+        calendarId: json['calendarId'] as String?,
+        name: name,
+        color: Color(colorValue),
+        active: (json['active'] as bool?) ?? true,
+        isSaved: (json['isSaved'] as bool?) ?? false,
+        savedAt: _parseWarmStartSearchDateTime(json['savedAt'])?.toUtc(),
+        rules: rules,
+        start: _parseWarmStartSearchDateTime(json['start'])?.toLocal(),
+        end: _parseWarmStartSearchDateTime(json['end'])?.toLocal(),
+        notes: json['notes'] as String?,
+        shareId: json['shareId'] as String?,
+        isHidden: (json['isHidden'] as bool?) ?? false,
+        isReminder: (json['isReminder'] as bool?) ?? false,
+        reminderUuid: json['reminderUuid'] as String?,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static _Note? _deserializeWarmStartSearchNote(Object? raw) {
+    if (raw is! Map) return null;
+    try {
+      final json = Map<String, dynamic>.from(raw);
+      final title = json['title'] as String?;
+      final allDay = json['allDay'] as bool?;
+      if (title == null || allDay == null) return null;
+      final flowId = (json['flowId'] as num?)?.toInt();
+      final explicitColorValue = (json['manualColor'] as num?)?.toInt();
+      final resolvedColorValue = (json['resolvedColor'] as num?)?.toInt();
+      final warmStartColorValue =
+          explicitColorValue ??
+          ((flowId != null && flowId != -1) ? resolvedColorValue : null);
+      return _Note(
+        id: json['id'] as String?,
+        clientEventId: json['clientEventId'] as String?,
+        calendarId: json['calendarId'] as String?,
+        calendarName: json['calendarName'] as String?,
+        title: title,
+        detail: json['detail'] as String?,
+        location: json['location'] as String?,
+        allDay: allDay,
+        start: _timeOfDayFromWarmStartMinutes(json['startMinutes']),
+        end: _timeOfDayFromWarmStartMinutes(json['endMinutes']),
+        flowId: flowId,
+        manualColor: warmStartColorValue == null
+            ? null
+            : Color(warmStartColorValue),
+        category: json['category'] as String?,
+        isReminder: (json['isReminder'] as bool?) ?? false,
+        reminderId: json['reminderId'] as String?,
+        alertOffsetMinutes: (json['alertOffsetMinutes'] as num?)?.toInt(),
+        actionId: json['actionId'] as String?,
+        behaviorPayload: json['behaviorPayload'] is Map
+            ? Map<String, dynamic>.from(json['behaviorPayload'] as Map)
+            : null,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static TimeOfDay? _timeOfDayFromWarmStartMinutes(dynamic raw) {
+    final totalMinutes = (raw as num?)?.toInt();
+    if (totalMinutes == null || totalMinutes < 0) return null;
+    return TimeOfDay(
+      hour: (totalMinutes ~/ 60) % 24,
+      minute: totalMinutes % 60,
+    );
+  }
+
+  static DateTime? _parseWarmStartSearchDateTime(Object? raw) {
+    final value = raw?.toString().trim();
+    if (value == null || value.isEmpty) return null;
+    return DateTime.tryParse(value);
+  }
+
+  static String _gregYearLabelForSearch(int kYear, int kMonth) {
+    final lastDay = (kMonth == 13)
+        ? (KemeticMath.isLeapKemeticYear(kYear) ? 6 : 5)
+        : 30;
+    final yStart = KemeticMath.toGregorian(kYear, kMonth, 1).year;
+    final yEnd = KemeticMath.toGregorian(kYear, kMonth, lastDay).year;
+    return (yStart == yEnd) ? '$yStart' : '$yStart/$yEnd';
+  }
+
+  static Future<void> _showEventSearch({
+    required BuildContext context,
+    required Map<String, List<_Note>> notes,
+    required List<_Flow> flows,
+    required void Function(int ky, int km, int kd) openDay,
+  }) async {
+    UiGuards.disableJournalSwipe();
+    try {
+      await showSearch<void>(
+        context: context,
+        delegate: _EventSearchDelegate(
+          notes: notes,
+          flows: flows,
+          monthName: (km) => getMonthById(km).displayFull,
+          gregYearLabelFor: _gregYearLabelForSearch,
+          openDay: openDay,
+        ),
+      );
+    } finally {
+      UiGuards.enableJournalSwipe();
+    }
+  }
+
+  static void _routeHomeForSearchDay(
+    BuildContext context, {
+    required int ky,
+    required int km,
+    required int kd,
+  }) {
+    if (!context.mounted) return;
+    _pendingDetachedSearchDay = (ky: ky, km: km, kd: kd);
+    context.go('/');
   }
 
   static Future<void> openMyFlowsFromAnyContext(BuildContext context) async {
@@ -4796,14 +5154,19 @@ class CalendarPage extends StatefulWidget {
       return;
     }
     if (!context.mounted) return;
-    context.push<void>('/profile/${Uri.encodeComponent(userId)}');
+    context.go('/profile/${Uri.encodeComponent(userId)}');
   }
 
   static void _routeHomeForDetachedLaunch(
     BuildContext context,
-    _CalendarDetachedLaunchAction action,
-  ) {
+    _CalendarDetachedLaunchAction action, {
+    void Function(String location)? onNavigate,
+  }) {
     _pendingDetachedLaunchAction = action;
+    if (onNavigate != null) {
+      onNavigate('/');
+      return;
+    }
     if (!context.mounted) return;
     context.go('/');
   }
@@ -4811,108 +5174,19 @@ class CalendarPage extends StatefulWidget {
   static Future<void> _showDetachedActionsMenu(
     BuildContext context, {
     bool includeNewNote = true,
+    void Function(String location)? onNavigate,
   }) async {
-    final overlayRenderObject = Navigator.of(
-      context,
-      rootNavigator: true,
-    ).overlay?.context.findRenderObject();
-    if (overlayRenderObject is! RenderBox) return;
-
-    final buttonBox = _renderBoxForContext(context);
-    final anchorRect = buttonBox == null
-        ? Rect.fromLTWH(
-            overlayRenderObject.size.width - 64,
-            MediaQuery.maybeOf(context)?.padding.top ?? 16,
-            48,
-            48,
-          )
-        : (() {
-            final anchorOffset = buttonBox.localToGlobal(
-              Offset.zero,
-              ancestor: overlayRenderObject,
-            );
-            return Rect.fromLTWH(
-              anchorOffset.dx,
-              anchorOffset.dy,
-              buttonBox.size.width,
-              buttonBox.size.height,
-            );
-          })();
-
-    final baseActions = _detachedCalendarActions(
-      context,
-      includeNewNote: includeNewNote,
-    );
-    final rows =
-        (baseActions.length + _kActionGridColumns - 1) ~/ _kActionGridColumns;
-    final double menuWidth =
-        _kActionGridHPadding * 2 +
-        _kActionGridColumns * _kActionTileWidth +
-        (_kActionGridColumns - 1) * _kActionGridSpacing;
-    final double menuHeight =
-        _kActionGridVPadding * 2 +
-        rows * _kActionTileHeight +
-        (rows - 1) * _kActionGridSpacing;
-    final shareRepo = ShareRepo(Supabase.instance.client);
-
-    final position = RelativeRect.fromRect(
-      Rect.fromLTWH(
-        anchorRect.left,
-        anchorRect.bottom,
-        anchorRect.width,
-        menuHeight,
-      ),
-      Offset.zero & overlayRenderObject.size,
-    );
-
-    final selected = await showMenu<_CalendarAction>(
+    final selected = await _showCalendarActionsBottomSheet(
       context: context,
-      useRootNavigator: true,
-      position: position,
-      color: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Colors.white12),
+      actionsBuilder: (hasUnreadInbox) => _detachedCalendarActions(
+        context,
+        hasUnreadInbox: hasUnreadInbox,
+        includeNewNote: includeNewNote,
+        onNavigate: onNavigate,
       ),
-      items: [
-        PopupMenuItem<_CalendarAction>(
-          enabled: false,
-          padding: EdgeInsets.zero,
-          height: menuHeight,
-          child: Container(
-            width: menuWidth,
-            height: menuHeight,
-            decoration: BoxDecoration(
-              color: Colors.black87,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white12),
-            ),
-            child: StreamBuilder<InboxUnreadState>(
-              initialData: shareRepo.currentUnreadState,
-              stream: shareRepo.watchUnreadState(),
-              builder: (menuContext, snapshot) {
-                final hasUnreadInbox =
-                    (snapshot.data ?? const InboxUnreadState()).hasUnread;
-                final actions = _detachedCalendarActions(
-                  context,
-                  hasUnreadInbox: hasUnreadInbox,
-                  includeNewNote: includeNewNote,
-                );
-
-                return _CalendarActionsGrid(
-                  actions: actions,
-                  onSelected: (action) {
-                    Navigator.of(menuContext, rootNavigator: true).pop(action);
-                  },
-                );
-              },
-            ),
-          ),
-        ),
-      ],
     );
 
-    if (selected == null || !context.mounted) return;
+    if (selected == null) return;
     await selected.onSelected();
   }
 
@@ -4920,35 +5194,36 @@ class CalendarPage extends StatefulWidget {
     BuildContext context, {
     bool hasUnreadInbox = false,
     bool includeNewNote = true,
+    void Function(String location)? onNavigate,
   }) {
+    void navigate(String location) {
+      if (onNavigate != null) {
+        onNavigate(location);
+        return;
+      }
+      if (!context.mounted) return;
+      context.go(location);
+    }
+
     return [
       _CalendarAction(
         glyph: MeduNeterGlyphs.journal,
         gradient: goldGloss,
         label: 'Journal',
-        onSelected: () {
-          if (!context.mounted) return;
-          context.go('/journal');
-        },
+        onSelected: () => navigate('/journal'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.planner,
         gradient: goldGloss,
         label: 'Planner',
-        onSelected: () {
-          if (!context.mounted) return;
-          context.go('/rhythm/today');
-        },
+        onSelected: () => navigate('/rhythm/today'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.inbox,
         gradient: goldGloss,
         label: 'Inbox',
         showNotificationDot: hasUnreadInbox,
-        onSelected: () {
-          if (!context.mounted) return;
-          context.go('/inbox');
-        },
+        onSelected: () => navigate('/inbox'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.calendars,
@@ -4961,38 +5236,26 @@ class CalendarPage extends StatefulWidget {
         glyphSize: 18,
         gradient: goldGloss,
         label: 'Reflections',
-        onSelected: () {
-          if (!context.mounted) return;
-          context.go('/reflections');
-        },
+        onSelected: () => navigate('/reflections'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.library,
         glyphSize: 20,
         gradient: goldGloss,
         label: 'Library',
-        onSelected: () {
-          if (!context.mounted) return;
-          context.go('/nodes');
-        },
+        onSelected: () => navigate('/nodes'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.settings,
         gradient: goldGloss,
         label: 'Settings',
-        onSelected: () {
-          if (!context.mounted) return;
-          context.go('/settings');
-        },
+        onSelected: () => navigate('/settings'),
       ),
       _CalendarAction(
-        glyph: MeduNeterGlyphs.search,
-        gradient: silverGloss,
-        label: 'Search',
-        onSelected: () => _routeHomeForDetachedLaunch(
-          context,
-          _CalendarDetachedLaunchAction.search,
-        ),
+        glyph: MeduNeterGlyphs.home,
+        gradient: goldGloss,
+        label: 'Home',
+        onSelected: () => navigate('/'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.flowStudio,
@@ -5009,6 +5272,7 @@ class CalendarPage extends StatefulWidget {
           onSelected: () => _routeHomeForDetachedLaunch(
             context,
             _CalendarDetachedLaunchAction.quickAdd,
+            onNavigate: onNavigate,
           ),
         ),
     ];
@@ -6242,6 +6506,7 @@ class CalendarPage extends StatefulWidget {
       ],
     );
     CalendarPage._pendingDetachedLaunchAction = null;
+    CalendarPage._pendingDetachedSearchDay = null;
     _mountedState?._suppressPendingRestoresForUserNavigation();
     unawaited(RestorationCoordinator.instance.recordRouteLocation('/'));
     unawaited(SessionResumeService.saveRouteLocation('/'));
@@ -7289,6 +7554,20 @@ class _CalendarPageState extends State<CalendarPage>
   }
 
   bool _schedulePendingDetachedLaunchActionIfAny() {
+    final pendingSearchDay = CalendarPage._pendingDetachedSearchDay;
+    if (pendingSearchDay != null) {
+      CalendarPage._pendingDetachedSearchDay = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _openDaySheet(
+          pendingSearchDay.ky,
+          pendingSearchDay.km,
+          pendingSearchDay.kd,
+        );
+      });
+      return true;
+    }
+
     final action = CalendarPage._pendingDetachedLaunchAction;
     if (action == null) return false;
     CalendarPage._pendingDetachedLaunchAction = null;
@@ -10099,7 +10378,8 @@ class _CalendarPageState extends State<CalendarPage>
         );
         if (widget.initialFlowIdToEdit == null &&
             !widget.openMyFlowsOnLaunch &&
-            CalendarPage._pendingDetachedLaunchAction == null) {
+            CalendarPage._pendingDetachedLaunchAction == null &&
+            CalendarPage._pendingDetachedSearchDay == null) {
           _schedulePersistentOverlayRestore(reason: 'auth-early:${event.name}');
         }
         unawaited(
@@ -10596,10 +10876,10 @@ class _CalendarPageState extends State<CalendarPage>
 
     UiGuards.disableJournalSwipe();
     try {
-      final updated = await context.push<bool>(
+      context.go(
         '/profile/me/edit?requireCompletion=${requireCompletion ? 1 : 0}',
       );
-      return updated == true || (shouldReplayPrompts && !requireCompletion);
+      return shouldReplayPrompts && !requireCompletion;
     } finally {
       UiGuards.enableJournalSwipe();
     }
@@ -16891,10 +17171,10 @@ class _CalendarPageState extends State<CalendarPage>
         onSelected: _openSettingsFromMenu,
       ),
       _CalendarAction(
-        glyph: MeduNeterGlyphs.search,
-        gradient: silverGloss,
-        label: 'Search',
-        onSelected: _openSearch,
+        glyph: MeduNeterGlyphs.home,
+        gradient: goldGloss,
+        label: 'Home',
+        onSelected: () => context.go('/'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.flowStudio,
@@ -16917,94 +17197,13 @@ class _CalendarPageState extends State<CalendarPage>
     BuildContext context, {
     bool includeNewNote = true,
   }) async {
-    final buttonBox = _renderBoxForContext(context);
-    final overlayRenderObject = Navigator.of(
-      context,
-    ).overlay?.context.findRenderObject();
-    if (buttonBox == null || overlayRenderObject is! RenderBox) return;
-    final overlay = overlayRenderObject;
-
-    final anchorOffset = buttonBox.localToGlobal(
-      Offset.zero,
-      ancestor: overlay,
-    );
-    final anchorRect = Rect.fromLTWH(
-      anchorOffset.dx,
-      anchorOffset.dy,
-      buttonBox.size.width,
-      buttonBox.size.height,
-    );
-
-    final baseActions = _calendarActions(
-      context,
-      includeNewNote: includeNewNote,
-    );
-    final rows =
-        (baseActions.length + _kActionGridColumns - 1) ~/ _kActionGridColumns;
-    final double menuWidth =
-        _kActionGridHPadding * 2 +
-        _kActionGridColumns * _kActionTileWidth +
-        (_kActionGridColumns - 1) * _kActionGridSpacing;
-    final double menuHeight =
-        _kActionGridVPadding * 2 +
-        rows * _kActionTileHeight +
-        (rows - 1) * _kActionGridSpacing;
-    final shareRepo = ShareRepo(Supabase.instance.client);
-
-    final position = RelativeRect.fromRect(
-      Rect.fromLTWH(
-        anchorRect.left,
-        anchorRect.bottom,
-        anchorRect.width,
-        menuHeight,
-      ),
-      Offset.zero & overlay.size,
-    );
-
-    final selected = await showMenu<_CalendarAction>(
+    final selected = await _showCalendarActionsBottomSheet(
       context: context,
-      position: position,
-      color: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Colors.white12),
+      actionsBuilder: (hasUnreadInbox) => _calendarActions(
+        context,
+        hasUnreadInbox: hasUnreadInbox,
+        includeNewNote: includeNewNote,
       ),
-      items: [
-        PopupMenuItem<_CalendarAction>(
-          enabled: false,
-          padding: EdgeInsets.zero,
-          height: menuHeight,
-          child: Container(
-            width: menuWidth,
-            height: menuHeight,
-            decoration: BoxDecoration(
-              color: Colors.black87,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white12),
-            ),
-            child: StreamBuilder<InboxUnreadState>(
-              initialData: shareRepo.currentUnreadState,
-              stream: shareRepo.watchUnreadState(),
-              builder: (context, snapshot) {
-                final hasUnreadInbox =
-                    (snapshot.data ?? const InboxUnreadState()).hasUnread;
-                final actions = _calendarActions(
-                  context,
-                  hasUnreadInbox: hasUnreadInbox,
-                  includeNewNote: includeNewNote,
-                );
-
-                return _CalendarActionsGrid(
-                  actions: actions,
-                  onSelected: (action) {
-                    Navigator.of(context).pop(action);
-                  },
-                );
-              },
-            ),
-          ),
-        ),
-      ],
     );
 
     if (selected != null) {
@@ -17095,43 +17294,32 @@ class _CalendarPageState extends State<CalendarPage>
             ),
           ),
       actions: [
-        IconButton(
+        KemeticAppBarAction(
           tooltip: 'New note',
-          icon: const _GlossyIcon(Icons.add, gradient: goldGloss),
+          icon: const GlossyIcon(
+            icon: Icons.add,
+            gradient: goldGloss,
+            size: 23,
+          ),
           onPressed: _openQuickAddSheet,
         ),
-        IconButton(
+        KemeticAppBarAction(
+          tooltip: 'Search notes',
+          icon: const KemeticAppBarSearchIcon(),
+          onPressed: _openSearch,
+        ),
+        KemeticAppBarAction(
           tooltip: 'Today',
-          icon: const _GlossyIcon(Icons.today, gradient: goldGloss),
+          icon: const KemeticAppBarTodayIcon(),
           onPressed: () =>
               _handleCalendarAppBarToday(useLandscapeGrid: useLandscapeGrid),
         ),
-        Builder(
-          builder: (ctx) {
-            final shareRepo = ShareRepo(Supabase.instance.client);
-            return StreamBuilder<InboxUnreadState>(
-              initialData: shareRepo.currentUnreadState,
-              stream: shareRepo.watchUnreadState(),
-              builder: (context, snapshot) {
-                final hasUnreadInbox =
-                    (snapshot.data ?? const InboxUnreadState()).hasUnread;
-                return IconButton(
-                  tooltip: 'Menu',
-                  icon: _NotificationDotOverlay(
-                    show: hasUnreadInbox,
-                    child: const _GlossyIcon(Icons.apps, gradient: goldGloss),
-                  ),
-                  onPressed: () => _showActionsMenu(ctx, includeNewNote: false),
-                );
-              },
-            );
-          },
-        ),
-        IconButton(
+        KemeticAppBarAction(
           tooltip: 'My Profile',
-          icon: KemeticGold.glyph(MeduNeterGlyphs.profile, size: 20),
+          icon: const KemeticAppBarProfileIcon(),
           onPressed: () => _openProfile(context),
         ),
+        const SizedBox(width: 20),
       ],
     );
   }
@@ -17152,7 +17340,7 @@ class _CalendarPageState extends State<CalendarPage>
     UiGuards.disableJournalSwipe();
     _profileNavigationInFlight = true;
     try {
-      await context.push<void>('/profile/${Uri.encodeComponent(userId)}');
+      context.go('/profile/${Uri.encodeComponent(userId)}');
     } finally {
       _profileNavigationInFlight = false;
       UiGuards.enableJournalSwipe();
@@ -17182,7 +17370,7 @@ class _CalendarPageState extends State<CalendarPage>
 
     UiGuards.disableJournalSwipe();
     try {
-      await context.push<void>('/journal');
+      context.go('/journal');
     } finally {
       UiGuards.enableJournalSwipe();
     }
@@ -17197,58 +17385,68 @@ class _CalendarPageState extends State<CalendarPage>
     _plannerNavigationInFlight = true;
     try {
       final navContext = navigationContext ?? context;
-      await navContext.push<void>('/rhythm/today');
+      navContext.go('/rhythm/today');
     } finally {
       _plannerNavigationInFlight = false;
     }
   }
 
   Future<void> _openInboxFromMenu() async {
-    final importedFlowId = await context.push<int?>('/inbox');
-    if (importedFlowId != null) {
-      await _loadFromDisk();
-    }
+    context.go('/inbox');
   }
 
   Future<void> _openReflectionsFromMenu() async {
-    await context.push<void>('/reflections');
+    context.go('/reflections');
   }
 
   Future<void> _openKemeticNodes(BuildContext context) async {
     UiGuards.disableJournalSwipe();
     try {
-      await context.push<void>('/nodes');
+      context.go('/nodes');
     } finally {
       UiGuards.enableJournalSwipe();
     }
   }
 
   Future<void> _openSettingsFromMenu() async {
-    await context.push<void>('/settings');
+    context.go('/settings');
   }
 
   /* ───── Search ───── */
 
   void _openSearch() {
-    UiGuards.disableJournalSwipe();
-    showSearch(
-      context: context,
-      delegate: _EventSearchDelegate(
+    _openSearchForContext(context);
+  }
+
+  void _openSearchForContext(BuildContext searchContext) {
+    unawaited(
+      CalendarPage._showEventSearch(
+        context: searchContext,
         notes: _notes,
         flows: _flows,
-        monthName: (km) => getMonthById(km).displayFull,
-        gregYearLabelFor: _gregYearLabelFor,
         openDay: (ky, km, kd) {
-          Navigator.of(context).pop(); // dismiss search
+          Navigator.of(searchContext).pop();
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            _openDaySheet(ky, km, kd);
+            final searchIsOnRoot =
+                searchContext.mounted &&
+                CalendarPage._isRootRouteLocation(
+                  CalendarPage._currentRouteLocationForContext(searchContext),
+                );
+            if (searchIsOnRoot) {
+              _openDaySheet(ky, km, kd);
+              return;
+            }
+            CalendarPage._routeHomeForSearchDay(
+              searchContext,
+              ky: ky,
+              km: km,
+              kd: kd,
+            );
           });
         },
       ),
-    ).then((_) {
-      UiGuards.enableJournalSwipe();
-    });
+    );
   }
 
   /* ───── Flow Studio ───── */
@@ -18809,10 +19007,10 @@ class _CalendarPageState extends State<CalendarPage>
           focusStartMin: focusEvent?.startMin,
           focusFlowId: focusEvent?.flowId,
           focusTitle: focusEvent?.title,
+          onClose: () => Navigator.of(context).pop(),
           onManageFlows: (flowId) => _getMyFlowsCallback()(flowId),
-          onShowActionsMenu: (ctx) =>
-              _showActionsMenu(ctx, includeNewNote: false),
           onOpenQuickAdd: (_) => _openQuickAddSheet(),
+          onOpenSearch: (ctx) async => _openSearchForContext(ctx),
           onOpenProfile: (ctx) => _openProfile(ctx),
           onDeleteNote: (ky, km, kd, evt) async {
             await _deleteNoteByEvent(ky, km, kd, evt);
@@ -21872,7 +22070,8 @@ class _CalendarPageState extends State<CalendarPage>
       if (user != null) {
         if (widget.initialFlowIdToEdit == null &&
             !widget.openMyFlowsOnLaunch &&
-            CalendarPage._pendingDetachedLaunchAction == null) {
+            CalendarPage._pendingDetachedLaunchAction == null &&
+            CalendarPage._pendingDetachedSearchDay == null) {
           _schedulePersistentOverlayRestore(reason: 'init-early');
         }
         _requestInitialStartupRun(reason: 'init').then((_) {
@@ -29759,7 +29958,11 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
         ),
         title: TextButton.icon(
           onPressed: _jumpToToday,
-          icon: const Icon(Icons.today, color: _gold, size: 18),
+          icon: const KemeticAppBarTodayIcon(
+            boxSize: 20,
+            glyphSize: 16,
+            glyphOffset: Offset(1.5, -1),
+          ),
           label: const Text(
             'Today',
             style: TextStyle(

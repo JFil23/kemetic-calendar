@@ -127,7 +127,7 @@ class _CommitmentTrackerPageState extends State<CommitmentTrackerPage> {
                   message:
                       'Add a Rhythm item and enable continuity to see it here.',
                   primaryAction: ElevatedButton.icon(
-                    onPressed: () => context.push('/rhythm/today'),
+                    onPressed: () => context.go('/rhythm/today'),
                     icon: const Icon(Icons.wb_sunny_outlined),
                     label: const Text('Open Planner'),
                   ),
