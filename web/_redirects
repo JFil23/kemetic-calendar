@@ -12,6 +12,10 @@
 /install.js /install.js 200
 /main.dart.js /main.dart.js 200
 /manifest.json /manifest.json 200
+/privacy /privacy.html 200
+/privacy/ /privacy.html 200
+/support /support.html 200
+/support/ /support.html 200
 /version.json /version.json 200
 /widgets/* /widgets/:splat 200
 /* /index.html 200

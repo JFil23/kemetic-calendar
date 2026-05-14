@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../core/kemetic_converter.dart';
 import 'share_models.dart';
 import 'user_events_repo.dart';
+import '../features/calendar/dawn_house_rite_flow.dart';
 import '../utils/event_cid_util.dart';
 import '../utils/flow_visibility.dart';
 
@@ -1421,11 +1422,23 @@ class ShareRepo {
     }
 
     final flowName = _cleanNullableString(flowRow['name']) ?? 'Shared Flow';
+    final flowNotes = _cleanNullableString(flowRow['notes']);
     final eventSnapshots = flowEvents
         .map((row) {
           final startUtc = _parseDateTimeValue(row['starts_at'])?.toUtc();
           final endUtc = _parseDateTimeValue(row['ends_at'])?.toUtc();
           final allDay = _parseBoolishValue(row['all_day']);
+          final actionId = _cleanNullableString(row['action_id']);
+          final behaviorPayload = _asBehaviorPayload(row['behavior_payload']);
+          final detail =
+              canonicalDawnHouseRiteDetailTextForEvent(
+                flowName: flowName,
+                flowNotes: flowNotes,
+                title: _cleanNullableString(row['title']),
+                actionId: actionId,
+                behaviorPayload: behaviorPayload,
+              ) ??
+              _cleanNullableString(row['detail']);
           final offsetDays = firstStartsAtUtc != null && startUtc != null
               ? ((startUtc.millisecondsSinceEpoch -
                             firstStartsAtUtc.millisecondsSinceEpoch) /
@@ -1436,16 +1449,14 @@ class ShareRepo {
           return <String, dynamic>{
             'offset_days': offsetDays,
             'title': _cleanNullableString(row['title']) ?? flowName,
-            'detail': _cleanNullableString(row['detail']),
+            'detail': detail,
             'location': _cleanNullableString(row['location']),
             'all_day': allDay,
             if (!allDay && startUtc != null)
               'start_time': _formatShareTime(startUtc),
             if (!allDay && endUtc != null) 'end_time': _formatShareTime(endUtc),
-            if (_cleanNullableString(row['action_id']) != null)
-              'action_id': _cleanNullableString(row['action_id']),
-            if (_asBehaviorPayload(row['behavior_payload']) != null)
-              'behavior_payload': _asBehaviorPayload(row['behavior_payload']),
+            if (actionId != null) 'action_id': actionId,
+            if (behaviorPayload != null) 'behavior_payload': behaviorPayload,
           };
         })
         .toList(growable: false);
@@ -1454,7 +1465,7 @@ class ShareRepo {
       'flow_id': flowId,
       'name': flowName,
       'color': _parseIntValue(flowRow['color']) ?? 0x004DD0E1,
-      'notes': _cleanNullableString(flowRow['notes']),
+      'notes': flowNotes,
       'rules': (flowRow['rules'] as List?) ?? const <dynamic>[],
       'events': eventSnapshots,
     };

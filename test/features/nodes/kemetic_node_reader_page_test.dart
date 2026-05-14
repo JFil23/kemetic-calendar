@@ -84,7 +84,7 @@ void main() {
     );
     expect(find.text('Modern Science'), findsOneWidget);
     expect(find.text('Purpose'), findsOneWidget);
-    expect(find.text('The Womb of Molecules'), findsOneWidget);
+    expect(find.text('How Stardust Becomes Life'), findsOneWidget);
   });
 
   testWidgets('renders human emergence table grids', (tester) async {

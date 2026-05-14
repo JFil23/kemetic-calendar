@@ -87,13 +87,34 @@ void main() {
       );
 
       expect(jsonDecode(jsonEncode(payload)), isA<Map<String, dynamic>>());
-      expect(payload['completion_options'], hasLength(3));
+      expect(payload.containsKey('section'), isFalse);
+      expect(payload.containsKey('completion_options'), isFalse);
       expect(payload['missed_event_rule'], 'expire_quietly');
       starts.add(schedule.startUtc);
     }
 
     expect(kDawnHouseRiteDays, hasLength(30));
     expect(starts, hasLength(30));
+  });
+
+  test('canonical detail rebuilds stale dawn events without cycle status', () {
+    final detail = canonicalDawnHouseRiteDetailTextForEvent(
+      flowName: kDawnHouseRiteTitle,
+      flowNotes: 'mode=gregorian;maat=dawn-house-rite;dawn_lens=thothic',
+      title: 'Day 1: Opening the Day',
+      actionId: 'dawn-house-rite-day-01',
+      behaviorPayload: const <String, dynamic>{
+        'kind': 'maat_dawn_house_rite_day',
+        'flow_key': 'dawn-house-rite',
+        'day': 1,
+      },
+    );
+
+    expect(detail, isNotNull);
+    expect(detail, isNot(contains('Cycle:')));
+    expect(detail, isNot(contains('Completion:')));
+    expect(detail, contains('Purpose\nEnter the day as ordered time.'));
+    expect(detail, contains('Lens\nKeep one exact record'));
   });
 
   test('calendar join waits for Dawn event persistence before success', () {

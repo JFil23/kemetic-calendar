@@ -10,6 +10,7 @@ import '../../core/navigation_fallback.dart';
 import '../../services/calendar_sync_service.dart';
 import '../../services/push_notifications.dart';
 import '../../services/speech/speech_service.dart';
+import '../../utils/external_link_utils.dart';
 import '../calendar/calendar_page.dart';
 import '../calendar/notify.dart';
 import '../calendar/speech_resolver.dart';
@@ -25,6 +26,9 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   static const String _speechPreviewUtteranceId = 'settings:speech-preview';
+  static const String _privacyPolicyUrl = 'https://maat.app/privacy';
+  static const String _supportMailUrl =
+      'mailto:support@maat.app?subject=Kemetic%20Calendar%20support';
 
   bool _realTimeAlerts = false;
   bool _autoCalendarSync = true;
@@ -38,8 +42,10 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _sendingPushTest = false;
   bool _loadingSpeechVoices = false;
   bool _savingSpeechVoice = false;
+  bool _deletingAccount = false;
   String? _pushStatus;
   String? _speechVoiceStatus;
+  String? _accountStatus;
   CalendarSyncStatus? _calendarSyncStatus;
   PushRegistrationDiagnostics? _pushDiagnostics;
   List<SpeechVoiceOption> _speechVoices = const [];
@@ -334,6 +340,109 @@ class _SettingsPageState extends State<SettingsPage> {
             : Colors.red.shade700,
       ),
     );
+  }
+
+  Future<void> _openExternalSupportTarget(String target) async {
+    final opened = await launchExternalTarget(target, fallbackToMaps: false);
+    if (!mounted || opened) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Could not open this link on this device.'),
+        backgroundColor: Colors.red.shade700,
+      ),
+    );
+  }
+
+  Future<void> _deleteAccount() async {
+    final client = Supabase.instance.client;
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (!_hasSession) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('Sign in before deleting your account.'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0C0C0C),
+          title: const Text(
+            'Delete Account?',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            'This permanently deletes your account sign-in and account data. This cannot be undone.',
+            style: TextStyle(color: Colors.white70, height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Delete account'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      _deletingAccount = true;
+      _accountStatus = 'Deleting account...';
+    });
+
+    try {
+      final response = await client.functions.invoke('delete_account');
+      final data = response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : (response.data is Map
+                ? Map<String, dynamic>.from(response.data as Map)
+                : <String, dynamic>{});
+
+      if (response.status >= 400) {
+        final message =
+            data['error']?.toString() ??
+            'Account deletion returned HTTP ${response.status}.';
+        throw StateError(message);
+      }
+
+      await client.auth.signOut();
+      if (!mounted) return;
+      setState(() {
+        _deletingAccount = false;
+        _accountStatus = 'Account deleted.';
+      });
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('Account deleted.'),
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+      popOrGo(context, '/');
+    } catch (e) {
+      if (!mounted) return;
+      final message = e is StateError
+          ? e.message
+          : 'Could not delete account: $e';
+      setState(() {
+        _deletingAccount = false;
+        _accountStatus = message;
+      });
+      messenger.showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red.shade700),
+      );
+    }
   }
 
   Future<void> _setAutoCalendarSync(bool enabled) async {
@@ -1074,7 +1183,7 @@ class _SettingsPageState extends State<SettingsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Only live device-level controls are surfaced here.',
+              'Only live device, privacy, and account controls are surfaced here.',
               style: TextStyle(color: Colors.white60, height: 1.4),
             ),
             const SizedBox(height: 16),
@@ -1297,6 +1406,70 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
                 for (final line in speechStatusLines) _statusLine(line),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _sectionCard(
+              title: 'Account & Privacy',
+              description:
+                  'Review the privacy policy, contact support, or remove your account when you no longer want Kemetic Calendar to keep account data.',
+              children: [
+                _primaryButton(
+                  onPressed: () =>
+                      _openExternalSupportTarget(_privacyPolicyUrl),
+                  child: const Text('Open privacy policy'),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFF3A3A3A)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: () =>
+                        _openExternalSupportTarget(_supportMailUrl),
+                    child: const Text('Contact support'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade200,
+                      side: BorderSide(color: Colors.red.shade300),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: _deletingAccount || !_hasSession
+                        ? null
+                        : _deleteAccount,
+                    child: Text(
+                      _deletingAccount
+                          ? 'Deleting account...'
+                          : 'Delete account',
+                    ),
+                  ),
+                ),
+                _statusLine(
+                  _hasSession
+                      ? (_accountStatus ??
+                            'Account deletion permanently removes your sign-in and account data.')
+                      : 'Sign in to manage or delete your account.',
+                ),
               ],
             ),
             const SizedBox(height: 16),

@@ -210,7 +210,7 @@ project = read_text("ios/Runner.xcodeproj/project.pbxproj")
 ios_bundle_ids = {
     match
     for match in re.findall(r"PRODUCT_BUNDLE_IDENTIFIER = ([^;]+);", project)
-    if ".RunnerTests" not in match
+    if ".RunnerTests" not in match and ".DailyReflectionWidgetExtension" not in match
 }
 if not ios_bundle_ids:
     errors.append("Could not find iOS app bundle identifier in Xcode project")
@@ -269,6 +269,29 @@ for usage_key in ("NSCalendarsUsageDescription", "NSPhotoLibraryUsageDescription
 app_icon_1024 = ROOT / "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png"
 if not app_icon_1024.exists():
     errors.append("iOS App Store icon is missing: ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png")
+
+privacy_manifest_path = ROOT / "ios/Runner/PrivacyInfo.xcprivacy"
+if not privacy_manifest_path.exists():
+    errors.append("iOS app privacy manifest is missing: ios/Runner/PrivacyInfo.xcprivacy")
+else:
+    privacy_manifest = load_plist("ios/Runner/PrivacyInfo.xcprivacy")
+    accessed_api_types = privacy_manifest.get("NSPrivacyAccessedAPITypes", [])
+    has_user_defaults_reason = any(
+        item.get("NSPrivacyAccessedAPIType") == "NSPrivacyAccessedAPICategoryUserDefaults"
+        and "CA92.1" in item.get("NSPrivacyAccessedAPITypeReasons", [])
+        for item in accessed_api_types
+        if isinstance(item, dict)
+    )
+    if not has_user_defaults_reason:
+        errors.append(
+            "ios/Runner/PrivacyInfo.xcprivacy must declare UserDefaults reason CA92.1"
+        )
+    if "PrivacyInfo.xcprivacy in Resources" not in project:
+        errors.append("iOS app privacy manifest is not included in Runner resources")
+
+for page_path in ("web/privacy.html", "web/support.html"):
+    if not (ROOT / page_path).exists():
+        errors.append(f"App Store-facing web page is missing: {page_path}")
 
 aasa_path = ROOT / "web/.well-known/apple-app-site-association"
 if not aasa_path.exists():

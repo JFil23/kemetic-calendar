@@ -5,7 +5,7 @@ import 'package:mobile/features/journal/journal_overlay.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
-  testWidgets('badge section stays anchored when the keyboard opens', (
+  testWidgets('badge section is hidden while the keyboard is open', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1.0;
@@ -23,33 +23,33 @@ void main() {
     final controller = JournalController(client);
 
     await tester.pumpWidget(
-      _JournalHarness(
-        controller: controller,
-        bottomInset: 0,
-      ),
+      _JournalHarness(controller: controller, bottomInset: 0),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
-    final before = tester.getTopLeft(find.text('Badges')).dy;
+    expect(find.text('Badges'), findsOneWidget);
 
     await tester.pumpWidget(
-      _JournalHarness(
-        controller: controller,
-        bottomInset: 320,
-      ),
+      _JournalHarness(controller: controller, bottomInset: 320),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
-    final after = tester.getTopLeft(find.text('Badges')).dy;
-    expect(after, closeTo(before, 0.1));
+    expect(find.text('Badges'), findsNothing);
+
+    await tester.pumpWidget(
+      _JournalHarness(controller: controller, bottomInset: 0),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Badges'), findsOneWidget);
   });
 }
 
 class _JournalHarness extends StatelessWidget {
-  const _JournalHarness({
-    required this.controller,
-    required this.bottomInset,
-  });
+  const _JournalHarness({required this.controller, required this.bottomInset});
 
   final JournalController controller;
   final double bottomInset;

@@ -13,10 +13,12 @@ void main() {
     );
     expect(node.body, contains('| Event | Modern Science |'));
     expect(node.body, contains('| Function | Purpose |'));
-    expect(node.body, contains('The Womb of Molecules'));
+    expect(node.body, contains('How Stardust Becomes Life'));
     expect(
       node.body,
-      contains('A being who could feel the rhythm and think about it.'),
+      contains(
+        'Earth did not receive life already formed. It received conditions.',
+      ),
     );
     expect(node.body, isNot(contains('•')));
     expect(RegExp(r'\n\d+\. ').hasMatch(node.body), isFalse);

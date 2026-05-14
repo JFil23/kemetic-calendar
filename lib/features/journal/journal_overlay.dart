@@ -594,7 +594,7 @@ class _JournalOverlayState extends State<JournalOverlay>
         if (isFullPage) {
           return Scaffold(
             backgroundColor: Colors.black,
-            resizeToAvoidBottomInset: false,
+            resizeToAvoidBottomInset: true,
             body: SafeArea(
               child: Container(
                 color: Colors.black,
@@ -832,23 +832,23 @@ class _JournalOverlayState extends State<JournalOverlay>
   }
 
   Widget _buildEditor() {
+    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Keep keyboard avoidance scoped to the editor itself so
-          // the badge tray stays anchored behind the keyboard.
           Expanded(child: _buildTextLayer()),
-          const SizedBox(height: 12),
-          // Badge area (replaces drawing canvas)
-          _buildBadgeArea(),
+          if (!keyboardVisible) ...[
+            const SizedBox(height: 12),
+            // Badge area (replaces drawing canvas)
+            _buildBadgeArea(),
+          ],
         ],
       ),
     );
   }
 
   Widget _buildTextLayer() {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final placeholderText = _journalPlaceholderText;
 
     if (FeatureFlags.hasRichText && widget.controller.currentDocument != null) {
@@ -888,7 +888,6 @@ class _JournalOverlayState extends State<JournalOverlay>
         border: InputBorder.none,
         contentPadding: EdgeInsets.zero,
       ),
-      scrollPadding: EdgeInsets.only(bottom: bottomInset + 32),
       keyboardType: TextInputType.multiline,
       textInputAction: TextInputAction.newline,
       scrollPhysics: const BouncingScrollPhysics(),

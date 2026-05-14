@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show DateUtils;
+import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
 import 'package:mobile/utils/detail_sanitizer.dart';
 import 'package:mobile/utils/event_cid_util.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
@@ -915,7 +916,15 @@ class ProfileRepo {
         final startLocal = e.startsAtUtc.toLocal();
         final endLocal = e.endsAtUtc?.toLocal();
 
-        final detail = cleanFlowDetail(e.detail);
+        final detail =
+            canonicalDawnHouseRiteDetailTextForEvent(
+              flowName: flow.name,
+              flowNotes: flow.notes,
+              title: e.title,
+              actionId: e.actionId,
+              behaviorPayload: e.behaviorPayload,
+            ) ??
+            cleanFlowDetail(e.detail);
         final location = e.location?.trim();
 
         return {

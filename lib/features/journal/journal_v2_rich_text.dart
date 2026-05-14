@@ -853,7 +853,6 @@ class RichTextEditorState extends State<RichTextEditor> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final showReadOnly = widget.readOnly || _badgeExpanded;
 
     if (!showReadOnly) {
@@ -891,19 +890,18 @@ class RichTextEditorState extends State<RichTextEditor> {
         if (showReadOnly) {
           return _buildReadOnlyView(constraints);
         }
-        return _buildEditableView(bottomInset);
+        return _buildEditableView();
       },
     );
   }
 
-  Widget _buildEditableView(double bottomInset) {
+  Widget _buildEditableView() {
     final placeholderText = widget.placeholderText?.trim();
     final showPlaceholder =
         placeholderText != null &&
         placeholderText.isNotEmpty &&
         _controller.text.trim().isEmpty &&
         !widget.readOnly;
-
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -917,7 +915,6 @@ class RichTextEditorState extends State<RichTextEditor> {
           keyboardType: TextInputType.multiline,
           textInputAction: TextInputAction.newline,
           scrollPhysics: const BouncingScrollPhysics(),
-          scrollPadding: EdgeInsets.only(bottom: bottomInset + 32),
           enableInteractiveSelection: !widget.readOnly,
           onTapAlwaysCalled: true,
           textAlignVertical: TextAlignVertical.top,

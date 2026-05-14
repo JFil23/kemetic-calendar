@@ -10,6 +10,22 @@
 /manifest.json
   Cache-Control: no-cache
 
+/privacy
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/privacy.html
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/support
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/support.html
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
 /version.json
   Cache-Control: no-store, must-revalidate
 

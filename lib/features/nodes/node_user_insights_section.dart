@@ -643,9 +643,6 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
                                   onChanged: _onTextChanged,
                                   maxLines: null,
                                   expands: true,
-                                  scrollPadding: EdgeInsets.only(
-                                    bottom: media.viewInsets.bottom + 48,
-                                  ),
                                   textAlignVertical: TextAlignVertical.top,
                                   style: const TextStyle(
                                     color: Colors.white,

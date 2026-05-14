@@ -31,7 +31,6 @@ import '../../main.dart' show routeObserver, Events;
 import '../sharing/share_flow_sheet.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
-import '../../widgets/inbox_icon_with_badge.dart';
 import '../ai_generation/ai_flow_generation_modal.dart';
 import '../ai_generation/ai_flow_import_payload.dart';
 import '../../services/ai_flow_generation_service.dart';
@@ -22212,6 +22211,47 @@ class _CalendarPageState extends State<CalendarPage>
     }());
   }
 
+  String? _canonicalDawnHouseRiteDetailForLoadedEvent({
+    required _Flow? flow,
+    required FlowEventRow event,
+  }) {
+    return canonicalDawnHouseRiteDetailTextForEvent(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      title: event.title,
+      actionId: event.actionId,
+      behaviorPayload: event.behaviorPayload,
+    );
+  }
+
+  void _repairDawnHouseRiteLoadedDetail({
+    required UserEventsRepo repo,
+    required FlowEventRow event,
+    required String canonicalDetail,
+    required Color? color,
+    required int? alertMinutes,
+  }) {
+    final id = event.id;
+    if (id == null || id.isEmpty) return;
+    final updatedDetail = _encodeDetailWithMeta(
+      canonicalDetail,
+      color: color,
+      alertMinutes: alertMinutes,
+    );
+    if (updatedDetail == null || updatedDetail == event.detail) return;
+
+    unawaited(() async {
+      try {
+        await repo.update(id: id, detail: updatedDetail);
+      } catch (e, st) {
+        if (kDebugMode) {
+          debugPrint('[dawnHouseRite] detail repair failed id=$id: $e');
+          debugPrint('$st');
+        }
+      }
+    }());
+  }
+
   Future<void> _loadFromDisk({
     String source = 'manual',
     bool preserveViewport = false,
@@ -22529,7 +22569,23 @@ class _CalendarPageState extends State<CalendarPage>
             }
 
             final meta = _decodeDetailMetadata(evt.detail);
-            final cleanedDetail = _cleanDetail(meta.detail);
+            final storedCleanDetail = _cleanDetail(meta.detail);
+            final canonicalDawnDetail =
+                _canonicalDawnHouseRiteDetailForLoadedEvent(
+                  flow: owningFlow,
+                  event: evt,
+                );
+            final cleanedDetail = canonicalDawnDetail ?? storedCleanDetail;
+            if (canonicalDawnDetail != null &&
+                canonicalDawnDetail != storedCleanDetail) {
+              _repairDawnHouseRiteLoadedDetail(
+                repo: repo,
+                event: evt,
+                canonicalDetail: canonicalDawnDetail,
+                color: meta.color,
+                alertMinutes: meta.alertMinutes,
+              );
+            }
 
             if (_isTombstoned(evt.clientEventId)) {
               continue;
@@ -22568,6 +22624,8 @@ class _CalendarPageState extends State<CalendarPage>
                   : null,
               manualColor: meta.color,
               alertOffsetMinutes: meta.alertMinutes,
+              actionId: evt.actionId,
+              behaviorPayload: evt.behaviorPayload,
             );
 
             final key = _kKey(kDate.kYear, kDate.kMonth, kDate.kDay);
@@ -37949,10 +38007,6 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
         elevation: 0.5,
         title: const Text('My Flows', style: TextStyle(color: Colors.white)),
         actions: [
-          InboxIconWithBadge(
-            onRefreshSync: () => setState(() {}),
-            onImportFlow: widget.onImportFlow,
-          ),
           IconButton(
             tooltip: 'New flow',
             icon: const Icon(Icons.add, color: _silver),

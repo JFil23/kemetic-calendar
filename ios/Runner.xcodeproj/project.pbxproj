@@ -22,6 +22,7 @@
 		988EE288BF00EA70B67680F8 /* libPods-RunnerTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3AC6CF0B66A789EE27696B23 /* libPods-RunnerTests.a */; };
 		B2A1D1E32C7E4B2F00C1F4A0 /* GentiumPlus-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B2A1D1E12C7E4B2F00C1F4A0 /* GentiumPlus-Regular.ttf */; };
 		B2A1D1E42C7E4B2F00C1F4A0 /* GentiumPlus-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B2A1D1E22C7E4B2F00C1F4A0 /* GentiumPlus-Bold.ttf */; };
+		B71A0A0D2F7C49D08C000001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B71A0A0D2F7C49D08C000000 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -91,6 +92,7 @@
 			A7B5BF25F13AB891C1338757 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 			B2A1D1E12C7E4B2F00C1F4A0 /* GentiumPlus-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GentiumPlus-Regular.ttf"; sourceTree = "<group>"; };
 			B2A1D1E22C7E4B2F00C1F4A0 /* GentiumPlus-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GentiumPlus-Bold.ttf"; sourceTree = "<group>"; };
+			B71A0A0D2F7C49D08C000000 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 			B576D2F02D1D8A2F0095A1E5 /* RunnerDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RunnerDebug.entitlements; sourceTree = "<group>"; };
 			B576D2F12D1D8A2F0095A1E5 /* RunnerRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RunnerRelease.entitlements; sourceTree = "<group>"; };
 			CABDFDE19750EACB3FDF4298 /* libPods-Runner.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Runner.a"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -208,6 +210,7 @@
 				97C146FD1CF9000F007C117D /* Assets.xcassets */,
 				97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */,
 				97C147021CF9000F007C117D /* Info.plist */,
+				B71A0A0D2F7C49D08C000000 /* PrivacyInfo.xcprivacy */,
 				B576D2F02D1D8A2F0095A1E5 /* RunnerDebug.entitlements */,
 				B576D2F12D1D8A2F0095A1E5 /* RunnerRelease.entitlements */,
 				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
@@ -374,6 +377,7 @@
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				B2A1D1E42C7E4B2F00C1F4A0 /* GentiumPlus-Bold.ttf in Resources */,
 				B2A1D1E32C7E4B2F00C1F4A0 /* GentiumPlus-Regular.ttf in Resources */,
+				B71A0A0D2F7C49D08C000001 /* PrivacyInfo.xcprivacy in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

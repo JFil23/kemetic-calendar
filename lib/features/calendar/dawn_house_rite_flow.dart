@@ -572,6 +572,137 @@ String dawnHouseRiteActionId(DawnHouseRiteDay day) {
   return 'dawn-house-rite-day-${day.dayNumber.toString().padLeft(2, '0')}';
 }
 
+DawnHouseRiteDay? dawnHouseRiteDayByNumber(int? dayNumber) {
+  if (dayNumber == null) return null;
+  for (final day in kDawnHouseRiteDays) {
+    if (day.dayNumber == dayNumber) return day;
+  }
+  return null;
+}
+
+DawnHouseRiteLens? dawnHouseRiteLensFromKey(String? key) {
+  final normalized = key?.trim().toLowerCase();
+  if (normalized == null || normalized.isEmpty) return null;
+  for (final lens in DawnHouseRiteLens.values) {
+    if (lens.key == normalized) return lens;
+  }
+  return null;
+}
+
+bool dawnHouseRiteDiscreetFromNotes(String? notes, {bool fallback = false}) {
+  if (notes == null || notes.isEmpty) return fallback;
+  for (final token in notes.split(';')) {
+    final trimmed = token.trim().toLowerCase();
+    if (trimmed == 'dawn_discreet=1' || trimmed == 'dawn_discreet=true') {
+      return true;
+    }
+    if (trimmed == 'dawn_discreet=0' || trimmed == 'dawn_discreet=false') {
+      return false;
+    }
+  }
+  return fallback;
+}
+
+DawnHouseRiteLens dawnHouseRiteLensFromNotes(
+  String? notes, {
+  DawnHouseRiteLens fallback = DawnHouseRiteLens.neutral,
+}) {
+  if (notes == null || notes.isEmpty) return fallback;
+  for (final token in notes.split(';')) {
+    final trimmed = token.trim();
+    if (!trimmed.startsWith('dawn_lens=')) continue;
+    return dawnHouseRiteLensFromKey(trimmed.substring('dawn_lens='.length)) ??
+        fallback;
+  }
+  return fallback;
+}
+
+bool isDawnHouseRiteFlowReference({
+  String? flowName,
+  String? flowNotes,
+  String? actionId,
+  Map<String, dynamic>? behaviorPayload,
+}) {
+  if (flowName?.trim().toLowerCase() == kDawnHouseRiteTitle.toLowerCase()) {
+    return true;
+  }
+  if ((flowNotes ?? '').toLowerCase().contains('maat=$kDawnHouseRiteFlowKey')) {
+    return true;
+  }
+  if ((actionId ?? '').trim().toLowerCase().startsWith(
+    'dawn-house-rite-day-',
+  )) {
+    return true;
+  }
+  final kind = behaviorPayload?['kind']?.toString().trim().toLowerCase();
+  if (kind == 'maat_dawn_house_rite_day') return true;
+  final flowKey = behaviorPayload?['flow_key']?.toString().trim().toLowerCase();
+  return flowKey == kDawnHouseRiteFlowKey;
+}
+
+DawnHouseRiteDay? dawnHouseRiteDayForEvent({
+  String? title,
+  String? actionId,
+  Map<String, dynamic>? behaviorPayload,
+}) {
+  int? parseDay(dynamic value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString().trim() ?? '');
+  }
+
+  final payloadDay = dawnHouseRiteDayByNumber(
+    parseDay(behaviorPayload?['day']),
+  );
+  if (payloadDay != null) return payloadDay;
+
+  final actionMatch = RegExp(
+    r'dawn-house-rite-day-(\d{1,2})',
+    caseSensitive: false,
+  ).firstMatch(actionId?.trim() ?? '');
+  final actionDay = dawnHouseRiteDayByNumber(parseDay(actionMatch?.group(1)));
+  if (actionDay != null) return actionDay;
+
+  final titleMatch = RegExp(
+    r'^\s*Day\s+(\d{1,2})\s*:',
+    caseSensitive: false,
+  ).firstMatch(title?.trim() ?? '');
+  return dawnHouseRiteDayByNumber(parseDay(titleMatch?.group(1)));
+}
+
+String? canonicalDawnHouseRiteDetailTextForEvent({
+  String? flowName,
+  String? flowNotes,
+  String? title,
+  String? actionId,
+  Map<String, dynamic>? behaviorPayload,
+}) {
+  if (!isDawnHouseRiteFlowReference(
+    flowName: flowName,
+    flowNotes: flowNotes,
+    actionId: actionId,
+    behaviorPayload: behaviorPayload,
+  )) {
+    return null;
+  }
+
+  final day = dawnHouseRiteDayForEvent(
+    title: title,
+    actionId: actionId,
+    behaviorPayload: behaviorPayload,
+  );
+  if (day == null) return null;
+
+  final rawDiscreet = behaviorPayload?['discreet_mode'];
+  final discreet = rawDiscreet is bool
+      ? rawDiscreet
+      : dawnHouseRiteDiscreetFromNotes(flowNotes);
+  final lens =
+      dawnHouseRiteLensFromKey(behaviorPayload?['lens']?.toString()) ??
+      dawnHouseRiteLensFromNotes(flowNotes);
+
+  return dawnHouseRiteDetailText(day, discreet: discreet, lens: lens);
+}
+
 Map<String, dynamic> dawnHouseRiteBehaviorPayload({
   required DawnHouseRiteDay day,
   required DawnHouseRiteOccurrenceSchedule schedule,
@@ -582,13 +713,7 @@ Map<String, dynamic> dawnHouseRiteBehaviorPayload({
     'kind': 'maat_dawn_house_rite_day',
     'flow_key': kDawnHouseRiteFlowKey,
     'day': day.dayNumber,
-    'section': day.section,
     'duration_minutes': kDawnHouseRiteDurationMinutes,
-    'completion_options': const <String>[
-      'observed',
-      'partly_observed',
-      'skipped',
-    ],
     'missed_event_rule': 'expire_quietly',
     'schedule': <String, dynamic>{
       'type': 'local_astronomical_dawn',
