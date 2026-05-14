@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/journal/journal_controller.dart';
 import 'package:mobile/features/journal/journal_overlay.dart';
+import 'package:mobile/features/journal/journal_v2_toolbar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
@@ -29,6 +30,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Badges'), findsOneWidget);
+    expect(find.byType(JournalV2Toolbar), findsOneWidget);
 
     await tester.pumpWidget(
       _JournalHarness(controller: controller, bottomInset: 320),
@@ -37,6 +39,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Badges'), findsNothing);
+    expect(find.byType(JournalV2Toolbar), findsNothing);
 
     await tester.pumpWidget(
       _JournalHarness(controller: controller, bottomInset: 0),
@@ -45,6 +48,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Badges'), findsOneWidget);
+    expect(find.byType(JournalV2Toolbar), findsOneWidget);
   });
 }
 

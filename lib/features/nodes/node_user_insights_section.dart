@@ -11,6 +11,7 @@ import '../../shared/glossy_text.dart';
 import '../../utils/kemetic_date_format.dart';
 import '../../widgets/kemetic_date_picker.dart';
 import '../../widgets/kemetic_keyboard.dart';
+import '../../widgets/keyboard_aware.dart';
 import '../../widgets/insight_link_text.dart';
 import 'kemetic_node_library.dart';
 import 'node_link_picker_sheet.dart';
@@ -567,11 +568,9 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final keyboardScope = KemeticKeyboardScope.maybeOf(context);
-    final customKeyboardVisible =
-        keyboardScope?.isCustomKeyboardVisible ?? false;
-    final outerBottomInset = customKeyboardVisible
-        ? 0.0
-        : media.viewInsets.bottom;
+    final outerBottomInset =
+        keyboardScope?.keyboardInset ?? media.viewInsets.bottom;
+    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
@@ -640,6 +639,7 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
                               Expanded(
                                 child: TextField(
                                   controller: _textCtrl,
+                                  scrollPadding: fieldScrollPadding,
                                   onChanged: _onTextChanged,
                                   maxLines: null,
                                   expands: true,

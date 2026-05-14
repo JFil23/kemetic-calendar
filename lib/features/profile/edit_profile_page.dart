@@ -8,6 +8,7 @@ import '../../core/navigation_fallback.dart';
 import '../../data/profile_avatar_glyphs.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
+import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
 import 'profile_glyph_avatar_composer.dart';
 
@@ -190,6 +191,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Widget build(BuildContext context) {
     final pageTitle = _isCreatingProfile ? 'Create Profile' : 'Edit Profile';
     final saveLabel = _isCreatingProfile ? 'Create' : 'Save';
+    final formPadding = addKeyboardBottomInset(
+      context,
+      const EdgeInsets.all(24),
+    );
+    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
 
     return PopScope(
       canPop: !widget.requireCompletion,
@@ -234,7 +240,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
               )
             : SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: formPadding,
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -379,6 +385,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       // Display Name
                       TextFormField(
                         controller: _displayNameController,
+                        scrollPadding: fieldScrollPadding,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           labelText: 'Display Name',
@@ -404,6 +411,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       // Handle
                       TextFormField(
                         controller: _handleController,
+                        scrollPadding: fieldScrollPadding,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           labelText: 'Handle',
@@ -462,6 +470,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       // Bio
                       TextFormField(
                         controller: _bioController,
+                        scrollPadding: fieldScrollPadding,
                         style: const TextStyle(color: Colors.white),
                         maxLines: 3,
                         maxLength: 160,
@@ -486,6 +495,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       // Location
                       TextFormField(
                         controller: _locationController,
+                        scrollPadding: fieldScrollPadding,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           labelText: 'Location (optional)',

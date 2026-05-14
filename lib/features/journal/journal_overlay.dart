@@ -582,6 +582,10 @@ class _JournalOverlayState extends State<JournalOverlay>
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
+        final showJournalToolbar =
+            _showToolbar &&
+            _activePane == _JournalPane.journal &&
+            !_keyboardVisible;
         if (kDebugMode) {
           print(
             '[JournalOverlay] layout size=${size.width}x${size.height} portrait=${widget.isPortrait}',
@@ -601,8 +605,7 @@ class _JournalOverlayState extends State<JournalOverlay>
                 child: Column(
                   children: [
                     _buildHeader(),
-                    if (_showToolbar && _activePane == _JournalPane.journal)
-                      _buildToolbar(),
+                    if (showJournalToolbar) _buildToolbar(),
                     Expanded(child: _buildContent()),
                   ],
                 ),
@@ -678,9 +681,7 @@ class _JournalOverlayState extends State<JournalOverlay>
                           children: [
                             _buildHeader(),
                             // Show the journal toolbar only in Journal mode
-                            if (_showToolbar &&
-                                _activePane == _JournalPane.journal)
-                              _buildToolbar(),
+                            if (showJournalToolbar) _buildToolbar(),
                             Expanded(child: _buildContent()),
                           ],
                         ),
@@ -833,8 +834,11 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   Widget _buildEditor() {
     final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    final editorPadding = keyboardVisible
+        ? const EdgeInsets.fromLTRB(16, 8, 16, 8)
+        : const EdgeInsets.all(16);
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: editorPadding,
       child: Column(
         children: [
           Expanded(child: _buildTextLayer()),

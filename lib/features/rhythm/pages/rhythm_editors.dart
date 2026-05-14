@@ -8,6 +8,7 @@ import 'package:mobile/services/session_resume_service.dart';
 import 'package:mobile/features/rhythm/rhythm_reminders.dart';
 import 'package:mobile/features/rhythm/rhythm_telemetry.dart';
 import 'package:mobile/features/rhythm/rhythm_user_messages.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 
 import '../data/rhythm_repo.dart';
 import '../theme/rhythm_theme.dart';
@@ -201,6 +202,12 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    final formPadding = addKeyboardBottomInset(
+      context,
+      const EdgeInsets.all(16),
+    );
+    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -223,7 +230,7 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: formPadding,
           child: Form(
             key: _formKey,
             child: Column(
@@ -231,6 +238,7 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
               children: [
                 TextFormField(
                   controller: _title,
+                  scrollPadding: fieldScrollPadding,
                   style: RhythmTheme.heading,
                   decoration: const InputDecoration(labelText: 'Item title'),
                   validator: (v) =>
@@ -239,6 +247,7 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _description,
+                  scrollPadding: fieldScrollPadding,
                   minLines: 2,
                   maxLines: 3,
                   decoration: const InputDecoration(labelText: 'Notes'),
@@ -466,6 +475,12 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    final formPadding = addKeyboardBottomInset(
+      context,
+      const EdgeInsets.all(16),
+    );
+    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -488,7 +503,7 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: formPadding,
           child: Form(
             key: _formKey,
             child: Column(
@@ -496,6 +511,7 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
               children: [
                 TextFormField(
                   controller: _title,
+                  scrollPadding: fieldScrollPadding,
                   style: RhythmTheme.heading,
                   decoration: const InputDecoration(labelText: 'Item name'),
                   validator: (v) =>
@@ -504,6 +520,7 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _description,
+                  scrollPadding: fieldScrollPadding,
                   minLines: 3,
                   maxLines: 4,
                   decoration: const InputDecoration(

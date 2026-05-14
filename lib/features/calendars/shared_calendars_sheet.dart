@@ -8,6 +8,7 @@ import '../../data/event_filing_engine.dart';
 import '../../data/shared_calendar_models.dart';
 import '../../data/shared_calendars_repo.dart';
 import '../../shared/glossy_text.dart';
+import '../../widgets/keyboard_aware.dart';
 
 typedef SharedCalendarAddEventCallback =
     Future<bool> Function(SharedCalendarSummary calendar);
@@ -945,6 +946,7 @@ class _CalendarEditorDialogState extends State<_CalendarEditorDialog> {
               TextField(
                 controller: _nameCtrl,
                 autofocus: true,
+                scrollPadding: keyboardAwareTextFieldScrollPadding(context),
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   labelText: 'Name',

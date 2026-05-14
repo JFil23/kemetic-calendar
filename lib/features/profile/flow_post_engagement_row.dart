@@ -13,6 +13,7 @@ import '../../data/flow_post_comment_model.dart';
 import '../../data/flow_post_model.dart';
 import '../../data/profile_repo.dart';
 import '../../widgets/kemetic_heart_icon.dart';
+import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
 
 class FlowPostEngagementRow extends StatefulWidget {
@@ -1034,7 +1035,6 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
 
   Widget _buildCommentComposer() {
     final replyTarget = _replyTarget;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1083,7 +1083,7 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
                 focusNode: _commentFocusNode,
                 maxLines: 3,
                 maxLength: 150,
-                scrollPadding: EdgeInsets.only(bottom: bottomInset + 32),
+                scrollPadding: keyboardAwareTextFieldScrollPadding(context),
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: replyTarget == null

@@ -41,6 +41,7 @@ import '../../data/decan_reflection_model.dart';
 import '../../data/journal_repo.dart';
 import '../../widgets/kemetic_day_info.dart';
 import '../../widgets/insight_link_text.dart';
+import '../../widgets/keyboard_aware.dart';
 import '../../widgets/pronounce_icon_button.dart';
 import '../../services/speech/speech_service.dart';
 import 'speech_resolver.dart';
@@ -250,6 +251,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
               TextField(
                 key: _fieldKey,
                 controller: _textCtrl,
+                scrollPadding: keyboardAwareTextFieldScrollPadding(context),
                 autofocus: false,
                 focusNode: _focusNode,
                 style: const TextStyle(color: Colors.white),
@@ -8603,10 +8605,24 @@ class _CalendarPageState extends State<CalendarPage>
                     }
                   }
 
+                  final keyboardInset = keyboardInsetOf(dialogCtx);
+                  final dialogMaxHeight = math.max(
+                    280.0,
+                    math.min(
+                      media.size.height * 0.66,
+                      media.size.height -
+                          keyboardInset -
+                          media.padding.top -
+                          48,
+                    ),
+                  );
+                  final fieldScrollPadding =
+                      keyboardAwareTextFieldScrollPadding(dialogCtx);
+
                   return AnimatedPadding(
                     duration: const Duration(milliseconds: 160),
                     curve: Curves.easeOut,
-                    padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+                    padding: EdgeInsets.only(bottom: keyboardInset),
                     child: Dialog(
                       backgroundColor: Colors.transparent,
                       insetPadding: const EdgeInsets.symmetric(
@@ -8616,7 +8632,7 @@ class _CalendarPageState extends State<CalendarPage>
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
                           maxWidth: 560,
-                          maxHeight: media.size.height * 0.66,
+                          maxHeight: dialogMaxHeight,
                         ),
                         child: Container(
                           decoration: BoxDecoration(
@@ -8681,6 +8697,7 @@ class _CalendarPageState extends State<CalendarPage>
                                   const SizedBox(height: 8),
                                   TextField(
                                     controller: controllerTitle,
+                                    scrollPadding: fieldScrollPadding,
                                     enabled: !isSaving,
                                     style: const TextStyle(color: Colors.white),
                                     decoration: _darkInput('Title'),
@@ -8688,6 +8705,7 @@ class _CalendarPageState extends State<CalendarPage>
                                   const SizedBox(height: 8),
                                   TextField(
                                     controller: controllerLocation,
+                                    scrollPadding: fieldScrollPadding,
                                     enabled: !isSaving,
                                     style: const TextStyle(color: Colors.white),
                                     decoration: _darkInput(
@@ -8698,6 +8716,7 @@ class _CalendarPageState extends State<CalendarPage>
                                   const SizedBox(height: 8),
                                   TextField(
                                     controller: controllerDetail,
+                                    scrollPadding: fieldScrollPadding,
                                     enabled: !isSaving,
                                     style: const TextStyle(color: Colors.white),
                                     maxLines: 3,
@@ -13705,15 +13724,25 @@ class _CalendarPageState extends State<CalendarPage>
         ),
         builder: (ctx) {
           final media = MediaQuery.of(ctx);
-          return FractionallySizedBox(
-            heightFactor: 0.85,
+          final keyboardInset = keyboardInsetOf(ctx);
+          final sheetHeight = keyboardInset > 0
+              ? math.min(
+                  media.size.height * 0.85,
+                  math.max(
+                    280.0,
+                    media.size.height - keyboardInset - media.padding.top - 12,
+                  ),
+                )
+              : media.size.height * 0.85;
+          return SizedBox(
+            height: sheetHeight,
             child: SafeArea(
               top: false,
               child: Padding(
                 padding: EdgeInsets.only(
                   left: 16,
                   right: 16,
-                  bottom: media.viewInsets.bottom + media.padding.bottom + 16,
+                  bottom: keyboardInset + media.padding.bottom + 16,
                   top: 12,
                 ),
                 child: StatefulBuilder(
@@ -13726,6 +13755,8 @@ class _CalendarPageState extends State<CalendarPage>
                     );
                     final canEditSelectedCalendar =
                         selectedCalendar?.canEdit ?? true;
+                    final fieldScrollPadding =
+                        keyboardAwareTextFieldScrollPadding(sheetCtx);
 
                     String dateLabel(DateTime d) =>
                         '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
@@ -13745,6 +13776,7 @@ class _CalendarPageState extends State<CalendarPage>
                           return TextFormField(
                             keyboardType: TextInputType.number,
                             initialValue: repeat.interval.toString(),
+                            scrollPadding: fieldScrollPadding,
                             decoration: const InputDecoration(
                               labelText: 'Every N days',
                               labelStyle: TextStyle(color: Colors.white70),
@@ -13806,6 +13838,7 @@ class _CalendarPageState extends State<CalendarPage>
                               repeat,
                               startLocal,
                             ).toList()..sort()).join(', '),
+                            scrollPadding: fieldScrollPadding,
                             decoration: const InputDecoration(
                               labelText: 'Day of month (1-31, comma-separated)',
                               labelStyle: TextStyle(color: Colors.white70),
@@ -13829,6 +13862,7 @@ class _CalendarPageState extends State<CalendarPage>
                           return TextFormField(
                             keyboardType: TextInputType.number,
                             initialValue: repeat.interval.toString(),
+                            scrollPadding: fieldScrollPadding,
                             decoration: const InputDecoration(
                               labelText: 'Every N decans',
                               labelStyle: TextStyle(color: Colors.white70),
@@ -13857,6 +13891,7 @@ class _CalendarPageState extends State<CalendarPage>
                               repeat,
                               startLocal,
                             ).toList()..sort()).join(', '),
+                            scrollPadding: fieldScrollPadding,
                             decoration: const InputDecoration(
                               labelText: 'Day of decan (1-10, comma-separated)',
                               labelStyle: TextStyle(color: Colors.white70),
@@ -13883,6 +13918,7 @@ class _CalendarPageState extends State<CalendarPage>
                               repeat,
                               startLocal,
                             ).toList()..sort()).join(', '),
+                            scrollPadding: fieldScrollPadding,
                             decoration: const InputDecoration(
                               labelText:
                                   'Day of Kemetic month (1-30, comma-separated)',
@@ -13948,6 +13984,7 @@ class _CalendarPageState extends State<CalendarPage>
                           const SizedBox(height: 8),
                           TextField(
                             controller: titleCtrl,
+                            scrollPadding: fieldScrollPadding,
                             decoration: const InputDecoration(
                               labelText: 'Title',
                               labelStyle: TextStyle(color: Colors.white70),
@@ -20121,8 +20158,25 @@ class _CalendarPageState extends State<CalendarPage>
                 );
               }
 
+              final keyboardInset = keyboardInsetOf(sheetCtx);
+              final sheetHeight = keyboardInset > 0
+                  ? math.min(
+                      media.size.height * 0.90,
+                      math.max(
+                        300.0,
+                        media.size.height -
+                            keyboardInset -
+                            media.padding.top -
+                            12,
+                      ),
+                    )
+                  : media.size.height * 0.90;
+              final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(
+                sheetCtx,
+              );
+
               return Container(
-                height: media.size.height * 0.90,
+                height: sheetHeight,
                 decoration: const BoxDecoration(
                   color: Color(0xFF000000), // ✅ True black background
                   borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -20132,7 +20186,7 @@ class _CalendarPageState extends State<CalendarPage>
                     left: 16,
                     right: 16,
                     top: 10,
-                    bottom: media.viewInsets.bottom + 12,
+                    bottom: keyboardInset + 12,
                   ),
                   child: DefaultTextStyle(
                     style: const TextStyle(color: Colors.white),
@@ -20704,6 +20758,7 @@ class _CalendarPageState extends State<CalendarPage>
                             // Title
                             TextField(
                               controller: controllerTitle,
+                              scrollPadding: fieldScrollPadding,
                               style: const TextStyle(color: Colors.white),
                               decoration: _darkInput('Title'),
                             ),
@@ -20712,6 +20767,7 @@ class _CalendarPageState extends State<CalendarPage>
                             // Location
                             TextField(
                               controller: controllerLocation,
+                              scrollPadding: fieldScrollPadding,
                               style: const TextStyle(color: Colors.white),
                               decoration: _darkInput(
                                 'Location or Video Call',
@@ -20723,6 +20779,7 @@ class _CalendarPageState extends State<CalendarPage>
                             // Details
                             TextField(
                               controller: controllerDetail,
+                              scrollPadding: fieldScrollPadding,
                               style: const TextStyle(color: Colors.white),
                               maxLines: 3,
                               decoration: _darkInput('Details (optional)'),
@@ -32842,57 +32899,82 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (sheetCtx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 12,
-            bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 12,
+        final media = MediaQuery.of(sheetCtx);
+        final keyboardInset = keyboardInsetOf(sheetCtx);
+        final sheetMaxHeight = math.max(
+          280.0,
+          math.min(
+            media.size.height * 0.72,
+            media.size.height - keyboardInset - media.padding.top - 12,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // drag handle
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const GlossyText(
-                text: 'Flow overview',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                gradient: silverGloss,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _overviewCtrl,
-                style: const TextStyle(color: Colors.white),
-                maxLines: 10,
-                decoration: _darkInput(
-                  'Describe this flow',
-                  hint: 'What is this flow about? Any tips, links, or context?',
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: silver, width: 1.25),
+        );
+        return AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.only(bottom: keyboardInset),
+          child: SafeArea(
+            top: false,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: sheetMaxHeight),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // drag handle
+                    Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      onPressed: () => Navigator.pop(sheetCtx),
-                      child: const Text('Close'),
                     ),
-                  ),
-                ],
+                    const GlossyText(
+                      text: 'Flow overview',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      gradient: silverGloss,
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _overviewCtrl,
+                      scrollPadding: keyboardAwareTextFieldScrollPadding(
+                        sheetCtx,
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                      maxLines: 10,
+                      decoration: _darkInput(
+                        'Describe this flow',
+                        hint:
+                            'What is this flow about? Any tips, links, or context?',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(
+                                color: silver,
+                                width: 1.25,
+                              ),
+                            ),
+                            onPressed: () => Navigator.pop(sheetCtx),
+                            child: const Text('Close'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
         );
       },
@@ -33094,6 +33176,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   Widget _notesEditorsPanel() {
     List<_EditorGroup> groups = _buildEditorGroups();
+    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
     // Fallback: if selection/range isn't ready but drafts exist, render from drafts.
     if (groups.isEmpty) {
       if (_draftsByDay.isNotEmpty) {
@@ -33149,12 +33232,14 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                         const SizedBox(height: 8),
                         TextField(
                           controller: draft.titleCtrl,
+                          scrollPadding: fieldScrollPadding,
                           style: const TextStyle(color: Colors.white),
                           decoration: _darkInput('Title'),
                         ),
                         const SizedBox(height: 8),
                         TextField(
                           controller: draft.locationCtrl,
+                          scrollPadding: fieldScrollPadding,
                           style: const TextStyle(color: Colors.white),
                           decoration: _darkInput(
                             'Location or Video Call',
@@ -33164,6 +33249,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                         const SizedBox(height: 8),
                         TextField(
                           controller: draft.detailCtrl,
+                          scrollPadding: fieldScrollPadding,
                           style: const TextStyle(color: Colors.white),
                           maxLines: 3,
                           decoration: _darkInput('Details (optional)'),
@@ -33546,116 +33632,142 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
         return StatefulBuilder(
           builder: (sheetCtx, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 12,
-                bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 12,
+            final media = MediaQuery.of(sheetCtx);
+            final keyboardInset = keyboardInsetOf(sheetCtx);
+            final sheetMaxHeight = math.max(
+              280.0,
+              math.min(
+                media.size.height * 0.72,
+                media.size.height - keyboardInset - media.padding.top - 12,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const GlossyText(
-                    text: 'Find / Edit a flow',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    gradient: silverGloss,
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: searchCtrl,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _darkInput(
-                      'Search flows',
-                      hint: 'Type a name…',
-                    ),
-                    onChanged: (_) => setSheetState(applyFilter),
-                  ),
-                  const SizedBox(height: 10),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 360),
-                    child: filtered.isEmpty
-                        ? const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 24.0),
-                            child: Text(
-                              'No flows match',
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                          )
-                        : ListView.separated(
-                            shrinkWrap: true,
-                            itemCount: filtered.length,
-                            separatorBuilder: (_, __) => const Divider(
-                              height: 12,
-                              color: Colors.white10,
-                            ),
-                            itemBuilder: (_, i) {
-                              final f = filtered[i];
-                              return ListTile(
-                                dense: true,
-                                onTap: () {
-                                  Navigator.pop(sheetCtx);
-                                  _showFlowPreview(f);
-                                },
-                                leading: Container(
-                                  width: 18,
-                                  height: 18,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: _glossFromColor(f.color),
-                                  ),
-                                ),
-                                title: Text(
-                                  f.name,
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                                subtitle: Text(
-                                  [
-                                    f.active ? 'Active' : 'Inactive',
-                                    if (f.start != null || f.end != null)
-                                      '${_fmtGregorian(f.start)} → ${_fmtGregorian(f.end)}',
-                                    notesDecode(f.notes).kemetic
-                                        ? 'Kemetic'
-                                        : 'Gregorian',
-                                  ].join(' • '),
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                trailing: const Icon(
-                                  Icons.chevron_right,
-                                  color: _silver,
-                                ),
-                              );
-                            },
+            );
+            return AnimatedPadding(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.only(bottom: keyboardInset),
+              child: SafeArea(
+                top: false,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: sheetMaxHeight),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(2),
                           ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: silver, width: 1.25),
-                          ),
-                          onPressed: () => Navigator.pop(sheetCtx),
-                          child: const Text('Close'),
                         ),
-                      ),
-                    ],
+                        const GlossyText(
+                          text: 'Find / Edit a flow',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          gradient: silverGloss,
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: searchCtrl,
+                          scrollPadding: keyboardAwareTextFieldScrollPadding(
+                            sheetCtx,
+                          ),
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _darkInput(
+                            'Search flows',
+                            hint: 'Type a name…',
+                          ),
+                          onChanged: (_) => setSheetState(applyFilter),
+                        ),
+                        const SizedBox(height: 10),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 360),
+                          child: filtered.isEmpty
+                              ? const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 24.0),
+                                  child: Text(
+                                    'No flows match',
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                )
+                              : ListView.separated(
+                                  shrinkWrap: true,
+                                  itemCount: filtered.length,
+                                  separatorBuilder: (_, __) => const Divider(
+                                    height: 12,
+                                    color: Colors.white10,
+                                  ),
+                                  itemBuilder: (_, i) {
+                                    final f = filtered[i];
+                                    return ListTile(
+                                      dense: true,
+                                      onTap: () {
+                                        Navigator.pop(sheetCtx);
+                                        _showFlowPreview(f);
+                                      },
+                                      leading: Container(
+                                        width: 18,
+                                        height: 18,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: _glossFromColor(f.color),
+                                        ),
+                                      ),
+                                      title: Text(
+                                        f.name,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        [
+                                          f.active ? 'Active' : 'Inactive',
+                                          if (f.start != null || f.end != null)
+                                            '${_fmtGregorian(f.start)} → ${_fmtGregorian(f.end)}',
+                                          notesDecode(f.notes).kemetic
+                                              ? 'Kemetic'
+                                              : 'Gregorian',
+                                        ].join(' • '),
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      trailing: const Icon(
+                                        Icons.chevron_right,
+                                        color: _silver,
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  side: const BorderSide(
+                                    color: silver,
+                                    width: 1.25,
+                                  ),
+                                ),
+                                onPressed: () => Navigator.pop(sheetCtx),
+                                child: const Text('Close'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ],
+                ),
               ),
             );
           },
@@ -35359,6 +35471,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         ? null
         : _calendarPageState?._calendarSummariesById[selectedCalendarId];
     final canEditSelectedCalendar = _canEditCalendar(selectedCalendarId);
+    final bodyPadding = addKeyboardBottomInset(
+      context,
+      const EdgeInsets.fromLTRB(16, 16, 16, 24),
+    );
+    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
 
     return Scaffold(
       backgroundColor: _bg,
@@ -35425,13 +35542,14 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        padding: bodyPadding,
         child: ListView(
           children: [
             const Text('Name', style: TextStyle(color: _silver, fontSize: 12)),
             const SizedBox(height: 6),
             TextField(
               controller: _nameCtrl,
+              scrollPadding: fieldScrollPadding,
               style: const TextStyle(color: Colors.white),
               decoration: _darkInput('Flow name'),
             ),
@@ -35443,6 +35561,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
             const SizedBox(height: 6),
             TextField(
               controller: _overviewCtrl,
+              scrollPadding: fieldScrollPadding,
               style: const TextStyle(color: Colors.white),
               keyboardType: TextInputType.multiline,
               textInputAction: TextInputAction.newline,

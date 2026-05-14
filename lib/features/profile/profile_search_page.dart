@@ -8,6 +8,7 @@ import 'package:mobile/shared/glossy_text.dart';
 import '../../core/navigation_fallback.dart';
 import '../../data/profile_repo.dart';
 import '../../features/inbox/conversation_user.dart';
+import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
 
 class ProfileSearchPage extends StatefulWidget {
@@ -105,6 +106,12 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bodyPadding = addKeyboardBottomInset(
+      context,
+      const EdgeInsets.all(20),
+    );
+    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
       appBar: AppBar(
@@ -124,11 +131,11 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: bodyPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSearchField(),
+            _buildSearchField(scrollPadding: fieldScrollPadding),
             const SizedBox(height: 20),
             if (_searching)
               const Center(
@@ -148,10 +155,11 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
     );
   }
 
-  Widget _buildSearchField() {
+  Widget _buildSearchField({required EdgeInsets scrollPadding}) {
     return TextField(
       controller: _controller,
       autofocus: true,
+      scrollPadding: scrollPadding,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: widget.hintText,

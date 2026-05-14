@@ -18,6 +18,7 @@ import '../../services/restoration_coordinator.dart';
 import '../../services/session_resume_service.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/kemetic_heart_icon.dart';
+import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
 
 class InboxConversationPage extends StatefulWidget {
@@ -650,7 +651,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
   }
 
   Widget _buildComposer() {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final bottomInset = keyboardInsetOf(context);
 
     return AnimatedPadding(
       duration: const Duration(milliseconds: 150),
@@ -670,6 +671,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                 ),
                 child: TextField(
                   controller: _messageController,
+                  scrollPadding: keyboardAwareTextFieldScrollPadding(context),
                   style: const TextStyle(color: Colors.white),
                   maxLines: 4,
                   minLines: 1,

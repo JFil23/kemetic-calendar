@@ -26,6 +26,7 @@ import 'package:mobile/services/daily_reflection_widget_bridge.dart'
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/services/session_resume_service.dart';
 
@@ -1700,6 +1701,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
           title: const Text('Edit note', style: TextStyle(color: Colors.white)),
           content: TextField(
             controller: controller,
+            scrollPadding: keyboardAwareTextFieldScrollPadding(context),
             maxLines: 4,
             minLines: 2,
             autofocus: true,
@@ -1955,6 +1957,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       width: width,
       child: TextField(
         controller: controller,
+        scrollPadding: keyboardAwareTextFieldScrollPadding(context),
         style: RhythmTheme.subheading,
         decoration: InputDecoration(
           hintText: hintText,
@@ -2529,6 +2532,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                       children: [
                         TextField(
                           controller: _nutritionSourceController,
+                          scrollPadding: keyboardAwareTextFieldScrollPadding(
+                            context,
+                          ),
                           style: RhythmTheme.subheading,
                           decoration: InputDecoration(
                             labelText: 'Source',
@@ -2553,6 +2559,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                         const SizedBox(height: 8),
                         TextField(
                           controller: _nutritionNutrientController,
+                          scrollPadding: keyboardAwareTextFieldScrollPadding(
+                            context,
+                          ),
                           style: RhythmTheme.subheading,
                           decoration: InputDecoration(
                             labelText: 'Nutrient (optional)',
@@ -2577,6 +2586,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                         const SizedBox(height: 8),
                         TextField(
                           controller: _nutritionPurposeController,
+                          scrollPadding: keyboardAwareTextFieldScrollPadding(
+                            context,
+                          ),
                           style: RhythmTheme.subheading,
                           decoration: InputDecoration(
                             labelText: 'Purpose (optional)',
@@ -2918,6 +2930,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             children: [
               TextField(
                 controller: _noteInputController,
+                scrollPadding: keyboardAwareTextFieldScrollPadding(context),
                 minLines: 2,
                 maxLines: 4,
                 style: RhythmTheme.subheading,
@@ -3154,6 +3167,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
         final progress = _progress();
         final plannerAction = _todayPlannerAction();
+        final listBottomPadding = 32 + keyboardInsetOf(context);
 
         final plannerLeadSections = <Widget>[
           RhythmSectionCard(
@@ -3325,6 +3339,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
               const SizedBox(height: 10),
               TextField(
                 controller: _commitmentInputController,
+                scrollPadding: keyboardAwareTextFieldScrollPadding(context),
                 style: RhythmTheme.subheading,
                 decoration: InputDecoration(
                   hintText: 'Type a commitment, then press return or tap Add',
@@ -3462,7 +3477,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                   ),
                   SliverPadding(
                     key: todoCenterKey,
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    padding: EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding),
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
                         todoSection,
@@ -3474,7 +3489,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                 ],
               )
             : ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                padding: EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding),
                 children: plannerChildren,
               );
 

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart'; // setEquals
 import 'package:uuid/uuid.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 
 import '../../core/kemetic_converter.dart';
 import '../../data/nutrition_repo.dart';
@@ -872,6 +873,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
           controller: controller, // ✅ Use controller if present
           initialValue: controller == null ? initial : null,
           focusNode: node,
+          scrollPadding: keyboardAwareTextFieldScrollPadding(cellCtx),
           style: _cellStyle.copyWith(fontSize: _hdrFontSize),
           maxLines: lines,
           expands: focused, // scrolls inside when focused

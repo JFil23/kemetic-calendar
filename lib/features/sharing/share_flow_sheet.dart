@@ -1,14 +1,17 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'dart:async';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
 import '../../data/profile_repo.dart';
 import '../inbox/conversation_user.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
 
 class ShareFlowSheet extends StatefulWidget {
@@ -84,143 +87,161 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.9,
-      decoration: const BoxDecoration(
-        color: Color(0xFF000000),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: KemeticGold.icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _sheetTitle,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        widget.flowTitle,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
-                          fontSize: 14,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed:
-                      ((_isFlowShare || _isEventShare) &&
-                              _recipients.isEmpty) ||
-                          _sending
-                      ? null
-                      : _sendShares,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: KemeticGold.base,
-                    foregroundColor: Colors.black,
-                    disabledBackgroundColor: Colors.grey.shade800,
-                    disabledForegroundColor: Colors.grey.shade600,
-                  ),
-                  child: _sending
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.black,
-                            ),
-                          ),
-                        )
-                      : Text(_sendLabel),
-                ),
-              ],
-            ),
-          ),
+    final media = MediaQuery.of(context);
+    final keyboardInset = keyboardInsetOf(context);
+    final closedHeight = media.size.height * 0.9;
+    final openMaxHeight = math.max(
+      280.0,
+      media.size.height - keyboardInset - media.padding.top - 12,
+    );
+    final sheetHeight = keyboardInset > 0
+        ? math.min(closedHeight, openMaxHeight)
+        : closedHeight;
+    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
 
-          const Divider(color: Color(0xFF1A1A1A), height: 1),
-
-          Expanded(
-            child: SingleChildScrollView(
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: Container(
+        height: sheetHeight,
+        decoration: const BoxDecoration(
+          color: Color(0xFF000000),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Header
+            Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  if (_isEventShare) ...[
-                    _buildEventModeInfo(),
-                    const SizedBox(height: 16),
-                  ],
-                  // Search field
-                  _buildSearchField(),
-
-                  if (_searchResults.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _buildSearchResults(),
-                  ] else if (_showNoUserResults) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      _isEventShare
-                          ? 'No app users found for "$_searchQuery".'
-                          : 'No users found for "$_searchQuery". You can still press Enter to add an email or phone number.',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 13,
-                      ),
+                  IconButton(
+                    icon: KemeticGold.icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _sheetTitle,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          widget.flowTitle,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
-                  ],
-
-                  const SizedBox(height: 24),
-
-                  if (_isEventShare) ...[
-                    _buildExistingInviteesSection(),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // Selected recipients
-                  if (_recipients.isNotEmpty) ...[
-                    Text(
-                      _isEventShare
-                          ? 'New Invitees (${_recipients.length})'
-                          : 'Recipients (${_recipients.length})',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  ),
+                  ElevatedButton(
+                    onPressed:
+                        ((_isFlowShare || _isEventShare) &&
+                                _recipients.isEmpty) ||
+                            _sending
+                        ? null
+                        : _sendShares,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: KemeticGold.base,
+                      foregroundColor: Colors.black,
+                      disabledBackgroundColor: Colors.grey.shade800,
+                      disabledForegroundColor: Colors.grey.shade600,
                     ),
-                    const SizedBox(height: 12),
-                    ..._recipients.map((r) => _buildRecipientChip(r)),
-                    const SizedBox(height: 24),
-                  ],
+                    child: _sending
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.black,
+                              ),
+                            ),
+                          )
+                        : Text(_sendLabel),
+                  ),
                 ],
               ),
             ),
-          ),
-        ],
+
+            const Divider(color: Color(0xFF1A1A1A), height: 1),
+
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_isEventShare) ...[
+                      _buildEventModeInfo(),
+                      const SizedBox(height: 16),
+                    ],
+                    // Search field
+                    _buildSearchField(scrollPadding: fieldScrollPadding),
+
+                    if (_searchResults.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      _buildSearchResults(),
+                    ] else if (_showNoUserResults) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        _isEventShare
+                            ? 'No app users found for "$_searchQuery".'
+                            : 'No users found for "$_searchQuery". You can still press Enter to add an email or phone number.',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 24),
+
+                    if (_isEventShare) ...[
+                      _buildExistingInviteesSection(),
+                      const SizedBox(height: 24),
+                    ],
+
+                    // Selected recipients
+                    if (_recipients.isNotEmpty) ...[
+                      Text(
+                        _isEventShare
+                            ? 'New Invitees (${_recipients.length})'
+                            : 'Recipients (${_recipients.length})',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ..._recipients.map((r) => _buildRecipientChip(r)),
+                      const SizedBox(height: 24),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSearchField() {
+  Widget _buildSearchField({required EdgeInsets scrollPadding}) {
     return TextField(
       controller: _searchController,
+      scrollPadding: scrollPadding,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: _isEventShare
