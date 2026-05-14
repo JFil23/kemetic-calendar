@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -16,6 +18,19 @@ import '../../widgets/insight_link_text.dart';
 import 'kemetic_node_library.dart';
 import 'node_link_picker_sheet.dart';
 import 'kemetic_node_model.dart';
+
+@visibleForTesting
+double insightEntryEditorSheetHeight({
+  required MediaQueryData media,
+  required double keyboardInset,
+}) {
+  if (keyboardInset <= 0) {
+    return media.size.height * 0.82;
+  }
+  final keyboardSafeHeight =
+      media.size.height - keyboardInset - media.padding.top - 8;
+  return keyboardSafeHeight.clamp(180.0, media.size.height * 0.96).toDouble();
+}
 
 class NodeUserInsightsSection extends StatefulWidget {
   final KemeticNode node;
@@ -365,6 +380,7 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
   final _entryRepo = InsightEntryRepo(Supabase.instance.client);
   final _linkRepo = InsightLinkRepo();
   final _textCtrl = TextEditingController();
+  final _textScrollCtrl = ScrollController();
 
   List<InsightLink> _links = const [];
   DateTime _entryDate = DateTime.now();
@@ -386,6 +402,7 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
   @override
   void dispose() {
     _textCtrl.dispose();
+    _textScrollCtrl.dispose();
     super.dispose();
   }
 
@@ -570,15 +587,21 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
     final keyboardScope = KemeticKeyboardScope.maybeOf(context);
     final outerBottomInset =
         keyboardScope?.keyboardInset ?? media.viewInsets.bottom;
-    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
+    final sheetHeight = insightEntryEditorSheetHeight(
+      media: media,
+      keyboardInset: outerBottomInset,
+    );
+    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       padding: EdgeInsets.only(bottom: outerBottomInset),
       child: SafeArea(
         top: false,
-        child: FractionallySizedBox(
-          heightFactor: 0.82,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          height: math.max(180.0, sheetHeight),
           child: Padding(
             padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + media.padding.bottom),
             child: _loading
@@ -639,6 +662,7 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
                               Expanded(
                                 child: TextField(
                                   controller: _textCtrl,
+                                  scrollController: _textScrollCtrl,
                                   scrollPadding: fieldScrollPadding,
                                   onChanged: _onTextChanged,
                                   maxLines: null,

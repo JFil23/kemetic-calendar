@@ -671,7 +671,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                 ),
                 child: TextField(
                   controller: _messageController,
-                  scrollPadding: keyboardAwareTextFieldScrollPadding(context),
+                  scrollPadding: keyboardManagedTextFieldScrollPadding,
                   style: const TextStyle(color: Colors.white),
                   maxLines: 4,
                   minLines: 1,

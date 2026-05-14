@@ -74,6 +74,9 @@ void main() {
     await tester.tap(find.byType(TextField));
     await tester.pump();
 
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.scrollPadding.bottom, 356);
+
     final text = List<String>.generate(
       40,
       (index) => 'Journal line ${index + 1}',

@@ -443,12 +443,6 @@ void main() {
           'lib/features/rhythm/pages/commitment_tracker_page.dart': [
             "popOrGo(context, '/rhythm/today')",
           ],
-          'lib/features/rhythm/pages/my_cycle_page.dart': [
-            "popOrGo(context, '/rhythm/today')",
-          ],
-          'lib/features/rhythm/pages/rhythm_editors.dart': [
-            "popOrGo(context, '/rhythm/mycycle')",
-          ],
           'lib/features/inbox/shared_flow_details_page.dart': [
             'popOrGo(context, widget.fallbackLocation)',
           ],

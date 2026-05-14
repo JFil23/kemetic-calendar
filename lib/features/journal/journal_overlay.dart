@@ -25,6 +25,7 @@ import '../../data/insight_link_model.dart';
 import '../../data/insight_link_repo.dart';
 import '../../data/insight_link_utils.dart';
 import '../../widgets/insight_link_text.dart';
+import '../../widgets/keyboard_aware.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/node_link_picker_sheet.dart';
 
@@ -882,6 +883,10 @@ class _JournalOverlayState extends State<JournalOverlay>
       controller: _textController,
       focusNode: _focusNode,
       scrollController: _scrollController,
+      scrollPadding: keyboardAwareTextFieldScrollPadding(
+        context,
+        clearance: 56,
+      ),
       maxLines: null,
       expands: true,
       textAlignVertical: TextAlignVertical.top,

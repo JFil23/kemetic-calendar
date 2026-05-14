@@ -59,8 +59,6 @@ import 'features/profile/profile_page.dart';
 import 'features/profile/profile_search_page.dart';
 import 'features/reflections/decan_reflection_archive_page.dart';
 import 'features/rhythm/pages/commitment_tracker_page.dart';
-import 'features/rhythm/pages/my_cycle_page.dart';
-import 'features/rhythm/pages/rhythm_editors.dart';
 import 'features/rhythm/pages/todays_alignment_page.dart';
 import 'features/settings/settings_page.dart';
 import 'features/settings/settings_prefs.dart';
@@ -540,7 +538,10 @@ bool _isContinuityRouteLocation(String location) {
       path.startsWith('/nodes/') ||
       path.startsWith('/reflections/') ||
       path.startsWith('/share/') ||
-      path.startsWith('/rhythm/');
+      path == '/rhythm/today' ||
+      path == '/rhythm/todo' ||
+      path == '/rhythm/tracker' ||
+      path.startsWith('/rhythm/decan/');
 }
 
 String? _redirectExternalAppLink(Uri uri) {
@@ -558,6 +559,14 @@ String? _redirectExternalAppLink(Uri uri) {
   return null;
 }
 
+String? _redirectRetiredRhythmRoute(Uri uri) {
+  final path = uri.path;
+  if (path == '/rhythm/mycycle' || path.startsWith('/rhythm/editor/')) {
+    return '/rhythm/today';
+  }
+  return null;
+}
+
 final _router = GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: _resolveInitialLocation(),
@@ -567,7 +576,9 @@ final _router = GoRouter(
     _floatingMenuRouteObserver,
     TelemetryRouteObserver(),
   ],
-  redirect: (context, state) => _redirectExternalAppLink(state.uri),
+  redirect: (context, state) =>
+      _redirectRetiredRhythmRoute(state.uri) ??
+      _redirectExternalAppLink(state.uri),
   routes: [
     GoRoute(path: '/', builder: (context, state) => const AuthGate()),
     GoRoute(
@@ -820,13 +831,6 @@ final _router = GoRouter(
       },
     ),
     GoRoute(
-      path: '/rhythm/mycycle',
-      builder: (context, state) => SessionTrackedRoute(
-        location: state.uri.toString(),
-        child: const MyCyclePage(),
-      ),
-    ),
-    GoRoute(
       path: '/rhythm/today',
       builder: (context, state) {
         final launchIntent =
@@ -872,49 +876,6 @@ final _router = GoRouter(
               : DecanInfoPage(dayKey: dayKey, info: info),
         );
       },
-    ),
-    GoRoute(
-      path: '/rhythm/editor/timed',
-      builder: (context, state) {
-        final resume = state.extra is RhythmEditorResumePayload
-            ? state.extra as RhythmEditorResumePayload
-            : null;
-        return SessionTrackedRoute(
-          location: state.uri.toString(),
-          child: TimedRhythmEditorPage(
-            initial: resume?.draft,
-            categoryDisplay:
-                resume?.category ??
-                state.uri.queryParameters['category'] ??
-                'Rhythm of Day',
-          ),
-        );
-      },
-    ),
-    GoRoute(
-      path: '/rhythm/editor/untimed',
-      builder: (context, state) {
-        final resume = state.extra is RhythmEditorResumePayload
-            ? state.extra as RhythmEditorResumePayload
-            : null;
-        return SessionTrackedRoute(
-          location: state.uri.toString(),
-          child: UntimedRhythmEditorPage(
-            initial: resume?.draft,
-            category:
-                resume?.category ??
-                state.uri.queryParameters['category'] ??
-                'Custom',
-          ),
-        );
-      },
-    ),
-    GoRoute(
-      path: '/rhythm/editor/custom',
-      builder: (context, state) => SessionTrackedRoute(
-        location: state.uri.toString(),
-        child: const CustomRhythmEditorPage(),
-      ),
     ),
   ],
 );

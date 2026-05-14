@@ -35,6 +35,28 @@ class KemeticKeyboardScope extends InheritedWidget {
   }
 }
 
+class KemeticKeyboardRevealScope extends InheritedWidget {
+  final bool enabled;
+
+  const KemeticKeyboardRevealScope({
+    super.key,
+    required super.child,
+    required this.enabled,
+  });
+
+  static bool isEnabledFor(BuildContext context) {
+    final element = context
+        .getElementForInheritedWidgetOfExactType<KemeticKeyboardRevealScope>();
+    final scope = element?.widget as KemeticKeyboardRevealScope?;
+    return scope?.enabled ?? true;
+  }
+
+  @override
+  bool updateShouldNotify(covariant KemeticKeyboardRevealScope oldWidget) {
+    return enabled != oldWidget.enabled;
+  }
+}
+
 /// ChangeNotifier that tracks the currently focused editable field and whether
 /// the Medu Neter keyboard is open.
 class KemeticKeyboardController extends ChangeNotifier {
@@ -421,6 +443,9 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
     if (!mounted) return;
     final target = _controller.editable ?? _controller.lastEditable;
     if (!_controller._isUsable(target)) return;
+    final editable = target;
+    if (editable == null) return;
+    if (!KemeticKeyboardRevealScope.isEnabledFor(editable.context)) return;
 
     final media = MediaQuery.maybeOf(context);
     if (media == null) return;
@@ -430,7 +455,6 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
         : media.viewInsets.bottom;
     if (keyboardInset <= 0) return;
 
-    final editable = target!;
     final selection = editable.widget.controller.selection;
     final textLength = editable.widget.controller.text.length;
     final extentPosition = selection.isValid

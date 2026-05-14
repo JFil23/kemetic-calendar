@@ -97,7 +97,7 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
     final sheetHeight = keyboardInset > 0
         ? math.min(closedHeight, openMaxHeight)
         : closedHeight;
-    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
+    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),

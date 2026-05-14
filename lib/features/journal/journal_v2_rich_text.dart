@@ -9,6 +9,7 @@ import '../../data/insight_link_model.dart';
 import '../../data/insight_link_utils.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../widgets/insight_link_text.dart';
+import '../../widgets/keyboard_aware.dart';
 import 'journal_v2_document_model.dart';
 import 'journal_event_badge.dart';
 
@@ -911,6 +912,10 @@ class RichTextEditorState extends State<RichTextEditor> {
           maxLines: null,
           expands: true,
           scrollController: _textScrollController,
+          scrollPadding: keyboardAwareTextFieldScrollPadding(
+            context,
+            clearance: 56,
+          ),
           readOnly: widget.readOnly,
           keyboardType: TextInputType.multiline,
           textInputAction: TextInputAction.newline,

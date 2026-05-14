@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
 
 void main() {
@@ -171,6 +172,35 @@ void main() {
     );
 
     testWidgets(
+      'keeps quick add input visible on first system keyboard inset',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(390, 844);
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(const _QuickAddSheetHarness());
+        await tester.tap(find.byKey(const ValueKey('open-quick-add-sheet')));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 16));
+
+        tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+        await tester.pump();
+        await tester.pumpAndSettle();
+
+        final fieldRect = tester.getRect(
+          find.byKey(const ValueKey('quick-add-input')),
+        );
+        final field = tester.widget<TextField>(
+          find.byKey(const ValueKey('quick-add-input')),
+        );
+        expect(fieldRect.top, greaterThanOrEqualTo(0));
+        expect(fieldRect.bottom, lessThanOrEqualTo(524));
+        expect(field.scrollPadding, keyboardManagedTextFieldScrollPadding);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
       'dismisses cleanly from the quick add modal sheet when tapping outside',
       (tester) async {
         await tester.binding.setSurfaceSize(const Size(390, 844));
@@ -281,6 +311,40 @@ void main() {
           .dy;
 
       expect(caretBottom, lessThanOrEqualTo(544));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('lets scoped fields opt out of the global reveal pass', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(tester.view.reset);
+
+      final controller = TextEditingController();
+      final scrollController = ScrollController();
+      addTearDown(controller.dispose);
+      addTearDown(scrollController.dispose);
+
+      await tester.pumpWidget(
+        _SystemKeyboardInsetHarness(
+          controller: controller,
+          scrollController: scrollController,
+          revealEnabled: false,
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('system-keyboard-input')));
+      await tester.pump();
+
+      controller.value = const TextEditingValue(
+        text: 'Scoped cursor',
+        selection: TextSelection.collapsed(offset: 13),
+      );
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(const Duration(milliseconds: 150));
+
+      expect(scrollController.offset, 0);
       expect(tester.takeException(), isNull);
     });
 
@@ -761,9 +825,15 @@ class _ExpandingSystemKeyboardHarness extends StatelessWidget {
 }
 
 class _SystemKeyboardInsetHarness extends StatelessWidget {
-  const _SystemKeyboardInsetHarness({required this.controller});
+  const _SystemKeyboardInsetHarness({
+    required this.controller,
+    this.scrollController,
+    this.revealEnabled = true,
+  });
 
   final TextEditingController controller;
+  final ScrollController? scrollController;
+  final bool revealEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -773,15 +843,19 @@ class _SystemKeyboardInsetHarness extends StatelessWidget {
       home: Scaffold(
         resizeToAvoidBottomInset: false,
         body: SingleChildScrollView(
+          controller: scrollController,
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 720),
-                TextField(
-                  key: const ValueKey('system-keyboard-input'),
-                  controller: controller,
+                KemeticKeyboardRevealScope(
+                  enabled: revealEnabled,
+                  child: TextField(
+                    key: const ValueKey('system-keyboard-input'),
+                    controller: controller,
+                  ),
                 ),
                 const SizedBox(height: 360),
               ],
@@ -839,7 +913,6 @@ class _QuickAddSheetHarnessContent extends StatefulWidget {
 class _QuickAddSheetHarnessContentState
     extends State<_QuickAddSheetHarnessContent> {
   final FocusNode _focusNode = FocusNode();
-  final GlobalKey _fieldKey = GlobalKey();
   final TextEditingController _textCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
 
@@ -862,43 +935,36 @@ class _QuickAddSheetHarnessContentState
   Future<void> _requestInitialFocus() async {
     if (!mounted) return;
     _focusNode.requestFocus();
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    if (!mounted) return;
-    final fieldContext = _fieldKey.currentContext;
-    if (fieldContext == null || !fieldContext.mounted) return;
-    await Scrollable.ensureVisible(
-      fieldContext,
-      alignment: 0.1,
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOut,
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          controller: _scrollCtrl,
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Quick add (natural language)',
-                style: TextStyle(color: Colors.white),
-              ),
-              const SizedBox(height: 8),
-              KeyedSubtree(
-                key: _fieldKey,
-                child: TextField(
+    return KemeticKeyboardRevealScope(
+      enabled: false,
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            controller: _scrollCtrl,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Quick add (natural language)',
+                  style: TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 8),
+                TextField(
                   key: const ValueKey('quick-add-input'),
                   controller: _textCtrl,
+                  scrollPadding: keyboardManagedTextFieldScrollPadding,
                   autofocus: false,
                   focusNode: _focusNode,
                   style: const TextStyle(color: Colors.white),
@@ -908,24 +974,24 @@ class _QuickAddSheetHarnessContentState
                   minLines: 1,
                   maxLines: 3,
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Close'),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () {
-                      setState(() {});
-                    },
-                    child: const Text('Refresh'),
-                  ),
-                ],
-              ),
-            ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Close'),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {});
+                      },
+                      child: const Text('Refresh'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

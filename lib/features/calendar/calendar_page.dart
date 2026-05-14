@@ -42,6 +42,7 @@ import '../../data/journal_repo.dart';
 import '../../widgets/kemetic_day_info.dart';
 import '../../widgets/insight_link_text.dart';
 import '../../widgets/keyboard_aware.dart';
+import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/pronounce_icon_button.dart';
 import '../../services/speech/speech_service.dart';
 import 'speech_resolver.dart';
@@ -130,7 +131,6 @@ class _QuickAddSheet extends StatefulWidget {
 class _QuickAddSheetState extends State<_QuickAddSheet> {
   final TextEditingController _textCtrl = TextEditingController();
   final FocusNode _focusNode = FocusNode();
-  final GlobalKey _fieldKey = GlobalKey();
   final ScrollController _scrollCtrl = ScrollController();
   String? _error;
   bool _submitting = false;
@@ -154,16 +154,6 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   Future<void> _requestInitialFocus() async {
     if (!mounted) return;
     _focusNode.requestFocus();
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    if (!mounted) return;
-    final fieldContext = _fieldKey.currentContext;
-    if (fieldContext == null || !fieldContext.mounted) return;
-    await Scrollable.ensureVisible(
-      fieldContext,
-      alignment: 0.1,
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOut,
-    );
   }
 
   void _showSnackBar(SnackBar snackBar) {
@@ -226,77 +216,84 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          controller: _scrollCtrl,
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Quick add (natural language)',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                key: _fieldKey,
-                controller: _textCtrl,
-                scrollPadding: keyboardAwareTextFieldScrollPadding(context),
-                autofocus: false,
-                focusNode: _focusNode,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'e.g., “Fri 3pm-4pm coffee with Amara”',
-                  hintStyle: const TextStyle(color: Colors.white54),
-                  filled: true,
-                  fillColor: const Color(0xFF111111),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.white24),
+    return KemeticKeyboardRevealScope(
+      enabled: false,
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            controller: _scrollCtrl,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Quick add (natural language)',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                minLines: 1,
-                maxLines: 3,
-                onSubmitted: (_) => _handleSubmit(),
-              ),
-              if (_error != null) ...[
                 const SizedBox(height: 8),
-                Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-              ],
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: KemeticGold.base,
-                        foregroundColor: Colors.black,
-                      ),
-                      onPressed: _submitting ? null : _handleSubmit,
-                      child: const Text('Quick add'),
+                TextField(
+                  controller: _textCtrl,
+                  scrollPadding: keyboardManagedTextFieldScrollPadding,
+                  autofocus: false,
+                  focusNode: _focusNode,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'e.g., “Fri 3pm-4pm coffee with Amara”',
+                    hintStyle: const TextStyle(color: Colors.white54),
+                    filled: true,
+                    fillColor: const Color(0xFF111111),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.white24),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: _submitting ? null : _handleOpenFullEditor,
-                    child: KemeticGold.text(
-                      'Open full editor',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                  minLines: 1,
+                  maxLines: 3,
+                  onSubmitted: (_) => _handleSubmit(),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.redAccent),
                   ),
                 ],
-              ),
-            ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: KemeticGold.base,
+                          foregroundColor: Colors.black,
+                        ),
+                        onPressed: _submitting ? null : _handleSubmit,
+                        child: const Text('Quick add'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: _submitting ? null : _handleOpenFullEditor,
+                      child: KemeticGold.text(
+                        'Open full editor',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -8616,8 +8613,8 @@ class _CalendarPageState extends State<CalendarPage>
                           48,
                     ),
                   );
-                  final fieldScrollPadding =
-                      keyboardAwareTextFieldScrollPadding(dialogCtx);
+                  const fieldScrollPadding =
+                      keyboardManagedTextFieldScrollPadding;
 
                   return AnimatedPadding(
                     duration: const Duration(milliseconds: 160),
@@ -13755,8 +13752,8 @@ class _CalendarPageState extends State<CalendarPage>
                     );
                     final canEditSelectedCalendar =
                         selectedCalendar?.canEdit ?? true;
-                    final fieldScrollPadding =
-                        keyboardAwareTextFieldScrollPadding(sheetCtx);
+                    const fieldScrollPadding =
+                        keyboardManagedTextFieldScrollPadding;
 
                     String dateLabel(DateTime d) =>
                         '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
@@ -20171,9 +20168,7 @@ class _CalendarPageState extends State<CalendarPage>
                       ),
                     )
                   : media.size.height * 0.90;
-              final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(
-                sheetCtx,
-              );
+              const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
               return Container(
                 height: sheetHeight,
@@ -32942,9 +32937,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                     const SizedBox(height: 8),
                     TextField(
                       controller: _overviewCtrl,
-                      scrollPadding: keyboardAwareTextFieldScrollPadding(
-                        sheetCtx,
-                      ),
+                      scrollPadding: keyboardManagedTextFieldScrollPadding,
                       style: const TextStyle(color: Colors.white),
                       maxLines: 10,
                       decoration: _darkInput(
@@ -33674,9 +33667,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                         const SizedBox(height: 8),
                         TextField(
                           controller: searchCtrl,
-                          scrollPadding: keyboardAwareTextFieldScrollPadding(
-                            sheetCtx,
-                          ),
+                          scrollPadding: keyboardManagedTextFieldScrollPadding,
                           style: const TextStyle(color: Colors.white),
                           decoration: _darkInput(
                             'Search flows',
