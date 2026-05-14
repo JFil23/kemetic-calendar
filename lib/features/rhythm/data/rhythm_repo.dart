@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/core/supabase_auth_retry.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/rhythm_models.dart';
+import '../viewmodels/rhythm_draft.dart';
 
 class RhythmRepoResult<T> {
   final T data;
@@ -60,6 +62,54 @@ class RhythmRepo {
     debugPrint(buf.toString());
   }
 
+  /// Load the user's cycle fields + schedule rules, mapped to UI-friendly sections.
+  Future<RhythmRepoResult<List<RhythmSection>>> fetchMyCycle() async {
+    final uid = _userId;
+    if (uid == null) {
+      return RhythmRepoResult(data: const []);
+    }
+    try {
+      final fields = await _client
+          .from('cycle_fields')
+          .select(
+            'id, title, description, slug, checklist_enabled, reminder_enabled, tracker_enabled, metadata, value_json',
+          )
+          .eq('user_id', uid)
+          .order('created_at', ascending: true);
+
+      final rules = await _client
+          .from('cycle_schedule_rules')
+          .select(
+            'id, field_id, title, days_of_week, all_day, start_time_local, end_time_local, reminder_offset_minutes, is_optional',
+          )
+          .eq('user_id', uid)
+          .order('created_at', ascending: true);
+
+      final ruleByField = <String, List<Map<String, dynamic>>>{};
+      for (final r in rules) {
+        final fieldId = r['field_id'] as String?;
+        if (fieldId == null) continue;
+        ruleByField
+            .putIfAbsent(fieldId, () => [])
+            .add(Map<String, dynamic>.from(r));
+      }
+
+      final sections = _groupFieldsIntoSections(fields, ruleByField);
+      return RhythmRepoResult(data: sections);
+    } catch (e) {
+      if (_isMissingTable(e)) {
+        return const RhythmRepoResult(
+          data: <RhythmSection>[],
+          missingTables: true,
+        );
+      }
+      return RhythmRepoResult(
+        data: const [],
+        friendlyError: _friendlyMessage(e),
+      );
+    }
+  }
+
   /// Today's alignment: cycle fields (checklist-enabled) plus any checklist state (if present).
   Future<RhythmRepoResult<List<RhythmItem>>> fetchTodaysAlignment() async {
     final uid = _userId;
@@ -72,21 +122,27 @@ class RhythmRepo {
         'yyyy-MM-dd',
       ).format(DateTime(today.year, today.month, today.day));
 
-      final fields = await _client
-          .from('cycle_fields')
-          .select(
-            'id, title, description, slug, checklist_enabled, reminder_enabled, tracker_enabled, metadata, value_json',
-          )
-          .eq('user_id', uid)
-          .eq('checklist_enabled', true);
+      final fields = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('cycle_fields')
+            .select(
+              'id, title, description, slug, checklist_enabled, reminder_enabled, tracker_enabled, metadata, value_json',
+            )
+            .eq('user_id', uid)
+            .eq('checklist_enabled', true),
+      );
 
       Map<String, String> statusByFieldId = {};
       try {
-        final checklistRows = await _client
-            .from('checklist_items')
-            .select('field_id, status')
-            .eq('user_id', uid)
-            .eq('local_date', todayIso);
+        final checklistRows = await withSupabaseAuthRetry(
+          _client,
+          () => _client
+              .from('checklist_items')
+              .select('field_id, status')
+              .eq('user_id', uid)
+              .eq('local_date', todayIso),
+        );
         statusByFieldId = {
           for (final row in checklistRows)
             if (row['field_id'] != null)
@@ -136,13 +192,16 @@ class RhythmRepo {
     final uid = _userId;
     if (uid == null) return RhythmRepoResult(data: const []);
     try {
-      final rows = await _client
-          .from('todos')
-          .select(
-            'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
-          )
-          .eq('user_id', uid)
-          .order('created_at', ascending: true);
+      final rows = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('todos')
+            .select(
+              'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
+            )
+            .eq('user_id', uid)
+            .order('created_at', ascending: true),
+      );
 
       final todos = rows
           .map<RhythmTodo>(
@@ -424,6 +483,87 @@ class RhythmRepo {
     }
   }
 
+  /// Upsert a rhythm field (timed or untimed). Returns field id on success.
+  Future<RhythmRepoResult<String>> saveDraft(RhythmDraft draft) async {
+    final uid = _userId;
+    if (uid == null) return RhythmRepoResult(data: '');
+    try {
+      final slug = _slugify(draft.title, draft.id);
+      final sectionKey = _displayCategoryToSectionKey(draft.category);
+      final payload = {
+        'user_id': uid,
+        'slug': slug,
+        'title': draft.title,
+        'description': draft.description,
+        'checklist_enabled': draft.showInAlignment,
+        'reminder_enabled': draft.sendReminders,
+        'tracker_enabled': draft.trackContinuity,
+        'metadata': {
+          'category': draft.category,
+          'section_key': sectionKey,
+          'is_timed': draft.isTimed,
+        },
+        'value_json': {
+          'category': draft.category,
+          'section_key': sectionKey,
+          'is_timed': draft.isTimed,
+        },
+      };
+
+      String fieldId;
+      final existingId = draft.id;
+      if (existingId != null) {
+        final res = await _client
+            .from('cycle_fields')
+            .update(payload)
+            .eq('id', existingId)
+            .eq('user_id', uid)
+            .select('id')
+            .maybeSingle();
+        fieldId = (res?['id'] as String?) ?? existingId;
+      } else {
+        final res = await _client
+            .from('cycle_fields')
+            .insert(payload)
+            .select('id')
+            .maybeSingle();
+        fieldId = res?['id'] as String? ?? '';
+      }
+
+      // Replace schedule rules for this field based on patterns.
+      try {
+        await _client
+            .from('cycle_schedule_rules')
+            .delete()
+            .eq('field_id', fieldId)
+            .eq('user_id', uid);
+        if (draft.patterns.isNotEmpty) {
+          final rows = draft.patterns.map((p) {
+            return {
+              'user_id': uid,
+              'field_id': fieldId,
+              'days_of_week': p.daysOfWeek,
+              'all_day': p.allDay,
+              'start_time_local': _formatDbTime(p.start),
+              'end_time_local': _formatDbTime(p.end),
+              'is_optional': p.isOptional,
+            };
+          }).toList();
+          await _client.from('cycle_schedule_rules').insert(rows);
+        }
+      } catch (e) {
+        if (!_isMissingTable(e)) rethrow;
+      }
+
+      return RhythmRepoResult(data: fieldId);
+    } catch (e) {
+      if (_isMissingTable(e)) {
+        return const RhythmRepoResult(data: '', missingTables: true);
+      }
+      return RhythmRepoResult(data: '', friendlyError: _friendlyMessage(e));
+    }
+  }
+
   Future<RhythmRepoResult<List<RhythmNote>>> fetchAlignmentNotes() async {
     final uid = _userId;
     if (uid == null) {
@@ -692,11 +832,97 @@ class RhythmRepo {
     }
   }
 
+  /// Maps UI section names to stable keys stored in metadata (never shown in UI).
+  String _displayCategoryToSectionKey(String display) {
+    switch (display.trim()) {
+      case 'Rhythm of Day':
+        return 'rhythm_of_day';
+      case 'Body & Nourishment':
+        return 'body_nourishment';
+      case 'Restoration':
+        return 'restoration';
+      case 'Anchors':
+        return 'anchors';
+      case 'Nourishing Activities':
+        return 'activities';
+      case 'Custom':
+      default:
+        return 'custom';
+    }
+  }
+
   String? _formatDbTime(TimeOfDay? t) {
     if (t == null) return null;
     final hh = t.hour.toString().padLeft(2, '0');
     final mm = t.minute.toString().padLeft(2, '0');
     return '$hh:$mm:00';
+  }
+
+  String _slugify(String title, String? id) {
+    final base = title
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'-{2,}'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
+    final suffix = id ?? DateTime.now().millisecondsSinceEpoch.toString();
+    return '$base-$suffix';
+  }
+
+  List<RhythmSection> _groupFieldsIntoSections(
+    List<dynamic> fields,
+    Map<String, List<Map<String, dynamic>>> rules,
+  ) {
+    final Map<String, List<RhythmItem>> grouped = {};
+    for (final f in fields) {
+      final id = f['id'] as String? ?? '';
+      final title = f['title'] as String? ?? 'Rhythm item';
+      final description = f['description'] as String? ?? '';
+      final meta = _asMap(f['metadata']) ?? _asMap(f['value_json']) ?? {};
+      final category = _categoryLabel(meta['section_key'] ?? meta['category']);
+      final itemRules = rules[id] ?? const [];
+      final pattern = itemRules.isEmpty ? null : _describeRules(itemRules);
+
+      grouped
+          .putIfAbsent(category, () => [])
+          .add(
+            RhythmItem(
+              title: title,
+              summary: description.isEmpty
+                  ? 'Keep this beat gentle.'
+                  : description,
+              pattern: pattern,
+              chips: _chipsForFlags(
+                checklist: (f['checklist_enabled'] as bool?) ?? false,
+                reminder: (f['reminder_enabled'] as bool?) ?? false,
+                tracker: (f['tracker_enabled'] as bool?) ?? false,
+              ),
+              isTimed: _isTimed(f),
+              isCustom: category == 'Custom',
+            ),
+          );
+    }
+
+    const order = [
+      'Rhythm of Day',
+      'Body & Nourishment',
+      'Restoration',
+      'Anchors',
+      'Nourishing Activities',
+      'Custom',
+    ];
+    final out = <RhythmSection>[];
+    for (final title in order) {
+      final items = grouped[title];
+      if (items != null && items.isNotEmpty) {
+        out.add(RhythmSection(title: title, items: items));
+      }
+    }
+    for (final e in grouped.entries) {
+      if (!order.contains(e.key)) {
+        out.add(RhythmSection(title: e.key, items: e.value));
+      }
+    }
+    return out;
   }
 
   List<RhythmChipKind> _chipsForFlags({
@@ -709,6 +935,94 @@ class RhythmRepo {
     if (reminder) chips.add(RhythmChipKind.reminder);
     if (tracker) chips.add(RhythmChipKind.continuity);
     return chips;
+  }
+
+  String _categoryLabel(dynamic value) {
+    final v = (value as String? ?? '').toLowerCase();
+    switch (v) {
+      case 'rhythm_of_day':
+      case 'rhythm of day':
+        return 'Rhythm of Day';
+      case 'body':
+      case 'body & nourishment':
+        return 'Body & Nourishment';
+      case 'restoration':
+        return 'Restoration';
+      case 'anchors':
+        return 'Anchors';
+      case 'nourishing':
+      case 'nourishing activities':
+      case 'activities':
+        return 'Nourishing Activities';
+      case 'custom':
+      case '':
+        return 'Custom';
+      default:
+        return v.isEmpty ? 'Custom' : _titleCase(v);
+    }
+  }
+
+  String _titleCase(String value) {
+    if (value.isEmpty) return value;
+    return value
+        .split(RegExp(r'[\s_]+'))
+        .where((s) => s.isNotEmpty)
+        .map(
+          (w) =>
+              '${w[0].toUpperCase()}${w.length > 1 ? w.substring(1).toLowerCase() : ''}',
+        )
+        .join(' ');
+  }
+
+  String _describeRules(List<Map<String, dynamic>> rules) {
+    // Show the first rule succinctly; more rules can be appended.
+    if (rules.isEmpty) return '';
+    final primary = rules.first;
+    final days = (primary['days_of_week'] as List?)?.cast<int>() ?? const [];
+    final start = primary['start_time_local'] as String?;
+    final end = primary['end_time_local'] as String?;
+    final allDay = (primary['all_day'] as bool?) ?? false;
+
+    final dayLabel = _daysLabel(days);
+    if (allDay) return '$dayLabel — No fixed time';
+
+    final startLabel = start != null ? _formatTime(start) : null;
+    final endLabel = end != null ? _formatTime(end) : null;
+    if (startLabel != null && endLabel != null) {
+      return '$dayLabel — $startLabel–$endLabel';
+    } else if (startLabel != null) {
+      return '$dayLabel — $startLabel';
+    } else if (endLabel != null) {
+      return '$dayLabel — ends $endLabel';
+    }
+    return dayLabel;
+  }
+
+  String _daysLabel(List<int> days) {
+    if (days.isEmpty) return 'Every day';
+    final sorted = [...days]..sort();
+    const weekdays = [1, 2, 3, 4, 5];
+    const weekends = [6, 7];
+    if (sorted.length == 7) return 'Every day';
+    if (_listEquals(sorted, weekdays)) return 'Weekdays';
+    if (_listEquals(sorted, weekends)) return 'Weekends';
+    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return sorted.map((d) => names[(d - 1).clamp(0, 6)]).join(' / ');
+  }
+
+  String _formatTime(String value) {
+    try {
+      final parts = value.split(':');
+      if (parts.length < 2) return value;
+      final h = int.parse(parts[0]);
+      final m = int.parse(parts[1].split(':').first);
+      final isPm = h >= 12;
+      final h12 = h % 12 == 0 ? 12 : h % 12;
+      final mm = m.toString().padLeft(2, '0');
+      return '$h12:$mm ${isPm ? 'PM' : 'AM'}';
+    } catch (_) {
+      return value;
+    }
   }
 
   TimeOfDay? _parseTime(String time) {
@@ -736,6 +1050,14 @@ class RhythmRepo {
       isCalendar: (row['show_on_calendar'] as bool?) ?? true,
       state: _statusToState(row['status'] as String?),
     );
+  }
+
+  bool _listEquals(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   RhythmItemState _statusToState(String? status) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/global_bottom_menu_metrics.dart';
 import '../../core/navigation_fallback.dart';
 import '../../shared/glossy_text.dart';
 
@@ -20,6 +21,7 @@ class _DecanReflectionArchivePageState
   final _repo = DecanReflectionRepo(Supabase.instance.client);
   List<DecanReflection> _items = const [];
   bool _loading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -28,16 +30,23 @@ class _DecanReflectionArchivePageState
   }
 
   Future<void> _load() async {
-    final data = await _repo.listMine();
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
+    final result = await _repo.listMineResult();
     if (!mounted) return;
     setState(() {
-      _items = data;
+      _items = result.data;
+      _errorMessage = result.errorMessage;
       _loading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final listBottomPadding = bottomPaddingAboveGlobalMenu(context, 16);
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -65,16 +74,54 @@ class _DecanReflectionArchivePageState
                 valueColor: AlwaysStoppedAnimation(KemeticGold.base),
               ),
             )
+          : _errorMessage != null
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Reflections could not load',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      _errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    OutlinedButton.icon(
+                      onPressed: _load,
+                      icon: KemeticGold.icon(Icons.refresh, size: 18),
+                      label: KemeticGold.text(
+                        'Try again',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
           : _items.isEmpty
           ? Center(
               child: Text(
                 'No reflections yet',
-                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
               ),
             )
           : ListView.separated(
+              padding: EdgeInsets.fromLTRB(0, 0, 0, listBottomPadding),
               itemCount: _items.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (_, _) =>
                   const Divider(color: Color(0xFF222222), height: 1),
               itemBuilder: (context, index) {
                 final item = _items[index];

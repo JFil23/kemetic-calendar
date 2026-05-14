@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/core/planner_launch_intent.dart';
 import 'package:mobile/core/navigation_fallback.dart';
+import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/core/daily_reflection_question.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -3167,7 +3168,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
         final progress = _progress();
         final plannerAction = _todayPlannerAction();
-        final listBottomPadding = 32 + keyboardInsetOf(context);
+        final listBottomPadding =
+            bottomPaddingAboveGlobalMenu(context, 32) +
+            keyboardInsetOf(context);
 
         final plannerLeadSections = <Widget>[
           RhythmSectionCard(

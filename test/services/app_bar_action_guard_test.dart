@@ -300,6 +300,175 @@ void main() {
       },
     );
 
+    test('global bottom menu hit area matches the visible bar', () async {
+      final source = await File('lib/main.dart').readAsString();
+      final bottomBar = _sourceBetween(
+        source,
+        'class _GlobalBottomMenuBar',
+        'class _FloatingMenuGlyph',
+      );
+
+      expect(bottomBar, contains('globalBottomMenuHeight(context)'));
+      expect(bottomBar, contains('onTap: onPressed'));
+      expect(bottomBar, isNot(contains('hitHeight')));
+      expect(bottomBar, isNot(contains('112')));
+      expect(bottomBar, isNot(contains('onPointerUp')));
+    });
+
+    test('inbox list reserves bottom scroll space for the menu', () async {
+      final source = await File(
+        'lib/features/inbox/inbox_page.dart',
+      ).readAsString();
+      final body = _sourceBetween(
+        source,
+        'Widget _buildBody()',
+        'ConversationUser _resolveOtherProfile',
+      );
+
+      expect(body, contains('bottomPaddingAboveGlobalMenu(context, 16)'));
+      expect(
+        body,
+        contains('EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding)'),
+      );
+      expect(body, isNot(contains('padding: const EdgeInsets.all(16)')));
+    });
+
+    test('planner and decan reflection lists reserve menu space', () async {
+      final planner = await File(
+        'lib/features/rhythm/pages/todays_alignment_page.dart',
+      ).readAsString();
+      final reflections = await File(
+        'lib/features/reflections/decan_reflection_archive_page.dart',
+      ).readAsString();
+
+      expect(planner, contains('bottomPaddingAboveGlobalMenu(context, 32)'));
+      expect(planner, contains('keyboardInsetOf(context)'));
+      expect(
+        reflections,
+        contains('bottomPaddingAboveGlobalMenu(context, 16)'),
+      );
+      expect(
+        reflections,
+        contains('padding: EdgeInsets.fromLTRB(0, 0, 0, listBottomPadding)'),
+      );
+    });
+
+    test('expired sessions refresh before restored pages load data', () async {
+      final source = await File('lib/main.dart').readAsString();
+
+      expect(source, contains("await _refreshSessionIfNeeded('boot')"));
+      expect(source, contains("_refreshSessionIfNeeded('web boot')"));
+      expect(source, contains("'resume'"));
+      expect(source, contains('whenComplete'));
+      expect(source, contains('session == null || !session.isExpired'));
+      expect(source, contains('refreshSession()'));
+    });
+
+    test(
+      'restored data pages retry once after expired JWT responses',
+      () async {
+        final rhythmRepo = await File(
+          'lib/features/rhythm/data/rhythm_repo.dart',
+        ).readAsString();
+        final decanRepo = await File(
+          'lib/data/decan_reflection_repo.dart',
+        ).readAsString();
+        final profileRepo = await File(
+          'lib/data/profile_repo.dart',
+        ).readAsString();
+
+        expect(rhythmRepo, contains('withSupabaseAuthRetry'));
+        expect(decanRepo, contains('withSupabaseAuthRetry'));
+        expect(profileRepo, contains('withSupabaseAuthRetry'));
+        expect(profileRepo, contains("'get_profile_feed'"));
+        expect(profileRepo, contains("'get_flow_post_feed'"));
+      },
+    );
+
+    test(
+      'decan reflections distinguish load errors from empty state',
+      () async {
+        final repo = await File(
+          'lib/data/decan_reflection_repo.dart',
+        ).readAsString();
+        final page = await File(
+          'lib/features/reflections/decan_reflection_archive_page.dart',
+        ).readAsString();
+
+        expect(repo, contains('class DecanReflectionListResult'));
+        expect(
+          repo,
+          contains('Future<DecanReflectionListResult> listMineResult'),
+        );
+        expect(repo, contains('errorMessage: _friendlyReadError(e)'));
+        expect(repo, isNot(contains('return []')));
+        expect(page, contains('String? _errorMessage'));
+        expect(page, contains('_errorMessage = result.errorMessage'));
+        expect(page, contains('Reflections could not load'));
+        expect(page, contains('No reflections yet'));
+      },
+    );
+
+    test('community feed distinguishes load errors from empty state', () async {
+      final repo = await File('lib/data/profile_repo.dart').readAsString();
+      final page = await File(
+        'lib/features/profile/profile_page.dart',
+      ).readAsString();
+
+      expect(repo, contains('class ProfileFeedResult'));
+      expect(repo, contains('Future<ProfileFeedResult> getProfileFeedResult'));
+      expect(repo, contains('_getProfileFeedFallbackResult'));
+      expect(repo, contains('errorMessage: _friendlyFeedError'));
+      expect(
+        repo,
+        isNot(
+          contains('Future<List<ProfileFeedItem>> _getProfileFeedFallback'),
+        ),
+      );
+      expect(page, contains('String? _feedErrorMessage'));
+      expect(page, contains('_feedErrorMessage = result.errorMessage'));
+      expect(page, contains('Community Feed could not load'));
+      expect(page, contains('No feed posts available yet'));
+    });
+
+    test('inbox summary cells stay visible without recent activity', () async {
+      final source = await File(
+        'lib/features/inbox/inbox_page.dart',
+      ).readAsString();
+      final summaries = _sourceBetween(
+        source,
+        'bool get _hasSummaries',
+        'Widget _buildSummaryGlyphAvatar',
+      );
+
+      expect(summaries, contains('bool get _hasSummaries => true'));
+      expect(summaries, contains('int get _summaryTileCount => 3'));
+      expect(summaries, contains('_buildCommunitySummaryTile()'));
+      expect(summaries, contains('_buildMovementSummaryTile()'));
+      expect(summaries, contains("'Followers and profile activity'"));
+      expect(summaries, contains("'Flow comments and likes'"));
+      expect(summaries, isNot(contains('if (_latestFollow != null)')));
+      expect(summaries, isNot(contains('if (_latestEngagement != null)')));
+    });
+
+    test('rhythm route retirement only removes my cycle page', () async {
+      final source = await File('lib/main.dart').readAsString();
+      final redirect = _sourceBetween(
+        source,
+        'String? _redirectRetiredRhythmRoute',
+        'final _router = GoRouter(',
+      );
+
+      expect(redirect, contains("path == '/rhythm/mycycle'"));
+      expect(redirect, isNot(contains("path.startsWith('/rhythm/editor/')")));
+      expect(source, contains("path: '/rhythm/editor/timed'"));
+      expect(source, contains("path: '/rhythm/editor/untimed'"));
+      expect(source, contains("path: '/rhythm/editor/custom'"));
+      expect(source, contains('TimedRhythmEditorPage'));
+      expect(source, contains('UntimedRhythmEditorPage'));
+      expect(source, contains('CustomRhythmEditorPage'));
+    });
+
     test('inbox app bars keep expected handlers', () async {
       final inbox = await File(
         'lib/features/inbox/inbox_page.dart',

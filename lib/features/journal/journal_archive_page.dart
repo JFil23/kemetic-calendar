@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/insight_link_model.dart';
@@ -417,6 +418,8 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   }
 
   Widget _buildEntryList() {
+    final listBottomPadding = bottomPaddingAboveGlobalMenu(context, 16);
+
     if (_loading) {
       return const Center(
         child: CircularProgressIndicator(color: KemeticGold.base),
@@ -453,7 +456,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
         _buildModeToggle(),
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding),
             itemCount: _entries.length,
             separatorBuilder: (context, index) =>
                 const Divider(color: Color(0xFF333333), height: 1),
@@ -559,6 +562,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final date = entry.gregDate;
     final header = _formatArchiveDate(date);
     final entryDoc = _entryToDocument(entry);
+    final contentBottomPadding = bottomPaddingAboveGlobalMenu(context, 16);
 
     return Column(
       children: [
@@ -586,7 +590,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
         // Content
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(16, 16, 16, contentBottomPadding),
             child: _isEditing ? _buildEditView() : _buildReadView(entryDoc),
           ),
         ),

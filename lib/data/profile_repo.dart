@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show DateUtils;
+import 'package:mobile/core/supabase_auth_retry.dart';
 import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
 import 'package:mobile/utils/detail_sanitizer.dart';
 import 'package:mobile/utils/event_cid_util.dart';
@@ -29,6 +30,15 @@ class ProfileAvatarGlyphsUnavailable implements Exception {
     return 'Glyph avatars are not available on this backend yet. '
         'Apply the avatar glyph migration and refresh the PostgREST schema cache.';
   }
+}
+
+class ProfileFeedResult {
+  const ProfileFeedResult({required this.data, this.errorMessage});
+
+  final List<ProfileFeedItem> data;
+  final String? errorMessage;
+
+  bool get hasError => errorMessage != null;
 }
 
 class ProfileRepo {
@@ -830,9 +840,12 @@ class ProfileRepo {
   /// Fetch a ranked community feed of posted flows.
   Future<List<FlowPost>> getFlowFeed({int limit = 24, int offset = 0}) async {
     try {
-      final response = await _client.rpc(
-        'get_flow_post_feed',
-        params: {'p_limit': limit, 'p_offset': offset},
+      final response = await withSupabaseAuthRetry(
+        _client,
+        () => _client.rpc(
+          'get_flow_post_feed',
+          params: {'p_limit': limit, 'p_offset': offset},
+        ),
       );
       final rows = (response as List<dynamic>?) ?? const [];
       return rows
@@ -846,26 +859,42 @@ class ProfileRepo {
   }
 
   /// Fetch a ranked community feed of posted flows and insights.
-  Future<List<ProfileFeedItem>> getProfileFeed({
+  Future<ProfileFeedResult> getProfileFeedResult({
     int limit = 24,
     int offset = 0,
   }) async {
     try {
-      final response = await _client.rpc(
-        'get_profile_feed',
-        params: {'p_limit': limit, 'p_offset': offset},
+      final response = await withSupabaseAuthRetry(
+        _client,
+        () => _client.rpc(
+          'get_profile_feed',
+          params: {'p_limit': limit, 'p_offset': offset},
+        ),
       );
       final rows = (response as List<dynamic>?) ?? const [];
-      return rows
+      final items = rows
           .whereType<Map>()
           .map(
             (row) => ProfileFeedItem.fromJson(Map<String, dynamic>.from(row)),
           )
-          .toList();
+          .toList(growable: false);
+      return ProfileFeedResult(data: items);
     } catch (e) {
       _log('[ProfileRepo] Error fetching profile feed: $e');
-      return _getProfileFeedFallback(limit: limit, offset: offset);
+      return _getProfileFeedFallbackResult(
+        limit: limit,
+        offset: offset,
+        primaryError: e,
+      );
     }
+  }
+
+  Future<List<ProfileFeedItem>> getProfileFeed({
+    int limit = 24,
+    int offset = 0,
+  }) async {
+    final result = await getProfileFeedResult(limit: limit, offset: offset);
+    return result.data;
   }
 
   /// Fetch a single flow post by id.
@@ -1490,14 +1519,17 @@ class ProfileRepo {
     required int offset,
   }) async {
     try {
-      final rows = await _client
-          .from('flow_posts')
-          .select(
-            'id, user_id, flow_id, name, color, notes, rules, start_date, end_date, is_hidden, ai_metadata, created_at, profiles(handle, display_name, avatar_url)',
-          )
-          .eq('is_hidden', false)
-          .order('created_at', ascending: false)
-          .range(offset, offset + limit - 1);
+      final rows = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('flow_posts')
+            .select(
+              'id, user_id, flow_id, name, color, notes, rules, start_date, end_date, is_hidden, ai_metadata, created_at, profiles(handle, display_name, avatar_url)',
+            )
+            .eq('is_hidden', false)
+            .order('created_at', ascending: false)
+            .range(offset, offset + limit - 1),
+      );
       return ((rows as List<dynamic>?) ?? const [])
           .whereType<Map>()
           .map((row) => FlowPost.fromJson(Map<String, dynamic>.from(row)))
@@ -1508,30 +1540,33 @@ class ProfileRepo {
     }
   }
 
-  Future<List<ProfileFeedItem>> _getProfileFeedFallback({
+  Future<ProfileFeedResult> _getProfileFeedFallbackResult({
     required int limit,
     required int offset,
+    Object? primaryError,
   }) async {
     try {
-      final flowRowsFuture = _client
-          .from('flow_posts')
-          .select(
-            'id, user_id, flow_id, name, color, notes, rules, start_date, end_date, is_hidden, ai_metadata, created_at, profiles(handle, display_name, avatar_url, avatar_glyphs)',
-          )
-          .eq('is_hidden', false)
-          .order('created_at', ascending: false)
-          .range(0, (limit * 2) - 1);
-
-      final insightRowsFuture = _client
-          .from('insight_posts')
-          .select(
-            'id, user_id, insight_entry_id, node_id, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles(handle, display_name, avatar_url, avatar_glyphs)',
-          )
-          .eq('is_hidden', false)
-          .order('created_at', ascending: false)
-          .range(0, (limit * 2) - 1);
-
-      final results = await Future.wait([flowRowsFuture, insightRowsFuture]);
+      final results = await withSupabaseAuthRetry(
+        _client,
+        () => Future.wait([
+          _client
+              .from('flow_posts')
+              .select(
+                'id, user_id, flow_id, name, color, notes, rules, start_date, end_date, is_hidden, ai_metadata, created_at, profiles(handle, display_name, avatar_url, avatar_glyphs)',
+              )
+              .eq('is_hidden', false)
+              .order('created_at', ascending: false)
+              .range(0, (limit * 2) - 1),
+          _client
+              .from('insight_posts')
+              .select(
+                'id, user_id, insight_entry_id, node_id, body_text, entry_date, is_hidden, created_at, updated_at, nodes(slug, title, glyph), profiles(handle, display_name, avatar_url, avatar_glyphs)',
+              )
+              .eq('is_hidden', false)
+              .order('created_at', ascending: false)
+              .range(0, (limit * 2) - 1),
+        ]),
+      );
       final flowItems = ((results[0] as List<dynamic>?) ?? const [])
           .whereType<Map>()
           .map(
@@ -1550,13 +1585,28 @@ class ProfileRepo {
       final merged = [...flowItems, ...insightItems].toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-      if (offset >= merged.length) return const [];
+      if (offset >= merged.length) {
+        return const ProfileFeedResult(data: <ProfileFeedItem>[]);
+      }
       final end = (offset + limit).clamp(0, merged.length);
-      return merged.sublist(offset, end);
+      return ProfileFeedResult(data: merged.sublist(offset, end));
     } catch (e) {
       _log('[ProfileRepo] Profile feed fallback failed: $e');
-      return const [];
+      return ProfileFeedResult(
+        data: const <ProfileFeedItem>[],
+        errorMessage: _friendlyFeedError(primaryError ?? e),
+      );
     }
+  }
+
+  String _friendlyFeedError(Object error) {
+    if (isExpiredSupabaseJwtError(error)) {
+      return 'Your session expired. Sign in again, then reopen Community Feed.';
+    }
+    if (error is PostgrestException) {
+      return 'Could not load Community Feed. Check your connection, then try again.';
+    }
+    return 'Could not load Community Feed. Try again in a moment.';
   }
 
   Future<dynamic> _selectFlowPostCommentsRows(String postId) async {

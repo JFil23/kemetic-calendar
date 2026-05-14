@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
@@ -179,6 +180,7 @@ class _ProfilePageState extends State<ProfilePage>
   bool _feedLoading = false;
   bool _feedLoadingMore = false;
   bool _feedHasMore = true;
+  String? _feedErrorMessage;
   bool _showGregorianFeedDates = false;
   ProfileFeedItem? _expandedFeedItem;
   bool _feedCloseInFlight = false;
@@ -665,16 +667,32 @@ class _ProfilePageState extends State<ProfilePage>
       setState(() {
         _feedLoading = true;
         _feedHasMore = true;
+        _feedErrorMessage = null;
       });
     } else {
       setState(() => _feedLoadingMore = true);
     }
 
-    final loaded = await _repo.getProfileFeed(
+    final result = await _repo.getProfileFeedResult(
       limit: _profileFeedPageSize,
       offset: nextOffset,
     );
     if (!mounted) return;
+    if (result.hasError) {
+      setState(() {
+        _feedLoading = false;
+        _feedLoadingMore = false;
+        _feedHasMore = false;
+        _feedErrorMessage = result.errorMessage;
+        if (reset) {
+          _expandedFeedItem = null;
+          _pendingExpandedFeedIdentity = null;
+        }
+      });
+      return;
+    }
+
+    final loaded = result.data;
 
     final expandedIdentity = _expandedFeedItem == null
         ? null
@@ -703,6 +721,7 @@ class _ProfilePageState extends State<ProfilePage>
       _feedLoading = false;
       _feedLoadingMore = false;
       _feedHasMore = loaded.length >= _profileFeedPageSize;
+      _feedErrorMessage = null;
       if (pendingExpanded != null) {
         _expandedFeedItem = pendingExpanded;
         _pendingExpandedFeedIdentity = null;
@@ -1331,11 +1350,12 @@ class _ProfilePageState extends State<ProfilePage>
     final height = MediaQuery.sizeOf(context).height;
     final heroHeight = (height * 0.54).clamp(420.0, 560.0);
     final bio = profile.bio?.trim() ?? '';
+    final bottomPadding = bottomPaddingAboveGlobalMenu(context, 32);
 
     return SingleChildScrollView(
       controller: _profileScrollController,
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 32),
+      padding: EdgeInsets.only(bottom: bottomPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1382,6 +1402,7 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget _buildFeedMode() {
     final topInset = MediaQuery.paddingOf(context).top + kToolbarHeight;
+    final bottomPadding = bottomPaddingAboveGlobalMenu(context, 32);
 
     return NotificationListener<ScrollNotification>(
       onNotification: _handleFeedScrollNotification,
@@ -1390,7 +1411,7 @@ class _ProfilePageState extends State<ProfilePage>
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
-        padding: EdgeInsets.fromLTRB(20, topInset + 18, 20, 32),
+        padding: EdgeInsets.fromLTRB(20, topInset + 18, 20, bottomPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1480,14 +1501,6 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget _profileGoldIcon(IconData icon, {double? size}) {
     return GlossyIcon(icon: icon, gradient: _profileGoldGradient, size: size);
-  }
-
-  Widget _profileGoldGlyph(String glyph, {double? size}) {
-    return GlossyGlyph(
-      glyph: glyph,
-      gradient: _profileGoldGradient,
-      size: size ?? 24,
-    );
   }
 
   Widget _buildGlyphSignature(UserProfile profile) {
@@ -2387,6 +2400,55 @@ class _ProfilePageState extends State<ProfilePage>
                         _profileGoldMid,
                       ),
                     ),
+                  ),
+                )
+              else if (_feedErrorMessage != null && _feedItems.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 28),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.error_outline_rounded,
+                        color: _profileGoldText.withValues(alpha: 0.72),
+                        size: 28,
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Community Feed could not load',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _feedErrorMessage!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.58),
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      OutlinedButton.icon(
+                        onPressed: _feedLoading
+                            ? null
+                            : () => unawaited(_loadFeedPage(reset: true)),
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Try again'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _profileGoldText,
+                          side: BorderSide(
+                            color: _profileGoldText.withValues(alpha: 0.74),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 )
               else if (_feedItems.isEmpty)

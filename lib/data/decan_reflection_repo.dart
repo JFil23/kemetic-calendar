@@ -1,7 +1,17 @@
 import 'package:flutter/foundation.dart';
+import 'package:mobile/core/supabase_auth_retry.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'decan_reflection_model.dart';
+
+class DecanReflectionListResult {
+  const DecanReflectionListResult({required this.data, this.errorMessage});
+
+  final List<DecanReflection> data;
+  final String? errorMessage;
+
+  bool get hasError => errorMessage != null;
+}
 
 class DecanReflectionRepo {
   final SupabaseClient _client;
@@ -15,36 +25,57 @@ class DecanReflectionRepo {
     return '$yyyy-$mm-$dd';
   }
 
-  Future<List<DecanReflection>> listMine() async {
+  Future<DecanReflectionListResult> listMineResult() async {
     final uid = _client.auth.currentUser?.id;
-    if (uid == null) return [];
-    try {
-      final res = await _client
-          .from('decan_reflections')
-          .select()
-          .eq('user_id', uid)
-          .order('decan_start', ascending: false);
-      return (res as List)
-          .map((row) => DecanReflection.fromJson(row as Map<String, dynamic>))
-          .toList();
-    } catch (e) {
-      debugPrint('[DecanReflectionRepo] listMine error: $e');
-      return [];
+    if (uid == null) {
+      return const DecanReflectionListResult(
+        data: <DecanReflection>[],
+        errorMessage: 'Sign in to view your decan reflections.',
+      );
     }
+    try {
+      final res = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('decan_reflections')
+            .select()
+            .eq('user_id', uid)
+            .order('decan_start', ascending: false),
+      );
+      final reflections = (res as List)
+          .map((row) => DecanReflection.fromJson(row as Map<String, dynamic>))
+          .toList(growable: false);
+      return DecanReflectionListResult(data: reflections);
+    } catch (e, st) {
+      debugPrint('[DecanReflectionRepo] listMine error: $e');
+      debugPrint('$st');
+      return DecanReflectionListResult(
+        data: const <DecanReflection>[],
+        errorMessage: _friendlyReadError(e),
+      );
+    }
+  }
+
+  Future<List<DecanReflection>> listMine() async {
+    final result = await listMineResult();
+    return result.data;
   }
 
   Future<DecanReflection?> getById(String id) async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return null;
     try {
-      final res = await _client
-          .from('decan_reflections')
-          .select()
-          .eq('id', id)
-          .eq('user_id', uid)
-          .maybeSingle();
+      final res = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('decan_reflections')
+            .select()
+            .eq('id', id)
+            .eq('user_id', uid)
+            .maybeSingle(),
+      );
       if (res == null) return null;
-      return DecanReflection.fromJson(res as Map<String, dynamic>);
+      return DecanReflection.fromJson(res);
     } catch (e) {
       debugPrint('[DecanReflectionRepo] getById error: $e');
       return null;
@@ -55,15 +86,18 @@ class DecanReflectionRepo {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return null;
     try {
-      final res = await _client
-          .from('decan_reflections')
-          .select()
-          .eq('user_id', uid)
-          .order('decan_start', ascending: false)
-          .limit(1)
-          .maybeSingle();
+      final res = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('decan_reflections')
+            .select()
+            .eq('user_id', uid)
+            .order('decan_start', ascending: false)
+            .limit(1)
+            .maybeSingle(),
+      );
       if (res == null) return null;
-      return DecanReflection.fromJson(res as Map<String, dynamic>);
+      return DecanReflection.fromJson(res);
     } catch (e) {
       debugPrint('[DecanReflectionRepo] getLatest error: $e');
       return null;
@@ -77,15 +111,18 @@ class DecanReflectionRepo {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return null;
     try {
-      final res = await _client
-          .from('decan_reflections')
-          .select()
-          .eq('user_id', uid)
-          .eq('decan_start', _fmtDate(decanStart))
-          .eq('decan_end', _fmtDate(decanEnd))
-          .maybeSingle();
+      final res = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('decan_reflections')
+            .select()
+            .eq('user_id', uid)
+            .eq('decan_start', _fmtDate(decanStart))
+            .eq('decan_end', _fmtDate(decanEnd))
+            .maybeSingle(),
+      );
       if (res == null) return null;
-      return DecanReflection.fromJson(res as Map<String, dynamic>);
+      return DecanReflection.fromJson(res);
     } catch (e) {
       debugPrint('[DecanReflectionRepo] findByWindow error: $e');
       return null;
@@ -119,13 +156,30 @@ class DecanReflectionRepo {
         payload['decan_theme'] = decanTheme;
       }
 
-      final res = await _client.from('decan_reflections').insert(payload).select().maybeSingle();
+      final res = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('decan_reflections')
+            .insert(payload)
+            .select()
+            .maybeSingle(),
+      );
       if (res == null) return null;
-      return DecanReflection.fromJson(res as Map<String, dynamic>);
+      return DecanReflection.fromJson(res);
     } catch (e, st) {
       debugPrint('[DecanReflectionRepo] saveReflection error: $e');
       debugPrint('$st');
       rethrow;
     }
+  }
+
+  String _friendlyReadError(Object error) {
+    if (isExpiredSupabaseJwtError(error)) {
+      return 'Your session expired. Sign in again, then reopen Decan Reflections.';
+    }
+    if (error is PostgrestException) {
+      return 'Could not load decan reflections. Check your connection, then try again.';
+    }
+    return 'Could not load decan reflections. Try again in a moment.';
   }
 }

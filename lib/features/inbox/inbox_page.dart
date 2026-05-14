@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/global_bottom_menu_metrics.dart';
 import '../../core/navigation_fallback.dart';
 import '../../core/push_intent_bus.dart';
 import '../../data/share_models.dart';
@@ -403,6 +404,8 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Widget _buildBody() {
+    final listBottomPadding = bottomPaddingAboveGlobalMenu(context, 16);
+
     return RefreshIndicator(
       onRefresh: _handleRefresh,
       color: _gold,
@@ -415,7 +418,7 @@ class _InboxPageState extends State<InboxPage> {
           : (_unified.isEmpty && !_hasSummaries
                 ? _buildEmptyState()
                 : ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding),
                     itemCount: _unified.length + _summaryTileCount,
                     itemBuilder: (context, index) {
                       if (_hasSummaries && index < _summaryTileCount) {
@@ -1042,13 +1045,9 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
-  bool get _hasSummaries =>
-      _latestFollow != null || _latestEngagement != null || _hasCalendarSummary;
+  bool get _hasSummaries => true;
   bool get _hasCalendarSummary => true;
-  int get _summaryTileCount =>
-      (_latestFollow != null ? 1 : 0) +
-      (_latestEngagement != null ? 1 : 0) +
-      (_hasCalendarSummary ? 1 : 0);
+  int get _summaryTileCount => 3;
 
   Widget? _buildActivityTileUnreadDot(bool show) {
     if (!show) return null;
@@ -1094,17 +1093,18 @@ class _InboxPageState extends State<InboxPage> {
 
   Widget _buildSummaryTile(int index) {
     final tiles = <Widget>[
-      if (_latestFollow != null) _buildCommunitySummaryTile(),
-      if (_latestEngagement != null) _buildMovementSummaryTile(),
+      _buildCommunitySummaryTile(),
+      _buildMovementSummaryTile(),
       if (_hasCalendarSummary) _buildCalendarSummaryTile(),
     ];
     return tiles[index];
   }
 
   Widget _buildCommunitySummaryTile() {
-    final a = _latestFollow!;
-    final title =
-        '${a.actorName ?? a.actorHandle ?? 'Someone'} started following you';
+    final a = _latestFollow;
+    final subtitleText = a == null
+        ? 'Followers and profile activity'
+        : '${a.actorName ?? a.actorHandle ?? 'Someone'} started following you';
     return ListTile(
       leading: _buildSummaryGlyphAvatar(glyph: '𓉐', fontSize: 21),
       title: const Text(
@@ -1112,7 +1112,7 @@ class _InboxPageState extends State<InboxPage> {
         style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
       ),
       subtitle: Text(
-        title,
+        subtitleText,
         style: TextStyle(color: Colors.white.withOpacity(0.7)),
       ),
       trailing: _buildActivityTileUnreadDot(_unreadState.hasUnreadCommunity),
@@ -1121,15 +1121,19 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Widget _buildMovementSummaryTile() {
-    final a = _latestEngagement!;
-    final who = a.actorName ?? a.actorHandle ?? 'Someone';
-    final preview = a.type == InboxActivityType.comment
-        ? (a.commentPreview ?? a.flowName ?? '')
-        : (a.flowName ?? '');
-    final summary = a.type == InboxActivityType.comment
-        ? '$who commented on your flow'
-        : '$who liked your flow';
-    final subtitleText = preview.isNotEmpty ? '$summary - $preview' : summary;
+    final a = _latestEngagement;
+    final subtitleText = a == null
+        ? 'Flow comments and likes'
+        : () {
+            final who = a.actorName ?? a.actorHandle ?? 'Someone';
+            final preview = a.type == InboxActivityType.comment
+                ? (a.commentPreview ?? a.flowName ?? '')
+                : (a.flowName ?? '');
+            final summary = a.type == InboxActivityType.comment
+                ? '$who commented on your flow'
+                : '$who liked your flow';
+            return preview.isNotEmpty ? '$summary - $preview' : summary;
+          }();
 
     return ListTile(
       leading: _buildSummaryGlyphAvatar(glyph: '𓂋𓀁', fontSize: 14),

@@ -35,6 +35,7 @@ import 'shared/glossy_text.dart';
 import 'utils/hive_local_storage_web.dart';
 import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
+import 'core/global_bottom_menu_metrics.dart';
 import 'core/global_menu_routes.dart';
 import 'core/planner_launch_intent.dart';
 import 'core/push_intent_bus.dart';
@@ -59,6 +60,7 @@ import 'features/profile/profile_page.dart';
 import 'features/profile/profile_search_page.dart';
 import 'features/reflections/decan_reflection_archive_page.dart';
 import 'features/rhythm/pages/commitment_tracker_page.dart';
+import 'features/rhythm/pages/rhythm_editors.dart';
 import 'features/rhythm/pages/todays_alignment_page.dart';
 import 'features/settings/settings_page.dart';
 import 'features/settings/settings_prefs.dart';
@@ -211,6 +213,8 @@ Future<void> main() async {
       ),
     );
 
+    await _refreshSessionIfNeeded('boot');
+
     await ProfileRepo(Supabase.instance.client).preloadLocalCaches();
 
     await AppWindowService.instance.ensureInitialized();
@@ -246,7 +250,7 @@ void _startWebBootTasks() {
   );
   _installVisibilityRefresh();
   unawaited(_completeWebOAuthIfNeeded());
-  unawaited(_rehydrateSessionOnce());
+  unawaited(_refreshSessionIfNeeded('web boot'));
 }
 
 void _handleWebContinuityLifecycleEvent(
@@ -313,9 +317,22 @@ Future<void> _completeWebOAuthIfNeeded() async {
   }
 }
 
-Future<void> _rehydrateSessionOnce() async {
-  // Touching currentSession is enough; the SDK already persisted it.
-  final _ = Supabase.instance.client.auth.currentSession;
+Future<void> _refreshSessionIfNeeded(String origin) async {
+  final session = Supabase.instance.client.auth.currentSession;
+  if (session == null || !session.isExpired) return;
+
+  try {
+    await Supabase.instance.client.auth.refreshSession().timeout(
+      const Duration(seconds: 8),
+    );
+    if (kDebugMode) {
+      debugPrint('[auth] refreshed expired session during $origin');
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('[auth] failed to refresh expired session during $origin: $e');
+    }
+  }
 }
 
 Future<void> _waitForWebAuthExchangeToSettle() async {
@@ -538,10 +555,7 @@ bool _isContinuityRouteLocation(String location) {
       path.startsWith('/nodes/') ||
       path.startsWith('/reflections/') ||
       path.startsWith('/share/') ||
-      path == '/rhythm/today' ||
-      path == '/rhythm/todo' ||
-      path == '/rhythm/tracker' ||
-      path.startsWith('/rhythm/decan/');
+      path.startsWith('/rhythm/');
 }
 
 String? _redirectExternalAppLink(Uri uri) {
@@ -561,7 +575,7 @@ String? _redirectExternalAppLink(Uri uri) {
 
 String? _redirectRetiredRhythmRoute(Uri uri) {
   final path = uri.path;
-  if (path == '/rhythm/mycycle' || path.startsWith('/rhythm/editor/')) {
+  if (path == '/rhythm/mycycle') {
     return '/rhythm/today';
   }
   return null;
@@ -877,6 +891,49 @@ final _router = GoRouter(
         );
       },
     ),
+    GoRoute(
+      path: '/rhythm/editor/timed',
+      builder: (context, state) {
+        final resume = state.extra is RhythmEditorResumePayload
+            ? state.extra as RhythmEditorResumePayload
+            : null;
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: TimedRhythmEditorPage(
+            initial: resume?.draft,
+            categoryDisplay:
+                resume?.category ??
+                state.uri.queryParameters['category'] ??
+                'Rhythm of Day',
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/rhythm/editor/untimed',
+      builder: (context, state) {
+        final resume = state.extra is RhythmEditorResumePayload
+            ? state.extra as RhythmEditorResumePayload
+            : null;
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: UntimedRhythmEditorPage(
+            initial: resume?.draft,
+            category:
+                resume?.category ??
+                state.uri.queryParameters['category'] ??
+                'Custom',
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/rhythm/editor/custom',
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: const CustomRhythmEditorPage(),
+      ),
+    ),
   ],
 );
 
@@ -1163,8 +1220,7 @@ class _GlobalBottomMenuBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
-    final visualHeight = 50 + bottomPadding;
-    final hitHeight = 112 + bottomPadding;
+    final visualHeight = globalBottomMenuHeight(context);
 
     return IgnorePointer(
       ignoring: !visible,
@@ -1181,31 +1237,25 @@ class _GlobalBottomMenuBar extends StatelessWidget {
             child: Semantics(
               label: 'Menu',
               button: true,
-              child: Listener(
+              child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onPointerUp: (_) => onPressed(),
+                onTap: onPressed,
                 child: SizedBox(
-                  height: hitHeight,
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: SizedBox(
-                      height: visualHeight,
-                      child: DecoratedBox(
-                        decoration: const BoxDecoration(
-                          color: Color(0xF6000000),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Color(0xB3000000),
-                              blurRadius: 18,
-                              offset: Offset(0, -8),
-                            ),
-                          ],
+                  height: visualHeight,
+                  child: DecoratedBox(
+                    decoration: const BoxDecoration(
+                      color: Color(0xF6000000),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0xB3000000),
+                          blurRadius: 18,
+                          offset: Offset(0, -8),
                         ),
-                        child: Padding(
-                          padding: EdgeInsets.only(bottom: bottomPadding),
-                          child: const Center(child: _FloatingMenuGlyph()),
-                        ),
-                      ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: bottomPadding),
+                      child: const Center(child: _FloatingMenuGlyph()),
                     ),
                   ),
                 ),
@@ -2771,7 +2821,11 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     if (state != AppLifecycleState.resumed) {
       return;
     }
-    _ensureDecanSchedules(scope: 'decan schedule resume');
+    unawaited(
+      _refreshSessionIfNeeded('resume').whenComplete(
+        () => _ensureDecanSchedules(scope: 'decan schedule resume'),
+      ),
+    );
   }
 
   // -- Keep a profiles row (id/email) for the user
