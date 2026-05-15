@@ -19,6 +19,7 @@ import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/rhythm/rhythm_telemetry.dart';
+import 'package:mobile/features/rhythm/data/nutrition_items_cache.dart';
 import 'package:mobile/features/rhythm/todo_day_window.dart';
 import 'package:mobile/features/rhythm/rhythm_user_messages.dart';
 import 'package:mobile/services/app_haptics.dart';
@@ -122,8 +123,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   Map<String, RhythmItemState> _nutritionStatesByKey = {};
   bool _nutritionLoading = true;
   bool _nutritionMissingTable = false;
+  bool _nutritionLocalOnly = false;
   String? _nutritionError;
   bool _nutritionStatesLoaded = false;
+  bool _nutritionLocalNoticeShown = false;
   int _activeNutritionDayIndex = 0;
   bool _nutritionFormOpen = false;
   Timer? _sessionPersistDebounce;
@@ -319,41 +322,102 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   Future<void> _loadNutrition() async {
+    final uid = _currentUserId;
     setState(() {
       _nutritionLoading = true;
       _nutritionError = null;
       _nutritionMissingTable = false;
     });
-    try {
-      final items = await _nutritionRepo.getAll();
+    final cachedFuture = NutritionItemsCache.load(uid);
+    if (uid == null) {
+      final cached = await cachedFuture;
       if (!mounted) return;
       setState(() {
-        _nutritionItems = items;
+        _nutritionItems = cached;
         _nutritionLoading = false;
+        _nutritionLocalOnly = cached.isNotEmpty;
+        _nutritionError = cached.isNotEmpty
+            ? 'Nutrition sources are saved only on this device. Cloud sync is unavailable.'
+            : null;
       });
+      return;
+    }
+    try {
+      final items = await _nutritionRepo.getAll();
+      final cached = await cachedFuture;
+      final offlineAdds = cached.where(NutritionItemsCache.isLocal).toList();
+      final uploaded = <NutritionItem>[];
+      var uploadFailed = false;
+      for (final item in offlineAdds) {
+        try {
+          uploaded.add(await _nutritionRepo.upsert(item));
+        } catch (_) {
+          uploadFailed = true;
+          break;
+        }
+      }
+      final mergedItems = uploadFailed
+          ? [...items, ...offlineAdds]
+          : [...items, ...uploaded];
+      await NutritionItemsCache.save(mergedItems, uid: uid);
+      if (!mounted) return;
+      setState(() {
+        _nutritionItems = mergedItems;
+        _nutritionLoading = false;
+        _nutritionLocalOnly = uploadFailed && offlineAdds.isNotEmpty;
+        _nutritionError = _nutritionLocalOnly
+            ? 'Nutrition sources are saved only on this device. Cloud sync is unavailable.'
+            : null;
+      });
+      if (_nutritionLocalOnly) {
+        _showLocalNutritionWarningOnce();
+      }
       if (_nutritionStatesLoaded) {
         unawaited(_reconcileNutritionPlannerBadges());
       }
     } on StateError catch (e) {
       final msg = e.toString().toLowerCase();
       final missing = msg.contains('nutrition_items');
+      final cached = await cachedFuture;
       if (!mounted) return;
       setState(() {
-        _nutritionItems = [];
+        _nutritionItems = cached;
         _nutritionLoading = false;
         _nutritionMissingTable = missing;
-        _nutritionError = missing
+        _nutritionLocalOnly = cached.isNotEmpty;
+        _nutritionError = cached.isNotEmpty
+            ? 'Nutrition sources are saved only on this device. Cloud sync is unavailable.'
+            : missing
             ? 'Nutrition storage is not available in this environment yet.'
             : 'Could not load nutrition sources.';
       });
     } catch (_) {
+      final cached = await cachedFuture;
       if (!mounted) return;
       setState(() {
-        _nutritionItems = [];
+        _nutritionItems = cached;
         _nutritionLoading = false;
-        _nutritionError = 'Could not load nutrition sources.';
+        _nutritionLocalOnly = cached.isNotEmpty;
+        _nutritionError = cached.isNotEmpty
+            ? 'Nutrition sources are saved only on this device. Cloud sync is unavailable.'
+            : 'Could not load nutrition sources.';
       });
     }
+  }
+
+  void _showLocalNutritionWarningOnce() {
+    if (_nutritionLocalNoticeShown || !mounted) return;
+    _nutritionLocalNoticeShown = true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Nutrition sources are saved only on this device. Cloud sync is unavailable.',
+        ),
+        duration: Duration(seconds: 4),
+        backgroundColor: Colors.orangeAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _addNutritionItem() async {
@@ -364,16 +428,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     if (nutrient.isEmpty && source.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Add a nutrient or source first.')),
-      );
-      return;
-    }
-    if (_nutritionMissingTable) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Nutrition storage is not available in this environment yet.',
-          ),
-        ),
       );
       return;
     }
@@ -391,29 +445,69 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         time: const TimeOfDay(hour: 9, minute: 0),
       ),
     );
+    if (_nutritionMissingTable) {
+      await _saveNutritionItemLocally(newItem);
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final saved = await _nutritionRepo.upsert(newItem);
       if (!mounted) return;
+      final updated = [..._nutritionItems, saved];
       setState(() {
-        _nutritionItems = [..._nutritionItems, saved];
+        _nutritionItems = updated;
+        _nutritionLocalOnly = false;
+        _nutritionError = null;
       });
+      await NutritionItemsCache.save(updated, uid: _currentUserId);
       _nutritionNutrientController.clear();
       _nutritionSourceController.clear();
       _nutritionPurposeController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(content: Text('Saved to Day $decanDay of this decan.')),
       );
     } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save nutrition item.')),
-      );
+      await _saveNutritionItemLocally(newItem);
     }
+  }
+
+  Future<void> _saveNutritionItemLocally(NutritionItem item) async {
+    if (!mounted) return;
+    final fallback = item.copyWith(
+      id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+    );
+    final updated = [..._nutritionItems, fallback];
+    setState(() {
+      _nutritionItems = updated;
+      _nutritionLocalOnly = true;
+      _nutritionError =
+          'Nutrition sources are saved only on this device. Cloud sync is unavailable.';
+    });
+    await NutritionItemsCache.save(updated, uid: _currentUserId);
+    _nutritionNutrientController.clear();
+    _nutritionSourceController.clear();
+    _nutritionPurposeController.clear();
+    _showLocalNutritionWarningOnce();
   }
 
   Future<List<NutritionItem>> _saveNutritionItemEdits(
     List<NutritionItem> items,
   ) async {
+    if (_nutritionLocalOnly || items.any(NutritionItemsCache.isLocal)) {
+      final editedById = {for (final item in items) item.id: item};
+      final updated = [
+        for (final item in _nutritionItems) editedById[item.id] ?? item,
+      ];
+      await NutritionItemsCache.save(updated, uid: _currentUserId);
+      if (mounted) {
+        setState(() {
+          _nutritionItems = updated;
+          _nutritionLocalOnly = true;
+        });
+      }
+      _showLocalNutritionWarningOnce();
+      return items;
+    }
     final savedItems = <NutritionItem>[];
     for (final item in items) {
       savedItems.add(await _nutritionRepo.upsert(item));
@@ -426,6 +520,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         for (final item in _nutritionItems) savedById[item.id] ?? item,
       ];
     });
+    await NutritionItemsCache.save(_nutritionItems, uid: _currentUserId);
     return savedItems;
   }
 
@@ -1119,20 +1214,24 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   Future<void> _deleteNutritionItem(NutritionItem item) async {
-    await _eventsRepo.deleteByClientIdPrefix('nutrition:${item.id}:');
-    await _nutritionRepo.delete(item.id);
+    if (!NutritionItemsCache.isLocal(item)) {
+      await _eventsRepo.deleteByClientIdPrefix('nutrition:${item.id}:');
+      await _nutritionRepo.delete(item.id);
+    }
 
     final updatedStates = Map<String, RhythmItemState>.from(
       _nutritionStatesByKey,
     )..removeWhere((key, _) => key.endsWith('::${item.id}'));
     await _saveNutritionStatesToPrefs(updatedStates);
+    final updatedItems = [
+      for (final current in _nutritionItems)
+        if (current.id != item.id) current,
+    ];
+    await NutritionItemsCache.save(updatedItems, uid: _currentUserId);
 
     if (mounted) {
       setState(() {
-        _nutritionItems = [
-          for (final current in _nutritionItems)
-            if (current.id != item.id) current,
-        ];
+        _nutritionItems = updatedItems;
         _nutritionStatesByKey = updatedStates;
       });
     }
@@ -2636,7 +2735,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             ),
           ),
           const SizedBox(height: 12),
-          if (_nutritionMissingTable)
+          if (_nutritionMissingTable || _nutritionLocalOnly)
             Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(12),
@@ -2657,7 +2756,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Nutrition tracking is not available in this environment yet.',
+                      _nutritionLocalOnly
+                          ? 'Nutrition sources are saved only on this device. Cloud sync is unavailable.'
+                          : 'Nutrition tracking is not available in this environment yet.',
                       style: RhythmTheme.subheading.copyWith(
                         color: Colors.orangeAccent,
                       ),
@@ -2666,7 +2767,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                 ],
               ),
             ),
-          if (_nutritionError != null && !_nutritionMissingTable)
+          if (_nutritionError != null &&
+              !_nutritionMissingTable &&
+              !_nutritionLocalOnly)
             Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(12),
