@@ -812,9 +812,8 @@ class _JournalOverlayState extends State<JournalOverlay>
     );
   }
 
-  /// Returns either the Journal editor (default) or the Nutrition grid.
   Widget _buildContent() {
-    return _buildEditor(); // existing editor builder
+    return _buildEditor();
   }
 
   Widget _buildToolbar() {
