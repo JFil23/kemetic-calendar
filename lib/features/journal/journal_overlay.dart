@@ -592,7 +592,7 @@ class _JournalOverlayState extends State<JournalOverlay>
             _activePane == _JournalPane.journal &&
             !_keyboardVisible;
         if (kDebugMode) {
-          print(
+          debugPrint(
             '[JournalOverlay] layout size=${size.width}x${size.height} portrait=${widget.isPortrait}',
           );
         }
@@ -638,7 +638,7 @@ class _JournalOverlayState extends State<JournalOverlay>
                       final slideValue = _slideAnimation.value;
                       final currentOffset = _dragOffset * (1 - slideValue);
                       if (kDebugMode) {
-                        print(
+                        debugPrint(
                           '[JournalOverlay] slide=$slideValue drag=$_dragOffset',
                         );
                       }

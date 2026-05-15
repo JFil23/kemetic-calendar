@@ -836,7 +836,9 @@ class EventLayoutEngine {
     required int day, // For debug logging
   }) {
     if (kDebugMode) {
-      print('[EventLayoutEngine] Layout for day $day: ${notes.length} notes');
+      debugPrint(
+        '[EventLayoutEngine] Layout for day $day: ${notes.length} notes',
+      );
     }
 
     final events = _sortedEventsForDay(notes: notes, flowIndex: flowIndex);
@@ -900,7 +902,7 @@ class EventLayoutEngine {
     });
 
     if (kDebugMode) {
-      print(
+      debugPrint(
         '[EventLayoutEngine] Generated ${blocks.length} positioned blocks for day $day',
       );
     }
@@ -1926,7 +1928,7 @@ class _DayViewPageState extends State<DayViewPage> {
         if (_lastOrientation != null &&
             _lastOrientation != effectiveOrientation) {
           if (kDebugMode) {
-            print(
+            debugPrint(
               '\n📱 [DAY VIEW] Orientation changed: $_lastOrientation → $effectiveOrientation',
             );
           }
@@ -1959,7 +1961,7 @@ class _DayViewPageState extends State<DayViewPage> {
                   onMonthChanged: (ky, km) {
                     // ✅ HANDLE MONTH CHANGE IN DAY VIEW
                     if (kDebugMode) {
-                      print(
+                      debugPrint(
                         '🔄 [DAY VIEW] Landscape month changed: Year $ky, Month $km',
                       );
                     }
@@ -3184,7 +3186,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         final originalCount = widget.notes.length;
         final dedupedCount = dedupedNotes.length;
         if (originalCount != dedupedCount) {
-          print(
+          debugPrint(
             '[DayView] Deduplicated events: $originalCount → $dedupedCount (removed ${originalCount - dedupedCount} duplicates)',
           );
         }
@@ -3801,7 +3803,7 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     // 🔍 DEBUG: Log block being rendered
     if (kDebugMode) {
-      print(
+      debugPrint(
         '[_buildEventBlock] Rendering: title="${event.title}", flowId=${event.flowId}, cid=${event.clientEventId}',
       );
     }
@@ -5129,15 +5131,17 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
 
     if (kDebugMode) {
-      print('[_showEventDetail] Event: "${event.title}"');
-      print(
+      debugPrint('[_showEventDetail] Event: "${event.title}"');
+      debugPrint(
         '[_showEventDetail] Event flowId: ${event.flowId} (${event.flowId.runtimeType})',
       );
-      print('[_showEventDetail] Event color: ${event.color}');
-      print(
+      debugPrint('[_showEventDetail] Event color: ${event.color}');
+      debugPrint(
         '[_showEventDetail] FlowIndex keys: ${widget.flowIndex.keys.toList()}',
       );
-      print('[_showEventDetail] FlowIndex length: ${widget.flowIndex.length}');
+      debugPrint(
+        '[_showEventDetail] FlowIndex length: ${widget.flowIndex.length}',
+      );
     }
 
     void updateMeasuredHeight(String key, double height) {
