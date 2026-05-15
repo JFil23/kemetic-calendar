@@ -24494,14 +24494,14 @@ class _CalendarPageState extends State<CalendarPage>
     final previousOrientation = _lastOrientation;
     if (previousOrientation != null && previousOrientation != orientation) {
       if (kDebugMode) {
-        print('\n' + '🔄' * 30);
-        print('ORIENTATION CHANGED!');
-        print('From: $previousOrientation → To: $orientation');
-        print('Navigator canPop: ${Navigator.canPop(context)}');
-        print(
+        debugPrint('\n${'🔄' * 30}');
+        debugPrint('ORIENTATION CHANGED!');
+        debugPrint('From: $previousOrientation → To: $orientation');
+        debugPrint('Navigator canPop: ${Navigator.canPop(context)}');
+        debugPrint(
           'Modal route active: ${ModalRoute.of(context)?.isCurrent ?? false}',
         );
-        print('🔄' * 30 + '\n');
+        debugPrint('${'🔄' * 30}\n');
       }
 
       if (previousOrientation == Orientation.portrait &&
@@ -24511,7 +24511,7 @@ class _CalendarPageState extends State<CalendarPage>
 
       if (orientation == Orientation.portrait) {
         if (kDebugMode) {
-          print(
+          debugPrint(
             '📜 [CALENDAR] Preserving month for portrait: $_lastViewKy-$_lastViewKm',
           );
         }
@@ -24533,11 +24533,11 @@ class _CalendarPageState extends State<CalendarPage>
       final km = _lastViewKm ?? kToday.kMonth;
 
       if (kDebugMode) {
-        print('\n📱 [CALENDAR] Building LandscapeMonthView');
-        print('   initialKy: $ky');
-        print('   initialKm: $km');
-        print('   initialKd: null');
-        print(
+        debugPrint('\n📱 [CALENDAR] Building LandscapeMonthView');
+        debugPrint('   initialKy: $ky');
+        debugPrint('   initialKm: $km');
+        debugPrint('   initialKd: null');
+        debugPrint(
           '   onAddNote callback: ${_openDaySheet != null ? "PROVIDED" : "NULL"}',
         );
       }
@@ -24585,8 +24585,8 @@ class _CalendarPageState extends State<CalendarPage>
           onManageFlows: _getMyFlowsCallback(),
           onAddNote: (ky, km, kd) {
             if (kDebugMode) {
-              print('\n🎯 [CALLBACK] onAddNote received from landscape');
-              print('   Date: $ky-$km-$kd');
+              debugPrint('\n🎯 [CALLBACK] onAddNote received from landscape');
+              debugPrint('   Date: $ky-$km-$kd');
             }
             _openDaySheet(ky, km, kd, allowDateChange: true);
           },
