@@ -121,12 +121,14 @@ class EventBadgeToken {
 class EventBadgeWidget extends StatefulWidget {
   final EventBadgeToken token;
   final bool initialExpanded;
+  final bool expandable;
   final ValueChanged<bool>? onToggle;
 
   const EventBadgeWidget({
     super.key,
     required this.token,
     this.initialExpanded = false,
+    this.expandable = true,
     this.onToggle,
   });
 
@@ -153,6 +155,7 @@ class _EventBadgeWidgetState extends State<EventBadgeWidget>
   }
 
   void _toggle() {
+    if (!widget.expandable) return;
     final next = !_expanded;
     setState(() => _expanded = next);
     widget.onToggle?.call(next);
@@ -165,7 +168,7 @@ class _EventBadgeWidgetState extends State<EventBadgeWidget>
       constraints: BoxConstraints(
         maxWidth: maxWidth.clamp(120.0, double.infinity),
       ),
-      child: _expanded
+      child: _expanded && widget.expandable
           ? _ExpandedEventBadge(token: widget.token, onTap: _toggle)
           : _CollapsedEventBadge(token: widget.token, onTap: _toggle),
     );

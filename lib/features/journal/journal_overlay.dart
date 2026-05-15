@@ -348,8 +348,13 @@ class _JournalOverlayState extends State<JournalOverlay>
     await _insightRepo.saveLinks(userId, filtered);
   }
 
-  void _close() {
+  void _dismissKeyboard() {
     _focusNode.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  void _close() {
+    _dismissKeyboard();
     if (widget.presentationMode == JournalPresentationMode.page) {
       widget.onClose();
       return;
@@ -588,9 +593,7 @@ class _JournalOverlayState extends State<JournalOverlay>
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
         final showJournalToolbar =
-            _showToolbar &&
-            _activePane == _JournalPane.journal &&
-            !_keyboardVisible;
+            _showToolbar && _activePane == _JournalPane.journal;
         if (kDebugMode) {
           debugPrint(
             '[JournalOverlay] layout size=${size.width}x${size.height} portrait=${widget.isPortrait}',
@@ -606,14 +609,19 @@ class _JournalOverlayState extends State<JournalOverlay>
             resizeToAvoidBottomInset: true,
             body: SafeArea(
               minimum: EdgeInsets.only(bottom: bottomMenuPadding),
-              child: Container(
-                color: Colors.black,
-                child: Column(
-                  children: [
-                    _buildHeader(),
-                    if (showJournalToolbar) _buildToolbar(),
-                    Expanded(child: _buildContent()),
-                  ],
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _dismissKeyboard,
+                child: Container(
+                  color: Colors.black,
+                  child: Column(
+                    children: [
+                      _buildHeader(),
+                      if (showJournalToolbar)
+                        _buildToolbar(compact: _keyboardVisible),
+                      Expanded(child: _buildContent()),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -629,7 +637,7 @@ class _JournalOverlayState extends State<JournalOverlay>
               child: Container(
                 color: Colors.black.withValues(alpha: 0.5),
                 child: GestureDetector(
-                  onTap: () {},
+                  onTap: _dismissKeyboard,
                   onPanUpdate: isTablet ? null : _onPanUpdate,
                   onPanEnd: isTablet ? null : _onPanEnd,
                   child: AnimatedBuilder(
@@ -687,7 +695,8 @@ class _JournalOverlayState extends State<JournalOverlay>
                           children: [
                             _buildHeader(),
                             // Show the journal toolbar only in Journal mode
-                            if (showJournalToolbar) _buildToolbar(),
+                            if (showJournalToolbar)
+                              _buildToolbar(compact: _keyboardVisible),
                             Expanded(child: _buildContent()),
                           ],
                         ),
@@ -729,6 +738,15 @@ class _JournalOverlayState extends State<JournalOverlay>
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (_keyboardVisible)
+                IconButton(
+                  icon: KemeticGold.icon(Icons.keyboard_hide),
+                  onPressed: _dismissKeyboard,
+                  tooltip: 'Dismiss keyboard',
+                  padding: expandedIconButtonPadding(context),
+                  constraints: expandedIconButtonConstraints(context),
+                  visualDensity: expandedVisualDensity(context),
+                ),
               IconButton(
                 icon: KemeticGold.icon(Icons.history),
                 onPressed: _openArchive,
@@ -816,7 +834,7 @@ class _JournalOverlayState extends State<JournalOverlay>
     return _buildEditor();
   }
 
-  Widget _buildToolbar() {
+  Widget _buildToolbar({bool compact = false}) {
     return Container(
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0xFF333333), width: 1)),
@@ -832,29 +850,68 @@ class _JournalOverlayState extends State<JournalOverlay>
           onInsertChart: _onInsertChart,
           canUndo: _undoSystem.canUndo,
           canRedo: _undoSystem.canRedo,
+          compact: compact,
         ),
       ),
     );
   }
 
   Widget _buildEditor() {
-    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
-    final editorPadding = keyboardVisible
-        ? const EdgeInsets.fromLTRB(16, 8, 16, 8)
-        : const EdgeInsets.all(16);
-    return Container(
-      padding: editorPadding,
-      child: Column(
-        children: [
-          Expanded(child: _buildTextLayer()),
-          if (!keyboardVisible) ...[
-            const SizedBox(height: 12),
-            // Badge area (replaces drawing canvas)
-            _buildBadgeArea(),
-          ],
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+        final editorPadding = keyboardVisible
+            ? const EdgeInsets.fromLTRB(16, 8, 16, 8)
+            : const EdgeInsets.all(16);
+        final badgeHeight = _badgeAreaHeight(
+          keyboardVisible: keyboardVisible,
+          maxEditorHeight: constraints.maxHeight,
+        );
+
+        return Container(
+          padding: editorPadding,
+          child: Column(
+            children: [
+              Expanded(child: _buildTextLayer()),
+              if (badgeHeight > 0) ...[
+                SizedBox(height: keyboardVisible ? 8 : 12),
+                // Badge area (replaces drawing canvas)
+                _buildBadgeArea(height: badgeHeight, compact: keyboardVisible),
+              ],
+            ],
+          ),
+        );
+      },
     );
+  }
+
+  double _badgeAreaHeight({
+    required bool keyboardVisible,
+    required double maxEditorHeight,
+  }) {
+    final targetHeight = keyboardVisible
+        ? (widget.presentationMode == JournalPresentationMode.page
+              ? 88.0
+              : 76.0)
+        : (widget.presentationMode == JournalPresentationMode.page
+              ? 252.0
+              : 220.0);
+
+    if (!maxEditorHeight.isFinite) {
+      return targetHeight;
+    }
+
+    final paddingHeight = keyboardVisible ? 16.0 : 32.0;
+    final gapHeight = keyboardVisible ? 8.0 : 12.0;
+    final minTextHeight = keyboardVisible ? 120.0 : 180.0;
+    final maxBadgeHeight =
+        maxEditorHeight - paddingHeight - gapHeight - minTextHeight;
+
+    if (maxBadgeHeight < 52) {
+      return 0;
+    }
+
+    return targetHeight.clamp(52.0, maxBadgeHeight).toDouble();
   }
 
   Widget _buildTextLayer() {
@@ -875,6 +932,7 @@ class _JournalOverlayState extends State<JournalOverlay>
         initialBlock: initialBlock,
         onChanged: _onRichTextChanged,
         currentAttrs: _currentAttrs,
+        focusNode: _focusNode,
         highlightedRanges: _linkedTextRanges(),
         insightLinks: _insightLinks,
         onInsightLinkTap: _handleLinkTap,
@@ -916,11 +974,8 @@ class _JournalOverlayState extends State<JournalOverlay>
     return JournalBadgeUtils.tokensFromDocument(doc);
   }
 
-  Widget _buildBadgeArea() {
+  Widget _buildBadgeArea({required double height, bool compact = false}) {
     final badges = _extractBadges();
-    final height = widget.presentationMode == JournalPresentationMode.page
-        ? 252.0
-        : 220.0;
     final badgeCountLabel = badges.isEmpty
         ? 'No badges yet'
         : '${badges.length} badge${badges.length == 1 ? '' : 's'}';
@@ -929,104 +984,137 @@ class _JournalOverlayState extends State<JournalOverlay>
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       height: height,
-      child: height == 0
-          ? const SizedBox.shrink()
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(4, 0, 4, compact ? 6 : 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Badges',
-                        style: TextStyle(
-                          color: KemeticGold.base,
-                          fontSize:
-                              widget.presentationMode ==
-                                  JournalPresentationMode.page
-                              ? 16
-                              : 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        badgeCountLabel,
-                        style: const TextStyle(
-                          color: Color(0xFF888888),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                Text(
+                  'Badges',
+                  style: TextStyle(
+                    color: KemeticGold.base,
+                    fontSize: compact
+                        ? 13
+                        : widget.presentationMode ==
+                              JournalPresentationMode.page
+                        ? 16
+                        : 14,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0A0A0A),
-                        border: Border.all(
-                          color: const Color(0xFF333333),
-                          width: 1,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black54,
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: badges.isEmpty
-                          ? const Center(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 18),
-                                child: Text(
-                                  'Event badges you add from day view will appear here.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(color: Color(0xFF666666)),
-                                ),
-                              ),
-                            )
-                          : Scrollbar(
-                              thumbVisibility: true,
-                              controller: _badgeScrollController,
-                              child: SingleChildScrollView(
-                                controller: _badgeScrollController,
-                                padding: const EdgeInsets.all(12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: badges.map((token) {
-                                    final expanded =
-                                        _badgeExpansion[token.id] ?? false;
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 12,
-                                      ),
-                                      child: EventBadgeWidget(
-                                        token: token,
-                                        initialExpanded: expanded,
-                                        onToggle: (next) {
-                                          setState(() {
-                                            _badgeExpansion[token.id] = next;
-                                          });
-                                        },
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-                            ),
-                    ),
+                Text(
+                  badgeCountLabel,
+                  style: const TextStyle(
+                    color: Color(0xFF888888),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
+          ),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A0A0A),
+                  border: Border.all(color: const Color(0xFF333333), width: 1),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black54,
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: compact
+                    ? _buildCompactBadgeList(badges)
+                    : _buildExpandedBadgeList(badges),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactBadgeList(List<EventBadgeToken> badges) {
+    if (badges.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 18),
+          child: Text(
+            'No badges yet',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFF666666), fontSize: 12),
+          ),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      child: Row(
+        children: badges.map((token) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: EventBadgeWidget(
+              token: token,
+              initialExpanded: false,
+              expandable: false,
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildExpandedBadgeList(List<EventBadgeToken> badges) {
+    if (badges.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 18),
+          child: Text(
+            'Event badges you add from day view will appear here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Color(0xFF666666)),
+          ),
+        ),
+      );
+    }
+
+    return Scrollbar(
+      thumbVisibility: true,
+      controller: _badgeScrollController,
+      child: SingleChildScrollView(
+        controller: _badgeScrollController,
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: badges.map((token) {
+            final expanded = _badgeExpansion[token.id] ?? false;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: EventBadgeWidget(
+                token: token,
+                initialExpanded: expanded,
+                onToggle: (next) {
+                  setState(() {
+                    _badgeExpansion[token.id] = next;
+                  });
+                },
+              ),
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 }

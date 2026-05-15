@@ -20,6 +20,7 @@ class JournalV2Toolbar extends StatefulWidget {
   final VoidCallback onInsertChart;
   final bool canUndo;
   final bool canRedo;
+  final bool compact;
 
   const JournalV2Toolbar({
     super.key,
@@ -31,6 +32,7 @@ class JournalV2Toolbar extends StatefulWidget {
     required this.onInsertChart,
     this.canUndo = false,
     this.canRedo = false,
+    this.compact = false,
   });
 
   @override
@@ -79,6 +81,13 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
       fallback: 0,
     );
 
+    if (widget.compact) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: _buildFormatButtonsRow(),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -116,39 +125,38 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
 
           // Format buttons row
           const SizedBox(height: 8),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildFormatButton('B', 'bold', _currentAttrs.bold, bold: true),
-              const SizedBox(width: 4),
-              _buildFormatButton(
-                'I',
-                'italic',
-                _currentAttrs.italic,
-                italic: true,
-              ),
-              const SizedBox(width: 4),
-              _buildFormatButton(
-                'U',
-                'underline',
-                _currentAttrs.underline,
-                underline: true,
-              ),
-              const SizedBox(width: 4),
-              _buildFormatButton(
-                'S',
-                'strikethrough',
-                _currentAttrs.strikethrough,
-                strikethrough: true,
-              ),
-            ],
-          ),
+          _buildFormatButtonsRow(),
 
           // Status bar with undo/redo
           const SizedBox(height: 8),
           _buildStatusBar(),
         ],
       ),
+    );
+  }
+
+  Widget _buildFormatButtonsRow() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildFormatButton('B', 'bold', _currentAttrs.bold, bold: true),
+        const SizedBox(width: 4),
+        _buildFormatButton('I', 'italic', _currentAttrs.italic, italic: true),
+        const SizedBox(width: 4),
+        _buildFormatButton(
+          'U',
+          'underline',
+          _currentAttrs.underline,
+          underline: true,
+        ),
+        const SizedBox(width: 4),
+        _buildFormatButton(
+          'S',
+          'strikethrough',
+          _currentAttrs.strikethrough,
+          strikethrough: true,
+        ),
+      ],
     );
   }
 

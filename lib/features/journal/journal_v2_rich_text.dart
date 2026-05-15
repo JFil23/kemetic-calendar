@@ -542,6 +542,7 @@ class RichTextEditor extends StatefulWidget {
   final ParagraphBlock initialBlock;
   final Function(ParagraphBlock) onChanged;
   final TextAttrs currentAttrs;
+  final FocusNode? focusNode;
   final ValueChanged<bool>? onBadgeExpansionChanged;
   final bool readOnly;
   final List<TextRange> highlightedRanges;
@@ -554,6 +555,7 @@ class RichTextEditor extends StatefulWidget {
     required this.initialBlock,
     required this.onChanged,
     this.currentAttrs = const TextAttrs(),
+    this.focusNode,
     this.onBadgeExpansionChanged,
     this.readOnly = false,
     this.highlightedRanges = const [],
@@ -571,6 +573,7 @@ class RichTextEditorState extends State<RichTextEditor> {
 
   late _FormattedTextEditingController _controller;
   late FocusNode _focusNode;
+  late bool _ownsFocusNode;
   ParagraphBlock _currentBlock = ParagraphBlock(id: '', ops: []);
   bool _isUpdating = false;
   late final List<TextInputFormatter> _formatters;
@@ -592,7 +595,8 @@ class RichTextEditorState extends State<RichTextEditor> {
       highlightedRanges: widget.highlightedRanges,
       onExternalBadgeToggle: _handleBadgeToggle,
     );
-    _focusNode = FocusNode();
+    _ownsFocusNode = widget.focusNode == null;
+    _focusNode = widget.focusNode ?? FocusNode();
     _formatters = [_BadgeProtectingFormatter()];
     _controller.addListener(_handleControllerChanged);
   }
@@ -609,6 +613,13 @@ class RichTextEditorState extends State<RichTextEditor> {
     if (!_rangesEqual(oldWidget.highlightedRanges, widget.highlightedRanges)) {
       _controller.updateHighlightedRanges(widget.highlightedRanges);
     }
+    if (oldWidget.focusNode != widget.focusNode) {
+      if (_ownsFocusNode) {
+        _focusNode.dispose();
+      }
+      _ownsFocusNode = widget.focusNode == null;
+      _focusNode = widget.focusNode ?? FocusNode();
+    }
     if (_armedBoundaryLinkId != null &&
         !widget.insightLinks.any((link) => link.id == _armedBoundaryLinkId)) {
       _clearArmedBoundaryLink();
@@ -621,7 +632,9 @@ class RichTextEditorState extends State<RichTextEditor> {
     _textScrollController.dispose();
     _readScrollController.dispose();
     _controller.dispose();
-    _focusNode.dispose();
+    if (_ownsFocusNode) {
+      _focusNode.dispose();
+    }
     super.dispose();
   }
 

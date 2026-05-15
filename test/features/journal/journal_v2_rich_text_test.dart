@@ -37,6 +37,42 @@ void main() {
     expect(find.text(placeholder), findsNothing);
   });
 
+  testWidgets('uses caller-provided focus node for keyboard dismissal', (
+    tester,
+  ) async {
+    final focusNode = FocusNode();
+    addTearDown(focusNode.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            height: 220,
+            child: RichTextEditor(
+              initialBlock: const ParagraphBlock(
+                id: 'p-focus',
+                ops: [TextOp(insert: '\n')],
+              ),
+              focusNode: focusNode,
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+
+    expect(focusNode.hasFocus, isTrue);
+
+    focusNode.unfocus();
+    await tester.pump();
+
+    expect(focusNode.hasFocus, isFalse);
+  });
+
   testWidgets('keeps the journal editor caret above the keyboard inset', (
     tester,
   ) async {
