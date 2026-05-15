@@ -93,7 +93,7 @@ class KemeticNodeListPage extends StatelessWidget {
               },
             );
           },
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
           itemCount: nodes.length,
         ),
       ),
@@ -116,13 +116,13 @@ class _NodeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final aliasChips = node.aliases.where((a) => a.isNotEmpty).toList();
     return Material(
-      color: Colors.white.withOpacity(0.04),
+      color: Colors.white.withValues(alpha: 0.04),
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
-        splashColor: KemeticGold.base.withOpacity(0.05),
-        highlightColor: KemeticGold.base.withOpacity(0.08),
+        splashColor: KemeticGold.base.withValues(alpha: 0.05),
+        highlightColor: KemeticGold.base.withValues(alpha: 0.08),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -134,7 +134,7 @@ class _NodeCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.white12),
-                  color: Colors.white.withOpacity(0.04),
+                  color: Colors.white.withValues(alpha: 0.04),
                 ),
                 alignment: Alignment.center,
                 child: ShaderMask(
@@ -184,7 +184,7 @@ class _NodeCard extends StatelessWidget {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.06),
+                                  color: Colors.white.withValues(alpha: 0.06),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(color: Colors.white12),
                                 ),

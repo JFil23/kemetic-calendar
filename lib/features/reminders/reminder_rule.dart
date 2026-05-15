@@ -45,7 +45,7 @@ class ReminderRepeat {
   }
 
   factory ReminderRepeat.fromJson(Map<String, dynamic> json) {
-    ReminderRepeatKind _kindFrom(String? raw) {
+    ReminderRepeatKind kindFrom(String? raw) {
       return ReminderRepeatKind.values.firstWhere(
         (k) => k.name == raw,
         orElse: () => ReminderRepeatKind.none,
@@ -53,7 +53,7 @@ class ReminderRepeat {
     }
 
     return ReminderRepeat(
-      kind: _kindFrom(json['kind'] as String?),
+      kind: kindFrom(json['kind'] as String?),
       interval: (json['interval'] as num?)?.toInt() ?? 1,
       weekdays: {
         for (final n in (json['weekdays'] as List? ?? const []))
@@ -168,7 +168,7 @@ class ReminderRule {
       'startLocal': startLocal.toIso8601String(),
       'endLocal': endLocal?.toIso8601String(),
       'allDay': allDay,
-      'color': color.value,
+      'color': color.toARGB32(),
       'category': category,
       'active': active,
       'repeat': repeat.toJson(),
@@ -190,7 +190,7 @@ class ReminderRule {
         _ => null,
       },
       allDay: (json['allDay'] as bool?) ?? false,
-      color: Color((json['color'] as num?)?.toInt() ?? Colors.blue.value),
+      color: Color((json['color'] as num?)?.toInt() ?? Colors.blue.toARGB32()),
       category: json['category'] as String?,
       active: (json['active'] as bool?) ?? true,
       repeat: ReminderRepeat.fromJson(

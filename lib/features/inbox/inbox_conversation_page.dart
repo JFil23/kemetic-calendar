@@ -353,7 +353,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                   'User',
               avatarUrl: widget.otherProfile.avatarUrl,
               avatarGlyphIds: widget.otherProfile.avatarGlyphIds,
-              backgroundColor: KemeticGold.base.withOpacity(0.2),
+              backgroundColor: KemeticGold.base.withValues(alpha: 0.2),
               foregroundColor: KemeticGold.base,
             ),
             const SizedBox(width: 8),
@@ -667,7 +667,9 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF0D0D0F),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: TextField(
                   controller: _messageController,
@@ -734,13 +736,13 @@ class _FlowBubble extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 280),
       decoration: BoxDecoration(
         color: isMine
-            ? KemeticGold.base.withOpacity(0.2)
+            ? KemeticGold.base.withValues(alpha: 0.2)
             : const Color(0xFF0D0D0F),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isMine
-              ? KemeticGold.base.withOpacity(0.3)
-              : Colors.white.withOpacity(0.1),
+              ? KemeticGold.base.withValues(alpha: 0.3)
+              : Colors.white.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -772,7 +774,7 @@ class _FlowBubble extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.2),
+                    color: Colors.green.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
@@ -793,7 +795,7 @@ class _FlowBubble extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.18),
+                    color: statusColor.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -823,7 +825,9 @@ class _FlowBubble extends StatelessWidget {
           Text(
             _detailLine(payload),
             style: TextStyle(
-              color: (isMine ? Colors.white : Colors.white70).withOpacity(0.6),
+              color: (isMine ? Colors.white : Colors.white70).withValues(
+                alpha: 0.6,
+              ),
               fontSize: 11,
             ),
           ),
@@ -924,13 +928,13 @@ class _MessageBubble extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 320),
       decoration: BoxDecoration(
         color: isMine
-            ? KemeticGold.base.withOpacity(0.2)
-            : Colors.white.withOpacity(0.06),
+            ? KemeticGold.base.withValues(alpha: 0.2)
+            : Colors.white.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isMine
-              ? KemeticGold.base.withOpacity(0.4)
-              : Colors.white.withOpacity(0.08),
+              ? KemeticGold.base.withValues(alpha: 0.4)
+              : Colors.white.withValues(alpha: 0.08),
         ),
       ),
       child: Column(
@@ -939,7 +943,7 @@ class _MessageBubble extends StatelessWidget {
           Text(
             text,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withValues(alpha: 0.95),
               fontSize: 15,
               height: 1.4,
             ),
@@ -951,7 +955,7 @@ class _MessageBubble extends StatelessWidget {
               Text(
                 _formatTime(createdAt),
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.45),
+                  color: Colors.white.withValues(alpha: 0.45),
                   fontSize: 11,
                 ),
               ),
@@ -971,14 +975,14 @@ class _MessageBubble extends StatelessWidget {
                   size: 12,
                   color: likedByMe
                       ? Colors.redAccent
-                      : Colors.redAccent.withOpacity(0.75),
+                      : Colors.redAccent.withValues(alpha: 0.75),
                 ),
                 if (likesCount > 1) ...[
                   const SizedBox(width: 3),
                   Text(
                     '$likesCount',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.55),
+                      color: Colors.white.withValues(alpha: 0.55),
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1010,18 +1014,4 @@ class _MessageBubble extends StatelessWidget {
       return '${localDate.month}/${localDate.day}/${localDate.year}';
     }
   }
-}
-
-class _ConversationUser {
-  final String id;
-  final String? displayName;
-  final String? handle;
-  final String? avatarUrl;
-
-  _ConversationUser({
-    required this.id,
-    this.displayName,
-    this.handle,
-    this.avatarUrl,
-  });
 }

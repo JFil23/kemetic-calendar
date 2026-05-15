@@ -12,10 +12,7 @@ import 'shared_flow_details_page.dart';
 class SharedFlowDetailsEntry extends StatefulWidget {
   final InboxShareItem share;
 
-  const SharedFlowDetailsEntry({
-    Key? key,
-    required this.share,
-  }) : super(key: key);
+  const SharedFlowDetailsEntry({super.key, required this.share});
 
   @override
   State<SharedFlowDetailsEntry> createState() => _SharedFlowDetailsEntryState();
@@ -72,7 +69,8 @@ class _SharedFlowDetailsEntryState extends State<SharedFlowDetailsEntry> {
           onTimeout: () {
             if (kDebugMode) {
               debugPrint(
-                  "[SharedFlowDetailsEntry] getFlowIdByShareId TIMEOUT for shareId=${widget.share.shareId}");
+                "[SharedFlowDetailsEntry] getFlowIdByShareId TIMEOUT for shareId=${widget.share.shareId}",
+              );
             }
             return null;
           },
@@ -99,9 +97,7 @@ class _SharedFlowDetailsEntryState extends State<SharedFlowDetailsEntry> {
         }
       } catch (e) {
         if (kDebugMode) {
-          debugPrint(
-            '[SharedFlowDetailsEntry] Failed to mark viewed: $e',
-          );
+          debugPrint('[SharedFlowDetailsEntry] Failed to mark viewed: $e');
         }
       }
     }
@@ -113,9 +109,7 @@ class _SharedFlowDetailsEntryState extends State<SharedFlowDetailsEntry> {
     // PAYLOAD MODE → instant UI rendering
     // ----------------------------------
     if (_usePayloadMode) {
-      return SharedFlowDetailsPage(
-        share: widget.share,
-      );
+      return SharedFlowDetailsPage(share: widget.share);
     }
 
     // ----------------------------------
@@ -154,9 +148,7 @@ class _SharedFlowDetailsEntryState extends State<SharedFlowDetailsEntry> {
         // If DB lookup failed, fallback to payload anyway
         // (User still sees something instead of infinite spinner)
         // ---------------------------------------------------
-        return SharedFlowDetailsPage(
-          share: widget.share,
-        );
+        return SharedFlowDetailsPage(share: widget.share);
       },
     );
   }

@@ -3,7 +3,6 @@
 
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
-import 'package:flutter/material.dart' show DateUtils;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -45,7 +44,7 @@ class SharedFlowDetailsPage extends StatefulWidget {
   final String fallbackLocation;
 
   const SharedFlowDetailsPage({
-    Key? key,
+    super.key,
     this.share,
     this.flowId,
     this.payloadJson,
@@ -56,8 +55,7 @@ class SharedFlowDetailsPage extends StatefulWidget {
   }) : assert(
          share != null || flowId != null || payloadJson != null,
          'Either share, flowId, or payloadJson must be provided',
-       ),
-       super(key: key);
+       );
 
   @override
   State<SharedFlowDetailsPage> createState() => _SharedFlowDetailsPageState();
@@ -323,7 +321,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
 
     return _SharedFlowData(
       name: payload['name'] as String? ?? 'Flow',
-      color: (payload['color'] as num?)?.toInt() ?? KemeticGold.base.value,
+      color: (payload['color'] as num?)?.toInt() ?? KemeticGold.base.toARGB32(),
       notes: payload['notes'] as String? ?? '',
       rulesJson: (payload['rules'] as List<dynamic>? ?? const [])
           .cast<Map<String, dynamic>>(),
@@ -365,8 +363,9 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to send feedback: $e')));
     } finally {
-      if (!mounted) return;
-      setState(() => _isSubmittingFeedback = false);
+      if (mounted) {
+        setState(() => _isSubmittingFeedback = false);
+      }
     }
   }
 
@@ -567,7 +566,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                       const SizedBox(height: 4),
                       ...eventsJson.map((event) {
                         return _SharedEventTile(event: event);
-                      }).toList(),
+                      }),
                     ],
                     if (widget.flowId != null) ...[
                       const SizedBox(height: 24),
@@ -618,7 +617,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                         'Rating (optional)',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -671,7 +670,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
                   minimum: const EdgeInsets.all(16),
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.redAccent.withOpacity(0.15),
+                      backgroundColor: Colors.redAccent.withValues(alpha: 0.15),
                       foregroundColor: Colors.redAccent,
                       side: const BorderSide(color: Colors.redAccent),
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -730,10 +729,9 @@ class _SharedFlowSchedulePreview extends StatelessWidget {
   final bool kemetic;
 
   const _SharedFlowSchedulePreview({
-    Key? key,
     required this.rulesJson,
     required this.kemetic,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -877,7 +875,7 @@ class _SharedFlowSchedulePreview extends StatelessWidget {
 class _SharedEventTile extends StatelessWidget {
   final Map<String, dynamic> event;
 
-  const _SharedEventTile({Key? key, required this.event}) : super(key: key);
+  const _SharedEventTile({required this.event});
 
   @override
   Widget build(BuildContext context) {
@@ -970,7 +968,7 @@ class _SharedEventTile extends StatelessWidget {
 class _ImportedFlowFooter extends StatelessWidget {
   final int flowId;
 
-  const _ImportedFlowFooter({Key? key, required this.flowId}) : super(key: key);
+  const _ImportedFlowFooter({required this.flowId});
 
   @override
   Widget build(BuildContext context) {
@@ -995,10 +993,9 @@ class _SharedFlowImportFooter extends StatefulWidget {
   final String fallbackLocation;
 
   const _SharedFlowImportFooter({
-    Key? key,
     required this.flowData,
     required this.fallbackLocation,
-  }) : super(key: key);
+  });
 
   @override
   State<_SharedFlowImportFooter> createState() =>

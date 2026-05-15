@@ -38,15 +38,11 @@ dependencies:
   firebase_core: ^2.32.0
   firebase_messaging: ^14.9.4
 
-  cupertino_icons: ^1.0.8
   app_links: ^6.3.2
   supabase_flutter: ^2.10.1
   uuid: ^4.5.1
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  
-  # ICS parsing for calendar import
-  icalendar_parser: ^1.0.0
   
   # For receiving shared ICS files
   receive_sharing_intent: ^1.5.3

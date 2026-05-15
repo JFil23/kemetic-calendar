@@ -97,7 +97,7 @@ class IcsPreviewCard extends StatelessWidget {
                   child: Text(
                     description!,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: 14,
                       height: 1.4,
                     ),
@@ -169,7 +169,7 @@ class IcsPreviewCard extends StatelessWidget {
   Widget _buildInfoRow({required IconData icon, required String text}) {
     return Row(
       children: [
-        Icon(icon, color: Colors.white.withOpacity(0.6), size: 20),
+        Icon(icon, color: Colors.white.withValues(alpha: 0.6), size: 20),
         const SizedBox(width: 12),
         Expanded(
           child: Text(

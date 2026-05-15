@@ -10,6 +10,7 @@ build/
 *.log
 *.bak
 *.backup
+__pycache__/
 
 # IntelliJ / Android Studio
 .idea/

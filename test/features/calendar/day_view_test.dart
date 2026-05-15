@@ -631,7 +631,7 @@ void main() {
               initialKm: km,
               initialKd: kd,
               showGregorian: false,
-              notesForDay: (_, __, ___) => const [],
+              notesForDay: (_, _, _) => const [],
               flowIndex: const {},
               getMonthName: (month) {
                 switch (month) {
@@ -705,7 +705,7 @@ void main() {
             initialKm: km,
             initialKd: kd,
             showGregorian: false,
-            notesForDay: (_, __, ___) => const [],
+            notesForDay: (_, _, _) => const [],
             flowIndex: const {},
             getMonthName: (month) {
               switch (month) {
@@ -745,7 +745,7 @@ void main() {
               initialKm: 2,
               initialKd: 10,
               showGregorian: false,
-              notesForDay: (_, __, ___) => const [],
+              notesForDay: (_, _, _) => const [],
               flowIndex: const {},
               getMonthName: (month) => 'Month $month',
             ),
@@ -784,7 +784,7 @@ void main() {
               initialKm: 2,
               initialKd: 10,
               showGregorian: false,
-              notesForDay: (_, __, ___) => const [],
+              notesForDay: (_, _, _) => const [],
               flowIndex: const {},
               getMonthName: (month) => 'Month $month',
             ),

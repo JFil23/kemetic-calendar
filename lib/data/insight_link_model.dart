@@ -70,19 +70,19 @@ class InsightLink {
   }
 
   factory InsightLink.fromJson(Map<String, dynamic> json) {
-    InsightSourceType _src(String v) =>
+    InsightSourceType src(String v) =>
         InsightSourceType.values.firstWhere((e) => e.name == v);
-    InsightTargetType _tgt(String v) =>
+    InsightTargetType tgt(String v) =>
         InsightTargetType.values.firstWhere((e) => e.name == v);
     return InsightLink(
       id: json['id'] as String,
       userId: json['userId'] as String? ?? '',
-      sourceType: _src(json['sourceType'] as String),
+      sourceType: src(json['sourceType'] as String),
       sourceId: json['sourceId'] as String,
       start: json['start'] as int,
       end: json['end'] as int,
       selectedText: json['selectedText'] as String? ?? '',
-      targetType: _tgt(json['targetType'] as String),
+      targetType: tgt(json['targetType'] as String),
       targetId: json['targetId'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
@@ -108,10 +108,7 @@ class NodeUserContent {
     required this.updatedAt,
   });
 
-  NodeUserContent copyWith({
-    String? text,
-    DateTime? updatedAt,
-  }) {
+  NodeUserContent copyWith({String? text, DateTime? updatedAt}) {
     return NodeUserContent(
       id: id,
       userId: userId,

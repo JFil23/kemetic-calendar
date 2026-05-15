@@ -358,8 +358,6 @@ class _FlowFixture {
     required this.isReminder,
     required this.calendarId,
     this.calendarIsPersonal = true,
-    this.endDate,
-    this.notes,
   });
 
   final int id;
@@ -369,6 +367,6 @@ class _FlowFixture {
   final bool isReminder;
   final String calendarId;
   final bool calendarIsPersonal;
-  final DateTime? endDate;
-  final String? notes;
+  DateTime? get endDate => null;
+  String? get notes => null;
 }

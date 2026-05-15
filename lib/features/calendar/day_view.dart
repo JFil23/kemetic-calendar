@@ -1295,8 +1295,7 @@ class _DragPayload {
 
   _DragPayload(this.event);
 
-  int get durationMin =>
-      (event.endMin - event.startMin).clamp(15, 12 * 60) as int;
+  int get durationMin => (event.endMin - event.startMin).clamp(15, 12 * 60);
 }
 
 class PositionedEventBlock {
@@ -1534,13 +1533,13 @@ class _DayViewPageState extends State<DayViewPage> {
       final g = KemeticMath.toGregorian(
         widget.initialKy,
         widget.initialKm,
-        widget.initialKd ?? 1,
+        widget.initialKd,
       );
       setState(() {
         _initialGregorian = g;
         _currentKy = widget.initialKy;
         _currentKm = widget.initialKm;
-        _currentKd = widget.initialKd ?? 1;
+        _currentKd = widget.initialKd;
         _autoCenterMiniCalendar = true;
         if (_pageController.hasClients) {
           _pageController.jumpToPage(_centerPage); // reset paging anchor
@@ -1908,12 +1907,6 @@ class _DayViewPageState extends State<DayViewPage> {
     _scheduleMiniCalendarCentering(kd, force: true);
   }
 
-  // 🔧 NEW: Convert Kemetic date to total days for navigation
-  int _kemeticToTotalDays(int ky, int km, int kd) {
-    // Approximate total days since epoch
-    return ky * 365 + (km - 1) * 30 + kd;
-  }
-
   @override
   Widget build(BuildContext context) {
     final dataListenable = widget.dataVersion ?? _kZeroListenable;
@@ -1922,7 +1915,7 @@ class _DayViewPageState extends State<DayViewPage> {
 
     return ValueListenableBuilder<int>(
       valueListenable: dataListenable,
-      builder: (context, _, __) {
+      builder: (context, _, _) {
         final reportedOrientation = MediaQuery.of(context).orientation;
         // Tablets should stay on the portrait day view regardless of rotation.
         final effectiveOrientation = isTablet
@@ -2170,24 +2163,6 @@ class _DayViewPageState extends State<DayViewPage> {
       },
     );
   }
-
-  String _getGregorianMonthName(int month) {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return months[month - 1];
-  }
 }
 
 // ========================================
@@ -2334,8 +2309,6 @@ class _DayViewGridState extends State<DayViewGrid> {
   EventItem? _dragPreviewEvent;
   int? _lastDragSnappedMinute; // backup of last snapped minute during drag
   int? get _focusStartMin => widget.focusStartMin;
-  int? get _focusFlowId => widget.focusFlowId;
-  String? get _focusTitle => widget.focusTitle;
 
   ButtonStyle _endButtonStyle(BuildContext context) {
     // Slightly smaller footprint (~12% shorter) to avoid pushing other controls.
@@ -2935,7 +2908,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.8),
+            color: Colors.black.withValues(alpha: 0.8),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: Colors.white24),
           ),
@@ -2995,7 +2968,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           n.end?.hour,
           n.end?.minute,
           n.flowId,
-          n.manualColor?.value,
+          n.manualColor?.toARGB32(),
           n.category,
           n.isReminder,
           n.reminderId,
@@ -3013,7 +2986,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         (e) => Object.hash(
           e.key,
           e.value.name,
-          e.value.color.value,
+          e.value.color.toARGB32(),
           e.value.active,
           e.value.notes,
         ),
@@ -3250,7 +3223,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 },
               );
             },
-            onWillAccept: (data) => data != null,
+            onWillAcceptWithDetails: (_) => true,
             onMove: (details) {
               final snapped = _snappedMinuteFromGlobalOffset(details.offset);
               if (snapped == null) return;
@@ -3456,7 +3429,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                         child: Container(
                           height: bandHeight,
                           decoration: BoxDecoration(
-                            color: _dayGold.withOpacity(0.08),
+                            color: _dayGold.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -3469,7 +3442,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                       child: IgnorePointer(
                         child: Container(
                           height: 1.5,
-                          color: _dayGold.withOpacity(0.85),
+                          color: _dayGold.withValues(alpha: 0.85),
                         ),
                       ),
                     ),
@@ -3594,7 +3567,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         }
         setState(() {});
       },
-      onDraggableCanceled: (_, __) {
+      onDraggableCanceled: (_, _) {
         _isDraggingEvent = false;
         _clearDragPreview();
         _lastDragSnappedMinute = null;
@@ -3785,7 +3758,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         }
         setState(() {});
       },
-      onDraggableCanceled: (_, __) {
+      onDraggableCanceled: (_, _) {
         _isDraggingEvent = false;
         _clearDragPreview();
         _lastDragSnappedMinute = null;
@@ -4496,7 +4469,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   Widget _buildNowLine() {
-    return Container(height: 1, color: Colors.red.withOpacity(0.45));
+    return Container(height: 1, color: Colors.red.withValues(alpha: 0.45));
   }
 
   bool _isCurrentHour(int hour) {
@@ -4834,12 +4807,12 @@ class _DayViewGridState extends State<DayViewGrid> {
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.04),
+          color: Colors.white.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _dayGold.withOpacity(0.4)),
+          border: Border.all(color: _dayGold.withValues(alpha: 0.4)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.45),
+              color: Colors.black.withValues(alpha: 0.45),
               blurRadius: 18,
               spreadRadius: 1,
               offset: const Offset(0, 10),

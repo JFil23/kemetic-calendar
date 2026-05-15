@@ -3,7 +3,7 @@
 // ============================================================================
 // FILE: lib/features/journal/journal_constants.dart
 // PURPOSE: Configuration constants for journal gestures and UI
-// 
+//
 // STEPS TO IMPLEMENT:
 // 1. Create directory: lib/features/journal/
 // 2. Create file: lib/features/journal/journal_constants.dart
@@ -28,8 +28,8 @@
 
 // lib/features/journal/journal_constants.dart
 
-/// Gesture thresholds for journal overlay open/close
-/// Tuned for smooth, conflict-free gestures with text scrolling
+// Gesture thresholds for journal overlay open/close
+// Tuned for smooth, conflict-free gestures with text scrolling
 
 // Directional dominance: |primary| must be > |secondary| * dominance
 const double kJournalSwipeDominance = 1.6;

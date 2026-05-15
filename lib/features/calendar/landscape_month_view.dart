@@ -1060,7 +1060,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
             color: _landscapeSurface,
             border: Border(
               bottom: BorderSide(
-                color: _landscapeGold.withOpacity(0.1),
+                color: _landscapeGold.withValues(alpha: 0.1),
                 width: 1,
               ),
             ),
@@ -1310,7 +1310,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   final GlobalKey _gridKey = GlobalKey();
 
   // 🔍 NEW: Debug tracking
-  int _buttonTapCount = 0;
+  final int _buttonTapCount = 0;
   bool _isDisposed = false;
 
   bool _syncingH = false;
@@ -1540,7 +1540,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                       ),
                     );
                   },
-                  onWillAccept: (data) => data != null,
+                  onWillAcceptWithDetails: (_) => true,
                   onAcceptWithDetails: (details) {
                     if (kDebugMode) {
                       debugPrint(
@@ -1620,7 +1620,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       height: _headerH,
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       decoration: BoxDecoration(
-        color: isToday ? _gold.withOpacity(0.1) : null,
+        color: isToday ? _gold.withValues(alpha: 0.1) : null,
         border: Border(
           right: const BorderSide(color: _divider, width: _daySepW),
           bottom: BorderSide(
@@ -1646,8 +1646,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               style: TextStyle(
                 fontSize: 9,
                 color: isToday
-                    ? _gold.withOpacity(0.7)
-                    : blueLight.withOpacity(0.8),
+                    ? _gold.withValues(alpha: 0.7)
+                    : blueLight.withValues(alpha: 0.8),
               ),
             ),
         ],
@@ -2137,7 +2137,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         vertical: event.isReminder ? 3 : 4,
       ),
       decoration: BoxDecoration(
-        color: event.color.withOpacity(0.20),
+        color: event.color.withValues(alpha: 0.20),
         border: Border(left: BorderSide(color: event.color, width: 3)),
         borderRadius: BorderRadius.circular(4),
       ),
@@ -2188,7 +2188,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       onDragStarted: () {
         unawaited(AppHaptics.selection());
       },
-      onDraggableCanceled: (_, __) {},
+      onDraggableCanceled: (_, _) {},
       onDragEnd: (_) {},
       child: tappable,
     );
@@ -2210,7 +2210,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     final flowColor = isTrackSky ? _landscapeGold : event.color;
     final secondaryTextColor = isTrackSky
         ? Colors.white.withValues(alpha: 0.82)
-        : Colors.white.withOpacity(0.7);
+        : Colors.white.withValues(alpha: 0.7);
     final textShadows = isTrackSky
         ? <Shadow>[
             Shadow(
@@ -2219,7 +2219,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               blurRadius: 2.2,
             ),
             Shadow(
-              color: trackSkySpec!.glowColor.withValues(alpha: 0.46),
+              color: trackSkySpec.glowColor.withValues(alpha: 0.46),
               offset: Offset.zero,
               blurRadius: 4.2,
             ),
@@ -2250,9 +2250,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         // Flow name first (if available). Skip for reminders to avoid overflow in short block.
         if (hasFlow && !event.isReminder) ...[
           isTrackSky
-              ? buildTrackSkyFlowNameText(flow!.name)
+              ? buildTrackSkyFlowNameText(flow.name)
               : Text(
-                  flow!.name,
+                  flow.name,
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
@@ -2467,7 +2467,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           gradient: isTrackSky ? trackSkySpec!.background : null,
-          color: isTrackSky ? null : flow.color.withOpacity(0.16),
+          color: isTrackSky ? null : flow.color.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(8),
           border: isTrackSky
               ? Border.all(
@@ -2513,7 +2513,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       metaChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: KemeticGold.base.withOpacity(0.16),
+          color: KemeticGold.base.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(8),
         ),
         child: KemeticGold.text(
@@ -2525,7 +2525,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       metaChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: KemeticGold.base.withOpacity(0.16),
+          color: KemeticGold.base.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -2613,12 +2613,12 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.04),
+          color: Colors.white.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _gold.withOpacity(0.4)),
+          border: Border.all(color: _gold.withValues(alpha: 0.4)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.45),
+              color: Colors.black.withValues(alpha: 0.45),
               blurRadius: 18,
               spreadRadius: 1,
               offset: const Offset(0, 10),
@@ -2943,10 +2943,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       builder: (sheetContext) {
         return ValueListenableBuilder<int>(
           valueListenable: sheetDataListenable,
-          builder: (context, _, __) {
+          builder: (context, _, _) {
             return ValueListenableBuilder<DayViewSheetEventTarget>(
               valueListenable: currentTarget,
-              builder: (context, rawTarget, __) {
+              builder: (context, rawTarget, _) {
                 final target = _resolveCurrentEventTarget(rawTarget);
                 final pages = _detailSheetPagesForTarget(target);
                 final currentKey = _detailSheetTargetKey(target);
@@ -2956,7 +2956,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
 
                 return ValueListenableBuilder<Map<String, double>>(
                   valueListenable: measuredHeights,
-                  builder: (context, heights, __) {
+                  builder: (context, heights, _) {
                     final maxSheetHeight = math.min(
                       MediaQuery.sizeOf(context).height * 0.72,
                       560.0,
@@ -3235,7 +3235,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     }
 
     // www. prefix
-    if (lower.startsWith('www\.')) {
+    if (lower.startsWith('www.')) {
       return true;
     }
 

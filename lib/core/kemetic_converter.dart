@@ -3,23 +3,6 @@ import 'package:flutter/material.dart' show DateUtils;
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 
-// Removed - use getMonthById(id).season instead
-@Deprecated('Use getSeasonName(id) - removes in v3.0')
-final kemeticSeasonsByMonth = <int, String>{
-  1: 'Akhet',
-  2: 'Akhet',
-  3: 'Akhet',
-  4: 'Akhet',
-  5: 'Peret',
-  6: 'Peret',
-  7: 'Peret',
-  8: 'Peret',
-  9: 'Shemu',
-  10: 'Shemu',
-  11: 'Shemu',
-  12: 'Shemu',
-};
-
 /// Season meanings for UI.
 const seasonMeaning = <String, String>{
   'Akhet': 'Inundation — the Nile floods.',
@@ -52,7 +35,7 @@ class KemeticDate {
       return 'Kemetic Y$year • Epagomenal Day $day';
     }
     return 'Kemetic Y$year • ${getMonthById(month).hellenized} $day'
-        '${season != null ? " (${season})" : ""}';
+        '${season != null ? " ($season)" : ""}';
   }
 }
 
@@ -98,7 +81,6 @@ class KemeticConverter {
         epagomenal: false,
       );
     } else {
-      final len = _kemeticYearLength(kYearStart);
       final epiDay = (days - 360) + 1;
       return KemeticDate(year: kYear, month: 0, day: epiDay, epagomenal: true);
     }

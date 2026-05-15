@@ -12,19 +12,16 @@ import '../../data/shared_calendars_repo.dart';
 import 'package:mobile/features/calendar/notify.dart';
 import 'package:flutter/rendering.dart';
 import '../../data/note_category.dart';
-import 'dart:io' show File, Directory;
 import 'package:mobile/utils/color_bits.dart';
 import 'package:mobile/utils/calendar_event_markers.dart';
 import 'package:mobile/utils/flow_filter_engine.dart';
 import 'package:mobile/utils/flow_visibility.dart';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 import 'landscape_month_view.dart';
 import 'dart:convert';
 import 'day_view.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
-import '../profile/edit_profile_page.dart';
 import '../journal/journal_controller.dart';
 import '../../core/ui_guards.dart';
 import '../../main.dart' show routeObserver, Events;
@@ -33,7 +30,6 @@ import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
 import '../ai_generation/ai_flow_generation_modal.dart';
 import '../ai_generation/ai_flow_import_payload.dart';
-import '../../services/ai_flow_generation_service.dart';
 import '../../models/ai_flow_generation_response.dart';
 import '../../services/ai_reflection_service.dart';
 import '../../data/decan_reflection_repo.dart';
@@ -56,14 +52,12 @@ import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/core/day_key.dart';
 import 'package:mobile/core/global_menu_routes.dart';
 import 'package:mobile/shared/glossy_text.dart';
-import 'package:mobile/core/kemetic_converter.dart';
 import 'package:flutter/gestures.dart';
 import '../reminders/reminder_service.dart';
 import '../reminders/reminder_model.dart';
 import '../reminders/reminder_rule.dart';
 import '../reminders/reminder_rule_store.dart';
 import 'package:uuid/uuid.dart';
-import '../../data/reminders_repo.dart';
 import '../../utils/event_cid_util.dart';
 import '../../utils/detail_sanitizer.dart';
 import 'package:mobile/core/pinch_gesture_surface.dart';
@@ -71,7 +65,6 @@ import 'package:mobile/core/touch_targets.dart';
 import '../journal/journal_event_badge.dart';
 import '../journal/journal_badge_utils.dart';
 import '../journal/journal_v2_document_model.dart';
-import '../journal/journal_page.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
 import '../../services/push_notifications.dart';
@@ -84,11 +77,8 @@ import '../../utils/external_link_utils.dart';
 import 'track_sky_flow.dart';
 import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_rite_flow.dart';
-import '../reflections/decan_reflection_archive_page.dart';
-import '../settings/settings_page.dart';
 import '../settings/settings_prefs.dart';
 import '../calendars/shared_calendars_sheet.dart';
-import '../nodes/kemetic_node_list_page.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/kemetic_node_model.dart';
 import '../nodes/node_user_insights_section.dart';
@@ -317,7 +307,6 @@ const Color _silver = Color(0xFFC8CCD2);
 // Gregorian blue (high contrast on dark)
 const Color _blue = Color(0xFF4DA3FF);
 const Color _blueLight = Color(0xFFBFE0FF);
-const Color _blueDeep = Color(0xFF0B64C0);
 
 // Richer, deeper gold with visible gleam
 const Color _gold = KemeticGold.base;
@@ -325,10 +314,6 @@ const Color _cardBorderGold = _gold;
 const Color _goldLight = Color(
   0xFFE6C85A,
 ); // Slightly brighter than base gold (for visible gleam)
-const Color _goldMid = KemeticGold.base; // Base gold as mid-tone
-const Color _goldDeep = Color(0xFF9D7A1F); // Much deeper shadow
-const Color _silverLight = Color(0xFFF5F7FA);
-const Color _silverDeep = Color(0xFF7A838C);
 
 // Gradients are now imported from shared/glossy_text.dart
 const Gradient _maatBadgeGoldGloss = LinearGradient(
@@ -352,11 +337,6 @@ const TextStyle _titleGold = TextStyle(
 const TextStyle _monthTitleGold = TextStyle(
   fontSize: 20,
   fontWeight: FontWeight.w500,
-  color: Colors.white,
-);
-const TextStyle _rightSmall = TextStyle(
-  fontSize: 12,
-  fontWeight: FontWeight.w400,
   color: Colors.white,
 );
 const TextStyle _seasonStyle = TextStyle(
@@ -608,9 +588,9 @@ _TrackSkyBadgeSpec _trackSkyBadgeSpecForTitle(String rawTitle) {
             const Color(0xFF2A1F52),
           ],
         ),
-        borderColor: moonTint.withOpacity(0.72),
+        borderColor: moonTint.withValues(alpha: 0.72),
         textColor: const Color(0xFFF8FAFF),
-        glowColor: moonTint.withOpacity(0.5),
+        glowColor: moonTint.withValues(alpha: 0.5),
         accentColor: moonTint,
         secondaryAccentColor: Colors.white,
       );
@@ -627,9 +607,9 @@ _TrackSkyBadgeSpec _trackSkyBadgeSpecForTitle(String rawTitle) {
             const Color(0xFF120812),
           ],
         ),
-        borderColor: eclipseTint.withOpacity(0.78),
+        borderColor: eclipseTint.withValues(alpha: 0.78),
         textColor: const Color(0xFFFFF6F1),
-        glowColor: eclipseTint.withOpacity(0.55),
+        glowColor: eclipseTint.withValues(alpha: 0.55),
         accentColor: eclipseTint,
         secondaryAccentColor: const Color(0xFFFFD7BF),
       );
@@ -644,9 +624,9 @@ _TrackSkyBadgeSpec _trackSkyBadgeSpecForTitle(String rawTitle) {
           end: Alignment.bottomRight,
           colors: [Color(0xFF03050B), Color(0xFF171B2E), Color(0xFF090B14)],
         ),
-        borderColor: ringTint.withOpacity(0.8),
+        borderColor: ringTint.withValues(alpha: 0.8),
         textColor: const Color(0xFFFFF8EF),
-        glowColor: ringTint.withOpacity(0.6),
+        glowColor: ringTint.withValues(alpha: 0.6),
         accentColor: ringTint,
         secondaryAccentColor: const Color(0xFFFFD26A),
       );
@@ -663,9 +643,9 @@ _TrackSkyBadgeSpec _trackSkyBadgeSpecForTitle(String rawTitle) {
             const Color(0xFF0C1029),
           ],
         ),
-        borderColor: meteorTint.withOpacity(0.78),
+        borderColor: meteorTint.withValues(alpha: 0.78),
         textColor: const Color(0xFFF4F8FF),
-        glowColor: meteorTint.withOpacity(0.52),
+        glowColor: meteorTint.withValues(alpha: 0.52),
         accentColor: meteorTint,
         secondaryAccentColor: Colors.white,
       );
@@ -682,9 +662,9 @@ _TrackSkyBadgeSpec _trackSkyBadgeSpecForTitle(String rawTitle) {
             const Color(0xFF161038),
           ],
         ),
-        borderColor: planetTint.withOpacity(0.72),
+        borderColor: planetTint.withValues(alpha: 0.72),
         textColor: const Color(0xFFF8FAFF),
-        glowColor: planetTint.withOpacity(0.5),
+        glowColor: planetTint.withValues(alpha: 0.5),
         accentColor: planetTint,
         secondaryAccentColor: const Color(0xFFE9EFFF),
       );
@@ -702,9 +682,9 @@ _TrackSkyBadgeSpec _trackSkyBadgeSpecForTitle(String rawTitle) {
           ],
           stops: const [0.0, 0.58, 1.0],
         ),
-        borderColor: solarTint.withOpacity(0.82),
+        borderColor: solarTint.withValues(alpha: 0.82),
         textColor: const Color(0xFFFFFAF1),
-        glowColor: solarTint.withOpacity(0.55),
+        glowColor: solarTint.withValues(alpha: 0.55),
         accentColor: solarTint,
         secondaryAccentColor: const Color(0xFFFFE7B8),
       );
@@ -741,7 +721,9 @@ List<Widget> _buildTrackSkyStars({
         ? 1.0 + random.nextDouble() * 0.8
         : 1.0 + random.nextDouble() * 1.7;
     final opacity = 0.28 + random.nextDouble() * 0.45;
-    final color = (index % 3 == 0 ? tint : Colors.white).withOpacity(opacity);
+    final color = (index % 3 == 0 ? tint : Colors.white).withValues(
+      alpha: opacity,
+    );
     return Positioned.fill(
       child: IgnorePointer(
         child: Align(
@@ -792,15 +774,15 @@ List<Widget> _buildTrackSkyAccentWidgets({
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  Colors.white.withOpacity(0.98),
+                  Colors.white.withValues(alpha: 0.98),
                   spec.accentColor,
-                  spec.secondaryAccentColor.withOpacity(0.12),
+                  spec.secondaryAccentColor.withValues(alpha: 0.12),
                 ],
                 stops: const [0.0, 0.56, 1.0],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: spec.accentColor.withOpacity(0.35),
+                  color: spec.accentColor.withValues(alpha: 0.35),
                   blurRadius: dense ? 4 : 9,
                   spreadRadius: dense ? 0.1 : 0.5,
                 ),
@@ -826,15 +808,15 @@ List<Widget> _buildTrackSkyAccentWidgets({
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        spec.secondaryAccentColor.withOpacity(0.96),
+                        spec.secondaryAccentColor.withValues(alpha: 0.96),
                         spec.accentColor,
-                        spec.accentColor.withOpacity(0.12),
+                        spec.accentColor.withValues(alpha: 0.12),
                       ],
                       stops: const [0.0, 0.58, 1.0],
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: spec.accentColor.withOpacity(0.34),
+                        color: spec.accentColor.withValues(alpha: 0.34),
                         blurRadius: dense ? 4 : 8,
                       ),
                     ],
@@ -849,7 +831,7 @@ List<Widget> _buildTrackSkyAccentWidgets({
                     decoration: BoxDecoration(
                       color: const Color(
                         0xCC05080F,
-                      ).withOpacity(isPenumbral ? 0.4 : 0.7),
+                      ).withValues(alpha: isPenumbral ? 0.4 : 0.7),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -879,7 +861,7 @@ List<Widget> _buildTrackSkyAccentWidgets({
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: spec.accentColor.withOpacity(0.55),
+                        color: spec.accentColor.withValues(alpha: 0.55),
                         blurRadius: dense ? 4 : 9,
                         spreadRadius: dense ? 0.0 : 0.4,
                       ),
@@ -916,9 +898,9 @@ List<Widget> _buildTrackSkyAccentWidgets({
                 gradient: LinearGradient(
                   colors: [
                     Colors.transparent,
-                    spec.accentColor.withOpacity(0.18),
-                    spec.accentColor.withOpacity(0.82),
-                    Colors.white.withOpacity(0.98),
+                    spec.accentColor.withValues(alpha: 0.18),
+                    spec.accentColor.withValues(alpha: 0.82),
+                    Colors.white.withValues(alpha: 0.98),
                   ],
                   stops: const [0.0, 0.42, 0.78, 1.0],
                 ),
@@ -938,13 +920,13 @@ List<Widget> _buildTrackSkyAccentWidgets({
                 colors: [
                   Colors.white,
                   spec.accentColor,
-                  spec.accentColor.withOpacity(0.04),
+                  spec.accentColor.withValues(alpha: 0.04),
                 ],
                 stops: const [0.0, 0.48, 1.0],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: spec.accentColor.withOpacity(0.55),
+                  color: spec.accentColor.withValues(alpha: 0.55),
                   blurRadius: dense ? 3 : 7,
                 ),
               ],
@@ -973,7 +955,7 @@ List<Widget> _buildTrackSkyAccentWidgets({
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: colors[i].withOpacity(0.45),
+                      color: colors[i].withValues(alpha: 0.45),
                       blurRadius: dense ? 2.2 : 4.5,
                     ),
                   ],
@@ -995,7 +977,7 @@ List<Widget> _buildTrackSkyAccentWidgets({
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: spec.accentColor.withOpacity(0.45),
+                    color: spec.accentColor.withValues(alpha: 0.45),
                     blurRadius: dense ? 2.2 : 5.5,
                   ),
                 ],
@@ -1013,7 +995,7 @@ List<Widget> _buildTrackSkyAccentWidgets({
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: spec.secondaryAccentColor.withOpacity(0.38),
+                    color: spec.secondaryAccentColor.withValues(alpha: 0.38),
                     blurRadius: dense ? 2.0 : 4.5,
                   ),
                 ],
@@ -1041,7 +1023,9 @@ List<Widget> _buildTrackSkyAccentWidgets({
                       height: size * 0.42,
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: spec.secondaryAccentColor.withOpacity(0.8),
+                          color: spec.secondaryAccentColor.withValues(
+                            alpha: 0.8,
+                          ),
                           width: dense ? 0.7 : 1.0,
                         ),
                         borderRadius: BorderRadius.circular(size),
@@ -1073,15 +1057,15 @@ List<Widget> _buildTrackSkyAccentWidgets({
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  spec.secondaryAccentColor.withOpacity(0.98),
+                  spec.secondaryAccentColor.withValues(alpha: 0.98),
                   spec.accentColor,
-                  spec.accentColor.withOpacity(0.08),
+                  spec.accentColor.withValues(alpha: 0.08),
                 ],
                 stops: const [0.0, 0.56, 1.0],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: spec.accentColor.withOpacity(0.38),
+                  color: spec.accentColor.withValues(alpha: 0.38),
                   blurRadius: dense ? 4 : 8,
                 ),
               ],
@@ -1101,8 +1085,8 @@ List<Widget> _buildTrackSkyAccentWidgets({
               gradient: LinearGradient(
                 colors: [
                   Colors.transparent,
-                  spec.secondaryAccentColor.withOpacity(0.22),
-                  spec.secondaryAccentColor.withOpacity(0.6),
+                  spec.secondaryAccentColor.withValues(alpha: 0.22),
+                  spec.secondaryAccentColor.withValues(alpha: 0.6),
                 ],
               ),
             ),
@@ -1118,15 +1102,15 @@ List<Widget> _buildTrackSkyAccentWidgets({
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  Colors.white.withOpacity(0.98),
+                  Colors.white.withValues(alpha: 0.98),
                   spec.accentColor,
-                  spec.accentColor.withOpacity(0.08),
+                  spec.accentColor.withValues(alpha: 0.08),
                 ],
                 stops: const [0.0, 0.54, 1.0],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: spec.accentColor.withOpacity(0.45),
+                  color: spec.accentColor.withValues(alpha: 0.45),
                   blurRadius: dense ? 4 : 8,
                 ),
               ],
@@ -1146,9 +1130,9 @@ List<Widget> _buildTrackSkyAccentWidgets({
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  spec.secondaryAccentColor.withOpacity(0.8),
-                  spec.accentColor.withOpacity(0.4),
-                  spec.accentColor.withOpacity(0.0),
+                  spec.secondaryAccentColor.withValues(alpha: 0.8),
+                  spec.accentColor.withValues(alpha: 0.4),
+                  spec.accentColor.withValues(alpha: 0.0),
                 ],
                 stops: const [0.0, 0.42, 1.0],
               ),
@@ -1167,17 +1151,6 @@ double _chipHeightFor(MonthExpansionLevel level) {
       return 58.0;
     case MonthExpansionLevel.details:
       return 250.0;
-  }
-}
-
-double _miniHeightFor(MonthExpansionLevel level) {
-  switch (level) {
-    case MonthExpansionLevel.compact:
-      return 0.0;
-    case MonthExpansionLevel.stacked:
-      return 20.0;
-    case MonthExpansionLevel.details:
-      return 105.0;
   }
 }
 
@@ -3987,7 +3960,6 @@ Gradient _glossFromColor(Color base) {
 /// Callback type for creating a reminder from nutrition schedule data
 typedef CreateNutritionReminder =
     Future<void> Function(NutritionReminderIntent intent);
-typedef DeleteNutritionReminder = Future<void> Function(String itemId);
 typedef _ReminderOccurrenceRow = ({
   String id,
   String? clientEventId,
@@ -4063,46 +4035,6 @@ class _RuleDecan extends FlowRule {
     if (!decans.contains(dIndex)) return false;
     if (daysInDecan.isNotEmpty && !daysInDecan.contains(dIn)) return false;
     return true;
-  }
-}
-
-/// Whole Kemetic month rule (1..13; 13 = epagomenal).
-class _RuleKemeticMonth extends FlowRule {
-  final Set<int> months;
-  const _RuleKemeticMonth({
-    required this.months,
-    super.allDay = true,
-    super.start,
-    super.end,
-  });
-  @override
-  bool matches({
-    required int ky,
-    required int km,
-    required int kd,
-    required DateTime g,
-  }) {
-    return months.contains(km);
-  }
-}
-
-/// Gregorian month rule (1..12).
-class _RuleGregorianMonth extends FlowRule {
-  final Set<int> months;
-  const _RuleGregorianMonth({
-    required this.months,
-    super.allDay = true,
-    super.start,
-    super.end,
-  });
-  @override
-  bool matches({
-    required int ky,
-    required int km,
-    required int kd,
-    required DateTime g,
-  }) {
-    return months.contains(g.month);
   }
 }
 
@@ -4268,14 +4200,10 @@ class _CandidateEvent {
 
 /// Tiny helpers
 Set<int> _fullRange(int from, int to) => {for (var i = from; i <= to; i++) i};
-Set<int> _emptySet() => <int>{};
 
 /* ───────────────────────── KEMETIC MATH ───────────────────────── */
 
 class KemeticMath {
-  // Epoch anchored to *local midnight*: Toth 1, Year 1 = 2025-03-20 (local).
-  static final DateTime _epoch = kKemeticEpochUtc; // UTC epoch from constants
-
   // Repeating 4-year cycle lengths starting at Year 1: [365, 365, 366, 365]
   static const List<int> _cycle = [365, 365, 366, 365];
   static const int _cycleSum = 1461; // 365*4 + 1
@@ -4466,29 +4394,14 @@ class _MaatFlowNoteSlot {
   final TimeOfDay end;
   const _MaatFlowNoteSlot({
     required this.title,
-    this.detail,
     required this.start,
     required this.end,
-  });
+  }) : detail = null;
 }
 
 class _MaatFlowDay {
   final List<_MaatFlowNoteSlot> notes;
   _MaatFlowDay({required this.notes});
-
-  _MaatFlowDay.single({
-    required String title,
-    String? detail,
-    TimeOfDay start = const TimeOfDay(hour: 9, minute: 0),
-    TimeOfDay end = const TimeOfDay(hour: 10, minute: 0),
-  }) : notes = [
-         _MaatFlowNoteSlot(
-           title: title,
-           detail: detail,
-           start: start,
-           end: end,
-         ),
-       ];
 }
 
 enum _MaatFlowTemplateKind {
@@ -4509,10 +4422,9 @@ class _MaatFlowTemplate {
     required this.key,
     required this.title,
     required this.overview,
-    this.days = const [],
     required this.color,
     this.kind = _MaatFlowTemplateKind.sequence,
-  });
+  }) : days = const <_MaatFlowDay>[];
 }
 
 final List<_MaatFlowTemplate> kMaatFlowTemplates = [
@@ -4558,7 +4470,7 @@ final Map<String, GlobalKey> _calendarMonthKeys = <String, GlobalKey>{};
 final Map<String, GlobalKey> _calendarMonthHeaderKeys = <String, GlobalKey>{};
 
 GlobalKey keyForMonth(int ky, int km) {
-  final id = 'y${ky}m${km}';
+  final id = 'y${ky}m$km';
   return _calendarMonthKeys.putIfAbsent(
     id,
     () => GlobalKey(debugLabel: 'calendar_month_$id'),
@@ -4566,7 +4478,7 @@ GlobalKey keyForMonth(int ky, int km) {
 }
 
 GlobalKey keyForMonthHeader(int ky, int km) {
-  final id = 'y${ky}m${km}';
+  final id = 'y${ky}m$km';
   return _calendarMonthHeaderKeys.putIfAbsent(
     id,
     () => GlobalKey(debugLabel: 'calendar_month_header_$id'),
@@ -6624,7 +6536,7 @@ class CalendarPage extends StatefulWidget {
     final savedId = await userEventsRepo.upsertFlow(
       id: f.id > 0 ? f.id : null,
       name: f.name,
-      color: f.color.value,
+      color: f.color.toARGB32(),
       active: f.active,
       calendarId: f.calendarId,
       startDate: f.start,
@@ -6729,7 +6641,7 @@ class CalendarPage extends StatefulWidget {
           snap: true,
           snapSizes: const [0.8, 1.0],
           expand: false,
-          builder: (_, __) {
+          builder: (_, _) {
             return ClipRRect(
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(16),
@@ -6737,7 +6649,7 @@ class CalendarPage extends StatefulWidget {
               child: Material(
                 color: Colors.black,
                 child: Navigator(
-                  onGenerateInitialRoutes: (nav, __) => [
+                  onGenerateInitialRoutes: (nav, _) => [
                     MaterialPageRoute(
                       builder: (ctx) => _FlowStudioPage(
                         existingFlows: const [],
@@ -6770,9 +6682,6 @@ class CalendarPage extends StatefulWidget {
 
 class _CalendarPageState extends State<CalendarPage>
     with WidgetsBindingObserver, RouteAware {
-  // Debug switch for verbose standalone hydration traces. Set to false to silence.
-  static const bool kDebugStandaloneHydration = true;
-  static const Set<String> _debugStandaloneKeys = {'1-13-3', '1-13-4'};
   static const Duration _foregroundRefreshThreshold = Duration(minutes: 10);
   static const Duration _restorationWriteDebounce = Duration(milliseconds: 150);
   static const int _calendarProgressSaveIntervalMs = 300;
@@ -6787,11 +6696,6 @@ class _CalendarPageState extends State<CalendarPage>
   // This ensures the migration runs at most once per app session to avoid
   // concurrent modification errors and repeated work.
   bool _ranMigration = false;
-
-  // ⚠️ ONE-TIME CACHE CLEANUP FLAG
-  // Set to true once to clear stale local cache, then set back to false
-  // This should be removed after the cleanup runs successfully
-  bool _runOneTimeCacheCleanup = false;
 
   // Narrower initial window for faster startup; flows can still widen it.
   static const int _standaloneHydrationWindowYears = 1;
@@ -6948,7 +6852,6 @@ class _CalendarPageState extends State<CalendarPage>
   double? _scaleGestureAnchor;
   double _pinchExpansionValue = 0.0; // 0=compact,1=stacked,2=details
   bool _isPinching = false;
-  double? _scrollOffsetBeforePinch;
   DateTime? _lastPinchUpdate;
   static const Duration _pinchUpdateThrottle = Duration(milliseconds: 16);
   Offset? _pinchAnchorPoint;
@@ -6983,11 +6886,7 @@ class _CalendarPageState extends State<CalendarPage>
   StreamSubscription<AuthState>? _authSub;
   bool _remindersLoaded = false;
   bool _remindersEnabled = false; // disable floating badges for now
-  late final RemindersRepo _remindersRepo = RemindersRepo(
-    Supabase.instance.client,
-  );
   List<Reminder> _floatingReminders = [];
-  bool _overlayActive = false;
   late final ReminderRuleStore _reminderRuleStore = ReminderRuleStore();
   final List<ReminderRule> _reminderRules = [];
   bool _reminderRulesLoaded = false;
@@ -9435,9 +9334,13 @@ class _CalendarPageState extends State<CalendarPage>
                                     height: 42,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: calendar.color.withOpacity(0.16),
+                                      color: calendar.color.withValues(
+                                        alpha: 0.16,
+                                      ),
                                       border: Border.all(
-                                        color: calendar.color.withOpacity(0.55),
+                                        color: calendar.color.withValues(
+                                          alpha: 0.55,
+                                        ),
                                       ),
                                     ),
                                     child: Icon(
@@ -9865,9 +9768,9 @@ class _CalendarPageState extends State<CalendarPage>
               ? '${note.start!.hour.toString().padLeft(2, '0')}${note.start!.minute.toString().padLeft(2, '0')}'
               : '';
           final legacyIds = <String>{
-            'note:${ky}-${km}-${kd}:${rawTitle.hashCode}',
-            'ky=${ky}-km=${km}-kd=${kd}|t=${rawTitle}',
-            if (hhmm.isNotEmpty) 'note:${ky}-${km}-${kd}:${rawTitle}:${hhmm}',
+            'note:$ky-$km-$kd:${rawTitle.hashCode}',
+            'ky=$ky-km=$km-kd=$kd|t=$rawTitle',
+            if (hhmm.isNotEmpty) 'note:$ky-$km-$kd:$rawTitle:$hhmm',
           };
           for (final oldId in legacyIds) {
             try {
@@ -9932,9 +9835,7 @@ class _CalendarPageState extends State<CalendarPage>
   int? _lastViewKm; // last centered Kemetic month (1..13)
   int? _lastViewKd; // last viewed Kemetic day (1..30, or 1..5/6 for month 13)
 
-  // Debug logging fields
-  int _buildCount = 0; // Track how many times build() is called
-  Orientation? _lastOrientation; // Track orientation changes
+  Orientation? _lastOrientation; // Tracks functional rotation handoff.
 
   static const String _kSessionScopeCalendarView = 'calendar_view';
   static const String _kSessionResumeKindDaySheet = 'calendar_day_sheet';
@@ -9976,7 +9877,7 @@ class _CalendarPageState extends State<CalendarPage>
     // Try saved/today month first
     var ctx = keyForMonth(baseKy, baseKm).currentContext;
     if (ctx != null) {
-      scrollableState = Scrollable.of(ctx); // ✅ Use CHILD context!
+      scrollableState = Scrollable.maybeOf(ctx); // ✅ Use CHILD context!
       if (scrollableState != null) {
         final vpBox = scrollableState.context.findRenderObject() as RenderBox?;
         if (vpBox != null && vpBox.hasSize) {
@@ -9992,7 +9893,7 @@ class _CalendarPageState extends State<CalendarPage>
         for (var km = 1; km <= 13; km++) {
           ctx = keyForMonth(ky, km).currentContext;
           if (ctx == null) continue;
-          scrollableState = Scrollable.of(ctx);
+          scrollableState = Scrollable.maybeOf(ctx);
           if (scrollableState != null) {
             final vpBox =
                 scrollableState.context.findRenderObject() as RenderBox?;
@@ -10085,7 +9986,7 @@ class _CalendarPageState extends State<CalendarPage>
     // Try saved/today month first
     var ctx = keyForMonth(base, baseMonth).currentContext;
     if (ctx != null) {
-      scrollableState = Scrollable.of(ctx); // ✅ Use CHILD context!
+      scrollableState = Scrollable.maybeOf(ctx); // ✅ Use CHILD context!
       if (scrollableState != null) {
         final vpBox = scrollableState.context.findRenderObject() as RenderBox?;
         if (vpBox != null && vpBox.hasSize) {
@@ -10101,7 +10002,7 @@ class _CalendarPageState extends State<CalendarPage>
         for (var km = 1; km <= 13; km++) {
           ctx = keyForMonth(ky, km).currentContext;
           if (ctx != null) {
-            scrollableState = Scrollable.of(ctx);
+            scrollableState = Scrollable.maybeOf(ctx);
             if (scrollableState != null) {
               final vpBox =
                   scrollableState.context.findRenderObject() as RenderBox?;
@@ -11773,8 +11674,9 @@ class _CalendarPageState extends State<CalendarPage>
   void _setView(int ky, int km, {int? kd}) {
     if (_lastViewKy == ky &&
         _lastViewKm == km &&
-        (kd == null || _lastViewKd == kd))
+        (kd == null || _lastViewKd == kd)) {
       return;
+    }
 
     _lastViewKy = ky;
     _lastViewKm = km;
@@ -11983,7 +11885,7 @@ class _CalendarPageState extends State<CalendarPage>
   _visibleCalendarAnchorCandidate(String target, BuildContext? targetCtx) {
     if (targetCtx == null) return null;
 
-    final scrollableState = Scrollable.of(targetCtx);
+    final scrollableState = Scrollable.maybeOf(targetCtx);
     if (scrollableState == null) return null;
 
     final viewportBox =
@@ -12066,7 +11968,7 @@ class _CalendarPageState extends State<CalendarPage>
         _currentViewportCalendarAnchor()?.context ??
         _currentViewTargetContext();
     if (targetCtx == null) return null;
-    final scrollableState = Scrollable.of(targetCtx);
+    final scrollableState = Scrollable.maybeOf(targetCtx);
     final viewportBox =
         scrollableState?.context.findRenderObject() as RenderBox?;
     if (viewportBox == null || !viewportBox.hasSize) {
@@ -12081,14 +11983,14 @@ class _CalendarPageState extends State<CalendarPage>
   }) {
     if (targetCtx == null || !_scrollCtrl.hasClients) return null;
 
-    final scrollableState = Scrollable.of(targetCtx);
+    final scrollableState = Scrollable.maybeOf(targetCtx);
     if (scrollableState == null) return null;
 
     final position = scrollableState.position;
     final targetRenderObject = targetCtx.findRenderObject();
     if (targetRenderObject == null) return null;
 
-    final viewport = RenderAbstractViewport.of(targetRenderObject);
+    final viewport = RenderAbstractViewport.maybeOf(targetRenderObject);
     if (viewport == null) return null;
 
     final reveal = viewport.getOffsetToReveal(targetRenderObject, alignment);
@@ -12221,10 +12123,6 @@ class _CalendarPageState extends State<CalendarPage>
     _reminderSub?.cancel();
     _authSub?.cancel();
     _reminderService.dispose();
-    debugPrint('');
-    debugPrint('🗑️  _CalendarPageState DISPOSING');
-    debugPrint('   Total builds: $_buildCount');
-    debugPrint('');
     _journalController.dispose();
     _calendarRestorationDebounce?.cancel();
     _warmStartCacheDebounceTimer?.cancel();
@@ -12390,7 +12288,6 @@ class _CalendarPageState extends State<CalendarPage>
           for (final r in due)
             if (seen.add(r.id)) r,
         ].take(5).toList();
-        _overlayActive = _floatingReminders.isNotEmpty;
       });
     } catch (e) {
       if (kDebugMode) {
@@ -12409,7 +12306,7 @@ class _CalendarPageState extends State<CalendarPage>
         r.title.trim().toLowerCase(),
         r.startLocal.toIso8601String(),
         r.allDay ? 'allDay' : 'timed',
-        r.color.value.toString(),
+        r.color.toARGB32().toString(),
         r.category ?? '',
         r.active ? 'active' : 'inactive',
         r.repeat.kind.name,
@@ -12605,49 +12502,6 @@ class _CalendarPageState extends State<CalendarPage>
     await _reminderRuleStore.saveAll(_reminderRules);
   }
 
-  bool _nutritionMatchesDate(
-    DateTime day,
-    NutritionReminderIntent intent,
-    KemeticConverter converter,
-  ) {
-    if (intent.isWeekdayMode) {
-      return intent.weekdays.contains(day.weekday);
-    }
-    final k = converter.fromGregorian(day);
-    if (k.epagomenal) return false;
-    final decanDay = ((k.day - 1) % 10) + 1;
-    return intent.decanDays.contains(decanDay);
-  }
-
-  DateTime _nextDateForNutritionReminder(NutritionReminderIntent intent) {
-    final converter = KemeticConverter();
-    final now = DateTime.now();
-    final baseDay = DateTime(now.year, now.month, now.day);
-
-    for (int i = 0; i < 365; i++) {
-      final day = baseDay.add(Duration(days: i));
-      if (!_nutritionMatchesDate(day, intent, converter)) continue;
-
-      final candidate = DateTime(
-        day.year,
-        day.month,
-        day.day,
-        intent.timeOfDay.hour,
-        intent.timeOfDay.minute,
-      );
-      if (candidate.isBefore(now)) continue;
-      return candidate;
-    }
-
-    return DateTime(
-      now.year,
-      now.month,
-      now.day,
-      intent.timeOfDay.hour,
-      intent.timeOfDay.minute,
-    );
-  }
-
   bool _isUuid(String s) {
     final re = RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -12663,61 +12517,7 @@ class _CalendarPageState extends State<CalendarPage>
     return _isUuid(ruleId) ? ruleId : null;
   }
 
-  Future<void> _createReminderFromNutrition(
-    NutritionReminderIntent intent,
-  ) async {
-    if (kDebugMode) {
-      debugPrint(
-        '[reminders] _createReminderFromNutrition itemId=${intent.itemId} mode=${intent.isWeekdayMode ? 'weekday' : 'decan'} weekdays=${intent.weekdays} decanDays=${intent.decanDays}',
-      );
-    }
-    final start = _nextDateForNutritionReminder(intent);
-    final ruleTitle = (intent.detail?.isNotEmpty ?? false)
-        ? '${intent.title} — ${intent.detail}'
-        : intent.title;
-    final repeat = intent.repeat
-        ? (intent.isWeekdayMode
-              ? ReminderRepeat(
-                  kind: ReminderRepeatKind.weekly,
-                  weekdays: intent.weekdays,
-                )
-              : ReminderRepeat(
-                  kind: ReminderRepeatKind.kemeticDecanDay,
-                  decanDays: intent.decanDays,
-                ))
-        : const ReminderRepeat(kind: ReminderRepeatKind.none);
-
-    final rule = ReminderRule(
-      id: 'nutrition:${intent.itemId}',
-      title: ruleTitle,
-      startLocal: start,
-      allDay: false,
-      color: _gold,
-      category: 'nutrition',
-      active: true,
-      repeat: repeat,
-      alertOffsetMinutes: intent.alertOffsetMinutes,
-    );
-
-    await _upsertReminderRule(rule, refresh: true);
-    if (kDebugMode) {
-      final exists = _reminderRules.any(
-        (r) => r.id == 'nutrition:${intent.itemId}',
-      );
-      debugPrint(
-        '[reminders] rule nutrition:${intent.itemId} present after upsert: $exists',
-      );
-    }
-  }
-
-  Future<void> _deleteReminderFromNutrition(String itemId) async {
-    await _deleteReminderRule('nutrition:$itemId');
-  }
-
-  Future<void> _upsertReminderRule(
-    ReminderRule rule, {
-    bool refresh = true,
-  }) async {
+  Future<void> _upsertReminderRule(ReminderRule rule) async {
     final effectiveCalendarId =
         _normalizeCalendarId(rule.calendarId) ??
         _normalizeCalendarId(_personalCalendarId);
@@ -12752,7 +12552,7 @@ class _CalendarPageState extends State<CalendarPage>
           saved = await flowsRepo.upsert(
             id: existingId,
             name: effectiveRule.title,
-            color: effectiveRule.color.value & 0x00FFFFFF,
+            color: effectiveRule.color.toARGB32() & 0x00FFFFFF,
             active: effectiveRule.active,
             calendarId: effectiveCalendarId,
             startDate: DateUtils.dateOnly(effectiveRule.startLocal),
@@ -12765,7 +12565,7 @@ class _CalendarPageState extends State<CalendarPage>
         } else {
           saved = await flowsRepo.upsert(
             name: effectiveRule.title,
-            color: effectiveRule.color.value & 0x00FFFFFF,
+            color: effectiveRule.color.toARGB32() & 0x00FFFFFF,
             active: effectiveRule.active,
             calendarId: effectiveCalendarId,
             startDate: DateUtils.dateOnly(effectiveRule.startLocal),
@@ -12779,7 +12579,7 @@ class _CalendarPageState extends State<CalendarPage>
       } else {
         saved = await flowsRepo.upsert(
           name: effectiveRule.title,
-          color: effectiveRule.color.value & 0x00FFFFFF,
+          color: effectiveRule.color.toARGB32() & 0x00FFFFFF,
           active: effectiveRule.active,
           calendarId: effectiveCalendarId,
           startDate: DateUtils.dateOnly(effectiveRule.startLocal),
@@ -12952,74 +12752,6 @@ class _CalendarPageState extends State<CalendarPage>
         meta;
   }
 
-  ReminderRepeat _decodeReminderRepeat(String? detail) {
-    if (detail == null || detail.isEmpty) return const ReminderRepeat();
-    final marker = 'repeat=';
-    final idx = detail.indexOf(marker);
-    if (idx < 0) return const ReminderRepeat();
-    final start = idx + marker.length;
-    final end = detail.indexOf(';', start);
-    final jsonStr = (end >= 0)
-        ? detail.substring(start, end)
-        : detail.substring(start);
-    try {
-      final map = jsonDecode(jsonStr) as Map<String, dynamic>;
-      return ReminderRepeat.fromJson(map);
-    } catch (_) {
-      return const ReminderRepeat();
-    }
-  }
-
-  ReminderRule _mergeReminderRule(ReminderRule local, ReminderRule remote) {
-    final localRepeat = local.repeat;
-    final remoteRepeat = remote.repeat;
-
-    bool _isEmptyRepeat(ReminderRepeat r) {
-      switch (r.kind) {
-        case ReminderRepeatKind.none:
-          return true;
-        case ReminderRepeatKind.weekly:
-          return r.weekdays.isEmpty;
-        case ReminderRepeatKind.monthlyDay:
-          return r.monthDays.isEmpty &&
-              r.kemeticMonthDays.isEmpty &&
-              r.decanDays.isEmpty;
-        case ReminderRepeatKind.kemeticDecanDay:
-          return r.decanDays.isEmpty;
-        case ReminderRepeatKind.kemeticMonthDay:
-          return r.kemeticMonthDays.isEmpty && r.monthDays.isEmpty;
-        case ReminderRepeatKind.everyNDays:
-        case ReminderRepeatKind.kemeticEveryNDecans:
-          return false;
-      }
-    }
-
-    ReminderRepeat pickRepeat() {
-      if (!_isEmptyRepeat(remoteRepeat)) {
-        return remoteRepeat;
-      }
-      if (!_isEmptyRepeat(localRepeat)) {
-        return localRepeat;
-      }
-      // both empty
-      return remoteRepeat;
-    }
-
-    return local.copyWith(
-      calendarId: remote.calendarId ?? local.calendarId,
-      endLocal: remote.endLocal ?? local.endLocal,
-      repeat: pickRepeat(),
-      // Prefer remote fields so cross-device edits propagate.
-      title: remote.title.isNotEmpty ? remote.title : local.title,
-      color: remote.color,
-      category: remote.category ?? local.category,
-      startLocal: remote.startLocal,
-      allDay: remote.allDay,
-      active: remote.active,
-      alertOffsetMinutes: remote.alertOffsetMinutes,
-    );
-  }
-
   List<DateTime> _generateReminderOccurrences(
     ReminderRule rule,
     DateTime windowStart,
@@ -13041,7 +12773,7 @@ class _CalendarPageState extends State<CalendarPage>
       return const [];
     }
 
-    int _safeInterval(int value) => value <= 0 ? 1 : value;
+    int safeInterval(int value) => value <= 0 ? 1 : value;
 
     switch (rule.repeat.kind) {
       case ReminderRepeatKind.none:
@@ -13052,7 +12784,7 @@ class _CalendarPageState extends State<CalendarPage>
         break;
 
       case ReminderRepeatKind.everyNDays:
-        final step = _safeInterval(rule.repeat.interval);
+        final step = safeInterval(rule.repeat.interval);
         DateTime cur = startDate;
         while (cur.isBefore(from)) {
           cur = cur.add(Duration(days: step));
@@ -13101,7 +12833,7 @@ class _CalendarPageState extends State<CalendarPage>
         break;
 
       case ReminderRepeatKind.kemeticEveryNDecans:
-        final step = _safeInterval(rule.repeat.interval) * 10;
+        final step = safeInterval(rule.repeat.interval) * 10;
         DateTime cur = startDate;
         while (cur.isBefore(from)) {
           cur = cur.add(Duration(days: step));
@@ -13177,7 +12909,7 @@ class _CalendarPageState extends State<CalendarPage>
         return 'Monthly $labels – G';
       case ReminderRepeatKind.kemeticEveryNDecans:
         final iv = rule.repeat.interval <= 0 ? 1 : rule.repeat.interval;
-        return iv == 1 ? 'Every Decan' : 'Every ${iv} Decans';
+        return iv == 1 ? 'Every Decan' : 'Every $iv Decans';
       case ReminderRepeatKind.kemeticDecanDay:
         final ds = _decanDayTargets(rule.repeat, rule.startLocal).toList()
           ..sort();
@@ -13693,7 +13425,9 @@ class _CalendarPageState extends State<CalendarPage>
     }
     bool allDay = existing?.allDay ?? false;
     int colorIndex = existing != null
-        ? _flowPalette.indexWhere((c) => c.value == existing.color.value)
+        ? _flowPalette.indexWhere(
+            (c) => c.toARGB32() == existing.color.toARGB32(),
+          )
         : 0;
     if (colorIndex < 0) colorIndex = 0;
     String? category = existing?.category;
@@ -13972,7 +13706,7 @@ class _CalendarPageState extends State<CalendarPage>
                               ),
                               Switch(
                                 value: active,
-                                activeColor: _gold,
+                                activeThumbColor: _gold,
                                 onChanged: (v) =>
                                     setModalState(() => active = v),
                               ),
@@ -14209,7 +13943,7 @@ class _CalendarPageState extends State<CalendarPage>
                             contentPadding: EdgeInsets.zero,
                             value: allDay,
                             onChanged: (v) => setModalState(() => allDay = v),
-                            activeColor: _gold,
+                            activeThumbColor: _gold,
                             title: const Text(
                               'All day',
                               style: TextStyle(color: Colors.white),
@@ -14270,7 +14004,7 @@ class _CalendarPageState extends State<CalendarPage>
                                         child: ListView.separated(
                                           shrinkWrap: true,
                                           itemCount: opts.length,
-                                          separatorBuilder: (_, __) =>
+                                          separatorBuilder: (_, _) =>
                                               const Divider(
                                                 height: 1,
                                                 color: Colors.white12,
@@ -16190,20 +15924,20 @@ class _CalendarPageState extends State<CalendarPage>
       }
     }
 
-    String _fmtTod(TimeOfDay? tod) {
+    String fmtTod(TimeOfDay? tod) {
       if (tod == null) return 'all-day';
       final hh = tod.hour.toString().padLeft(2, '0');
       final mm = tod.minute.toString().padLeft(2, '0');
       return '$hh:$mm';
     }
 
-    void _logBucket(String label) {
+    void logBucket(String label) {
       if (!kDebugMode) return;
       final bucket = _notes[key] ?? const [];
       final summary = bucket
           .map(
             (n) =>
-                'id=${n.id ?? '-'} cid=${n.clientEventId ?? '-'} start=${_fmtTod(n.start)}',
+                'id=${n.id ?? '-'} cid=${n.clientEventId ?? '-'} start=${fmtTod(n.start)}',
           )
           .join(' | ');
       debugPrint(
@@ -16403,7 +16137,7 @@ class _CalendarPageState extends State<CalendarPage>
         _notes[key]![localIdx] = replacement;
         updatedLocalNote = true;
         reminderNote = replacement;
-        _logBucket('move: updated _notes (in-place)');
+        logBucket('move: updated _notes (in-place)');
       } else {
         if (kDebugMode) {
           debugPrint(
@@ -16467,7 +16201,7 @@ class _CalendarPageState extends State<CalendarPage>
               incomingCidMatch ||
               titleStartMatch;
         });
-        _logBucket('move: reconciled _notes (fallback)');
+        logBucket('move: reconciled _notes (fallback)');
       }
 
       final alertMinutes = _effectiveAlertMinutes(
@@ -16544,7 +16278,7 @@ class _CalendarPageState extends State<CalendarPage>
       final savedId = await repo.upsertFlow(
         id: null, // let server assign id
         name: flow.name,
-        color: flow.color.value,
+        color: flow.color.toARGB32(),
         active: flow.active,
         calendarId: flow.calendarId,
         startDate: flow.start,
@@ -16618,137 +16352,6 @@ class _CalendarPageState extends State<CalendarPage>
     }
   }
 
-  void _rekeyNotesFlowId(int fromId, int toId) {
-    // Collect all notes that need database updates
-    final List<({int ky, int km, int kd, _Note note})> notesToPersist = [];
-
-    // Walk the in-memory notes map and change any note.flowId == fromId to toId
-    _notes.updateAll((key, list) {
-      return list.map((n) {
-        if ((n.flowId ?? -1) == fromId) {
-          final updatedNote = _Note(
-            id: n.id,
-            clientEventId: n.clientEventId,
-            title: n.title,
-            detail: n.detail,
-            location: n.location,
-            allDay: n.allDay,
-            start: n.start,
-            end: n.end,
-            flowId: toId,
-            alertOffsetMinutes: n.alertOffsetMinutes,
-          );
-
-          // Parse the key to get ky, km, kd
-          final parts = key.split('-');
-          if (parts.length == 3) {
-            final ky = int.tryParse(parts[0]);
-            final km = int.tryParse(parts[1]);
-            final kd = int.tryParse(parts[2]);
-            if (ky != null && km != null && kd != null) {
-              notesToPersist.add((ky: ky, km: km, kd: kd, note: updatedNote));
-            }
-          }
-
-          return updatedNote;
-        }
-        return n;
-      }).toList();
-    });
-
-    // Persist to database
-    if (notesToPersist.isNotEmpty) {
-      Future.microtask(() async {
-        try {
-          final repo = UserEventsRepo(Supabase.instance.client);
-          for (final item in notesToPersist) {
-            final gDay = KemeticMath.toGregorian(item.ky, item.km, item.kd);
-            final String cid = _buildCid(
-              ky: item.ky,
-              km: item.km,
-              kd: item.kd,
-              title: item.note.title,
-              startHour: item.note.start?.hour,
-              startMinute: item.note.start?.minute,
-              allDay: item.note.allDay,
-              flowId: toId,
-            );
-            final DateTime startsAt = DateTime(
-              gDay.year,
-              gDay.month,
-              gDay.day,
-              item.note.start?.hour ?? 9,
-              item.note.start?.minute ?? 0,
-            );
-            DateTime? endsAt;
-            if (item.note.allDay == false && item.note.end != null) {
-              endsAt = DateTime(
-                gDay.year,
-                gDay.month,
-                gDay.day,
-                item.note.end!.hour,
-                item.note.end!.minute,
-              );
-            }
-            final String? det = item.note.detail;
-            final String detailPayload = det?.trim() ?? '';
-            await repo.upsertByClientId(
-              clientEventId: cid,
-              title: item.note.title,
-              startsAtUtc: startsAt.toUtc(),
-              detail: detailPayload.isEmpty ? null : detailPayload,
-              location: (item.note.location ?? '').trim().isEmpty
-                  ? null
-                  : item.note.location!.trim(),
-              allDay: item.note.allDay,
-              endsAtUtc: endsAt?.toUtc(),
-              caller: 'rekey_flow',
-            );
-          }
-          if (kDebugMode) {
-            debugPrint(
-              '[rekeyNotesFlowId] Updated ${notesToPersist.length} notes from flowId=$fromId to flowId=$toId in database',
-            );
-          }
-        } catch (e) {
-          if (kDebugMode) {
-            debugPrint(
-              '[rekeyNotesFlowId] Failed to persist flow ID updates: $e',
-            );
-          }
-        }
-      });
-    }
-  }
-
-  void _toggleFlowActive(int flowId, bool active) {
-    final idx = _flows.indexWhere((f) => f.id == flowId);
-    if (idx >= 0) {
-      _flows[idx].active = active;
-      setState(() {});
-
-      Future.microtask(() async {
-        try {
-          final repo = UserEventsRepo(Supabase.instance.client);
-          final f = _flows[idx];
-          final rulesJson = jsonEncode(f.rules.map(ruleToJson).toList());
-          await repo.upsertFlow(
-            id: f.id,
-            name: f.name,
-            color: f.color.value,
-            active: active,
-            calendarId: f.calendarId,
-            startDate: f.start,
-            endDate: f.end,
-            notes: f.notes,
-            rules: rulesJson,
-            isHidden: f.isHidden,
-          );
-        } catch (_) {}
-      });
-    }
-  }
-
   void _deleteFlow(int flowId) {
     final flow = _flows.firstWhere(
       (f) => f.id == flowId,
@@ -16810,7 +16413,7 @@ class _CalendarPageState extends State<CalendarPage>
           await repo.upsertFlow(
             id: flow.id,
             name: flow.name,
-            color: flow.color.value,
+            color: flow.color.toARGB32(),
             active: false,
             calendarId: flow.calendarId,
             startDate: flow.start,
@@ -17021,24 +16624,6 @@ class _CalendarPageState extends State<CalendarPage>
     pos.jumpTo(clamped);
   }
 
-  void _restoreScrollPositionSmooth() {
-    if (_scrollOffsetBeforePinch == null || !_scrollCtrl.hasClients) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollCtrl.hasClients) return;
-      final pos = _scrollCtrl.position;
-      final target = _scrollOffsetBeforePinch!.clamp(
-        pos.minScrollExtent,
-        pos.maxScrollExtent,
-      );
-      pos.animateTo(
-        target,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-      );
-      _scrollOffsetBeforePinch = null;
-    });
-  }
-
   (int, int)? _findMonthAtPoint(Offset globalPoint) {
     if (!_scrollCtrl.hasClients) return null;
 
@@ -17073,15 +16658,6 @@ class _CalendarPageState extends State<CalendarPage>
     return (baseKy, baseKm);
   }
 
-  void _stepExpansion(int delta, {String entryPoint = 'pinch'}) {
-    final levels = MonthExpansionLevel.values;
-    final idx = levels.indexOf(_monthExpansion);
-    final next = (idx + delta).clamp(0, levels.length - 1);
-    if (next != idx) {
-      _setExpansionLevelSmooth(levels[next], entryPoint: entryPoint);
-    }
-  }
-
   void _onScaleStart(ScaleStartDetails details) {
     if (details.pointerCount < 2) return;
     _scaleGestureAnchor = 1.0;
@@ -17089,9 +16665,6 @@ class _CalendarPageState extends State<CalendarPage>
     _lastPinchUpdate = null;
     _pinchStartLevel = _monthExpansion;
     _pinchExpansionValue = _monthExpansion.index.toDouble();
-    if (_scrollCtrl.hasClients) {
-      _scrollOffsetBeforePinch = _scrollCtrl.position.pixels;
-    }
     _pinchAnchorPoint = details.focalPoint;
     _pinchAnchorMonth = _findMonthAtPoint(details.focalPoint);
   }
@@ -17140,10 +16713,7 @@ class _CalendarPageState extends State<CalendarPage>
         _maintainAnchorPoint();
         _pinchAnchorPoint = null;
         _pinchAnchorMonth = null;
-        _scrollOffsetBeforePinch = null;
       });
-    } else {
-      _scrollOffsetBeforePinch = null;
     }
 
     if (targetLevel != startLevel) {
@@ -17832,7 +17402,7 @@ class _CalendarPageState extends State<CalendarPage>
                   top: Radius.circular(16),
                 ),
                 child: Navigator(
-                  onGenerateInitialRoutes: (nav, __) {
+                  onGenerateInitialRoutes: (nav, _) {
                     return [
                       MaterialPageRoute(
                         builder: (ctx2) {
@@ -19445,7 +19015,6 @@ class _CalendarPageState extends State<CalendarPage>
     debugPrint('│ allowDateChange: $allowDateChange');
     debugPrint('│ Context mounted: ${context.mounted}');
     debugPrint('│ Context widget: ${context.widget.runtimeType}');
-    debugPrint('│ Build count: $_buildCount');
     debugPrint('└─────────────────────────────────────┘');
     debugPrint('');
 
@@ -19551,7 +19120,9 @@ class _CalendarPageState extends State<CalendarPage>
 
     // Color state – index into _flowPalette
     int selectedColorIndex = initialColor != null
-        ? _flowPalette.indexWhere((c) => c.value == initialColor.value)
+        ? _flowPalette.indexWhere(
+            (c) => c.toARGB32() == initialColor.toARGB32(),
+          )
         : 0;
     if (selectedColorIndex < 0) selectedColorIndex = 0;
     bool sheetClosing = false;
@@ -19572,7 +19143,7 @@ class _CalendarPageState extends State<CalendarPage>
         'startMinute': startTime?.minute,
         'endHour': endTime?.hour,
         'endMinute': endTime?.minute,
-        'colorValue': _flowPalette[selectedColorIndex].value,
+        'colorValue': _flowPalette[selectedColorIndex].toARGB32(),
         'category': selectedCategory,
         'alertMinutesBefore': alertMinutesBefore,
         'calendarId': selectedCalendarId,
@@ -19725,11 +19296,6 @@ class _CalendarPageState extends State<CalendarPage>
 
           final daySheetContent = StatefulBuilder(
             builder: (sheetCtx, setSheetState) {
-              const double _detailFontSize = 12.0;
-              const double _detailLineHeight = 1.35;
-              const int _detailVisibleLines = 3;
-              const double _detailBoxHeight =
-                  _detailFontSize * _detailLineHeight * _detailVisibleLines;
               // Clamp before any toGregorian
               int dayCount = maxDayFor(selYear, selMonth);
               if (selDay > dayCount) {
@@ -20300,7 +19866,7 @@ class _CalendarPageState extends State<CalendarPage>
                                 controller: null,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: _reminderRules.length,
-                                separatorBuilder: (_, __) => const Divider(
+                                separatorBuilder: (_, _) => const Divider(
                                   height: 12,
                                   color: Colors.white12,
                                 ),
@@ -20517,7 +20083,7 @@ class _CalendarPageState extends State<CalendarPage>
                                   shrinkWrap: true,
                                   physics: const BouncingScrollPhysics(),
                                   itemCount: dayFlows.length,
-                                  separatorBuilder: (_, __) => const Divider(
+                                  separatorBuilder: (_, _) => const Divider(
                                     height: 12,
                                     color: Colors.white10,
                                   ),
@@ -20616,7 +20182,7 @@ class _CalendarPageState extends State<CalendarPage>
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: dayNotes.length,
-                                separatorBuilder: (_, __) => const Divider(
+                                separatorBuilder: (_, _) => const Divider(
                                   height: 12,
                                   color: Colors.white10,
                                 ),
@@ -20683,7 +20249,7 @@ class _CalendarPageState extends State<CalendarPage>
                                                               .isNotEmpty)
                                                             timeLine,
                                                           if (location != null)
-                                                            location!,
+                                                            location,
                                                         ].join(' • '),
                                                         style: const TextStyle(
                                                           color: Colors.white70,
@@ -20812,7 +20378,7 @@ class _CalendarPageState extends State<CalendarPage>
                                     },
                                     selectedColor: const Color(
                                       0xFFD4AF37,
-                                    ).withOpacity(0.2),
+                                    ).withValues(alpha: 0.2),
                                     labelStyle: TextStyle(
                                       color: selectedCategory == cat
                                           ? KemeticGold.base
@@ -22021,49 +21587,10 @@ class _CalendarPageState extends State<CalendarPage>
   /* ───── UI ───── */
   bool _initOnce = false;
 
-  /// ⚠️ ONE-TIME CACHE CLEANUP
-  /// Clears stale Supabase storage and SharedPreferences cache
-  /// Run once to remove "Alkaline Lunch" ghosts and ensure only true Supabase data shows
-  /// Remove this method after successful cleanup
-  Future<void> _performOneTimeCacheCleanup() async {
-    if (kDebugMode) {
-      debugPrint('🧹 [CACHE CLEANUP] Starting one-time cleanup...');
-    }
-
-    try {
-      // Clear SharedPreferences (manual cache)
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
-      if (kDebugMode) {
-        debugPrint('🧹 [CACHE CLEANUP] Cleared SharedPreferences');
-      }
-
-      // Sign out to force fresh session (this will also clear Supabase session cache)
-      await Supabase.instance.client.auth.signOut();
-      if (kDebugMode) {
-        debugPrint('🧹 [CACHE CLEANUP] Signed out (app will need to re-login)');
-      }
-
-      if (kDebugMode) {
-        debugPrint(
-          '✅ [CACHE CLEANUP] Cleanup complete - restart app to see fresh data',
-        );
-      }
-    } catch (e, stackTrace) {
-      if (kDebugMode) {
-        debugPrint('❌ [CACHE CLEANUP] Error during cleanup: $e');
-        debugPrint('Stack trace: $stackTrace');
-      }
-    }
-  }
-
   Future<void> _requestStartupRun({String reason = 'queued'}) async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       _pendingInitialHydration = true;
-      if (kDebugMode && kDebugStandaloneHydration) {
-        debugPrint('[startup] Deferring ($reason): no authenticated user');
-      }
       return;
     }
     _pendingInitialHydration = false;
@@ -22128,20 +21655,6 @@ class _CalendarPageState extends State<CalendarPage>
     // ✅ PRESERVE existing _initOnce logic
     if (!_initOnce) {
       _initOnce = true;
-
-      // ⚠️ ONE-TIME CACHE CLEANUP
-      // Set _runOneTimeCacheCleanup = true to clear stale cache, then set back to false
-      if (_runOneTimeCacheCleanup) {
-        _performOneTimeCacheCleanup().then((_) {
-          // After cleanup, user needs to restart app to re-login
-          if (kDebugMode) {
-            debugPrint(
-              '⚠️ [CACHE CLEANUP] App will need restart after sign-out',
-            );
-          }
-        });
-        return; // Don't load data yet - wait for restart
-      }
 
       // 1) Load reminder rules + schedule their instances, then load flows/events
       final user = Supabase.instance.client.auth.currentUser;
@@ -22309,11 +21822,6 @@ class _CalendarPageState extends State<CalendarPage>
     bool preserveViewport = false,
   }) async {
     if (_isLoadingFromDisk) {
-      if (kDebugMode && kDebugStandaloneHydration) {
-        debugPrint(
-          '[loadFromDisk] Skipping duplicate load (in flight) source=$source',
-        );
-      }
       return;
     }
     _isLoadingFromDisk = true;
@@ -22333,12 +21841,6 @@ class _CalendarPageState extends State<CalendarPage>
               _lastKnownCalendarScrollOffset
         : null;
     await _ensureManualDeleteTombstonesLoaded();
-    if (kDebugMode && kDebugStandaloneHydration) {
-      final uid = currentUser.id;
-      final truncated = uid.length > 8 ? '${uid.substring(0, 8)}...' : uid;
-      debugPrint('[loadFromDisk] Authenticated as $truncated source=$source');
-    }
-
     try {
       final fastStartupMode = source.startsWith('startup:');
       final warmStartBackfillMode = source.startsWith('startup_backfill:');
@@ -22775,22 +22277,6 @@ class _CalendarPageState extends State<CalendarPage>
           }());
         }
 
-        if (kDebugMode && kDebugStandaloneHydration) {
-          final uid = currentUser?.id ?? 'nouser';
-          final truncated = uid.length > 8 ? '${uid.substring(0, 8)}...' : uid;
-          debugPrint(
-            '[_loadFromDisk] standalone events fetched=${standaloneEvents.length} '
-            'pages=${standaloneResult.pageCount} raw=${standaloneResult.rawCount} '
-            'window=${standaloneWindow.startUtc.toIso8601String()} → ${standaloneWindow.endUtc.toIso8601String()} '
-            'user=$truncated',
-          );
-          if (standaloneEvents.isEmpty) {
-            debugPrint(
-              '[_loadFromDisk] ⚠️ No standalone events returned; check RLS/query and Supabase logs',
-            );
-          }
-        }
-
         int standaloneAddedCount = 0;
 
         for (final evt in standaloneEvents) {
@@ -22938,11 +22424,6 @@ class _CalendarPageState extends State<CalendarPage>
                   note.clientEventId != null &&
                   existing.clientEventId == note.clientEventId) {
                 skip = true;
-                if (kDebugMode && kDebugStandaloneHydration) {
-                  debugPrint(
-                    '[_loadFromDisk] dedupe by clientEventId ${note.clientEventId} in $key',
-                  );
-                }
                 break;
               }
 
@@ -22953,11 +22434,6 @@ class _CalendarPageState extends State<CalendarPage>
                     existing.start?.hour == note.start?.hour &&
                     existing.start?.minute == note.start?.minute) {
                   skip = true;
-                  if (kDebugMode && kDebugStandaloneHydration) {
-                    debugPrint(
-                      '[_loadFromDisk] dedupe reminder in $key ${note.reminderId}',
-                    );
-                  }
                   break;
                 }
                 continue;
@@ -22973,12 +22449,6 @@ class _CalendarPageState extends State<CalendarPage>
                 } else {
                   skip = true;
                 }
-                if (kDebugMode && kDebugStandaloneHydration) {
-                  debugPrint(
-                    '[_loadFromDisk] dedupe key match in $key keep=${replaceIndex != null ? 'incoming' : 'existing'} '
-                    'incomingCid=${note.clientEventId} existingCid=${existing.clientEventId}',
-                  );
-                }
                 break;
               }
             }
@@ -22989,28 +22459,14 @@ class _CalendarPageState extends State<CalendarPage>
 
             if (replaceIndex != null) {
               bucket[replaceIndex] = note;
-              if (kDebugMode && kDebugStandaloneHydration) {
-                debugPrint(
-                  '[_loadFromDisk] replaced duplicate standalone with cid=${note.clientEventId} key=$key',
-                );
-              }
             } else {
               bucket.add(note);
               standaloneAddedCount++; // ✅ important: track how many actually added
-              if (kDebugMode && kDebugStandaloneHydration) {
-                debugPrint(
-                  '[_loadFromDisk] added standalone id=${evt.id} cid=${note.clientEventId ?? ''} '
-                  'key=$key start=${note.start == null ? 'all-day' : _formatTimeOfDay(note.start!)}',
-                );
-              }
             }
-          } catch (rowErr, rowSt) {
+          } catch (rowErr) {
             debugPrint(
               '[_loadFromDisk] ⚠️ standalone row skipped: $rowErr (id=${evt.id} cid=${evt.clientEventId})',
             );
-            if (kDebugMode && kDebugStandaloneHydration) {
-              debugPrint('$rowSt');
-            }
             continue;
           }
         }
@@ -23052,25 +22508,6 @@ class _CalendarPageState extends State<CalendarPage>
       _notes
         ..clear()
         ..addAll(dedupedNotes);
-      if (kDebugMode && kDebugStandaloneHydration) {
-        final totalNotes = dedupedNotes.values.fold<int>(
-          0,
-          (sum, list) => sum + list.length,
-        );
-        debugPrint(
-          '[_loadFromDisk] committed _notes keys=${dedupedNotes.length} totalNotes=$totalNotes',
-        );
-        for (final key in _debugStandaloneKeys) {
-          final bucket = dedupedNotes[key];
-          if (bucket != null) {
-            debugPrint(
-              '[_loadFromDisk] bucket $key titles=${bucket.map((n) => n.title).join(' | ')}',
-            );
-          } else {
-            debugPrint('[_loadFromDisk] bucket $key empty');
-          }
-        }
-      }
       _nextFlowId = nextFlowId;
 
       if (kDebugMode) {
@@ -23332,11 +22769,6 @@ class _CalendarPageState extends State<CalendarPage>
     }());
   }
 
-  List<FlowRule> _rulesFromReminder(ReminderRule rule) {
-    // We rely on reminder recurrence engine; leave flow rules empty.
-    return const [];
-  }
-
   Future<int?> _findFlowIdByReminderUuid(String reminderUuid) async {
     final dbUuid = _dbReminderUuidFromRuleId(reminderUuid);
     if (dbUuid == null) return null;
@@ -23350,7 +22782,7 @@ class _CalendarPageState extends State<CalendarPage>
 
   bool _rulesEqual(List<dynamic> oldRulesJson, List<FlowRule> newRules) {
     if (oldRulesJson.length != newRules.length) return false;
-    List<Map<String, dynamic>> _normalize(List<Map<String, dynamic>> list) {
+    List<Map<String, dynamic>> normalize(List<Map<String, dynamic>> list) {
       list.sort(
         (a, b) =>
             (a['type'] as String? ?? '').compareTo(b['type'] as String? ?? ''),
@@ -23358,10 +22790,10 @@ class _CalendarPageState extends State<CalendarPage>
       return list;
     }
 
-    final oldNormalized = _normalize(
+    final oldNormalized = normalize(
       oldRulesJson.map((r) => Map<String, dynamic>.from(r as Map)).toList(),
     );
-    final newNormalized = _normalize(
+    final newNormalized = normalize(
       newRules
           .map(ruleToJson)
           .map((r) => Map<String, dynamic>.from(r))
@@ -23376,7 +22808,7 @@ class _CalendarPageState extends State<CalendarPage>
     if (oldFlow.startDate != newFlow.start) return false;
     if (oldFlow.endDate != newFlow.end) return false;
     if (!_rulesEqual(oldFlow.rules, newFlow.rules)) return false;
-    return oldFlow.color != newFlow.color.value;
+    return oldFlow.color != newFlow.color.toARGB32();
   }
 
   Future<void> _scheduleAlertForEvent({
@@ -23504,7 +22936,7 @@ class _CalendarPageState extends State<CalendarPage>
       final savedId = await repo.upsertFlow(
         id: r.savedFlow!.id > 0 ? r.savedFlow!.id : null,
         name: r.savedFlow!.name,
-        color: r.savedFlow!.color.value,
+        color: r.savedFlow!.color.toARGB32(),
         active: r.savedFlow!.active,
         calendarId: r.savedFlow!.calendarId,
         startDate: r.savedFlow!.start,
@@ -23562,7 +22994,7 @@ class _CalendarPageState extends State<CalendarPage>
       // Add verification logging
       if (kDebugMode) {
         debugPrint(
-          '[persistFlowStudio] Saved flow $savedId "${saved.name}" with color=${saved.color.value.toRadixString(16)} to database',
+          '[persistFlowStudio] Saved flow $savedId "${saved.name}" with color=${saved.color.toARGB32().toRadixString(16)} to database',
         );
       }
     }
@@ -24248,7 +23680,7 @@ class _CalendarPageState extends State<CalendarPage>
     final int flowId = await repo.upsertFlow(
       id: null,
       name: flow.name,
-      color: flow.color.value,
+      color: flow.color.toARGB32(),
       active: flow.active,
       calendarId: flow.calendarId,
       startDate: flow.start,
@@ -24321,8 +23753,8 @@ class _CalendarPageState extends State<CalendarPage>
     var kSeed = KemeticMath.fromGregorian(initialDate);
     int ky = kSeed.kYear, km = kSeed.kMonth, kd = kSeed.kDay;
 
-    int _gregDayMax(int y, int m) => DateUtils.getDaysInMonth(y, m);
-    int _kemDayMax(int year, int month) =>
+    int gregDayMax(int y, int m) => DateUtils.getDaysInMonth(y, m);
+    int kemDayMax(int year, int month) =>
         (month == 13) ? (KemeticMath.isLeapKemeticYear(year) ? 6 : 5) : 30;
 
     // ---- Controllers ----
@@ -24362,15 +23794,15 @@ class _CalendarPageState extends State<CalendarPage>
         return StatefulBuilder(
           builder: (sheetCtx, setSheetState) {
             // Clamp wheels against month/day changes
-            final gMax = _gregDayMax(gy, gm);
+            final gMax = gregDayMax(gy, gm);
             if (gd > gMax) gd = gMax;
-            final kMax = _kemDayMax(ky, km);
+            final kMax = kemDayMax(ky, km);
             if (kd > kMax) kd = kMax;
 
             // -------------------------------------------------------------------
             // Gregorian wheel
             // -------------------------------------------------------------------
-            Widget _gregWheel() => SizedBox(
+            Widget gregWheel() => SizedBox(
               height: 160,
               child: Row(
                 children: [
@@ -24385,7 +23817,7 @@ class _CalendarPageState extends State<CalendarPage>
                       onSelectedItemChanged: (i) {
                         setSheetState(() {
                           gm = (i % 12) + 1;
-                          final mx = _gregDayMax(gy, gm);
+                          final mx = gregDayMax(gy, gm);
                           if (gd > mx && gDayCtrl.hasClients) {
                             gd = mx;
                             WidgetsBinding.instance.addPostFrameCallback(
@@ -24418,12 +23850,12 @@ class _CalendarPageState extends State<CalendarPage>
                       backgroundColor: const Color(0x00121214),
                       onSelectedItemChanged: (i) {
                         setSheetState(() {
-                          final mx = _gregDayMax(gy, gm);
+                          final mx = gregDayMax(gy, gm);
                           gd = (i % mx) + 1;
                         });
                       },
                       children: List.generate(
-                        _gregDayMax(gy, gm),
+                        gregDayMax(gy, gm),
                         (i) => Center(
                           child: GlossyText(
                             text: '${i + 1}',
@@ -24447,7 +23879,7 @@ class _CalendarPageState extends State<CalendarPage>
                       onSelectedItemChanged: (i) {
                         setSheetState(() {
                           gy = gYearStart + i;
-                          final mx = _gregDayMax(gy, gm);
+                          final mx = gregDayMax(gy, gm);
                           if (gd > mx && gDayCtrl.hasClients) {
                             gd = mx;
                             WidgetsBinding.instance.addPostFrameCallback(
@@ -24475,7 +23907,7 @@ class _CalendarPageState extends State<CalendarPage>
             // -------------------------------------------------------------------
             // Kemetic wheel
             // -------------------------------------------------------------------
-            Widget _kemWheel() => SizedBox(
+            Widget kemWheel() => SizedBox(
               height: 160,
               child: Row(
                 children: [
@@ -24490,7 +23922,7 @@ class _CalendarPageState extends State<CalendarPage>
                       onSelectedItemChanged: (i) {
                         setSheetState(() {
                           km = (i % 13) + 1;
-                          final mx = _kemDayMax(ky, km);
+                          final mx = kemDayMax(ky, km);
                           if (kd > mx && kDayCtrl.hasClients) {
                             kd = mx;
                             WidgetsBinding.instance.addPostFrameCallback(
@@ -24522,12 +23954,12 @@ class _CalendarPageState extends State<CalendarPage>
                       backgroundColor: const Color(0x00121214),
                       onSelectedItemChanged: (i) {
                         setSheetState(() {
-                          final mx = _kemDayMax(ky, km);
+                          final mx = kemDayMax(ky, km);
                           kd = (i % mx) + 1;
                         });
                       },
                       children: List.generate(
-                        _kemDayMax(ky, km),
+                        kemDayMax(ky, km),
                         (i) => Center(
                           child: GlossyText(
                             text: '${i + 1}',
@@ -24551,7 +23983,7 @@ class _CalendarPageState extends State<CalendarPage>
                       onSelectedItemChanged: (i) {
                         setSheetState(() {
                           ky = kYearStart + i;
-                          final mx = _kemDayMax(ky, km);
+                          final mx = kemDayMax(ky, km);
                           if (kd > mx && kDayCtrl.hasClients) {
                             kd = mx;
                             WidgetsBinding.instance.addPostFrameCallback(
@@ -24637,7 +24069,7 @@ class _CalendarPageState extends State<CalendarPage>
                           ky = k.kYear;
                           km = k.kMonth;
                           kd = k.kDay;
-                          final kMax = _kemDayMax(ky, km);
+                          final kMax = kemDayMax(ky, km);
                           if (kd > kMax) kd = kMax;
                           localKemetic = true;
 
@@ -24654,7 +24086,7 @@ class _CalendarPageState extends State<CalendarPage>
                           gy = g.year;
                           gm = g.month;
                           gd = g.day;
-                          final gMax = _gregDayMax(gy, gm);
+                          final gMax = gregDayMax(gy, gm);
                           if (gd > gMax) gd = gMax;
                           localKemetic = false;
 
@@ -24685,7 +24117,7 @@ class _CalendarPageState extends State<CalendarPage>
 
                   const SizedBox(height: 8),
 
-                  localKemetic ? _kemWheel() : _gregWheel(),
+                  localKemetic ? kemWheel() : gregWheel(),
 
                   const SizedBox(height: 12),
 
@@ -25046,7 +24478,6 @@ class _CalendarPageState extends State<CalendarPage>
       return const SizedBox.shrink();
     }
 
-    _buildCount++;
     final kToday = _today;
     final size = MediaQuery.sizeOf(context);
     final orientation = MediaQuery.orientationOf(context);
@@ -25090,8 +24521,6 @@ class _CalendarPageState extends State<CalendarPage>
     _lastOrientation = orientation;
 
     if (useGrid) {
-      debugPrint('📱 Rendering: LandscapeMonthView (build #$_buildCount)');
-
       // ✅ FIX 5: Only call if state is missing (optimization)
       // The method already has a guard, but this prevents unnecessary function calls
       // ✅ FIX 6: Also prevent during landscape updates to avoid side effects
@@ -25312,7 +24741,7 @@ class _CalendarPageState extends State<CalendarPage>
       right: 12,
       bottom: 16 + media.padding.bottom,
       child: Material(
-        color: Colors.black.withOpacity(0.9),
+        color: Colors.black.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(14),
         elevation: 8,
         child: InkWell(
@@ -25568,8 +24997,9 @@ class _CalendarPageState extends State<CalendarPage>
     final start = KemeticMath.toGregorian(kYear, kMonth, decanStartDay);
     final end = KemeticMath.toGregorian(kYear, kMonth, decanEndDay);
     final todayLocal = _dateOnlyLocal(DateTime.now());
-    if (_dateOnlyLocal(end).isAfter(todayLocal))
+    if (_dateOnlyLocal(end).isAfter(todayLocal)) {
       return null; // only after completion
+    }
 
     final decanLabel = DecanMetadata.decanNameFor(
       kMonth: kMonth,
@@ -25783,8 +25213,9 @@ class _CalendarPageState extends State<CalendarPage>
     if (_lastReflectionCheckDay != null &&
         DateUtils.isSameDay(today, _lastReflectionCheckDay) &&
         !force &&
-        _reflectionPrompt != null)
+        _reflectionPrompt != null) {
       return;
+    }
     _lastReflectionCheckDay = today;
 
     final window = _latestCompletedDecanWindow();
@@ -27103,7 +26534,7 @@ class _MonthCard extends StatelessWidget {
         DecanMetadata.decanNames[kMonth] ??
         const ['Decan A', 'Decan B', 'Decan C'];
 
-    double _decanHeightFor(int decanIndex) {
+    double decanHeightFor(int decanIndex) {
       // Only adjust in details mode; otherwise use the global sizing.
       if (expansionLevel != MonthExpansionLevel.details) {
         return _chipHeightFor(expansionLevel);
@@ -27137,7 +26568,7 @@ class _MonthCard extends StatelessWidget {
       return estimated.clamp(minHeight, maxHeight);
     }
 
-    final decanHeights = List<double>.generate(3, (i) => _decanHeightFor(i));
+    final decanHeights = List<double>.generate(3, (i) => decanHeightFor(i));
 
     final yStart = KemeticMath.toGregorian(kYear, kMonth, 1).year;
     final yEnd = KemeticMath.toGregorian(kYear, kMonth, 30).year;
@@ -27583,7 +27014,7 @@ class _DayChip extends StatelessWidget {
     final chipHeight = decanHeight ?? _chipHeightFor(expansionLevel);
     final nonCompactHeaderHeight = 24.0;
 
-    Widget _buildMiniBlocksCompact({required double maxWidth}) {
+    Widget buildMiniBlocksCompact({required double maxWidth}) {
       const spacing = 2.5;
       const maxMarkersCap = 3;
       const trackSkyMarkerWidth = 7.0;
@@ -27643,7 +27074,7 @@ class _DayChip extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    Widget _buildMiniBlocks({double? availableHeight}) {
+    Widget buildMiniBlocks({double? availableHeight}) {
       if (isCompact) {
         return const SizedBox.shrink();
       }
@@ -27790,7 +27221,7 @@ class _DayChip extends StatelessWidget {
                                       ),
                                       child: Align(
                                         alignment: Alignment.bottomRight,
-                                        child: _buildMiniBlocksCompact(
+                                        child: buildMiniBlocksCompact(
                                           maxWidth: maxWidth,
                                         ),
                                       ),
@@ -27921,7 +27352,7 @@ class _DayChip extends StatelessWidget {
                         child: LayoutBuilder(
                           builder: (context, constraints) {
                             return ClipRect(
-                              child: _buildMiniBlocks(
+                              child: buildMiniBlocks(
                                 availableHeight: constraints.maxHeight,
                               ),
                             );
@@ -27939,7 +27370,7 @@ class _DayChip extends StatelessWidget {
   }
 
   String _labelFor(_Note note) {
-    String _short(String text, int max) {
+    String short(String text, int max) {
       if (text.isEmpty) return '';
       return text.length <= max ? text : '${text.substring(0, max - 1)}…';
     }
@@ -27967,14 +27398,14 @@ class _DayChip extends StatelessWidget {
     if (expansionLevel == MonthExpansionLevel.details) {
       if (hasFlow) {
         if (hasMeaningfulTitle) {
-          final title = _short(titleRaw, 50);
+          final title = short(titleRaw, 50);
           return '$flowName $title';
         } else {
           return flowName!;
         }
       } else {
         if (hasMeaningfulTitle) {
-          return _short(titleRaw, 60);
+          return short(titleRaw, 60);
         } else {
           return '';
         }
@@ -27984,7 +27415,7 @@ class _DayChip extends StatelessWidget {
     // For non-details mode (stacked/compact), same logic
     if (hasFlow) {
       if (hasMeaningfulTitle) {
-        final title = _short(titleRaw, 50);
+        final title = short(titleRaw, 50);
         return '$flowName $title';
       } else {
         return flowName!;
@@ -27992,7 +27423,7 @@ class _DayChip extends StatelessWidget {
     }
 
     if (hasMeaningfulTitle) {
-      return _short(titleRaw, 60);
+      return short(titleRaw, 60);
     } else {
       return '';
     }
@@ -28362,9 +27793,11 @@ class _MainCalendarEventDetailSheetState
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           gradient: isTrackSky ? trackSkySpec!.background : null,
-          color: isTrackSky ? null : flow.color.withOpacity(0.16),
+          color: isTrackSky ? null : flow.color.withValues(alpha: 0.16),
           border: isTrackSky
-              ? Border.all(color: trackSkySpec!.borderColor.withOpacity(0.78))
+              ? Border.all(
+                  color: trackSkySpec!.borderColor.withValues(alpha: 0.78),
+                )
               : null,
           borderRadius: BorderRadius.circular(8),
         ),
@@ -28379,7 +27812,7 @@ class _MainCalendarEventDetailSheetState
                   color: trackSkySpec!.textColor,
                   shadows: [
                     Shadow(
-                      color: Colors.black.withOpacity(0.42),
+                      color: Colors.black.withValues(alpha: 0.42),
                       offset: const Offset(0, 1),
                       blurRadius: 2,
                     ),
@@ -28401,7 +27834,7 @@ class _MainCalendarEventDetailSheetState
       metaChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: KemeticGold.base.withOpacity(0.16),
+          color: KemeticGold.base.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(8),
         ),
         child: KemeticGold.text(
@@ -28413,7 +27846,7 @@ class _MainCalendarEventDetailSheetState
       metaChip = Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: KemeticGold.base.withOpacity(0.16),
+          color: KemeticGold.base.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -28502,12 +27935,12 @@ class _MainCalendarEventDetailSheetState
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.04),
+          color: Colors.white.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _gold.withOpacity(0.4)),
+          border: Border.all(color: _gold.withValues(alpha: 0.4)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.45),
+              color: Colors.black.withValues(alpha: 0.45),
               blurRadius: 18,
               spreadRadius: 1,
               offset: const Offset(0, 10),
@@ -28971,12 +28404,12 @@ class _TrackSkyMicroSignifier extends StatelessWidget {
         shape: BoxShape.circle,
         gradient: spec.background,
         border: Border.all(
-          color: spec.borderColor.withOpacity(0.8),
+          color: spec.borderColor.withValues(alpha: 0.8),
           width: 0.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.22),
+            color: Colors.black.withValues(alpha: 0.22),
             blurRadius: 1.4,
             offset: const Offset(0, 0.5),
           ),
@@ -29038,7 +28471,7 @@ Widget _buildTrackSkyBadgeMotif({
         color: spec.accentColor,
         shadow: [
           BoxShadow(
-            color: spec.glowColor.withOpacity(0.42),
+            color: spec.glowColor.withValues(alpha: 0.42),
             blurRadius: dense ? 3 : 6,
           ),
         ],
@@ -29053,7 +28486,7 @@ Widget _buildTrackSkyBadgeMotif({
               color: spec.accentColor,
               shadow: [
                 BoxShadow(
-                  color: spec.glowColor.withOpacity(0.35),
+                  color: spec.glowColor.withValues(alpha: 0.35),
                   blurRadius: dense ? 3 : 6,
                 ),
               ],
@@ -29081,7 +28514,7 @@ Widget _buildTrackSkyBadgeMotif({
               border: Border.all(color: spec.accentColor, width: ringSize),
               shadow: [
                 BoxShadow(
-                  color: spec.glowColor.withOpacity(0.5),
+                  color: spec.glowColor.withValues(alpha: 0.5),
                   blurRadius: dense ? 4 : 7,
                 ),
               ],
@@ -29105,7 +28538,7 @@ Widget _buildTrackSkyBadgeMotif({
                 diameter: dense ? 3.2 : 5.0,
                 shadow: [
                   BoxShadow(
-                    color: spec.glowColor.withOpacity(0.55),
+                    color: spec.glowColor.withValues(alpha: 0.55),
                     blurRadius: dense ? 3 : 6,
                   ),
                 ],
@@ -29123,8 +28556,8 @@ Widget _buildTrackSkyBadgeMotif({
                     gradient: LinearGradient(
                       colors: [
                         Colors.transparent,
-                        spec.accentColor.withOpacity(0.18),
-                        spec.accentColor.withOpacity(0.72),
+                        spec.accentColor.withValues(alpha: 0.18),
+                        spec.accentColor.withValues(alpha: 0.72),
                         Colors.white,
                       ],
                       stops: const [0.0, 0.34, 0.72, 1.0],
@@ -29151,7 +28584,7 @@ Widget _buildTrackSkyBadgeMotif({
                   height: dense ? 3.0 : 5.0,
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: spec.secondaryAccentColor.withOpacity(0.82),
+                      color: spec.secondaryAccentColor.withValues(alpha: 0.82),
                       width: dense ? 0.8 : 1.1,
                     ),
                     borderRadius: BorderRadius.circular(999),
@@ -29211,7 +28644,7 @@ Widget _buildTrackSkyBadgeMotif({
         color: spec.accentColor,
         shadow: [
           BoxShadow(
-            color: spec.glowColor.withOpacity(0.4),
+            color: spec.glowColor.withValues(alpha: 0.4),
             blurRadius: dense ? 3 : 6,
           ),
         ],
@@ -29232,7 +28665,7 @@ Widget _buildTrackSkyBadgeMotif({
                   gradient: LinearGradient(
                     colors: [
                       Colors.transparent,
-                      spec.secondaryAccentColor.withOpacity(0.5),
+                      spec.secondaryAccentColor.withValues(alpha: 0.5),
                       spec.secondaryAccentColor,
                     ],
                     stops: const [0.0, 0.5, 1.0],
@@ -29248,7 +28681,7 @@ Widget _buildTrackSkyBadgeMotif({
                 diameter: dense ? 4.2 : 6.8,
                 shadow: [
                   BoxShadow(
-                    color: spec.glowColor.withOpacity(0.45),
+                    color: spec.glowColor.withValues(alpha: 0.45),
                     blurRadius: dense ? 3 : 6,
                   ),
                 ],
@@ -29263,7 +28696,7 @@ Widget _buildTrackSkyBadgeMotif({
         diameter: dense ? 4.0 : 6.0,
         shadow: [
           BoxShadow(
-            color: spec.glowColor.withOpacity(0.4),
+            color: spec.glowColor.withValues(alpha: 0.4),
             blurRadius: dense ? 3 : 6,
           ),
         ],
@@ -29313,12 +28746,12 @@ class _TrackSkyMiniBadge extends StatelessWidget {
       fontWeight: isDetailPill ? FontWeight.w600 : FontWeight.w500,
       shadows: [
         Shadow(
-          color: Colors.black.withOpacity(0.68),
+          color: Colors.black.withValues(alpha: 0.68),
           offset: const Offset(0, 1.2),
           blurRadius: 2.8,
         ),
         Shadow(
-          color: spec.glowColor.withOpacity(0.36),
+          color: spec.glowColor.withValues(alpha: 0.36),
           offset: Offset.zero,
           blurRadius: 5,
         ),
@@ -29341,12 +28774,12 @@ class _TrackSkyMiniBadge extends StatelessWidget {
               borderRadius: radius,
               gradient: spec.background,
               border: Border.all(
-                color: spec.borderColor.withOpacity(dense ? 0.95 : 1.0),
+                color: spec.borderColor.withValues(alpha: dense ? 0.95 : 1.0),
                 width: dense ? 0.95 : 1.0,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.26),
+                  color: Colors.black.withValues(alpha: 0.26),
                   blurRadius: dense ? 2 : 5,
                   offset: const Offset(0, 1),
                 ),
@@ -29497,8 +28930,8 @@ class _MiniEventBlock extends StatelessWidget {
 
     final showLabel = label != null && !dense;
     final isDetailPill = expand && showLabel;
-    final bg = color.withOpacity(dense ? 0.28 : 0.22);
-    final border = color.withOpacity(0.9);
+    final bg = color.withValues(alpha: dense ? 0.28 : 0.22);
+    final border = color.withValues(alpha: 0.9);
     final double badgeHeight = isDetailPill ? 38 : (dense ? 8 : 24);
     final EdgeInsetsGeometry padding = showLabel
         ? (isDetailPill
@@ -29648,7 +29081,7 @@ class _EpagomenalCard extends StatelessWidget {
     final gLabel = _gregMonthForEpagomenal(kYear, epiCount);
 
     // Dynamic height for epagomenal days (parallels regular decan sizing).
-    double _epagomenalHeight() {
+    double epagomenalHeightForLayout() {
       if (expansionLevel != MonthExpansionLevel.details) {
         return _chipHeightFor(expansionLevel);
       }
@@ -29677,7 +29110,7 @@ class _EpagomenalCard extends StatelessWidget {
       return estimated.clamp(minHeight, maxHeight);
     }
 
-    final double epagomenalHeight = _epagomenalHeight();
+    final double epagomenalHeight = epagomenalHeightForLayout();
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -30461,7 +29894,7 @@ class _InfoTabState extends State<_InfoTab> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.06),
+                      color: Colors.white.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.white12),
                     ),
@@ -31708,28 +31141,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     return summary?.canEdit ?? true;
   }
 
-  void _scrollEditorsIntoView() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = _editorsAnchorKey.currentContext;
-      if (ctx != null) {
-        Scrollable.ensureVisible(
-          ctx,
-          alignment: 0.05,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
-        );
-      }
-    });
-  }
-
   // ---------- tiny utilities (local to this page) ----------
-
-  String _fmtTime(TimeOfDay t) {
-    final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
-    final m = t.minute.toString().padLeft(2, '0');
-    final ap = t.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$h:$m $ap';
-  }
 
   static DateTime _dateOnly(DateTime d) => DateUtils.dateOnly(d);
 
@@ -33411,8 +32823,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
               final kd = s.di * 10 + n;
               final g = KemeticMath.toGregorian(s.ky, s.km, kd);
               final go = _dateOnly(g);
-              if (!go.isBefore(_startDate!) && !go.isAfter(_endDate!))
+              if (!go.isBefore(_startDate!) && !go.isAfter(_endDate!)) {
                 out.add(go);
+              }
             }
           }
         } else {
@@ -33689,7 +33102,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                               : ListView.separated(
                                   shrinkWrap: true,
                                   itemCount: filtered.length,
-                                  separatorBuilder: (_, __) => const Divider(
+                                  separatorBuilder: (_, _) => const Divider(
                                     height: 12,
                                     color: Colors.white10,
                                   ),
@@ -33833,7 +33246,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     // Add debug logging
     if (kDebugMode) {
       debugPrint(
-        '[loadFlowForEdit] Loading flow ${f.id} "${f.name}" with color=${f.color.value.toRadixString(16)}',
+        '[loadFlowForEdit] Loading flow ${f.id} "${f.name}" with color=${f.color.toARGB32().toRadixString(16)}',
       );
     }
 
@@ -33843,13 +33256,15 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _nameCtrl.text = f.name;
       _active = f.active;
 
-      final idx = _flowPalette.indexWhere((c) => c.value == f.color.value);
+      final idx = _flowPalette.indexWhere(
+        (c) => c.toARGB32() == f.color.toARGB32(),
+      );
       _selectedColorIndex = idx >= 0 ? idx : 0;
 
       // Add debug logging for color not found
       if (kDebugMode && idx < 0) {
         debugPrint(
-          '[loadFlowForEdit] Color ${f.color.value.toRadixString(16)} not found in palette, defaulting to index 0',
+          '[loadFlowForEdit] Color ${f.color.toARGB32().toRadixString(16)} not found in palette, defaulting to index 0',
         );
       }
 
@@ -34031,7 +33446,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           _active = flowObj.active;
 
           final idx = _flowPalette.indexWhere(
-            (c) => c.value == flowObj.color.value,
+            (c) => c.toARGB32() == flowObj.color.toARGB32(),
           );
           _selectedColorIndex = idx >= 0 ? idx : 0;
 
@@ -34088,7 +33503,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
         // Color picker
         final idx = _flowPalette.indexWhere(
-          (c) => c.value == flowObj.color.value,
+          (c) => c.toARGB32() == flowObj.color.toARGB32(),
         );
         _selectedColorIndex = idx >= 0 ? idx : 0;
 
@@ -34393,7 +33808,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _nameCtrl.text = f.name;
       _active = f.active;
 
-      final idx = _flowPalette.indexWhere((c) => c.value == f.color.value);
+      final idx = _flowPalette.indexWhere(
+        (c) => c.toARGB32() == f.color.toARGB32(),
+      );
       _selectedColorIndex = idx >= 0 ? idx : 0;
 
       _overviewCtrl.text = _effectiveOverview(f.notes, meta.overview);
@@ -34607,7 +34024,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     setState(() {});
 
     try {
-      final colorIdx = _flowPalette.indexWhere((c) => c.value == data.color);
+      final colorIdx = _flowPalette.indexWhere(
+        (c) => c.toARGB32() == data.color,
+      );
       _selectedColorIndex = colorIdx >= 0 ? colorIdx : 0;
 
       _startDate = data.suggestedStartDate != null
@@ -35031,7 +34450,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         });
         _applySelectionToDrafts();
       },
-      selectedColor: _gold.withOpacity(0.22),
+      selectedColor: _gold.withValues(alpha: 0.22),
       checkmarkColor: Colors.white,
       side: const BorderSide(color: silver, width: 1.25),
       labelStyle: const TextStyle(color: Colors.white),
@@ -35098,7 +34517,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         });
         _applySelectionToDrafts();
       },
-      selectedColor: _gold.withOpacity(0.22),
+      selectedColor: _gold.withValues(alpha: 0.22),
       checkmarkColor: Colors.white,
       side: const BorderSide(color: silver, width: 1.25),
       labelStyle: const TextStyle(color: Colors.white),
@@ -35207,7 +34626,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                         });
                         _applySelectionToDrafts();
                       },
-                selectedColor: _gold.withOpacity(0.22),
+                selectedColor: _gold.withValues(alpha: 0.22),
                 checkmarkColor: Colors.white,
                 side: BorderSide(color: enabled ? _silver : Colors.white12),
                 labelStyle: TextStyle(
@@ -35275,7 +34694,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                         });
                         _applySelectionToDrafts();
                       },
-                selectedColor: _gold.withOpacity(0.22),
+                selectedColor: _gold.withValues(alpha: 0.22),
                 checkmarkColor: Colors.white,
                 side: BorderSide(color: enabled ? _silver : Colors.white12),
                 labelStyle: TextStyle(
@@ -35874,7 +35293,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   }
 
   List<FlowEventRow> _dedupeEvents(List<FlowEventRow> events) {
-    String _canonKey(FlowEventRow e) {
+    String canonKey(FlowEventRow e) {
       final titleKey = e.title.trim().toLowerCase();
       final startKey = e.startsAtUtc.toIso8601String();
       final endKey = e.endsAtUtc?.toIso8601String() ?? 'NO_END';
@@ -35893,7 +35312,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       ].join('|');
     }
 
-    int _quality(FlowEventRow e) {
+    int quality(FlowEventRow e) {
       if (e.id != null) return 3;
       if (e.clientEventId != null) return 2;
       return 1;
@@ -35902,9 +35321,9 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     final merged = <String, FlowEventRow>{};
 
     for (final e in events) {
-      final key = _canonKey(e);
+      final key = canonKey(e);
       final existing = merged[key];
-      if (existing == null || _quality(e) > _quality(existing)) {
+      if (existing == null || quality(e) > quality(existing)) {
         merged[key] = e;
       }
     }
@@ -36014,19 +35433,19 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   }
 
   Future<int> _importSavedFlow(_Flow template, DateTime startDate) async {
-    DateTime _dateOnly(DateTime d) => DateUtils.dateOnly(d);
-    final targetStart = _dateOnly(startDate);
+    DateTime dateOnly(DateTime d) => DateUtils.dateOnly(d);
+    final targetStart = dateOnly(startDate);
     final events = await _userEventsRepo.getEventsForFlow(template.id);
 
-    DateTime _minDate(DateTime a, DateTime b) => a.isBefore(b) ? a : b;
-    DateTime _maxDate(DateTime a, DateTime b) => a.isAfter(b) ? a : b;
+    DateTime minDate(DateTime a, DateTime b) => a.isBefore(b) ? a : b;
+    DateTime maxDate(DateTime a, DateTime b) => a.isAfter(b) ? a : b;
 
     DateTime baseStart = targetStart;
     if (template.start != null) {
-      baseStart = _dateOnly(template.start!);
+      baseStart = dateOnly(template.start!);
     } else if (events.isNotEmpty) {
-      baseStart = _dateOnly(
-        events.map((e) => e.startsAtUtc.toLocal()).reduce(_minDate),
+      baseStart = dateOnly(
+        events.map((e) => e.startsAtUtc.toLocal()).reduce(minDate),
       );
     }
 
@@ -36035,12 +35454,12 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     DateTime? templateEnd = template.end;
     if (templateEnd == null && events.isNotEmpty) {
       templateEnd = events
-          .map((e) => _dateOnly(e.startsAtUtc.toLocal()))
-          .reduce(_maxDate);
+          .map((e) => dateOnly(e.startsAtUtc.toLocal()))
+          .reduce(maxDate);
     }
     final DateTime? newEnd = templateEnd == null
         ? null
-        : _dateOnly(templateEnd.add(Duration(days: deltaDays)));
+        : dateOnly(templateEnd.add(Duration(days: deltaDays)));
 
     final rulesJson = jsonEncode(
       template.rules.map(_CalendarPageState.ruleToJson).toList(),
@@ -36048,7 +35467,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
 
     final newId = await _userEventsRepo.upsertFlow(
       name: template.name,
-      color: template.color.value,
+      color: template.color.toARGB32(),
       active: true,
       calendarId: template.calendarId,
       startDate: targetStart,
@@ -36068,7 +35487,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     var importedEventCount = 0;
     for (final e in events) {
       final localStart = e.startsAtUtc.toLocal();
-      final originDate = _dateOnly(localStart);
+      final originDate = dateOnly(localStart);
       final offset = originDate.difference(baseStart).inDays;
       final newDate = targetStart.add(Duration(days: offset));
 
@@ -36086,7 +35505,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       DateTime? endDt;
       final localEnd = e.endsAtUtc?.toLocal();
       if (localEnd != null) {
-        final endOrigin = _dateOnly(localEnd);
+        final endOrigin = dateOnly(localEnd);
         final endOffset = endOrigin.difference(baseStart).inDays;
         final endDate = targetStart.add(Duration(days: endOffset));
         endDt = DateTime(
@@ -36963,7 +36382,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   Widget _buildEventTile(FlowEventRow e, {bool isTrackSky = false}) {
     final localStart = e.startsAtUtc.toLocal();
     final localEnd = e.endsAtUtc?.toLocal();
-    bool _isCidDetail(String text) {
+    bool isCidDetail(String text) {
       final trimmed = text.trim().replaceAll(RegExp(r'\s+'), '');
       final withPrefix = trimmed.startsWith('kemet_cid:')
           ? trimmed.substring('kemet_cid:'.length)
@@ -36982,7 +36401,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
             fallbackGuidance: cleanedDetail,
           )
         : cleanedDetail;
-    final hasDetail = detailText.isNotEmpty && !_isCidDetail(detailText);
+    final hasDetail = detailText.isNotEmpty && !isCidDetail(detailText);
     final hasLocation = (e.location != null && e.location!.trim().isNotEmpty);
 
     return Container(
@@ -37380,8 +36799,9 @@ String? _encodeRepeatingNoteMetadata({
   if (detail == null &&
       location == null &&
       category == null &&
-      alertMinutes == null)
+      alertMinutes == null) {
     return null;
+  }
   final parts = <String, dynamic>{'kind': 'repeating_note'};
   if (detail != null && detail.isNotEmpty) {
     parts['detail'] = detail;
@@ -37401,8 +36821,9 @@ String? _encodeRepeatingNoteMetadata({
 // Helper: decode detail and location from flow.notes for repeating notes
 ({String? detail, String? location, String? category, int? alertMinutes})
 _decodeRepeatingNoteMetadata(String? notes) {
-  if (notes == null || notes.isEmpty)
+  if (notes == null || notes.isEmpty) {
     return (detail: null, location: null, category: null, alertMinutes: null);
+  }
   try {
     final meta = jsonDecode(notes) as Map<String, dynamic>;
     if (meta['kind'] == 'repeating_note') {
@@ -37653,7 +37074,9 @@ String? _encodeDetailWithMeta(
 }) {
   final buffer = StringBuffer();
   if (color != null) {
-    final hex = (color.value & 0x00FFFFFF).toRadixString(16).padLeft(6, '0');
+    final hex = (color.toARGB32() & 0x00FFFFFF)
+        .toRadixString(16)
+        .padLeft(6, '0');
     buffer.write('color=$hex;');
   }
   if (alertMinutes != null) {
@@ -38048,7 +37471,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
     Widget list = ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: items.length,
-      separatorBuilder: (_, __) =>
+      separatorBuilder: (_, _) =>
           const Divider(height: 12, color: Colors.white10),
       itemBuilder: (ctx, i) {
         final f = items[i];
@@ -38322,9 +37745,9 @@ class GlossyButton extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Colors.white.withOpacity(0.35),
-                          Colors.white.withOpacity(0.10),
-                          Colors.white.withOpacity(0.0),
+                          Colors.white.withValues(alpha: 0.35),
+                          Colors.white.withValues(alpha: 0.10),
+                          Colors.white.withValues(alpha: 0.0),
                         ],
                         stops: const [0.0, 0.5, 1.0],
                       ),
@@ -38422,7 +37845,7 @@ class _MaatFlowsListPage extends StatelessWidget {
           : ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               itemCount: templates.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (_, _) =>
                   const Divider(height: 12, color: Colors.white10),
               itemBuilder: (ctx, i) {
                 final t = templates[i];
@@ -40614,7 +40037,7 @@ class _EventSearchDelegate extends SearchDelegate<void> {
 
     return ListView.separated(
       itemCount: items.length,
-      separatorBuilder: (_, __) =>
+      separatorBuilder: (_, _) =>
           const Divider(height: 1, color: Colors.white10),
       itemBuilder: (ctx, i) {
         final it = items[i];

@@ -710,12 +710,6 @@ class ProfileRepo {
     }
   }
 
-  /// Search for users by handle (for @handle search in ShareFlowSheet)
-  /// @deprecated Use searchUsers instead
-  Future<List<UserSearchResult>> searchUsersByHandle(String query) async {
-    return searchUsers(query);
-  }
-
   /// Search for users by handle OR display_name
   /// Supports typing "Jordan", "jordanphillips", or "@jordan" - all work
   Future<List<UserSearchResult>> searchUsers(String rawQuery) async {

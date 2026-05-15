@@ -261,7 +261,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.06),
+                      color: Colors.white.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.white12),
                     ),
@@ -284,9 +284,9 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.white.withOpacity(0),
-                Colors.white.withOpacity(0.18),
-                Colors.white.withOpacity(0),
+                Colors.white.withValues(alpha: 0),
+                Colors.white.withValues(alpha: 0.18),
+                Colors.white.withValues(alpha: 0),
               ],
               stops: const [0, 0.5, 1],
             ),
@@ -393,9 +393,9 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
               TableRow(
                 decoration: BoxDecoration(
                   color: rowIndex == 0
-                      ? Colors.white.withOpacity(0.08)
+                      ? Colors.white.withValues(alpha: 0.08)
                       : rowIndex.isEven
-                      ? Colors.white.withOpacity(0.03)
+                      ? Colors.white.withValues(alpha: 0.03)
                       : Colors.transparent,
                 ),
                 children: [

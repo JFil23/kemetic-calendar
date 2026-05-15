@@ -30,10 +30,12 @@ class UsHolidaySeeder {
   }
 
   static DateTime _observed(DateTime date) {
-    if (date.weekday == DateTime.saturday)
+    if (date.weekday == DateTime.saturday) {
       return date.subtract(const Duration(days: 1));
-    if (date.weekday == DateTime.sunday)
+    }
+    if (date.weekday == DateTime.sunday) {
       return date.add(const Duration(days: 1));
+    }
     return date;
   }
 
@@ -43,7 +45,9 @@ class UsHolidaySeeder {
     while (date.month == month) {
       if (date.weekday == weekday) {
         count++;
-        if (count == n) return date;
+        if (count == n) {
+          return date;
+        }
       }
       date = date.add(const Duration(days: 1));
     }

@@ -479,15 +479,3 @@ bool isEpagomenal(int monthId) => monthId == 13;
 
 /// Get season name for display (use this instead of accessing enum directly)
 String getSeasonName(int monthId) => getMonthById(monthId).season.label;
-
-/// DEPRECATED: Old compatibility shims (removed in next major release)
-@Deprecated('Use getMonthById(id).hellenized - removes in v3.0')
-Map<int, String> get kemeticMonthsHellenized => {
-  for (var m in kKemeticMonths.skip(1)) m.id: m.hellenized,
-};
-
-@Deprecated('Use getMonthById(id).displayFull - removes in v3.0')
-List<String> get monthNamesCompat => [
-  '',
-  ...kKemeticMonths.skip(1).map((m) => m.displayFull),
-];

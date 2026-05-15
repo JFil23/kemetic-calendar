@@ -15,8 +15,6 @@ class KemeticNodeLibrary {
         alias.toLowerCase(): node.id.toLowerCase(),
   };
 
-  static KemeticNode? byId(String id) => _byId[id.toLowerCase()];
-
   static KemeticNode? resolve(String idOrAlias) {
     final key = idOrAlias.trim().toLowerCase();
     if (key.isEmpty) return null;
@@ -101,7 +99,7 @@ Earth did not receive life already formed. It received conditions.
 
 In this respect, the story of Earth is not a separate story from the story of stars. It is a later chapter in the same process: potential becoming matter, matter becoming light, light becoming chemistry, and chemistry becoming life. Read through the language of Ma’at, this is not merely a sequence of physical events. It is the progressive establishment of order from the deep, the movement from Nun toward form, from form toward relation, and from relation toward living consequence.
 ''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Kemet', targetId: 'kemet'),
@@ -291,7 +289,7 @@ what remembers must learn alignment
 
 Where this is maintained, consciousness becomes service to Ma’at. Where it is not, intelligence grows without rhythm.
 ''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Cosmic Order', targetId: 'cosmic_order'),
       KemeticNodeLink(phrase: 'Homo sapiens', targetId: 'ancient_african_tree'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
@@ -355,7 +353,7 @@ The surviving human line remains African. Neanderthals and Denisovans did not di
 
 All non-African people still derive from Africans. Genetically, all humans are 99.9 percent identical. The remaining 0.1 percent is adaptation, not origin. Every living group outside Africa is not a separate human beginning. It is a later transformation of the same African source.
 ''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Homo sapiens', targetId: 'human_emergence'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
     ],
@@ -444,7 +442,7 @@ Indigenous Americans came through Siberia and the Bering Strait, but they still 
 
 Europe followed another path. Memory froze. The cold demanded survival, not spirit. Over time, tribes became pale, isolated, and fragmented. The sky became hostile. The drum was lost. Later contact with Africa would reawaken fragments, but through conquest, not harmony.
 ''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(
         phrase: 'Ancient African Tree',
         targetId: 'ancient_african_tree',
@@ -557,7 +555,7 @@ The key point is plain: Kemet’s stable environment, spiritualized writing, and
 
 Other civilizations used phonetic systems, such as Akkadian and Phoenician, but often separated writing from cosmology. Others had oral traditions, but lacked the infrastructure to preserve long-term visual codes. Kemet joined land, sky, temple, symbol, and state into a single system of memory. That is why its signs endured.
 ''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Green Sahara', targetId: 'green_sahara'),
       KemeticNodeLink(phrase: 'Nile', targetId: 'nile'),
       KemeticNodeLink(phrase: 'Kemet', targetId: 'kemet'),
@@ -594,7 +592,7 @@ The serpent defines a continuous condition:
 • what is positioned can protect or oppose
 • what is uncontrolled acts against order
 Where this is maintained, power supports Ma’at. Where it is not, it becomes Isfet.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
       KemeticNodeLink(phrase: 'Aset', targetId: 'aset'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
@@ -631,7 +629,7 @@ The hawk defines a continuous condition:
 • what is seen may be challenged or damaged
 • what is restored directs rightful action
 Where this is maintained, action holds within Ma’at. Where it is not, misjudgment and false claim lead to Isfet.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Heru', targetId: 'heru'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
@@ -669,7 +667,7 @@ The jackal defines a continuous condition:
 • what is attended must be examined
 • what is examined determines what continues
 Where this is maintained, transition holds within Ma’at. Where it is not, what should not continue is carried forward, and Isfet spreads.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'heart', targetId: 'ib'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
@@ -701,7 +699,7 @@ The Nile defines a continuous condition:
 • what is received must return in its cycle
 • what does not return leads to lack
 Where this is maintained, life continues within Ma’at. Where it is interrupted, scarcity develops and Isfet spreads.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
     ],
@@ -726,7 +724,7 @@ Ptah defines a continuous condition:
 • what is thought must be expressed
 • what is expressed takes effect
 Where this is aligned, what is formed holds within Ma’at. Where it is not, what is formed contributes to Isfet.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'heart', targetId: 'ib'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
@@ -753,7 +751,7 @@ Djehuty defines a continuous condition:
 • what is measured must be recorded
 • what is recorded establishes what is true
 Where this is maintained, order holds within Ma’at. Where it is not, deviation spreads and Isfet develops.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'heart', targetId: 'ib'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
@@ -777,7 +775,7 @@ Shu defines a continuous condition:
 • what is separated must be held apart
 • what collapses returns to confusion
 Where this is maintained, structure holds within Ma’at. Where it is not, distinction disappears and Isfet spreads.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
     ],
@@ -811,7 +809,7 @@ Ma’at defines a continuous condition:
 • what is done must align with truth
 • what is said must correspond to what is
 Where this holds, order continues. Where it is not maintained, Isfet appears.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
       KemeticNodeLink(phrase: 'Shu', targetId: 'shu'),
       KemeticNodeLink(phrase: 'Djehuty', targetId: 'djehuty'),
@@ -844,7 +842,7 @@ Ausar defines a continuous condition:
 • what is found must be attended
 • what is attended can be restored
 Where this is maintained, what has broken can stand again within Ma’at. Where it is not, fragmentation remains and Isfet persists.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Aset', targetId: 'aset'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
@@ -877,7 +875,7 @@ Aset defines a continuous condition:
 • what is understood must be applied at the right moment
 • what is applied correctly produces result
 Where this is maintained, change occurs within Ma’at. Where it is not, effort fails and Isfet remains.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ausar', targetId: 'ausar'),
       KemeticNodeLink(phrase: 'name', targetId: 'ren'),
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
@@ -905,7 +903,7 @@ Heru defines a continuous condition:
 • what is tested must be judged
 • what is judged must be established
 Where this holds, order remains within Ma’at. Where it fails, position is seized without basis and Isfet spreads.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ausar', targetId: 'ausar'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
@@ -934,7 +932,7 @@ Isfet defines a continuous condition:
 • what breaks down spreads
 • what spreads does not resolve on its own
 Where Ma’at is not actively established, Isfet is present.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Shu', targetId: 'shu'),
       KemeticNodeLink(phrase: 'Djehuty', targetId: 'djehuty'),
@@ -966,7 +964,7 @@ Ra defines a continuous condition:
 • what is interrupted breaks continuity
 • what completes its course restores what depends on it
 Where this is maintained, life continues within Ma’at. Where it is not, interruption leads to Isfet.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Apophis', targetId: 'serpent'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
@@ -996,7 +994,7 @@ The Ka defines a continuous condition:
 • what is supported must be maintained
 • what is not maintained weakens
 Where this is upheld, presence continues within Ma’at. Where it is not, depletion occurs and Isfet follows.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
     ],
@@ -1026,7 +1024,7 @@ The Ba defines a continuous condition:
 • what moves must return
 • what fails to return breaks continuity
 Where this is maintained, identity holds within Ma’at. Where it is not, separation leads to Isfet.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
     ],
@@ -1064,7 +1062,7 @@ The Akh defines a continuous condition:
 • what is aligned becomes effective
 • what is not aligned does not endure
 Where this is achieved, existence continues within Ma’at. Where it is not, continuation fails.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
       KemeticNodeLink(phrase: 'Ba', targetId: 'ba'),
       KemeticNodeLink(phrase: 'heart', targetId: 'ib'),
@@ -1093,7 +1091,7 @@ The Ren defines a continuous condition:
 • what is named must be spoken
 • what is not spoken fades
 Where this is maintained, identity holds within Ma’at. Where it is not, disappearance follows and Isfet takes hold.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
     ],
@@ -1122,7 +1120,7 @@ The Ib defines a continuous condition:
 • what is retained cannot be removed
 • what cannot be removed will be weighed
 Where this is aligned, the person continues within Ma’at. Where it is not, judgment fails and Isfet prevails.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
     ],
@@ -1147,7 +1145,7 @@ The Sheut defines a continuous condition:
 • what extends must remain connected
 • what is removed leaves no presence
 Where this is maintained, presence holds within Ma’at. Where it is not, absence follows and Isfet takes hold.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
     ],
@@ -1191,7 +1189,7 @@ Imhotep defines a continuous condition:
 • what is structured must be executed
 • what is executed must hold
 Where this is maintained, what is built endures within Ma’at. Where it is not, what is made fails and Isfet spreads.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ptah', targetId: 'ptah'),
       KemeticNodeLink(phrase: 'Djehuty', targetId: 'djehuty'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
@@ -1207,7 +1205,7 @@ Where this is maintained, what is built endures within Ma’at. Where it is not,
 Sopdet is the heliacal rising star that opened the Kemetic year and announced the flood.
 Her appearance at dawn set the civil calendar and guided agricultural timing; she is a marker of renewal, not ornament.
 Linked to Aset and Ausar, she signals that order returns through cyclical rising.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Aset', targetId: 'aset'),
       KemeticNodeLink(phrase: 'Ausar', targetId: 'ausar'),
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
@@ -1221,7 +1219,7 @@ Linked to Aset and Ausar, she signals that order returns through cyclical rising
 The Coffin Texts are Middle Kingdom spells written inside coffins so non-royal dead could navigate the Duat.
 They adapt Pyramid Text utterances and add journeys, transformations, and protections for the individual.
 They bridge the Old Kingdom inscriptions and the later Book of the Dead, keeping knowledge active beyond the tomb.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Pyramid Texts', targetId: 'pyramid_texts'),
       KemeticNodeLink(phrase: 'Book of the Dead', targetId: 'book_of_the_dead'),
       KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
@@ -1235,7 +1233,7 @@ They bridge the Old Kingdom inscriptions and the later Book of the Dead, keeping
 Papyrus Chester Beatty IV contains the "Immortality of Writers" teaching.
 It argues that measured words endure longer than stone or offspring, preserving ren and Ka when bodies decay.
 The text shows how scribal craft is bound to Maʿat and the renewal of memory.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
       KemeticNodeLink(phrase: 'ren', targetId: 'ren'),
@@ -1249,7 +1247,7 @@ The text shows how scribal craft is bound to Maʿat and the renewal of memory.''
 Kemet, the “Black Land,” names the dark silt left by the Nile and the country built upon it.
 It stands in contrast to the red desert, marking the bounds where cultivation and settlement can hold.
 Restoring those boundaries after inundation is part of keeping Maʿat in place.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Nile', targetId: 'nile'),
     ],
@@ -1262,7 +1260,7 @@ Restoring those boundaries after inundation is part of keeping Maʿat in place.'
 The Pyramid Texts are Old Kingdom utterances carved inside royal pyramids.
 They provide ascent, protection, and identification with netjeru so the king joins the sky and travels the Duat.
 Their formulas establish speech as action and become the base for later funerary corpora.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
     ],
@@ -1276,7 +1274,7 @@ Their formulas establish speech as action and become the base for later funerary
 Hathor embodies joy, music, and the sky-cow who carries Ra.
 She is also the Eye of Ra who must be soothed, showing that delight and danger come from the same force when measure is lost.
 Her cult at Dendera celebrates beauty as proof of alignment with Maʿat.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
       KemeticNodeLink(phrase: 'Eye of Ra', targetId: 'eye_of_ra'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
@@ -1290,7 +1288,7 @@ Her cult at Dendera celebrates beauty as proof of alignment with Maʿat.''',
 Dendera is the principal temple of Hathor, home to rituals of music, fertility, and the rising of the Eye.
 Its ceilings record star clocks and zodiacal imagery, linking observation of the sky to cult practice.
 The site shows how celebration, astronomy, and renewal meet in daily service.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Hathor', targetId: 'hathor'),
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
       KemeticNodeLink(phrase: 'decans', targetId: 'decans'),
@@ -1304,7 +1302,7 @@ The site shows how celebration, astronomy, and renewal meet in daily service.'''
 Sah is the constellation Orion, associated with Ausar.
 Its rising with Sopdet marks seasonal change and affirms the god’s reappearance in the sky.
 Sah frames night navigation and the idea that the dead travel with the stars.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ausar', targetId: 'ausar'),
       KemeticNodeLink(phrase: 'Sopdet', targetId: 'sopdet'),
     ],
@@ -1317,7 +1315,7 @@ Sah frames night navigation and the idea that the dead travel with the stars.'''
 Abydos is the chief cult center of Ausar and a major necropolis.
 Pilgrims left stelae to join his mysteries and secure remembrance in the west.
 The site ties local burial to national myths of death and restoration.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ausar', targetId: 'ausar'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
     ],
@@ -1330,7 +1328,7 @@ The site ties local burial to national myths of death and restoration.''',
 The decans are thirty-six star groups rising in roughly ten-day intervals.
 Priest-astronomers used them to track hours of night, regulate ritual, and mirror the sun’s passage through the Duat.
 They embody the practice of keeping time through recurring celestial order.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
     ],
@@ -1344,7 +1342,7 @@ They embody the practice of keeping time through recurring celestial order.''',
 The Duat is the unseen realm the sun and the dead traverse each night.
 It is ordered in gates and regions; safe passage depends on names, offerings, and measured speech.
 Journeying through the Duat restores Ra and tests whether a person aligns with Maʿat.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Book of the Dead', targetId: 'book_of_the_dead'),
@@ -1358,7 +1356,7 @@ Journeying through the Duat restores Ra and tests whether a person aligns with M
 Renenutet is the guardian of nourishment and harvest.
 She oversees grain stores and the just distribution that sustains Ka and community.
 Offerings to her acknowledge that abundance must be tended, not assumed.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
     ],
@@ -1371,7 +1369,7 @@ Offerings to her acknowledge that abundance must be tended, not assumed.''',
 The House of Life is the temple library and scriptorium.
 Scribes copied rituals, medical texts, astronomy, and instruction here, treating writing as service to the gods.
 It joined intellectual labor to cult practice so knowledge stayed aligned with Maʿat.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Djehuty', targetId: 'djehuty'),
     ],
@@ -1384,7 +1382,7 @@ It joined intellectual labor to cult practice so knowledge stayed aligned with M
 The Instruction of Ptahhotep teaches measured speech, humility, and fairness.
 Its maxims link daily conduct to Maʿat and warn against arrogance or heated words.
 Students copied it for centuries as practical ethics.''',
-    linkMap: const [KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat')],
+    linkMap: [KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat')],
   ),
   KemeticNode(
     id: 'sekhmet',
@@ -1394,7 +1392,7 @@ Students copied it for centuries as practical ethics.''',
 Sekhmet is the fierce Eye of Ra whose heat can protect or destroy.
 Rituals to cool and pacify her remind that power must be governed and returned to balance.
 She embodies the discipline of directing force so it serves Maʿat.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
     ],
@@ -1407,7 +1405,7 @@ She embodies the discipline of directing force so it serves Maʿat.''',
 Rekh-Wer names knowledge applied to sustain order.
 It emphasizes counting, surveying, and teaching so effort matches reality.
 The concept pairs Djehuty’s measure with the restrained strength of Sekhmet.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Djehuty', targetId: 'djehuty'),
       KemeticNodeLink(phrase: 'Sekhmet', targetId: 'sekhmet'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
@@ -1421,7 +1419,7 @@ The concept pairs Djehuty’s measure with the restrained strength of Sekhmet.''
 Set embodies force and contest.
 He defends Ra’s barque against Apophis yet opposes Heru in disputes of rule, showing power’s double edge.
 Set must be placed and judged so his strength serves Maʿat rather than isfet.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
       KemeticNodeLink(phrase: 'Heru', targetId: 'heru'),
       KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
@@ -1435,7 +1433,7 @@ Set must be placed and judged so his strength serves Maʿat rather than isfet.''
 The Temple of Esna, dedicated chiefly to Khnum, preserves late hymns and cosmology.
 Its inscriptions include decan lists and festival texts that align local worship to wider celestial rhythms.
 Esna shows how regional temples participated in national timekeeping and renewal.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Khnum', targetId: 'khnum'),
       KemeticNodeLink(phrase: 'decans', targetId: 'decans'),
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
@@ -1450,7 +1448,7 @@ Esna shows how regional temples participated in national timekeeping and renewal
 Šai personifies allotment or destiny.
 Wisdom texts invoke Šai to remind that outcomes must be met with proportion, not grasping.
 Acknowledging Šai frames effort within limits without denying responsibility.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(
         phrase: 'Instruction of Amenemope',
@@ -1466,7 +1464,7 @@ Acknowledging Šai frames effort within limits without denying responsibility.''
 The offering formula grants bread, beer, oxen, and fowl to the dead through the king and the gods.
 It ties giver, recipient, and divine order so Ka and ren remain supplied.
 Its repetition on stelae shows how memory and sustenance are joined in Maʿat.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
     ],
@@ -1495,7 +1493,7 @@ Shemu defines a continuous condition:
 • what is collected sustains what comes next
 
 Where this is maintained, continuity is secured. Where it is not, loss occurs.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Akhet', targetId: 'akhet'),
       KemeticNodeLink(phrase: 'Peret', targetId: 'peret'),
     ],
@@ -1508,7 +1506,7 @@ Where this is maintained, continuity is secured. Where it is not, loss occurs.''
 The Amduat maps Ra’s twelve-hour journey through the Duat.
 It names beings, gates, and transformations that allow sunrise.
 The text models persistence through darkness with knowledge and measure.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
       KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
@@ -1522,7 +1520,7 @@ The text models persistence through darkness with knowledge and measure.''',
 Khepri is the morning sun as scarab, continually becoming.
 He rolls the light into being each day, teaching steady effort and renewal.
 Meditating on Khepri aligns human labor with emergence rather than haste.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
     ],
@@ -1535,7 +1533,7 @@ Meditating on Khepri aligns human labor with emergence rather than haste.''',
 ḥtp expresses satisfaction and balance achieved through correct offering.
 It underlies formulas like ḥtp-dỉ-nsw and names that signal a state of settled order.
 Cooling excess and giving rightly create ḥtp and keep Maʿat in place.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'Offering Formula', targetId: 'offering_formula'),
     ],
@@ -1548,7 +1546,7 @@ Cooling excess and giving rightly create ḥtp and keep Maʿat in place.''',
 The Instruction of Amenemope guides restraint, patience, and fairness under pressure.
 It counsels quiet endurance over grasping advantage, warning that excess invites isfet.
 Its maxims shaped later wisdom traditions on speech and care for the vulnerable.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'isfet', targetId: 'isfet'),
     ],
@@ -1561,7 +1559,7 @@ Its maxims shaped later wisdom traditions on speech and care for the vulnerable.
 The Eye of Ra is the outward force of the sun, often manifest as Hathor or Sekhmet.
 Sent to punish, it must be cooled and returned so creation survives its own intensity.
 The Eye shows that power directed outward still requires measure and recall.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
       KemeticNodeLink(phrase: 'Hathor', targetId: 'hathor'),
       KemeticNodeLink(phrase: 'Sekhmet', targetId: 'sekhmet'),
@@ -1575,7 +1573,7 @@ The Eye shows that power directed outward still requires measure and recall.''',
 Tomb inscriptions record names, deeds, and offering prayers to sustain the dead.
 They join image and text so Ka and ren receive continued attention from the living.
 Their presence affirms that memory and provision are required for continuity.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
       KemeticNodeLink(phrase: 'ren', targetId: 'ren'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
@@ -1589,7 +1587,7 @@ Their presence affirms that memory and provision are required for continuity.'''
 Middle Kingdom funerary practice broadened access to afterlife knowledge.
 Coffin Texts, stelae, and models show households preparing with spells, offerings, and remembered names.
 The period links royal formulas to family care within Maʿat.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Coffin Texts', targetId: 'coffin_texts'),
       KemeticNodeLink(phrase: 'Offering Formula', targetId: 'offering_formula'),
     ],
@@ -1602,7 +1600,7 @@ The period links royal formulas to family care within Maʿat.''',
 Nut is the sky who swallows the sun each night and births it each dawn.
 She arches over Geb, creating the space where life unfolds.
 Her embrace frames cycles of return and the promise of emergence.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
     ],
@@ -1615,7 +1613,7 @@ Her embrace frames cycles of return and the promise of emergence.''',
 Akhet, the horizon, is where sky meets earth and where Ra rises.
 It marks transition points—birth, rebirth, and the visible proof of return.
 Temples align to the horizon to mirror cosmic order and welcome light correctly.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ra', targetId: 'ra'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
     ],
@@ -1628,7 +1626,7 @@ Temples align to the horizon to mirror cosmic order and welcome light correctly.
 Natron is the mineral salt used to purify, preserve, and reset ritual space.
 In mummification it dries and cleanses; in daily rites it prepares altars and vessels.
 Its use shows that order depends on deliberate cleansing before renewal.''',
-    linkMap: const [KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat')],
+    linkMap: [KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat')],
   ),
   KemeticNode(
     id: 'nebet_het',
@@ -1639,7 +1637,7 @@ Its use shows that order depends on deliberate cleansing before renewal.''',
 Nebet-Het stands at thresholds and guards the dead with Aset.
 She brings protection and lament that restores, present in rites of preparation and mourning.
 Her role shows care at the boundaries between worlds.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Aset', targetId: 'aset'),
       KemeticNodeLink(phrase: 'Ausar', targetId: 'ausar'),
     ],
@@ -1652,7 +1650,7 @@ Her role shows care at the boundaries between worlds.''',
 Khnum fashions bodies on the potter’s wheel and controls the inundation at Elephantine.
 He embodies formation through craft and the measured release of water.
 Temple hymns portray him shaping Ka and ensuring fertility.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
       KemeticNodeLink(phrase: 'decans', targetId: 'decans'),
@@ -1667,7 +1665,7 @@ Temple hymns portray him shaping Ka and ensuring fertility.''',
 The Memphite Theology, preserved on the Shabaka Stone, describes creation through Ptah’s heart and tongue.
 It centers thought and speech as the engines of formation and kingship.
 The text shows inscription as preservation of Maʿat against decay.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Ptah', targetId: 'ptah'),
       KemeticNodeLink(phrase: 'Ma’at', targetId: 'maat'),
     ],
@@ -1681,7 +1679,7 @@ The text shows inscription as preservation of Maʿat against decay.''',
 The Book of the Dead is a New Kingdom collection of spells for safe passage and vindication.
 It draws on Pyramid and Coffin Texts, emphasizing judgment, names, and transformation.
 Customized papyri show personal engagement with Maʿat and the Duat.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Coffin Texts', targetId: 'coffin_texts'),
       KemeticNodeLink(phrase: 'Pyramid Texts', targetId: 'pyramid_texts'),
       KemeticNodeLink(phrase: 'Duat', targetId: 'duat'),
@@ -1727,7 +1725,7 @@ The Palermo Stone defines a continuous condition:
 • what is contained becomes record
 
 Where this is maintained, continuity can be preserved. Where it is not, sequence breaks.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(
         phrase: 'Wadi el-Jarf Papyri',
         targetId: 'wadi_el_jarf_papyri',
@@ -1780,7 +1778,7 @@ The papyri define a continuous condition:
 • what follows sequence becomes accountable
 
 Where this is maintained, work aligns with order. Where it is not, activity loses structure.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Palermo Stone', targetId: 'palermo_stone'),
       KemeticNodeLink(phrase: 'Regnal Year', targetId: 'regnal_year'),
       KemeticNodeLink(phrase: 'Akhet', targetId: 'akhet'),
@@ -1829,7 +1827,7 @@ The false door defines a continuous condition:
 • what is named can receive
 
 Where this is maintained, sustenance continues. Where it is not, provision stops.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'name', targetId: 'ren'),
       KemeticNodeLink(phrase: 'Offering Formula', targetId: 'offering_formula'),
       KemeticNodeLink(phrase: 'Ka', targetId: 'ka'),
@@ -1860,7 +1858,7 @@ The architrave defines a continuous condition:
 • what is read establishes presence
 
 Where this is maintained, identity holds at the boundary. Where it is not, passage loses definition.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'False Door', targetId: 'false_door'),
       KemeticNodeLink(phrase: 'Names', targetId: 'ren'),
       KemeticNodeLink(
@@ -1896,7 +1894,7 @@ wp rnpt defines a continuous condition:
 • what is marked begins again
 
 Where this is maintained, cycles restart in alignment. Where it is not, time loses its beginning.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Epagomenal Days', targetId: 'epagomenal_days'),
       KemeticNodeLink(phrase: 'Sopdet', targetId: 'sopdet'),
       KemeticNodeLink(phrase: 'Nile', targetId: 'nile'),
@@ -1933,7 +1931,7 @@ Akhet defines a continuous condition:
 • what is covered prepares what follows
 
 Where this is maintained, growth becomes possible. Where it is not, nothing begins.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Nile', targetId: 'nile'),
       KemeticNodeLink(phrase: 'wp rnpt', targetId: 'wp_rnpt'),
       KemeticNodeLink(phrase: 'Peret', targetId: 'peret'),
@@ -1965,7 +1963,7 @@ Peret defines a continuous condition:
 • what is planted begins to grow
 
 Where this is maintained, development proceeds. Where it is not, potential remains unused.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Akhet', targetId: 'akhet'),
       KemeticNodeLink(phrase: 'Nile', targetId: 'nile'),
       KemeticNodeLink(phrase: 'Shemu', targetId: 'shemu'),
@@ -1997,7 +1995,7 @@ The epagomenal days define a continuous condition:
 • what transitions prepares the next cycle
 
 Where this is maintained, time moves cleanly forward. Where it is not, sequence blurs.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Shemu', targetId: 'shemu'),
       KemeticNodeLink(phrase: 'Akhet', targetId: 'akhet'),
       KemeticNodeLink(phrase: 'wp rnpt', targetId: 'wp_rnpt'),
@@ -2031,7 +2029,7 @@ The regnal year defines a continuous condition:
 • what is placed defines sequence
 
 Where this is maintained, history holds. Where it is not, events lose position.''',
-    linkMap: const [
+    linkMap: [
       KemeticNodeLink(phrase: 'Palermo Stone', targetId: 'palermo_stone'),
       KemeticNodeLink(
         phrase: 'Wadi el-Jarf Papyri',

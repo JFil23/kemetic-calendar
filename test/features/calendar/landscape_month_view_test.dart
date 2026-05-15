@@ -130,7 +130,7 @@ class _LandscapePagerHarness extends StatelessWidget {
           initialKy: 6267,
           initialKm: 4,
           showGregorian: false,
-          notesForDay: notesForDay ?? ((_, __, ___) => const <NoteData>[]),
+          notesForDay: notesForDay ?? ((_, _, _) => const <NoteData>[]),
           flowIndex: const <int, FlowData>{},
           getMonthName: (km) => 'Month $km',
           onVisibleMonthCommitted: onVisibleMonthCommitted,

@@ -12,7 +12,6 @@ import '../../main.dart';
 
 class JournalController {
   final JournalRepo _repo;
-  final SupabaseClient _client;
 
   Timer? _autosaveTimer;
   String _currentDraft = '';
@@ -26,7 +25,7 @@ class JournalController {
   // Callbacks for UI updates
   void Function()? onDraftChanged;
 
-  JournalController(this._client) : _repo = JournalRepo(_client);
+  JournalController(SupabaseClient client) : _repo = JournalRepo(client);
 
   void _log(String msg) {
     if (kDebugMode) {

@@ -98,7 +98,7 @@ class EventBadgeToken {
     String? description,
   }) {
     String fmt(DateTime? dt) => dt?.toUtc().toIso8601String() ?? '';
-    String hex(Color c) => '#${c.value.toRadixString(16).padLeft(8, '0')}';
+    String hex(Color c) => '#${c.toARGB32().toRadixString(16).padLeft(8, '0')}';
     String esc(String s) => s.replaceAll('"', '\\"').replaceAll('\n', '\\n');
 
     final buffer = StringBuffer('⟦EVENT_BADGE ');
@@ -190,9 +190,9 @@ class _CollapsedEventBadge extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 2),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.14),
+            color: color.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: color.withOpacity(0.9), width: 1),
+            border: Border.all(color: color.withValues(alpha: 0.9), width: 1),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -200,7 +200,7 @@ class _CollapsedEventBadge extends StatelessWidget {
               Icon(
                 Icons.check_circle,
                 size: 14,
-                color: color.withOpacity(0.95),
+                color: color.withValues(alpha: 0.95),
               ),
               const SizedBox(width: 6),
               Flexible(
@@ -230,7 +230,7 @@ class _CollapsedEventBadge extends StatelessWidget {
                     fontSize: 10,
                     color: Theme.of(
                       context,
-                    ).textTheme.bodySmall?.color?.withOpacity(0.7),
+                    ).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -259,9 +259,9 @@ class _ExpandedEventBadge extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 4),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.08),
+            color: color.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withOpacity(0.9), width: 1),
+            border: Border.all(color: color.withValues(alpha: 0.9), width: 1),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -290,7 +290,7 @@ class _ExpandedEventBadge extends StatelessWidget {
                             Icon(
                               Icons.check_circle,
                               size: 14,
-                              color: color.withOpacity(0.95),
+                              color: color.withValues(alpha: 0.95),
                             ),
                             const SizedBox(width: 6),
                             Expanded(
@@ -327,7 +327,7 @@ class _ExpandedEventBadge extends StatelessWidget {
                                       .textTheme
                                       .bodySmall
                                       ?.color
-                                      ?.withOpacity(0.75),
+                                      ?.withValues(alpha: 0.75),
                                 ),
                           ),
                         if (token.description != null &&

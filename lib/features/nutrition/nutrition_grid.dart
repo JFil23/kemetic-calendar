@@ -13,10 +13,7 @@ import '../../data/nutrition_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../features/calendar/notify.dart';
 import '../../features/calendar/calendar_page.dart'
-    show
-        CreateNutritionReminder,
-        DeleteNutritionReminder,
-        NutritionReminderIntent;
+    show CreateNutritionReminder, NutritionReminderIntent;
 
 final _uuid = const Uuid();
 
@@ -33,13 +30,13 @@ class NutritionGridWidget extends StatefulWidget {
   final Set<String> reminderItemIds;
 
   const NutritionGridWidget({
-    Key? key,
+    super.key,
     required this.repo,
     required this.eventsRepo,
     this.onCreateReminder,
     this.onDeleteReminder,
     this.reminderItemIds = const {},
-  }) : super(key: key);
+  });
 
   @override
   State<NutritionGridWidget> createState() => _NutritionGridWidgetState();
@@ -142,18 +139,6 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     });
   }
 
-  // Utility to compare schedules for equality (mode + days + time + alert)
-  bool _schedulesMatch(IntakeSchedule a, IntakeSchedule b) {
-    if (a.mode != b.mode) return false;
-    final sameDays = a.mode == IntakeMode.weekday
-        ? setEquals(a.daysOfWeek, b.daysOfWeek)
-        : setEquals(a.decanDays, b.decanDays);
-    final sameTime =
-        a.time.hour == b.time.hour && a.time.minute == b.time.minute;
-    final sameAlert = a.alertOffset?.inMinutes == b.alertOffset?.inMinutes;
-    return sameDays && sameTime && sameAlert;
-  }
-
   NutritionReminderIntent _buildReminderIntent(
     NutritionItem item,
     IntakeSchedule schedule,
@@ -248,19 +233,24 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
         final row = cellId.split(':').first;
 
         // Defer setState to after the current frame
-        void _defer(VoidCallback f) =>
+        void defer(VoidCallback f) =>
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) f();
+              if (mounted) {
+                f();
+              }
             });
 
         if (n.hasFocus) {
-          if (_focusedRowId != row)
-            _defer(() => setState(() => _focusedRowId = row));
+          if (_focusedRowId != row) {
+            defer(() => setState(() => _focusedRowId = row));
+          }
         } else if (_focusedRowId == row) {
           final stillFocused = _focusByCell.entries.any(
             (e) => e.key.startsWith('$row:') && e.value.hasFocus,
           );
-          if (!stillFocused) _defer(() => setState(() => _focusedRowId = null));
+          if (!stillFocused) {
+            defer(() => setState(() => _focusedRowId = null));
+          }
         }
       });
       return n;
@@ -275,43 +265,6 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     return target > cap ? cap : target;
   }
 
-  // Row expand/collapse state (track by item.id) - kept for backward compatibility
-  final Set<String> _expanded = <String>{};
-  bool _isExpanded(NutritionItem it) => _expanded.contains(it.id);
-  void _toggleExpanded(NutritionItem it) => setState(() {
-    if (_expanded.contains(it.id)) {
-      _expanded.remove(it.id);
-    } else {
-      _expanded.add(it.id);
-    }
-  });
-
-  // Base & minimum widths for: Nutrient, Source, Purpose, When, Repeat, Delete
-  static const List<double> _COL_BASE = [160, 140, 200, 190, 64, 48];
-  static const List<double> _COL_MIN = [110, 110, 150, 150, 56, 48];
-
-  // New responsive width constants (for fractional approach)
-  // Base widths (px) tuned for phone modal. Order: Nutrient, Source, Purpose, When, Repeat, Delete
-  static const List<double> _BASE_WIDTHS = [160, 140, 200, 190, 64, 48];
-  // Minimum clamped widths (px) before we give up and enable horizontal scroll
-  static const List<double> _MIN_WIDTHS = [110, 110, 150, 150, 56, 48];
-  // Indices to shrink first when space is tight (Purpose, When)
-  static const List<int> _FLEX_PRIORITY = [
-    2,
-    3,
-    0,
-    1,
-  ]; // then Nutrient/Source if needed
-
-  final Map<int, TableColumnWidth> _colWidths = const {
-    0: FixedColumnWidth(180), // Nutrient
-    1: FixedColumnWidth(160), // Source
-    2: FixedColumnWidth(220), // Purpose
-    3: FixedColumnWidth(220), // When to take
-    4: FixedColumnWidth(68), // Repeat
-    5: FixedColumnWidth(48), // Delete
-  };
-
   TableBorder _gridBorder() => const TableBorder(
     top: BorderSide(color: Colors.white12, width: 1),
     bottom: BorderSide(color: Colors.white12, width: 1),
@@ -320,75 +273,6 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     horizontalInside: BorderSide(color: Colors.white12, width: 1),
     verticalInside: BorderSide(color: Colors.white12, width: 1),
   );
-
-  // Column width calculator for responsive layout
-  List<double> _computeNutritionColumnWidths(double available) {
-    // total base and min
-    final baseTotal = _COL_BASE.fold<double>(0, (a, b) => a + b);
-    final minTotal = _COL_MIN.fold<double>(0, (a, b) => a + b);
-
-    // If the base fits, use base
-    if (baseTotal <= available) return List<double>.from(_COL_BASE);
-
-    // If even minimum doesn't fit, we'll still return minimums;
-    // the caller will enable horizontal scroll fallback.
-    if (minTotal >= available) return List<double>.from(_COL_MIN);
-
-    // Otherwise, shrink proportionally toward MIN, prioritizing flexible columns:
-    // We'll shrink Purpose (2) and When (3) first, then Nutrient (0) & Source (1) if needed.
-    final widths = List<double>.from(_COL_BASE);
-
-    double toShrink = baseTotal - available;
-    // helpers
-    double shrinkOne(int i, double want) {
-      final can = widths[i] - _COL_MIN[i];
-      final take = math.min(can, want);
-      widths[i] -= take;
-      return want - take;
-    }
-
-    // priority order: Purpose, When, Nutrient, Source
-    for (final idx in [2, 3, 0, 1]) {
-      if (toShrink <= 0) break;
-      toShrink = shrinkOne(idx, toShrink);
-    }
-    // Repeat (4) and Delete (5) are fixed at MIN already
-
-    return widths;
-  }
-
-  // New responsive width calculator with expansion logic
-  List<double> _computeNutritionColWidths(double available) {
-    final base = List<double>.from(_BASE_WIDTHS);
-    final min = _MIN_WIDTHS;
-    double total = base.reduce((a, b) => a + b);
-
-    if (total <= available) {
-      // Mild proportional expansion to fill small remaining space (up to +8%)
-      final extra = (available - total).clamp(0, available * 0.08);
-      if (extra > 0) {
-        // Expand the more readable columns a bit (Purpose, When, Nutrient)
-        const grow = [2, 3, 0];
-        final per = extra / grow.length;
-        for (final i in grow) base[i] += per;
-      }
-      return base;
-    }
-
-    // Need to shrink. Take from flexible columns first down to their mins.
-    double need = total - available;
-    for (final idx in _FLEX_PRIORITY) {
-      if (need <= 0) break;
-      final spare = base[idx] - min[idx];
-      if (spare <= 0) continue;
-      final take = spare >= need ? need : spare;
-      base[idx] -= take;
-      need -= take;
-    }
-
-    // If still too big after hitting mins everywhere, we'll let the caller wrap with horizontal scroll
-    return base;
-  }
 
   @override
   void initState() {
@@ -484,9 +368,15 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     for (final n in _focusByCell.values) {
       n.dispose();
     }
-    for (final c in _nutrientCtrls.values) c.dispose();
-    for (final c in _sourceCtrls.values) c.dispose();
-    for (final c in _purposeCtrls.values) c.dispose();
+    for (final c in _nutrientCtrls.values) {
+      c.dispose();
+    }
+    for (final c in _sourceCtrls.values) {
+      c.dispose();
+    }
+    for (final c in _purposeCtrls.values) {
+      c.dispose();
+    }
     _focusByCell.clear();
     super.dispose();
   }
@@ -515,146 +405,10 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     );
   }
 
-  // === HEADER ===
-  Widget _headerCell(String text, {double? width, IconData? icon}) {
-    return _cellShell(
-      icon != null
-          ? Icon(icon, size: 16, color: Colors.white)
-          : Text(
-              text,
-              style: _hdrStyle.copyWith(fontSize: _hdrFontSize),
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-            ),
-      width: width,
-      minHeight: 44,
-      align: Alignment.centerLeft,
-    );
-  }
-
-  Widget _buildHeaderTable() {
-    return Table(
-      columnWidths: _colWidths,
-      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      border: _gridBorder(),
-      children: [
-        TableRow(
-          children: [
-            _headerCell('Nutrient'),
-            _headerCell('Source'),
-            _headerCell('Purpose'),
-            _headerCell('When to take'),
-            _headerCell('Repeat'),
-            _headerCell(''), // Delete column (no header text)
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeaderTableWithWidths(List<double> widths) {
-    final colWidths = <int, TableColumnWidth>{
-      for (var i = 0; i < widths.length; i++) i: FixedColumnWidth(widths[i]),
-    };
-    return Table(
-      columnWidths: colWidths,
-      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      border: _gridBorder(),
-      children: [
-        TableRow(
-          children: [
-            _headerCell('Nutrient', width: widths[0]),
-            _headerCell('Source', width: widths[1]),
-            _headerCell('Purpose', width: widths[2]),
-            _headerCell('When to take', width: widths[3]),
-            _headerCell('Repeat', width: widths[4]),
-            _headerCell('', width: widths[5]), // delete header blank
-          ],
-        ),
-      ],
-    );
-  }
-
-  // === BODY ===
-  Widget _buildBodyTable(List<NutritionItem> items) {
-    return Table(
-      columnWidths: _colWidths,
-      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      border: _gridBorder(),
-      children: [for (final it in items) _buildRow(it)],
-    );
-  }
-
-  Widget _buildBodyTableWithWidths(
-    List<NutritionItem> items,
-    List<double> widths,
-  ) {
-    final colWidths = <int, TableColumnWidth>{
-      for (var i = 0; i < widths.length; i++) i: FixedColumnWidth(widths[i]),
-    };
-    return Table(
-      columnWidths: colWidths,
-      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      border: _gridBorder(),
-      children: [for (final it in items) _buildRowWithWidths(it, widths)],
-    );
-  }
-
-  TableRow _buildRow(NutritionItem item) {
-    return TableRow(
-      children: [
-        _cellTextField(item, field: 'nutrient', hint: 'e.g., Magnesium'),
-        _cellTextField(item, field: 'source', hint: 'e.g., 200mg caps'),
-        _cellTextField(
-          item,
-          field: 'purpose',
-          hint: 'e.g., sleep, recovery',
-          maxLines: 2,
-        ),
-        _cellSchedule(item),
-        _cellRepeat(item),
-        _cellDelete(item),
-      ],
-    );
-  }
-
-  TableRow _buildRowWithWidths(NutritionItem item, List<double> w) {
-    return TableRow(
-      children: [
-        _cellTextField(
-          item,
-          field: 'nutrient',
-          hint: 'e.g., Magnesium',
-          width: w[0],
-        ),
-        _cellTextField(
-          item,
-          field: 'source',
-          hint: 'e.g., 200mg caps',
-          width: w[1],
-        ),
-        _cellTextField(
-          item,
-          field: 'purpose',
-          hint: 'e.g., sleep, recovery',
-          width: w[2],
-          maxLines: 2,
-        ),
-        _cellSchedule(item, width: w[3]),
-        _cellRepeat(item, width: w[4]),
-        _cellDelete(item, width: w[5]),
-      ],
-    );
-  }
-
   // ---------- NEW RESPONSIVE TABLE METHODS ----------
-  // Column weights (sum = 1.0)  [Nutrient, Source, Purpose, When] - 4 columns
-  static const List<double> _FRACTIONS = [0.30, 0.24, 0.35, 0.11];
-
   // Row background color for zebra striping
   Color _rowBg(int i) =>
-      i.isOdd ? Colors.white.withOpacity(0.03) : Colors.transparent;
+      i.isOdd ? Colors.white.withValues(alpha: 0.03) : Colors.transparent;
 
   // Public entry point for responsive table (uses _items field)
   Widget buildNutritionTableResponsive() {
@@ -720,36 +474,6 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
           align: Alignment.center,
           padding: EdgeInsets.zero, // no padding for icon column
         ),
-      ],
-    );
-  }
-
-  // Header table with fractional widths (legacy - kept for compatibility)
-  Widget _buildHeaderTableFractional(Map<int, TableColumnWidth> widths) {
-    return Table(
-      border: _gridBorder(),
-      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      columnWidths: widths,
-      children: [_headerRow()],
-    );
-  }
-
-  // Body table with fractional widths (legacy method - not used by new responsive table)
-  Widget _buildBodyTableFractional(
-    List<double> widths,
-    List<NutritionItem> items,
-  ) {
-    Color rowBg(int i) =>
-        i.isEven ? const Color(0xFF0D0D0D) : const Color(0xFF111111);
-    return Table(
-      columnWidths: {
-        for (int i = 0; i < widths.length; i++) i: FixedColumnWidth(widths[i]),
-      },
-      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      border: _gridBorder(),
-      children: [
-        for (int i = 0; i < items.length; i++)
-          _buildRowFractional(i, items[i], bg: rowBg(i)),
       ],
     );
   }
@@ -921,42 +645,9 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     );
   }
 
-  String _scheduleLabel(BuildContext context, IntakeSchedule s) {
-    final t = s.time.format(context);
-    if (s.mode == IntakeMode.weekday) {
-      if (s.daysOfWeek.isEmpty) return '';
-      const w = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      final sel = s.daysOfWeek.map((d) => w[(d - 1).clamp(0, 6)]).join(', ');
-      return '$sel • $t${s.repeat ? '' : ' (once)'}';
-    } else {
-      if (s.decanDays.isEmpty) return '';
-      final sel = s.decanDays.map((d) => 'Day $d').join(', ');
-      return 'Decan: $sel • $t${s.repeat ? '' : ' (once)'}';
-    }
-  }
-
   // Helpers for compact schedule preview chips
   String _dowShort(int d) =>
       const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d - 1];
-
-  Widget _chip(String t, {IconData? icon}) {
-    return Container(
-      margin: const EdgeInsets.only(right: 6, bottom: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1C),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x22FFFFFF)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[Icon(icon, size: 12), const SizedBox(width: 4)],
-          Text(t, style: const TextStyle(fontSize: 12)),
-        ],
-      ),
-    );
-  }
 
   // Compact schedule preview text (no chips)
   String _schedulePreviewText(BuildContext context, IntakeSchedule s) {
@@ -974,7 +665,6 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     NutritionItem item, {
     double? width,
     double? minHeight,
-    bool? collapsed, // kept for back-compat; unused
     Color? bgColor,
   }) {
     final focused = _isFocusedRow(item.id);
@@ -1034,30 +724,6 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     );
   }
 
-  Widget _cellRepeat(NutritionItem item, {double? width}) {
-    return _cellShell(
-      Center(
-        child: Checkbox(
-          value: item.schedule.repeat,
-          onChanged: (v) {
-            setState(() {
-              item.schedule = item.schedule.copyWith(repeat: v ?? true);
-              _scheduleChanged[item.id] = true;
-            });
-            _saveDebounced(item, resync: true);
-          },
-          activeColor: Colors.white,
-          checkColor: Colors.black,
-          side: const BorderSide(color: Colors.white54, width: 1),
-          materialTapTargetSize: expandedTapTargetSize(context),
-          visualDensity: expandedVisualDensity(context),
-        ),
-      ),
-      width: width,
-      align: Alignment.center,
-    );
-  }
-
   Future<bool> _showConfirmAbovePicker({
     required BuildContext ctxInPickerTree,
     required String label,
@@ -1065,7 +731,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     if (_confirmOpen) return false; // re-entrancy guard
 
     final overlay = Overlay.of(ctxInPickerTree, rootOverlay: true);
-    if (overlay == null || _pickerOverlayEntry == null) return false;
+    if (_pickerOverlayEntry == null) return false;
 
     _confirmOpen = true;
     final completer = Completer<bool>();
@@ -1132,7 +798,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     if (_timePickerOpen) return null;
 
     final overlay = Overlay.of(ctxInPickerTree, rootOverlay: true);
-    if (overlay == null || _pickerOverlayEntry == null) return null;
+    if (_pickerOverlayEntry == null) return null;
 
     _timePickerOpen = true;
     final completer = Completer<TimeOfDay?>();
@@ -1143,7 +809,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       colorScheme: base.colorScheme.brightness == Brightness.dark
           ? base.colorScheme
           : base.colorScheme.copyWith(brightness: Brightness.dark),
-      dialogBackgroundColor: Colors.black,
+      dialogTheme: base.dialogTheme.copyWith(backgroundColor: Colors.black),
       scaffoldBackgroundColor: Colors.black,
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(foregroundColor: Colors.white),
@@ -1196,24 +862,6 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     if (!completer.isCompleted) completer.complete(value);
   }
 
-  Widget _cellDelete(NutritionItem item, {double? width}) {
-    final show = _isExpanded(item);
-    return _cellShell(
-      show
-          ? Center(
-              child: IconButton(
-                icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                onPressed: () => _deleteItem(item),
-                tooltip: 'Delete',
-              ),
-            )
-          : const SizedBox(height: 24), // reserve minimal height
-      width: width,
-      align: Alignment.center,
-      minHeight: 44,
-    );
-  }
-
   Future<IntakeSchedule?> _openSchedulePicker(
     BuildContext ctx,
     NutritionItem item,
@@ -1232,16 +880,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       }
     }
 
-    // ✅ Null-safe initial schedule fallback
-    final initial =
-        item.schedule ??
-        IntakeSchedule(
-          mode: IntakeMode.weekday,
-          daysOfWeek: const {1, 2, 3, 4, 5}, // Mon–Fri sensible default
-          decanDays: const <int>{},
-          time: TimeOfDay(hour: 9, minute: 0),
-          repeat: true,
-        );
+    final initial = item.schedule;
 
     // Local working state
     var mode = initial.mode;
@@ -1250,7 +889,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     var time = initial.time;
     var addAsReminder = _reminderItemIds.contains(item.id);
 
-    IntakeSchedule _build() => initial.copyWith(
+    IntakeSchedule buildSchedule() => initial.copyWith(
       mode: mode,
       daysOfWeek: dows,
       decanDays: decans,
@@ -1258,7 +897,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       repeat: true, // ✅ always repeat
     );
 
-    void _close(IntakeSchedule? result) {
+    void closePicker(IntakeSchedule? result) {
       // If confirm is open, remove it first so nothing is orphaned
       if (_confirmOpen) {
         _confirmDialogEntry?.remove();
@@ -1286,7 +925,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
       colorScheme: base.colorScheme.brightness == Brightness.dark
           ? base.colorScheme
           : base.colorScheme.copyWith(brightness: Brightness.dark),
-      dialogBackgroundColor: Colors.black,
+      dialogTheme: base.dialogTheme.copyWith(backgroundColor: Colors.black),
       scaffoldBackgroundColor: Colors.black,
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(foregroundColor: Colors.white),
@@ -1314,7 +953,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
     );
 
     // ✅ Robust toast helper (handles missing Scaffold)
-    void _toast(BuildContext context, String msg) {
+    void showToast(BuildContext context, String msg) {
       final sm = ScaffoldMessenger.maybeOf(context);
       sm?.showSnackBar(SnackBar(content: Text(msg)));
     }
@@ -1349,7 +988,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
             ModalBarrier(
               color: Colors.black54,
               dismissible: true,
-              onDismiss: () => _close(null),
+              onDismiss: () => closePicker(null),
             ),
             // Centered picker
             SafeArea(
@@ -1360,7 +999,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                   child: BackButtonListener(
                     // ✅ Patch B: Android back button
                     onBackButtonPressed: () async {
-                      _close(null);
+                      closePicker(null);
                       return true;
                     },
                     child: Shortcuts(
@@ -1373,7 +1012,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                         actions: {
                           ActivateIntent: CallbackAction<ActivateIntent>(
                             onInvoke: (_) {
-                              _close(null);
+                              closePicker(null);
                               return null;
                             },
                           ),
@@ -1465,7 +1104,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                                                         );
                                                     if (ok == true) {
                                                       await _deleteItem(item);
-                                                      _close(null);
+                                                      closePicker(null);
                                                     }
                                                   },
                                                 ),
@@ -1473,7 +1112,8 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                                                 IconButton(
                                                   tooltip: 'Close',
                                                   icon: const Icon(Icons.close),
-                                                  onPressed: () => _close(null),
+                                                  onPressed: () =>
+                                                      closePicker(null),
                                                 ),
                                               ],
                                             ),
@@ -1587,7 +1227,7 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                                                 if (mode ==
                                                         IntakeMode.weekday &&
                                                     dows.isEmpty) {
-                                                  _toast(
+                                                  showToast(
                                                     context,
                                                     'Select at least one weekday',
                                                   );
@@ -1595,17 +1235,18 @@ class _NutritionGridWidgetState extends State<NutritionGridWidget> {
                                                 }
                                                 if (mode == IntakeMode.decan &&
                                                     decans.isEmpty) {
-                                                  _toast(
+                                                  showToast(
                                                     context,
                                                     'Select at least one decan day',
                                                   );
                                                   return;
                                                 }
 
-                                                final schedule = _build();
+                                                final schedule =
+                                                    buildSchedule();
 
                                                 // ✅ Close picker immediately
-                                                _close(schedule);
+                                                closePicker(schedule);
 
                                                 // Create/delete reminder asynchronously based on checkbox
                                                 if (addAsReminder) {

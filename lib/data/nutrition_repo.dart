@@ -42,36 +42,31 @@ class IntakeSchedule {
 
   /// Serializes this schedule into a map suitable for Supabase JSON columns.
   Map<String, dynamic> toJson() => {
-        'mode': mode.name,
-        'days_of_week': daysOfWeek.toList(),
-        'decan_days': decanDays.toList(),
-        'repeat': repeat,
-        'time_h': time.hour,
-        'time_m': time.minute,
-        'alert_offset_minutes': alertOffset?.inMinutes,
-      };
+    'mode': mode.name,
+    'days_of_week': daysOfWeek.toList(),
+    'decan_days': decanDays.toList(),
+    'repeat': repeat,
+    'time_h': time.hour,
+    'time_m': time.minute,
+    'alert_offset_minutes': alertOffset?.inMinutes,
+  };
 
   /// Creates a new schedule from a JSON map.
   factory IntakeSchedule.fromJson(Map<String, dynamic> json) => IntakeSchedule(
-        mode: IntakeMode.values
-            .firstWhere((e) => e.name == json['mode'] as String),
-        daysOfWeek: (json['days_of_week'] as List?)
-                ?.map((e) => e as int)
-                .toSet() ??
-            {},
-        decanDays: (json['decan_days'] as List?)
-                ?.map((e) => e as int)
-                .toSet() ??
-            {},
-        repeat: json['repeat'] as bool? ?? true,
-        time: TimeOfDay(
-          hour: json['time_h'] as int? ?? 9,
-          minute: json['time_m'] as int? ?? 0,
-        ),
-        alertOffset: json['alert_offset_minutes'] != null
-            ? Duration(minutes: json['alert_offset_minutes'] as int)
-            : null,
-      );
+    mode: IntakeMode.values.firstWhere((e) => e.name == json['mode'] as String),
+    daysOfWeek:
+        (json['days_of_week'] as List?)?.map((e) => e as int).toSet() ?? {},
+    decanDays:
+        (json['decan_days'] as List?)?.map((e) => e as int).toSet() ?? {},
+    repeat: json['repeat'] as bool? ?? true,
+    time: TimeOfDay(
+      hour: json['time_h'] as int? ?? 9,
+      minute: json['time_m'] as int? ?? 0,
+    ),
+    alertOffset: json['alert_offset_minutes'] != null
+        ? Duration(minutes: json['alert_offset_minutes'] as int)
+        : null,
+  );
 }
 
 /// Extension to add copyWith method to IntakeSchedule
@@ -136,13 +131,13 @@ class NutritionItem {
 
   /// Creates a new [NutritionItem] from a Supabase row.
   factory NutritionItem.fromRow(Map<String, dynamic> row) => NutritionItem(
-        id: row['id'] as String,
-        nutrient: row['nutrient'] as String,
-        source: row['source'] as String? ?? '',
-        purpose: row['purpose'] as String? ?? '',
-        schedule: IntakeSchedule.fromJson(row),
-        enabled: (row['enabled'] as bool?) ?? true,
-      );
+    id: row['id'] as String,
+    nutrient: row['nutrient'] as String,
+    source: row['source'] as String? ?? '',
+    purpose: row['purpose'] as String? ?? '',
+    schedule: IntakeSchedule.fromJson(row),
+    enabled: (row['enabled'] as bool?) ?? true,
+  );
 }
 
 /// Extension to add copyWith method to NutritionItem
@@ -174,7 +169,7 @@ bool _isRealUuid(String s) {
     r'[0-9a-fA-F]{4}-'
     r'[1-5][0-9a-fA-F]{3}-'
     r'[89abAB][0-9a-fA-F]{3}-'
-    r'[0-9a-fA-F]{12}$'
+    r'[0-9a-fA-F]{12}$',
   );
   return re.hasMatch(s);
 }
@@ -194,7 +189,7 @@ class NutritionRepo {
   Future<List<NutritionItem>> getAll() async {
     final user = _client.auth.currentUser;
     if (user == null) return [];
-    
+
     try {
       final rows = await _client
           .from('nutrition_items')
@@ -214,7 +209,7 @@ class NutritionRepo {
       debugPrint('[NutritionRepo] Error: $e');
       debugPrint('[NutritionRepo] Code: $code');
       debugPrint('[NutritionRepo] Stack: $st');
-      
+
       // 42P01 = undefined_table
       if (code.contains('42P01') ||
           (msg.contains('relation') && msg.contains('nutrition_items')) ||
@@ -245,7 +240,7 @@ class NutritionRepo {
           .upsert(payload, onConflict: 'id')
           .select()
           .single();
-      return NutritionItem.fromRow(row as Map<String, dynamic>);
+      return NutritionItem.fromRow(row);
     } catch (e) {
       debugPrint('[NutritionRepo] upsert error: $e');
       rethrow;
@@ -254,10 +249,6 @@ class NutritionRepo {
 
   /// Deletes a nutrition item by id.
   Future<void> delete(String id) async {
-    await _client
-        .from('nutrition_items')
-        .delete()
-        .eq('id', id);
+    await _client.from('nutrition_items').delete().eq('id', id);
   }
 }
-

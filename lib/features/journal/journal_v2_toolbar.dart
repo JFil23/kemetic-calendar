@@ -2,7 +2,6 @@
 // Journal V2 Toolbar - Fixed for ScrollView
 
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../calendar/calendar_page.dart' show KemeticMath;
@@ -23,7 +22,7 @@ class JournalV2Toolbar extends StatefulWidget {
   final bool canRedo;
 
   const JournalV2Toolbar({
-    Key? key,
+    super.key,
     required this.controller,
     required this.onModeChanged,
     required this.onFormatChanged,
@@ -32,21 +31,15 @@ class JournalV2Toolbar extends StatefulWidget {
     required this.onInsertChart,
     this.canUndo = false,
     this.canRedo = false,
-  }) : super(key: key);
+  });
 
   @override
   State<JournalV2Toolbar> createState() => _JournalV2ToolbarState();
 }
 
 class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
-  JournalV2Mode _currentMode = JournalV2Mode.type;
   TextAttrs _currentAttrs = const TextAttrs();
   bool _showKemetic = true; // default to Kemetic view for date tracker
-
-  void _handleModeChange(JournalV2Mode mode) {
-    setState(() => _currentMode = mode);
-    widget.onModeChanged(mode);
-  }
 
   void _toggleFormat(String format) {
     TextAttrs newAttrs;
@@ -182,12 +175,6 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
     ];
     final month = months[g.month - 1];
     return '$month ${g.day}';
-  }
-
-  Widget _buildModeButton(JournalV2Mode mode, IconData icon, String label) {
-    final isActive = _currentMode == mode;
-
-    return const SizedBox.shrink(); // mode button no longer shown
   }
 
   Widget _buildFormatButton(

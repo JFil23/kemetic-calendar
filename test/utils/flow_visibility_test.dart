@@ -214,7 +214,6 @@ class _FakeFlow {
     required this.isHidden,
     required this.isReminder,
     this.endDate,
-    this.notes,
   });
 
   final int id;
@@ -223,5 +222,5 @@ class _FakeFlow {
   final bool isHidden;
   final bool isReminder;
   final DateTime? endDate;
-  final String? notes;
+  String? get notes => null;
 }

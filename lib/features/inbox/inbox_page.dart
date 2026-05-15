@@ -33,7 +33,7 @@ void _logInboxImport(String message) {
 }
 
 class InboxPage extends StatefulWidget {
-  const InboxPage({Key? key}) : super(key: key);
+  const InboxPage({super.key});
 
   @override
   State<InboxPage> createState() => _InboxPageState();
@@ -42,9 +42,7 @@ class InboxPage extends StatefulWidget {
 class _InboxPageState extends State<InboxPage> {
   static const String _resumeKind = 'inbox_conversation';
   static const _bg = Color(0xFF000000);
-  static const _cardBg = Color(0xFF0D0D0F);
   static const _gold = KemeticGold.base;
-  static const _silver = Color(0xFFB0B0B0);
   static const Color _summaryGoldLight = Color(0xFFF7E09A);
   static const Color _summaryGoldMid = Color(0xFFE8BE54);
   static const Color _summaryGoldBase = Color(0xFFCA9221);
@@ -442,11 +440,8 @@ class _InboxPageState extends State<InboxPage> {
                         return _buildCalendarNotificationRow(
                           item.calendarNotification!,
                         );
-                      } else if (item.kind == _UnifiedKind.eventInvite) {
-                        return _buildEventInviteRow(item.invite!);
-                      } else {
-                        return _buildActivityRow(item.activity!);
                       }
+                      return _buildEventInviteRow(item.invite!);
                     },
                   )),
     );
@@ -665,7 +660,7 @@ class _InboxPageState extends State<InboxPage> {
               otherProfile.displayName ?? otherProfile.handle ?? 'User',
           avatarUrl: otherProfile.avatarUrl,
           avatarGlyphIds: otherProfile.avatarGlyphIds,
-          backgroundColor: _gold.withOpacity(0.2),
+          backgroundColor: _gold.withValues(alpha: 0.2),
           foregroundColor: _gold,
         ),
         title: Text(
@@ -683,7 +678,10 @@ class _InboxPageState extends State<InboxPage> {
               : _conversationPreviewText(lastItem),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.7),
+            fontSize: 14,
+          ),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1020,7 +1018,7 @@ class _InboxPageState extends State<InboxPage> {
 
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: color.withOpacity(0.1),
+        backgroundColor: color.withValues(alpha: 0.1),
         child: leadingIcon,
       ),
       title: Text(
@@ -1033,7 +1031,7 @@ class _InboxPageState extends State<InboxPage> {
       subtitle: subtitle.isNotEmpty
           ? Text(
               subtitle,
-              style: TextStyle(color: Colors.white.withOpacity(0.7)),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
             )
           : null,
       onTap: () async {
@@ -1113,7 +1111,7 @@ class _InboxPageState extends State<InboxPage> {
       ),
       subtitle: Text(
         subtitleText,
-        style: TextStyle(color: Colors.white.withOpacity(0.7)),
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
       ),
       trailing: _buildActivityTileUnreadDot(_unreadState.hasUnreadCommunity),
       onTap: _openFollowersSheet,
@@ -1145,7 +1143,7 @@ class _InboxPageState extends State<InboxPage> {
         subtitleText,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: Colors.white.withOpacity(0.7)),
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
       ),
       trailing: _buildActivityTileUnreadDot(_unreadState.hasUnreadMovement),
       onTap: _openEngagementSheet,
@@ -1290,7 +1288,7 @@ class _InboxPageState extends State<InboxPage> {
         subtitle,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: Colors.white.withOpacity(0.7)),
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
       ),
       trailing: _buildActivityTileUnreadDot(_hasUnreadCalendar),
       onTap: _openCalendarInboxSheet,
@@ -1383,7 +1381,7 @@ class _InboxPageState extends State<InboxPage> {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
@@ -1402,7 +1400,9 @@ class _InboxPageState extends State<InboxPage> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Text(
                       'Nothing here yet.',
-                      style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
                     ),
                   )
                 else
@@ -1467,7 +1467,7 @@ class _InboxPageState extends State<InboxPage> {
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
@@ -1488,7 +1488,9 @@ class _InboxPageState extends State<InboxPage> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Text(
                       'Calendar invites and responses will appear here.',
-                      style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
                     ),
                   )
                 else
@@ -1635,7 +1637,10 @@ class _InboxPageState extends State<InboxPage> {
         'Waiting on ${invite.inviteeLabel}',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.7),
+          fontSize: 14,
+        ),
       ),
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1774,13 +1779,13 @@ class _InboxPageState extends State<InboxPage> {
           Icon(
             Icons.inbox_outlined,
             size: 64,
-            color: Colors.white.withOpacity(0.3),
+            color: Colors.white.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 16),
           Text(
             'No shares yet',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               fontSize: 18,
               fontWeight: FontWeight.w500,
             ),
@@ -1789,7 +1794,7 @@ class _InboxPageState extends State<InboxPage> {
           Text(
             'Shared flows, messages, invites, and calendar updates will appear here',
             style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
               fontSize: 14,
             ),
           ),
@@ -1820,7 +1825,7 @@ class _InboxPageState extends State<InboxPage> {
   }
 }
 
-enum _UnifiedKind { message, calendarNotification, eventInvite, activity }
+enum _UnifiedKind { message, calendarNotification, eventInvite }
 
 class _UnifiedInboxItem {
   _UnifiedInboxItem.message({
@@ -1831,17 +1836,7 @@ class _UnifiedInboxItem {
     required this.hasUnread,
   }) : kind = _UnifiedKind.message,
        calendarNotification = null,
-       invite = null,
-       activity = null;
-
-  _UnifiedInboxItem.activity({required this.createdAt, required this.activity})
-    : kind = _UnifiedKind.activity,
-      otherUserId = null,
-      otherProfile = null,
-      items = null,
-      hasUnread = null,
-      calendarNotification = null,
-      invite = null;
+       invite = null;
 
   _UnifiedInboxItem.eventInvite({required this.createdAt, required this.invite})
     : kind = _UnifiedKind.eventInvite,
@@ -1849,8 +1844,7 @@ class _UnifiedInboxItem {
       otherProfile = null,
       items = null,
       hasUnread = null,
-      calendarNotification = null,
-      activity = null;
+      calendarNotification = null;
 
   _UnifiedInboxItem.calendarNotification({
     required this.createdAt,
@@ -1860,8 +1854,7 @@ class _UnifiedInboxItem {
        otherProfile = null,
        items = null,
        hasUnread = null,
-       invite = null,
-       activity = null;
+       invite = null;
 
   final _UnifiedKind kind;
   final DateTime createdAt;
@@ -1873,9 +1866,6 @@ class _UnifiedInboxItem {
   final bool? hasUnread;
   final InboxShareItem? calendarNotification;
   final InboxShareItem? invite;
-
-  // Activity fields
-  final InboxActivityItem? activity;
 }
 
 // Legacy code below - keeping for FlowPreviewCard compatibility
@@ -1886,11 +1876,11 @@ class FlowPreviewCard extends StatefulWidget {
   final VoidCallback onImportComplete;
 
   const FlowPreviewCard({
-    Key? key,
+    super.key,
     required this.item,
     required this.importStatusCache,
     required this.onImportComplete,
-  }) : super(key: key);
+  });
 
   @override
   State<FlowPreviewCard> createState() => _FlowPreviewCardState();
@@ -1902,7 +1892,6 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
   static const _gold = KemeticGold.base;
   static const _silver = Color(0xFFB0B0B0);
 
-  final _shareRepo = ShareRepo(Supabase.instance.client);
   final _inboxRepo = InboxRepo(Supabase.instance.client);
   bool _isImporting = false;
 
@@ -1926,7 +1915,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -1999,13 +1988,13 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
       decoration: BoxDecoration(
         color: _cardBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 28,
-            backgroundColor: _gold.withOpacity(0.2),
+            backgroundColor: _gold.withValues(alpha: 0.2),
             backgroundImage: widget.item.senderAvatar != null
                 ? NetworkImage(widget.item.senderAvatar!)
                 : null,
@@ -2037,7 +2026,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
                 Text(
                   '@${widget.item.senderHandle ?? 'unknown'}',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     fontSize: 14,
                   ),
                 ),
@@ -2056,7 +2045,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
         Text(
           'Shared ${widget.item.isFlow ? 'Flow' : 'Event'}',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             fontSize: 13,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
@@ -2085,7 +2074,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
         Text(
           'Suggested Schedule',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             fontSize: 13,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
@@ -2098,7 +2087,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
           decoration: BoxDecoration(
             color: _cardBg,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _gold.withOpacity(0.3)),
+            border: Border.all(color: _gold.withValues(alpha: 0.3)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2110,13 +2099,13 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
                     Icon(
                       Icons.calendar_today,
                       size: 16,
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'Starts: ${schedule.startDate}',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 14,
                       ),
                     ),
@@ -2130,7 +2119,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
                 Text(
                   'Days:',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     fontSize: 13,
                   ),
                 ),
@@ -2145,9 +2134,9 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: _gold.withOpacity(0.2),
+                        color: _gold.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: _gold.withOpacity(0.5)),
+                        border: Border.all(color: _gold.withValues(alpha: 0.5)),
                       ),
                       child: Text(
                         weekdayNames[day],
@@ -2168,7 +2157,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
                 Text(
                   'Times:',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     fontSize: 13,
                   ),
                 ),
@@ -2184,7 +2173,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
                           child: Text(
                             dayName,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
+                              color: Colors.white.withValues(alpha: 0.7),
                               fontSize: 13,
                             ),
                           ),
@@ -2196,7 +2185,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -2211,7 +2200,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
                       ],
                     ),
                   );
-                }).toList(),
+                }),
               ],
             ],
           ),
@@ -2256,7 +2245,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
             onPressed: () => Navigator.pop(context),
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.white,
-              side: BorderSide(color: Colors.white.withOpacity(0.3)),
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -2384,11 +2373,6 @@ class InboxFlowDetailsPage extends StatelessWidget {
   final InboxShareItem item;
 
   const InboxFlowDetailsPage({super.key, required this.item});
-
-  bool _isLikelyUrl(String text) {
-    final lower = text.toLowerCase();
-    return lower.startsWith('http://') || lower.startsWith('https://');
-  }
 
   List<TextSpan> _buildTextSpans(String text) {
     final spans = <TextSpan>[];
