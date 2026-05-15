@@ -93,6 +93,17 @@ import '../rhythm/event_todo_builder.dart';
 import '../rhythm/data/planner_badge_repo.dart';
 import '../rhythm/pages/todays_alignment_page.dart';
 
+part 'calendar_flow_models.dart';
+part 'calendar_flow_studio_models.dart';
+part 'calendar_grid_widgets.dart';
+part 'calendar_month_detail.dart';
+
+void _calendarDebugPrint(String? message, {int? wrapWidth}) {
+  if (kDebugMode) {
+    debugPrint(message, wrapWidth: wrapWidth);
+  }
+}
+
 typedef _QuickAddParse = ({
   DateTime date,
   bool allDay,
@@ -173,8 +184,8 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       await widget.onSave(parsed);
     } catch (e, st) {
       if (kDebugMode) {
-        debugPrint('[QuickAdd] Failed to save note: $e');
-        debugPrint('$st');
+        _calendarDebugPrint('[QuickAdd] Failed to save note: $e');
+        _calendarDebugPrint('$st');
       }
       if (!mounted) return;
       setState(() {
@@ -3951,406 +3962,6 @@ Gradient _glossFromColor(Color base) {
   );
 }
 
-/* ─────────── Flows (routines) – models & rules ─────────── */
-
-// ============================================================================
-// NUTRITION-TO-FLOW CONVERSION TYPES
-// ============================================================================
-
-/// Callback type for creating a reminder from nutrition schedule data
-typedef CreateNutritionReminder =
-    Future<void> Function(NutritionReminderIntent intent);
-typedef _ReminderOccurrenceRow = ({
-  String id,
-  String? clientEventId,
-  String? detail,
-  DateTime startsAtUtc,
-});
-
-/// Intent data for creating a reminder from a nutrition item schedule
-class NutritionReminderIntent {
-  final String itemId;
-  final String title;
-  final String? detail;
-  final bool isWeekdayMode;
-  final Set<int> weekdays; // 1-7 for weekdays (Mon=1, Sun=7)
-  final Set<int> decanDays; // 1-10 for decan days
-  final TimeOfDay timeOfDay;
-  final bool repeat;
-  final int alertOffsetMinutes;
-
-  const NutritionReminderIntent({
-    required this.itemId,
-    required this.title,
-    this.detail,
-    required this.isWeekdayMode,
-    required this.weekdays,
-    required this.decanDays,
-    required this.timeOfDay,
-    required this.repeat,
-    this.alertOffsetMinutes = _alertNoneMinutes,
-  });
-}
-
-/// Rules attach their own time window (all-day or start/end).
-abstract class FlowRule {
-  final bool allDay;
-  final TimeOfDay? start;
-  final TimeOfDay? end;
-  const FlowRule({this.allDay = true, this.start, this.end});
-
-  /// True if rule hits for the given Kemetic date and its Gregorian equivalent.
-  bool matches({
-    required int ky,
-    required int km,
-    required int kd,
-    required DateTime g,
-  });
-}
-
-/// Kemetic Decan rule.
-class _RuleDecan extends FlowRule {
-  final Set<int> months; // 1..12
-  final Set<int> decans; // 1..3
-  final Set<int> daysInDecan; // 1..10 (optional)
-  const _RuleDecan({
-    required this.months,
-    required this.decans,
-    this.daysInDecan = const {},
-    super.allDay = true,
-    super.start,
-    super.end,
-  });
-  @override
-  bool matches({
-    required int ky,
-    required int km,
-    required int kd,
-    required DateTime g,
-  }) {
-    if (km == 13) return false;
-    if (!months.contains(km)) return false;
-    final dIndex = ((kd - 1) ~/ 10) + 1; // 1..3
-    final dIn = ((kd - 1) % 10) + 1; // 1..10
-    if (!decans.contains(dIndex)) return false;
-    if (daysInDecan.isNotEmpty && !daysInDecan.contains(dIn)) return false;
-    return true;
-  }
-}
-
-/// Gregorian weekday rule (Mon=1 .. Sun=7).
-class _RuleWeek extends FlowRule {
-  final Set<int> weekdays; // 1..7
-  const _RuleWeek({
-    required this.weekdays,
-    super.allDay = true,
-    super.start,
-    super.end,
-  });
-  @override
-  bool matches({
-    required int ky,
-    required int km,
-    required int kd,
-    required DateTime g,
-  }) {
-    return weekdays.contains(g.weekday);
-  }
-}
-
-// ============================================================================
-// REPEATING NOTES - UI ENUMS
-// ============================================================================
-
-/// UI-level repeat options for individual notes.
-enum NoteRepeatOption {
-  never,
-  everyDay,
-  everyWeek,
-  every2Weeks,
-  everyMonth,
-  everyYear,
-  custom,
-}
-
-/// How the repeating series should end.
-enum NoteRepeatEndType { never, onDate, afterCount }
-
-/// Generic recurrence frequency to map into FlowRule.
-enum SimpleRecurrenceFrequency { daily, weekly, monthly, yearly }
-
-/// Explicit Gregorian dates rule (date-only). Used when customizing per decan/week.
-class _RuleDates extends FlowRule {
-  final Set<DateTime> dates; // store as DateUtils.dateOnly
-  const _RuleDates({
-    required this.dates,
-    super.allDay = true,
-    super.start,
-    super.end,
-  });
-  @override
-  bool matches({
-    required int ky,
-    required int km,
-    required int kd,
-    required DateTime g,
-  }) {
-    return dates.contains(DateUtils.dateOnly(g));
-  }
-}
-
-/// A Flow (routine). Occurrences are computed on demand from rules.
-class _Flow {
-  int id; // assigned by app
-  String? calendarId;
-  String name;
-  Color color;
-  bool active;
-  bool isSaved;
-  DateTime? savedAt;
-  DateTime? start; // inclusive (Gregorian local)
-  DateTime? end; // inclusive (Gregorian local)
-  final List<FlowRule> rules;
-  String? notes; // optional description
-  String? shareId; // NEW: Track original share if imported from inbox
-  bool isHidden; // Client-only flag for UI filtering (repeating notes)
-  bool isReminder; // Flag for reminder-backed flows
-  String? reminderUuid;
-  _Flow({
-    required this.id,
-    this.calendarId,
-    required this.name,
-    required this.color,
-    required this.active,
-    this.isSaved = false,
-    this.savedAt,
-    required this.rules,
-    this.start,
-    this.end,
-    this.notes,
-    this.shareId, // Optional: null for user-created flows
-    this.isHidden = false, // Default to visible
-    this.isReminder = false,
-    this.reminderUuid,
-  });
-}
-
-class _MyFlowsFilingSnapshot {
-  const _MyFlowsFilingSnapshot({
-    required this.flows,
-    required this.activeFlowIds,
-    required this.savedFlowIds,
-    required this.totalEventCounts,
-    required this.remainingEventCounts,
-  });
-
-  final List<_Flow> flows;
-  final Set<int> activeFlowIds;
-  final Set<int> savedFlowIds;
-  final Map<int, int> totalEventCounts;
-  final Map<int, int> remainingEventCounts;
-
-  static const empty = _MyFlowsFilingSnapshot(
-    flows: <_Flow>[],
-    activeFlowIds: <int>{},
-    savedFlowIds: <int>{},
-    totalEventCounts: <int, int>{},
-    remainingEventCounts: <int, int>{},
-  );
-}
-
-/// One resolved instance of a flow on a day.
-class _FlowOccurrence {
-  final _Flow flow;
-  final bool allDay;
-  final TimeOfDay? start;
-  final TimeOfDay? end;
-  const _FlowOccurrence({
-    required this.flow,
-    required this.allDay,
-    this.start,
-    this.end,
-  });
-}
-
-class _CandidateEvent {
-  final String clientEventId;
-  final String title;
-  final DateTime startsAtUtc;
-  final DateTime? endsAtUtc;
-  final String? calendarId;
-  final String? detail;
-  final String? location;
-  final bool allDay;
-  final int flowLocalId;
-  final String? category;
-  const _CandidateEvent({
-    required this.clientEventId,
-    required this.title,
-    required this.startsAtUtc,
-    this.endsAtUtc,
-    this.calendarId,
-    this.detail,
-    this.location,
-    required this.allDay,
-    required this.flowLocalId,
-    this.category,
-  });
-}
-
-/// Tiny helpers
-Set<int> _fullRange(int from, int to) => {for (var i = from; i <= to; i++) i};
-
-/* ───────────────────────── KEMETIC MATH ───────────────────────── */
-
-class KemeticMath {
-  // Repeating 4-year cycle lengths starting at Year 1: [365, 365, 366, 365]
-  static const List<int> _cycle = [365, 365, 366, 365];
-  static const int _cycleSum = 1461; // 365*4 + 1
-
-  static int _mod(int a, int n) => ((a % n) + n) % n;
-
-  static int _daysBeforeYear(int kYear) {
-    if (kYear == 1) return 0;
-    final y = kYear - 1;
-
-    if (y > 0) {
-      final full = y ~/ 4;
-      final rem = y % 4;
-      var sum = full * _cycleSum;
-      for (int i = 0; i < rem; i++) {
-        sum += _cycle[i];
-      }
-      return sum;
-    } else {
-      final n = -y;
-      final full = n ~/ 4;
-      final rem = n % 4;
-      var sum = full * _cycleSum;
-      for (int i = 0; i < rem; i++) {
-        sum += _cycle[3 - i];
-      }
-      return -sum;
-    }
-  }
-
-  static ({int kYear, int kMonth, int kDay}) fromGregorian(DateTime gLocal) {
-    // FIXED: Normalize to UTC noon first to avoid DST gaps/ambiguities
-    final gUtcNoon = DateTime.utc(gLocal.year, gLocal.month, gLocal.day, 12);
-    final g = toUtcDateOnly(gUtcNoon);
-    final diff = epochDayFromUtc(g);
-
-    if (diff >= 0) {
-      int kYear = 1;
-      int rem = diff;
-
-      final cycles = rem ~/ _cycleSum;
-      kYear += cycles * 4;
-      rem -= cycles * _cycleSum;
-
-      int idx = 0;
-      while (rem >= _cycle[idx]) {
-        rem -= _cycle[idx];
-        kYear++;
-        idx = (idx + 1) & 3;
-      }
-
-      final dayOfYear = rem;
-      if (dayOfYear < 360) {
-        final kMonth = (dayOfYear ~/ 30) + 1;
-        final kDay = (dayOfYear % 30) + 1;
-        return (kYear: kYear, kMonth: kMonth, kDay: kDay);
-      } else {
-        final kMonth = 13;
-        final kDay = dayOfYear - 360 + 1;
-        return (kYear: kYear, kMonth: kMonth, kDay: kDay);
-      }
-    }
-
-    int rem = -diff - 1;
-    rem %= _cycleSum;
-
-    int year = 0;
-    final rev = [_cycle[3], _cycle[2], _cycle[1], _cycle[0]];
-
-    for (int i = 0; i < 4; i++) {
-      final len = rev[i];
-      if (rem < len) {
-        final dayOfYear = len - 1 - rem;
-        year -= i;
-        if (dayOfYear < 360) {
-          final kMonth = (dayOfYear ~/ 30) + 1;
-          final kDay = (dayOfYear % 30) + 1;
-          return (kYear: year, kMonth: kMonth, kDay: kDay);
-        } else {
-          final kMonth = 13;
-          final kDay = dayOfYear - 360 + 1;
-          return (kYear: year, kMonth: kMonth, kDay: kDay);
-        }
-      }
-      rem -= len;
-    }
-
-    return (kYear: -3, kMonth: 13, kDay: 1);
-  }
-
-  static DateTime toGregorian(int kYear, int kMonth, int kDay) {
-    if (kMonth < 1 || kMonth > 13) {
-      throw ArgumentError('kMonth 1..13');
-    }
-    if (kMonth == 13) {
-      final maxEpi = isLeapKemeticYear(kYear) ? 6 : 5;
-      if (kDay < 1 || kDay > maxEpi) {
-        throw ArgumentError('kDay 1..$maxEpi for epagomenal in year $kYear');
-      }
-    } else {
-      if (kDay < 1 || kDay > 30) throw ArgumentError('kDay 1..30');
-    }
-
-    // FIXED: Use integer epoch-day arithmetic for clarity and robustness
-    final base = _daysBeforeYear(kYear);
-    final dayIndex = (kMonth == 13)
-        ? (360 + (kDay - 1))
-        : ((kMonth - 1) * 30 + (kDay - 1));
-    final epochDays = base + dayIndex;
-    return utcFromEpochDay(epochDays);
-  }
-
-  static bool isLeapKemeticYear(int kYear) => _mod(kYear - 1, 4) == 2;
-
-  /// Add months to a Kemetic date, handling year rollovers and epagomenal day clamping.
-  static ({int kYear, int kMonth, int kDay}) addMonths({
-    required int kYear,
-    required int kMonth,
-    required int kDay,
-    required int monthsToAdd,
-  }) {
-    int newYear = kYear;
-    int newMonth = kMonth + monthsToAdd;
-
-    // Handle year overflow/underflow
-    while (newMonth > 13) {
-      newYear += (newMonth - 1) ~/ 13;
-      newMonth = ((newMonth - 1) % 13) + 1;
-    }
-    while (newMonth < 1) {
-      newYear -= ((1 - newMonth - 1) ~/ 13) + 1;
-      newMonth = 13 - ((1 - newMonth - 1) % 13);
-    }
-
-    // Clamp day to valid range for target month
-    int newDay = kDay;
-    if (newMonth == 13) {
-      final maxEpi = isLeapKemeticYear(newYear) ? 6 : 5;
-      if (newDay > maxEpi) newDay = maxEpi;
-    } else {
-      if (newDay > 30) newDay = 30;
-    }
-
-    return (kYear: newYear, kMonth: newMonth, kDay: newDay);
-  }
-}
-
 /* ───────────────────────── SUPPORTING WIDGETS ───────────────────────── */
 
 class _SeasonHeader extends StatelessWidget {
@@ -4427,7 +4038,7 @@ class _MaatFlowTemplate {
   }) : days = const <_MaatFlowDay>[];
 }
 
-final List<_MaatFlowTemplate> kMaatFlowTemplates = [
+final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
   _MaatFlowTemplate(
     key: 'track-the-sky',
     title: 'Follow the sky',
@@ -4860,7 +4471,7 @@ class CalendarPage extends StatefulWidget {
       return (notes: notesByDay, flows: flows);
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[search] warm-start cache unavailable: $e');
+        _calendarDebugPrint('[search] warm-start cache unavailable: $e');
       }
       return (notes: <String, List<_Note>>{}, flows: <_Flow>[]);
     }
@@ -5466,7 +5077,7 @@ class CalendarPage extends StatefulWidget {
           ),
         );
       }
-      return await persistFlowStudioResultHeadless(
+      return await _persistFlowStudioResultHeadless(
             _FlowStudioResult(savedFlow: flow, plannedNotes: planned),
           ) ??
           -1;
@@ -5738,7 +5349,7 @@ class CalendarPage extends StatefulWidget {
       dayIndex++;
     }
 
-    return await persistFlowStudioResultHeadless(
+    return await _persistFlowStudioResultHeadless(
           _FlowStudioResult(savedFlow: flow, plannedNotes: planned),
         ) ??
         -1;
@@ -5880,7 +5491,7 @@ class CalendarPage extends StatefulWidget {
           state: const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
         );
         if (edited != null) {
-          await persistFlowStudioResultHeadless(edited);
+          await _persistFlowStudioResultHeadless(edited);
         }
       },
       onEditFlow: (id) async {
@@ -5897,7 +5508,7 @@ class CalendarPage extends StatefulWidget {
           state: const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
         );
         if (edited != null) {
-          await persistFlowStudioResultHeadless(edited);
+          await _persistFlowStudioResultHeadless(edited);
         }
       },
       onEndFlow: _endFlowHeadless,
@@ -5915,7 +5526,7 @@ class CalendarPage extends StatefulWidget {
     final cachedSnapshot = _cachedDetachedMyFlowsFilingSnapshot(flowsRepo);
     return _MaatFlowsListPage(
       title: 'ḥꜣw',
-      templates: kMaatFlowTemplates,
+      templates: _kMaatFlowTemplates,
       hasActiveForKey: (key) =>
           _snapshotHasActiveMaatInstanceFor(cachedSnapshot, key),
       onPickTemplate: (template) async {
@@ -5946,7 +5557,7 @@ class CalendarPage extends StatefulWidget {
           },
         );
         if (edited != null) {
-          await persistFlowStudioResultHeadless(edited);
+          await _persistFlowStudioResultHeadless(edited);
         }
       },
     );
@@ -5997,7 +5608,7 @@ class CalendarPage extends StatefulWidget {
           templateKey.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!navigator.mounted) return;
-          for (final template in kMaatFlowTemplates) {
+          for (final template in _kMaatFlowTemplates) {
             if (template.key != templateKey) continue;
             unawaited(
               _pushDetachedMaatFlowTemplateDetail(
@@ -6072,7 +5683,7 @@ class CalendarPage extends StatefulWidget {
             returnState: const <String, dynamic>{'mode': _kFlowStudioModeHub},
           ).then((edited) async {
             if (edited != null) {
-              await persistFlowStudioResultHeadless(edited);
+              await _persistFlowStudioResultHeadless(edited);
             }
           }),
         );
@@ -6103,7 +5714,7 @@ class CalendarPage extends StatefulWidget {
     }
 
     _MaatFlowTemplate? template;
-    for (final candidate in kMaatFlowTemplates) {
+    for (final candidate in _kMaatFlowTemplates) {
       if (candidate.key == templateKey) {
         template = candidate;
         break;
@@ -6262,7 +5873,7 @@ class CalendarPage extends StatefulWidget {
       );
 
       if (result != null) {
-        await persistFlowStudioResultHeadless(result);
+        await _persistFlowStudioResultHeadless(result);
       }
     } finally {
       try {
@@ -6513,7 +6124,7 @@ class CalendarPage extends StatefulWidget {
   }
 
   // Headless persistence helper: save/delete flows + planned notes without calendar state.
-  static Future<int?> persistFlowStudioResultHeadless(
+  static Future<int?> _persistFlowStudioResultHeadless(
     _FlowStudioResult r,
   ) async {
     final userEventsRepo = UserEventsRepo(Supabase.instance.client);
@@ -6560,7 +6171,7 @@ class CalendarPage extends StatefulWidget {
         );
       } catch (e) {
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[persistFlowStudioHeadless] flow_commit failed for generation ${r.originGenerationId}: $e',
           );
         }
@@ -6670,7 +6281,7 @@ class CalendarPage extends StatefulWidget {
       if (state != null) {
         return await state._persistFlowStudioResult(result);
       } else {
-        return await CalendarPage.persistFlowStudioResultHeadless(result);
+        return await CalendarPage._persistFlowStudioResultHeadless(result);
       }
     }
     return null;
@@ -6763,7 +6374,7 @@ class _CalendarPageState extends State<CalendarPage>
     final idx = _flows.indexWhere((f) => f.id == flowId);
     if (idx < 0) {
       if (kDebugMode) {
-        debugPrint('[saveFlowById] Flow $flowId not found in cache');
+        _calendarDebugPrint('[saveFlowById] Flow $flowId not found in cache');
       }
       return;
     }
@@ -6841,7 +6452,7 @@ class _CalendarPageState extends State<CalendarPage>
 
   /// Prevents duplicate async move operations for the same event row id.
   final Set<String> _eventMoveInProgress = <String>{};
-  List<_Flow> _flows = [];
+  final List<_Flow> _flows = [];
   final Map<int, int> _flowTotalEventCounts = <int, int>{};
   final Map<int, int> _flowRemainingEventCounts = <int, int>{};
   _MyFlowsFilingSnapshot? _myFlowsFilingSnapshotCache;
@@ -6885,7 +6496,7 @@ class _CalendarPageState extends State<CalendarPage>
   StreamSubscription<List<Reminder>>? _reminderSub; // unused now (safety)
   StreamSubscription<AuthState>? _authSub;
   bool _remindersLoaded = false;
-  bool _remindersEnabled = false; // disable floating badges for now
+  final bool _remindersEnabled = false; // disable floating badges for now
   List<Reminder> _floatingReminders = [];
   late final ReminderRuleStore _reminderRuleStore = ReminderRuleStore();
   final List<ReminderRule> _reminderRules = [];
@@ -7252,7 +6863,7 @@ class _CalendarPageState extends State<CalendarPage>
       );
       if (encoded.length > _warmStartCacheMaxChars) {
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[warmStart] skip cache save reason=$debugReason size=${encoded.length}',
           );
         }
@@ -7262,7 +6873,7 @@ class _CalendarPageState extends State<CalendarPage>
 
     await prefs.setString(key, encoded);
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '[warmStart] saved cache reason=$debugReason size=${encoded.length}',
       );
     }
@@ -7363,14 +6974,16 @@ class _CalendarPageState extends State<CalendarPage>
           0,
           (sum, list) => sum + list.length,
         );
-        debugPrint(
+        _calendarDebugPrint(
           '[warmStart] restored cache reason=$reason flows=${flows.length} notes=$totalNotes',
         );
       }
       _notifyDayViewDataChanged();
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[warmStart] restore failed reason=$reason error=$e');
+        _calendarDebugPrint(
+          '[warmStart] restore failed reason=$reason error=$e',
+        );
       }
     }
   }
@@ -7717,7 +7330,7 @@ class _CalendarPageState extends State<CalendarPage>
   _MaatFlowTemplate? _maatTemplateForKey(String key) {
     final trimmed = key.trim();
     if (trimmed.isEmpty) return null;
-    for (final template in kMaatFlowTemplates) {
+    for (final template in _kMaatFlowTemplates) {
       if (template.key == trimmed) return template;
     }
     return null;
@@ -8490,8 +8103,10 @@ class _CalendarPageState extends State<CalendarPage>
                       );
                     } catch (e, stackTrace) {
                       if (kDebugMode) {
-                        debugPrint('[CalendarScopedNote] save failed: $e');
-                        debugPrint('$stackTrace');
+                        _calendarDebugPrint(
+                          '[CalendarScopedNote] save failed: $e',
+                        );
+                        _calendarDebugPrint('$stackTrace');
                       }
                       if (!dialogCtx.mounted) return;
                       setDialogState(() {
@@ -9687,7 +9302,7 @@ class _CalendarPageState extends State<CalendarPage>
       final alreadyDone = prefs.getBool(_kCidMigrationPrefKey) ?? false;
       if (alreadyDone) {
         if (kDebugMode) {
-          debugPrint('[migrate-cid] Skipping; persisted flag is set.');
+          _calendarDebugPrint('[migrate-cid] Skipping; persisted flag is set.');
         }
         return;
       }
@@ -9738,7 +9353,9 @@ class _CalendarPageState extends State<CalendarPage>
           );
           if (_isTombstoned(unifiedCid)) {
             if (kDebugMode) {
-              debugPrint('[migrate-cid] skip tombstoned cid=$unifiedCid');
+              _calendarDebugPrint(
+                '[migrate-cid] skip tombstoned cid=$unifiedCid',
+              );
             }
             continue;
           }
@@ -9812,16 +9429,18 @@ class _CalendarPageState extends State<CalendarPage>
             );
             migrated = true;
           } catch (e) {
-            debugPrint('[migrate-cid] Failed to upsert unified cid: $e');
+            _calendarDebugPrint(
+              '[migrate-cid] Failed to upsert unified cid: $e',
+            );
           }
         }
       }
       await prefs.setBool(_kCidMigrationPrefKey, true);
-      debugPrint(
+      _calendarDebugPrint(
         '[migrate-cid] Completed pass. migrated=$migrated flag persisted',
       );
     } catch (e) {
-      debugPrint('[migrate-cid] Migration failed: $e');
+      _calendarDebugPrint('[migrate-cid] Migration failed: $e');
     }
   }
 
@@ -9967,7 +9586,7 @@ class _CalendarPageState extends State<CalendarPage>
         _lastViewKm! >= 1 &&
         _lastViewKm! <= 13) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '✓ [CALENDAR] Skipping _updateCenteredMonthWide - using existing state: $_lastViewKy-$_lastViewKm',
         );
       }
@@ -10151,7 +9770,7 @@ class _CalendarPageState extends State<CalendarPage>
       _setView(ky, km, kd: clampedKd);
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('⚠️ [CALENDAR] Error in portrait month change: $e');
+        _calendarDebugPrint('⚠️ [CALENDAR] Error in portrait month change: $e');
       }
     } finally {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -10260,7 +9879,7 @@ class _CalendarPageState extends State<CalendarPage>
   @override
   void initState() {
     super.initState();
-    debugPrint('[calendar] initState');
+    _calendarDebugPrint('[calendar] initState');
     WidgetsBinding.instance.addObserver(this);
     // Load local reminders cache and check any due on startup.
     _reminderService.load().then((_) {
@@ -10300,7 +9919,7 @@ class _CalendarPageState extends State<CalendarPage>
     _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       final event = data.event;
       if (kDebugMode) {
-        debugPrint('[calendar] auth state change event=${event.name}');
+        _calendarDebugPrint('[calendar] auth state change event=${event.name}');
       }
       if (event == AuthChangeEvent.initialSession ||
           event == AuthChangeEvent.signedIn ||
@@ -11265,7 +10884,7 @@ class _CalendarPageState extends State<CalendarPage>
       'expansion': state.expansion,
     });
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '[restoration] saved calendar reason=$reason '
         'ky=${state.kYear} km=${state.kMonth} kd=${state.kDay} '
         'scroll=${state.scrollOffset?.toStringAsFixed(1)}',
@@ -11340,7 +10959,7 @@ class _CalendarPageState extends State<CalendarPage>
     _activeDayViewRestorationState = state;
     await AppRestorationService.instance.saveDayViewState(state);
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '[restoration] saved day_view reason=$reason '
         'open=${state.isOpen} ky=${state.kYear} km=${state.kMonth} '
         'kd=${state.kDay} scroll=${state.scrollOffset?.toStringAsFixed(1)}',
@@ -11451,7 +11070,9 @@ class _CalendarPageState extends State<CalendarPage>
 
   void _applyTodayFallbackAfterRestore({required String reason}) {
     if (kDebugMode) {
-      debugPrint('[restoration] calendar fallback=today reason=$reason');
+      _calendarDebugPrint(
+        '[restoration] calendar fallback=today reason=$reason',
+      );
     }
     _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
     _scheduleInitialViewportRestore();
@@ -11503,7 +11124,7 @@ class _CalendarPageState extends State<CalendarPage>
         !userMismatch &&
         !authResolvedWithoutUser) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[restoration] auth resolution kept current view '
           'event=${event.name} user=$authUserId',
         );
@@ -11532,7 +11153,7 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '[restoration] retrying persisted view restore '
         'event=${event.name} user=$authUserId mismatch=$userMismatch',
       );
@@ -11553,7 +11174,7 @@ class _CalendarPageState extends State<CalendarPage>
         _pendingAuthResolutionForRestore = true;
         _tentativeRestorationUserId = null;
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[restoration] calendar awaiting auth '
             'trigger=$trigger window=${readResult.windowId}',
           );
@@ -11594,7 +11215,7 @@ class _CalendarPageState extends State<CalendarPage>
 
         if (savedCalendar.kYear > today.kYear + 2) {
           if (kDebugMode) {
-            debugPrint(
+            _calendarDebugPrint(
               '⚠️ [CALENDAR] Future persisted date '
               '${savedCalendar.kYear}/${savedCalendar.kMonth} '
               '— defaulting to today',
@@ -11611,7 +11232,7 @@ class _CalendarPageState extends State<CalendarPage>
         final clampedDay = savedCalendar.kDay.clamp(1, maxDay);
 
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '📂 [CALENDAR] Restored '
             '${savedCalendar.kYear}/${savedCalendar.kMonth}/$clampedDay',
           );
@@ -11642,7 +11263,9 @@ class _CalendarPageState extends State<CalendarPage>
         });
       } else {
         if (kDebugMode) {
-          debugPrint('📂 [CALENDAR] No persisted state — defaulting to today');
+          _calendarDebugPrint(
+            '📂 [CALENDAR] No persisted state — defaulting to today',
+          );
         }
         _applyTodayFallbackAfterRestore(reason: 'no_persisted_state');
         return;
@@ -11654,7 +11277,7 @@ class _CalendarPageState extends State<CalendarPage>
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '⚠️ [CALENDAR] Persist load error — defaulting to today: $e',
         );
       }
@@ -11702,7 +11325,7 @@ class _CalendarPageState extends State<CalendarPage>
       );
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('⚠️  [CALENDAR] Error saving view state: $e');
+        _calendarDebugPrint('⚠️  [CALENDAR] Error saving view state: $e');
       }
     }
   }
@@ -12072,7 +11695,7 @@ class _CalendarPageState extends State<CalendarPage>
     // ✅ PREVENT FEEDBACK LOOP: Don't update if we're already updating
     if (_isUpdatingFromLandscape) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '🔄 [CALENDAR] Ignoring landscape update (already updating)',
         );
       }
@@ -12080,7 +11703,9 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     if (kDebugMode) {
-      debugPrint('🔄 [CALENDAR] Landscape month changed: Year $ky, Month $km');
+      _calendarDebugPrint(
+        '🔄 [CALENDAR] Landscape month changed: Year $ky, Month $km',
+      );
     }
 
     // ✅ SET FLAG: Prevent portrait from triggering landscape update
@@ -12103,7 +11728,9 @@ class _CalendarPageState extends State<CalendarPage>
       _setView(ky, km, kd: clampedKd);
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('⚠️ [CALENDAR] Error in landscape month change: $e');
+        _calendarDebugPrint(
+          '⚠️ [CALENDAR] Error in landscape month change: $e',
+        );
       }
     } finally {
       // ✅ CLEAR FLAG AFTER FRAME: This ensures portrait's scroll listener can see the flag
@@ -12156,7 +11783,7 @@ class _CalendarPageState extends State<CalendarPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (kDebugMode) {
-      debugPrint('[calendar] lifecycle state=${state.name}');
+      _calendarDebugPrint('[calendar] lifecycle state=${state.name}');
     }
     switch (state) {
       case AppLifecycleState.inactive:
@@ -12194,7 +11821,7 @@ class _CalendarPageState extends State<CalendarPage>
                     const Duration(seconds: 2))) {
           unawaited(_refreshAfterReturn(reason: 'lifecycle_resumed'));
         } else if (kDebugMode && startupInFlight) {
-          debugPrint(
+          _calendarDebugPrint(
             '[calendar] skipped foreground refresh while startup is still running',
           );
         }
@@ -12238,7 +11865,9 @@ class _CalendarPageState extends State<CalendarPage>
     if (!force && !_shouldRefreshAfterForegroundResume(refreshStartedAt)) {
       _lastRefreshTime = refreshStartedAt;
       if (kDebugMode) {
-        debugPrint('[calendar] skipped foreground refresh reason=$reason');
+        _calendarDebugPrint(
+          '[calendar] skipped foreground refresh reason=$reason',
+        );
       }
       return;
     }
@@ -12258,7 +11887,7 @@ class _CalendarPageState extends State<CalendarPage>
       await _maybeLoadDecanReflectionPrompt(force: true);
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[CalendarPage] Error refreshing: $e');
+        _calendarDebugPrint('[CalendarPage] Error refreshing: $e');
       }
     }
   }
@@ -12293,7 +11922,7 @@ class _CalendarPageState extends State<CalendarPage>
       });
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[Reminders] _checkDueReminders failed: $e');
+        _calendarDebugPrint('[Reminders] _checkDueReminders failed: $e');
       }
     }
   }
@@ -12444,7 +12073,7 @@ class _CalendarPageState extends State<CalendarPage>
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[reminders] prime from loaded flows failed: $e');
+        _calendarDebugPrint('[reminders] prime from loaded flows failed: $e');
       }
     }
   }
@@ -12480,7 +12109,7 @@ class _CalendarPageState extends State<CalendarPage>
       return rebuilt;
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[reminders] hydrate meta failed: $e');
+        _calendarDebugPrint('[reminders] hydrate meta failed: $e');
       }
       return const [];
     }
@@ -12633,11 +12262,11 @@ class _CalendarPageState extends State<CalendarPage>
       }
     } catch (e, st) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[reminders] upsert via flow failed: $e (${e.runtimeType})\n$st',
         );
         if (e is PostgrestException) {
-          debugPrint(
+          _calendarDebugPrint(
             '[reminders] PostgrestException code=${e.code} message=${e.message} details=${e.details} hint=${e.hint}',
           );
         }
@@ -12656,7 +12285,7 @@ class _CalendarPageState extends State<CalendarPage>
       await eventsRepo.deleteByClientIdPrefix(cidPrefix);
     } catch (e) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[reminders] delete reminder events failed ($cidPrefix): $e',
         );
       }
@@ -12669,7 +12298,7 @@ class _CalendarPageState extends State<CalendarPage>
       );
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[reminders] record reminder tombstone failed: $e');
+        _calendarDebugPrint('[reminders] record reminder tombstone failed: $e');
       }
     }
 
@@ -12684,14 +12313,16 @@ class _CalendarPageState extends State<CalendarPage>
           await eventsRepo.deleteByFlowId(existingId);
         } catch (e) {
           if (kDebugMode) {
-            debugPrint('[reminders] delete reminder flow events failed: $e');
+            _calendarDebugPrint(
+              '[reminders] delete reminder flow events failed: $e',
+            );
           }
         }
         await flowsRepo.delete(existingId);
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[reminders] delete via flow failed: $e');
+        _calendarDebugPrint('[reminders] delete via flow failed: $e');
       }
     }
     // Remove from local rule list
@@ -13249,7 +12880,7 @@ class _CalendarPageState extends State<CalendarPage>
       final cids = await repo.getClientEventIdsByIds(idsToDelete);
       final mismatched = <String>[];
       if (kDebugMode && cids.isNotEmpty) {
-        debugPrint(
+        _calendarDebugPrint(
           '[syncReminderEvents] stale reminder occurrences (id:cid) ${cids.map((r) => '${r.id}:${r.clientEventId ?? ''}').join(', ')}',
         );
       }
@@ -13263,14 +12894,14 @@ class _CalendarPageState extends State<CalendarPage>
             .map((row) => '${row.id}:${row.clientEventId ?? ''}'),
       );
       if (kDebugMode && mismatched.isNotEmpty) {
-        debugPrint(
+        _calendarDebugPrint(
           '[syncReminderEvents] Skipping delete for non-reminder rows: ${mismatched.join(", ")}',
         );
       }
     } catch (_) {}
     if (filteredIds.isNotEmpty) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[syncReminderEvents] Deleting stale reminder occurrences ids=${filteredIds.join(", ")}',
         );
       }
@@ -14638,7 +14269,7 @@ class _CalendarPageState extends State<CalendarPage>
       }
     }
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '[calendarFlowChrome] referencedFlowIds=${ids.length} flows=${_flows.length}',
       );
     }
@@ -14703,7 +14334,7 @@ class _CalendarPageState extends State<CalendarPage>
         _isTombstoned(clientEventId);
     if (shouldSkip) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[_addNote] skip add for title="$title" cid=${clientEventId ?? '<none>'} pending/tombstoned',
         );
       }
@@ -14965,7 +14596,7 @@ class _CalendarPageState extends State<CalendarPage>
     );
     final hit = key != null && _pendingDeleteKeys.contains(key);
     if (hit && kDebugMode) {
-      debugPrint('[_loadFromDisk] skip pending delete key=$key');
+      _calendarDebugPrint('[_loadFromDisk] skip pending delete key=$key');
     }
     return hit;
   }
@@ -15025,7 +14656,7 @@ class _CalendarPageState extends State<CalendarPage>
           await repo.deleteFlow(flowIdForNote);
         } catch (e) {
           if (kDebugMode) {
-            debugPrint(
+            _calendarDebugPrint(
               '[delete-note] Failed to delete repeating flow $flowIdForNote: $e',
             );
           }
@@ -15060,7 +14691,7 @@ class _CalendarPageState extends State<CalendarPage>
     if (pendingKey != null) {
       _pendingDeleteKeys.add(pendingKey);
       if (kDebugMode) {
-        debugPrint('[delete-note] pending delete key=$pendingKey');
+        _calendarDebugPrint('[delete-note] pending delete key=$pendingKey');
       }
     }
 
@@ -15088,7 +14719,9 @@ class _CalendarPageState extends State<CalendarPage>
       if (note.flowId != null) {
         candidateFlowIds.add(note.flowId!);
         if (kDebugMode) {
-          debugPrint('[delete-note] Primary candidate: flowId=${note.flowId}');
+          _calendarDebugPrint(
+            '[delete-note] Primary candidate: flowId=${note.flowId}',
+          );
         }
       }
 
@@ -15111,7 +14744,7 @@ class _CalendarPageState extends State<CalendarPage>
             ).recordDeletedInApp(note.clientEventId!);
           }
           if (kDebugMode) {
-            debugPrint(
+            _calendarDebugPrint(
               '[delete-note] ✅ SUCCESS: Deleted by id=${note.id} cid=${note.clientEventId}',
             );
           }
@@ -15127,14 +14760,16 @@ class _CalendarPageState extends State<CalendarPage>
             ).recordDeletedInApp(note.clientEventId!);
           }
           if (kDebugMode) {
-            debugPrint(
+            _calendarDebugPrint(
               '[delete-note] ✅ SUCCESS: Deleted by clientEventId=${note.clientEventId}',
             );
           }
         }
       } catch (e) {
         if (kDebugMode) {
-          debugPrint('[delete-note] ⚠️ delete by id/clientEventId failed: $e');
+          _calendarDebugPrint(
+            '[delete-note] ⚠️ delete by id/clientEventId failed: $e',
+          );
         }
       }
 
@@ -15153,7 +14788,7 @@ class _CalendarPageState extends State<CalendarPage>
             );
           } catch (e) {
             if (kDebugMode) {
-              debugPrint('[delete-note] tombstone record failed: $e');
+              _calendarDebugPrint('[delete-note] tombstone record failed: $e');
             }
           }
         }
@@ -15183,7 +14818,7 @@ class _CalendarPageState extends State<CalendarPage>
               final parsed = _flowIdFromCid(cid);
               candidateFlowIds.add(parsed);
               if (kDebugMode) {
-                debugPrint(
+                _calendarDebugPrint(
                   '[delete-note] Candidate from CID: flowId=$parsed, CID=$cid',
                 );
               }
@@ -15193,14 +14828,16 @@ class _CalendarPageState extends State<CalendarPage>
             if (fid != null) {
               candidateFlowIds.add(fid);
               if (kDebugMode) {
-                debugPrint('[delete-note] Candidate from flowLocalId: $fid');
+                _calendarDebugPrint(
+                  '[delete-note] Candidate from flowLocalId: $fid',
+                );
               }
             }
           }
         }
       } catch (e) {
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[delete-note] ⚠️ Could not pre-fetch events for deletion: $e',
           );
         }
@@ -15209,7 +14846,7 @@ class _CalendarPageState extends State<CalendarPage>
       // Convert to list for ordered iteration.
       final List<int> candidates = candidateFlowIds.toList();
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[delete-note] Will try ${candidates.length} candidate flowIds: $candidates',
         );
       }
@@ -15230,7 +14867,7 @@ class _CalendarPageState extends State<CalendarPage>
         );
         attemptedCids.add(cid);
         if (kDebugMode) {
-          debugPrint('[delete-note] Trying CID: $cid');
+          _calendarDebugPrint('[delete-note] Trying CID: $cid');
         }
         try {
           await repo.deleteByClientId(cid);
@@ -15238,7 +14875,9 @@ class _CalendarPageState extends State<CalendarPage>
           removed = true;
           successfulCid = cid;
           if (kDebugMode) {
-            debugPrint('[delete-note] ✅ SUCCESS: Deleted with CID: $cid');
+            _calendarDebugPrint(
+              '[delete-note] ✅ SUCCESS: Deleted with CID: $cid',
+            );
           }
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -15252,7 +14891,7 @@ class _CalendarPageState extends State<CalendarPage>
           break;
         } catch (e) {
           if (kDebugMode) {
-            debugPrint(
+            _calendarDebugPrint(
               '[delete-note] ⚠️ Failed to delete with flowId=$fid: $e',
             );
           }
@@ -15263,7 +14902,7 @@ class _CalendarPageState extends State<CalendarPage>
       // 🚨 LAST RESORT: Direct deletion by matching title/date.
       if (!removed) {
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[delete-note] All candidate CIDs failed. Trying direct title-based deletion...',
           );
         }
@@ -15283,7 +14922,7 @@ class _CalendarPageState extends State<CalendarPage>
                 removed = true;
                 successfulCid = cid;
                 if (kDebugMode) {
-                  debugPrint(
+                  _calendarDebugPrint(
                     '[delete-note] ✅ SUCCESS (direct): Deleted using actual CID: $cid',
                   );
                 }
@@ -15302,18 +14941,20 @@ class _CalendarPageState extends State<CalendarPage>
           }
         } catch (e) {
           if (kDebugMode) {
-            debugPrint('[delete-note] ❌ Direct deletion failed: $e');
+            _calendarDebugPrint('[delete-note] ❌ Direct deletion failed: $e');
           }
         }
       }
 
       // Final status: if still not removed, show error.
       if (!removed) {
-        debugPrint('[delete-note] ❌❌❌ CRITICAL: Could not delete note!');
-        debugPrint(
+        _calendarDebugPrint(
+          '[delete-note] ❌❌❌ CRITICAL: Could not delete note!',
+        );
+        _calendarDebugPrint(
           '[delete-note] Note: "$deletedTitle", flowId=${note.flowId}',
         );
-        debugPrint(
+        _calendarDebugPrint(
           '[delete-note] Attempted ${attemptedCids.length} CIDs: ${attemptedCids.join(", ")}',
         );
         if (mounted) {
@@ -15337,7 +14978,9 @@ class _CalendarPageState extends State<CalendarPage>
           await _recordManualTombstone(manualCid);
         }
         if (kDebugMode) {
-          debugPrint('[delete-note] ✓ Deletion confirmed: $successfulCid');
+          _calendarDebugPrint(
+            '[delete-note] ✓ Deletion confirmed: $successfulCid',
+          );
         }
       }
     } finally {
@@ -15347,93 +14990,6 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     return removed;
-  }
-
-  Future<void> _tryDeleteWithCandidates({
-    required UserEventsRepo repo,
-    required int kYear,
-    required int kMonth,
-    required int kDay,
-    required _Note note,
-    required List<int> candidates,
-    required int attemptIndex,
-  }) async {
-    if (attemptIndex >= candidates.length) {
-      // All attempts failed
-      if (kDebugMode) {
-        debugPrint(
-          '[delete-note] ❌❌❌ CRITICAL: All ${candidates.length} candidates failed!',
-        );
-        debugPrint(
-          '[delete-note] Note: ${note.title}, Candidates tried: $candidates',
-        );
-      }
-      // Show user warning
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('⚠️ Delete failed. Try restarting the app.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return;
-    }
-    final flowId = candidates[attemptIndex];
-    final String cid = _buildCid(
-      ky: kYear,
-      km: kMonth,
-      kd: kDay,
-      title: note.title,
-      startHour: note.start?.hour,
-      startMinute: note.start?.minute,
-      allDay: note.allDay,
-      flowId: flowId,
-    );
-    if (kDebugMode) {
-      debugPrint(
-        '[delete-note] Attempt ${attemptIndex + 1}/${candidates.length}: Trying flowId=$flowId',
-      );
-      debugPrint('[delete-note] CID: $cid');
-    }
-    try {
-      await repo.deleteByClientId(cid);
-      // Cancel the notification for this event so it does not fire after deletion
-      try {
-        await Notify.cancelNotificationForEvent(cid);
-      } catch (_) {
-        // ignore cancellation errors
-      }
-      if (kDebugMode) {
-        debugPrint(
-          '[delete-note] ✅ SUCCESS: Deleted with flowId=$flowId, CID=$cid',
-        );
-      }
-      // Success - show confirmation
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✓ Deleted: ${note.title}'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[delete-note] ⚠️ Attempt ${attemptIndex + 1} failed: $e');
-      }
-      // Try next candidate
-      await _tryDeleteWithCandidates(
-        repo: repo,
-        kYear: kYear,
-        kMonth: kMonth,
-        kDay: kDay,
-        note: note,
-        candidates: candidates,
-        attemptIndex: attemptIndex + 1,
-      );
-    }
   }
 
   /// Returns the index of the note in _notes[dayKey] matching id or clientEventId, or -1.
@@ -15866,19 +15422,21 @@ class _CalendarPageState extends State<CalendarPage>
         ? rawClientId
         : '<none>';
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '[DayView] move start id=${evt.id} cid=${evt.clientEventId} rawId=$rawId rawCid=$rawClientId moveKey=$moveKeyForLog title="${evt.title}" flowId=${evt.flowId} startMin=${evt.startMin} endMin=${evt.endMin} proposedStart=$proposedStartMin',
       );
     }
     if (evt.allDay) {
       if (kDebugMode) {
-        debugPrint('[DayView] move bail: all-day event "${evt.title}"');
+        _calendarDebugPrint(
+          '[DayView] move bail: all-day event "${evt.title}"',
+        );
       }
       return;
     }
     if (evt.isReminder) {
       if (kDebugMode) {
-        debugPrint('[DayView] move bail: reminder "${evt.title}"');
+        _calendarDebugPrint('[DayView] move bail: reminder "${evt.title}"');
       }
       return;
     }
@@ -15886,7 +15444,7 @@ class _CalendarPageState extends State<CalendarPage>
     if ((rawId == null || rawId.isEmpty) &&
         (rawClientId == null || rawClientId.isEmpty)) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[DayView] move bail: no id/clientEventId for "${evt.title}"',
         );
       }
@@ -15901,7 +15459,7 @@ class _CalendarPageState extends State<CalendarPage>
     final moveKey = (rawId != null && rawId.isNotEmpty) ? rawId : rawClientId!;
     if (_eventMoveInProgress.contains(moveKey)) {
       if (kDebugMode) {
-        debugPrint('[DayView] move already in progress for $moveKey');
+        _calendarDebugPrint('[DayView] move already in progress for $moveKey');
       }
       return;
     }
@@ -15942,7 +15500,7 @@ class _CalendarPageState extends State<CalendarPage>
                 'id=${n.id ?? '-'} cid=${n.clientEventId ?? '-'} start=${fmtTod(n.start)}',
           )
           .join(' | ');
-      debugPrint(
+      _calendarDebugPrint(
         '[DayView] $label key=$key count=${bucket.length} notes=[$summary]',
       );
     }
@@ -15960,7 +15518,7 @@ class _CalendarPageState extends State<CalendarPage>
 
       if (clampedStart == evt.startMin && clampedEnd == evt.endMin) {
         if (kDebugMode) {
-          debugPrint('[DayView] move no-op for $moveKey');
+          _calendarDebugPrint('[DayView] move no-op for $moveKey');
         }
         return;
       }
@@ -16006,7 +15564,7 @@ class _CalendarPageState extends State<CalendarPage>
           flowId: -1,
         );
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[DayView] move persist: detaching imported device event oldCid=$rawClientId newCid=$detachedCid start=${startLocal.toUtc()} end=${endLocal.toUtc()}',
           );
         }
@@ -16063,7 +15621,7 @@ class _CalendarPageState extends State<CalendarPage>
         await _suppressImportedDeviceEventSource(rawClientId);
       } else if (rawId != null && rawId.isNotEmpty) {
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[DayView] move persist: update by id=$rawId start=${startLocal.toUtc()} end=${endLocal.toUtc()}',
           );
         }
@@ -16075,7 +15633,7 @@ class _CalendarPageState extends State<CalendarPage>
         );
       } else {
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[DayView] move persist: upsert by cid=$rawClientId start=${startLocal.toUtc()} end=${endLocal.toUtc()}',
           );
         }
@@ -16093,7 +15651,7 @@ class _CalendarPageState extends State<CalendarPage>
         );
       }
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[DayView] move persist: result id=${updated.id} cid=${updated.clientEventId} start=${updated.startsAt} end=${updated.endsAt}',
         );
       }
@@ -16120,7 +15678,7 @@ class _CalendarPageState extends State<CalendarPage>
         final existing = _notes[key]![localIdx];
         previousNote = existing;
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[DayView] move: local note found at index $localIdx id=${existing.id} cid=${existing.clientEventId}',
           );
         }
@@ -16142,7 +15700,7 @@ class _CalendarPageState extends State<CalendarPage>
         logBucket('move: updated _notes (in-place)');
       } else {
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[DayView] move: note not found locally for id=${updated.id} cid=${updated.clientEventId}; reconciling fallback into _notes',
           );
         }
@@ -16254,8 +15812,8 @@ class _CalendarPageState extends State<CalendarPage>
         }
       }
       if (kDebugMode) {
-        debugPrint('[DayView] move failed for $moveKey: $e');
-        debugPrint('$st');
+        _calendarDebugPrint('[DayView] move failed for $moveKey: $e');
+        _calendarDebugPrint('$st');
       }
       if (mounted) {
         ScaffoldMessenger.of(
@@ -16266,9 +15824,6 @@ class _CalendarPageState extends State<CalendarPage>
       _eventMoveInProgress.remove(moveKey);
     }
   }
-
-  final Map<int, int> _flowLocalIdAliases =
-      {}; // ⬅︎ unique: alias map for serverId→localId
 
   // Flows — add/remove/toggle
   // >>> FIND-ME: PATCH-2 _saveNewFlow AFTER
@@ -16321,15 +15876,17 @@ class _CalendarPageState extends State<CalendarPage>
 
       return savedId;
     } on PostgrestException catch (e, st) {
-      debugPrint('[saveNewFlow] ✗ ${e.code} ${e.message}');
+      _calendarDebugPrint('[saveNewFlow] ✗ ${e.code} ${e.message}');
       final details = e.details?.toString() ?? '';
-      if (details.isNotEmpty) debugPrint('[saveNewFlow] details: $details');
+      if (details.isNotEmpty) {
+        _calendarDebugPrint('[saveNewFlow] details: $details');
+      }
       final hint = e.hint?.toString() ?? '';
-      if (hint.isNotEmpty) debugPrint('[saveNewFlow] hint: $hint');
-      debugPrint(
+      if (hint.isNotEmpty) _calendarDebugPrint('[saveNewFlow] hint: $hint');
+      _calendarDebugPrint(
         '[saveNewFlow] nulls start:${flow.start == null} end:${flow.end == null} notes:${flow.notes == null} shareId:${flow.shareId == null} isReminder:${flow.isReminder} isSaved:${flow.isSaved}',
       );
-      debugPrint('$st');
+      _calendarDebugPrint('$st');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -16340,8 +15897,8 @@ class _CalendarPageState extends State<CalendarPage>
       }
       return null;
     } catch (e, st) {
-      debugPrint('[saveNewFlow] ✗ $e');
-      debugPrint('$st');
+      _calendarDebugPrint('[saveNewFlow] ✗ $e');
+      _calendarDebugPrint('$st');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -16429,7 +15986,7 @@ class _CalendarPageState extends State<CalendarPage>
             reminderUuid: flow.reminderUuid,
           );
           if (kDebugMode) {
-            debugPrint(
+            _calendarDebugPrint(
               '[deleteFlow] Saved flow $flowId marked inactive, events retained',
             );
           }
@@ -16440,8 +15997,10 @@ class _CalendarPageState extends State<CalendarPage>
         }
       } catch (e, stackTrace) {
         if (kDebugMode) {
-          debugPrint('[deleteFlow] ✗ Failed to delete flow $flowId: $e');
-          debugPrint('[deleteFlow] Stack trace: $stackTrace');
+          _calendarDebugPrint(
+            '[deleteFlow] ✗ Failed to delete flow $flowId: $e',
+          );
+          _calendarDebugPrint('[deleteFlow] Stack trace: $stackTrace');
         }
         // Resync local state to match server (restores flow if delete failed)
         await _loadFromDisk();
@@ -17108,7 +16667,9 @@ class _CalendarPageState extends State<CalendarPage>
         finalFlowId = await _saveNewFlow(f); // await save and get server ID
         if (finalFlowId == null) {
           if (kDebugMode) {
-            debugPrint('[FlowStudio] Aborting apply - flow insert failed');
+            _calendarDebugPrint(
+              '[FlowStudio] Aborting apply - flow insert failed',
+            );
           }
           return;
         }
@@ -17212,7 +16773,7 @@ class _CalendarPageState extends State<CalendarPage>
             eventId: savedEvent.id,
           );
         } catch (e) {
-          debugPrint('persist planned notes (apply) failed: $e');
+          _calendarDebugPrint('persist planned notes (apply) failed: $e');
         }
       }
     }
@@ -17513,7 +17074,7 @@ class _CalendarPageState extends State<CalendarPage>
     final navigator = Navigator.of(listCtx);
     return _MaatFlowsListPage(
       title: 'ḥꜣw',
-      templates: kMaatFlowTemplates,
+      templates: _kMaatFlowTemplates,
       hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
       onPickTemplate: (tpl) async {
         final importedFlowId = await _pushMaatFlowTemplateDetail(
@@ -17812,7 +17373,7 @@ class _CalendarPageState extends State<CalendarPage>
       final serverFlowId = await _saveNewFlow(flow);
       if (serverFlowId == null) {
         if (kDebugMode) {
-          debugPrint('[trackSky] Aborting - flow insert failed');
+          _calendarDebugPrint('[trackSky] Aborting - flow insert failed');
         }
         return -1;
       }
@@ -17938,7 +17499,7 @@ class _CalendarPageState extends State<CalendarPage>
       final serverFlowId = await _saveNewFlow(flow);
       if (serverFlowId == null) {
         if (kDebugMode) {
-          debugPrint('[dawnHouseRite] Aborting - flow insert failed');
+          _calendarDebugPrint('[dawnHouseRite] Aborting - flow insert failed');
         }
         return -1;
       }
@@ -18039,8 +17600,8 @@ class _CalendarPageState extends State<CalendarPage>
         }
       } catch (e, st) {
         if (kDebugMode) {
-          debugPrint('[dawnHouseRite] event creation failed: $e');
-          debugPrint('$st');
+          _calendarDebugPrint('[dawnHouseRite] event creation failed: $e');
+          _calendarDebugPrint('$st');
         }
         _flows.removeWhere((flow) => flow.id == serverFlowId);
         final emptyKeys = <String>[];
@@ -18117,7 +17678,9 @@ class _CalendarPageState extends State<CalendarPage>
       final serverFlowId = await _saveNewFlow(flow);
       if (serverFlowId == null) {
         if (kDebugMode) {
-          debugPrint('[eveningThresholdRite] Aborting - flow insert failed');
+          _calendarDebugPrint(
+            '[eveningThresholdRite] Aborting - flow insert failed',
+          );
         }
         return -1;
       }
@@ -18218,8 +17781,10 @@ class _CalendarPageState extends State<CalendarPage>
         }
       } catch (e, st) {
         if (kDebugMode) {
-          debugPrint('[eveningThresholdRite] event creation failed: $e');
-          debugPrint('$st');
+          _calendarDebugPrint(
+            '[eveningThresholdRite] event creation failed: $e',
+          );
+          _calendarDebugPrint('$st');
         }
         _flows.removeWhere((flow) => flow.id == serverFlowId);
         final emptyKeys = <String>[];
@@ -18305,7 +17870,9 @@ class _CalendarPageState extends State<CalendarPage>
     ); // await save and get server ID
     if (serverFlowId == null) {
       if (kDebugMode) {
-        debugPrint('[applyFlowTemplate] Aborting - flow insert failed');
+        _calendarDebugPrint(
+          '[applyFlowTemplate] Aborting - flow insert failed',
+        );
       }
       return -1;
     }
@@ -18463,7 +18030,7 @@ class _CalendarPageState extends State<CalendarPage>
     final repo = UserEventsRepo(Supabase.instance.client);
     final effectiveEndedAtLocal = endedAtLocal ?? DateTime.now();
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '[endFlow] flowId=$flowId endedAtLocal='
         '${effectiveEndedAtLocal.toIso8601String()}',
       );
@@ -18476,7 +18043,7 @@ class _CalendarPageState extends State<CalendarPage>
         deleteAllMaterialized: true,
       );
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[endFlow] ✓ rpc flowId=${result.flowId} endedOn=${result.endedOn} '
           'deletedEvents=${result.deletedEventCount} '
           'retiredNotifications=${result.retiredNotificationCount} '
@@ -18485,8 +18052,8 @@ class _CalendarPageState extends State<CalendarPage>
       }
     } catch (e, st) {
       if (kDebugMode) {
-        debugPrint('[endFlow] ✗ flowId=$flowId error=$e');
-        debugPrint('$st');
+        _calendarDebugPrint('[endFlow] ✗ flowId=$flowId error=$e');
+        _calendarDebugPrint('$st');
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -18520,9 +18087,7 @@ class _CalendarPageState extends State<CalendarPage>
     final resolvedShowGregorian = initialShowGregorian ?? _showGregorian;
     final resolvedInitialFirstVisibleMinute =
         initialFirstVisibleMinute ??
-        (initialScrollOffset == null
-            ? null
-            : initialScrollOffset.floor().clamp(0, 24 * 60 - 1).toInt());
+        initialScrollOffset?.floor().clamp(0, 24 * 60 - 1).toInt();
     final initialDayViewState = DayViewRestorationState(
       isOpen: true,
       kYear: kYear,
@@ -18539,7 +18104,7 @@ class _CalendarPageState extends State<CalendarPage>
     );
 
     // Adapter: Convert _Note to NoteData, and prime reminders for the day
-    final notesForDayFn = (int y, int m, int d) {
+    List<NoteData> notesForDayFn(int y, int m, int d) {
       final key = '$y-$m-$d';
       final notes = _dedupeVisibleDayNotes(_notes[key] ?? const <_Note>[]);
 
@@ -18592,30 +18157,30 @@ class _CalendarPageState extends State<CalendarPage>
           .toList();
 
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[DayView adapter] $y-$m-$d _Note -> NoteData count=${notes.length}',
         );
         for (int i = 0; i < notes.length; i++) {
           final n = notes[i];
           final nd = mapped[i];
-          debugPrint(
+          _calendarDebugPrint(
             '[DayView adapter] _Note[$i] id=${n.id} cid=${n.clientEventId} title="${n.title}"',
           );
-          debugPrint(
+          _calendarDebugPrint(
             '[DayView adapter] NoteData[$i] id=${nd.id} cid=${nd.clientEventId} title="${nd.title}"',
           );
         }
       }
 
       return mapped;
-    };
+    }
 
     // Adapter: Convert _Flow to FlowData
     final flowIndex = _buildCalendarFlowChromeIndex();
     final activeLedgerFlowIds = _buildActiveLedgerFlowIds();
 
     // Get month name function
-    final getMonthName = (int km) => getMonthById(km).displayFull;
+    String getMonthName(int km) => getMonthById(km).displayFull;
 
     // Navigate to Day View
     UiGuards.disableJournalSwipe();
@@ -18752,7 +18317,7 @@ class _CalendarPageState extends State<CalendarPage>
         _saveViewState(ky, km, kd);
 
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '💾 [CALENDAR] Saved state on day view close: $ky-$km-$kd',
           );
         }
@@ -18906,8 +18471,8 @@ class _CalendarPageState extends State<CalendarPage>
       );
     } catch (e, st) {
       if (kDebugMode) {
-        debugPrint('[DayView] Failed to save timed event: $e');
-        debugPrint('$st');
+        _calendarDebugPrint('[DayView] Failed to save timed event: $e');
+        _calendarDebugPrint('$st');
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -18934,7 +18499,7 @@ class _CalendarPageState extends State<CalendarPage>
       );
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[DayView] recordEventCompletion failed: $e');
+        _calendarDebugPrint('[DayView] recordEventCompletion failed: $e');
       }
     }
   }
@@ -18945,7 +18510,7 @@ class _CalendarPageState extends State<CalendarPage>
       await repo.unrecordEventCompletion(clientEventId);
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[DayView] unrecordEventCompletion failed: $e');
+        _calendarDebugPrint('[DayView] unrecordEventCompletion failed: $e');
       }
     }
   }
@@ -18981,7 +18546,7 @@ class _CalendarPageState extends State<CalendarPage>
       return ids;
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[DayView] loadCompletedClientEventIds failed: $e');
+        _calendarDebugPrint('[DayView] loadCompletedClientEventIds failed: $e');
       }
       return {};
     }
@@ -19011,16 +18576,16 @@ class _CalendarPageState extends State<CalendarPage>
   }) {
     // Ensure reminder rules are loaded before building the sheet so the list is populated.
     _loadReminderRules();
-    debugPrint('');
-    debugPrint('┌─────────────────────────────────────┐');
-    debugPrint('│ 📝 OPENING DAY SHEET                │');
-    debugPrint('├─────────────────────────────────────┤');
-    debugPrint('│ Date: $kYear/$kMonth/$kDay');
-    debugPrint('│ allowDateChange: $allowDateChange');
-    debugPrint('│ Context mounted: ${context.mounted}');
-    debugPrint('│ Context widget: ${context.widget.runtimeType}');
-    debugPrint('└─────────────────────────────────────┘');
-    debugPrint('');
+    _calendarDebugPrint('');
+    _calendarDebugPrint('┌─────────────────────────────────────┐');
+    _calendarDebugPrint('│ 📝 OPENING DAY SHEET                │');
+    _calendarDebugPrint('├─────────────────────────────────────┤');
+    _calendarDebugPrint('│ Date: $kYear/$kMonth/$kDay');
+    _calendarDebugPrint('│ allowDateChange: $allowDateChange');
+    _calendarDebugPrint('│ Context mounted: ${context.mounted}');
+    _calendarDebugPrint('│ Context widget: ${context.widget.runtimeType}');
+    _calendarDebugPrint('└─────────────────────────────────────┘');
+    _calendarDebugPrint('');
 
     int selYear = kYear;
     int selMonth = kMonth;
@@ -19066,8 +18631,8 @@ class _CalendarPageState extends State<CalendarPage>
     final initialEditingNote =
         editingIndex != null &&
             _notes[initialEditingBucketKey] != null &&
-            editingIndex! < _notes[initialEditingBucketKey]!.length
-        ? _notes[initialEditingBucketKey]![editingIndex!]
+            editingIndex < _notes[initialEditingBucketKey]!.length
+        ? _notes[initialEditingBucketKey]![editingIndex]
         : null;
     final availableCalendars =
         _calendarSummariesById.values
@@ -19269,9 +18834,8 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     try {
-      debugPrint('🚀 Attempting to show modal bottom sheet...');
+      _calendarDebugPrint('🚀 Attempting to show modal bottom sheet...');
       UiGuards.disableJournalSwipe();
-      final tablet = _isTablet(context);
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
@@ -19879,9 +19443,7 @@ class _CalendarPageState extends State<CalendarPage>
                                   final label = _reminderRepeatLabel(r);
                                   return InkWell(
                                     onTap: () async {
-                                      final saved = await _openReminderEditor(
-                                        existing: r,
-                                      );
+                                      await _openReminderEditor(existing: r);
                                       if (!mounted) return;
                                       await _loadReminderRules();
                                       setSheetState(() {
@@ -21119,11 +20681,12 @@ class _CalendarPageState extends State<CalendarPage>
                                     sourceEditingKMonth,
                                     sourceEditingKDay,
                                   );
-                                  final existingNote = editingIndex != null
+                                  final editIndex = editingIndex;
+                                  final existingNote = editIndex != null
                                       ? (_notes[bucketKey] != null &&
-                                                editingIndex! <
+                                                editIndex <
                                                     _notes[bucketKey]!.length
-                                            ? _notes[bucketKey]![editingIndex!]
+                                            ? _notes[bucketKey]![editIndex]
                                             : null)
                                       : null;
                                   final existingClientEventId =
@@ -21251,14 +20814,14 @@ class _CalendarPageState extends State<CalendarPage>
                                       );
                                     }
 
-                                    if (editingIndex != null &&
+                                    if (editIndex != null &&
                                         existingNote != null) {
                                       if (updatedExistingStandalone) {
                                         _removeLocalNoteOnly(
                                           sourceEditingKYear,
                                           sourceEditingKMonth,
                                           sourceEditingKDay,
-                                          editingIndex!,
+                                          editIndex,
                                         );
                                       } else {
                                         final cidMatches =
@@ -21272,24 +20835,24 @@ class _CalendarPageState extends State<CalendarPage>
                                             sourceEditingKYear,
                                             sourceEditingKMonth,
                                             sourceEditingKDay,
-                                            editingIndex!,
+                                            editIndex,
                                           );
                                         } else {
                                           await _deleteNote(
                                             sourceEditingKYear,
                                             sourceEditingKMonth,
                                             sourceEditingKDay,
-                                            editingIndex!,
+                                            editIndex,
                                           );
                                         }
                                       }
                                     }
                                   } catch (e, stackTrace) {
                                     if (kDebugMode) {
-                                      debugPrint(
+                                      _calendarDebugPrint(
                                         '[SaveNote] Error saving note: $e',
                                       );
-                                      debugPrint(
+                                      _calendarDebugPrint(
                                         '[SaveNote] Stack trace: $stackTrace',
                                       );
                                     }
@@ -21342,13 +20905,13 @@ class _CalendarPageState extends State<CalendarPage>
         UiGuards.enableJournalSwipe();
       });
 
-      debugPrint('✅ Modal bottom sheet opened successfully');
+      _calendarDebugPrint('✅ Modal bottom sheet opened successfully');
     } catch (e, stackTrace) {
-      debugPrint('');
-      debugPrint('❌ ERROR OPENING DAY SHEET');
-      debugPrint('Error: $e');
-      debugPrint('Stack trace: $stackTrace');
-      debugPrint('');
+      _calendarDebugPrint('');
+      _calendarDebugPrint('❌ ERROR OPENING DAY SHEET');
+      _calendarDebugPrint('Error: $e');
+      _calendarDebugPrint('Stack trace: $stackTrace');
+      _calendarDebugPrint('');
       sheetClosing = true;
       disposeDaySheetControllers();
       if (persistAsRestoration) {
@@ -21611,7 +21174,7 @@ class _CalendarPageState extends State<CalendarPage>
       _startupRerunRequested = true;
       _startupLastReason = reason;
       if (kDebugMode) {
-        debugPrint('[startup] coalesce request reason=$reason');
+        _calendarDebugPrint('[startup] coalesce request reason=$reason');
       }
       return;
     }
@@ -21621,15 +21184,15 @@ class _CalendarPageState extends State<CalendarPage>
     _startupLastReason = reason;
     _startupRerunRequested = false;
     if (kDebugMode) {
-      debugPrint('[startup] start reason=$reason');
+      _calendarDebugPrint('[startup] start reason=$reason');
     }
     () async {
       try {
         await _runStartupPipeline(reason);
       } catch (e, st) {
-        debugPrint('[startup] failed: $e');
+        _calendarDebugPrint('[startup] failed: $e');
         if (kDebugMode) {
-          debugPrint('$st');
+          _calendarDebugPrint('$st');
         }
       } finally {
         flight.complete();
@@ -21639,7 +21202,7 @@ class _CalendarPageState extends State<CalendarPage>
           _startupRerunRequested = false;
           _startOrCoalesceStartup(nextReason);
         } else if (kDebugMode) {
-          debugPrint('[startup] end reason=$reason');
+          _calendarDebugPrint('[startup] end reason=$reason');
         }
       }
     }();
@@ -21683,7 +21246,7 @@ class _CalendarPageState extends State<CalendarPage>
       } else {
         _pendingInitialHydration = true;
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[Calendar] Deferring initial hydrate until auth session is available',
           );
         }
@@ -21723,7 +21286,9 @@ class _CalendarPageState extends State<CalendarPage>
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       if (kDebugMode) {
-        debugPrint('[startup] abort: no authenticated user reason=$reason');
+        _calendarDebugPrint(
+          '[startup] abort: no authenticated user reason=$reason',
+        );
       }
       return;
     }
@@ -21733,8 +21298,8 @@ class _CalendarPageState extends State<CalendarPage>
       ).syncAcceptedInviteCalendarImports();
     } catch (e, st) {
       if (kDebugMode) {
-        debugPrint('[startup] invite import sync failed: $e');
-        debugPrint('$st');
+        _calendarDebugPrint('[startup] invite import sync failed: $e');
+        _calendarDebugPrint('$st');
       }
     }
     final keepWarmStartVisible = _hasWarmStartSnapshotVisibleForCurrentUser();
@@ -21749,8 +21314,8 @@ class _CalendarPageState extends State<CalendarPage>
         await _loadMyFlowsFilingSnapshot();
       } catch (e, st) {
         if (kDebugMode) {
-          debugPrint('[MyFlowsFiling] launch prefetch failed: $e');
-          debugPrint('$st');
+          _calendarDebugPrint('[MyFlowsFiling] launch prefetch failed: $e');
+          _calendarDebugPrint('$st');
         }
       }
     } else {
@@ -21773,8 +21338,10 @@ class _CalendarPageState extends State<CalendarPage>
         _primeMyFlowsFilingSnapshotCache(reason: 'startup_backfill:$reason');
       } catch (e, st) {
         if (kDebugMode) {
-          debugPrint('[startup] backfill/reminder sync failed (async): $e');
-          debugPrint('$st');
+          _calendarDebugPrint(
+            '[startup] backfill/reminder sync failed (async): $e',
+          );
+          _calendarDebugPrint('$st');
         }
       }
     }());
@@ -21814,8 +21381,10 @@ class _CalendarPageState extends State<CalendarPage>
         await repo.update(id: id, detail: updatedDetail);
       } catch (e, st) {
         if (kDebugMode) {
-          debugPrint('[dawnHouseRite] detail repair failed id=$id: $e');
-          debugPrint('$st');
+          _calendarDebugPrint(
+            '[dawnHouseRite] detail repair failed id=$id: $e',
+          );
+          _calendarDebugPrint('$st');
         }
       }
     }());
@@ -21831,13 +21400,15 @@ class _CalendarPageState extends State<CalendarPage>
     _isLoadingFromDisk = true;
 
     if (kDebugMode) {
-      debugPrint('=== _loadFromDisk START ($source) ===');
+      _calendarDebugPrint('=== _loadFromDisk START ($source) ===');
     }
 
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) {
       if (kDebugMode) {
-        debugPrint('[loadFromDisk] Skipping load: no authenticated user');
+        _calendarDebugPrint(
+          '[loadFromDisk] Skipping load: no authenticated user',
+        );
       }
       _isLoadingFromDisk = false;
       return;
@@ -21856,7 +21427,6 @@ class _CalendarPageState extends State<CalendarPage>
           ? _computeStartupVisibleHydrationWindow()
           : null;
       final repo = UserEventsRepo(Supabase.instance.client);
-      final currentUser = Supabase.instance.client.auth.currentUser;
 
       // Flow-first: load flows, then events; join only to known active flows
       final List<_Flow> newFlows = [];
@@ -21866,7 +21436,9 @@ class _CalendarPageState extends State<CalendarPage>
       // Load flows into _flows list
       final serverFlows = await repo.getAllFlows();
       if (kDebugMode) {
-        debugPrint('[loadFromDisk] getAllFlows count: ${serverFlows.length}');
+        _calendarDebugPrint(
+          '[loadFromDisk] getAllFlows count: ${serverFlows.length}',
+        );
       }
       for (final f in serverFlows) {
         final repMeta = _decodeRepeatingNoteMetadata(f.notes);
@@ -21881,7 +21453,7 @@ class _CalendarPageState extends State<CalendarPage>
               repMeta.detail != null ||
               repMeta.location != null ||
               repMeta.category != null;
-          debugPrint(
+          _calendarDebugPrint(
             '[loadFromDisk] hidden flow id=${f.id} name="${f.name}" fromDb=$fromDb fromRepMeta=$fromRepMeta',
           );
         }
@@ -21906,7 +21478,7 @@ class _CalendarPageState extends State<CalendarPage>
         // 🔍 DEBUG: Log what color came from database for ALL custom flows
         // Log flows with ID greater than 156 to catch all user-created flows
         if (kDebugMode && f.id > 156) {
-          debugPrint(
+          _calendarDebugPrint(
             '[loadFlows] Flow ${f.id} "${f.name}" loaded with color=${f.color} (0x${f.color.toRadixString(16)})',
           );
         }
@@ -21925,7 +21497,7 @@ class _CalendarPageState extends State<CalendarPage>
                   !isFlowScheduleOpenLocally(active: f.active, endDate: f.end),
             )
             .length;
-        debugPrint(
+        _calendarDebugPrint(
           '[loadFromDisk] newFlows: total=${newFlows.length} hidden=$hiddenCount active=$activeCount expired=$expiredCount',
         );
       }
@@ -21958,7 +21530,7 @@ class _CalendarPageState extends State<CalendarPage>
           .map((f) => f.id)
           .toSet(); // 👈 Set for O(1) contains() lookups
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[loadFromDisk] hydrationFlowIds count: ${hydrationFlowIds.length}',
         );
         if (hydrationFlowIds.isNotEmpty) {
@@ -21968,7 +21540,7 @@ class _CalendarPageState extends State<CalendarPage>
             final rn = _decodeRepeatingNoteMetadata(flow.notes);
             final looksLikeRepeatingNote =
                 rn.detail != null || rn.location != null || rn.category != null;
-            debugPrint(
+            _calendarDebugPrint(
               '[loadFromDisk] flow id=$fid name="${flow.name}" '
               'isReminder=${flow.isReminder} hidden=${flow.isHidden} '
               'notesLikeRepeatingNote=$looksLikeRepeatingNote',
@@ -21984,7 +21556,7 @@ class _CalendarPageState extends State<CalendarPage>
           flowWindow = _clampHydrationWindowToFocus(flowWindow, focusWindow);
         }
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[loadFromDisk] flow hydration window '
             '${flowWindow.startUtc.toIso8601String()} → ${flowWindow.endUtc.toIso8601String()}',
           );
@@ -22009,21 +21581,23 @@ class _CalendarPageState extends State<CalendarPage>
             eventsByFlowId.putIfAbsent(fid, () => <FlowEventRow>[]).add(evt);
           }
           if (kDebugMode) {
-            debugPrint(
+            _calendarDebugPrint(
               '[loadFromDisk] getEventsForFlowIds count=${batchedEvents.length} flows=${eventsByFlowId.length}',
             );
           }
         } catch (err, st) {
           if (kDebugMode) {
-            debugPrint('[loadFromDisk] batched flow event fetch failed: $err');
-            debugPrint('$st');
+            _calendarDebugPrint(
+              '[loadFromDisk] batched flow event fetch failed: $err',
+            );
+            _calendarDebugPrint('$st');
           }
         }
 
         if (eventsByFlowId.isNotEmpty) {
           if (kDebugMode) {
             eventsByFlowId.forEach((fid, events) {
-              debugPrint(
+              _calendarDebugPrint(
                 '[loadFromDisk] flow $fid events (batched) count: ${events.length}',
               );
             });
@@ -22041,16 +21615,16 @@ class _CalendarPageState extends State<CalendarPage>
             );
             eventsByFlowId[flowId] = flowEvents;
             if (kDebugMode) {
-              debugPrint(
+              _calendarDebugPrint(
                 '[loadFromDisk] getEventsForFlow($flowId) count: ${flowEvents.length} (fallback)',
               );
             }
           } catch (err, st) {
             if (kDebugMode) {
-              debugPrint(
+              _calendarDebugPrint(
                 '[loadFromDisk] failed to hydrate events for flow $flowId: $err',
               );
-              debugPrint('$st');
+              _calendarDebugPrint('$st');
             }
           }
         }
@@ -22178,9 +21752,9 @@ class _CalendarPageState extends State<CalendarPage>
               end: endTime,
               flowId: flowId,
               category: evt.category,
-              isReminder: owningFlow?.isReminder ?? false,
-              reminderId: (owningFlow?.isReminder ?? false)
-                  ? owningFlow?.reminderUuid
+              isReminder: owningFlow.isReminder,
+              reminderId: owningFlow.isReminder
+                  ? owningFlow.reminderUuid
                   : null,
               manualColor: meta.color,
               alertOffsetMinutes: meta.alertMinutes,
@@ -22241,16 +21815,16 @@ class _CalendarPageState extends State<CalendarPage>
           }
         } catch (err, st) {
           if (kDebugMode) {
-            debugPrint(
+            _calendarDebugPrint(
               '[loadFromDisk] failed to hydrate events for flow $flowId: $err',
             );
-            debugPrint('$st');
+            _calendarDebugPrint('$st');
           }
         }
       }
 
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[loadFromDisk] flow notes added to newNotes: $flowAddedCount',
         );
       }
@@ -22274,10 +21848,10 @@ class _CalendarPageState extends State<CalendarPage>
               );
             } catch (e, st) {
               if (kDebugMode) {
-                debugPrint(
+                _calendarDebugPrint(
                   '[_loadFromDisk] standalone ghost cleanup failed: $e',
                 );
-                debugPrint('$st');
+                _calendarDebugPrint('$st');
               }
             }
           }());
@@ -22470,7 +22044,7 @@ class _CalendarPageState extends State<CalendarPage>
               standaloneAddedCount++; // ✅ important: track how many actually added
             }
           } catch (rowErr) {
-            debugPrint(
+            _calendarDebugPrint(
               '[_loadFromDisk] ⚠️ standalone row skipped: $rowErr (id=${evt.id} cid=${evt.clientEventId})',
             );
             continue;
@@ -22478,15 +22052,17 @@ class _CalendarPageState extends State<CalendarPage>
         }
 
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[_loadFromDisk] loaded $standaloneAddedCount standalone events after filtering '
             '(${standaloneWindow.startUtc.toIso8601String()} → ${standaloneWindow.endUtc.toIso8601String()})',
           );
         }
       } catch (err, st) {
         if (kDebugMode) {
-          debugPrint('[loadFromDisk] failed to load standalone events: $err');
-          debugPrint('$st');
+          _calendarDebugPrint(
+            '[loadFromDisk] failed to load standalone events: $err',
+          );
+          _calendarDebugPrint('$st');
         }
       }
 
@@ -22517,7 +22093,7 @@ class _CalendarPageState extends State<CalendarPage>
       _nextFlowId = nextFlowId;
 
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[loadFromDisk] committed _flows.length=${_flows.length} _notes keys=${_notes.length}',
         );
       }
@@ -22568,17 +22144,17 @@ class _CalendarPageState extends State<CalendarPage>
           _scheduleWarmStartCacheSave();
         } catch (err, st) {
           if (kDebugMode) {
-            debugPrint(
+            _calendarDebugPrint(
               '[loadFromDisk] failed to load flow activity counts: $err',
             );
-            debugPrint('$st');
+            _calendarDebugPrint('$st');
           }
         }
 
         try {
           if (keepWarmStartSnapshotVisible) {
             if (kDebugMode) {
-              debugPrint(
+              _calendarDebugPrint(
                 '[loadFromDisk] skipped reminder regen after warm-start backfill',
               );
             }
@@ -22590,8 +22166,8 @@ class _CalendarPageState extends State<CalendarPage>
           }
         } catch (err, st) {
           if (kDebugMode) {
-            debugPrint('[loadFromDisk] reminder regen failed: $err');
-            debugPrint('$st');
+            _calendarDebugPrint('[loadFromDisk] reminder regen failed: $err');
+            _calendarDebugPrint('$st');
           }
         }
       }
@@ -22603,15 +22179,15 @@ class _CalendarPageState extends State<CalendarPage>
       }
     } catch (e, stackTrace) {
       if (kDebugMode) {
-        debugPrint('Supabase sync FAILED: $e');
-        debugPrint('Stack: $stackTrace');
+        _calendarDebugPrint('Supabase sync FAILED: $e');
+        _calendarDebugPrint('Stack: $stackTrace');
       }
     } finally {
       _isLoadingFromDisk = false;
     }
 
     if (kDebugMode) {
-      debugPrint('=== _loadFromDisk END ($source) ===');
+      _calendarDebugPrint('=== _loadFromDisk END ($source) ===');
     }
   }
 
@@ -22720,7 +22296,7 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '[MyFlowsFiling] rows=${rows.length} active=${activeIds.length} saved=${savedIds.length}',
       );
     }
@@ -22752,7 +22328,7 @@ class _CalendarPageState extends State<CalendarPage>
     if (rows == null || !mounted) return;
     _myFlowsFilingSnapshotCache = _myFlowsFilingSnapshotFromRows(rows);
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '[MyFlowsFiling] restored cache reason=$reason rows=${rows.length}',
       );
     }
@@ -22772,8 +22348,10 @@ class _CalendarPageState extends State<CalendarPage>
         await _loadMyFlowsFilingSnapshot();
       } catch (e, st) {
         if (kDebugMode) {
-          debugPrint('[MyFlowsFiling] prime failed reason=$reason error=$e');
-          debugPrint('$st');
+          _calendarDebugPrint(
+            '[MyFlowsFiling] prime failed reason=$reason error=$e',
+          );
+          _calendarDebugPrint('$st');
         }
       }
     }());
@@ -22886,28 +22464,36 @@ class _CalendarPageState extends State<CalendarPage>
     final deleteId = r.deleteFlowId;
     if (deleteId != null) {
       if (kDebugMode) {
-        debugPrint('[persistFlowStudio] Deleting flowId=$deleteId');
+        _calendarDebugPrint('[persistFlowStudio] Deleting flowId=$deleteId');
       }
       // 🔧 KEY FIX: Delete ALL notes for this flow (not just future ones)
       try {
         await repo.deleteByFlowId(deleteId);
         if (kDebugMode) {
-          debugPrint('[persistFlowStudio] ✓ Deleted ALL notes for flow');
+          _calendarDebugPrint(
+            '[persistFlowStudio] ✓ Deleted ALL notes for flow',
+          );
         }
       } catch (e) {
         if (kDebugMode) {
-          debugPrint('[persistFlowStudio] ⚠️ Failed to delete notes: $e');
+          _calendarDebugPrint(
+            '[persistFlowStudio] ⚠️ Failed to delete notes: $e',
+          );
         }
         rethrow; // bubble up so we don't silently keep the flow
       }
       try {
         await repo.deleteFlow(deleteId);
         if (kDebugMode) {
-          debugPrint('[persistFlowStudio] ✓ Deleted flow from database');
+          _calendarDebugPrint(
+            '[persistFlowStudio] ✓ Deleted flow from database',
+          );
         }
       } catch (e) {
         if (kDebugMode) {
-          debugPrint('[persistFlowStudio] ⚠️ Failed to delete flow: $e');
+          _calendarDebugPrint(
+            '[persistFlowStudio] ⚠️ Failed to delete flow: $e',
+          );
         }
         rethrow; // bubble up and avoid thinking it was removed
       }
@@ -22916,7 +22502,7 @@ class _CalendarPageState extends State<CalendarPage>
       setState(() {});
       _notifyDayViewDataChanged();
       if (kDebugMode) {
-        debugPrint('[persistFlowStudio] ✓ Flow deletion complete');
+        _calendarDebugPrint('[persistFlowStudio] ✓ Flow deletion complete');
       }
       return deleteId;
     }
@@ -22986,7 +22572,7 @@ class _CalendarPageState extends State<CalendarPage>
           );
         } catch (e) {
           if (kDebugMode) {
-            debugPrint(
+            _calendarDebugPrint(
               '[persistFlowStudio] flow_commit failed for generation ${r.originGenerationId}: $e',
             );
           }
@@ -23003,7 +22589,7 @@ class _CalendarPageState extends State<CalendarPage>
 
       // Add verification logging
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[persistFlowStudio] Saved flow $savedId "${saved.name}" with color=${saved.color.toARGB32().toRadixString(16)} to database',
         );
       }
@@ -23027,13 +22613,13 @@ class _CalendarPageState extends State<CalendarPage>
         try {
           await repo2.deleteByFlowId(flowId);
           if (kDebugMode) {
-            debugPrint(
+            _calendarDebugPrint(
               '[persistFlowStudio] Cleared existing events for AI flow $flowId to avoid duplicates',
             );
           }
         } catch (e) {
           if (kDebugMode) {
-            debugPrint(
+            _calendarDebugPrint(
               '[persistFlowStudio] Failed to clear events for AI flow $flowId: $e',
             );
           }
@@ -23140,7 +22726,7 @@ class _CalendarPageState extends State<CalendarPage>
       // If we have planned notes, skip rule-based scheduling to preserve titles/times.
       if (r.plannedNotes.isNotEmpty) {
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[persistFlowStudio] ✅ Skipping scheduleFlowNotes - using plannedNotes with individual titles',
           );
         }
@@ -23151,7 +22737,7 @@ class _CalendarPageState extends State<CalendarPage>
       // If rules list was cleared (e.g., snapshot-only imports), skip scheduling.
       if (saved.rules.isEmpty) {
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[persistFlowStudio] ✅ Skipping scheduleFlowNotes - flow has no rules (snapshot-only)',
           );
         }
@@ -23170,7 +22756,7 @@ class _CalendarPageState extends State<CalendarPage>
 
         if (isAIFlow) {
           if (kDebugMode) {
-            debugPrint(
+            _calendarDebugPrint(
               '[persistFlowStudio] ✅ Skipping scheduleFlowNotes for AI-generated flow ${saved.id} (preserving individual note titles)',
             );
           }
@@ -23183,7 +22769,7 @@ class _CalendarPageState extends State<CalendarPage>
               oldFlowRow != null &&
               _isColorOnlyChange(oldFlowRow, saved)) {
             if (kDebugMode) {
-              debugPrint(
+              _calendarDebugPrint(
                 '[persistFlowStudio] ⚠️ Skipping reschedule for color-only change on imported flow ${saved.id}',
               );
             }
@@ -23198,7 +22784,7 @@ class _CalendarPageState extends State<CalendarPage>
             );
 
             if (kDebugMode) {
-              debugPrint(
+              _calendarDebugPrint(
                 '[persistFlowStudio] ✅ Scheduled recurring notes for flow ${saved.id}',
               );
             }
@@ -23222,10 +22808,10 @@ class _CalendarPageState extends State<CalendarPage>
       } catch (e, stackTrace) {
         // Log error but don't crash - flow is already saved
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[persistFlowStudio] ⚠️ Failed to check/schedule flow notes: $e',
           );
-          debugPrint('Stack trace: $stackTrace');
+          _calendarDebugPrint('Stack trace: $stackTrace');
         }
 
         // TODO: Add error tracking once analytics service is integrated
@@ -23276,7 +22862,7 @@ class _CalendarPageState extends State<CalendarPage>
             gDay.month,
             gDay.day,
             startTime!.hour,
-            startTime!.minute,
+            startTime.minute,
           );
     final note = _Note(
       calendarId: calendarId,
@@ -23299,8 +22885,8 @@ class _CalendarPageState extends State<CalendarPage>
       km: selMonth,
       kd: selDay,
       title: title,
-      startHour: (allDay || startTime == null) ? null : startTime!.hour,
-      startMinute: (allDay || startTime == null) ? null : startTime!.minute,
+      startHour: (allDay || startTime == null) ? null : startTime.hour,
+      startMinute: (allDay || startTime == null) ? null : startTime.minute,
       allDay: allDay,
       flowId: -1,
       calendarScopeToken: _calendarScopeToken(calendarId),
@@ -23324,8 +22910,8 @@ class _CalendarPageState extends State<CalendarPage>
               gDay.year,
               gDay.month,
               gDay.day,
-              endTime!.hour,
-              endTime!.minute,
+              endTime.hour,
+              endTime.minute,
             ).toUtc();
 
       final updated = await repo.upsertByClientId(
@@ -23402,7 +22988,7 @@ class _CalendarPageState extends State<CalendarPage>
         );
       } catch (e) {
         if (kDebugMode) {
-          debugPrint('[SaveSingleNote] failed to log app_events: $e');
+          _calendarDebugPrint('[SaveSingleNote] failed to log app_events: $e');
         }
       }
       return (clientEventId: savedClientEventId, eventId: updated.id);
@@ -23410,15 +22996,15 @@ class _CalendarPageState extends State<CalendarPage>
       try {
         await Notify.cancelNotificationForEvent(unifiedCid);
       } catch (cancelErr) {
-        debugPrint(
+        _calendarDebugPrint(
           '[SaveSingleNote] failed to cancel notification for $unifiedCid after error: $cancelErr',
         );
       }
-      debugPrint(
+      _calendarDebugPrint(
         '[SaveSingleNote] failed to save standalone note (cid=$unifiedCid): $e',
       );
       if (kDebugMode) {
-        debugPrint('$st');
+        _calendarDebugPrint('$st');
       }
       rethrow;
     }
@@ -23639,7 +23225,7 @@ class _CalendarPageState extends State<CalendarPage>
     // 4. Guard: if we somehow got no dates, fall back to single note.
     if (rule.dates.isEmpty) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[RepeatNote] Empty date set for repeating note "$title"; falling back to single note.',
         );
       }
@@ -24201,7 +23787,7 @@ class _CalendarPageState extends State<CalendarPage>
       flow = _flows.firstWhere((f) => f.id == flowId);
     } catch (_) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[triggerFlowSchedule] Flow $flowId not found in _flows; skipping schedule.',
         );
       }
@@ -24211,7 +23797,7 @@ class _CalendarPageState extends State<CalendarPage>
     // If flow is inactive or has no rules, just clear its events.
     if (!flow.active || flow.rules.isEmpty) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[triggerFlowSchedule] Flow $flowId inactive or has no rules; deleting events.',
         );
       }
@@ -24221,7 +23807,7 @@ class _CalendarPageState extends State<CalendarPage>
     }
 
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '[triggerFlowSchedule] Scheduling flow $flowId with ${flow.rules.length} rules',
       );
     }
@@ -24249,7 +23835,7 @@ class _CalendarPageState extends State<CalendarPage>
         scheduleStart.add(const Duration(days: 90)); // Default 90 days
 
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '[scheduleFlowNotes] Starting for flowId=$flowId from $scheduleStart to $scheduleEnd',
       );
     }
@@ -24268,7 +23854,7 @@ class _CalendarPageState extends State<CalendarPage>
         !flowEnd.isBefore(scheduleStart) && !flowStart.isAfter(scheduleEnd);
     if (!hasOverlap) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[scheduleFlowNotes] ⚠️ No overlap: flow ($flowStart-$flowEnd) vs schedule ($scheduleStart-$scheduleEnd)',
         );
       }
@@ -24397,17 +23983,17 @@ class _CalendarPageState extends State<CalendarPage>
       }
     } catch (e, stack) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[scheduleFlowNotes] ⚠️ Generation failed for flowId=$flowId: $e',
         );
-        debugPrint(stack.toString());
+        _calendarDebugPrint(stack.toString());
       }
       return;
     }
 
     if (candidateEvents.isEmpty) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[scheduleFlowNotes] ⚠️ No events generated for flowId=$flowId; skipping delete.',
         );
       }
@@ -24467,16 +24053,16 @@ class _CalendarPageState extends State<CalendarPage>
       }
 
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[scheduleFlowNotes] Scheduled ${candidateEvents.length} notes for flowId=$flowId',
         );
       }
     } catch (e, stack) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '[scheduleFlowNotes] ⚠️ CRITICAL: delete/insert failed for flowId=$flowId: $e',
         );
-        debugPrint(stack.toString());
+        _calendarDebugPrint(stack.toString());
       }
     }
   }
@@ -24504,14 +24090,14 @@ class _CalendarPageState extends State<CalendarPage>
     final previousOrientation = _lastOrientation;
     if (previousOrientation != null && previousOrientation != orientation) {
       if (kDebugMode) {
-        debugPrint('\n${'🔄' * 30}');
-        debugPrint('ORIENTATION CHANGED!');
-        debugPrint('From: $previousOrientation → To: $orientation');
-        debugPrint('Navigator canPop: ${Navigator.canPop(context)}');
-        debugPrint(
+        _calendarDebugPrint('\n${'🔄' * 30}');
+        _calendarDebugPrint('ORIENTATION CHANGED!');
+        _calendarDebugPrint('From: $previousOrientation → To: $orientation');
+        _calendarDebugPrint('Navigator canPop: ${Navigator.canPop(context)}');
+        _calendarDebugPrint(
           'Modal route active: ${ModalRoute.of(context)?.isCurrent ?? false}',
         );
-        debugPrint('${'🔄' * 30}\n');
+        _calendarDebugPrint('${'🔄' * 30}\n');
       }
 
       if (previousOrientation == Orientation.portrait &&
@@ -24521,7 +24107,7 @@ class _CalendarPageState extends State<CalendarPage>
 
       if (orientation == Orientation.portrait) {
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '📜 [CALENDAR] Preserving month for portrait: $_lastViewKy-$_lastViewKm',
           );
         }
@@ -24543,13 +24129,11 @@ class _CalendarPageState extends State<CalendarPage>
       final km = _lastViewKm ?? kToday.kMonth;
 
       if (kDebugMode) {
-        debugPrint('\n📱 [CALENDAR] Building LandscapeMonthView');
-        debugPrint('   initialKy: $ky');
-        debugPrint('   initialKm: $km');
-        debugPrint('   initialKd: null');
-        debugPrint(
-          '   onAddNote callback: ${_openDaySheet != null ? "PROVIDED" : "NULL"}',
-        );
+        _calendarDebugPrint('\n📱 [CALENDAR] Building LandscapeMonthView');
+        _calendarDebugPrint('   initialKy: $ky');
+        _calendarDebugPrint('   initialKm: $km');
+        _calendarDebugPrint('   initialKd: null');
+        _calendarDebugPrint('   onAddNote callback: PROVIDED');
       }
 
       return Scaffold(
@@ -24595,8 +24179,10 @@ class _CalendarPageState extends State<CalendarPage>
           onManageFlows: _getMyFlowsCallback(),
           onAddNote: (ky, km, kd) {
             if (kDebugMode) {
-              debugPrint('\n🎯 [CALLBACK] onAddNote received from landscape');
-              debugPrint('   Date: $ky-$km-$kd');
+              _calendarDebugPrint(
+                '\n🎯 [CALLBACK] onAddNote received from landscape',
+              );
+              _calendarDebugPrint('   Date: $ky-$km-$kd');
             }
             _openDaySheet(ky, km, kd, allowDateChange: true);
           },
@@ -25039,7 +24625,7 @@ class _CalendarPageState extends State<CalendarPage>
         return JournalDocument.fromJson(map);
       } catch (e) {
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             'Failed to parse journal document for ${entry.gregDate}: $e',
           );
         }
@@ -25342,7 +24928,7 @@ class _CalendarPageState extends State<CalendarPage>
       });
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('[DecanReflection] prompt load failed: $e');
+        _calendarDebugPrint('[DecanReflection] prompt load failed: $e');
       }
     } finally {
       _reflectionInFlight = false;
@@ -25568,7 +25154,7 @@ class _CalendarPageState extends State<CalendarPage>
       final flow = allFlowsById[flowId];
       if (flow == null) {
         if (kDebugMode) {
-          debugPrint(
+          _calendarDebugPrint(
             '[calendarFlowChrome] MISSING_FLOW_OWNER_ROW flowId=$flowId',
           );
         }
@@ -25928,4457 +25514,6 @@ class _CalendarPageState extends State<CalendarPage>
   }
 }
 
-/* ───────────── Year Section (12 months + epagomenal) ───────────── */
-
-class _YearSection extends StatelessWidget {
-  const _YearSection({
-    required this.kYear,
-    required this.todayMonth,
-    required this.todayDay,
-    required this.notesGetter,
-    required this.flowColorsGetter,
-    required this.onDayTap,
-    required this.showGregorian,
-    this.expansionLevel = MonthExpansionLevel.compact,
-    this.noteColorResolver = _defaultNoteColor,
-    this.flowNameGetter,
-    this.onManageFlows,
-    this.onEditNote,
-    this.onDeleteNote,
-    this.onShareNote,
-    this.onEditReminder,
-    this.onEndReminder,
-    this.onShareReminder,
-    this.onEndFlow,
-    this.onAppendToJournal,
-    this.monthAnchorKeyProvider,
-    this.monthHeaderKeyProvider,
-    this.dayAnchorKeyProvider,
-    this.onMonthHeaderTap,
-    this.todayDayKey,
-  });
-
-  final int kYear;
-  final int? todayMonth;
-  final int? todayDay;
-  final bool showGregorian;
-  final MonthExpansionLevel expansionLevel;
-  final Color Function(_Note) noteColorResolver;
-  final String? Function(_Note)? flowNameGetter;
-  final void Function(int?)? onManageFlows;
-  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
-  onEditNote;
-  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
-  onDeleteNote;
-  final Future<void> Function(EventItem event)? onShareNote;
-  final Future<void> Function(String reminderId)? onEditReminder;
-  final Future<void> Function(String reminderId)? onEndReminder;
-  final Future<void> Function(EventItem event)? onShareReminder;
-  final void Function(int flowId)? onEndFlow;
-  final Future<void> Function(String text)? onAppendToJournal;
-
-  // existing notes
-  final List<_Note> Function(int kMonth, int kDay) notesGetter;
-  final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
-
-  final void Function(BuildContext context, int kMonth)? onMonthHeaderTap;
-  final void Function(BuildContext, int kMonth, int kDay) onDayTap;
-  final Key? Function(int kMonth)? monthAnchorKeyProvider;
-  final Key? Function(int kMonth)? monthHeaderKeyProvider;
-  final Key? Function(int kMonth, int kDay)? dayAnchorKeyProvider;
-  final Key? todayDayKey; // 🔑
-
-  @override
-  Widget build(BuildContext context) {
-    final (tm, td) = (todayMonth, todayDay);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const _SeasonHeader(title: 'Flood season (Akhet)'),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(1),
-          monthHeaderKey: monthHeaderKeyProvider?.call(1),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 1,
-          seasonShort: 'Akhet',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 1),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(2),
-          monthHeaderKey: monthHeaderKeyProvider?.call(2),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 2,
-          seasonShort: 'Akhet',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 2),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(3),
-          monthHeaderKey: monthHeaderKeyProvider?.call(3),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 3,
-          seasonShort: 'Akhet',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 3),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(4),
-          monthHeaderKey: monthHeaderKeyProvider?.call(4),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 4,
-          seasonShort: 'Akhet',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 4),
-        ),
-        const _GoldDivider(),
-
-        const _SeasonHeader(title: 'Emergence season (Peret)'),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(5),
-          monthHeaderKey: monthHeaderKeyProvider?.call(5),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 5,
-          seasonShort: 'Peret',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 5),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(6),
-          monthHeaderKey: monthHeaderKeyProvider?.call(6),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 6,
-          seasonShort: 'Peret',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 6),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(7),
-          monthHeaderKey: monthHeaderKeyProvider?.call(7),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 7,
-          seasonShort: 'Peret',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 7),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(8),
-          monthHeaderKey: monthHeaderKeyProvider?.call(8),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 8,
-          seasonShort: 'Peret',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 8),
-        ),
-        const _GoldDivider(),
-
-        const _SeasonHeader(title: 'Harvest season (Shemu)'),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(9),
-          monthHeaderKey: monthHeaderKeyProvider?.call(9),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 9,
-          seasonShort: 'Shemu',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 9),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(10),
-          monthHeaderKey: monthHeaderKeyProvider?.call(10),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 10,
-          seasonShort: 'Shemu',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 10),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(11),
-          monthHeaderKey: monthHeaderKeyProvider?.call(11),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 11,
-          seasonShort: 'Shemu',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 11),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(12),
-          monthHeaderKey: monthHeaderKeyProvider?.call(12),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 12,
-          seasonShort: 'Shemu',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 12),
-        ),
-        const _GoldDivider(),
-
-        _EpagomenalCard(
-          kYear: kYear,
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: (m, d) => notesGetter(13, d),
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: (c, m, d) => onDayTap(c, 13, d),
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-        ),
-        const _GoldDivider(),
-      ],
-    );
-  }
-}
-
-/* ───────────────────────── Month & Day Cards ───────────────────────── */
-
-class _MonthCard extends StatelessWidget {
-  final Key? anchorKey;
-  final Key? monthHeaderKey;
-  final Key? Function(int kMonth, int kDay)? dayAnchorKeyProvider;
-  final int kYear;
-  final int kMonth; // 1..12
-  final String seasonShort; // Akhet/Peret/Shemu
-  final int? todayMonth;
-  final int? todayDay;
-  final Key? todayDayKey; // 🔑 day anchor to center
-  final bool showGregorian;
-  final MonthExpansionLevel expansionLevel;
-
-  final List<_Note> Function(int kMonth, int kDay) notesGetter;
-  final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
-  final void Function(BuildContext, int kMonth, int kDay) onDayTap;
-  final Color Function(_Note) noteColorResolver;
-  final String? Function(_Note)? flowNameGetter;
-  final void Function(int?)? onManageFlows;
-  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
-  onEditNote;
-  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
-  onDeleteNote;
-  final Future<void> Function(EventItem event)? onShareNote;
-  final Future<void> Function(String reminderId)? onEditReminder;
-  final Future<void> Function(String reminderId)? onEndReminder;
-  final Future<void> Function(EventItem event)? onShareReminder;
-  final void Function(int flowId)? onEndFlow;
-  final Future<void> Function(String text)? onAppendToJournal;
-
-  // Optional overrides for taps (used by the detail page)
-  final void Function(BuildContext context)? onMonthHeaderTap;
-  final void Function(BuildContext context, int decanIndex)? onDecanTap;
-
-  const _MonthCard({
-    this.anchorKey,
-    this.monthHeaderKey,
-    this.dayAnchorKeyProvider,
-    required this.kYear,
-    required this.kMonth,
-    required this.seasonShort,
-    required this.todayMonth,
-    required this.todayDay,
-    required this.notesGetter,
-    required this.flowColorsGetter,
-    required this.onDayTap,
-    required this.showGregorian,
-    this.expansionLevel = MonthExpansionLevel.compact,
-    this.noteColorResolver = _defaultNoteColor,
-    this.flowNameGetter,
-    this.onManageFlows,
-    this.onEditNote,
-    this.onDeleteNote,
-    this.onShareNote,
-    this.onEditReminder,
-    this.onEndReminder,
-    this.onShareReminder,
-    this.onEndFlow,
-    this.onAppendToJournal,
-    this.todayDayKey,
-    this.onMonthHeaderTap,
-    this.onDecanTap,
-  });
-
-  // monthNames removed - use getMonthById(kMonth).displayFull instead
-
-  String? _gregLabelForDecanRow(int ky, int km, int decanIndex) {
-    final start = decanIndex * 10 + 1;
-    final end = start + 9;
-    for (int d = start; d <= end; d++) {
-      final g = KemeticMath.toGregorian(ky, km, d);
-      if (g.day == 1) {
-        return _gregMonthNames[g.month];
-      }
-    }
-    return null;
-  }
-
-  void _openMonthInfo(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _MonthDetailPage(
-          kYear: kYear,
-          kMonth: kMonth,
-          todayMonth: todayMonth,
-          todayDay: todayDay,
-          showGregorian: showGregorian,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: onDayTap,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          decanIndex: null,
-        ),
-      ),
-    );
-  }
-
-  void _openDecanInfo(BuildContext context, int decanIndex) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _MonthDetailPage(
-          kYear: kYear,
-          kMonth: kMonth,
-          todayMonth: todayMonth,
-          todayDay: todayDay,
-          showGregorian: showGregorian,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: onDayTap,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          decanIndex: decanIndex,
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final names =
-        DecanMetadata.decanNames[kMonth] ??
-        const ['Decan A', 'Decan B', 'Decan C'];
-
-    double decanHeightFor(int decanIndex) {
-      // Only adjust in details mode; otherwise use the global sizing.
-      if (expansionLevel != MonthExpansionLevel.details) {
-        return _chipHeightFor(expansionLevel);
-      }
-      // Estimate visible pills for this decan (capped at 5) and derive a height.
-      // Measurements: label area ~24px; first pill ~50px; subsequent pills ~56px (includes spacing).
-      const double labelAreaHeight = 24.0;
-      const double firstPillHeight = 50.0;
-      const double subsequentPillHeight = 56.0;
-      const double minHeight =
-          80.0; // keep some presence for empty/one-pill decans
-      const double maxHeight = 250.0; // cap at original height
-
-      final startDay = decanIndex * 10 + 1;
-      int maxVisible = 0;
-      for (int d = startDay; d < startDay + 10; d++) {
-        final notes = notesGetter(kMonth, d);
-        final visible = notes.length > 5 ? 5 : notes.length;
-        if (visible > maxVisible) maxVisible = visible;
-      }
-
-      double pillsHeight = 0.0;
-      if (maxVisible > 0) {
-        pillsHeight = firstPillHeight;
-        if (maxVisible > 1) {
-          pillsHeight += subsequentPillHeight * (maxVisible - 1);
-        }
-      }
-
-      final double estimated = labelAreaHeight + pillsHeight;
-      return estimated.clamp(minHeight, maxHeight);
-    }
-
-    final decanHeights = List<double>.generate(3, (i) => decanHeightFor(i));
-
-    final yStart = KemeticMath.toGregorian(kYear, kMonth, 1).year;
-    final yEnd = KemeticMath.toGregorian(kYear, kMonth, 30).year;
-    final rightLabel = (yStart == yEnd)
-        ? '$seasonShort $yStart'
-        : '$seasonShort $yStart/$yEnd';
-
-    final isMonthToday = (todayMonth != null && todayMonth == kMonth);
-    final gapBeforeRow = expansionLevel == MonthExpansionLevel.details
-        ? 0.0
-        : 6.0;
-
-    return Padding(
-      key: anchorKey,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
-      child: Card(
-        color: Colors.black,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        clipBehavior: Clip.none, // avoids unnecessary AA clip
-        shape: RoundedRectangleBorder(
-          side: BorderSide.none,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header row: Kemetic month name (left), Season+Year (right)
-                Row(
-                  children: [
-                    RepaintBoundary(
-                      key: monthHeaderKey,
-                      child: GestureDetector(
-                        onTap: () {
-                          if (onMonthHeaderTap != null) {
-                            onMonthHeaderTap!(context);
-                          } else {
-                            _openMonthInfo(context);
-                          }
-                        },
-                        child: _GlossyMonthNameText(
-                          text: getMonthById(kMonth).displayFull,
-                          style:
-                              _monthTitleGold, // MonthNameText handles font families
-                          gradient: goldGloss,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    RepaintBoundary(
-                      child: Text(
-                        rightLabel,
-                        style: _neutralOnBlack.copyWith(
-                          fontFamilyFallback: const [
-                            'NotoSans',
-                            'Roboto',
-                            'Arial',
-                            'sans-serif',
-                          ],
-                          letterSpacing: 0,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.fade,
-                        softWrap: false,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // Three decans
-                for (var i = 0; i < 3; i++) ...[
-                  // Label row: decan on left (Kemetic), Gregorian month on right when needed
-                  Row(
-                    children: [
-                      // Kemetic decan name
-                      Expanded(
-                        child: Visibility(
-                          visible: !showGregorian,
-                          maintainState: true,
-                          maintainAnimation: true,
-                          maintainSize: true,
-                          child: GestureDetector(
-                            onTap: () {
-                              if (onDecanTap != null) {
-                                onDecanTap!(context, i);
-                              } else {
-                                _openDecanInfo(context, i);
-                              }
-                            },
-                            child: GlossyText(
-                              text: names[i],
-                              style: _decanStyle,
-                              gradient: silverGloss,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Gregorian month name right-aligned (only when needed)
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: Visibility(
-                            visible:
-                                showGregorian &&
-                                _gregLabelForDecanRow(kYear, kMonth, i) != null,
-                            maintainState: true,
-                            maintainAnimation: true,
-                            maintainSize: true,
-                            child: GlossyText(
-                              text:
-                                  _gregLabelForDecanRow(kYear, kMonth, i) ?? '',
-                              style: _decanStyle,
-                              gradient: blueGloss,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: gapBeforeRow),
-                  _WeekdayRow(
-                    kYear: kYear,
-                    kMonth: kMonth,
-                    decanIndex: i,
-                    showGregorian: showGregorian,
-                  ),
-                  const SizedBox(height: 4),
-
-                  _DecanRow(
-                    kYear: kYear,
-                    kMonth: kMonth,
-                    decanIndex: i,
-                    todayMonth: todayMonth,
-                    todayDay: todayDay,
-                    todayDayKey: isMonthToday ? todayDayKey : null,
-                    highlightDayKeyProvider: dayAnchorKeyProvider,
-                    notesGetter: notesGetter,
-                    flowColorsGetter: flowColorsGetter,
-                    onDayTap: onDayTap,
-                    showGregorian: showGregorian,
-                    expansionLevel: expansionLevel,
-                    noteColorResolver: noteColorResolver,
-                    flowNameGetter: flowNameGetter,
-                    decanHeight: decanHeights[i],
-                    onManageFlows: onManageFlows,
-                    onEditNote: onEditNote,
-                    onDeleteNote: onDeleteNote,
-                    onShareNote: onShareNote,
-                    onEditReminder: onEditReminder,
-                    onEndReminder: onEndReminder,
-                    onShareReminder: onShareReminder,
-                    onEndFlow: onEndFlow,
-                    onAppendToJournal: onAppendToJournal,
-                  ),
-                  if (i < 2) SizedBox(height: gapBeforeRow),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ), // Close Card
-    ); // Close Padding and return
-  }
-}
-
-/// Helper function to generate Kemetic day keys for the info dropdown
-String _getKemeticDayKey(int kYear, int kMonth, int kDay) {
-  // Use stable keys from metadata
-
-  // Safety fallback if somehow we're out of normal 1–13 range
-  if (kMonth < 1 || kMonth > 13) {
-    return 'unknown_${kDay}_$kYear';
-  }
-
-  // decan math:
-  // days 1–10   → decan 1
-  // days 11–20  → decan 2
-  // days 21–30  → decan 3
-  final decan = ((kDay - 1) ~/ 10) + 1;
-
-  // final key format must match kemetic_day_info.dart exactly
-  // e.g. thoth_11_2
-  return kemeticDayKey(kMonth, kDay);
-}
-
-class _WeekdayRow extends StatelessWidget {
-  const _WeekdayRow({
-    required this.kYear,
-    required this.kMonth,
-    required this.decanIndex,
-    required this.showGregorian,
-  });
-
-  final int kYear;
-  final int kMonth;
-  final int decanIndex; // 0..2
-  final bool showGregorian;
-
-  static const List<String> _weekdayLetters = [
-    'M',
-    'T',
-    'W',
-    'T',
-    'F',
-    'S',
-    'S',
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final labels = List<String>.generate(10, (i) {
-      final day = decanIndex * 10 + i + 1;
-      final gregorian = safeLocalDisplay(
-        KemeticMath.toGregorian(kYear, kMonth, day),
-      );
-      final idx = gregorian.weekday - 1; // Monday = 1
-      return _weekdayLetters[idx];
-    });
-
-    return Row(
-      children: [
-        for (int i = 0; i < labels.length; i++) ...[
-          Expanded(
-            child: Center(
-              child: Text(
-                labels[i],
-                style: _weekdayLabelStyle.copyWith(
-                  color: showGregorian ? _blueLight : _goldLight,
-                ),
-              ),
-            ),
-          ),
-          if (i < labels.length - 1) const SizedBox(width: 3),
-        ],
-      ],
-    );
-  }
-}
-
-class _DecanRow extends StatelessWidget {
-  final int kYear; // to compute Gregorian numbers
-  final int kMonth; // 1..12
-  final int decanIndex; // 0..2
-  final int? todayMonth;
-  final int? todayDay;
-  final Key? todayDayKey;
-  final Key? Function(int kMonth, int kDay)? highlightDayKeyProvider;
-  final bool showGregorian;
-
-  final List<_Note> Function(int kMonth, int kDay) notesGetter;
-  final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
-  final void Function(BuildContext, int kMonth, int kDay) onDayTap;
-  final MonthExpansionLevel expansionLevel;
-  final Color Function(_Note) noteColorResolver;
-  final double? decanHeight;
-  final String? Function(_Note)? flowNameGetter;
-  final void Function(int?)? onManageFlows;
-  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
-  onEditNote;
-  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
-  onDeleteNote;
-  final Future<void> Function(EventItem event)? onShareNote;
-  final Future<void> Function(String reminderId)? onEditReminder;
-  final Future<void> Function(String reminderId)? onEndReminder;
-  final Future<void> Function(EventItem event)? onShareReminder;
-  final void Function(int flowId)? onEndFlow;
-  final Future<void> Function(String text)? onAppendToJournal;
-
-  const _DecanRow({
-    required this.kYear,
-    required this.kMonth,
-    required this.decanIndex,
-    required this.todayMonth,
-    required this.todayDay,
-    required this.notesGetter,
-    required this.flowColorsGetter,
-    required this.onDayTap,
-    required this.showGregorian,
-    required this.todayDayKey,
-    this.highlightDayKeyProvider,
-    this.expansionLevel = MonthExpansionLevel.compact,
-    this.noteColorResolver = _defaultNoteColor,
-    this.decanHeight,
-    this.flowNameGetter,
-    this.onManageFlows,
-    this.onEditNote,
-    this.onDeleteNote,
-    this.onShareNote,
-    this.onEditReminder,
-    this.onEndReminder,
-    this.onShareReminder,
-    this.onEndFlow,
-    this.onAppendToJournal,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isMonthToday = (todayMonth != null && todayMonth == kMonth);
-    return Row(
-      children: [
-        for (int j = 0; j < 10; j++) ...[
-          Builder(
-            builder: (_) {
-              final day = decanIndex * 10 + (j + 1); // 1..30
-              final isToday = isMonthToday && (todayDay == day);
-
-              final notes = notesGetter(kMonth, day);
-              final flowColors = flowColorsGetter(kYear, kMonth, day);
-
-              final label = showGregorian
-                  ? '${safeLocalDisplay(KemeticMath.toGregorian(kYear, kMonth, day)).day}'
-                  : '$day';
-
-              return Expanded(
-                child: _DayChip(
-                  key: ValueKey(
-                    'k:$kYear-$kMonth-$day|${showGregorian ? "G" : "K"}',
-                  ), // 🔑 Unique key with mode
-                  anchorKey: isToday ? todayDayKey : null, // 🔑 attach
-                  highlightAnchorKey: highlightDayKeyProvider?.call(
-                    kMonth,
-                    day,
-                  ),
-                  label: label,
-                  isToday: isToday,
-                  notes: notes,
-                  flowColors: flowColors,
-                  onTap: () => onDayTap(context, kMonth, day),
-                  showGregorian: showGregorian,
-                  dayKey: _getKemeticDayKey(kYear, kMonth, day),
-                  expansionLevel: expansionLevel,
-                  noteColorResolver: noteColorResolver,
-                  flowNameGetter: flowNameGetter,
-                  decanHeight: decanHeight,
-                  kYear: kYear,
-                  kMonth: kMonth,
-                  kDay: day,
-                  onManageFlows: onManageFlows,
-                  onEditNote: onEditNote,
-                  onDeleteNote: onDeleteNote,
-                  onShareNote: onShareNote,
-                  onEditReminder: onEditReminder,
-                  onEndReminder: onEndReminder,
-                  onShareReminder: onShareReminder,
-                  onEndFlow: onEndFlow,
-                  onAppendToJournal: onAppendToJournal,
-                ),
-              );
-            },
-          ),
-          if (j < 9) const SizedBox(width: 3),
-        ],
-      ],
-    );
-  }
-}
-
-class _DayChip extends StatelessWidget {
-  final String label;
-  final bool isToday;
-  final List<_Note> notes;
-  final List<Color> flowColors;
-  final VoidCallback onTap;
-  final Key? anchorKey;
-  final Key? highlightAnchorKey;
-  final bool showGregorian;
-  final String dayKey;
-  final MonthExpansionLevel expansionLevel;
-  final Color Function(_Note) noteColorResolver;
-  final String? Function(_Note)? flowNameGetter;
-  final double? decanHeight;
-  final int kYear;
-  final int kMonth;
-  final int kDay;
-  final void Function(int?)? onManageFlows;
-  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
-  onEditNote;
-  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
-  onDeleteNote;
-  final Future<void> Function(EventItem event)? onShareNote;
-  final Future<void> Function(String reminderId)? onEditReminder;
-  final Future<void> Function(String reminderId)? onEndReminder;
-  final Future<void> Function(EventItem event)? onShareReminder;
-  final void Function(int flowId)? onEndFlow;
-  final Future<void> Function(String text)? onAppendToJournal;
-
-  const _DayChip({
-    super.key, // Add key parameter
-    required this.label,
-    required this.isToday,
-    required this.notes,
-    required this.flowColors,
-    required this.onTap,
-    required this.showGregorian,
-    this.anchorKey,
-    this.highlightAnchorKey,
-    required this.dayKey,
-    required this.expansionLevel,
-    required this.noteColorResolver,
-    this.flowNameGetter,
-    this.decanHeight,
-    required this.kYear,
-    required this.kMonth,
-    required this.kDay,
-    this.onManageFlows,
-    this.onEditNote,
-    this.onDeleteNote,
-    this.onShareNote,
-    this.onEditReminder,
-    this.onEndReminder,
-    this.onShareReminder,
-    this.onEndFlow,
-    this.onAppendToJournal,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textStyle = const TextStyle(
-      color: Colors.white,
-      fontWeight: FontWeight.w400,
-      fontSize: 16.0, // <- round to whole px to avoid subpixel blur
-      letterSpacing: 0.0, // <- reduce fuzz on CanvasKit
-    );
-
-    final gradient = isToday
-        ? goldGloss
-        : (showGregorian ? blueGloss : silverGloss);
-    _Note? trackSkyHeaderNote;
-    for (final note in notes) {
-      if (_isTrackSkyFlowName(flowNameGetter?.call(note))) {
-        trackSkyHeaderNote = note;
-        break;
-      }
-    }
-    final isCompact = expansionLevel == MonthExpansionLevel.compact;
-    final chipHeight = decanHeight ?? _chipHeightFor(expansionLevel);
-    final nonCompactHeaderHeight = 24.0;
-
-    Widget buildMiniBlocksCompact({required double maxWidth}) {
-      const spacing = 2.5;
-      const maxMarkersCap = 3;
-      const trackSkyMarkerWidth = 7.0;
-      const colorDotWidth = 5.0;
-
-      final double safeMaxWidth = maxWidth.isFinite
-          ? (maxWidth > 1 ? maxWidth - 1 : 0)
-          : 0;
-      final noteCount = notes.length;
-      final trackSkyNotes = notes
-          .where((note) => _isTrackSkyFlowName(flowNameGetter?.call(note)))
-          .toList();
-
-      int fitCount(double itemWidth) {
-        if (safeMaxWidth <= 0) return 0;
-        return ((safeMaxWidth + spacing) / (itemWidth + spacing)).floor().clamp(
-          0,
-          maxMarkersCap,
-        );
-      }
-
-      Widget buildRow<T>(List<T> items, Widget Function(T item) builder) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var i = 0; i < items.length; i++) ...[
-              if (i > 0) const SizedBox(width: spacing),
-              builder(items[i]),
-            ],
-          ],
-        );
-      }
-
-      if (trackSkyNotes.isNotEmpty) {
-        // Compact month view only needs one sky signifier per day. Multiple
-        // sky events on the same date should not stack duplicate moon glyphs.
-        if (fitCount(trackSkyMarkerWidth) <= 0) return const SizedBox.shrink();
-        return _TrackSkyMicroSignifier(note: trackSkyNotes.first);
-      }
-
-      // Show a single dot set: flow colors if present; otherwise a single silver dot when notes exist.
-      if (flowColors.isNotEmpty) {
-        final visibleFlowColors = flowColors
-            .take(fitCount(colorDotWidth))
-            .toList(growable: false);
-        if (visibleFlowColors.isEmpty) return const SizedBox.shrink();
-        return buildRow<Color>(
-          visibleFlowColors,
-          (color) => _ColorDot(color: color),
-        );
-      }
-
-      if (noteCount > 0 && safeMaxWidth >= colorDotWidth) {
-        return const _GlossyDot(gradient: silverGloss);
-      }
-
-      return const SizedBox.shrink();
-    }
-
-    Widget buildMiniBlocks({double? availableHeight}) {
-      if (isCompact) {
-        return const SizedBox.shrink();
-      }
-
-      final sorted = [...notes]
-        ..sort((a, b) {
-          if (a.allDay != b.allDay) return a.allDay ? -1 : 1;
-          final aStart = a.start;
-          final bStart = b.start;
-          if (aStart != null && bStart != null) {
-            final cmpH = aStart.hour.compareTo(bStart.hour);
-            if (cmpH != 0) return cmpH;
-            final cmpM = aStart.minute.compareTo(bStart.minute);
-            if (cmpM != 0) return cmpM;
-          } else if (aStart != null || bStart != null) {
-            return aStart != null ? -1 : 1;
-          }
-          return a.title.toLowerCase().compareTo(b.title.toLowerCase());
-        });
-      final maxBlocks = expansionLevel == MonthExpansionLevel.stacked
-          ? 2
-          : (expansionLevel == MonthExpansionLevel.details ? 5 : 1);
-
-      int visibleCount = maxBlocks;
-      if (expansionLevel == MonthExpansionLevel.details &&
-          availableHeight != null &&
-          availableHeight.isFinite) {
-        const double estimatedPillHeight = 40.0;
-        const double spacingHeight = 6.0;
-        const double overflowIndicatorHeight = 15.0;
-
-        double used = 0;
-        int count = 0;
-        while (count < sorted.length && count < maxBlocks) {
-          final next = estimatedPillHeight + (count == 0 ? 0 : spacingHeight);
-          if (used + next > availableHeight) break;
-          used += next;
-          count++;
-        }
-
-        final hasHidden = count < sorted.length;
-        if (hasHidden &&
-            count > 0 &&
-            used + overflowIndicatorHeight > availableHeight) {
-          count = (count - 1).clamp(0, maxBlocks);
-        }
-
-        visibleCount = count.clamp(0, maxBlocks);
-      }
-
-      final visible = sorted.take(visibleCount).toList();
-      final remaining = sorted.length - visible.length;
-
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (int i = 0; i < visible.length; i++) ...[
-            _MiniEventBlock(
-              note: visible[i],
-              color: noteColorResolver(visible[i]),
-              isTrackSky: _isTrackSkyFlowName(flowNameGetter?.call(visible[i])),
-              dense: expansionLevel == MonthExpansionLevel.stacked,
-              label: expansionLevel == MonthExpansionLevel.details
-                  ? _labelFor(visible[i])
-                  : null,
-              expand: expansionLevel == MonthExpansionLevel.details,
-              onTap: expansionLevel == MonthExpansionLevel.details
-                  ? () => _showEventDetailFromNote(context, visible[i])
-                  : null,
-            ),
-            if (i != visible.length - 1)
-              SizedBox(
-                height: expansionLevel == MonthExpansionLevel.details ? 6 : 3,
-              ),
-          ],
-          if (remaining > 0 && expansionLevel == MonthExpansionLevel.details)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                '+$remaining',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-        ],
-      );
-    }
-
-    return KemeticDayButton(
-      dayKey: dayKey,
-      kYear: kYear,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: SizedBox(
-          key: anchorKey,
-          width: double.infinity,
-          height: chipHeight,
-          child: RepaintBoundary(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (highlightAnchorKey != null)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: KeyedSubtree(
-                        key: highlightAnchorKey,
-                        child: const SizedBox.expand(),
-                      ),
-                    ),
-                  ),
-                if (isCompact)
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      GlossyText(
-                        text: label,
-                        style: textStyle,
-                        gradient: gradient,
-                      ),
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: Align(
-                            alignment: Alignment.bottomRight,
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                right: 4,
-                                bottom: 4,
-                              ),
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final maxWidth = constraints.maxWidth.isFinite
-                                      ? constraints.maxWidth
-                                      : 0.0;
-                                  return ClipRect(
-                                    child: ConstrainedBox(
-                                      constraints: BoxConstraints(
-                                        maxWidth: maxWidth,
-                                      ),
-                                      child: Align(
-                                        alignment: Alignment.bottomRight,
-                                        child: buildMiniBlocksCompact(
-                                          maxWidth: maxWidth,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                else
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SizedBox(
-                        height: nonCompactHeaderHeight,
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final maxWidth = constraints.maxWidth.isFinite
-                                ? constraints.maxWidth
-                                : 0.0;
-                            final canShowTrackSkyMotif =
-                                trackSkyHeaderNote != null && maxWidth >= 14;
-                            final motifWidth = canShowTrackSkyMotif
-                                ? math.min(14.0, maxWidth * 0.4)
-                                : 0.0;
-                            final motifOffset = canShowTrackSkyMotif
-                                ? (motifWidth / 2) + 1.5
-                                : 0.0;
-                            final motifOnLeftEdge = kDay % 10 == 0;
-                            final motifSpec = trackSkyHeaderNote == null
-                                ? null
-                                : _trackSkyBadgeSpecForNote(
-                                    trackSkyHeaderNote!,
-                                  );
-
-                            return Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: nonCompactHeaderHeight,
-                                  child: Center(
-                                    child: GlossyText(
-                                      text: label,
-                                      style: textStyle,
-                                      gradient: gradient,
-                                    ),
-                                  ),
-                                ),
-                                if (canShowTrackSkyMotif && motifSpec != null)
-                                  Positioned(
-                                    top: 10,
-                                    left: motifOnLeftEdge ? -motifOffset : null,
-                                    right: motifOnLeftEdge
-                                        ? null
-                                        : -motifOffset,
-                                    child: IgnorePointer(
-                                      child: SizedBox(
-                                        width: motifWidth,
-                                        height: 10,
-                                        child: Stack(
-                                          alignment: Alignment.center,
-                                          children: [
-                                            Align(
-                                              alignment: Alignment.topCenter,
-                                              child: SizedBox(
-                                                height: 6.2,
-                                                child: FittedBox(
-                                                  fit: BoxFit.scaleDown,
-                                                  alignment:
-                                                      Alignment.topCenter,
-                                                  child:
-                                                      _buildTrackSkyBadgeMotif(
-                                                        spec: motifSpec,
-                                                        title:
-                                                            trackSkyHeaderNote!
-                                                                .title,
-                                                        dense: false,
-                                                      ),
-                                                ),
-                                              ),
-                                            ),
-                                            Align(
-                                              alignment: Alignment.bottomCenter,
-                                              child: Container(
-                                                height: 1.8,
-                                                decoration: BoxDecoration(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        999,
-                                                      ),
-                                                  gradient: LinearGradient(
-                                                    colors: [
-                                                      motifSpec.accentColor
-                                                          .withValues(
-                                                            alpha: 0.0,
-                                                          ),
-                                                      motifSpec.accentColor
-                                                          .withValues(
-                                                            alpha: 0.75,
-                                                          ),
-                                                      motifSpec
-                                                          .secondaryAccentColor
-                                                          .withValues(
-                                                            alpha: 0.95,
-                                                          ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            return ClipRect(
-                              child: buildMiniBlocks(
-                                availableHeight: constraints.maxHeight,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _labelFor(_Note note) {
-    String short(String text, int max) {
-      if (text.isEmpty) return '';
-      return text.length <= max ? text : '${text.substring(0, max - 1)}…';
-    }
-
-    final flowNameRaw = flowNameGetter?.call(note);
-    final flowName = (flowNameRaw != null && flowNameRaw.trim().isNotEmpty)
-        ? flowNameRaw.trim()
-        : null;
-    final hasFlow = flowName != null;
-
-    var titleRaw = note.title.trim();
-
-    // Safety: if the title is just a time (even malformed), ignore it.
-    final timePattern = RegExp(
-      r'^\s*\d{1,2}\s*[:]\s*\d{0,2}(?:\s+\d+)?\s*(?:AM|PM|am|pm)?\s*$',
-      caseSensitive: false,
-    );
-    if (timePattern.hasMatch(titleRaw)) {
-      titleRaw = '';
-    }
-
-    final hasMeaningfulTitle = titleRaw.isNotEmpty && titleRaw != 'Event';
-
-    // For details mode, show flow name + title (or just flow name, or just title). No time.
-    if (expansionLevel == MonthExpansionLevel.details) {
-      if (hasFlow) {
-        if (hasMeaningfulTitle) {
-          final title = short(titleRaw, 50);
-          return '$flowName $title';
-        } else {
-          return flowName!;
-        }
-      } else {
-        if (hasMeaningfulTitle) {
-          return short(titleRaw, 60);
-        } else {
-          return '';
-        }
-      }
-    }
-
-    // For non-details mode (stacked/compact), same logic
-    if (hasFlow) {
-      if (hasMeaningfulTitle) {
-        final title = short(titleRaw, 50);
-        return '$flowName $title';
-      } else {
-        return flowName!;
-      }
-    }
-
-    if (hasMeaningfulTitle) {
-      return short(titleRaw, 60);
-    } else {
-      return '';
-    }
-  }
-
-  EventItem _noteToEventItem(_Note note) {
-    final startMin = note.allDay
-        ? 9 * 60
-        : (note.start?.hour ?? 9) * 60 + (note.start?.minute ?? 0);
-    final endMin = note.allDay
-        ? 17 * 60
-        : (note.end?.hour ?? 17) * 60 + (note.end?.minute ?? 0);
-
-    return EventItem(
-      id: note.id,
-      clientEventId: note.clientEventId,
-      calendarId: note.calendarId,
-      calendarName: note.calendarName,
-      title: note.title,
-      detail: note.detail,
-      location: note.location,
-      startMin: startMin,
-      endMin: endMin,
-      flowId: note.flowId,
-      color: noteColorResolver(note),
-      manualColor: note.manualColor,
-      allDay: note.allDay,
-      category: note.category,
-      isReminder: note.isReminder,
-      reminderId: note.reminderId,
-    );
-  }
-
-  void _showEventDetailFromNote(BuildContext context, _Note note) {
-    final state = CalendarPage.globalKey.currentState;
-    final initialTarget = DayViewSheetEventTarget(
-      ky: kYear,
-      km: kMonth,
-      kd: kDay,
-      event: _noteToEventItem(note),
-    );
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF000000),
-      isScrollControlled: true,
-      builder: (_) => _MainCalendarEventDetailSheet(
-        hostContext: context,
-        initialTarget: initialTarget,
-        flowResolver: state?._calendarChromeFlowDataForId,
-        activeLedgerFlowIds:
-            state?._buildActiveLedgerFlowIds() ?? const <int>{},
-        resolveCurrentEventTarget: state?._resolveCalendarCurrentEventTarget,
-        resolveAdjacentEventTarget: state?._resolveCalendarAdjacentEventTarget,
-        onManageFlows: onManageFlows,
-        onEditNote: onEditNote,
-        onDeleteNote: onDeleteNote,
-        onShareNote: onShareNote,
-        onEditReminder: onEditReminder,
-        onEndReminder: onEndReminder,
-        onShareReminder: onShareReminder,
-        onEndFlow: onEndFlow,
-        onAppendToJournal: onAppendToJournal,
-      ),
-    );
-  }
-}
-
-class _MainCalendarEventDetailSheet extends StatefulWidget {
-  const _MainCalendarEventDetailSheet({
-    required this.hostContext,
-    required this.initialTarget,
-    this.flowResolver,
-    this.activeLedgerFlowIds = const <int>{},
-    this.resolveCurrentEventTarget,
-    this.resolveAdjacentEventTarget,
-    this.onManageFlows,
-    this.onEditNote,
-    this.onDeleteNote,
-    this.onShareNote,
-    this.onEditReminder,
-    this.onEndReminder,
-    this.onShareReminder,
-    this.onEndFlow,
-    this.onAppendToJournal,
-  });
-
-  final BuildContext hostContext;
-  final DayViewSheetEventTarget initialTarget;
-  final FlowData? Function(int? flowId)? flowResolver;
-  final Set<int> activeLedgerFlowIds;
-  final DayViewSheetEventTarget Function(DayViewSheetEventTarget target)?
-  resolveCurrentEventTarget;
-  final DayViewSheetEventTarget? Function({
-    required int ky,
-    required int km,
-    required int kd,
-    required EventItem event,
-    required bool forward,
-  })?
-  resolveAdjacentEventTarget;
-  final void Function(int?)? onManageFlows;
-  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
-  onEditNote;
-  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
-  onDeleteNote;
-  final Future<void> Function(EventItem event)? onShareNote;
-  final Future<void> Function(String reminderId)? onEditReminder;
-  final Future<void> Function(String reminderId)? onEndReminder;
-  final Future<void> Function(EventItem event)? onShareReminder;
-  final void Function(int flowId)? onEndFlow;
-  final Future<void> Function(String text)? onAppendToJournal;
-
-  @override
-  State<_MainCalendarEventDetailSheet> createState() =>
-      _MainCalendarEventDetailSheetState();
-}
-
-class _MainCalendarEventDetailSheetState
-    extends State<_MainCalendarEventDetailSheet> {
-  static const TextStyle _actionTextStyle = TextStyle(
-    fontSize: 17,
-    fontWeight: FontWeight.w600,
-    fontFamily: 'GentiumPlus',
-    fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
-  );
-
-  late DayViewSheetEventTarget _currentTarget;
-  late PageController _pageController;
-  Map<String, double> _measuredHeights = {};
-
-  FlowData? _flowForId(int? flowId) => widget.flowResolver?.call(flowId);
-
-  bool _isRepeatingNoteFlowId(int? flowId) {
-    final flow = _flowForId(flowId);
-    return flow != null && hasRepeatingNoteFlowMetadata(flow.notes);
-  }
-
-  bool _shouldShowEndFlowForId(int? flowId) {
-    final flow = _flowForId(flowId);
-    return flow != null && !hasRepeatingNoteFlowMetadata(flow.notes);
-  }
-
-  bool _isActionableFlowId(int? flowId) {
-    if (flowId == null) return false;
-    if (widget.activeLedgerFlowIds.contains(flowId)) return true;
-    final flow = _flowForId(flowId);
-    if (flow == null) return false;
-    return flow.active && !hasRepeatingNoteFlowMetadata(flow.notes);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _currentTarget =
-        widget.resolveCurrentEventTarget?.call(widget.initialTarget) ??
-        widget.initialTarget;
-    final initialPages = _detailSheetPagesForTarget(_currentTarget);
-    _pageController = PageController(initialPage: initialPages.currentIndex);
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  String _sheetEventIdentityKey(EventItem event) {
-    final id = event.id?.trim();
-    if (id != null && id.isNotEmpty) return 'id:$id';
-
-    final clientEventId = event.clientEventId?.trim();
-    if (clientEventId != null && clientEventId.isNotEmpty) {
-      return 'cid:$clientEventId';
-    }
-
-    final reminderId = event.reminderId?.trim();
-    if (reminderId != null && reminderId.isNotEmpty) {
-      return 'rid:$reminderId';
-    }
-
-    return [
-      event.title.trim().toLowerCase(),
-      event.startMin,
-      event.endMin,
-      event.flowId ?? '',
-      event.location?.trim().toLowerCase() ?? '',
-      event.detail?.trim().toLowerCase() ?? '',
-      event.allDay,
-      event.isReminder,
-    ].join('|');
-  }
-
-  String _detailSheetTargetKey(DayViewSheetEventTarget target) =>
-      '${target.ky}:${target.km}:${target.kd}:${_sheetEventIdentityKey(target.event)}';
-
-  ({List<DayViewSheetEventTarget> pages, int currentIndex})
-  _detailSheetPagesForTarget(DayViewSheetEventTarget target) {
-    final previous = widget.resolveAdjacentEventTarget?.call(
-      ky: target.ky,
-      km: target.km,
-      kd: target.kd,
-      event: target.event,
-      forward: false,
-    );
-    final next = widget.resolveAdjacentEventTarget?.call(
-      ky: target.ky,
-      km: target.km,
-      kd: target.kd,
-      event: target.event,
-      forward: true,
-    );
-
-    final pages = <DayViewSheetEventTarget>[
-      if (previous != null) previous,
-      target,
-      if (next != null) next,
-    ];
-    return (pages: pages, currentIndex: previous != null ? 1 : 0);
-  }
-
-  void _updateMeasuredHeight(String key, double height) {
-    final normalized = height.ceilToDouble();
-    if (normalized <= 0) return;
-    final previous = _measuredHeights[key];
-    if (previous != null && (previous - normalized).abs() < 1) return;
-    setState(() {
-      _measuredHeights = Map<String, double>.from(_measuredHeights)
-        ..[key] = normalized;
-    });
-  }
-
-  void _resetPageController(int initialPage) {
-    final previous = _pageController;
-    _pageController = PageController(initialPage: initialPage);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      previous.dispose();
-    });
-  }
-
-  void _moveToTarget(DayViewSheetEventTarget nextTarget) {
-    setState(() {
-      _currentTarget = nextTarget;
-    });
-  }
-
-  String _cleanDetail(String? raw) {
-    if (raw == null || raw.isEmpty) return '';
-    final decoded = _decodeDetailMetadata(raw);
-    var detail = decoded.detail ?? '';
-    if (detail.startsWith('flowLocalId=')) {
-      final semi = detail.indexOf(';');
-      if (semi > 0 && semi < detail.length - 1) {
-        detail = detail.substring(semi + 1).trim();
-      } else {
-        return '';
-      }
-    }
-    if (detail.startsWith('repeat=')) {
-      final semi = detail.indexOf(';');
-      if (semi > 0 && semi < detail.length - 1) {
-        detail = detail.substring(semi + 1).trim();
-      } else {
-        return '';
-      }
-    }
-    return normalizeTrackSkyDetailText(_stripCidLines(detail).trim());
-  }
-
-  String _formatTimeRange(int startMin, int endMin, {bool allDay = false}) {
-    if (allDay) return 'All day';
-    final startHour = startMin ~/ 60;
-    final startMinute = startMin % 60;
-    final endHour = endMin ~/ 60;
-    final endMinute = endMin % 60;
-
-    String formatTime(int hour, int minute) {
-      final period = hour >= 12 ? 'PM' : 'AM';
-      final hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-      return '$hour12:${minute.toString().padLeft(2, '0')} $period';
-    }
-
-    if (startMin == endMin) return formatTime(startHour, startMinute);
-    return '${formatTime(startHour, startMinute)} – ${formatTime(endHour, endMinute)}';
-  }
-
-  ButtonStyle _endActionStyle(BuildContext context) {
-    return withExpandedTouchTargets(
-      context,
-      OutlinedButton.styleFrom(
-        side: const BorderSide(color: Color(0xFFFFC145)),
-        foregroundColor: const Color(0xFFFFC145),
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-        minimumSize: const Size(0, 35),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
-      ),
-    );
-  }
-
-  Future<void> _saveFlow(int flowId) async {
-    final messenger = ScaffoldMessenger.maybeOf(widget.hostContext);
-    try {
-      await UserEventsRepo(
-        Supabase.instance.client,
-      ).setFlowSaved(flowId: flowId, isSaved: true);
-      if (!mounted) return;
-      messenger?.showSnackBar(
-        const SnackBar(
-          content: Text('Saved to Saved Flows'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      messenger?.showSnackBar(
-        SnackBar(content: Text('Unable to save flow: $e')),
-      );
-    }
-  }
-
-  Future<void> _handleAddToJournal(
-    EventItem event, {
-    required BuildContext sheetContext,
-  }) async {
-    final cb = widget.onAppendToJournal;
-    if (cb == null) return;
-    Navigator.pop(sheetContext);
-    final flow = widget.flowResolver?.call(event.flowId);
-    final isTrackSky = _isTrackSkyFlowName(flow?.name);
-    final rawDetail = _cleanDetail(event.detail);
-    final detail = isTrackSky
-        ? buildTrackSkyNarrativeSummary(
-            title: event.title,
-            category: event.category,
-            fallbackGuidance: rawDetail,
-          )
-        : rawDetail;
-    final text = '${event.title}${detail.isNotEmpty ? '\n\n$detail' : ''}';
-    await cb(text);
-  }
-
-  Widget _buildEventDetailSheetPage({
-    required DayViewSheetEventTarget target,
-    bool scrollable = true,
-  }) {
-    final currentEvent = target.event;
-    final flow = widget.flowResolver?.call(currentEvent.flowId);
-    final isReminder = currentEvent.isReminder;
-    final isTrackSky = _isTrackSkyFlowName(flow?.name);
-    final rawDetail = _cleanDetail(currentEvent.detail);
-    final detail = isTrackSky
-        ? buildTrackSkyNarrativeSummary(
-            title: currentEvent.title,
-            category: currentEvent.category,
-            fallbackGuidance: rawDetail,
-          )
-        : rawDetail;
-    final isNutrition = detail.contains('Source:');
-    final trackSkySpec = isTrackSky
-        ? _trackSkyBadgeSpecForTitle(currentEvent.title)
-        : null;
-
-    Widget? metaChip;
-    if (flow != null) {
-      metaChip = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          gradient: isTrackSky ? trackSkySpec!.background : null,
-          color: isTrackSky ? null : flow.color.withValues(alpha: 0.16),
-          border: isTrackSky
-              ? Border.all(
-                  color: trackSkySpec!.borderColor.withValues(alpha: 0.78),
-                )
-              : null,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: isTrackSky
-            ? Text(
-                flow.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: trackSkySpec!.textColor,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withValues(alpha: 0.42),
-                      offset: const Offset(0, 1),
-                      blurRadius: 2,
-                    ),
-                  ],
-                ),
-              )
-            : Text(
-                flow.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: flow.color,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-      );
-    } else if (isReminder) {
-      metaChip = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: KemeticGold.base.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: KemeticGold.text(
-          'Reminder',
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-      );
-    } else if (isNutrition) {
-      metaChip = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: KemeticGold.base.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            KemeticGold.icon(Icons.local_drink, size: 14),
-            const SizedBox(width: 4),
-            KemeticGold.text(
-              'Nutrition',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final body = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (metaChip != null) metaChip,
-        if (metaChip != null) const SizedBox(height: 12),
-        KemeticGold.text(
-          currentEvent.title,
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 14),
-        Row(
-          children: [
-            const Icon(Icons.access_time, size: 16, color: Color(0xFF808080)),
-            const SizedBox(width: 8),
-            Text(
-              _formatTimeRange(
-                currentEvent.startMin,
-                currentEvent.endMin,
-                allDay: currentEvent.allDay,
-              ),
-              style: const TextStyle(color: Color(0xFF808080)),
-            ),
-          ],
-        ),
-        if (currentEvent.location != null &&
-            currentEvent.location!.trim().isNotEmpty) ...[
-          const SizedBox(height: 8),
-          InkWell(
-            onTap: () =>
-                _launchExternalPreviewTarget(currentEvent.location!.trim()),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.location_on,
-                  size: 16,
-                  color: Color(0xFF808080),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    currentEvent.location!.trim(),
-                    style: const TextStyle(
-                      color: Color(0xFF808080),
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-        if (detail.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          RichText(
-            text: TextSpan(
-              style: const TextStyle(fontSize: 14, color: Colors.white),
-              children: _buildExternalLinkSpans(detail),
-            ),
-          ),
-        ],
-      ],
-    );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _gold.withValues(alpha: 0.4)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.45),
-              blurRadius: 18,
-              spreadRadius: 1,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: scrollable
-            ? SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: body,
-              )
-            : body,
-      ),
-    );
-  }
-
-  Widget _buildEndFlowButton(
-    BuildContext context,
-    DayViewSheetEventTarget target,
-  ) {
-    final flowId = target.event.flowId;
-    final canEndFlow =
-        widget.onEndFlow != null && _shouldShowEndFlowForId(flowId);
-    return OutlinedButton.icon(
-      style: _endActionStyle(context),
-      onPressed: flowId == null || !canEndFlow
-          ? null
-          : () async {
-              Navigator.pop(context);
-              final routedThroughCalendarPage =
-                  await CalendarPage.endFlowFromEventTarget(target);
-              if (!routedThroughCalendarPage) {
-                widget.onEndFlow?.call(flowId);
-              }
-            },
-      icon: const Icon(Icons.stop_circle),
-      label: const Text('End Flow'),
-    );
-  }
-
-  Widget _buildEndNoteButton(
-    BuildContext context,
-    DayViewSheetEventTarget target,
-  ) {
-    final enabled = widget.onDeleteNote != null;
-    return OutlinedButton.icon(
-      style: _endActionStyle(context),
-      onPressed: enabled
-          ? () async {
-              Navigator.pop(context);
-              await widget.onDeleteNote!(
-                target.ky,
-                target.km,
-                target.kd,
-                target.event,
-              );
-            }
-          : null,
-      icon: const Icon(Icons.delete_outline),
-      label: const Text('End Note'),
-    );
-  }
-
-  Widget _buildEndReminderButton(BuildContext context, EventItem event) {
-    final reminderId = event.reminderId;
-    final enabled = widget.onEndReminder != null && reminderId != null;
-    return OutlinedButton.icon(
-      style: _endActionStyle(context),
-      onPressed: enabled
-          ? () async {
-              Navigator.pop(context);
-              await widget.onEndReminder!(reminderId!);
-            }
-          : null,
-      icon: const Icon(Icons.stop_circle),
-      label: const Text('End Reminder'),
-    );
-  }
-
-  Widget _buildEventDetailTopActionRow({
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-  }) {
-    final currentEvent = target.event;
-    final flow = _flowForId(currentEvent.flowId);
-    final isReminder = currentEvent.isReminder;
-
-    return Row(
-      children: [
-        const Spacer(),
-        if (_shouldShowEndFlowForId(currentEvent.flowId))
-          _buildEndFlowButton(sheetContext, target)
-        else if (flow == null && isReminder)
-          _buildEndReminderButton(sheetContext, currentEvent)
-        else if ((flow == null ||
-                _isRepeatingNoteFlowId(currentEvent.flowId)) &&
-            widget.onDeleteNote != null)
-          _buildEndNoteButton(sheetContext, target),
-        const SizedBox(width: 8),
-        _buildEventDetailOverflowButton(
-          sheetContext: sheetContext,
-          target: target,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEventDetailPrimaryAction({
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-  }) {
-    return TextButton.icon(
-      onPressed: () async {
-        Navigator.pop(sheetContext);
-        final handled = await CalendarPage.makeTodoFromEventTarget(target);
-        if (!handled && widget.hostContext.mounted) {
-          ScaffoldMessenger.maybeOf(widget.hostContext)?.showSnackBar(
-            const SnackBar(content: Text('Could not add to-do.')),
-          );
-        }
-      },
-      icon: KemeticGold.icon(Icons.playlist_add_check),
-      label: KemeticGold.text(
-        'Make to-do',
-        style: _actionTextStyle.copyWith(fontSize: 15),
-      ),
-    );
-  }
-
-  Widget _buildEventDetailOverflowButton({
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-  }) {
-    final currentEvent = target.event;
-    final flow = widget.flowResolver?.call(currentEvent.flowId);
-    final actionableFlow = _isActionableFlowId(currentEvent.flowId);
-    final isReminder = currentEvent.isReminder;
-    final hasFlow = flow != null;
-
-    return PopupMenuButton<String>(
-      icon: KemeticGold.icon(Icons.more_vert),
-      tooltip: 'Event options',
-      color: const Color(0xFF000000),
-      onSelected: (value) async {
-        if (value == 'journal') {
-          await _handleAddToJournal(currentEvent, sheetContext: sheetContext);
-        } else if (value == 'share') {
-          Navigator.pop(sheetContext);
-          if (hasFlow && !isReminder) {
-            await CalendarPage.shareFlowFromEvent(currentEvent);
-          } else if (isReminder && widget.onShareReminder != null) {
-            await widget.onShareReminder!(currentEvent);
-          } else if (widget.onShareNote != null) {
-            await widget.onShareNote!(currentEvent);
-          }
-        } else if (value == 'edit' &&
-            actionableFlow &&
-            widget.onManageFlows != null) {
-          Navigator.pop(sheetContext);
-          widget.onManageFlows!(flow!.id);
-        } else if (value == 'save' && actionableFlow && flow != null) {
-          Navigator.pop(sheetContext);
-          await _saveFlow(flow.id);
-        } else if (value == 'edit_reminder' &&
-            isReminder &&
-            currentEvent.reminderId != null &&
-            widget.onEditReminder != null) {
-          Navigator.pop(sheetContext);
-          await widget.onEditReminder!(currentEvent.reminderId!);
-        } else if (value == 'edit_note' &&
-            !hasFlow &&
-            !isReminder &&
-            widget.onEditNote != null) {
-          Navigator.pop(sheetContext);
-          await widget.onEditNote!(
-            target.ky,
-            target.km,
-            target.kd,
-            currentEvent,
-          );
-        }
-      },
-      itemBuilder: (context) => [
-        if (widget.onAppendToJournal != null)
-          PopupMenuItem(
-            value: 'journal',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.library_add_check),
-                const SizedBox(width: 12),
-                const Text(
-                  'Add to journal',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        if (hasFlow ||
-            (isReminder && widget.onShareReminder != null) ||
-            (!hasFlow && !isReminder && widget.onShareNote != null))
-          PopupMenuItem(
-            value: 'share',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.share_outlined),
-                const SizedBox(width: 12),
-                Text(
-                  hasFlow
-                      ? 'Share Flow'
-                      : isReminder
-                      ? 'Share Reminder'
-                      : 'Share Note',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        if (hasFlow &&
-            actionableFlow &&
-            !isReminder &&
-            widget.onManageFlows != null)
-          PopupMenuItem(
-            value: 'edit',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.edit),
-                const SizedBox(width: 12),
-                const Text('Edit Flow', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if (hasFlow && actionableFlow && !isReminder)
-          PopupMenuItem(
-            value: 'save',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.bookmark_add),
-                const SizedBox(width: 12),
-                const Text('Save Flow', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if (isReminder &&
-            widget.onEditReminder != null &&
-            currentEvent.reminderId != null)
-          PopupMenuItem(
-            value: 'edit_reminder',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.edit),
-                const SizedBox(width: 12),
-                const Text(
-                  'Edit Reminder',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        if (!hasFlow && !isReminder && widget.onEditNote != null)
-          PopupMenuItem(
-            value: 'edit_note',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.edit),
-                const SizedBox(width: 12),
-                const Text('Edit Note', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildEventDetailBottomActionRow({
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildEventDetailPrimaryAction(
-          sheetContext: sheetContext,
-          target: target,
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(sheetContext),
-          child: KemeticGold.text(
-            'Close',
-            style: _actionTextStyle.copyWith(fontSize: 15),
-          ),
-        ),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final target =
-        widget.resolveCurrentEventTarget?.call(_currentTarget) ??
-        _currentTarget;
-    final pages = _detailSheetPagesForTarget(target);
-    final currentKey = _detailSheetTargetKey(target);
-    final pageViewKey = ValueKey<String>(
-      '$currentKey:${pages.currentIndex}:${pages.pages.length}',
-    );
-    final maxSheetHeight = math.min(
-      MediaQuery.sizeOf(context).height * 0.72,
-      560.0,
-    );
-    final sheetHeight = (_measuredHeights[currentKey] ?? 200.0)
-        .clamp(0.0, math.max(180.0, maxSheetHeight - 112.0))
-        .toDouble();
-
-    return SafeArea(
-      top: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Offstage(
-            child: Column(
-              children: [
-                for (final pageTarget in pages.pages)
-                  _MeasureSize(
-                    key: ValueKey<String>(_detailSheetTargetKey(pageTarget)),
-                    onChange: (size) {
-                      _updateMeasuredHeight(
-                        _detailSheetTargetKey(pageTarget),
-                        size.height,
-                      );
-                    },
-                    child: SizedBox(
-                      width: MediaQuery.sizeOf(context).width,
-                      child: _buildEventDetailSheetPage(
-                        target: pageTarget,
-                        scrollable: false,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildEventDetailTopActionRow(
-                  sheetContext: context,
-                  target: target,
-                ),
-                const SizedBox(height: 10),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOutCubic,
-                  alignment: Alignment.bottomCenter,
-                  child: SizedBox(
-                    height: sheetHeight,
-                    child: PageView.builder(
-                      key: pageViewKey,
-                      controller: _pageController,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: pages.pages.length,
-                      onPageChanged: (index) {
-                        if (index == pages.currentIndex) return;
-                        final nextTarget = pages.pages[index];
-                        final nextPages = _detailSheetPagesForTarget(
-                          nextTarget,
-                        );
-                        _resetPageController(nextPages.currentIndex);
-                        _moveToTarget(nextTarget);
-                      },
-                      itemBuilder: (context, index) {
-                        return _buildEventDetailSheetPage(
-                          target: pages.pages[index],
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _buildEventDetailBottomActionRow(
-                  sheetContext: context,
-                  target: target,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MeasureSize extends SingleChildRenderObjectWidget {
-  const _MeasureSize({super.key, required this.onChange, required super.child});
-
-  final ValueChanged<Size> onChange;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) {
-    return _MeasureSizeRenderObject(onChange);
-  }
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    covariant _MeasureSizeRenderObject renderObject,
-  ) {
-    renderObject.onChange = onChange;
-  }
-}
-
-class _MeasureSizeRenderObject extends RenderProxyBox {
-  _MeasureSizeRenderObject(this.onChange);
-
-  ValueChanged<Size> onChange;
-  Size? _oldSize;
-
-  @override
-  void performLayout() {
-    super.performLayout();
-    final newSize = child?.size;
-    if (newSize == null || newSize == _oldSize) return;
-    _oldSize = newSize;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      onChange(newSize);
-    });
-  }
-}
-
-class _ColorDot extends StatelessWidget {
-  final Color color;
-  const _ColorDot({required this.color});
-  @override
-  Widget build(BuildContext context) {
-    return _Glossy(
-      gradient: _glossFromColor(color), // uses helper from Block 1
-      child: Container(
-        width: 4.5,
-        height: 4.5,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-        ),
-      ),
-    );
-  }
-}
-
-class _TrackSkyMicroSignifier extends StatelessWidget {
-  final _Note note;
-  const _TrackSkyMicroSignifier({required this.note});
-
-  @override
-  Widget build(BuildContext context) {
-    final spec = _trackSkyBadgeSpecForNote(note);
-    return Container(
-      width: 6.5,
-      height: 6.5,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: spec.background,
-        border: Border.all(
-          color: spec.borderColor.withValues(alpha: 0.8),
-          width: 0.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
-            blurRadius: 1.4,
-            offset: const Offset(0, 0.5),
-          ),
-        ],
-      ),
-      child: ClipOval(
-        child: Stack(
-          children: [
-            ..._buildTrackSkyStars(
-              seed: '${note.title}|micro',
-              showLabel: false,
-              dense: true,
-              tint: spec.accentColor,
-            ),
-            ..._buildTrackSkyAccentWidgets(
-              spec: spec,
-              title: note.title,
-              dense: true,
-              showLabel: false,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-Widget _buildTrackSkyBadgeMotif({
-  required _TrackSkyBadgeSpec spec,
-  required String title,
-  required bool dense,
-}) {
-  final lower = title.toLowerCase();
-  final double size = dense ? 10.0 : 16.0;
-  final double ringSize = dense ? 1.0 : 1.4;
-
-  Widget planet({
-    required Color color,
-    double? diameter,
-    BoxBorder? border,
-    List<BoxShadow>? shadow,
-  }) {
-    final d = diameter ?? size;
-    return Container(
-      width: d,
-      height: d,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-        border: border,
-        boxShadow: shadow,
-      ),
-    );
-  }
-
-  switch (spec.kind) {
-    case _TrackSkyBadgeKind.moon:
-      return planet(
-        color: spec.accentColor,
-        shadow: [
-          BoxShadow(
-            color: spec.glowColor.withValues(alpha: 0.42),
-            blurRadius: dense ? 3 : 6,
-          ),
-        ],
-      );
-    case _TrackSkyBadgeKind.lunarEclipse:
-      return SizedBox(
-        width: size,
-        height: size,
-        child: Stack(
-          children: [
-            planet(
-              color: spec.accentColor,
-              shadow: [
-                BoxShadow(
-                  color: spec.glowColor.withValues(alpha: 0.35),
-                  blurRadius: dense ? 3 : 6,
-                ),
-              ],
-            ),
-            Positioned(
-              left: size * (lower.contains('penumbral') ? 0.16 : 0.28),
-              top: size * 0.05,
-              child: planet(
-                color: const Color(0xCC03050B),
-                diameter: size * 0.82,
-              ),
-            ),
-          ],
-        ),
-      );
-    case _TrackSkyBadgeKind.solarEclipse:
-      return SizedBox(
-        width: size,
-        height: size,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            planet(
-              color: Colors.transparent,
-              border: Border.all(color: spec.accentColor, width: ringSize),
-              shadow: [
-                BoxShadow(
-                  color: spec.glowColor.withValues(alpha: 0.5),
-                  blurRadius: dense ? 4 : 7,
-                ),
-              ],
-            ),
-            planet(color: const Color(0xFF04060D), diameter: size * 0.64),
-          ],
-        ),
-      );
-    case _TrackSkyBadgeKind.meteor:
-      return SizedBox(
-        width: size + (dense ? 4 : 7),
-        height: size,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned(
-              right: 0,
-              top: dense ? 2.0 : 3.0,
-              child: planet(
-                color: Colors.white,
-                diameter: dense ? 3.2 : 5.0,
-                shadow: [
-                  BoxShadow(
-                    color: spec.glowColor.withValues(alpha: 0.55),
-                    blurRadius: dense ? 3 : 6,
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              left: 0,
-              top: dense ? 3.0 : 5.0,
-              child: Transform.rotate(
-                angle: -0.35,
-                child: Container(
-                  width: dense ? 10 : 15,
-                  height: dense ? 1.2 : 1.8,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        spec.accentColor.withValues(alpha: 0.18),
-                        spec.accentColor.withValues(alpha: 0.72),
-                        Colors.white,
-                      ],
-                      stops: const [0.0, 0.34, 0.72, 1.0],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    case _TrackSkyBadgeKind.planet:
-      if (lower.contains('saturn')) {
-        return SizedBox(
-          width: size + (dense ? 2 : 4),
-          height: size,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Transform.rotate(
-                angle: -0.25,
-                child: Container(
-                  width: size + (dense ? 2 : 5),
-                  height: dense ? 3.0 : 5.0,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: spec.secondaryAccentColor.withValues(alpha: 0.82),
-                      width: dense ? 0.8 : 1.1,
-                    ),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
-              planet(color: spec.accentColor, diameter: size * 0.64),
-            ],
-          ),
-        );
-      }
-      if (lower.contains('conjunction')) {
-        return SizedBox(
-          width: size + (dense ? 2 : 5),
-          height: size,
-          child: Stack(
-            children: [
-              Positioned(
-                right: 0,
-                top: dense ? 0.6 : 1.3,
-                child: planet(
-                  color: spec.secondaryAccentColor,
-                  diameter: size * 0.52,
-                ),
-              ),
-              Positioned(
-                left: 0,
-                bottom: dense ? 0.6 : 1.4,
-                child: planet(color: spec.accentColor, diameter: size * 0.64),
-              ),
-            ],
-          ),
-        );
-      }
-      if (lower.contains('parade')) {
-        final colors = [
-          spec.accentColor,
-          spec.secondaryAccentColor,
-          const Color(0xFFE7C8FF),
-        ];
-        return SizedBox(
-          width: size + (dense ? 5 : 9),
-          height: size,
-          child: Stack(
-            children: [
-              for (int i = 0; i < colors.length; i++)
-                Positioned(
-                  left: i * (dense ? 3.0 : 5.0),
-                  top: i.isEven ? 0 : (dense ? 1.8 : 2.5),
-                  child: planet(color: colors[i], diameter: dense ? 3.0 : 4.4),
-                ),
-            ],
-          ),
-        );
-      }
-      return planet(
-        color: spec.accentColor,
-        shadow: [
-          BoxShadow(
-            color: spec.glowColor.withValues(alpha: 0.4),
-            blurRadius: dense ? 3 : 6,
-          ),
-        ],
-      );
-    case _TrackSkyBadgeKind.solarSeason:
-      return SizedBox(
-        width: size + (dense ? 4 : 8),
-        height: size,
-        child: Stack(
-          children: [
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: dense ? 1.0 : 2.0,
-              child: Container(
-                height: dense ? 1.0 : 1.5,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.transparent,
-                      spec.secondaryAccentColor.withValues(alpha: 0.5),
-                      spec.secondaryAccentColor,
-                    ],
-                    stops: const [0.0, 0.5, 1.0],
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              right: dense ? 2.0 : 4.0,
-              bottom: dense ? 1.2 : 2.1,
-              child: planet(
-                color: spec.accentColor,
-                diameter: dense ? 4.2 : 6.8,
-                shadow: [
-                  BoxShadow(
-                    color: spec.glowColor.withValues(alpha: 0.45),
-                    blurRadius: dense ? 3 : 6,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    case _TrackSkyBadgeKind.genericSky:
-      return planet(
-        color: spec.secondaryAccentColor,
-        diameter: dense ? 4.0 : 6.0,
-        shadow: [
-          BoxShadow(
-            color: spec.glowColor.withValues(alpha: 0.4),
-            blurRadius: dense ? 3 : 6,
-          ),
-        ],
-      );
-  }
-}
-
-class _TrackSkyMiniBadge extends StatelessWidget {
-  final _Note note;
-  final bool dense;
-  final bool expand;
-  final String? label;
-  final VoidCallback? onTap;
-
-  const _TrackSkyMiniBadge({
-    required this.note,
-    this.dense = true,
-    this.expand = false,
-    this.label,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final showLabel = label != null && !dense;
-    final isDetailPill = expand && showLabel;
-    final spec = _trackSkyBadgeSpecForNote(note);
-    final motif = _buildTrackSkyBadgeMotif(
-      spec: spec,
-      title: note.title,
-      dense: dense,
-    );
-    final double badgeHeight = isDetailPill ? 40 : (dense ? 10 : 26);
-    final double motifBoxWidth = showLabel ? 16 : (dense ? 12 : 18);
-    final double motifBoxHeight = dense ? 10 : 14;
-    final EdgeInsetsGeometry padding = showLabel
-        ? const EdgeInsets.fromLTRB(7, 6, 6, 6)
-        : const EdgeInsets.symmetric(horizontal: 4, vertical: 2);
-    final BorderRadius radius = BorderRadius.circular(
-      isDetailPill ? 12 : (dense ? 5 : 10),
-    );
-
-    final labelStyle = TextStyle(
-      color: spec.textColor,
-      fontSize: isDetailPill ? 10.5 : 10,
-      height: 1.18,
-      fontWeight: isDetailPill ? FontWeight.w600 : FontWeight.w500,
-      shadows: [
-        Shadow(
-          color: Colors.black.withValues(alpha: 0.68),
-          offset: const Offset(0, 1.2),
-          blurRadius: 2.8,
-        ),
-        Shadow(
-          color: spec.glowColor.withValues(alpha: 0.36),
-          offset: Offset.zero,
-          blurRadius: 5,
-        ),
-      ],
-    );
-
-    return LayoutBuilder(
-      builder: (context, outerConstraints) {
-        final double minW = dense
-            ? (outerConstraints.maxWidth.isFinite
-                  ? math.min(24.0, outerConstraints.maxWidth)
-                  : 24.0)
-            : 0.0;
-        final badge = RepaintBoundary(
-          child: Container(
-            width: expand ? double.infinity : null,
-            height: badgeHeight,
-            constraints: BoxConstraints(minWidth: minW),
-            decoration: BoxDecoration(
-              borderRadius: radius,
-              gradient: spec.background,
-              border: Border.all(
-                color: spec.borderColor.withValues(alpha: dense ? 0.95 : 1.0),
-                width: dense ? 0.95 : 1.0,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.26),
-                  blurRadius: dense ? 2 : 5,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: radius,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final canShowMotifWithLabel =
-                      showLabel && constraints.maxWidth >= 44;
-
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ..._buildTrackSkyStars(
-                        seed: note.title,
-                        showLabel: showLabel,
-                        dense: dense,
-                        tint: spec.accentColor,
-                      ),
-                      if (showLabel)
-                        Positioned.fill(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [
-                                  const Color(0xAA04060C),
-                                  const Color(0x7204060C),
-                                  const Color(0x1204060C),
-                                  Colors.transparent,
-                                ],
-                                stops: const [0.0, 0.38, 0.64, 1.0],
-                              ),
-                            ),
-                          ),
-                        ),
-                      Padding(
-                        padding: padding,
-                        child: showLabel
-                            ? Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  Padding(
-                                    padding: EdgeInsets.only(
-                                      right: canShowMotifWithLabel
-                                          ? motifBoxWidth + 2
-                                          : 0,
-                                    ),
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        label!,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        softWrap: true,
-                                        textAlign: TextAlign.left,
-                                        style: labelStyle,
-                                      ),
-                                    ),
-                                  ),
-                                  if (canShowMotifWithLabel)
-                                    Positioned(
-                                      right: 0,
-                                      top: 0,
-                                      bottom: 0,
-                                      child: Align(
-                                        alignment: Alignment.centerRight,
-                                        child: SizedBox(
-                                          width: motifBoxWidth,
-                                          height: motifBoxHeight,
-                                          child: FittedBox(
-                                            fit: BoxFit.scaleDown,
-                                            alignment: Alignment.centerRight,
-                                            child: motif,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              )
-                            : Center(
-                                child: SizedBox(
-                                  width: motifBoxWidth,
-                                  height: motifBoxHeight,
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.center,
-                                    child: motif,
-                                  ),
-                                ),
-                              ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-
-        if (expand && !dense && onTap != null) {
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onTap,
-            child: badge,
-          );
-        }
-
-        return IgnorePointer(child: badge);
-      },
-    );
-  }
-}
-
-class _MiniEventBlock extends StatelessWidget {
-  final _Note note;
-  final Color color;
-  final bool isTrackSky;
-  final bool dense;
-  final bool expand;
-  final String? label;
-  const _MiniEventBlock({
-    required this.note,
-    required this.color,
-    this.isTrackSky = false,
-    this.dense = true,
-    this.expand = false,
-    this.label,
-    this.onTap,
-  });
-
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isTrackSky) {
-      return _TrackSkyMiniBadge(
-        note: note,
-        dense: dense,
-        expand: expand,
-        label: label,
-        onTap: onTap,
-      );
-    }
-
-    final showLabel = label != null && !dense;
-    final isDetailPill = expand && showLabel;
-    final bg = color.withValues(alpha: dense ? 0.28 : 0.22);
-    final border = color.withValues(alpha: 0.9);
-    final double badgeHeight = isDetailPill ? 38 : (dense ? 8 : 24);
-    final EdgeInsetsGeometry padding = showLabel
-        ? (isDetailPill
-              ? const EdgeInsets.symmetric(horizontal: 3, vertical: 6)
-              : const EdgeInsets.symmetric(horizontal: 7, vertical: 3))
-        : EdgeInsets.zero;
-    final BorderRadius radius = BorderRadius.circular(
-      isDetailPill ? 12 : (dense ? 5 : 10),
-    );
-    final TextStyle labelStyle = TextStyle(
-      color: Colors.white,
-      fontSize: isDetailPill ? 10.5 : 10,
-      height: 1.2,
-      fontWeight: isDetailPill ? FontWeight.w600 : FontWeight.w500,
-    );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double minW = dense
-            ? (constraints.maxWidth.isFinite
-                  ? math.min(24.0, constraints.maxWidth)
-                  : 24.0)
-            : 0.0;
-        final container = Container(
-          width: expand ? double.infinity : null,
-          height: badgeHeight,
-          padding: padding,
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: radius,
-            border: Border.all(color: border, width: dense ? 0.8 : 1.0),
-          ),
-          constraints: BoxConstraints(minWidth: minW),
-          alignment: Alignment.centerLeft,
-          child: showLabel
-              ? Text(
-                  label!,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: true,
-                  textAlign: TextAlign.left,
-                  style: labelStyle,
-                )
-              : null,
-        );
-
-        if (expand && !dense && onTap != null) {
-          return GestureDetector(onTap: onTap, child: container);
-        }
-        return container;
-      },
-    );
-  }
-}
-
-/* ───────────── Epagomenal (5 or 6 extra days) ───────────── */
-
-class _EpagomenalCard extends StatelessWidget {
-  const _EpagomenalCard({
-    required this.kYear,
-    this.todayMonth,
-    this.todayDay,
-    required this.notesGetter,
-    required this.flowColorsGetter,
-    required this.onDayTap,
-    required this.showGregorian,
-    this.expansionLevel = MonthExpansionLevel.compact,
-    this.noteColorResolver = _defaultNoteColor,
-    this.flowNameGetter,
-    this.onManageFlows,
-    this.onEditNote,
-    this.onDeleteNote,
-    this.onShareNote,
-    this.onEditReminder,
-    this.onEndReminder,
-    this.onShareReminder,
-    this.onEndFlow,
-    this.onAppendToJournal,
-    this.todayDayKey,
-  });
-
-  final int kYear;
-  final int? todayMonth;
-  final int? todayDay;
-  final List<_Note> Function(int kMonth, int kDay) notesGetter;
-  final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
-  final void Function(BuildContext, int kMonth, int kDay) onDayTap;
-  final Key? todayDayKey;
-  final bool showGregorian;
-  final MonthExpansionLevel expansionLevel;
-  final Color Function(_Note) noteColorResolver;
-  final String? Function(_Note)? flowNameGetter;
-  final void Function(int?)? onManageFlows;
-  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
-  onEditNote;
-  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
-  onDeleteNote;
-  final Future<void> Function(EventItem event)? onShareNote;
-  final Future<void> Function(String reminderId)? onEditReminder;
-  final Future<void> Function(String reminderId)? onEndReminder;
-  final Future<void> Function(EventItem event)? onShareReminder;
-  final void Function(int flowId)? onEndFlow;
-  final Future<void> Function(String text)? onAppendToJournal;
-
-  // Weekday labels row for epagomenal days (5 or 6 days)
-  Widget _epagomenalWeekdayRow(int dayCount) {
-    const letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    final labels = List<String>.generate(dayCount, (i) {
-      final gregorian = safeLocalDisplay(
-        KemeticMath.toGregorian(kYear, 13, i + 1),
-      );
-      final idx = gregorian.weekday - 1; // Monday = 1
-      return letters[idx];
-    });
-
-    return Row(
-      children: [
-        for (int i = 0; i < labels.length; i++) ...[
-          Expanded(
-            child: Center(
-              child: Text(
-                labels[i],
-                style: _weekdayLabelStyle.copyWith(
-                  color: showGregorian ? _blueLight : _goldLight,
-                ),
-              ),
-            ),
-          ),
-          if (i < labels.length - 1) const SizedBox(width: 3),
-        ],
-      ],
-    );
-  }
-
-  String? _gregMonthForEpagomenal(int ky, int epiCount) {
-    for (int d = 1; d <= epiCount; d++) {
-      final g = KemeticMath.toGregorian(ky, 13, d);
-      if (g.day == 1) return _gregMonthNames[g.month];
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isMonthToday = (todayMonth != null && todayMonth == 13);
-    final epiCount = KemeticMath.isLeapKemeticYear(kYear) ? 6 : 5;
-
-    final gLabel = _gregMonthForEpagomenal(kYear, epiCount);
-
-    // Dynamic height for epagomenal days (parallels regular decan sizing).
-    double epagomenalHeightForLayout() {
-      if (expansionLevel != MonthExpansionLevel.details) {
-        return _chipHeightFor(expansionLevel);
-      }
-      const double labelAreaHeight = 24.0;
-      const double firstPillHeight = 50.0;
-      const double subsequentPillHeight = 56.0;
-      const double minHeight = 80.0;
-      const double maxHeight = 250.0;
-
-      int maxVisible = 0;
-      for (int d = 1; d <= epiCount; d++) {
-        final notes = notesGetter(13, d);
-        final visible = notes.length > 5 ? 5 : notes.length;
-        if (visible > maxVisible) maxVisible = visible;
-      }
-
-      double pillsHeight = 0.0;
-      if (maxVisible > 0) {
-        pillsHeight = firstPillHeight;
-        if (maxVisible > 1) {
-          pillsHeight += subsequentPillHeight * (maxVisible - 1);
-        }
-      }
-
-      final double estimated = labelAreaHeight + pillsHeight;
-      return estimated.clamp(minHeight, maxHeight);
-    }
-
-    final double epagomenalHeight = epagomenalHeightForLayout();
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        6,
-        16,
-        expansionLevel == MonthExpansionLevel.details ? 6 : 24,
-      ),
-      child: Card(
-        color: Colors.black,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          side: BorderSide.none,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header row: Kemetic header (left) and Gregorian month (right when present)
-              Row(
-                children: [
-                  Visibility(
-                    visible: !showGregorian, // visually removed in Gregorian
-                    maintainState: true,
-                    maintainAnimation: true,
-                    maintainSize: true, // keep height so layout doesn't jump
-                    child: GlossyText(
-                      text: 'Heriu Renpet (ḥr.w rnpt)',
-                      style: _monthTitleGold.copyWith(
-                        fontFamily: 'GentiumPlus',
-                        fontFamilyFallback: const ['NotoSans', 'Roboto'],
-                      ),
-                      gradient: goldGloss,
-                    ),
-                  ),
-                  const Spacer(),
-                  Visibility(
-                    visible: showGregorian && gLabel != null,
-                    maintainState: true,
-                    maintainAnimation: true,
-                    maintainSize: true,
-                    child: GlossyText(
-                      text: gLabel ?? '',
-                      style: _decanStyle,
-                      gradient: blueGloss,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(
-                height: expansionLevel == MonthExpansionLevel.details ? 0 : 10,
-              ),
-
-              _epagomenalWeekdayRow(epiCount),
-              const SizedBox(height: 4),
-
-              Row(
-                children: [
-                  for (int i = 0; i < epiCount; i++) ...[
-                    Expanded(
-                      child: _DayChip(
-                        anchorKey: isMonthToday && (todayDay == i + 1)
-                            ? todayDayKey
-                            : null, // 🔑
-                        label: showGregorian
-                            ? '${KemeticMath.toGregorian(kYear, 13, i + 1).day}'
-                            : '${i + 1}',
-                        isToday: isMonthToday && (todayDay == i + 1),
-                        notes: notesGetter(13, i + 1),
-                        flowColors: flowColorsGetter(kYear, 13, i + 1),
-                        onTap: () => onDayTap(context, 13, i + 1),
-                        showGregorian: showGregorian,
-                        dayKey:
-                            'epagomenal_${i + 1}_$kYear', // Epagomenal days use their own key format
-                        expansionLevel: expansionLevel,
-                        noteColorResolver: noteColorResolver,
-                        flowNameGetter: flowNameGetter,
-                        decanHeight: epagomenalHeight,
-                        kYear: kYear,
-                        kMonth: 13,
-                        kDay: i + 1,
-                        onManageFlows: onManageFlows,
-                        onEditNote: onEditNote,
-                        onDeleteNote: onDeleteNote,
-                        onShareNote: onShareNote,
-                        onEditReminder: onEditReminder,
-                        onEndReminder: onEndReminder,
-                        onShareReminder: onShareReminder,
-                        onEndFlow: onEndFlow,
-                        onAppendToJournal: onAppendToJournal,
-                      ),
-                    ),
-                    if (i < epiCount - 1) const SizedBox(width: 3),
-                  ],
-                ],
-              ),
-            ],
-          ), // Close Column
-        ), // Close inner Padding
-      ), // Close Card
-    ); // Close outer Padding and return
-  }
-}
-
-/* ───────────── Detail Page (single-window behavior, flows-aware) ───────────── */
-
-class _MonthDetailPage extends StatefulWidget {
-  const _MonthDetailPage({
-    required this.kYear,
-    required this.kMonth,
-    required this.todayMonth,
-    required this.todayDay,
-    required this.showGregorian,
-    required this.notesGetter,
-    required this.flowColorsGetter,
-    required this.onDayTap,
-    required this.noteColorResolver,
-    required this.decanIndex, // null => month view; 0..2 => specific decan
-    this.flowNameGetter,
-    this.onManageFlows,
-    this.onEditNote,
-    this.onDeleteNote,
-    this.onShareNote,
-    this.onEditReminder,
-    this.onEndReminder,
-    this.onShareReminder,
-    this.onEndFlow,
-    this.onAppendToJournal,
-  });
-
-  final int kYear;
-  final int kMonth;
-  final int? todayMonth;
-  final int? todayDay;
-  final bool showGregorian;
-  final List<_Note> Function(int kMonth, int kDay) notesGetter;
-  final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
-  final void Function(BuildContext, int kMonth, int kDay) onDayTap;
-  final Color Function(_Note) noteColorResolver;
-  final int? decanIndex;
-  final String? Function(_Note)? flowNameGetter;
-  final void Function(int?)? onManageFlows;
-  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
-  onEditNote;
-  final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
-  onDeleteNote;
-  final Future<void> Function(EventItem event)? onShareNote;
-  final Future<void> Function(String reminderId)? onEditReminder;
-  final Future<void> Function(String reminderId)? onEndReminder;
-  final Future<void> Function(EventItem event)? onShareReminder;
-  final void Function(int flowId)? onEndFlow;
-  final Future<void> Function(String text)? onAppendToJournal;
-
-  @override
-  State<_MonthDetailPage> createState() => _MonthDetailPageState();
-}
-
-class _MonthDetailPageState extends State<_MonthDetailPage> {
-  final _tabTitles = const ['Info', 'Events', 'Planner'];
-  // Track the visible month page (0-based) for horizontal swipes.
-  late final PageController _pageController;
-  static const int _pageSeed =
-      12000; // Large seed to allow long-range swiping in both directions.
-  static const int _monthsInYear = 13;
-  late int _currentPage;
-  int? _currentDecanIndex;
-  int? _selectedDay;
-  int _infoSelectionSerial = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentDecanIndex = widget.decanIndex;
-    _selectedDay = null;
-    _currentPage = _pageSeed;
-    _pageController = PageController(initialPage: _currentPage);
-  }
-
-  @override
-  void dispose() {
-    SpeechService.instance.stop();
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  String? _extractEnglishCue(String? title) {
-    if (title == null) return null;
-    final match = RegExp(r'"([^"]+)"').firstMatch(title);
-    return match?.group(1);
-  }
-
-  String _buildSpeakLine(int month, int? decanIndex) {
-    final monthMeta = getMonthById(month);
-    if (decanIndex == null) {
-      return SpeechResolver.month(
-        month: monthMeta,
-        displayName: monthMeta.displayShort,
-      );
-    }
-    if (month < 1 || month > 12) return monthMeta.displayFull;
-    final decanInMonth = decanIndex + 1;
-    final decanId = decanIdFromMonthAndIndex(
-      monthIndex: month,
-      decanInMonth: decanInMonth,
-    );
-    final shortName =
-        (DecanMetadata.decanNames[month] ?? const [''])[decanInMonth - 1];
-    final englishCue = _extractEnglishCue(DecanMetadata.decanTitles[shortName]);
-    return SpeechResolver.decan(
-      decanId: decanId,
-      displayName: shortName,
-      englishCue: englishCue,
-    );
-  }
-
-  int _floorDiv(int a, int b) {
-    // Dart's integer division truncates toward zero; adjust to true floor.
-    return (a - (a % b)) ~/ b;
-  }
-
-  int _mod(int a, int b) {
-    final r = a % b;
-    return r < 0 ? r + b : r;
-  }
-
-  int _daysInMonth(int year, int month) {
-    if (month == 13) {
-      return KemeticMath.isLeapKemeticYear(year) ? 6 : 5;
-    }
-    return 30;
-  }
-
-  (int year, int month) _yearMonthForPage(int page) {
-    final offset = page - _pageSeed;
-    final totalMonths = (widget.kMonth - 1) + offset;
-    final monthIndex = _mod(totalMonths, _monthsInYear); // 0-based
-    final month = monthIndex + 1;
-    final yearOffset = _floorDiv(totalMonths, _monthsInYear);
-    final year = widget.kYear + yearOffset;
-    return (year, month);
-  }
-
-  List<_Note> _notesFor(int ky, int km, int kd) {
-    final state = CalendarPage.globalKey.currentState;
-    if (state != null) {
-      return state._getNotes(ky, km, kd);
-    }
-    return widget.notesGetter(km, kd);
-  }
-
-  List<Color> _flowColorsFor(int ky, int km, int kd) {
-    final state = CalendarPage.globalKey.currentState;
-    if (state != null) {
-      return state.getFlowColorsForDay(ky, km, kd);
-    }
-    return widget.flowColorsGetter(ky, km, kd);
-  }
-
-  void _setInfoSelection({
-    required int? decanIndex,
-    required int? selectedDay,
-  }) {
-    setState(() {
-      _currentDecanIndex = decanIndex;
-      _selectedDay = selectedDay;
-      _infoSelectionSerial++;
-    });
-    SpeechService.instance.stop();
-  }
-
-  void _handleDayTap(BuildContext ctx, int ky, int km, int kd) {
-    final state = CalendarPage.globalKey.currentState;
-    if (state != null) {
-      state._openDayView(ctx, ky, km, kd);
-      return;
-    }
-    widget.onDayTap(ctx, km, kd);
-  }
-
-  Future<void> _jumpToToday() async {
-    final today = KemeticMath.fromGregorian(DateTime.now());
-    final monthOffset =
-        (today.kYear - widget.kYear) * _monthsInYear +
-        (today.kMonth - widget.kMonth);
-    final targetPage = _pageSeed + monthOffset;
-    setState(() {
-      _currentDecanIndex = null;
-      _selectedDay = null;
-      _infoSelectionSerial++;
-    });
-    SpeechService.instance.stop();
-    await _pageController.animateToPage(
-      targetPage,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeInOut,
-    );
-  }
-
-  String? _scrubDetail(String? detail) {
-    if (detail == null) return null;
-    final blocked = RegExp(
-      r'google calendar|automatically created|official google calendar|gmail|mail\.google\.com|observance|holiday|to hide observances|created from an email|to see detailed information|use the official',
-      caseSensitive: false,
-    );
-    final lines = detail
-        .split('\n')
-        .map((l) => l.trim())
-        .where((l) => l.isNotEmpty && !blocked.hasMatch(l))
-        .toList();
-    if (lines.isEmpty) return null;
-    // If the only remaining line is a generic label (e.g., "Observance"), drop it.
-    if (lines.length == 1 && lines.first.toLowerCase() == 'observance') {
-      return null;
-    }
-    return lines.join('\n');
-  }
-
-  String _timeLabel(_Note n) {
-    if (n.allDay) return 'All day';
-    String fmt(TimeOfDay t) {
-      final h = t.hour;
-      final m = t.minute;
-      final period = h >= 12 ? 'PM' : 'AM';
-      final h12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-      return '$h12:${m.toString().padLeft(2, '0')} $period';
-    }
-
-    final start = n.start ?? const TimeOfDay(hour: 9, minute: 0);
-    final end = n.end;
-    if (end == null) return fmt(start);
-    return '${fmt(start)} – ${fmt(end)}';
-  }
-
-  List<_MonthEvent> _buildMonthEvents(int year, int month) {
-    final items = <_MonthEvent>[];
-    final daysInMonth = _daysInMonth(year, month);
-
-    for (int day = 1; day <= daysInMonth; day++) {
-      if (_selectedDay != null && day != _selectedDay) continue;
-      if (month != 13 && _selectedDay == null && _currentDecanIndex != null) {
-        final start = _currentDecanIndex! * 10 + 1;
-        final end = start + 9;
-        if (day < start || day > end) continue;
-      }
-      final notes = _notesFor(year, month, day);
-      for (final n in notes) {
-        final startMin = n.allDay
-            ? -1
-            : ((n.start?.hour ?? 9) * 60 + (n.start?.minute ?? 0));
-        final flowName = widget.flowNameGetter?.call(n);
-        final cleanedDetail = _scrubDetail(n.detail);
-        final displayTitle = (() {
-          final title = n.title.trim();
-          if (title.isNotEmpty) return title;
-          if (flowName != null && flowName.trim().isNotEmpty) {
-            return flowName.trim();
-          }
-          return 'Event';
-        })();
-
-        items.add(
-          _MonthEvent(
-            day: day,
-            note: n,
-            displayTitle: displayTitle,
-            flowName: flowName,
-            timeLabel: _timeLabel(n),
-            color: widget.noteColorResolver(n),
-            sortKey: day * 1440 + startMin,
-            detail: cleanedDetail,
-            location: (n.location ?? '').trim().isEmpty
-                ? null
-                : n.location!.trim(),
-          ),
-        );
-      }
-    }
-    items.sort((a, b) => a.sortKey.compareTo(b.sortKey));
-    return items;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final (activeYear, activeMonth) = _yearMonthForPage(_currentPage);
-    final activeMonthMeta = getMonthById(activeMonth);
-    final activeDaysInMonth = _daysInMonth(activeYear, activeMonth);
-    final activeInfoTitle = (activeMonth == 13 || _currentDecanIndex == null)
-        ? activeMonthMeta.displayFull
-        : (DecanMetadata.decanNames[activeMonth] ??
-              const ['Decan A', 'Decan B', 'Decan C'])[_currentDecanIndex!];
-
-    final yStart = KemeticMath.toGregorian(activeYear, activeMonth, 1).year;
-    final yEnd = KemeticMath.toGregorian(
-      activeYear,
-      activeMonth,
-      activeDaysInMonth,
-    ).year;
-    final activeSeasonLabel = activeMonthMeta.season.label;
-    final rightLabel = (yStart == yEnd)
-        ? '$activeSeasonLabel $yStart'
-        : '$activeSeasonLabel $yStart/$yEnd';
-
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0.5,
-        automaticallyImplyLeading: false,
-        leading: IconButton(
-          tooltip: 'Close',
-          icon: const _GlossyIcon(Icons.close, gradient: goldGloss),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: TextButton.icon(
-          onPressed: _jumpToToday,
-          icon: const KemeticAppBarTodayIcon(
-            boxSize: 20,
-            glyphSize: 16,
-            glyphOffset: Offset(1.5, -1),
-          ),
-          label: const Text(
-            'Today',
-            style: TextStyle(
-              color: _gold,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          style: TextButton.styleFrom(
-            foregroundColor: _gold,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-          ),
-        ),
-      ),
-      body: PageView.builder(
-        controller: _pageController,
-        onPageChanged: (page) {
-          if (!mounted) return;
-          setState(() {
-            _currentPage = page;
-            _currentDecanIndex = null;
-            _selectedDay = null;
-            _infoSelectionSerial++;
-          });
-          SpeechService.instance.stop();
-        },
-        itemBuilder: (ctx, index) {
-          final (pageYear, month) = _yearMonthForPage(index);
-          final isActive = index == _currentPage;
-          final decanIndex = (isActive && month != 13)
-              ? _currentDecanIndex
-              : null;
-          final monthMeta = getMonthById(month);
-          final seasonLabel = monthMeta.season.label;
-          final infoTitle = (decanIndex == null)
-              ? monthMeta.displayFull
-              : (DecanMetadata.decanNames[month] ??
-                    const ['Decan A', 'Decan B', 'Decan C'])[decanIndex];
-          final infoBody = (decanIndex == null || month == 13)
-              ? (_monthInfo[month] ?? '')
-              : _decanInfo[(month - 1) * 3 + decanIndex];
-          final infoLinks = (decanIndex == null || month == 13)
-              ? (_monthLinkMap[month] ?? const [])
-              : _decanLinkMap;
-          final backLabel = decanIndex == null ? 'Month Info' : 'Decan Info';
-
-          return Column(
-            children: [
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.only(top: 10),
-                  children: [
-                    if (month == 13)
-                      _EpagomenalCard(
-                        kYear: pageYear,
-                        todayMonth: widget.todayMonth,
-                        todayDay: widget.todayDay,
-                        todayDayKey: null,
-                        notesGetter: (m, d) => _notesFor(pageYear, m, d),
-                        flowColorsGetter: (ky, km, kd) =>
-                            _flowColorsFor(pageYear, km, kd),
-                        onDayTap: (c, m, d) =>
-                            _setInfoSelection(decanIndex: null, selectedDay: d),
-                        showGregorian: widget.showGregorian,
-                        flowNameGetter: widget.flowNameGetter,
-                        onManageFlows: widget.onManageFlows,
-                        onEditNote: widget.onEditNote,
-                        onDeleteNote: widget.onDeleteNote,
-                        onShareNote: widget.onShareNote,
-                        onEditReminder: widget.onEditReminder,
-                        onEndReminder: widget.onEndReminder,
-                        onShareReminder: widget.onShareReminder,
-                        onEndFlow: widget.onEndFlow,
-                        onAppendToJournal: widget.onAppendToJournal,
-                      )
-                    else
-                      _MonthCard(
-                        kYear: pageYear,
-                        kMonth: month,
-                        seasonShort: seasonLabel,
-                        todayMonth: widget.todayMonth,
-                        todayDay: widget.todayDay,
-                        todayDayKey: null,
-                        notesGetter: (m, d) => _notesFor(pageYear, m, d),
-                        flowColorsGetter: (ky, km, kd) =>
-                            _flowColorsFor(pageYear, km, kd),
-                        onDayTap: (c, m, d) => _setInfoSelection(
-                          decanIndex: ((d - 1) / 10).floor(),
-                          selectedDay: d,
-                        ),
-                        showGregorian: widget.showGregorian,
-                        flowNameGetter: widget.flowNameGetter,
-                        onManageFlows: widget.onManageFlows,
-                        onEditNote: widget.onEditNote,
-                        onDeleteNote: widget.onDeleteNote,
-                        onShareNote: widget.onShareNote,
-                        onEditReminder: widget.onEditReminder,
-                        onEndReminder: widget.onEndReminder,
-                        onShareReminder: widget.onShareReminder,
-                        onEndFlow: widget.onEndFlow,
-                        onAppendToJournal: widget.onAppendToJournal,
-                        onMonthHeaderTap: (_) => _setInfoSelection(
-                          decanIndex: null,
-                          selectedDay: null,
-                        ),
-                        onDecanTap: (_, idx) => _setInfoSelection(
-                          decanIndex: idx,
-                          selectedDay: null,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1, color: Colors.white10),
-              Expanded(
-                child: DefaultTabController(
-                  length: _tabTitles.length,
-                  child: Column(
-                    children: [
-                      TabBar(
-                        labelColor: _gold,
-                        unselectedLabelColor: Colors.white70,
-                        indicatorColor: _gold,
-                        tabs: [for (final t in _tabTitles) Tab(text: t)],
-                      ),
-                      Expanded(
-                        child: TabBarView(
-                          children: [
-                            _InfoTab(
-                              title: infoTitle,
-                              body: infoBody,
-                              speakText: _buildSpeakLine(month, decanIndex),
-                              linkMap: infoLinks,
-                              backLabel: backLabel,
-                              inlineNodes: _decanInlineNodes,
-                              selectionSerial: _infoSelectionSerial,
-                            ),
-                            _EventsTab(
-                              kYear: pageYear,
-                              kMonth: month,
-                              monthLabel: getMonthById(month).displayShort,
-                              notes: _buildMonthEvents(pageYear, month),
-                              onOpenDay: (d) =>
-                                  _handleDayTap(context, pageYear, month, d),
-                            ),
-                            const TodaysAlignmentPage(embedded: true),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _MonthEvent {
-  final int day;
-  final _Note note;
-  final String displayTitle;
-  final String? flowName;
-  final String timeLabel;
-  final Color color;
-  final int sortKey;
-  final String? detail;
-  final String? location;
-
-  _MonthEvent({
-    required this.day,
-    required this.note,
-    required this.displayTitle,
-    required this.flowName,
-    required this.timeLabel,
-    required this.color,
-    required this.sortKey,
-    this.detail,
-    this.location,
-  });
-}
-
-class _InfoTab extends StatefulWidget {
-  final String title;
-  final String body;
-  final String speakText;
-  final List<KemeticNodeLink> linkMap;
-  final String backLabel;
-  final Map<String, _InlineNodeContent> inlineNodes;
-  final int selectionSerial;
-
-  const _InfoTab({
-    required this.title,
-    required this.body,
-    required this.speakText,
-    required this.linkMap,
-    required this.backLabel,
-    required this.inlineNodes,
-    required this.selectionSerial,
-  });
-
-  @override
-  State<_InfoTab> createState() => _InfoTabState();
-}
-
-class _InfoTabState extends State<_InfoTab> {
-  static const TextStyle _bodyStyle = TextStyle(
-    color: Colors.white,
-    fontSize: 14,
-    height: 1.35,
-  );
-
-  final ScrollController _infoController = ScrollController();
-  final ScrollController _nodeController = ScrollController();
-  final List<_InfoNodeEntry> _history = [];
-  double _infoOffset = 0;
-
-  @override
-  void didUpdateWidget(covariant _InfoTab oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.selectionSerial == oldWidget.selectionSerial) {
-      return;
-    }
-    SpeechService.instance.stop();
-    _history.clear();
-    _infoOffset = 0;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_infoController.hasClients) return;
-      _infoController.jumpTo(0);
-    });
-  }
-
-  @override
-  void dispose() {
-    _infoController.dispose();
-    _nodeController.dispose();
-    super.dispose();
-  }
-
-  _InfoNodeEntry? get _activeNode => _history.isEmpty ? null : _history.last;
-
-  @override
-  Widget build(BuildContext context) {
-    final node = _activeNode;
-    final isNodeView = node != null;
-    final libraryNode = node?.node;
-    final title = node?.title ?? widget.title;
-    final body = node?.body ?? widget.body;
-    final links = node?.links ?? widget.linkMap;
-
-    return SingleChildScrollView(
-      controller: isNodeView ? _nodeController : _infoController,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (isNodeView) _buildBackRow(),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: GlossyText(
-                  text: title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  gradient: silverGloss,
-                ),
-              ),
-              if (!isNodeView) ...[
-                const SizedBox(width: 8),
-                PronounceIconButton(
-                  speakText: widget.speakText,
-                  utteranceId:
-                      'calendar-info:${widget.selectionSerial}:${widget.title}',
-                  color: _gold,
-                  size: 22,
-                  isPhonetic: true,
-                ),
-              ],
-            ],
-          ),
-          if (isNodeView) ...[
-            const SizedBox(height: 8),
-            _buildNodeHeader(node!),
-          ],
-          const SizedBox(height: 8),
-          ..._buildParagraphs(body.trim(), links),
-          if (isNodeView && libraryNode != null) ...[
-            const SizedBox(height: 16),
-            NodeUserInsightsSection(node: libraryNode),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBackRow() {
-    final previous = _history.length >= 2
-        ? _history[_history.length - 2].title
-        : null;
-    final label = previous ?? 'Back to ${widget.backLabel}';
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _popNode,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.arrow_back, color: Colors.white70, size: 18),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNodeHeader(_InfoNodeEntry node) {
-    final aliases = node.aliases.where((a) => a.isNotEmpty).toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ShaderMask(
-          shaderCallback: (Rect bounds) => goldGloss.createShader(bounds),
-          blendMode: BlendMode.srcIn,
-          child: Text(
-            node.glyph,
-            style: const TextStyle(
-              fontSize: 34,
-              color: Colors.white,
-              fontFamily: 'GentiumPlus',
-              fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        if (aliases.isNotEmpty)
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: aliases
-                .map(
-                  (alias) => Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: Text(
-                      alias,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-      ],
-    );
-  }
-
-  List<Widget> _buildParagraphs(String body, List<KemeticNodeLink> linkMap) {
-    final used = <String>{};
-    final widgets = <Widget>[];
-    for (final raw in body.split('\n\n')) {
-      final paragraph = raw.trimRight();
-      if (paragraph.isEmpty) continue;
-      final spans = _linkifyParagraph(paragraph, linkMap, used);
-      widgets.add(
-        RichText(
-          text: TextSpan(style: _bodyStyle, children: spans),
-          textHeightBehavior: const TextHeightBehavior(
-            applyHeightToFirstAscent: false,
-            applyHeightToLastDescent: false,
-          ),
-        ),
-      );
-      widgets.add(const SizedBox(height: 12));
-    }
-    if (widgets.isNotEmpty) {
-      widgets.removeLast();
-    }
-    return widgets;
-  }
-
-  List<InlineSpan> _linkifyParagraph(
-    String paragraph,
-    List<KemeticNodeLink> linkMap,
-    Set<String> used,
-  ) {
-    final matches = <_LinkMatch>[];
-    for (final link in linkMap) {
-      if (used.contains(link.phrase)) continue;
-      if (!_canResolve(link.targetId)) continue;
-      final matchIndex = _findFirstOccurrence(paragraph, link.phrase);
-      if (matchIndex == null) continue;
-      matches.add(
-        _LinkMatch(
-          link: link,
-          start: matchIndex,
-          end: matchIndex + link.phrase.length,
-        ),
-      );
-      used.add(link.phrase);
-    }
-    matches.sort((a, b) => a.start.compareTo(b.start));
-
-    final spans = <InlineSpan>[];
-    int cursor = 0;
-    for (final match in matches) {
-      if (match.start < cursor) continue;
-      if (match.start > cursor) {
-        spans.add(TextSpan(text: paragraph.substring(cursor, match.start)));
-      }
-      spans.add(_buildLinkSpan(match.link));
-      cursor = match.end;
-    }
-    if (cursor < paragraph.length) {
-      spans.add(TextSpan(text: paragraph.substring(cursor)));
-    }
-
-    if (spans.isEmpty) {
-      return [TextSpan(text: paragraph)];
-    }
-    return spans;
-  }
-
-  InlineSpan _buildLinkSpan(KemeticNodeLink link) {
-    return WidgetSpan(
-      alignment: PlaceholderAlignment.baseline,
-      baseline: TextBaseline.alphabetic,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          onTap: () => _openNode(link.targetId),
-          child: ShaderMask(
-            shaderCallback: (Rect bounds) => goldGloss.createShader(bounds),
-            blendMode: BlendMode.srcIn,
-            child: Text(
-              link.phrase,
-              style: _bodyStyle.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                shadows: const [
-                  Shadow(
-                    color: Colors.black54,
-                    blurRadius: 2,
-                    offset: Offset(0, 1),
-                  ),
-                  Shadow(
-                    color: Colors.white10,
-                    blurRadius: 5,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _openNode(String targetId) {
-    final entry = _resolveNode(targetId);
-    if (entry == null) return;
-    final currentId = _activeNode?.id.toLowerCase();
-    if (currentId != null && currentId == entry.id.toLowerCase()) return;
-    if (_history.isEmpty && _infoController.hasClients) {
-      _infoOffset = _infoController.offset;
-    }
-    SpeechService.instance.stop();
-    setState(() {
-      _history.add(entry);
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_nodeController.hasClients) {
-        _nodeController.jumpTo(0);
-      }
-    });
-  }
-
-  _InfoNodeEntry? _resolveNode(String targetId) {
-    final inline = widget.inlineNodes[targetId];
-    if (inline != null) return _InfoNodeEntry.inline(inline);
-    final libNode = KemeticNodeLibrary.resolve(targetId);
-    if (libNode != null) return _InfoNodeEntry.library(libNode);
-    return null;
-  }
-
-  bool _canResolve(String targetId) {
-    return widget.inlineNodes.containsKey(targetId) ||
-        KemeticNodeLibrary.resolve(targetId) != null;
-  }
-
-  bool _popNode() {
-    if (_history.isEmpty) return false;
-    SpeechService.instance.stop();
-    setState(() {
-      _history.removeLast();
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_history.isEmpty) {
-        if (_infoController.hasClients) {
-          final max = _infoController.position.maxScrollExtent;
-          final target = _infoOffset.clamp(0.0, max);
-          _infoController.jumpTo(target);
-        }
-      } else {
-        if (_nodeController.hasClients) {
-          _nodeController.jumpTo(0);
-        }
-      }
-    });
-    return true;
-  }
-
-  int? _findFirstOccurrence(String paragraph, String phrase) {
-    int? fallback;
-    int index = paragraph.indexOf(phrase);
-    while (index != -1) {
-      final isWhole = _isWholeWordMatch(paragraph, index, phrase);
-      if (!isWhole) {
-        index = paragraph.indexOf(phrase, index + phrase.length);
-        continue;
-      }
-      final insideQuote = _isInsideQuotedLine(paragraph, index, phrase.length);
-      fallback ??= index;
-      if (!insideQuote) {
-        return index;
-      }
-      index = paragraph.indexOf(phrase, index + phrase.length);
-    }
-    return fallback;
-  }
-
-  bool _isWholeWordMatch(String source, int index, String phrase) {
-    final beforeIndex = index - 1;
-    final afterIndex = index + phrase.length;
-    final before = beforeIndex >= 0 ? source[beforeIndex] : '';
-    final after = afterIndex < source.length ? source[afterIndex] : '';
-    final letterPattern = RegExp(r'[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]');
-    final beforeIsLetter = letterPattern.hasMatch(before);
-    final afterIsLetter = letterPattern.hasMatch(after);
-    return !beforeIsLetter && !afterIsLetter;
-  }
-
-  bool _isInsideQuotedLine(String text, int index, int length) {
-    final lineStart = text.lastIndexOf('\n', index) + 1;
-    final lineEnd = text.indexOf('\n', index);
-    final line = text
-        .substring(lineStart, lineEnd == -1 ? text.length : lineEnd)
-        .trimLeft();
-
-    if (line.startsWith('“') ||
-        line.startsWith('"') ||
-        line.startsWith('‘') ||
-        line.startsWith('—')) {
-      return true;
-    }
-
-    final quotesBefore = RegExp(
-      r'[“”"‘’]',
-    ).allMatches(text.substring(0, index)).length;
-    final quotesThrough = RegExp(
-      r'[“”"‘’]',
-    ).allMatches(text.substring(0, index + length)).length;
-
-    return quotesBefore.isOdd && quotesThrough >= quotesBefore;
-  }
-}
-
-class _InfoNodeEntry {
-  final KemeticNode? node;
-  final _InlineNodeContent? inlineNode;
-
-  _InfoNodeEntry.library(this.node) : inlineNode = null;
-  _InfoNodeEntry.inline(this.inlineNode) : node = null;
-
-  String get id => (node?.id ?? inlineNode?.id) ?? '';
-  String get title => (node?.title ?? inlineNode?.title) ?? '';
-  String get glyph => (node?.glyph ?? inlineNode?.glyph ?? '★');
-  String get body => (node?.body ?? inlineNode?.body) ?? '';
-  List<KemeticNodeLink> get links =>
-      node?.linkMap ?? inlineNode?.linkMap ?? const [];
-  List<String> get aliases => node?.aliases ?? const [];
-}
-
-class _LinkMatch {
-  final KemeticNodeLink link;
-  final int start;
-  final int end;
-
-  const _LinkMatch({
-    required this.link,
-    required this.start,
-    required this.end,
-  });
-}
-
-class _EventsTab extends StatelessWidget {
-  final int kYear;
-  final int kMonth;
-  final String monthLabel;
-  final List<_MonthEvent> notes;
-  final void Function(int day) onOpenDay;
-
-  const _EventsTab({
-    required this.kYear,
-    required this.kMonth,
-    required this.monthLabel,
-    required this.notes,
-    required this.onOpenDay,
-  });
-
-  Widget _chip(
-    String text, {
-    IconData? icon,
-    Color? color,
-    Color? textColor,
-    double? maxWidth,
-  }) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: maxWidth ?? double.infinity),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        margin: const EdgeInsets.only(right: 8, bottom: 6),
-        decoration: BoxDecoration(
-          color: Colors.white10,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 12, color: color ?? Colors.white70),
-              const SizedBox(width: 4),
-            ],
-            Flexible(
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                softWrap: false,
-                style: TextStyle(
-                  color: textColor ?? Colors.white,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (notes.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text(
-            'No events for this month yet.',
-            style: TextStyle(color: Colors.white70),
-          ),
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-      itemCount: notes.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, i) {
-        final e = notes[i];
-        final g = KemeticMath.toGregorian(kYear, kMonth, e.day);
-        final dateLabel = '$monthLabel ${e.day}';
-        final gregLabel =
-            '${g.month.toString().padLeft(2, '0')}/${g.day.toString().padLeft(2, '0')}/${g.year}';
-
-        return Container(
-          decoration: BoxDecoration(
-            color: e.color.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(12),
-            border: Border(left: BorderSide(color: e.color, width: 3)),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () => onOpenDay(e.day),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12.0,
-                  horizontal: 12.0,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      margin: const EdgeInsets.only(top: 6),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final chipMaxWidth = constraints.maxWidth - 8;
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                dateLabel,
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                e.displayTitle,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Wrap(
-                                children: [
-                                  _chip(
-                                    e.timeLabel,
-                                    icon: Icons.schedule,
-                                    maxWidth: chipMaxWidth,
-                                  ),
-                                  _chip(
-                                    gregLabel,
-                                    icon: Icons.calendar_today,
-                                    maxWidth: chipMaxWidth,
-                                  ),
-                                  if (e.flowName != null &&
-                                      e.flowName!.trim().isNotEmpty)
-                                    _chip(
-                                      e.flowName!.trim(),
-                                      icon: Icons.auto_awesome,
-                                      color: e.color,
-                                      textColor: e.color,
-                                      maxWidth: chipMaxWidth,
-                                    ),
-                                  if (e.note.isReminder)
-                                    _chip(
-                                      'Reminder',
-                                      icon: Icons.notifications_active,
-                                      maxWidth: chipMaxWidth,
-                                    ),
-                                ],
-                              ),
-                              if ((e.location ?? '').isNotEmpty) ...[
-                                const SizedBox(height: 6),
-                                InkWell(
-                                  onTap: () =>
-                                      _launchExternalPreviewTarget(e.location!),
-                                  child: Text(
-                                    e.location!,
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                      decoration: TextDecoration.underline,
-                                      decorationColor: Colors.white54,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              if ((e.detail ?? '').trim().isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                RichText(
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  text: TextSpan(
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 13,
-                                    ),
-                                    children: _buildExternalLinkSpans(
-                                      e.detail!.trim(),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
 // ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
 // ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
 // ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
@@ -30431,597 +25566,6 @@ class _EventsTab extends StatelessWidget {
 // ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
 // ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
 // ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
-
-// ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
-
-/* ---------- helper types used by Flow Studio (top-level; not nested) ---------- */
-
-/// Range bucket for a specific Kemetic decan inside a Kemetic month.
-class _KemeticDecanSpan {
-  final String key; // "ky-km-di"
-  final int ky; // Kemetic year
-  final int km; // 1..12
-  final int di; // 0..2  (0=days 1..10, 1=11..20, 2=21..30)
-  final String label; // "Month • Decan name"
-  int minDay; // 1..10 (trimmed by range)
-  int maxDay; // 1..10 (trimmed by range)
-  DateTime gStart; // first Gregorian day in span within range
-  DateTime gEnd; // last Gregorian day in span within range
-
-  _KemeticDecanSpan({
-    required this.key,
-    required this.ky,
-    required this.km,
-    required this.di,
-    required this.label,
-    required this.minDay,
-    required this.maxDay,
-    required this.gStart,
-    required this.gEnd,
-  });
-}
-
-// Helper class representing a scheduled event/note with timing and display attributes.
-class _EventItem {
-  final String title;
-  final Color color;
-  final int startMin;
-  final int endMin;
-  _EventItem({
-    required this.title,
-    required this.color,
-    required this.startMin,
-    required this.endMin,
-  });
-}
-
-/// Range bucket for a Gregorian week (Mon..Sun).
-class _WeekSpan {
-  final String key; // ISO monday string "yyyy-mm-dd"
-  final DateTime monday; // dateOnly, local
-  int minWd; // 1..7
-  int maxWd; // 1..7
-  _WeekSpan({
-    required this.key,
-    required this.monday,
-    required this.minWd,
-    required this.maxWd,
-  });
-}
-
-class _AlertOption {
-  final String label;
-  final int minutes;
-  const _AlertOption(this.label, this.minutes);
-}
-
-// Sentinel for "no alert" selection in Flow Studio note drafts.
-const int _alertNoneMinutes = -1;
-const String _kCalendarOverlayKindSharedCalendars = 'calendar.sharedCalendars';
-const String _kCalendarOverlayKindFlowStudio = 'calendar.flowStudio';
-const String _kCalendarParentSurfaceRoot = 'calendar.root';
-const String _kCalendarParentSurfaceDayView = 'calendar.dayView';
-const String _kProfileParentSurface = 'profile.page';
-const String _kPlannerTodayParentSurface = 'planner.today';
-const String _kPlannerParentSurface = 'planner.page';
-const String _kRouteParentSurface = 'route.page';
-const String _kFlowStudioDraftEditorKey = 'calendar.flowStudio.draft';
-const String _kFlowStudioModeHub = 'hub';
-const String _kFlowStudioModeMyFlows = 'myFlows';
-const String _kFlowStudioModeMaatFlows = 'maatFlows';
-const String _kFlowStudioModeMaatTemplate = 'maatTemplate';
-const String _kFlowStudioModeEditor = 'editor';
-
-const List<_AlertOption> _alertOptions = [
-  _AlertOption('None', _alertNoneMinutes),
-  _AlertOption('At time of event', 0),
-  _AlertOption('5 minutes before', 5),
-  _AlertOption('10 minutes before', 10),
-  _AlertOption('15 minutes before', 15),
-  _AlertOption('30 minutes before', 30),
-  _AlertOption('1 hour before', 60),
-  _AlertOption('2 hours before', 120),
-  _AlertOption('1 day before', 60 * 24),
-  _AlertOption('2 days before', 60 * 24 * 2),
-  _AlertOption('1 week before', 60 * 24 * 7),
-];
-
-String _alertLabelFor(int? minutes) {
-  final val = minutes ?? 0;
-  final match = _alertOptions.firstWhere(
-    (o) => o.minutes == val,
-    orElse: () => const _AlertOption('At time of event', 0),
-  );
-  return match.label;
-}
-
-Map<String, dynamic>? _flowStudioJsonMap(Object? raw) {
-  if (raw is! Map) return null;
-  return raw.map<String, dynamic>(
-    (dynamic key, dynamic value) => MapEntry(key.toString(), value),
-  );
-}
-
-List<int> _flowStudioIntList(Object? raw) {
-  if (raw is! Iterable) return const <int>[];
-  return raw
-      .map((value) => (value as num?)?.toInt())
-      .whereType<int>()
-      .toList(growable: false);
-}
-
-Map<String, Set<int>> _flowStudioIntSetMap(Object? raw) {
-  final map = _flowStudioJsonMap(raw);
-  if (map == null) return const <String, Set<int>>{};
-  return map.map(
-    (key, value) => MapEntry(key, _flowStudioIntList(value).toSet()),
-  );
-}
-
-DateTime? _flowStudioDateFromJson(Object? raw) {
-  final text = raw as String?;
-  if (text == null || text.trim().isEmpty) return null;
-  final parsed = DateTime.tryParse(text);
-  return parsed == null ? null : DateUtils.dateOnly(parsed.toLocal());
-}
-
-String? _flowStudioDateToJson(DateTime? date) =>
-    date == null ? null : DateUtils.dateOnly(date).toIso8601String();
-
-Future<int?> _pickAlertMinutes(BuildContext context, int? current) {
-  return showCupertinoModalPopup<int>(
-    context: context,
-    builder: (sheetCtx) {
-      return CupertinoActionSheet(
-        title: const GlossyText(
-          text: 'Alert',
-          gradient: silverGloss,
-          style: TextStyle(fontSize: 18),
-        ),
-        actions: [
-          for (final opt in _alertOptions)
-            CupertinoActionSheetAction(
-              onPressed: () => Navigator.pop(sheetCtx, opt.minutes),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GlossyText(
-                    text: opt.label,
-                    gradient: goldGloss,
-                    style: const TextStyle(fontSize: 17),
-                  ),
-                  if (current == opt.minutes)
-                    const Icon(Icons.check, color: _silver),
-                ],
-              ),
-            ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          isDestructiveAction: true,
-          onPressed: () => Navigator.pop(sheetCtx),
-          child: const Text('Cancel'),
-        ),
-      );
-    },
-  );
-}
-
-/// Lightweight inputs holder for one planned note.
-class _NoteDraft {
-  _NoteDraft({VoidCallback? onChanged}) {
-    if (onChanged != null) {
-      attachChangeListener(onChanged);
-    }
-  }
-
-  final titleCtrl = TextEditingController();
-  final locationCtrl = TextEditingController();
-  final detailCtrl = TextEditingController();
-  bool allDay = false;
-  TimeOfDay? start = const TimeOfDay(hour: 12, minute: 0);
-  TimeOfDay? end = const TimeOfDay(hour: 13, minute: 0);
-  String? category;
-  int alertMinutesBefore =
-      _alertNoneMinutes; // -1 = none, null = legacy default
-  bool usesFlowAlertDefault = true;
-  String? actionId;
-  Map<String, dynamic>? behaviorPayload;
-  VoidCallback? _changeListener;
-
-  void attachChangeListener(VoidCallback listener) {
-    if (_changeListener == listener) return;
-    final previous = _changeListener;
-    if (previous != null) {
-      titleCtrl.removeListener(previous);
-      locationCtrl.removeListener(previous);
-      detailCtrl.removeListener(previous);
-    }
-    _changeListener = listener;
-    titleCtrl.addListener(listener);
-    locationCtrl.addListener(listener);
-    detailCtrl.addListener(listener);
-  }
-
-  _Note toNote({required int flowAlertMinutesBefore}) {
-    final t = titleCtrl.text.trim();
-    final loc = locationCtrl.text.trim();
-    final det = detailCtrl.text.trim();
-    final effectiveAlert = usesFlowAlertDefault
-        ? flowAlertMinutesBefore
-        : alertMinutesBefore;
-    return _Note(
-      title: t,
-      location: loc.isEmpty ? null : loc,
-      detail: det.isEmpty ? null : det,
-      allDay: allDay,
-      start: allDay ? null : start,
-      end: allDay ? null : end,
-      category: category,
-      alertOffsetMinutes: effectiveAlert,
-      actionId: actionId,
-      behaviorPayload: behaviorPayload == null
-          ? null
-          : Map<String, dynamic>.from(behaviorPayload!),
-    );
-  }
-
-  void dispose() {
-    final listener = _changeListener;
-    if (listener != null) {
-      titleCtrl.removeListener(listener);
-      locationCtrl.removeListener(listener);
-      detailCtrl.removeListener(listener);
-    }
-    titleCtrl.dispose();
-    locationCtrl.dispose();
-    detailCtrl.dispose();
-  }
-}
-
-class _DraftNoteData {
-  final String title;
-  final String location;
-  final String detail;
-  final bool allDay;
-  final int? startMinutes; // null when all-day
-  final int? endMinutes; // null when all-day
-  final String? category;
-  final int alertMinutesBefore;
-  final bool usesFlowAlertDefault;
-  final String? actionId;
-  final Map<String, dynamic>? behaviorPayload;
-
-  const _DraftNoteData({
-    required this.title,
-    required this.location,
-    required this.detail,
-    required this.allDay,
-    required this.startMinutes,
-    required this.endMinutes,
-    required this.category,
-    required this.alertMinutesBefore,
-    required this.usesFlowAlertDefault,
-    this.actionId,
-    this.behaviorPayload,
-  });
-
-  factory _DraftNoteData.fromDraft(_NoteDraft draft) {
-    return _DraftNoteData(
-      title: draft.titleCtrl.text,
-      location: draft.locationCtrl.text,
-      detail: draft.detailCtrl.text,
-      allDay: draft.allDay,
-      startMinutes: draft.allDay || draft.start == null
-          ? null
-          : draft.start!.hour * 60 + draft.start!.minute,
-      endMinutes: draft.allDay || draft.end == null
-          ? null
-          : draft.end!.hour * 60 + draft.end!.minute,
-      category: draft.category,
-      alertMinutesBefore: draft.alertMinutesBefore,
-      usesFlowAlertDefault: draft.usesFlowAlertDefault,
-      actionId: draft.actionId,
-      behaviorPayload: draft.behaviorPayload == null
-          ? null
-          : Map<String, dynamic>.from(draft.behaviorPayload!),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'title': title,
-      'location': location,
-      'detail': detail,
-      'allDay': allDay,
-      if (startMinutes != null) 'startMinutes': startMinutes,
-      if (endMinutes != null) 'endMinutes': endMinutes,
-      if (category != null) 'category': category,
-      'alertMinutesBefore': alertMinutesBefore,
-      'usesFlowAlertDefault': usesFlowAlertDefault,
-      if (actionId != null) 'actionId': actionId,
-      if (behaviorPayload != null) 'behaviorPayload': behaviorPayload,
-    };
-  }
-
-  static _DraftNoteData? fromJson(Object? raw) {
-    final json = _flowStudioJsonMap(raw);
-    if (json == null) return null;
-    final startMinutes = (json['startMinutes'] as num?)?.toInt();
-    final endMinutes = (json['endMinutes'] as num?)?.toInt();
-    return _DraftNoteData(
-      title: json['title'] as String? ?? '',
-      location: json['location'] as String? ?? '',
-      detail: json['detail'] as String? ?? '',
-      allDay: json['allDay'] == true,
-      startMinutes: startMinutes,
-      endMinutes: endMinutes,
-      category: json['category'] as String?,
-      alertMinutesBefore:
-          (json['alertMinutesBefore'] as num?)?.toInt() ?? _alertNoneMinutes,
-      usesFlowAlertDefault: json['usesFlowAlertDefault'] != false,
-      actionId: json['actionId'] as String?,
-      behaviorPayload: _flowStudioJsonMap(json['behaviorPayload']),
-    );
-  }
-
-  _NoteDraft toDraft({VoidCallback? onChanged}) {
-    final d = _NoteDraft(onChanged: onChanged);
-    d.titleCtrl.text = title;
-    d.locationCtrl.text = location;
-    d.detailCtrl.text = detail;
-    d.allDay = allDay;
-    if (!allDay && startMinutes != null && endMinutes != null) {
-      d.start = TimeOfDay(
-        hour: (startMinutes! ~/ 60) % 24,
-        minute: startMinutes! % 60,
-      );
-      d.end = TimeOfDay(
-        hour: (endMinutes! ~/ 60) % 24,
-        minute: endMinutes! % 60,
-      );
-    } else {
-      d.start = null;
-      d.end = null;
-    }
-    d.category = category;
-    d.alertMinutesBefore = alertMinutesBefore;
-    d.usesFlowAlertDefault = usesFlowAlertDefault;
-    d.actionId = actionId;
-    d.behaviorPayload = behaviorPayload == null
-        ? null
-        : Map<String, dynamic>.from(behaviorPayload!);
-    return d;
-  }
-}
-
-class _FlowStudioDraft {
-  final int? editingFlowId;
-  final bool editingIsHidden;
-  final String? calendarId;
-  final String name;
-  final bool active;
-  final int selectedColorIndex;
-  final bool useKemetic;
-  final DateTime? startDate;
-  final DateTime? endDate;
-  final bool splitByPeriod;
-  final Set<int> selectedDecanDays;
-  final Set<int> selectedWeekdays;
-  final Map<String, Set<int>> perDecanSel;
-  final Map<String, Set<int>> perWeekSel;
-  final Map<String, List<_DraftNoteData>> draftsByDay;
-  final Map<String, _DraftNoteData> draftsByPattern;
-  final String overview;
-  final bool isAIGeneratedFlow;
-  final int flowAlertMinutesBefore;
-  final bool flowAlertMixed;
-
-  const _FlowStudioDraft({
-    required this.editingFlowId,
-    required this.editingIsHidden,
-    required this.calendarId,
-    required this.name,
-    required this.active,
-    required this.selectedColorIndex,
-    required this.useKemetic,
-    required this.startDate,
-    required this.endDate,
-    required this.splitByPeriod,
-    required this.selectedDecanDays,
-    required this.selectedWeekdays,
-    required this.perDecanSel,
-    required this.perWeekSel,
-    required this.draftsByDay,
-    required this.draftsByPattern,
-    required this.overview,
-    required this.isAIGeneratedFlow,
-    required this.flowAlertMinutesBefore,
-    required this.flowAlertMixed,
-  });
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      if (editingFlowId != null) 'editingFlowId': editingFlowId,
-      'editingIsHidden': editingIsHidden,
-      if (calendarId != null) 'calendarId': calendarId,
-      'name': name,
-      'active': active,
-      'selectedColorIndex': selectedColorIndex,
-      'useKemetic': useKemetic,
-      if (_flowStudioDateToJson(startDate) != null)
-        'startDate': _flowStudioDateToJson(startDate),
-      if (_flowStudioDateToJson(endDate) != null)
-        'endDate': _flowStudioDateToJson(endDate),
-      'splitByPeriod': splitByPeriod,
-      'selectedDecanDays': selectedDecanDays.toList(growable: false),
-      'selectedWeekdays': selectedWeekdays.toList(growable: false),
-      'perDecanSel': perDecanSel.map(
-        (key, value) => MapEntry(key, value.toList(growable: false)),
-      ),
-      'perWeekSel': perWeekSel.map(
-        (key, value) => MapEntry(key, value.toList(growable: false)),
-      ),
-      'draftsByDay': draftsByDay.map(
-        (key, value) =>
-            MapEntry(key, value.map((note) => note.toJson()).toList()),
-      ),
-      'draftsByPattern': draftsByPattern.map(
-        (key, value) => MapEntry(key, value.toJson()),
-      ),
-      'overview': overview,
-      'isAIGeneratedFlow': isAIGeneratedFlow,
-      'flowAlertMinutesBefore': flowAlertMinutesBefore,
-      'flowAlertMixed': flowAlertMixed,
-    };
-  }
-
-  static _FlowStudioDraft? fromJson(Object? raw) {
-    final json = _flowStudioJsonMap(raw);
-    if (json == null) return null;
-
-    final draftsByDay = <String, List<_DraftNoteData>>{};
-    final rawDraftsByDay = _flowStudioJsonMap(json['draftsByDay']);
-    if (rawDraftsByDay != null) {
-      for (final entry in rawDraftsByDay.entries) {
-        final notes = entry.value is Iterable
-            ? (entry.value as Iterable)
-                  .map(_DraftNoteData.fromJson)
-                  .whereType<_DraftNoteData>()
-                  .toList(growable: false)
-            : const <_DraftNoteData>[];
-        if (notes.isNotEmpty) {
-          draftsByDay[entry.key] = notes;
-        }
-      }
-    }
-
-    final draftsByPattern = <String, _DraftNoteData>{};
-    final rawDraftsByPattern = _flowStudioJsonMap(json['draftsByPattern']);
-    if (rawDraftsByPattern != null) {
-      for (final entry in rawDraftsByPattern.entries) {
-        final note = _DraftNoteData.fromJson(entry.value);
-        if (note != null) {
-          draftsByPattern[entry.key] = note;
-        }
-      }
-    }
-
-    return _FlowStudioDraft(
-      editingFlowId: (json['editingFlowId'] as num?)?.toInt(),
-      editingIsHidden: json['editingIsHidden'] == true,
-      calendarId: (json['calendarId'] as String?)?.trim(),
-      name: json['name'] as String? ?? '',
-      active: json['active'] != false,
-      selectedColorIndex: (json['selectedColorIndex'] as num?)?.toInt() ?? 0,
-      useKemetic: json['useKemetic'] == true,
-      startDate: _flowStudioDateFromJson(json['startDate']),
-      endDate: _flowStudioDateFromJson(json['endDate']),
-      splitByPeriod: json['splitByPeriod'] == true,
-      selectedDecanDays: _flowStudioIntList(json['selectedDecanDays']).toSet(),
-      selectedWeekdays: _flowStudioIntList(json['selectedWeekdays']).toSet(),
-      perDecanSel: _flowStudioIntSetMap(json['perDecanSel']),
-      perWeekSel: _flowStudioIntSetMap(json['perWeekSel']),
-      draftsByDay: draftsByDay,
-      draftsByPattern: draftsByPattern,
-      overview: json['overview'] as String? ?? '',
-      isAIGeneratedFlow: json['isAIGeneratedFlow'] == true,
-      flowAlertMinutesBefore:
-          (json['flowAlertMinutesBefore'] as num?)?.toInt() ??
-          _alertNoneMinutes,
-      flowAlertMixed: json['flowAlertMixed'] == true,
-    );
-  }
-}
-
-/// One concrete selected day derived from the chips.
-class _SelectedDay {
-  final String key; // "ky-km-kd"
-  final int ky, km, kd;
-  final DateTime g; // Gregorian
-  _SelectedDay(this.key, this.ky, this.km, this.kd, this.g);
-}
-
-/// One editor group: either a concrete day or a pattern (weekday / decan day).
-class _EditorGroup {
-  final String key; // day key: "ky-km-kd"; pattern key: "WD-2" / "DD-3"
-  final bool isPattern; // true for pattern (repeat), false for per-day
-  final String header; // display header
-  final List<_SelectedDay> days; // all concrete days this editor applies to
-  const _EditorGroup({
-    required this.key,
-    required this.isPattern,
-    required this.header,
-    required this.days,
-  });
-}
-
-/// A note to add on a specific Kemetic day (result payload).
-class ImportFlowData {
-  final InboxShareItem share;
-  final String name;
-  final int color;
-  final String? notes;
-  final List<dynamic> rules;
-  final DateTime? suggestedStartDate;
-  final DateTime? suggestedEndDate;
-  final String? overview;
-  final String? generationId;
-  final int? originFlowId;
-  final int? rootFlowId;
-  final String? originType;
-  final Map<String, dynamic>? aiMetadata;
-  const ImportFlowData({
-    required this.share,
-    required this.name,
-    required this.color,
-    this.notes,
-    required this.rules,
-    this.suggestedStartDate,
-    this.suggestedEndDate,
-    this.overview,
-    this.generationId,
-    this.originFlowId,
-    this.rootFlowId,
-    this.originType,
-    this.aiMetadata,
-  });
-}
-
-class _PlannedNote {
-  final int ky, km, kd; // Kemetic Y/M/D
-  final _Note note;
-  const _PlannedNote({
-    required this.ky,
-    required this.km,
-    required this.kd,
-    required this.note,
-  });
-}
-
-class _FlowStudioResult {
-  final _Flow? savedFlow;
-  final int? deleteFlowId;
-  final List<_PlannedNote> plannedNotes;
-  final String? originType;
-  final int? originFlowId;
-  final String? originShareId;
-  final String? originGenerationId;
-  final int? rootFlowId;
-  final Map<String, dynamic>? aiMetadata;
-  const _FlowStudioResult({
-    this.savedFlow,
-    this.deleteFlowId,
-    this.plannedNotes = const [],
-    this.originType,
-    this.originFlowId,
-    this.originShareId,
-    this.originGenerationId,
-    this.rootFlowId,
-    this.aiMetadata,
-  });
-}
-
-/* ---------------------------------- page ---------------------------------- */
 
 class _FlowStudioPage extends StatefulWidget {
   const _FlowStudioPage({
@@ -31029,7 +25573,6 @@ class _FlowStudioPage extends StatefulWidget {
     this.editFlowId,
     this.importData,
     this.onContinuityChanged,
-    super.key,
   });
 
   final List<_Flow> existingFlows;
@@ -32406,7 +26949,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       context: context,
       initialTime: draft.start ?? const TimeOfDay(hour: 12, minute: 0),
       builder: (c, w) => Theme(
-        data: Theme.of(c!).copyWith(
+        data: Theme.of(c).copyWith(
           colorScheme: const ColorScheme.dark(
             primary: _gold,
             surface: _bg,
@@ -32436,7 +26979,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
               ? _addMinutes(draft.start!, 60)
               : const TimeOfDay(hour: 13, minute: 0)),
       builder: (c, w) => Theme(
-        data: Theme.of(c!).copyWith(
+        data: Theme.of(c).copyWith(
           colorScheme: const ColorScheme.dark(
             primary: _gold,
             surface: _bg,
@@ -33255,7 +27798,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   void _loadFlowForEdit(_Flow f) {
     // Add debug logging
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '[loadFlowForEdit] Loading flow ${f.id} "${f.name}" with color=${f.color.toARGB32().toRadixString(16)}',
       );
     }
@@ -33273,7 +27816,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
       // Add debug logging for color not found
       if (kDebugMode && idx < 0) {
-        debugPrint(
+        _calendarDebugPrint(
           '[loadFlowForEdit] Color ${f.color.toARGB32().toRadixString(16)} not found in palette, defaulting to index 0',
         );
       }
@@ -33414,9 +27957,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
 
       if (kDebugMode) {
-        debugPrint('🔍 [AI Flow Init] flowId: $flowId');
-        debugPrint('🔍 [AI Flow Init] userEvents.length: ${userEvents.length}');
-        debugPrint(
+        _calendarDebugPrint('🔍 [AI Flow Init] flowId: $flowId');
+        _calendarDebugPrint(
+          '🔍 [AI Flow Init] userEvents.length: ${userEvents.length}',
+        );
+        _calendarDebugPrint(
           '🔍 [AI Flow Init] titles: ${userEvents.map((e) => e.title).toList()}',
         );
       }
@@ -33497,7 +28042,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       );
 
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '🔍 [AI Flow Init] _originalEventCount: $_originalEventCount (days: ${_draftsByDay.keys.length})',
         );
       }
@@ -33558,7 +28103,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   /// Load a flow by ID from database (for imported or AI flows not in existingFlows)
   Future<void> _loadFlowByIdFromDb(int flowId) async {
     if (kDebugMode) {
-      debugPrint('🔍 [LoadFlow] START: flowId=$flowId');
+      _calendarDebugPrint('🔍 [LoadFlow] START: flowId=$flowId');
     }
 
     final flowsRepo = FlowsRepo(Supabase.instance.client);
@@ -33568,7 +28113,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final flowRow = await flowsRepo.getFlowById(flowId);
     if (flowRow == null) {
       if (kDebugMode) {
-        debugPrint('🔍 [LoadFlow] ERROR: Flow not found');
+        _calendarDebugPrint('🔍 [LoadFlow] ERROR: Flow not found');
       }
       if (mounted) {
         ScaffoldMessenger.of(
@@ -33579,7 +28124,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     }
 
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '🔍 [LoadFlow] Flow found: name="${flowRow.name}", startDate=${flowRow.startDate}, endDate=${flowRow.endDate}',
       );
     }
@@ -33588,7 +28133,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final isAiGenerated = (flowRow.aiMetadata?['generated'] as bool?) == true;
     if (isAiGenerated) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '🔍 [LoadFlow] Detected AI flow, delegating to _loadAIGeneratedFlow',
         );
       }
@@ -33600,7 +28145,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final eventRecords = await eventsRepo.getEventsForFlow(flowId);
 
     if (kDebugMode) {
-      debugPrint('🔍 [LoadFlow] Loaded ${eventRecords.length} event records');
+      _calendarDebugPrint(
+        '🔍 [LoadFlow] Loaded ${eventRecords.length} event records',
+      );
     }
 
     // ✅ CORRECTED: Map records → UserEvent using the same helper as AI path
@@ -33622,7 +28169,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     // If there are *no* events, fall back to the existing rule-based loader
     if (userEvents.isEmpty) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '🔍 [LoadFlow] No events found, using rule-based loader fallback',
         );
       }
@@ -33661,13 +28208,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final endDate = _dateOnly(flowRow.endDate ?? lastDate);
 
     if (kDebugMode) {
-      debugPrint('🔍 [LoadFlow] Calculated dates:');
-      debugPrint('  firstDate from events: $firstDate');
-      debugPrint('  lastDate from events: $lastDate');
-      debugPrint('  flowRow.startDate: ${flowRow.startDate}');
-      debugPrint('  flowRow.endDate: ${flowRow.endDate}');
-      debugPrint('  final startDate: $startDate');
-      debugPrint('  final endDate: $endDate');
+      _calendarDebugPrint('🔍 [LoadFlow] Calculated dates:');
+      _calendarDebugPrint('  firstDate from events: $firstDate');
+      _calendarDebugPrint('  lastDate from events: $lastDate');
+      _calendarDebugPrint('  flowRow.startDate: ${flowRow.startDate}');
+      _calendarDebugPrint('  flowRow.endDate: ${flowRow.endDate}');
+      _calendarDebugPrint('  final startDate: $startDate');
+      _calendarDebugPrint('  final endDate: $endDate');
     }
 
     // 4️⃣ Build _Flow model for the editor
@@ -33695,7 +28242,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final meta = notesDecode(f.notes);
 
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '🔍 [LoadFlow] Decoded meta: kemetic=${meta.kemetic}, overview="${meta.overview}"',
       );
     }
@@ -33719,39 +28266,41 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     _syncReady = true;
 
     if (kDebugMode) {
-      debugPrint('🔍 [LoadFlow] Set state variables OUTSIDE setState:');
-      debugPrint('  _startDate: $_startDate');
-      debugPrint('  _endDate: $_endDate');
-      debugPrint('  _useKemetic: $_useKemetic');
-      debugPrint('  _splitByPeriod: $_splitByPeriod');
-      debugPrint('  _syncReady: $_syncReady');
-      debugPrint('  _hasFullRange: $_hasFullRange');
+      _calendarDebugPrint(
+        '🔍 [LoadFlow] Set state variables OUTSIDE setState:',
+      );
+      _calendarDebugPrint('  _startDate: $_startDate');
+      _calendarDebugPrint('  _endDate: $_endDate');
+      _calendarDebugPrint('  _useKemetic: $_useKemetic');
+      _calendarDebugPrint('  _splitByPeriod: $_splitByPeriod');
+      _calendarDebugPrint('  _syncReady: $_syncReady');
+      _calendarDebugPrint('  _hasFullRange: $_hasFullRange');
     }
 
     // 7️⃣ Build spans now that mode is known (BEFORE converting events, like AI path)
     if (kDebugMode) {
-      debugPrint('🔍 [LoadFlow] Calling _rebuildSpans() (first call)');
+      _calendarDebugPrint('🔍 [LoadFlow] Calling _rebuildSpans() (first call)');
     }
     _rebuildSpans();
 
     if (kDebugMode) {
-      debugPrint('🔍 [LoadFlow] After first _rebuildSpans():');
-      debugPrint('  _kemeticSpans.length: ${_kemeticSpans.length}');
-      debugPrint('  _weekSpans.length: ${_weekSpans.length}');
+      _calendarDebugPrint('🔍 [LoadFlow] After first _rebuildSpans():');
+      _calendarDebugPrint('  _kemeticSpans.length: ${_kemeticSpans.length}');
+      _calendarDebugPrint('  _weekSpans.length: ${_weekSpans.length}');
     }
 
     // 8️⃣ NOW convert events → drafts (same helper AI uses)
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '🔍 [LoadFlow] Converting ${userEvents.length} events to drafts',
       );
     }
     _convertEventsToDrafts(userEvents);
 
     if (kDebugMode) {
-      debugPrint('🔍 [LoadFlow] After _convertEventsToDrafts():');
-      debugPrint('  _draftsByDay.length: ${_draftsByDay.length}');
-      debugPrint('  _draftsByDay.keys: ${_draftsByDay.keys.toList()}');
+      _calendarDebugPrint('🔍 [LoadFlow] After _convertEventsToDrafts():');
+      _calendarDebugPrint('  _draftsByDay.length: ${_draftsByDay.length}');
+      _calendarDebugPrint('  _draftsByDay.keys: ${_draftsByDay.keys.toList()}');
     }
 
     // 9️⃣ Clear and populate selection state
@@ -33759,7 +28308,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     _perDecanSel.clear();
 
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '🔍 [LoadFlow] Populating selections: _hasFullRange=$_hasFullRange, _draftsByDay.isNotEmpty=${_draftsByDay.isNotEmpty}',
       );
     }
@@ -33772,13 +28321,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       }
 
       if (kDebugMode) {
-        debugPrint('🔍 [LoadFlow] After populating selections:');
-        debugPrint('  _perDecanSel.length: ${_perDecanSel.length}');
-        debugPrint('  _perWeekSel.length: ${_perWeekSel.length}');
+        _calendarDebugPrint('🔍 [LoadFlow] After populating selections:');
+        _calendarDebugPrint('  _perDecanSel.length: ${_perDecanSel.length}');
+        _calendarDebugPrint('  _perWeekSel.length: ${_perWeekSel.length}');
       }
     } else {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '🔍 [LoadFlow] SKIPPED selection population: _hasFullRange=$_hasFullRange, _draftsByDay.isNotEmpty=${_draftsByDay.isNotEmpty}',
         );
       }
@@ -33786,23 +28335,23 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
     // 🔟 Apply selections to drafts (calls _rebuildSpans() again, like AI path)
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '🔍 [LoadFlow] Calling _applySelectionToDrafts() (will call _rebuildSpans() again)',
       );
     }
     _applySelectionToDrafts();
 
     if (kDebugMode) {
-      debugPrint('🔍 [LoadFlow] After _applySelectionToDrafts():');
-      debugPrint('  _kemeticSpans.length: ${_kemeticSpans.length}');
-      debugPrint('  _weekSpans.length: ${_weekSpans.length}');
+      _calendarDebugPrint('🔍 [LoadFlow] After _applySelectionToDrafts():');
+      _calendarDebugPrint('  _kemeticSpans.length: ${_kemeticSpans.length}');
+      _calendarDebugPrint('  _weekSpans.length: ${_weekSpans.length}');
     }
 
     // 1️⃣1️⃣ 🔑 CRITICAL: Manually hydrate header fields WITHOUT setting dates again
     // Match AI flow path: dates already set above, only set header fields here
     if (!mounted) {
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '🔍 [LoadFlow] ERROR: Widget not mounted, aborting setState',
         );
       }
@@ -33810,10 +28359,12 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     }
 
     if (kDebugMode) {
-      debugPrint('🔍 [LoadFlow] About to call setState with header fields:');
-      debugPrint('  _editing will be: ${f.name}');
-      debugPrint('  _startDate (already set): $_startDate');
-      debugPrint('  _endDate (already set): $_endDate');
+      _calendarDebugPrint(
+        '🔍 [LoadFlow] About to call setState with header fields:',
+      );
+      _calendarDebugPrint('  _editing will be: ${f.name}');
+      _calendarDebugPrint('  _startDate (already set): $_startDate');
+      _calendarDebugPrint('  _endDate (already set): $_endDate');
     }
 
     setState(() {
@@ -33835,15 +28386,15 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     });
 
     if (kDebugMode) {
-      debugPrint('🔍 [LoadFlow] After setState:');
-      debugPrint('  _editing: ${_editing?.name}');
-      debugPrint('  _startDate: $_startDate');
-      debugPrint('  _endDate: $_endDate');
-      debugPrint('  _hasFullRange: $_hasFullRange');
-      debugPrint('  _draftsByDay.length: ${_draftsByDay.length}');
-      debugPrint('  _kemeticSpans.length: ${_kemeticSpans.length}');
-      debugPrint('  _weekSpans.length: ${_weekSpans.length}');
-      debugPrint('🔍 [LoadFlow] END');
+      _calendarDebugPrint('🔍 [LoadFlow] After setState:');
+      _calendarDebugPrint('  _editing: ${_editing?.name}');
+      _calendarDebugPrint('  _startDate: $_startDate');
+      _calendarDebugPrint('  _endDate: $_endDate');
+      _calendarDebugPrint('  _hasFullRange: $_hasFullRange');
+      _calendarDebugPrint('  _draftsByDay.length: ${_draftsByDay.length}');
+      _calendarDebugPrint('  _kemeticSpans.length: ${_kemeticSpans.length}');
+      _calendarDebugPrint('  _weekSpans.length: ${_weekSpans.length}');
+      _calendarDebugPrint('🔍 [LoadFlow] END');
     }
   }
 
@@ -34017,7 +28568,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _draftsByDay[dateKey] = listForDay;
 
       if (kDebugMode) {
-        debugPrint(
+        _calendarDebugPrint(
           '🔍 [Draft] $dateKey → title: "${draft.titleCtrl.text}" (${listForDay.length} total)',
         );
       }
@@ -34204,7 +28755,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   /// Helper to load a flow from DB with loading spinner
   void _loadFromDbWithSpinner(int flowId) {
     if (kDebugMode) {
-      debugPrint('🔧 [FlowStudio] _loadFromDbWithSpinner: flowId=$flowId');
+      _calendarDebugPrint(
+        '🔧 [FlowStudio] _loadFromDbWithSpinner: flowId=$flowId',
+      );
     }
 
     _nameCtrl = TextEditingController();
@@ -34238,7 +28791,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     WidgetsBinding.instance.addObserver(this);
 
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '🔧 [FlowStudio] initState: editFlowId=${widget.editFlowId}, '
         'existingFlows=${widget.existingFlows.length}',
       );
@@ -34254,12 +28807,14 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     if (widget.editFlowId != null) {
       final id = widget.editFlowId!;
       if (kDebugMode) {
-        debugPrint('🔎 [FlowStudio] editFlowId=$id → loading directly from DB');
+        _calendarDebugPrint(
+          '🔎 [FlowStudio] editFlowId=$id → loading directly from DB',
+        );
       }
       _loadFromDbWithSpinner(id);
     } else {
       if (kDebugMode) {
-        debugPrint('✨ [FlowStudio] New flow creation mode');
+        _calendarDebugPrint('✨ [FlowStudio] New flow creation mode');
       }
       // Initialize for new flow creation
       _editing = null;
@@ -35572,7 +30127,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     }
 
     if (kDebugMode) {
-      debugPrint(
+      _calendarDebugPrint(
         '[saved_flow_import] Imported flow $newId with $importedEventCount events',
       );
     }
@@ -37075,12 +31630,6 @@ String _appendCidMetadata(String detail, String cidMeta) {
   );
 }
 
-// Backwards-compatible wrapper for legacy color-only callers.
-({Color? color, String? detail}) _decodeDetailColor(String? raw) {
-  final meta = _decodeDetailMetadata(raw);
-  return (color: meta.color, detail: meta.detail);
-}
-
 String? _encodeDetailWithMeta(
   String? detail, {
   Color? color,
@@ -37102,10 +31651,6 @@ String? _encodeDetailWithMeta(
   final out = buffer.toString();
   return out.isEmpty ? null : out;
 }
-
-// Maintains older call-sites while delegating to metadata-aware encoder.
-String? _encodeDetailWithColor(String? detail, Color? color) =>
-    _encodeDetailWithMeta(detail, color: color);
 
 // Helper: label for repeat option
 String _repeatOptionLabel(
@@ -37296,7 +31841,7 @@ Set<DateTime> generateNoteRecurrenceDates({
   }
 
   if (kDebugMode) {
-    debugPrint(
+    _calendarDebugPrint(
       '[RepeatNote] Generated ${dates.length} dates for $repeatOption '
       '(freq=$frequency, interval=$interval, limit=$limit)',
     );
@@ -37630,7 +32175,6 @@ class _FlowHubPage extends StatelessWidget {
     required this.openMyFlows,
     required this.openMaatFlows,
     required this.onCreateNew,
-    super.key,
   });
 
   final VoidCallback openMyFlows;
@@ -37816,7 +32360,6 @@ class _MaatFlowsListPage extends StatelessWidget {
     required this.onCreateNew,
     required this.title,
     required this.templates,
-    super.key,
   });
 
   final bool Function(String key) hasActiveForKey;
@@ -37919,7 +32462,6 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   const _MaatFlowTemplateDetailPage({
     required this.template,
     required this.addInstance,
-    super.key,
   });
 
   final _MaatFlowTemplate template;
@@ -38513,8 +33055,8 @@ class _MaatFlowTemplateDetailPageState
       );
     } catch (e, st) {
       if (kDebugMode) {
-        debugPrint('[dawnHouseRite] join failed: $e');
-        debugPrint('$st');
+        _calendarDebugPrint('[dawnHouseRite] join failed: $e');
+        _calendarDebugPrint('$st');
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -38556,8 +33098,8 @@ class _MaatFlowTemplateDetailPageState
       );
     } catch (e, st) {
       if (kDebugMode) {
-        debugPrint('[eveningThresholdRite] join failed: $e');
-        debugPrint('$st');
+        _calendarDebugPrint('[eveningThresholdRite] join failed: $e');
+        _calendarDebugPrint('$st');
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -39861,7 +34403,10 @@ class _EventSearchDelegate extends SearchDelegate<void> {
   ThemeData appBarTheme(BuildContext context) {
     final base = Theme.of(context);
     return base.copyWith(
-      appBarTheme: const AppBarTheme(color: Colors.black, elevation: 0.5),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.black,
+        elevation: 0.5,
+      ),
       inputDecorationTheme: const InputDecorationTheme(
         hintStyle: TextStyle(color: _silver),
         border: InputBorder.none,
@@ -40448,10 +34993,9 @@ class _CustomRepeatPage extends StatefulWidget {
   final int initialInterval;
 
   const _CustomRepeatPage({
-    Key? key,
     required this.initialFrequency,
     required this.initialInterval,
-  }) : super(key: key);
+  });
 
   @override
   State<_CustomRepeatPage> createState() => _CustomRepeatPageState();
