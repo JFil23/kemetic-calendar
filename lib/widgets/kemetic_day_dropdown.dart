@@ -19,11 +19,11 @@ class KemeticDayDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final parsedKey = KemeticDayData._parseDayKey(dayKey);
+    final parsedKey = _parseDayKey(dayKey);
     final bool isEpagomenal =
         parsedKey?.month == 13 || dayKey.startsWith('epagomenal_');
     final int? epagomenalDay = isEpagomenal ? parsedKey?.day : null;
-    final parsedDecan = KemeticDayData._parseDayKeyForDecan(dayKey);
+    final parsedDecan = _parseDayKeyForDecan(dayKey);
 
     final String monthLine = isEpagomenal
         ? (dayInfo.month.isNotEmpty
@@ -32,9 +32,7 @@ class KemeticDayDropdown extends StatelessWidget {
         : dayInfo.month;
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = screenWidth > 600 ? 500.0 : screenWidth * 0.85;
-    final canonicalDecanName = KemeticDayData._canonicalDecanName(
-      dayKey,
-    ).trim();
+    final canonicalDecanName = _canonicalDecanName(dayKey).trim();
     final resolvedDecanName = canonicalDecanName.isNotEmpty
         ? canonicalDecanName
         : dayInfo.decanName.trim();
