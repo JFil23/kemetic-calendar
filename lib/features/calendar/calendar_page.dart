@@ -9967,7 +9967,7 @@ class _CalendarPageState extends State<CalendarPage>
         _lastViewKm! >= 1 &&
         _lastViewKm! <= 13) {
       if (kDebugMode) {
-        print(
+        debugPrint(
           '✓ [CALENDAR] Skipping _updateCenteredMonthWide - using existing state: $_lastViewKy-$_lastViewKm',
         );
       }
@@ -10151,7 +10151,7 @@ class _CalendarPageState extends State<CalendarPage>
       _setView(ky, km, kd: clampedKd);
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ [CALENDAR] Error in portrait month change: $e');
+        debugPrint('⚠️ [CALENDAR] Error in portrait month change: $e');
       }
     } finally {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -12072,13 +12072,15 @@ class _CalendarPageState extends State<CalendarPage>
     // ✅ PREVENT FEEDBACK LOOP: Don't update if we're already updating
     if (_isUpdatingFromLandscape) {
       if (kDebugMode) {
-        print('🔄 [CALENDAR] Ignoring landscape update (already updating)');
+        debugPrint(
+          '🔄 [CALENDAR] Ignoring landscape update (already updating)',
+        );
       }
       return;
     }
 
     if (kDebugMode) {
-      print('🔄 [CALENDAR] Landscape month changed: Year $ky, Month $km');
+      debugPrint('🔄 [CALENDAR] Landscape month changed: Year $ky, Month $km');
     }
 
     // ✅ SET FLAG: Prevent portrait from triggering landscape update
@@ -12101,7 +12103,7 @@ class _CalendarPageState extends State<CalendarPage>
       _setView(ky, km, kd: clampedKd);
     } catch (e) {
       if (kDebugMode) {
-        print('⚠️ [CALENDAR] Error in landscape month change: $e');
+        debugPrint('⚠️ [CALENDAR] Error in landscape month change: $e');
       }
     } finally {
       // ✅ CLEAR FLAG AFTER FRAME: This ensures portrait's scroll listener can see the flag
@@ -18750,7 +18752,9 @@ class _CalendarPageState extends State<CalendarPage>
         _saveViewState(ky, km, kd);
 
         if (kDebugMode) {
-          print('💾 [CALENDAR] Saved state on day view close: $ky-$km-$kd');
+          debugPrint(
+            '💾 [CALENDAR] Saved state on day view close: $ky-$km-$kd',
+          );
         }
       }
       UiGuards.enableJournalSwipe();
@@ -21826,7 +21830,9 @@ class _CalendarPageState extends State<CalendarPage>
     }
     _isLoadingFromDisk = true;
 
-    print('=== _loadFromDisk START ($source) ===');
+    if (kDebugMode) {
+      debugPrint('=== _loadFromDisk START ($source) ===');
+    }
 
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) {
@@ -22596,13 +22602,17 @@ class _CalendarPageState extends State<CalendarPage>
         await finishNonCriticalPostProcessing();
       }
     } catch (e, stackTrace) {
-      print('Supabase sync FAILED: $e');
-      print('Stack: $stackTrace');
+      if (kDebugMode) {
+        debugPrint('Supabase sync FAILED: $e');
+        debugPrint('Stack: $stackTrace');
+      }
     } finally {
       _isLoadingFromDisk = false;
     }
 
-    print('=== _loadFromDisk END ($source) ===');
+    if (kDebugMode) {
+      debugPrint('=== _loadFromDisk END ($source) ===');
+    }
   }
 
   /// Allows other screens (e.g., Settings) to trigger a fresh sync of flows/notes.
@@ -33404,9 +33414,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
 
       if (kDebugMode) {
-        print('🔍 [AI Flow Init] flowId: $flowId');
-        print('🔍 [AI Flow Init] userEvents.length: ${userEvents.length}');
-        print(
+        debugPrint('🔍 [AI Flow Init] flowId: $flowId');
+        debugPrint('🔍 [AI Flow Init] userEvents.length: ${userEvents.length}');
+        debugPrint(
           '🔍 [AI Flow Init] titles: ${userEvents.map((e) => e.title).toList()}',
         );
       }
@@ -33487,7 +33497,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       );
 
       if (kDebugMode) {
-        print(
+        debugPrint(
           '🔍 [AI Flow Init] _originalEventCount: $_originalEventCount (days: ${_draftsByDay.keys.length})',
         );
       }
@@ -33548,7 +33558,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   /// Load a flow by ID from database (for imported or AI flows not in existingFlows)
   Future<void> _loadFlowByIdFromDb(int flowId) async {
     if (kDebugMode) {
-      print('🔍 [LoadFlow] START: flowId=$flowId');
+      debugPrint('🔍 [LoadFlow] START: flowId=$flowId');
     }
 
     final flowsRepo = FlowsRepo(Supabase.instance.client);
@@ -33558,7 +33568,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final flowRow = await flowsRepo.getFlowById(flowId);
     if (flowRow == null) {
       if (kDebugMode) {
-        print('🔍 [LoadFlow] ERROR: Flow not found');
+        debugPrint('🔍 [LoadFlow] ERROR: Flow not found');
       }
       if (mounted) {
         ScaffoldMessenger.of(
@@ -33569,7 +33579,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     }
 
     if (kDebugMode) {
-      print(
+      debugPrint(
         '🔍 [LoadFlow] Flow found: name="${flowRow.name}", startDate=${flowRow.startDate}, endDate=${flowRow.endDate}',
       );
     }
@@ -33578,7 +33588,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final isAiGenerated = (flowRow.aiMetadata?['generated'] as bool?) == true;
     if (isAiGenerated) {
       if (kDebugMode) {
-        print(
+        debugPrint(
           '🔍 [LoadFlow] Detected AI flow, delegating to _loadAIGeneratedFlow',
         );
       }
@@ -33590,7 +33600,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final eventRecords = await eventsRepo.getEventsForFlow(flowId);
 
     if (kDebugMode) {
-      print('🔍 [LoadFlow] Loaded ${eventRecords.length} event records');
+      debugPrint('🔍 [LoadFlow] Loaded ${eventRecords.length} event records');
     }
 
     // ✅ CORRECTED: Map records → UserEvent using the same helper as AI path
@@ -33612,7 +33622,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     // If there are *no* events, fall back to the existing rule-based loader
     if (userEvents.isEmpty) {
       if (kDebugMode) {
-        print(
+        debugPrint(
           '🔍 [LoadFlow] No events found, using rule-based loader fallback',
         );
       }
@@ -33651,13 +33661,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final endDate = _dateOnly(flowRow.endDate ?? lastDate);
 
     if (kDebugMode) {
-      print('🔍 [LoadFlow] Calculated dates:');
-      print('  firstDate from events: $firstDate');
-      print('  lastDate from events: $lastDate');
-      print('  flowRow.startDate: ${flowRow.startDate}');
-      print('  flowRow.endDate: ${flowRow.endDate}');
-      print('  final startDate: $startDate');
-      print('  final endDate: $endDate');
+      debugPrint('🔍 [LoadFlow] Calculated dates:');
+      debugPrint('  firstDate from events: $firstDate');
+      debugPrint('  lastDate from events: $lastDate');
+      debugPrint('  flowRow.startDate: ${flowRow.startDate}');
+      debugPrint('  flowRow.endDate: ${flowRow.endDate}');
+      debugPrint('  final startDate: $startDate');
+      debugPrint('  final endDate: $endDate');
     }
 
     // 4️⃣ Build _Flow model for the editor
@@ -33685,7 +33695,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final meta = notesDecode(f.notes);
 
     if (kDebugMode) {
-      print(
+      debugPrint(
         '🔍 [LoadFlow] Decoded meta: kemetic=${meta.kemetic}, overview="${meta.overview}"',
       );
     }
@@ -33709,37 +33719,39 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     _syncReady = true;
 
     if (kDebugMode) {
-      print('🔍 [LoadFlow] Set state variables OUTSIDE setState:');
-      print('  _startDate: $_startDate');
-      print('  _endDate: $_endDate');
-      print('  _useKemetic: $_useKemetic');
-      print('  _splitByPeriod: $_splitByPeriod');
-      print('  _syncReady: $_syncReady');
-      print('  _hasFullRange: $_hasFullRange');
+      debugPrint('🔍 [LoadFlow] Set state variables OUTSIDE setState:');
+      debugPrint('  _startDate: $_startDate');
+      debugPrint('  _endDate: $_endDate');
+      debugPrint('  _useKemetic: $_useKemetic');
+      debugPrint('  _splitByPeriod: $_splitByPeriod');
+      debugPrint('  _syncReady: $_syncReady');
+      debugPrint('  _hasFullRange: $_hasFullRange');
     }
 
     // 7️⃣ Build spans now that mode is known (BEFORE converting events, like AI path)
     if (kDebugMode) {
-      print('🔍 [LoadFlow] Calling _rebuildSpans() (first call)');
+      debugPrint('🔍 [LoadFlow] Calling _rebuildSpans() (first call)');
     }
     _rebuildSpans();
 
     if (kDebugMode) {
-      print('🔍 [LoadFlow] After first _rebuildSpans():');
-      print('  _kemeticSpans.length: ${_kemeticSpans.length}');
-      print('  _weekSpans.length: ${_weekSpans.length}');
+      debugPrint('🔍 [LoadFlow] After first _rebuildSpans():');
+      debugPrint('  _kemeticSpans.length: ${_kemeticSpans.length}');
+      debugPrint('  _weekSpans.length: ${_weekSpans.length}');
     }
 
     // 8️⃣ NOW convert events → drafts (same helper AI uses)
     if (kDebugMode) {
-      print('🔍 [LoadFlow] Converting ${userEvents.length} events to drafts');
+      debugPrint(
+        '🔍 [LoadFlow] Converting ${userEvents.length} events to drafts',
+      );
     }
     _convertEventsToDrafts(userEvents);
 
     if (kDebugMode) {
-      print('🔍 [LoadFlow] After _convertEventsToDrafts():');
-      print('  _draftsByDay.length: ${_draftsByDay.length}');
-      print('  _draftsByDay.keys: ${_draftsByDay.keys.toList()}');
+      debugPrint('🔍 [LoadFlow] After _convertEventsToDrafts():');
+      debugPrint('  _draftsByDay.length: ${_draftsByDay.length}');
+      debugPrint('  _draftsByDay.keys: ${_draftsByDay.keys.toList()}');
     }
 
     // 9️⃣ Clear and populate selection state
@@ -33747,7 +33759,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     _perDecanSel.clear();
 
     if (kDebugMode) {
-      print(
+      debugPrint(
         '🔍 [LoadFlow] Populating selections: _hasFullRange=$_hasFullRange, _draftsByDay.isNotEmpty=${_draftsByDay.isNotEmpty}',
       );
     }
@@ -33760,13 +33772,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       }
 
       if (kDebugMode) {
-        print('🔍 [LoadFlow] After populating selections:');
-        print('  _perDecanSel.length: ${_perDecanSel.length}');
-        print('  _perWeekSel.length: ${_perWeekSel.length}');
+        debugPrint('🔍 [LoadFlow] After populating selections:');
+        debugPrint('  _perDecanSel.length: ${_perDecanSel.length}');
+        debugPrint('  _perWeekSel.length: ${_perWeekSel.length}');
       }
     } else {
       if (kDebugMode) {
-        print(
+        debugPrint(
           '🔍 [LoadFlow] SKIPPED selection population: _hasFullRange=$_hasFullRange, _draftsByDay.isNotEmpty=${_draftsByDay.isNotEmpty}',
         );
       }
@@ -33774,32 +33786,34 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
     // 🔟 Apply selections to drafts (calls _rebuildSpans() again, like AI path)
     if (kDebugMode) {
-      print(
+      debugPrint(
         '🔍 [LoadFlow] Calling _applySelectionToDrafts() (will call _rebuildSpans() again)',
       );
     }
     _applySelectionToDrafts();
 
     if (kDebugMode) {
-      print('🔍 [LoadFlow] After _applySelectionToDrafts():');
-      print('  _kemeticSpans.length: ${_kemeticSpans.length}');
-      print('  _weekSpans.length: ${_weekSpans.length}');
+      debugPrint('🔍 [LoadFlow] After _applySelectionToDrafts():');
+      debugPrint('  _kemeticSpans.length: ${_kemeticSpans.length}');
+      debugPrint('  _weekSpans.length: ${_weekSpans.length}');
     }
 
     // 1️⃣1️⃣ 🔑 CRITICAL: Manually hydrate header fields WITHOUT setting dates again
     // Match AI flow path: dates already set above, only set header fields here
     if (!mounted) {
       if (kDebugMode) {
-        print('🔍 [LoadFlow] ERROR: Widget not mounted, aborting setState');
+        debugPrint(
+          '🔍 [LoadFlow] ERROR: Widget not mounted, aborting setState',
+        );
       }
       return;
     }
 
     if (kDebugMode) {
-      print('🔍 [LoadFlow] About to call setState with header fields:');
-      print('  _editing will be: ${f.name}');
-      print('  _startDate (already set): $_startDate');
-      print('  _endDate (already set): $_endDate');
+      debugPrint('🔍 [LoadFlow] About to call setState with header fields:');
+      debugPrint('  _editing will be: ${f.name}');
+      debugPrint('  _startDate (already set): $_startDate');
+      debugPrint('  _endDate (already set): $_endDate');
     }
 
     setState(() {
@@ -33821,15 +33835,15 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     });
 
     if (kDebugMode) {
-      print('🔍 [LoadFlow] After setState:');
-      print('  _editing: ${_editing?.name}');
-      print('  _startDate: $_startDate');
-      print('  _endDate: $_endDate');
-      print('  _hasFullRange: $_hasFullRange');
-      print('  _draftsByDay.length: ${_draftsByDay.length}');
-      print('  _kemeticSpans.length: ${_kemeticSpans.length}');
-      print('  _weekSpans.length: ${_weekSpans.length}');
-      print('🔍 [LoadFlow] END');
+      debugPrint('🔍 [LoadFlow] After setState:');
+      debugPrint('  _editing: ${_editing?.name}');
+      debugPrint('  _startDate: $_startDate');
+      debugPrint('  _endDate: $_endDate');
+      debugPrint('  _hasFullRange: $_hasFullRange');
+      debugPrint('  _draftsByDay.length: ${_draftsByDay.length}');
+      debugPrint('  _kemeticSpans.length: ${_kemeticSpans.length}');
+      debugPrint('  _weekSpans.length: ${_weekSpans.length}');
+      debugPrint('🔍 [LoadFlow] END');
     }
   }
 
@@ -34003,7 +34017,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _draftsByDay[dateKey] = listForDay;
 
       if (kDebugMode) {
-        print(
+        debugPrint(
           '🔍 [Draft] $dateKey → title: "${draft.titleCtrl.text}" (${listForDay.length} total)',
         );
       }
@@ -34190,7 +34204,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   /// Helper to load a flow from DB with loading spinner
   void _loadFromDbWithSpinner(int flowId) {
     if (kDebugMode) {
-      print('🔧 [FlowStudio] _loadFromDbWithSpinner: flowId=$flowId');
+      debugPrint('🔧 [FlowStudio] _loadFromDbWithSpinner: flowId=$flowId');
     }
 
     _nameCtrl = TextEditingController();
@@ -34224,7 +34238,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     WidgetsBinding.instance.addObserver(this);
 
     if (kDebugMode) {
-      print(
+      debugPrint(
         '🔧 [FlowStudio] initState: editFlowId=${widget.editFlowId}, '
         'existingFlows=${widget.existingFlows.length}',
       );
@@ -34240,12 +34254,12 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     if (widget.editFlowId != null) {
       final id = widget.editFlowId!;
       if (kDebugMode) {
-        print('🔎 [FlowStudio] editFlowId=$id → loading directly from DB');
+        debugPrint('🔎 [FlowStudio] editFlowId=$id → loading directly from DB');
       }
       _loadFromDbWithSpinner(id);
     } else {
       if (kDebugMode) {
-        print('✨ [FlowStudio] New flow creation mode');
+        debugPrint('✨ [FlowStudio] New flow creation mode');
       }
       // Initialize for new flow creation
       _editing = null;
