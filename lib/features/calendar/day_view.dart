@@ -59,6 +59,8 @@ typedef DayViewRestorationCallback =
       double? scrollOffset,
     });
 
+enum _DetailSheetEndAction { flow, reminder, note, none }
+
 const TextStyle _goldHeaderStyle = TextStyle(
   fontSize: 17,
   fontWeight: FontWeight.w600,
@@ -2327,6 +2329,23 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
+  ButtonStyle _journalPillStyle(BuildContext context) {
+    const touchMinHeight = kMinInteractiveDimension * 0.8;
+    return withExpandedTouchTargets(
+      context,
+      OutlinedButton.styleFrom(
+        side: const BorderSide(color: _dayGold),
+        foregroundColor: _dayGold,
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+        minimumSize: const Size(0, 28),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: const VisualDensity(horizontal: -1, vertical: -2),
+        iconSize: 18,
+      ),
+      minimumSize: const Size(kMinInteractiveDimension, touchMinHeight),
+    );
+  }
+
   FlowData? _chromeFlowForId(int? flowId) => widget.flowIndex[flowId];
 
   bool _isRepeatingNoteFlowId(int? flowId) {
@@ -2338,6 +2357,27 @@ class _DayViewGridState extends State<DayViewGrid> {
     final flow = _chromeFlowForId(flowId);
     return flow != null && !hasRepeatingNoteFlowMetadata(flow.notes);
   }
+
+  _DetailSheetEndAction _endActionFor(
+    EventItem event, {
+    required FlowData? flow,
+  }) {
+    if (_shouldShowEndFlowForId(event.flowId)) {
+      return _DetailSheetEndAction.flow;
+    }
+    if (flow == null && event.isReminder) {
+      return _DetailSheetEndAction.reminder;
+    }
+    if ((flow == null || _isRepeatingNoteFlowId(event.flowId)) &&
+        widget.onDeleteNote != null) {
+      return _DetailSheetEndAction.note;
+    }
+    return _DetailSheetEndAction.none;
+  }
+
+  bool _shouldPromoteJournalToPill(EventItem event, FlowData? flow) =>
+      widget.onAppendToJournal != null &&
+      _endActionFor(event, flow: flow) != _DetailSheetEndAction.none;
 
   bool _isActionableFlowId(int? flowId) {
     if (flowId == null) return false;
@@ -2368,6 +2408,30 @@ class _DayViewGridState extends State<DayViewGrid> {
           : null,
       icon: const Icon(Icons.stop_circle),
       label: const Text('End Flow'),
+    );
+  }
+
+  Widget _buildAddToJournalButton(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+    required BuildContext actionContext,
+  }) {
+    final enabled = widget.onAppendToJournal != null;
+    return OutlinedButton.icon(
+      style: _journalPillStyle(actionContext),
+      onPressed: enabled
+          ? () => _handleAddToJournal(
+              event,
+              ky: ky,
+              km: km,
+              kd: kd,
+              sheetContext: actionContext,
+            )
+          : null,
+      icon: const Icon(Icons.library_add_check),
+      label: const Text('Add to journal'),
     );
   }
 
@@ -4838,22 +4902,28 @@ class _DayViewGridState extends State<DayViewGrid> {
   }) {
     final currentEvent = target.event;
     final flow = _chromeFlowForId(currentEvent.flowId);
-    final isReminder = currentEvent.isReminder;
+    final endAction = _endActionFor(currentEvent, flow: flow);
 
     return Row(
       children: [
         const Spacer(),
-        if (_shouldShowEndFlowForId(currentEvent.flowId))
+        if (_shouldPromoteJournalToPill(currentEvent, flow))
+          _buildAddToJournalButton(
+            currentEvent,
+            ky: target.ky,
+            km: target.km,
+            kd: target.kd,
+            actionContext: sheetContext,
+          )
+        else if (endAction == _DetailSheetEndAction.flow)
           _buildEndFlowButton(target, actionContext: sheetContext)
-        else if (flow == null && isReminder)
+        else if (endAction == _DetailSheetEndAction.reminder)
           _buildEndReminderButton(
             currentEvent,
             actionContext: sheetContext,
             closeContext: sheetContext,
           )
-        else if ((flow == null ||
-                _isRepeatingNoteFlowId(currentEvent.flowId)) &&
-            widget.onDeleteNote != null)
+        else if (endAction == _DetailSheetEndAction.note)
           _buildEndNoteButton(
             currentEvent,
             ky: target.ky,
@@ -4904,13 +4974,46 @@ class _DayViewGridState extends State<DayViewGrid> {
     final flow = _chromeFlowForId(currentEvent.flowId);
     final actionableFlow = _isActionableFlowId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
+    final endAction = _endActionFor(currentEvent, flow: flow);
+    final promoteJournalAction = _shouldPromoteJournalToPill(
+      currentEvent,
+      flow,
+    );
 
     return PopupMenuButton<String>(
       icon: KemeticGold.icon(Icons.more_vert),
       tooltip: 'Event options',
       color: const Color(0xFF000000),
       onSelected: (value) async {
-        if (value == 'journal') {
+        if (value == 'end_flow') {
+          Navigator.pop(sheetContext);
+          final flowId = currentEvent.flowId;
+          final onEndFlow = widget.onEndFlow;
+          if (flowId != null && onEndFlow != null) {
+            final routedThroughCalendarPage =
+                await CalendarPage.endFlowFromEventTarget(target);
+            if (!routedThroughCalendarPage) {
+              onEndFlow(flowId);
+            }
+          }
+        } else if (value == 'end_reminder') {
+          Navigator.pop(sheetContext);
+          final reminderId = currentEvent.reminderId;
+          final onEndReminder = widget.onEndReminder;
+          if (reminderId != null && onEndReminder != null) {
+            await onEndReminder(reminderId);
+          }
+        } else if (value == 'end_note') {
+          Navigator.pop(sheetContext);
+          if (widget.onDeleteNote != null) {
+            await widget.onDeleteNote!(
+              target.ky,
+              target.km,
+              target.kd,
+              currentEvent,
+            );
+          }
+        } else if (value == 'journal') {
           await _handleAddToJournal(
             currentEvent,
             ky: target.ky,
@@ -4975,7 +5078,50 @@ class _DayViewGridState extends State<DayViewGrid> {
         }
       },
       itemBuilder: (context) => [
-        if (widget.onAppendToJournal != null)
+        if (promoteJournalAction &&
+            endAction == _DetailSheetEndAction.flow &&
+            widget.onEndFlow != null)
+          PopupMenuItem(
+            value: 'end_flow',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.stop_circle),
+                const SizedBox(width: 12),
+                const Text('End Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          )
+        else if (promoteJournalAction &&
+            endAction == _DetailSheetEndAction.reminder &&
+            widget.onEndReminder != null &&
+            currentEvent.reminderId != null)
+          PopupMenuItem(
+            value: 'end_reminder',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.stop_circle),
+                const SizedBox(width: 12),
+                const Text(
+                  'End Reminder',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          )
+        else if (promoteJournalAction &&
+            endAction == _DetailSheetEndAction.note &&
+            widget.onDeleteNote != null)
+          PopupMenuItem(
+            value: 'end_note',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.delete_outline),
+                const SizedBox(width: 12),
+                const Text('End Note', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (widget.onAppendToJournal != null && !promoteJournalAction)
           PopupMenuItem(
             value: 'journal',
             child: Row(

@@ -1,5 +1,7 @@
 part of 'calendar_page.dart';
 
+enum _DetailSheetEndAction { flow, reminder, note, none }
+
 /* ───────────── Year Section (12 months + epagomenal) ───────────── */
 
 class _YearSection extends StatelessWidget {
@@ -1641,6 +1643,27 @@ class _MainCalendarEventDetailSheetState
     return flow != null && !hasRepeatingNoteFlowMetadata(flow.notes);
   }
 
+  _DetailSheetEndAction _endActionFor(
+    EventItem event, {
+    required FlowData? flow,
+  }) {
+    if (_shouldShowEndFlowForId(event.flowId)) {
+      return _DetailSheetEndAction.flow;
+    }
+    if (flow == null && event.isReminder) {
+      return _DetailSheetEndAction.reminder;
+    }
+    if ((flow == null || _isRepeatingNoteFlowId(event.flowId)) &&
+        widget.onDeleteNote != null) {
+      return _DetailSheetEndAction.note;
+    }
+    return _DetailSheetEndAction.none;
+  }
+
+  bool _shouldPromoteJournalToPill(EventItem event, FlowData? flow) =>
+      widget.onAppendToJournal != null &&
+      _endActionFor(event, flow: flow) != _DetailSheetEndAction.none;
+
   bool _isActionableFlowId(int? flowId) {
     if (flowId == null) return false;
     if (widget.activeLedgerFlowIds.contains(flowId)) return true;
@@ -1795,6 +1818,23 @@ class _MainCalendarEventDetailSheetState
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
       ),
+    );
+  }
+
+  ButtonStyle _journalPillStyle(BuildContext context) {
+    const touchMinHeight = kMinInteractiveDimension * 0.8;
+    return withExpandedTouchTargets(
+      context,
+      OutlinedButton.styleFrom(
+        side: const BorderSide(color: Color(0xFFFFC145)),
+        foregroundColor: const Color(0xFFFFC145),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+        minimumSize: const Size(0, 28),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: const VisualDensity(horizontal: -1, vertical: -2),
+        iconSize: 18,
+      ),
+      minimumSize: const Size(kMinInteractiveDimension, touchMinHeight),
     );
   }
 
@@ -2055,6 +2095,18 @@ class _MainCalendarEventDetailSheetState
     );
   }
 
+  Widget _buildAddToJournalButton(BuildContext context, EventItem event) {
+    final enabled = widget.onAppendToJournal != null;
+    return OutlinedButton.icon(
+      style: _journalPillStyle(context),
+      onPressed: enabled
+          ? () => _handleAddToJournal(event, sheetContext: context)
+          : null,
+      icon: const Icon(Icons.library_add_check),
+      label: const Text('Add to journal'),
+    );
+  }
+
   Widget _buildEndNoteButton(
     BuildContext context,
     DayViewSheetEventTarget target,
@@ -2100,18 +2152,18 @@ class _MainCalendarEventDetailSheetState
   }) {
     final currentEvent = target.event;
     final flow = _flowForId(currentEvent.flowId);
-    final isReminder = currentEvent.isReminder;
+    final endAction = _endActionFor(currentEvent, flow: flow);
 
     return Row(
       children: [
         const Spacer(),
-        if (_shouldShowEndFlowForId(currentEvent.flowId))
+        if (_shouldPromoteJournalToPill(currentEvent, flow))
+          _buildAddToJournalButton(sheetContext, currentEvent)
+        else if (endAction == _DetailSheetEndAction.flow)
           _buildEndFlowButton(sheetContext, target)
-        else if (flow == null && isReminder)
+        else if (endAction == _DetailSheetEndAction.reminder)
           _buildEndReminderButton(sheetContext, currentEvent)
-        else if ((flow == null ||
-                _isRepeatingNoteFlowId(currentEvent.flowId)) &&
-            widget.onDeleteNote != null)
+        else if (endAction == _DetailSheetEndAction.note)
           _buildEndNoteButton(sheetContext, target),
         const SizedBox(width: 8),
         _buildEventDetailOverflowButton(
@@ -2153,13 +2205,44 @@ class _MainCalendarEventDetailSheetState
     final actionableFlow = _isActionableFlowId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
     final hasFlow = flow != null;
+    final endAction = _endActionFor(currentEvent, flow: flow);
+    final promoteJournalAction = _shouldPromoteJournalToPill(
+      currentEvent,
+      flow,
+    );
 
     return PopupMenuButton<String>(
       icon: KemeticGold.icon(Icons.more_vert),
       tooltip: 'Event options',
       color: const Color(0xFF000000),
       onSelected: (value) async {
-        if (value == 'journal') {
+        if (value == 'end_flow') {
+          Navigator.pop(sheetContext);
+          final flowId = currentEvent.flowId;
+          if (flowId != null && widget.onEndFlow != null) {
+            final routedThroughCalendarPage =
+                await CalendarPage.endFlowFromEventTarget(target);
+            if (!routedThroughCalendarPage) {
+              widget.onEndFlow!(flowId);
+            }
+          }
+        } else if (value == 'end_reminder') {
+          Navigator.pop(sheetContext);
+          final reminderId = currentEvent.reminderId;
+          if (reminderId != null && widget.onEndReminder != null) {
+            await widget.onEndReminder!(reminderId);
+          }
+        } else if (value == 'end_note') {
+          Navigator.pop(sheetContext);
+          if (widget.onDeleteNote != null) {
+            await widget.onDeleteNote!(
+              target.ky,
+              target.km,
+              target.kd,
+              currentEvent,
+            );
+          }
+        } else if (value == 'journal') {
           await _handleAddToJournal(currentEvent, sheetContext: sheetContext);
         } else if (value == 'share') {
           Navigator.pop(sheetContext);
@@ -2198,7 +2281,50 @@ class _MainCalendarEventDetailSheetState
         }
       },
       itemBuilder: (context) => [
-        if (widget.onAppendToJournal != null)
+        if (promoteJournalAction &&
+            endAction == _DetailSheetEndAction.flow &&
+            widget.onEndFlow != null)
+          PopupMenuItem(
+            value: 'end_flow',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.stop_circle),
+                const SizedBox(width: 12),
+                const Text('End Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          )
+        else if (promoteJournalAction &&
+            endAction == _DetailSheetEndAction.reminder &&
+            widget.onEndReminder != null &&
+            currentEvent.reminderId != null)
+          PopupMenuItem(
+            value: 'end_reminder',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.stop_circle),
+                const SizedBox(width: 12),
+                const Text(
+                  'End Reminder',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          )
+        else if (promoteJournalAction &&
+            endAction == _DetailSheetEndAction.note &&
+            widget.onDeleteNote != null)
+          PopupMenuItem(
+            value: 'end_note',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.delete_outline),
+                const SizedBox(width: 12),
+                const Text('End Note', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (widget.onAppendToJournal != null && !promoteJournalAction)
           PopupMenuItem(
             value: 'journal',
             child: Row(
