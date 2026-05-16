@@ -188,7 +188,7 @@ class _CollapsedEventBadge extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: ConstrainedBox(
-        constraints: minimumTouchTargetConstraints(context),
+        constraints: minimumTouchTargetConstraints(context, minSize: 38),
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 2),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
