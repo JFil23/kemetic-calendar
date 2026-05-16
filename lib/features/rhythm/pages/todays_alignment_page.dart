@@ -3271,6 +3271,11 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         final progress = _progress();
         final plannerAction = _todayPlannerAction();
         final listBottomPadding = bottomPaddingAboveGlobalMenu(context, 32);
+        final keyboardInset = keyboardInsetOf(context);
+        final effectiveListBottomPadding = math.max(
+          listBottomPadding,
+          keyboardInset + 32,
+        );
 
         final plannerLeadSections = <Widget>[
           RhythmSectionCard(
@@ -3580,7 +3585,12 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                   ),
                   SliverPadding(
                     key: todoCenterKey,
-                    padding: EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      16,
+                      16,
+                      effectiveListBottomPadding,
+                    ),
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
                         todoSection,
@@ -3592,7 +3602,12 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                 ],
               )
             : ListView(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  effectiveListBottomPadding,
+                ),
                 children: plannerChildren,
               );
 

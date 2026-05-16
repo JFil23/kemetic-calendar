@@ -1279,6 +1279,64 @@ class ProfileRepo {
     }
   }
 
+  /// List the people who liked a flow post, newest like first.
+  Future<List<UserSearchResult>> listFlowPostLikes(String postId) async {
+    try {
+      final rows = await _client
+          .from('flow_post_likes')
+          .select('user_id, created_at')
+          .eq('flow_post_id', postId)
+          .order('created_at', ascending: false);
+
+      final userIds = ((rows as List<dynamic>?) ?? const [])
+          .map((row) => row['user_id'] as String?)
+          .whereType<String>()
+          .toList();
+      if (userIds.isEmpty) return const [];
+
+      final profilesResp = await _runProfilesQuery(
+        (selectClause) => _client
+            .from('profiles')
+            .select(selectClause)
+            .inFilter('id', userIds),
+      );
+
+      final profileMap = <String, Map<String, dynamic>>{};
+      for (final row in profilesResp) {
+        final profile = row as Map<String, dynamic>;
+        final id = profile['id'] as String?;
+        if (id != null) {
+          profileMap[id] = profile;
+        }
+      }
+
+      final results = <UserSearchResult>[];
+      for (final id in userIds) {
+        final profile = profileMap[id];
+        if (profile == null) continue;
+        results.add(
+          UserSearchResult(
+            userId: id,
+            handle: profile['handle'] as String?,
+            displayName: profile['display_name'] as String?,
+            avatarUrl: profile['avatar_url'] as String?,
+            avatarGlyphIds: parseProfileAvatarGlyphIds(
+              profile['avatar_glyphs'],
+            ),
+            email: profile['email'] as String?,
+          ),
+        );
+      }
+      return results;
+    } catch (e) {
+      if (_isMissingTable(e, 'flow_post_likes')) {
+        throw const FlowPostEngagementUnavailable('flow_post_likes');
+      }
+      _log('[ProfileRepo] Error listing flow post likes: $e');
+      return const [];
+    }
+  }
+
   /// Like or unlike a flow post for the current user.
   Future<bool> setFlowPostLike(String postId, {required bool like}) async {
     try {

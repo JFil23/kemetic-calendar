@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/services/app_haptics.dart';
 import 'package:mobile/shared/glossy_text.dart';
@@ -183,27 +184,47 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
           child: Row(
             children: [
               Expanded(
-                child: InkWell(
-                  onTap: _likeButtonEnabled ? _toggleLike : null,
-                  borderRadius: BorderRadius.circular(10),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: actionMinHeight),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildLikeIcon(iconSize),
-                        SizedBox(width: spacing),
-                        Flexible(
-                          child: Text(
-                            _likeLabel(compact: compact),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            softWrap: false,
-                            style: labelStyle,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: actionMinHeight),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      InkWell(
+                        onTap: _likeButtonEnabled ? _toggleLike : null,
+                        borderRadius: BorderRadius.circular(999),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: compact ? 2 : 4,
+                            vertical: compact ? 4 : 6,
+                          ),
+                          child: _buildLikeIcon(iconSize),
+                        ),
+                      ),
+                      SizedBox(width: spacing),
+                      Flexible(
+                        child: InkWell(
+                          onTap: _likesListEnabled
+                              ? _openLikesSheet
+                              : (_engagementUnavailable
+                                    ? _showMigrationNeeded
+                                    : null),
+                          borderRadius: BorderRadius.circular(999),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: compact ? 2 : 4,
+                              vertical: compact ? 4 : 6,
+                            ),
+                            child: Text(
+                              _likeLabel(compact: compact),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: false,
+                              style: labelStyle,
+                            ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -247,6 +268,8 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
 
   bool get _likeButtonEnabled =>
       !_engagementUnavailable && !_likesLoading && !_likeUpdating;
+
+  bool get _likesListEnabled => !_engagementUnavailable && !_likesLoading;
 
   Widget _buildLikeIcon(double iconSize) {
     if (_likeUpdating) {
@@ -386,6 +409,25 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
     await _loadComments(showSpinner: false);
   }
 
+  Future<void> _openLikesSheet() async {
+    if (_engagementUnavailable) {
+      _showMigrationNeeded();
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF0D0D0F),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (context) {
+        return _FlowPostLikesSheet(post: widget.post, repo: _repo);
+      },
+    );
+  }
+
   void _showAuthError() {
     _showErrorSnackBar(context, 'Please sign in to like, reply, or comment.');
   }
@@ -394,6 +436,185 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
     _showErrorSnackBar(
       context,
       'Likes, replies, and comments need the latest update. Please apply the new Supabase migration.',
+    );
+  }
+}
+
+class _FlowPostLikesSheet extends StatefulWidget {
+  const _FlowPostLikesSheet({required this.post, required this.repo});
+
+  final FlowPost post;
+  final ProfileRepo repo;
+
+  @override
+  State<_FlowPostLikesSheet> createState() => _FlowPostLikesSheetState();
+}
+
+class _FlowPostLikesSheetState extends State<_FlowPostLikesSheet> {
+  bool _loading = true;
+  bool _engagementUnavailable = false;
+  List<UserSearchResult> _users = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final users = await widget.repo.listFlowPostLikes(widget.post.id);
+      if (!mounted) return;
+      setState(() {
+        _users = users;
+        _loading = false;
+      });
+    } on FlowPostEngagementUnavailable {
+      if (!mounted) return;
+      setState(() {
+        _engagementUnavailable = true;
+        _loading = false;
+      });
+      _showErrorSnackBar(
+        context,
+        'Likes need the latest update. Please apply the new Supabase migration.',
+      );
+    }
+  }
+
+  void _openProfile(UserSearchResult user) {
+    final router = GoRouter.of(context);
+    Navigator.of(context).pop();
+    router.push('/profile/${Uri.encodeComponent(user.userId)}');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final sheetHeight = math.min(media.size.height * 0.52, 420.0);
+
+    return SafeArea(
+      top: false,
+      child: SizedBox(
+        height: sheetHeight,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + media.padding.bottom),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Likes',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    '${_users.length} total',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Expanded(child: _buildBody()),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+        ),
+      );
+    }
+
+    if (_engagementUnavailable) {
+      return Center(
+        child: Text(
+          'Likes are unavailable.',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+        ),
+      );
+    }
+
+    if (_users.isEmpty) {
+      return Center(
+        child: Text(
+          'No likes yet.',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: _users.length,
+      separatorBuilder: (context, index) =>
+          Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
+      itemBuilder: (context, index) {
+        final user = _users[index];
+        final subtitle =
+            user.displayName != null && user.displayName!.isNotEmpty
+            ? '@${user.handle ?? 'user'}'
+            : (user.handle != null ? '@${user.handle}' : null);
+
+        return ListTile(
+          contentPadding: const EdgeInsets.symmetric(vertical: 6),
+          leading: ProfileAvatar(
+            radius: 20,
+            displayName: user.name,
+            avatarUrl: user.avatarUrl,
+            avatarGlyphIds: user.avatarGlyphIds,
+            backgroundColor: KemeticGold.base.withValues(alpha: 0.2),
+            foregroundColor: KemeticGold.base,
+          ),
+          title: Text(
+            user.displayName?.isNotEmpty == true
+                ? user.displayName!
+                : (user.handle != null ? '@${user.handle}' : 'User'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: subtitle != null
+              ? Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                )
+              : null,
+          trailing: KemeticGold.icon(Icons.chevron_right),
+          onTap: () => _openProfile(user),
+        );
+      },
     );
   }
 }
@@ -754,6 +975,12 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
     });
   }
 
+  void _openProfile(String userId) {
+    final router = GoRouter.of(context);
+    Navigator.of(context).pop();
+    router.push('/profile/${Uri.encodeComponent(userId)}');
+  }
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
@@ -869,6 +1096,8 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
     final updatingLike = _commentLikeUpdatingIds.contains(comment.id);
     final deleting = _commentDeleteUpdatingIds.contains(comment.id);
     final canDelete = comment.userId == _currentUserId;
+    final authorLabel = comment.displayName ?? comment.handle ?? 'User';
+    final parentLabel = parent?.displayName ?? parent?.handle ?? 'User';
     final compactActionPadding = useExpandedTouchTargets(context)
         ? const EdgeInsets.symmetric(horizontal: 8, vertical: 8)
         : const EdgeInsets.symmetric(horizontal: 2, vertical: 2);
@@ -895,20 +1124,39 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            comment.displayName ?? comment.handle ?? 'User',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
+                          InkWell(
+                            onTap: deleting
+                                ? null
+                                : () => _openProfile(comment.userId),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Text(
+                                authorLabel,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ),
                           if (parent != null) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              'Replying to ${parent.displayName ?? parent.handle ?? 'User'}',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.55),
-                                fontSize: 12,
+                            InkWell(
+                              onTap: deleting
+                                  ? null
+                                  : () => _openProfile(parent.userId),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 2,
+                                ),
+                                child: Text(
+                                  'Replying to $parentLabel',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.55),
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -1154,13 +1402,17 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
     FlowPostComment comment, {
     required bool isReply,
   }) {
-    return ProfileAvatar(
-      radius: isReply ? 14 : 16,
-      displayName: comment.displayName ?? comment.handle ?? 'User',
-      avatarUrl: comment.avatarUrl,
-      avatarGlyphIds: comment.avatarGlyphIds,
-      backgroundColor: const Color(0xFF1C1C1E),
-      foregroundColor: KemeticGold.base,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _openProfile(comment.userId),
+      child: ProfileAvatar(
+        radius: isReply ? 14 : 16,
+        displayName: comment.displayName ?? comment.handle ?? 'User',
+        avatarUrl: comment.avatarUrl,
+        avatarGlyphIds: comment.avatarGlyphIds,
+        backgroundColor: const Color(0xFF1C1C1E),
+        foregroundColor: KemeticGold.base,
+      ),
     );
   }
 

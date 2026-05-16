@@ -525,7 +525,11 @@ void main() {
                   'lib/features/calendars/shared_calendars_sheet.dart',
                 ) &&
                 source.contains('&select=picker');
-            if (!isExplicitPicker) {
+            final isFeedAuthorProfilePush =
+                path.endsWith('lib/features/profile/profile_page.dart') &&
+                line.contains("context.push('/profile/") &&
+                source.contains('Future<void> _openFeedAuthorProfile');
+            if (!isExplicitPicker && !isFeedAuthorProfilePush) {
               offenders.add('$path:${index + 1}: ${line.trim()}');
             }
           }

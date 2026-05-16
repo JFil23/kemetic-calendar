@@ -739,6 +739,7 @@ final _router = GoRouter(
         return SessionTrackedRoute(
           location: state.uri.toString(),
           child: ProfilePage(
+            key: ValueKey(userId),
             userId: userId,
             isMyProfile: currentUserId != null && currentUserId == userId,
           ),

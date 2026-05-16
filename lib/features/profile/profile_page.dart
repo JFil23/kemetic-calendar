@@ -1690,8 +1690,22 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> _replaceWithProfile(String userId) async {
-    if (!mounted || userId == widget.userId) return;
+    if (!mounted) return;
+    if (userId == widget.userId) {
+      await _closeFeed();
+      return;
+    }
     context.go('/profile/${Uri.encodeComponent(userId)}');
+  }
+
+  Future<void> _openFeedAuthorProfile(String userId) async {
+    final trimmed = userId.trim();
+    if (!mounted || trimmed.isEmpty) return;
+    if (trimmed == widget.userId) {
+      await _closeFeed();
+      return;
+    }
+    context.push('/profile/${Uri.encodeComponent(trimmed)}');
   }
 
   void _openFollowList(UserProfile profile, FollowListType type) {
@@ -2692,90 +2706,61 @@ class _ProfilePageState extends State<ProfilePage>
               ),
               onTap: () => _expandFeedItem(item),
               child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: accent.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: glossFromColor(post.color),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: accent.withValues(alpha: 0.95),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              child: _buildFeedAuthorHeader(
+                userId: post.userId,
+                displayName: post.authorLabel,
+                handle: post.authorHandle,
+                showHandle: showHandle,
+                avatarUrl: post.authorAvatarUrl,
+                avatarGlyphIds: post.authorAvatarGlyphIds,
+              ),
+            ),
+            InkWell(
+              onTap: () => _expandFeedItem(item),
+              borderRadius: BorderRadius.circular(18),
+              child: Padding(
                 padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: accent.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: glossFromColor(post.color),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            label,
-                            style: TextStyle(
-                              color: accent.withValues(alpha: 0.95),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        ProfileAvatar(
-                          displayName: post.authorLabel,
-                          avatarUrl: post.authorAvatarUrl,
-                          avatarGlyphIds: post.authorAvatarGlyphIds,
-                          radius: 14,
-                          foregroundColor: _profileGoldText,
-                          backgroundColor: const Color(0xFF111115),
-                          borderColor: _profileGoldMid.withValues(alpha: 0.24),
-                          borderWidth: 1,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                post.authorLabel,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              if (showHandle)
-                                Text(
-                                  '@$authorHandle',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.56),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
                     _profileGoldTextWidget(
                       title.isEmpty ? 'Untitled Flow' : title,
                       maxLines: 6,
@@ -2865,15 +2850,17 @@ class _ProfilePageState extends State<ProfilePage>
       ),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(22),
-          onTap: () => _expandFeedItem(item),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(22),
+              ),
+              onTap: () => _expandFeedItem(item),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+                child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 6,
@@ -2894,131 +2881,109 @@ class _ProfilePageState extends State<ProfilePage>
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    ProfileAvatar(
-                      displayName: post.authorLabel,
-                      avatarUrl: post.authorAvatarUrl,
-                      avatarGlyphIds: post.authorAvatarGlyphIds,
-                      radius: 14,
-                      foregroundColor: _profileGoldText,
-                      backgroundColor: const Color(0xFF111115),
-                      borderColor: _profileGoldMid.withValues(alpha: 0.24),
-                      borderWidth: 1,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            post.authorLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          if (showHandle)
-                            Text(
-                              '@$authorHandle',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.56),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              child: _buildFeedAuthorHeader(
+                userId: post.userId,
+                displayName: post.authorLabel,
+                handle: post.authorHandle,
+                showHandle: showHandle,
+                avatarUrl: post.authorAvatarUrl,
+                avatarGlyphIds: post.authorAvatarGlyphIds,
+              ),
+            ),
+            InkWell(
+              onTap: () => _expandFeedItem(item),
+              borderRadius: BorderRadius.circular(18),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if ((post.nodeGlyph?.trim().isNotEmpty ?? false))
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Text(
-                          post.nodeGlyph!,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if ((post.nodeGlyph?.trim().isNotEmpty ?? false))
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Text(
+                              post.nodeGlyph!,
+                              style: const TextStyle(
+                                color: _profileGoldText,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        Expanded(
+                          child: _profileGoldTextWidget(
+                            post.nodeTitle,
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              height: 1.08,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _insightPreviewText(post.bodyText),
+                      maxLines: 7,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.88),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Dated ${_formatPostDate(post.entryDate, compact: true)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _postDateTextColor(0.56),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Posted ${_formatPostDate(post.createdAt, compact: true)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _postDateTextColor(0.5),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => _expandFeedItem(item),
+                        child: _profileGoldTextWidget(
+                          'Read more',
                           style: const TextStyle(
-                            color: _profileGoldText,
-                            fontSize: 20,
+                            fontSize: 14,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                    Expanded(
-                      child: _profileGoldTextWidget(
-                        post.nodeTitle,
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          height: 1.08,
-                        ),
-                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  _insightPreviewText(post.bodyText),
-                  maxLines: 7,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.88),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Dated ${_formatPostDate(post.entryDate, compact: true)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _postDateTextColor(0.56),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Posted ${_formatPostDate(post.createdAt, compact: true)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _postDateTextColor(0.5),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => _expandFeedItem(item),
-                    child: _profileGoldTextWidget(
-                      'Read more',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -3172,6 +3137,7 @@ class _ProfilePageState extends State<ProfilePage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildExpandedFeedAuthorRow(
+            userId: post.userId,
             displayName: post.authorLabel,
             handle: post.authorHandle,
             displayHandleWhenDistinct:
@@ -3336,6 +3302,7 @@ class _ProfilePageState extends State<ProfilePage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildExpandedFeedAuthorRow(
+            userId: post.userId,
             displayName: post.authorLabel,
             handle: handle,
             displayHandleWhenDistinct:
@@ -3496,54 +3463,86 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildExpandedFeedAuthorRow({
+    required String userId,
     required String displayName,
     required String? handle,
     required bool displayHandleWhenDistinct,
     required String? avatarUrl,
     required List<String> avatarGlyphIds,
   }) {
-    return Row(
-      children: [
-        ProfileAvatar(
-          displayName: displayName,
-          avatarUrl: avatarUrl,
-          avatarGlyphIds: avatarGlyphIds,
-          radius: 16,
-          foregroundColor: _profileGoldText,
-          backgroundColor: const Color(0xFF111115),
-          borderColor: _profileGoldMid.withValues(alpha: 0.24),
-          borderWidth: 1,
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (displayHandleWhenDistinct && handle != null)
-                Text(
-                  '@$handle',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.58),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+    return _buildFeedAuthorHeader(
+      userId: userId,
+      displayName: displayName,
+      handle: handle,
+      showHandle: displayHandleWhenDistinct,
+      avatarUrl: avatarUrl,
+      avatarGlyphIds: avatarGlyphIds,
+      avatarRadius: 16,
+      nameFontSize: 14,
+      handleFontSize: 12,
+    );
+  }
+
+  Widget _buildFeedAuthorHeader({
+    required String userId,
+    required String displayName,
+    required String? handle,
+    required bool showHandle,
+    required String? avatarUrl,
+    required List<String> avatarGlyphIds,
+    double avatarRadius = 14,
+    double nameFontSize = 13,
+    double handleFontSize = 11,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _openFeedAuthorProfile(userId),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            ProfileAvatar(
+              displayName: displayName,
+              avatarUrl: avatarUrl,
+              avatarGlyphIds: avatarGlyphIds,
+              radius: avatarRadius,
+              foregroundColor: _profileGoldText,
+              backgroundColor: const Color(0xFF111115),
+              borderColor: _profileGoldMid.withValues(alpha: 0.24),
+              borderWidth: 1,
+            ),
+            SizedBox(width: avatarRadius >= 16 ? 12 : 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: nameFontSize,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-            ],
-          ),
+                  if (showHandle && handle != null)
+                    Text(
+                      '@$handle',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.58),
+                        fontSize: handleFontSize,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
