@@ -2418,14 +2418,38 @@ class JournalRoutePage extends StatefulWidget {
   State<JournalRoutePage> createState() => _JournalRoutePageState();
 }
 
-class _JournalRoutePageState extends State<JournalRoutePage> {
+class _JournalRoutePageState extends State<JournalRoutePage>
+    with WidgetsBindingObserver {
   late final JournalController _controller = JournalController(supabase);
-  late final Future<void> _future = _controller.init();
+  late final Future<void> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _future = _controller.init();
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        unawaited(_controller.forceSave());
+        break;
+      case AppLifecycleState.resumed:
+        unawaited(_controller.reloadToday());
+        break;
+    }
   }
 
   @override

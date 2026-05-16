@@ -10,13 +10,18 @@ import 'journal_constants.dart';
 import 'journal_badge_utils.dart';
 import '../../main.dart';
 
+enum JournalSyncStatus { synced, unsavedLocal, saving, saveFailed }
+
 class JournalController {
   final JournalRepo _repo;
+  final String? Function() _currentUserId;
 
   Timer? _autosaveTimer;
   String _currentDraft = '';
   DateTime? _currentDate;
   bool _hasUnsavedChanges = false;
+  JournalSyncStatus _syncStatus = JournalSyncStatus.synced;
+  Object? _lastSyncError;
 
   // V2 ADDITIONS
   JournalDocument? _currentDocument;
@@ -24,8 +29,15 @@ class JournalController {
 
   // Callbacks for UI updates
   void Function()? onDraftChanged;
+  void Function()? onSyncStatusChanged;
 
-  JournalController(SupabaseClient client) : _repo = JournalRepo(client);
+  JournalController(SupabaseClient client)
+    : _repo = JournalRepo(client),
+      _currentUserId = (() => client.auth.currentUser?.id);
+
+  @visibleForTesting
+  JournalController.withRepo(this._repo, {String? Function()? currentUserId})
+    : _currentUserId = currentUserId ?? (() => null);
 
   void _log(String msg) {
     if (kDebugMode) {
@@ -48,9 +60,211 @@ class JournalController {
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
+  String get _activeDateKey => _formatDate(_currentDate ?? _today);
+
+  bool get canSyncToCloud {
+    final userId = _currentUserId()?.trim();
+    return userId != null && userId.isNotEmpty;
+  }
+
+  String _cacheScopeForUserId(String? userId) {
+    final normalized = userId?.trim();
+    if (normalized != null && normalized.isNotEmpty) {
+      return 'user:$normalized';
+    }
+    return 'local';
+  }
+
+  String get _cacheScope => _cacheScopeForUserId(_currentUserId());
+
+  String get _lastOpenDayKey => 'journal:$_cacheScope:lastOpenDay';
+
+  String _cacheKeyForScope(String scope, String kind, String dateKey) =>
+      'journal:$scope:$kind:$dateKey';
+
+  String _cacheKey(String kind, String dateKey) =>
+      _cacheKeyForScope(_cacheScope, kind, dateKey);
+
+  String _draftKey(String dateKey) => _cacheKey('draft', dateKey);
+
+  String _documentKey(String dateKey) => _cacheKey('document', dateKey);
+
+  String _draftDirtyKey(String dateKey) => _cacheKey('draft_dirty', dateKey);
+
+  String _documentDirtyKey(String dateKey) =>
+      _cacheKey('document_dirty', dateKey);
+
+  String _draftModifiedKey(String dateKey) =>
+      _cacheKey('draft_modified_at', dateKey);
+
+  String _documentModifiedKey(String dateKey) =>
+      _cacheKey('document_modified_at', dateKey);
+
+  String _localDraftKey(String dateKey) =>
+      _cacheKeyForScope('local', 'draft', dateKey);
+
+  String _localDocumentKey(String dateKey) =>
+      _cacheKeyForScope('local', 'document', dateKey);
+
+  String _localDraftDirtyKey(String dateKey) =>
+      _cacheKeyForScope('local', 'draft_dirty', dateKey);
+
+  String _localDocumentDirtyKey(String dateKey) =>
+      _cacheKeyForScope('local', 'document_dirty', dateKey);
+
+  String _localDraftModifiedKey(String dateKey) =>
+      _cacheKeyForScope('local', 'draft_modified_at', dateKey);
+
+  String _localDocumentModifiedKey(String dateKey) =>
+      _cacheKeyForScope('local', 'document_modified_at', dateKey);
+
+  JournalSyncStatus get syncStatus => _syncStatus;
+
+  Object? get lastSyncError => _lastSyncError;
+
+  bool get hasUnsavedChanges => _hasUnsavedChanges;
+
+  void _setSyncStatus(JournalSyncStatus status, [Object? error]) {
+    if (_syncStatus == status && _lastSyncError == error) return;
+    _syncStatus = status;
+    _lastSyncError = error;
+    onSyncStatusChanged?.call();
+  }
+
+  DateTime? _parsePrefsDate(String? value) {
+    if (value == null || value.isEmpty) return null;
+    return DateTime.tryParse(value)?.toUtc();
+  }
+
+  bool _shouldPreferDirtyLocal({
+    required bool localDirty,
+    required DateTime? localModifiedAt,
+    required JournalEntry? serverEntry,
+  }) {
+    if (!localDirty) return false;
+    if (serverEntry == null) return true;
+    if (localModifiedAt == null) return false;
+    return !localModifiedAt.isBefore(serverEntry.updatedAt.toUtc());
+  }
+
+  Future<void> _setLocalDirty({
+    required SharedPreferences prefs,
+    required String dateKey,
+    required bool documentMode,
+    required bool dirty,
+  }) async {
+    final dirtyKey = documentMode
+        ? _documentDirtyKey(dateKey)
+        : _draftDirtyKey(dateKey);
+    final modifiedKey = documentMode
+        ? _documentModifiedKey(dateKey)
+        : _draftModifiedKey(dateKey);
+
+    await prefs.setBool(dirtyKey, dirty);
+    if (dirty) {
+      await prefs.setString(
+        modifiedKey,
+        DateTime.now().toUtc().toIso8601String(),
+      );
+    }
+  }
+
+  Future<void> _markLocalClean({
+    required String dateKey,
+    required bool documentMode,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await _setLocalDirty(
+        prefs: prefs,
+        dateKey: dateKey,
+        documentMode: documentMode,
+        dirty: false,
+      );
+    } catch (e) {
+      _log('_markLocalClean error: $e');
+    }
+  }
+
+  Future<void> _removeLocalScopeDraft(
+    SharedPreferences prefs,
+    String dateKey,
+  ) async {
+    await prefs.remove(_localDraftKey(dateKey));
+    await prefs.remove(_localDraftDirtyKey(dateKey));
+    await prefs.remove(_localDraftModifiedKey(dateKey));
+  }
+
+  Future<void> _removeLocalScopeDocument(
+    SharedPreferences prefs,
+    String dateKey,
+  ) async {
+    await prefs.remove(_localDocumentKey(dateKey));
+    await prefs.remove(_localDocumentDirtyKey(dateKey));
+    await prefs.remove(_localDocumentModifiedKey(dateKey));
+  }
+
+  String? _dirtyLocalScopeDraft(SharedPreferences prefs, String dateKey) {
+    if (!canSyncToCloud || _cacheScope == 'local') return null;
+    final dirty = prefs.getBool(_localDraftDirtyKey(dateKey)) ?? false;
+    if (!dirty) return null;
+    final draft = prefs.getString(_localDraftKey(dateKey));
+    if (draft == null || draft.isEmpty) return null;
+    return draft;
+  }
+
+  JournalDocument? _dirtyLocalScopeDocument(
+    SharedPreferences prefs,
+    String dateKey,
+  ) {
+    if (!canSyncToCloud || _cacheScope == 'local') return null;
+    final dirty = prefs.getBool(_localDocumentDirtyKey(dateKey)) ?? false;
+    if (!dirty) return null;
+    final docJson = prefs.getString(_localDocumentKey(dateKey));
+    if (docJson == null || docJson.isEmpty) return null;
+    try {
+      final docMap = jsonDecode(docJson) as Map<String, dynamic>;
+      return JournalDocument.fromJson(docMap);
+    } catch (e) {
+      _log('_dirtyLocalScopeDocument: local JSON corrupted: $e');
+      return null;
+    }
+  }
+
+  void _scheduleAutosave() {
+    _autosaveTimer?.cancel();
+    _autosaveTimer = Timer(
+      const Duration(milliseconds: kJournalAutosaveDebounceMs),
+      () => unawaited(_autosave()),
+    );
+  }
+
   /// Initialize controller - load today's draft
   Future<void> init() async {
     _log('init: starting (V2 enabled: ${FeatureFlags.isJournalV2Active})');
+
+    await reloadToday();
+    await finalizeYesterdayIfNeeded();
+    _log('init: complete');
+  }
+
+  /// Reload today's entry from the server/cache decision path.
+  ///
+  /// Clean local cache never blocks server data. Dirty local edits still win
+  /// when they are newer than the server row or when no server row is
+  /// reachable, so this is safe to call when returning from another route.
+  Future<void> reloadToday() async {
+    _log(
+      'reloadToday: starting (V2 enabled: ${FeatureFlags.isJournalV2Active})',
+    );
+
+    if (_hasUnsavedChanges) {
+      final saved = await forceSave();
+      if (!saved && _hasUnsavedChanges) {
+        _log('reloadToday: skipped reload because local changes are unsaved');
+        return;
+      }
+    }
 
     if (FeatureFlags.isJournalV2Active) {
       await _loadDocumentForToday();
@@ -58,20 +272,20 @@ class JournalController {
       await _loadDraftForToday();
     }
 
-    await finalizeYesterdayIfNeeded();
-    _log('init: complete');
+    _log('reloadToday: complete');
   }
 
   Future<void> _applyDocument(
     JournalDocument doc, {
     bool saveLocal = false,
+    bool markDirty = false,
   }) async {
     final normalized = JournalBadgeUtils.normalizeDocument(doc);
     _currentDocument = normalized;
     _currentDraft = _documentToPlainText(normalized);
 
     if (saveLocal) {
-      await _saveLocalDocument();
+      await _saveLocalDocument(markDirty: markDirty);
     }
   }
 
@@ -79,36 +293,98 @@ class JournalController {
   Future<void> _loadDraftForToday() async {
     final today = _today;
     _currentDate = today;
+    _isDocumentMode = false;
+    final dateKey = _formatDate(today);
 
-    // Try local storage first
     final prefs = await SharedPreferences.getInstance();
-    final localDraft = prefs.getString('draft:$_todayKey');
+    var localDraft = prefs.getString(_draftKey(dateKey));
+    final localDirty = prefs.getBool(_draftDirtyKey(dateKey)) ?? false;
+    final localModifiedAt = _parsePrefsDate(
+      prefs.getString(_draftModifiedKey(dateKey)),
+    );
 
-    if (localDraft != null && localDraft.isNotEmpty) {
+    JournalEntry? entry;
+    var serverReadFailed = false;
+    try {
+      entry = await _repo.getByDateStrict(today);
+    } catch (e) {
+      serverReadFailed = true;
+      _setSyncStatus(JournalSyncStatus.saveFailed, e);
+      _log('_loadDraftForToday server error: $e');
+    }
+
+    if (entry == null &&
+        !serverReadFailed &&
+        (localDraft == null || localDraft.isEmpty)) {
+      final localScopeDraft = _dirtyLocalScopeDraft(prefs, dateKey);
+      if (localScopeDraft != null) {
+        localDraft = localScopeDraft;
+        _currentDraft = localScopeDraft;
+        _currentDocument = null;
+        _hasUnsavedChanges = true;
+        await _saveLocalDraft(markDirty: true);
+        await _removeLocalScopeDraft(prefs, dateKey);
+        _setSyncStatus(JournalSyncStatus.unsavedLocal);
+        _scheduleAutosave();
+        _log(
+          '_loadDraftForToday: imported dirty local-scope draft for signed-in user (${_currentDraft.length} chars)',
+        );
+        onDraftChanged?.call();
+        return;
+      }
+    }
+
+    if (localDraft != null &&
+        localDraft.isNotEmpty &&
+        _shouldPreferDirtyLocal(
+          localDirty: localDirty,
+          localModifiedAt: localModifiedAt,
+          serverEntry: entry,
+        )) {
       _currentDraft = localDraft;
+      _hasUnsavedChanges = true;
+      _setSyncStatus(JournalSyncStatus.unsavedLocal);
+      _scheduleAutosave();
       _log(
-        '_loadDraftForToday: loaded from local storage (${_currentDraft.length} chars)',
+        '_loadDraftForToday: loaded dirty local draft (${_currentDraft.length} chars)',
       );
       onDraftChanged?.call();
       return;
     }
 
-    // Fallback to server
-    try {
-      final entry = await _repo.getByDate(today);
-      if (entry != null) {
-        _currentDraft = entry.body;
-        await _saveLocalDraft();
-        _log(
-          '_loadDraftForToday: loaded from server (${_currentDraft.length} chars)',
-        );
+    if (entry != null) {
+      _currentDraft = entry.body;
+      _currentDocument = null;
+      _hasUnsavedChanges = false;
+      await _saveLocalDraft(markDirty: false);
+      _setSyncStatus(JournalSyncStatus.synced);
+      _log(
+        '_loadDraftForToday: loaded from server (${_currentDraft.length} chars)',
+      );
+    } else if (localDraft != null && localDraft.isNotEmpty) {
+      _currentDraft = localDraft;
+      _hasUnsavedChanges = localDirty;
+      if (localDirty) {
+        _setSyncStatus(JournalSyncStatus.unsavedLocal);
+        _scheduleAutosave();
       } else {
-        _currentDraft = '';
-        _log('_loadDraftForToday: no entry found, starting fresh');
+        _setSyncStatus(
+          canSyncToCloud
+              ? JournalSyncStatus.synced
+              : JournalSyncStatus.unsavedLocal,
+        );
       }
-    } catch (e) {
-      _log('_loadDraftForToday error: $e');
+      _log(
+        '_loadDraftForToday: server empty/unavailable, loaded local draft (${_currentDraft.length} chars)',
+      );
+    } else {
       _currentDraft = '';
+      _currentDocument = null;
+      _hasUnsavedChanges = false;
+      if (!serverReadFailed) {
+        _setSyncStatus(JournalSyncStatus.synced);
+      }
+      _log('_loadDraftForToday: no entry found, starting fresh');
     }
 
     onDraftChanged?.call();
@@ -119,20 +395,20 @@ class JournalController {
     final today = _today;
     _currentDate = today;
     _isDocumentMode = true;
+    final dateKey = _formatDate(today);
 
-    // Try local storage first
     final prefs = await SharedPreferences.getInstance();
-    final localDocJson = prefs.getString('document:$_todayKey');
+    final localDocJson = prefs.getString(_documentKey(dateKey));
+    final localDirty = prefs.getBool(_documentDirtyKey(dateKey)) ?? false;
+    final localModifiedAt = _parsePrefsDate(
+      prefs.getString(_documentModifiedKey(dateKey)),
+    );
+    JournalDocument? localDocument;
 
     if (localDocJson != null && localDocJson.isNotEmpty) {
       try {
         final docMap = jsonDecode(localDocJson) as Map<String, dynamic>;
-        await _applyDocument(JournalDocument.fromJson(docMap), saveLocal: true);
-        _log(
-          '_loadDocumentForToday: loaded from local storage (${_currentDraft.length} chars)',
-        );
-        onDraftChanged?.call();
-        return;
+        localDocument = JournalDocument.fromJson(docMap);
       } catch (e) {
         _log(
           '_loadDocumentForToday: local JSON corrupted, falling back to server',
@@ -140,13 +416,56 @@ class JournalController {
       }
     }
 
-    // Fallback to server
+    JournalEntry? entry;
+    var serverReadFailed = false;
     try {
-      final entry = await _repo.getByDate(today);
-      if (entry != null) {
-        // Check if entry is already a document
+      entry = await _repo.getByDateStrict(today);
+    } catch (e) {
+      serverReadFailed = true;
+      _setSyncStatus(JournalSyncStatus.saveFailed, e);
+      _log('_loadDocumentForToday server error: $e');
+    }
+
+    if (entry == null && !serverReadFailed && localDocument == null) {
+      final localScopeDocument = _dirtyLocalScopeDocument(prefs, dateKey);
+      if (localScopeDocument != null) {
+        await _applyDocument(
+          localScopeDocument,
+          saveLocal: true,
+          markDirty: true,
+        );
+        await _removeLocalScopeDocument(prefs, dateKey);
+        _hasUnsavedChanges = true;
+        _setSyncStatus(JournalSyncStatus.unsavedLocal);
+        _scheduleAutosave();
+        _log(
+          '_loadDocumentForToday: imported dirty local-scope document for signed-in user (${_currentDraft.length} chars)',
+        );
+        onDraftChanged?.call();
+        return;
+      }
+    }
+
+    if (localDocument != null &&
+        _shouldPreferDirtyLocal(
+          localDirty: localDirty,
+          localModifiedAt: localModifiedAt,
+          serverEntry: entry,
+        )) {
+      await _applyDocument(localDocument);
+      _hasUnsavedChanges = true;
+      _setSyncStatus(JournalSyncStatus.unsavedLocal);
+      _scheduleAutosave();
+      _log(
+        '_loadDocumentForToday: loaded dirty local document (${_currentDraft.length} chars)',
+      );
+      onDraftChanged?.call();
+      return;
+    }
+
+    if (entry != null) {
+      try {
         if (entry.body.startsWith('{') && entry.body.contains('"version"')) {
-          // It's a document
           final docMap = jsonDecode(entry.body) as Map<String, dynamic>;
           await _applyDocument(JournalDocument.fromJson(docMap));
           _log(
@@ -160,16 +479,52 @@ class JournalController {
           );
         }
 
-        await _saveLocalDocument();
-      } else {
-        // Create new empty document
-        await _applyDocument(JournalDocument.fromPlainText(''));
-        _log('_loadDocumentForToday: no entry found, created new document');
+        _hasUnsavedChanges = false;
+        await _saveLocalDocument(markDirty: false);
+        _setSyncStatus(JournalSyncStatus.synced);
+      } catch (e) {
+        _log('_loadDocumentForToday server parse error: $e');
+        if (localDocument != null) {
+          await _applyDocument(localDocument);
+          _hasUnsavedChanges = localDirty;
+          if (localDirty) {
+            _setSyncStatus(JournalSyncStatus.unsavedLocal);
+            _scheduleAutosave();
+          } else {
+            _setSyncStatus(JournalSyncStatus.saveFailed, e);
+          }
+          _log(
+            '_loadDocumentForToday: loaded local document after server parse failure',
+          );
+        } else {
+          await _applyDocument(JournalDocument.fromPlainText(''));
+          _hasUnsavedChanges = false;
+          _setSyncStatus(JournalSyncStatus.saveFailed, e);
+        }
       }
-    } catch (e) {
-      _log('_loadDocumentForToday error: $e');
-      // Fallback to empty document
+    } else if (localDocument != null) {
+      await _applyDocument(localDocument);
+      _hasUnsavedChanges = localDirty;
+      if (localDirty) {
+        _setSyncStatus(JournalSyncStatus.unsavedLocal);
+        _scheduleAutosave();
+      } else {
+        _setSyncStatus(
+          canSyncToCloud
+              ? JournalSyncStatus.synced
+              : JournalSyncStatus.unsavedLocal,
+        );
+      }
+      _log(
+        '_loadDocumentForToday: server empty/unavailable, loaded local document (${_currentDraft.length} chars)',
+      );
+    } else {
       await _applyDocument(JournalDocument.fromPlainText(''));
+      _hasUnsavedChanges = false;
+      if (!serverReadFailed) {
+        _setSyncStatus(JournalSyncStatus.synced);
+      }
+      _log('_loadDocumentForToday: no entry found, created new document');
     }
 
     onDraftChanged?.call();
@@ -234,22 +589,18 @@ class JournalController {
 
     _currentDraft = text;
     _hasUnsavedChanges = true;
+    _setSyncStatus(JournalSyncStatus.unsavedLocal);
 
     if (_isDocumentMode && _currentDocument != null) {
       // Update document
       _currentDocument = _plainTextToDocument(text);
-      await _saveLocalDocument();
+      await _saveLocalDocument(markDirty: true);
     } else {
       // Save locally immediately (V1 behavior)
-      await _saveLocalDraft();
+      await _saveLocalDraft(markDirty: true);
     }
 
-    // Debounce server save
-    _autosaveTimer?.cancel();
-    _autosaveTimer = Timer(
-      const Duration(milliseconds: kJournalAutosaveDebounceMs),
-      _autosave,
-    );
+    _scheduleAutosave();
 
     onDraftChanged?.call();
   }
@@ -263,25 +614,28 @@ class JournalController {
     _currentDocument = normalized;
     _currentDraft = _documentToPlainText(normalized);
     _hasUnsavedChanges = true;
+    _setSyncStatus(JournalSyncStatus.unsavedLocal);
 
-    await _saveLocalDocument();
+    await _saveLocalDocument(markDirty: true);
 
-    // Debounce server save
-    _autosaveTimer?.cancel();
-    _autosaveTimer = Timer(
-      const Duration(milliseconds: kJournalAutosaveDebounceMs),
-      _autosave,
-    );
+    _scheduleAutosave();
 
     onDraftChanged?.call();
   }
 
   /// Save draft to local storage (V1)
-  Future<void> _saveLocalDraft() async {
+  Future<void> _saveLocalDraft({required bool markDirty}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('draft:$_todayKey', _currentDraft);
-      await prefs.setString('lastOpenDay', _todayKey);
+      final dateKey = _activeDateKey;
+      await prefs.setString(_draftKey(dateKey), _currentDraft);
+      await prefs.setString(_lastOpenDayKey, dateKey);
+      await _setLocalDirty(
+        prefs: prefs,
+        dateKey: dateKey,
+        documentMode: false,
+        dirty: markDirty,
+      );
       _log('_saveLocalDraft: ✓ cached locally');
     } catch (e) {
       _log('_saveLocalDraft error: $e');
@@ -289,14 +643,21 @@ class JournalController {
   }
 
   /// Save document to local storage (V2)
-  Future<void> _saveLocalDocument() async {
+  Future<void> _saveLocalDocument({required bool markDirty}) async {
     if (_currentDocument == null) return;
 
     try {
       final prefs = await SharedPreferences.getInstance();
+      final dateKey = _activeDateKey;
       final docJson = jsonEncode(_currentDocument!.toJson());
-      await prefs.setString('document:$_todayKey', docJson);
-      await prefs.setString('lastOpenDay', _todayKey);
+      await prefs.setString(_documentKey(dateKey), docJson);
+      await prefs.setString(_lastOpenDayKey, dateKey);
+      await _setLocalDirty(
+        prefs: prefs,
+        dateKey: dateKey,
+        documentMode: true,
+        dirty: markDirty,
+      );
       _log('_saveLocalDocument: ✓ cached locally');
     } catch (e) {
       _log('_saveLocalDocument error: $e');
@@ -304,10 +665,11 @@ class JournalController {
   }
 
   /// Autosave to server (debounced)
-  Future<void> _autosave() async {
-    if (!_hasUnsavedChanges) return;
+  Future<bool> _autosave() async {
+    if (!_hasUnsavedChanges) return true;
 
     try {
+      _setSyncStatus(JournalSyncStatus.saving);
       _log('_autosave: saving to server (${_currentDraft.length} chars)');
 
       String bodyToSave;
@@ -326,33 +688,50 @@ class JournalController {
         bodyToSave = _currentDraft;
       }
 
+      final saveDate = _currentDate ?? _today;
+      final dateKey = _formatDate(saveDate);
+      final documentMode = _isDocumentMode && _currentDocument != null;
       await _repo.upsert(
-        localDate: _currentDate ?? _today,
+        localDate: saveDate,
         body: bodyToSave,
         meta: metaToSave,
       );
 
       _hasUnsavedChanges = false;
+      await _markLocalClean(dateKey: dateKey, documentMode: documentMode);
+      _setSyncStatus(JournalSyncStatus.synced);
       _log('_autosave: ✓ saved to server');
 
       // Track autosave event
-      Events.trackIfAuthed('journal_autosave', {
-        'chars': _currentDraft.length,
-        'appended_block': false,
-        'document_mode': _isDocumentMode,
-      });
+      try {
+        unawaited(
+          Events.trackIfAuthed('journal_autosave', {
+            'chars': _currentDraft.length,
+            'appended_block': false,
+            'document_mode': _isDocumentMode,
+          }).catchError((Object error, StackTrace stackTrace) {
+            _log('_autosave tracking error: $error');
+          }),
+        );
+      } catch (e) {
+        _log('_autosave tracking skipped: $e');
+      }
+      return true;
     } catch (e) {
       _log('_autosave error: $e (will retry later)');
+      _setSyncStatus(JournalSyncStatus.saveFailed, e);
       // Keep _hasUnsavedChanges = true so it retries
+      return false;
     }
   }
 
   /// Force save immediately (on overlay close)
-  Future<void> forceSave() async {
+  Future<bool> forceSave() async {
     _autosaveTimer?.cancel();
     if (_hasUnsavedChanges) {
-      await _autosave();
+      return _autosave();
     }
+    return true;
   }
 
   /// Clear today's entry (draft/document) and persist immediately.
@@ -362,12 +741,14 @@ class JournalController {
         _currentDocument = JournalDocument.fromPlainText('');
         _currentDraft = '';
         _hasUnsavedChanges = true;
-        await _saveLocalDocument();
+        _setSyncStatus(JournalSyncStatus.unsavedLocal);
+        await _saveLocalDocument(markDirty: true);
       } else {
         _currentDraft = '';
         _currentDocument = null;
         _hasUnsavedChanges = true;
-        await _saveLocalDraft();
+        _setSyncStatus(JournalSyncStatus.unsavedLocal);
+        await _saveLocalDraft(markDirty: true);
       }
       onDraftChanged?.call();
       await _autosave();
@@ -380,7 +761,7 @@ class JournalController {
   Future<void> finalizeYesterdayIfNeeded() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final lastOpenDay = prefs.getString('lastOpenDay');
+      final lastOpenDay = prefs.getString(_lastOpenDayKey);
 
       if (lastOpenDay == null || lastOpenDay == _todayKey) {
         _log('finalizeYesterdayIfNeeded: no rollover detected');
@@ -395,9 +776,9 @@ class JournalController {
       String? yesterdayContent;
 
       if (_isDocumentMode) {
-        yesterdayContent = prefs.getString('document:$lastOpenDay');
+        yesterdayContent = prefs.getString(_documentKey(lastOpenDay));
       } else {
-        yesterdayContent = prefs.getString('draft:$lastOpenDay');
+        yesterdayContent = prefs.getString(_draftKey(lastOpenDay));
       }
 
       if (yesterdayContent != null && yesterdayContent.isNotEmpty) {
@@ -421,16 +802,20 @@ class JournalController {
 
         // Clean up old local draft/document
         if (_isDocumentMode) {
-          await prefs.remove('document:$lastOpenDay');
+          await prefs.remove(_documentKey(lastOpenDay));
+          await prefs.remove(_documentDirtyKey(lastOpenDay));
+          await prefs.remove(_documentModifiedKey(lastOpenDay));
         } else {
-          await prefs.remove('draft:$lastOpenDay');
+          await prefs.remove(_draftKey(lastOpenDay));
+          await prefs.remove(_draftDirtyKey(lastOpenDay));
+          await prefs.remove(_draftModifiedKey(lastOpenDay));
         }
 
         _log('finalizeYesterdayIfNeeded: ✓ finalized $lastOpenDay');
       }
 
       // Update last open day
-      await prefs.setString('lastOpenDay', _todayKey);
+      await prefs.setString(_lastOpenDayKey, _todayKey);
     } catch (e) {
       _log('finalizeYesterdayIfNeeded error: $e');
     }
@@ -577,9 +962,10 @@ class JournalController {
 
       // Update local storage tracking
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('lastOpenDay', dateKey);
+      await prefs.setString(_lastOpenDayKey, dateKey);
 
       _hasUnsavedChanges = false;
+      _setSyncStatus(JournalSyncStatus.synced);
       onDraftChanged?.call();
 
       _log('loadDate: ✓ loaded entry for $dateKey');
@@ -588,6 +974,7 @@ class JournalController {
       // On error, show empty entry
       _currentDraft = '';
       _currentDocument = null;
+      _setSyncStatus(JournalSyncStatus.saveFailed, e);
     }
   }
 
@@ -598,8 +985,9 @@ class JournalController {
 
   /// Dispose controller
   void dispose() {
+    if (_hasUnsavedChanges) {
+      unawaited(forceSave());
+    }
     _autosaveTimer?.cancel();
-    _currentDocument = null;
-    _isDocumentMode = false;
   }
 }

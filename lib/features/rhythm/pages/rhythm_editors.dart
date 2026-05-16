@@ -8,6 +8,7 @@ import 'package:mobile/services/session_resume_service.dart';
 import 'package:mobile/features/rhythm/rhythm_reminders.dart';
 import 'package:mobile/features/rhythm/rhythm_telemetry.dart';
 import 'package:mobile/features/rhythm/rhythm_user_messages.dart';
+import 'package:mobile/widgets/kemetic_keyboard.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 
 import '../data/rhythm_repo.dart';
@@ -202,11 +203,8 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
 
   @override
   Widget build(BuildContext context) {
-    final formPadding = addKeyboardBottomInset(
-      context,
-      const EdgeInsets.all(16),
-    );
-    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
+    const formPadding = EdgeInsets.all(16);
+    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
     return Scaffold(
       appBar: AppBar(
@@ -228,97 +226,104 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: formPadding,
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextFormField(
-                  controller: _title,
-                  scrollPadding: fieldScrollPadding,
-                  style: RhythmTheme.heading,
-                  decoration: const InputDecoration(labelText: 'Item title'),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Enter a title' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _description,
-                  scrollPadding: fieldScrollPadding,
-                  minLines: 2,
-                  maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Notes'),
-                ),
-                const SizedBox(height: 18),
-                Text('When this returns', style: RhythmTheme.heading),
-                const SizedBox(height: 8),
-                ..._patterns.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final pattern = entry.value;
-                  return _PatternCard(
-                    pattern: pattern,
-                    onChanged: (updated) {
-                      setState(() {
-                        _patterns[index] = updated;
-                      });
+      body: KemeticKeyboardRevealScope(
+        enabled: false,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: formPadding,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: _title,
+                    scrollPadding: fieldScrollPadding,
+                    style: RhythmTheme.heading,
+                    decoration: const InputDecoration(labelText: 'Item title'),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Enter a title'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _description,
+                    scrollPadding: fieldScrollPadding,
+                    minLines: 2,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Notes'),
+                  ),
+                  const SizedBox(height: 18),
+                  Text('When this returns', style: RhythmTheme.heading),
+                  const SizedBox(height: 8),
+                  ..._patterns.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final pattern = entry.value;
+                    return _PatternCard(
+                      pattern: pattern,
+                      onChanged: (updated) {
+                        setState(() {
+                          _patterns[index] = updated;
+                        });
+                        _persistResumeState();
+                      },
+                      onDelete: _patterns.length == 1
+                          ? null
+                          : () => setState(() {
+                              _patterns.removeAt(index);
+                              _persistResumeState();
+                            }),
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => setState(() {
+                      _patterns = [
+                        ..._patterns,
+                        const TimePattern(allDay: true),
+                      ];
+                      _persistResumeState();
+                    }),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add time pattern'),
+                  ),
+                  const SizedBox(height: 18),
+                  Text('How the app uses it', style: RhythmTheme.heading),
+                  const SizedBox(height: 8),
+                  SwitchListTile.adaptive(
+                    title: const Text('Show in Planner'),
+                    value: _showAlignment,
+                    onChanged: (v) {
+                      setState(() => _showAlignment = v);
                       _persistResumeState();
                     },
-                    onDelete: _patterns.length == 1
-                        ? null
-                        : () => setState(() {
-                            _patterns.removeAt(index);
-                            _persistResumeState();
-                          }),
-                  );
-                }),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: () => setState(() {
-                    _patterns = [..._patterns, const TimePattern(allDay: true)];
-                    _persistResumeState();
-                  }),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add time pattern'),
-                ),
-                const SizedBox(height: 18),
-                Text('How the app uses it', style: RhythmTheme.heading),
-                const SizedBox(height: 8),
-                SwitchListTile.adaptive(
-                  title: const Text('Show in Planner'),
-                  value: _showAlignment,
-                  onChanged: (v) {
-                    setState(() => _showAlignment = v);
-                    _persistResumeState();
-                  },
-                ),
-                SwitchListTile.adaptive(
-                  title: const Text('Send reminders'),
-                  value: _sendReminders,
-                  onChanged: (v) {
-                    setState(() => _sendReminders = v);
-                    _persistResumeState();
-                  },
-                ),
-                SwitchListTile.adaptive(
-                  title: const Text('Track continuity'),
-                  value: _trackContinuity,
-                  onChanged: (v) {
-                    setState(() => _trackContinuity = v);
-                    _persistResumeState();
-                  },
-                ),
-                if (_friendlyError != null) ...[
-                  const SizedBox(height: 12),
-                  RhythmErrorStateCard(
-                    title: 'Could not save yet',
-                    message: _friendlyError!,
-                    onRetry: _save,
                   ),
+                  SwitchListTile.adaptive(
+                    title: const Text('Send reminders'),
+                    value: _sendReminders,
+                    onChanged: (v) {
+                      setState(() => _sendReminders = v);
+                      _persistResumeState();
+                    },
+                  ),
+                  SwitchListTile.adaptive(
+                    title: const Text('Track continuity'),
+                    value: _trackContinuity,
+                    onChanged: (v) {
+                      setState(() => _trackContinuity = v);
+                      _persistResumeState();
+                    },
+                  ),
+                  if (_friendlyError != null) ...[
+                    const SizedBox(height: 12),
+                    RhythmErrorStateCard(
+                      title: 'Could not save yet',
+                      message: _friendlyError!,
+                      onRetry: _save,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -475,11 +480,8 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
 
   @override
   Widget build(BuildContext context) {
-    final formPadding = addKeyboardBottomInset(
-      context,
-      const EdgeInsets.all(16),
-    );
-    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
+    const formPadding = EdgeInsets.all(16);
+    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
     return Scaffold(
       appBar: AppBar(
@@ -501,68 +503,71 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: formPadding,
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextFormField(
-                  controller: _title,
-                  scrollPadding: fieldScrollPadding,
-                  style: RhythmTheme.heading,
-                  decoration: const InputDecoration(labelText: 'Item name'),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Enter a name' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _description,
-                  scrollPadding: fieldScrollPadding,
-                  minLines: 3,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Notes, tags, or rituals',
+      body: KemeticKeyboardRevealScope(
+        enabled: false,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: formPadding,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: _title,
+                    scrollPadding: fieldScrollPadding,
+                    style: RhythmTheme.heading,
+                    decoration: const InputDecoration(labelText: 'Item name'),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Enter a name' : null,
                   ),
-                ),
-                const SizedBox(height: 18),
-                Text('How the app uses it', style: RhythmTheme.heading),
-                const SizedBox(height: 8),
-                SwitchListTile.adaptive(
-                  title: const Text('Show in Planner'),
-                  value: _showAlignment,
-                  onChanged: (v) {
-                    setState(() => _showAlignment = v);
-                    _persistResumeState();
-                  },
-                ),
-                SwitchListTile.adaptive(
-                  title: const Text('Send reminders'),
-                  value: _sendReminders,
-                  onChanged: (v) {
-                    setState(() => _sendReminders = v);
-                    _persistResumeState();
-                  },
-                ),
-                SwitchListTile.adaptive(
-                  title: const Text('Track continuity'),
-                  value: _trackContinuity,
-                  onChanged: (v) {
-                    setState(() => _trackContinuity = v);
-                    _persistResumeState();
-                  },
-                ),
-                if (_friendlyError != null) ...[
                   const SizedBox(height: 12),
-                  RhythmErrorStateCard(
-                    title: 'Could not save yet',
-                    message: _friendlyError!,
-                    onRetry: _save,
+                  TextFormField(
+                    controller: _description,
+                    scrollPadding: fieldScrollPadding,
+                    minLines: 3,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes, tags, or rituals',
+                    ),
                   ),
+                  const SizedBox(height: 18),
+                  Text('How the app uses it', style: RhythmTheme.heading),
+                  const SizedBox(height: 8),
+                  SwitchListTile.adaptive(
+                    title: const Text('Show in Planner'),
+                    value: _showAlignment,
+                    onChanged: (v) {
+                      setState(() => _showAlignment = v);
+                      _persistResumeState();
+                    },
+                  ),
+                  SwitchListTile.adaptive(
+                    title: const Text('Send reminders'),
+                    value: _sendReminders,
+                    onChanged: (v) {
+                      setState(() => _sendReminders = v);
+                      _persistResumeState();
+                    },
+                  ),
+                  SwitchListTile.adaptive(
+                    title: const Text('Track continuity'),
+                    value: _trackContinuity,
+                    onChanged: (v) {
+                      setState(() => _trackContinuity = v);
+                      _persistResumeState();
+                    },
+                  ),
+                  if (_friendlyError != null) ...[
+                    const SizedBox(height: 12),
+                    RhythmErrorStateCard(
+                      title: 'Could not save yet',
+                      message: _friendlyError!,
+                      onRetry: _save,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

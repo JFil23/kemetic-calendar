@@ -8,6 +8,7 @@ import '../../core/navigation_fallback.dart';
 import '../../data/profile_avatar_glyphs.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
+import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
 import 'profile_glyph_avatar_composer.dart';
@@ -191,11 +192,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Widget build(BuildContext context) {
     final pageTitle = _isCreatingProfile ? 'Create Profile' : 'Edit Profile';
     final saveLabel = _isCreatingProfile ? 'Create' : 'Save';
-    final formPadding = addKeyboardBottomInset(
-      context,
-      const EdgeInsets.all(24),
-    );
-    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
+    const formPadding = EdgeInsets.all(24);
+    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
     return PopScope(
       canPop: !widget.requireCompletion,
@@ -233,348 +231,354 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
           ],
         ),
-        body: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
-                ),
-              )
-            : SingleChildScrollView(
-                padding: formPadding,
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      if (_isCreatingProfile) ...[
-                        Container(
+        body: KemeticKeyboardRevealScope(
+          enabled: false,
+          child: _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: formPadding,
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        if (_isCreatingProfile) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0D0D0F),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: KemeticGold.base.withValues(alpha: 0.28),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Choose how you appear to other people.',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  widget.requireCompletion
+                                      ? 'Create your display name and username to finish setup. You can adjust the rest later.'
+                                      : 'Add a display name and username so your profile can be found and shared.',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.72),
+                                    fontSize: 13,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                        // Avatar
+                        ProfileAvatar(
+                          radius: 50,
+                          displayName:
+                              _displayNameController.text.trim().isNotEmpty
+                              ? _displayNameController.text.trim()
+                              : (_handleController.text.trim().isNotEmpty
+                                    ? _handleController.text.trim()
+                                    : widget.initialProfile.effectiveName),
+                          avatarUrl: _avatarUrl,
+                          avatarGlyphIds: _avatarGlyphIds,
+                          borderColor: KemeticGold.base,
+                          borderWidth: 2,
+                          foregroundColor: KemeticGold.base,
+                          backgroundColor: const Color(0xFF0D0D0F),
+                          maxInitialCharacters: 1,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _avatarGlyphIds.isNotEmpty
+                              ? 'Glyph avatar active'
+                              : (_avatarUrl != null
+                                    ? 'Existing avatar active'
+                                    : 'Build a glyph avatar if you want one'),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.5),
+                            fontSize: 13,
+                          ),
+                        ),
+                        if (_avatarGlyphIds.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            profileGlyphPhraseGlyphs(_avatarGlyphIds),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: KemeticGold.base,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'GentiumPlus',
+                              fontFamilyFallback: [
+                                'Noto Sans Egyptian Hieroglyphs',
+                                'Apple Symbols',
+                                'Segoe UI Symbol',
+                                'Arial Unicode MS',
+                                'NotoSans',
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            profileGlyphPhraseMeaning(_avatarGlyphIds),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.66),
+                              fontSize: 12,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        SizedBox(
                           width: double.infinity,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: KemeticGold.base.withValues(alpha: 0.6),
+                              ),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            onPressed: _editGlyphAvatar,
+                            icon: KemeticGold.icon(Icons.auto_awesome_outlined),
+                            label: Text(
+                              _avatarGlyphIds.isEmpty
+                                  ? 'Build Glyph Avatar'
+                                  : 'Edit Glyph Avatar',
+                            ),
+                          ),
+                        ),
+                        if (_avatarUrl != null ||
+                            _avatarGlyphIds.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _avatarUrl = null;
+                                _avatarGlyphIds = const [];
+                                _avatarGlyphIdsDirty = true;
+                              });
+                            },
+                            child: Text(
+                              'Remove avatar',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.72),
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 32),
+
+                        // Display Name
+                        TextFormField(
+                          controller: _displayNameController,
+                          scrollPadding: fieldScrollPadding,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: 'Display Name',
+                            labelStyle: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.6),
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFF0D0D0F),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Display name is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Handle
+                        TextFormField(
+                          controller: _handleController,
+                          scrollPadding: fieldScrollPadding,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: 'Handle',
+                            prefix: Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: KemeticGold.text(
+                                '@',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            labelStyle: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.6),
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFF0D0D0F),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            suffixIcon: _isCheckingHandle
+                                ? const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              KemeticGold.base,
+                                            ),
+                                      ),
+                                    ),
+                                  )
+                                : _handleError != null
+                                ? const Icon(Icons.error, color: Colors.red)
+                                : null,
+                            errorText: _handleError,
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Handle is required';
+                            }
+                            if (value.length < 3 || value.length > 20) {
+                              return 'Handle must be 3-20 characters';
+                            }
+                            if (!RegExp(r'^[a-z0-9_]+$').hasMatch(value)) {
+                              return 'Only lowercase letters, numbers, and underscores';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Bio
+                        TextFormField(
+                          controller: _bioController,
+                          scrollPadding: fieldScrollPadding,
+                          style: const TextStyle(color: Colors.white),
+                          maxLines: 3,
+                          maxLength: 160,
+                          decoration: InputDecoration(
+                            labelText: 'Bio',
+                            labelStyle: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.6),
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFF0D0D0F),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            counterStyle: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Location
+                        TextFormField(
+                          controller: _locationController,
+                          scrollPadding: fieldScrollPadding,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            labelText: 'Location (optional)',
+                            labelStyle: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.6),
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFF0D0D0F),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // Privacy Toggles
+                        Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: const Color(0xFF0D0D0F),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: KemeticGold.base.withValues(alpha: 0.28),
-                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Choose how you appear to other people.',
+                                'Privacy',
                                 style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
+                                  color: KemeticGold.base,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                widget.requireCompletion
-                                    ? 'Create your display name and username to finish setup. You can adjust the rest later.'
-                                    : 'Add a display name and username so your profile can be found and shared.',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.72),
-                                  fontSize: 13,
-                                  height: 1.35,
+                              const SizedBox(height: 16),
+                              SwitchListTile(
+                                value: _isDiscoverable,
+                                onChanged: (value) =>
+                                    setState(() => _isDiscoverable = value),
+                                title: const Text(
+                                  'Profile discoverable',
+                                  style: TextStyle(color: Colors.white),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                      // Avatar
-                      ProfileAvatar(
-                        radius: 50,
-                        displayName:
-                            _displayNameController.text.trim().isNotEmpty
-                            ? _displayNameController.text.trim()
-                            : (_handleController.text.trim().isNotEmpty
-                                  ? _handleController.text.trim()
-                                  : widget.initialProfile.effectiveName),
-                        avatarUrl: _avatarUrl,
-                        avatarGlyphIds: _avatarGlyphIds,
-                        borderColor: KemeticGold.base,
-                        borderWidth: 2,
-                        foregroundColor: KemeticGold.base,
-                        backgroundColor: const Color(0xFF0D0D0F),
-                        maxInitialCharacters: 1,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _avatarGlyphIds.isNotEmpty
-                            ? 'Glyph avatar active'
-                            : (_avatarUrl != null
-                                  ? 'Existing avatar active'
-                                  : 'Build a glyph avatar if you want one'),
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          fontSize: 13,
-                        ),
-                      ),
-                      if (_avatarGlyphIds.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          profileGlyphPhraseGlyphs(_avatarGlyphIds),
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: KemeticGold.base,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'GentiumPlus',
-                            fontFamilyFallback: [
-                              'Noto Sans Egyptian Hieroglyphs',
-                              'Apple Symbols',
-                              'Segoe UI Symbol',
-                              'Arial Unicode MS',
-                              'NotoSans',
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          profileGlyphPhraseMeaning(_avatarGlyphIds),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.66),
-                            fontSize: 12,
-                            height: 1.3,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(
-                              color: KemeticGold.base.withValues(alpha: 0.6),
-                            ),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          onPressed: _editGlyphAvatar,
-                          icon: KemeticGold.icon(Icons.auto_awesome_outlined),
-                          label: Text(
-                            _avatarGlyphIds.isEmpty
-                                ? 'Build Glyph Avatar'
-                                : 'Edit Glyph Avatar',
-                          ),
-                        ),
-                      ),
-                      if (_avatarUrl != null || _avatarGlyphIds.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _avatarUrl = null;
-                              _avatarGlyphIds = const [];
-                              _avatarGlyphIdsDirty = true;
-                            });
-                          },
-                          child: Text(
-                            'Remove avatar',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.72),
-                            ),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 32),
-
-                      // Display Name
-                      TextFormField(
-                        controller: _displayNameController,
-                        scrollPadding: fieldScrollPadding,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          labelText: 'Display Name',
-                          labelStyle: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                          ),
-                          filled: true,
-                          fillColor: const Color(0xFF0D0D0F),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Display name is required';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Handle
-                      TextFormField(
-                        controller: _handleController,
-                        scrollPadding: fieldScrollPadding,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          labelText: 'Handle',
-                          prefix: Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: KemeticGold.text(
-                              '@',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          labelStyle: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                          ),
-                          filled: true,
-                          fillColor: const Color(0xFF0D0D0F),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          suffixIcon: _isCheckingHandle
-                              ? const Padding(
-                                  padding: EdgeInsets.all(12),
-                                  child: SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        KemeticGold.base,
-                                      ),
-                                    ),
+                                subtitle: Text(
+                                  'Allow others to find your profile',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.6),
+                                    fontSize: 13,
                                   ),
-                                )
-                              : _handleError != null
-                              ? const Icon(Icons.error, color: Colors.red)
-                              : null,
-                          errorText: _handleError,
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Handle is required';
-                          }
-                          if (value.length < 3 || value.length > 20) {
-                            return 'Handle must be 3-20 characters';
-                          }
-                          if (!RegExp(r'^[a-z0-9_]+$').hasMatch(value)) {
-                            return 'Only lowercase letters, numbers, and underscores';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Bio
-                      TextFormField(
-                        controller: _bioController,
-                        scrollPadding: fieldScrollPadding,
-                        style: const TextStyle(color: Colors.white),
-                        maxLines: 3,
-                        maxLength: 160,
-                        decoration: InputDecoration(
-                          labelText: 'Bio',
-                          labelStyle: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                          ),
-                          filled: true,
-                          fillColor: const Color(0xFF0D0D0F),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          counterStyle: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Location
-                      TextFormField(
-                        controller: _locationController,
-                        scrollPadding: fieldScrollPadding,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          labelText: 'Location (optional)',
-                          labelStyle: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                          ),
-                          filled: true,
-                          fillColor: const Color(0xFF0D0D0F),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Privacy Toggles
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0D0D0F),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Privacy',
-                              style: TextStyle(
-                                color: KemeticGold.base,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            SwitchListTile(
-                              value: _isDiscoverable,
-                              onChanged: (value) =>
-                                  setState(() => _isDiscoverable = value),
-                              title: const Text(
-                                'Profile discoverable',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                              subtitle: Text(
-                                'Allow others to find your profile',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.6),
-                                  fontSize: 13,
                                 ),
+                                activeThumbColor: KemeticGold.base,
+                                contentPadding: EdgeInsets.zero,
                               ),
-                              activeThumbColor: KemeticGold.base,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            const Divider(color: Color(0xFF1A1A1A)),
-                            SwitchListTile(
-                              value: _allowIncomingShares,
-                              onChanged: (value) =>
-                                  setState(() => _allowIncomingShares = value),
-                              title: const Text(
-                                'Allow receiving flows',
-                                style: TextStyle(color: Colors.white),
-                              ),
-                              subtitle: Text(
-                                'Others can share flows with you',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.6),
-                                  fontSize: 13,
+                              const Divider(color: Color(0xFF1A1A1A)),
+                              SwitchListTile(
+                                value: _allowIncomingShares,
+                                onChanged: (value) => setState(
+                                  () => _allowIncomingShares = value,
                                 ),
+                                title: const Text(
+                                  'Allow receiving flows',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                subtitle: Text(
+                                  'Others can share flows with you',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.6),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                activeThumbColor: KemeticGold.base,
+                                contentPadding: EdgeInsets.zero,
                               ),
-                              activeThumbColor: KemeticGold.base,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
+        ),
       ),
     );
   }

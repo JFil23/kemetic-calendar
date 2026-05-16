@@ -11758,6 +11758,7 @@ class _CalendarPageState extends State<CalendarPage>
     _reminderSub?.cancel();
     _authSub?.cancel();
     _reminderService.dispose();
+    unawaited(_journalController.forceSave());
     _journalController.dispose();
     _calendarRestorationDebounce?.cancel();
     _warmStartCacheDebounceTimer?.cancel();
@@ -11797,6 +11798,7 @@ class _CalendarPageState extends State<CalendarPage>
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
         _lastBackgroundedAt = DateTime.now();
+        unawaited(_journalController.forceSave());
         unawaited(
           _flushPendingWarmStartCacheSave(reason: 'lifecycle:${state.name}'),
         );
@@ -11843,6 +11845,16 @@ class _CalendarPageState extends State<CalendarPage>
 
   // ✅ Refresh when returning to this page
   Future<void> _handleCalendarReturnFromAnotherPage() async {
+    if (!mounted) return;
+    try {
+      await _journalController.reloadToday();
+      if (mounted) {
+        setState(() => _journalInitialized = true);
+      }
+    } catch (error, stackTrace) {
+      debugPrint('[calendar] journal reload after return failed: $error');
+      debugPrint('$stackTrace');
+    }
     if (!mounted) return;
     await _maybePresentCalendarToggleCoachmarkAfterReturn();
   }
@@ -19773,6 +19785,8 @@ class _CalendarPageState extends State<CalendarPage>
                                     rawDetail,
                                   );
                                   final hasDetail = cleanedDetail.isNotEmpty;
+                                  final detailPreviewHeight =
+                                      media.textScaler.scale(12) * 1.35 * 6;
 
                                   return SizedBox(
                                     width: double.infinity,
@@ -19831,12 +19845,23 @@ class _CalendarPageState extends State<CalendarPage>
                                                     ],
                                                     if (hasDetail) ...[
                                                       const SizedBox(height: 6),
-                                                      Text(
-                                                        cleanedDetail,
-                                                        style: const TextStyle(
-                                                          color: Colors.white70,
-                                                          fontSize: 12,
-                                                          height: 1.35,
+                                                      SizedBox(
+                                                        height:
+                                                            detailPreviewHeight,
+                                                        child: SingleChildScrollView(
+                                                          primary: false,
+                                                          physics:
+                                                              const BouncingScrollPhysics(),
+                                                          child: Text(
+                                                            cleanedDetail,
+                                                            style:
+                                                                const TextStyle(
+                                                                  color: Colors
+                                                                      .white70,
+                                                                  fontSize: 12,
+                                                                  height: 1.35,
+                                                                ),
+                                                          ),
                                                         ),
                                                       ),
                                                     ],

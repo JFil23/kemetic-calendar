@@ -1567,7 +1567,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   Widget _notesEditorsPanel() {
     List<_EditorGroup> groups = _buildEditorGroups();
-    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
+    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
     // Fallback: if selection/range isn't ready but drafts exist, render from drafts.
     if (groups.isEmpty) {
       if (_draftsByDay.isNotEmpty) {
@@ -3883,13 +3883,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         ? null
         : _calendarPageState?._calendarSummariesById[selectedCalendarId];
     final canEditSelectedCalendar = _canEditCalendar(selectedCalendarId);
-    final bodyPadding = addKeyboardBottomInset(
-      context,
-      const EdgeInsets.fromLTRB(16, 16, 16, 24),
-    );
-    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
+    const bodyPadding = EdgeInsets.fromLTRB(16, 16, 16, 24);
+    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: _bg,
       appBar: AppBar(
         backgroundColor: Colors.black,

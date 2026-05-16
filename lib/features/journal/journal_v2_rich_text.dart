@@ -9,6 +9,7 @@ import '../../data/insight_link_model.dart';
 import '../../data/insight_link_utils.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../widgets/insight_link_text.dart';
+import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
 import 'journal_v2_document_model.dart';
 import 'journal_event_badge.dart';
@@ -916,52 +917,52 @@ class RichTextEditorState extends State<RichTextEditor> {
         placeholderText.isNotEmpty &&
         _controller.text.trim().isEmpty &&
         !widget.readOnly;
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        TextField(
-          controller: _controller,
-          focusNode: _focusNode,
-          maxLines: null,
-          expands: true,
-          scrollController: _textScrollController,
-          scrollPadding: keyboardAwareTextFieldScrollPadding(
-            context,
-            clearance: 56,
+    return KemeticKeyboardRevealScope(
+      enabled: false,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          TextField(
+            controller: _controller,
+            focusNode: _focusNode,
+            maxLines: null,
+            expands: true,
+            scrollController: _textScrollController,
+            scrollPadding: keyboardManagedTextFieldScrollPadding,
+            readOnly: widget.readOnly,
+            keyboardType: TextInputType.multiline,
+            textInputAction: TextInputAction.newline,
+            scrollPhysics: const BouncingScrollPhysics(),
+            enableInteractiveSelection: !widget.readOnly,
+            onTapAlwaysCalled: true,
+            textAlignVertical: TextAlignVertical.top,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              height: 1.5,
+            ),
+            inputFormatters: _formatters,
+            cursorColor: KemeticGold.base,
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
+            onTap: _handleEditableTap,
+            onChanged: _handleTextChanged,
           ),
-          readOnly: widget.readOnly,
-          keyboardType: TextInputType.multiline,
-          textInputAction: TextInputAction.newline,
-          scrollPhysics: const BouncingScrollPhysics(),
-          enableInteractiveSelection: !widget.readOnly,
-          onTapAlwaysCalled: true,
-          textAlignVertical: TextAlignVertical.top,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            height: 1.5,
-          ),
-          inputFormatters: _formatters,
-          cursorColor: KemeticGold.base,
-          decoration: const InputDecoration(
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-          ),
-          onTap: _handleEditableTap,
-          onChanged: _handleTextChanged,
-        ),
-        if (showPlaceholder)
-          IgnorePointer(
-            child: Text(
-              placeholderText,
-              style: const TextStyle(
-                color: Color(0xFF666666),
-                fontSize: 16,
-                height: 1.5,
+          if (showPlaceholder)
+            IgnorePointer(
+              child: Text(
+                placeholderText,
+                style: const TextStyle(
+                  color: Color(0xFF666666),
+                  fontSize: 16,
+                  height: 1.5,
+                ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 

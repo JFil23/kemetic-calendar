@@ -1,6 +1,7 @@
 // lib/features/profile/flow_post_engagement_row.dart
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -756,14 +757,25 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final keyboardInset = keyboardInsetOf(context);
+    final availableHeight = math.max(
+      0.0,
+      media.size.height - keyboardInset - media.padding.top - 12,
+    );
+    final sheetHeight = keyboardInset > 0
+        ? math.min(media.size.height * 0.72, availableHeight)
+        : media.size.height * 0.46;
+
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+      padding: EdgeInsets.only(bottom: keyboardInset),
       child: SafeArea(
         top: false,
-        child: FractionallySizedBox(
-          heightFactor: 0.46,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          height: sheetHeight,
           child: Padding(
             padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + media.padding.bottom),
             child: Column(
@@ -1083,7 +1095,7 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
                 focusNode: _commentFocusNode,
                 maxLines: 3,
                 maxLength: 150,
-                scrollPadding: keyboardAwareTextFieldScrollPadding(context),
+                scrollPadding: keyboardManagedTextFieldScrollPadding,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: replyTarget == null

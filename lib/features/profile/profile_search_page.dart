@@ -106,13 +106,11 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bodyPadding = addKeyboardBottomInset(
-      context,
-      const EdgeInsets.all(20),
-    );
-    final fieldScrollPadding = keyboardAwareTextFieldScrollPadding(context);
+    const bodyPadding = EdgeInsets.all(20);
+    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFF000000),
       appBar: AppBar(
         backgroundColor: const Color(0xFF000000),

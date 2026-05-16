@@ -8,6 +8,7 @@ import '../../data/event_filing_engine.dart';
 import '../../data/shared_calendar_models.dart';
 import '../../data/shared_calendars_repo.dart';
 import '../../shared/glossy_text.dart';
+import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
 
 typedef SharedCalendarAddEventCallback =
@@ -930,85 +931,88 @@ class _CalendarEditorDialogState extends State<_CalendarEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: const Color(0xFF111214),
-      title: Text(
-        widget.initialName.isEmpty ? 'New Calendar' : 'Edit Calendar',
-        style: const TextStyle(color: Colors.white),
-      ),
-      content: SingleChildScrollView(
-        child: SizedBox(
-          width: 360,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: _nameCtrl,
-                autofocus: true,
-                scrollPadding: keyboardAwareTextFieldScrollPadding(context),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Name',
-                  labelStyle: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
+    return KemeticKeyboardRevealScope(
+      enabled: false,
+      child: AlertDialog(
+        backgroundColor: const Color(0xFF111214),
+        title: Text(
+          widget.initialName.isEmpty ? 'New Calendar' : 'Edit Calendar',
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: SingleChildScrollView(
+          child: SizedBox(
+            width: 360,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _nameCtrl,
+                  autofocus: true,
+                  scrollPadding: keyboardManagedTextFieldScrollPadding,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Name',
+                    labelStyle: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFF1A1B1E),
                   ),
-                  filled: true,
-                  fillColor: const Color(0xFF1A1B1E),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Text('Color', style: TextStyle(color: Colors.white70)),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: widget.palette
-                    .map((colorValue) {
-                      final selected = colorValue == _selectedColor;
-                      return InkWell(
-                        onTap: () {
-                          setState(() => _selectedColor = colorValue);
-                        },
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: Color(colorValue),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: selected
-                                  ? Colors.white
-                                  : Colors.white.withValues(alpha: 0.12),
-                              width: selected ? 3 : 1,
+                const SizedBox(height: 16),
+                const Text('Color', style: TextStyle(color: Colors.white70)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: widget.palette
+                      .map((colorValue) {
+                        final selected = colorValue == _selectedColor;
+                        return InkWell(
+                          onTap: () {
+                            setState(() => _selectedColor = colorValue);
+                          },
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: Color(colorValue),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: selected
+                                    ? Colors.white
+                                    : Colors.white.withValues(alpha: 0.12),
+                                width: selected ? 3 : 1,
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    })
-                    .toList(growable: false),
-              ),
-            ],
+                        );
+                      })
+                      .toList(growable: false),
+                ),
+              ],
+            ),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final name = _nameCtrl.text.trim();
+              if (name.isEmpty) return;
+              Navigator.of(context).pop(
+                _CalendarEditorResult(name: name, colorValue: _selectedColor),
+              );
+            },
+            child: const Text('Save'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () {
-            final name = _nameCtrl.text.trim();
-            if (name.isEmpty) return;
-            Navigator.of(context).pop(
-              _CalendarEditorResult(name: name, colorValue: _selectedColor),
-            );
-          },
-          child: const Text('Save'),
-        ),
-      ],
     );
   }
 }

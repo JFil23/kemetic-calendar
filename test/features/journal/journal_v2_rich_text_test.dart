@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
 import 'package:mobile/features/journal/journal_v2_rich_text.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 
 void main() {
   testWidgets('shows placeholder when empty document stores only a newline', (
@@ -111,7 +112,7 @@ void main() {
     await tester.pump();
 
     final field = tester.widget<TextField>(find.byType(TextField));
-    expect(field.scrollPadding.bottom, 356);
+    expect(field.scrollPadding, keyboardManagedTextFieldScrollPadding);
 
     final text = List<String>.generate(
       40,

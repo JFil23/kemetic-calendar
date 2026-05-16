@@ -26,6 +26,7 @@ import '../../data/insight_link_model.dart';
 import '../../data/insight_link_repo.dart';
 import '../../data/insight_link_utils.dart';
 import '../../widgets/insight_link_text.dart';
+import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/node_link_picker_sheet.dart';
@@ -76,6 +77,7 @@ class _JournalOverlayState extends State<JournalOverlay>
   // Archive state
   bool _showingArchive = false;
   bool _keyboardVisible = false;
+  bool _isClosing = false;
 
   // Universal undo/redo system
   late JournalUndoSystem _undoSystem;
@@ -354,16 +356,26 @@ class _JournalOverlayState extends State<JournalOverlay>
   }
 
   void _close() {
+    if (_isClosing) return;
+    _isClosing = true;
     _dismissKeyboard();
+    unawaited(_saveAndClose());
+  }
+
+  Future<void> _saveAndClose() async {
+    final saved = await widget.controller.forceSave();
+    if (!saved && mounted) {
+      _showSyncWarningSnackBar();
+    }
+    if (!mounted) return;
     if (widget.presentationMode == JournalPresentationMode.page) {
       widget.onClose();
       return;
     }
-    _animationController.reverse().then((_) {
-      if (mounted) {
-        widget.onClose();
-      }
-    });
+    await _animationController.reverse();
+    if (mounted) {
+      widget.onClose();
+    }
   }
 
   // ARCHIVE METHODS
@@ -885,6 +897,37 @@ class _JournalOverlayState extends State<JournalOverlay>
     );
   }
 
+  void _showSyncWarningSnackBar() {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(_syncStatusMessage()),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+  }
+
+  String _syncStatusMessage() {
+    final signedIn = widget.controller.canSyncToCloud;
+    switch (widget.controller.syncStatus) {
+      case JournalSyncStatus.synced:
+        return 'Journal synced';
+      case JournalSyncStatus.saving:
+        return 'Syncing journal...';
+      case JournalSyncStatus.unsavedLocal:
+        return signedIn
+            ? 'Journal saved locally.'
+            : 'Journal saved locally. Sign in to sync across devices.';
+      case JournalSyncStatus.saveFailed:
+        return signedIn
+            ? 'Saved on this device. Cloud sync failed.'
+            : 'Saved on this device. Sign in to sync across devices.';
+    }
+  }
+
   double _badgeAreaHeight({
     required bool keyboardVisible,
     required double maxEditorHeight,
@@ -941,29 +984,29 @@ class _JournalOverlayState extends State<JournalOverlay>
     }
 
     // Plain text fallback
-    return TextField(
-      controller: _textController,
-      focusNode: _focusNode,
-      scrollController: _scrollController,
-      scrollPadding: keyboardAwareTextFieldScrollPadding(
-        context,
-        clearance: 56,
+    return KemeticKeyboardRevealScope(
+      enabled: false,
+      child: TextField(
+        controller: _textController,
+        focusNode: _focusNode,
+        scrollController: _scrollController,
+        scrollPadding: keyboardManagedTextFieldScrollPadding,
+        maxLines: null,
+        expands: true,
+        textAlignVertical: TextAlignVertical.top,
+        style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
+        decoration: InputDecoration(
+          hintText: placeholderText,
+          hintStyle: const TextStyle(color: Color(0xFF666666), fontSize: 16),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
+        ),
+        keyboardType: TextInputType.multiline,
+        textInputAction: TextInputAction.newline,
+        scrollPhysics: const BouncingScrollPhysics(),
+        enableInteractiveSelection: true,
+        onChanged: _handleTextChanged,
       ),
-      maxLines: null,
-      expands: true,
-      textAlignVertical: TextAlignVertical.top,
-      style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
-      decoration: InputDecoration(
-        hintText: placeholderText,
-        hintStyle: const TextStyle(color: Color(0xFF666666), fontSize: 16),
-        border: InputBorder.none,
-        contentPadding: EdgeInsets.zero,
-      ),
-      keyboardType: TextInputType.multiline,
-      textInputAction: TextInputAction.newline,
-      scrollPhysics: const BouncingScrollPhysics(),
-      enableInteractiveSelection: true,
-      onChanged: _handleTextChanged,
     );
   }
 

@@ -20,7 +20,10 @@ class JournalBadgeUtils {
   static EventBadgeToken? parseRawToken(String raw) {
     final trimmed = raw.trim();
     final content = trimmed.startsWith('⟦EVENT_BADGE')
-        ? trimmed.replaceFirst('⟦EVENT_BADGE', '').replaceFirst(RegExp(r'⟧$'), '').trim()
+        ? trimmed
+              .replaceFirst('⟦EVENT_BADGE', '')
+              .replaceFirst(RegExp(r'⟧$'), '')
+              .trim()
         : trimmed;
     if (content.isEmpty) return null;
     return EventBadgeToken.parse(content);
@@ -29,6 +32,16 @@ class JournalBadgeUtils {
   static List<String> _coerceStringList(dynamic value) {
     if (value is List) {
       return value
+          .map((e) => e == null ? '' : e.toString())
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+    if (value is String) {
+      final trimmed = value.trim();
+      return trimmed.isEmpty ? [] : [trimmed];
+    }
+    if (value is Map) {
+      return value.values
           .map((e) => e == null ? '' : e.toString())
           .where((s) => s.isNotEmpty)
           .toList();
@@ -60,7 +73,10 @@ class JournalBadgeUtils {
     return deduped;
   }
 
-  static JournalDocument mergeBadges(JournalDocument doc, Iterable<String> rawTokens) {
+  static JournalDocument mergeBadges(
+    JournalDocument doc,
+    Iterable<String> rawTokens,
+  ) {
     final incoming = rawTokens.where((t) => t.trim().isNotEmpty).toList();
     if (incoming.isEmpty) return doc;
 
@@ -110,10 +126,12 @@ class JournalBadgeUtils {
           }
         }
 
-        newBlocks.add(ParagraphBlock(
-          id: block.id,
-          ops: newOps.isEmpty ? [TextOp(insert: '\n')] : newOps,
-        ));
+        newBlocks.add(
+          ParagraphBlock(
+            id: block.id,
+            ops: newOps.isEmpty ? [TextOp(insert: '\n')] : newOps,
+          ),
+        );
       } else {
         newBlocks.add(block);
       }
@@ -134,11 +152,7 @@ class JournalBadgeUtils {
       return doc;
     }
 
-    return JournalDocument(
-      version: doc.version,
-      blocks: newBlocks,
-      meta: meta,
-    );
+    return JournalDocument(version: doc.version, blocks: newBlocks, meta: meta);
   }
 
   /// Parse badge tokens from meta (preferred) or legacy inline text.

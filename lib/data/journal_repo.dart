@@ -98,34 +98,39 @@ class JournalRepo {
   /// Get entry for a specific local date
   Future<JournalEntry?> getByDate(DateTime localDate) async {
     try {
-      final userId = _client.auth.currentUser?.id;
-      if (userId == null) {
-        _log('getByDate: no user logged in');
-        return null;
-      }
-
-      final dateStr = JournalEntry._formatDate(localDate);
-      _log('getByDate: fetching $dateStr for user $userId');
-
-      final response = await _client
-          .from('journal_entries')
-          .select()
-          .eq('user_id', userId)
-          .eq('greg_date', dateStr)
-          .maybeSingle();
-
-      if (response == null) {
-        _log('getByDate: no entry found for $dateStr');
-        return null;
-      }
-
-      final entry = JournalEntry.fromJson(response);
-      _log('getByDate: found entry with ${entry.body.length} chars');
-      return entry;
+      return await getByDateStrict(localDate);
     } catch (e) {
       _log('getByDate error: $e');
       return null;
     }
+  }
+
+  /// Get entry for a specific local date, surfacing network/RLS errors.
+  Future<JournalEntry?> getByDateStrict(DateTime localDate) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      _log('getByDateStrict: no user logged in');
+      return null;
+    }
+
+    final dateStr = JournalEntry._formatDate(localDate);
+    _log('getByDateStrict: fetching $dateStr for user $userId');
+
+    final response = await _client
+        .from('journal_entries')
+        .select()
+        .eq('user_id', userId)
+        .eq('greg_date', dateStr)
+        .maybeSingle();
+
+    if (response == null) {
+      _log('getByDateStrict: no entry found for $dateStr');
+      return null;
+    }
+
+    final entry = JournalEntry.fromJson(response);
+    _log('getByDateStrict: found entry with ${entry.body.length} chars');
+    return entry;
   }
 
   /// Fetch the most recent journal entry for the user.
