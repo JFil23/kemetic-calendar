@@ -15,6 +15,15 @@ void main() {
           'mode': 'maatTemplate',
           'templateKey': 'follow_the_sky',
         },
+        <String, dynamic>{
+          'kind': 'calendar.eventDetail',
+          'parentRoute': '/',
+          'kYear': 6267,
+          'kMonth': 4,
+          'kDay': 12,
+          'identityType': 'clientEventId',
+          'identityValue': 'event-client-1',
+        },
         <String, dynamic>{'kind': 'calendar.sharedCalendars'},
       ]) {
         expect(
@@ -83,6 +92,23 @@ void main() {
             <String, dynamic>{
               'kind': 'calendar.sharedCalendars',
               'parentRoute': ' ',
+            },
+          ],
+        ),
+        isNull,
+      );
+
+      expect(
+        CalendarPage.restorableOverlayParentRouteFromStack(
+          const <Map<String, dynamic>>[
+            <String, dynamic>{
+              'kind': 'calendar.eventDetail',
+              'parentRoute': '/profile/user-1',
+              'kYear': 6267,
+              'kMonth': 4,
+              'kDay': 12,
+              'identityType': 'clientEventId',
+              'identityValue': 'event-client-1',
             },
           ],
         ),

@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../core/navigation_fallback.dart';
 import '../../shared/glossy_text.dart';
+import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/insight_link_text.dart';
 import 'kemetic_node_library.dart';
 import 'kemetic_node_model.dart';
+import 'kemetic_node_search_delegate.dart';
 import 'widgets.dart';
 import 'node_user_insights_section.dart';
 
@@ -100,6 +104,21 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     popOrGo(context, '/nodes');
   }
 
+  Future<void> _openSearch() async {
+    final selectedNodeId = await showKemeticNodeSearch(context);
+    if (!mounted || selectedNodeId == null) return;
+    final target = KemeticNodeLibrary.resolve(selectedNodeId);
+    if (target == null) return;
+    if (target.id.toLowerCase() == _node.id.toLowerCase()) {
+      await _scrollToTop();
+      return;
+    }
+    setState(() {
+      _history.add(target);
+    });
+    await _scrollToTop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final paragraphs = _buildParagraphs(_node);
@@ -124,6 +143,18 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
             onTap: _handleBackNavigation,
           ),
           titleSpacing: 0,
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 22),
+              child: KemeticAppBarAction(
+                tooltip: 'Search library',
+                icon: const KemeticAppBarSearchIcon(),
+                onPressed: () {
+                  unawaited(_openSearch());
+                },
+              ),
+            ),
+          ],
           title: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,

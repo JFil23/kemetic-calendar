@@ -24,6 +24,16 @@ const Set<String> _validCalendarAnchorTargets = <String>{
   'monthBody',
 };
 
+const String eventDetailIdentityClientEventId = 'clientEventId';
+const String eventDetailIdentityEventId = 'eventId';
+const String eventDetailIdentityReminderId = 'reminderId';
+
+const Set<String> _validEventDetailIdentityTypes = <String>{
+  eventDetailIdentityClientEventId,
+  eventDetailIdentityEventId,
+  eventDetailIdentityReminderId,
+};
+
 Map<String, dynamic>? _asJsonMap(Object? raw) {
   if (raw is! Map) {
     return null;
@@ -274,6 +284,104 @@ class CalendarRestorationState {
   }
 }
 
+class EventDetailRestorationState {
+  const EventDetailRestorationState({
+    required this.kYear,
+    required this.kMonth,
+    required this.kDay,
+    required this.identityType,
+    required this.identityValue,
+    this.parentSurface,
+    this.updatedAtMs,
+  });
+
+  final int kYear;
+  final int kMonth;
+  final int kDay;
+  final String identityType;
+  final String identityValue;
+  final String? parentSurface;
+  final int? updatedAtMs;
+
+  EventDetailRestorationState copyWith({
+    int? kYear,
+    int? kMonth,
+    int? kDay,
+    String? identityType,
+    String? identityValue,
+    String? parentSurface,
+    int? updatedAtMs,
+    bool clearParentSurface = false,
+    bool clearUpdatedAtMs = false,
+  }) {
+    return EventDetailRestorationState(
+      kYear: kYear ?? this.kYear,
+      kMonth: kMonth ?? this.kMonth,
+      kDay: kDay ?? this.kDay,
+      identityType: identityType ?? this.identityType,
+      identityValue: identityValue ?? this.identityValue,
+      parentSurface: clearParentSurface
+          ? null
+          : (parentSurface ?? this.parentSurface),
+      updatedAtMs: clearUpdatedAtMs ? null : (updatedAtMs ?? this.updatedAtMs),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'kYear': kYear,
+      'kMonth': kMonth,
+      'kDay': kDay,
+      'identityType': identityType,
+      'identityValue': identityValue,
+      if (parentSurface != null && parentSurface!.trim().isNotEmpty)
+        'parentSurface': parentSurface!.trim(),
+      if (updatedAtMs != null) 'updatedAtMs': updatedAtMs,
+    };
+  }
+
+  static EventDetailRestorationState? fromJson(Object? raw) {
+    final json = _asJsonMap(raw);
+    if (json == null) {
+      return null;
+    }
+
+    final kYear = _asInt(json['kYear']);
+    final kMonth = _asInt(json['kMonth']);
+    final kDay = _asInt(json['kDay']);
+    final identityType = (json['identityType'] as String?)?.trim();
+    final identityValue = (json['identityValue'] as String?)?.trim();
+    final parentSurface = (json['parentSurface'] as String?)?.trim();
+    final updatedAtMs = _asInt(json['updatedAtMs']);
+
+    if (kYear == null ||
+        kMonth == null ||
+        kDay == null ||
+        !_isValidKemeticDay(kYear, kMonth, kDay) ||
+        identityType == null ||
+        !_validEventDetailIdentityTypes.contains(identityType) ||
+        identityValue == null ||
+        identityValue.isEmpty ||
+        (json.containsKey('updatedAtMs') &&
+            json['updatedAtMs'] != null &&
+            (updatedAtMs == null || updatedAtMs < 0))) {
+      return null;
+    }
+
+    return EventDetailRestorationState(
+      kYear: kYear,
+      kMonth: kMonth,
+      kDay: kDay,
+      identityType: identityType,
+      identityValue: identityValue,
+      parentSurface: parentSurface == null || parentSurface.isEmpty
+          ? null
+          : parentSurface,
+      updatedAtMs: updatedAtMs,
+    );
+  }
+}
+
 class DayViewRestorationState {
   const DayViewRestorationState({
     required this.isOpen,
@@ -283,6 +391,7 @@ class DayViewRestorationState {
     required this.showGregorian,
     this.firstVisibleMinute,
     this.scrollOffset,
+    this.eventDetail,
   });
 
   final bool isOpen;
@@ -292,6 +401,7 @@ class DayViewRestorationState {
   final bool showGregorian;
   final int? firstVisibleMinute;
   final double? scrollOffset;
+  final EventDetailRestorationState? eventDetail;
 
   DayViewRestorationState copyWith({
     bool? isOpen,
@@ -301,8 +411,10 @@ class DayViewRestorationState {
     bool? showGregorian,
     int? firstVisibleMinute,
     double? scrollOffset,
+    EventDetailRestorationState? eventDetail,
     bool clearFirstVisibleMinute = false,
     bool clearScrollOffset = false,
+    bool clearEventDetail = false,
   }) {
     return DayViewRestorationState(
       isOpen: isOpen ?? this.isOpen,
@@ -316,6 +428,7 @@ class DayViewRestorationState {
       scrollOffset: clearScrollOffset
           ? null
           : (scrollOffset ?? this.scrollOffset),
+      eventDetail: clearEventDetail ? null : (eventDetail ?? this.eventDetail),
     );
   }
 
@@ -328,6 +441,7 @@ class DayViewRestorationState {
       'showGregorian': showGregorian,
       if (firstVisibleMinute != null) 'firstVisibleMinute': firstVisibleMinute,
       if (scrollOffset != null) 'scrollOffset': scrollOffset,
+      if (eventDetail != null) 'eventDetail': eventDetail!.toJson(),
     };
   }
 
@@ -363,6 +477,7 @@ class DayViewRestorationState {
       showGregorian: json['showGregorian'] == true,
       firstVisibleMinute: firstVisibleMinute,
       scrollOffset: scrollOffset,
+      eventDetail: EventDetailRestorationState.fromJson(json['eventDetail']),
     );
   }
 }

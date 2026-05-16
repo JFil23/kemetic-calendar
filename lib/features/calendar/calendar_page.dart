@@ -4186,6 +4186,21 @@ class CalendarPage extends StatefulWidget {
           kind == _kCalendarOverlayKindFlowStudio) {
         return Map<String, dynamic>.from(entry);
       }
+      if (kind == _kCalendarOverlayKindEventDetail) {
+        final parentRoute = (entry['parentRoute'] as String?)?.trim();
+        final parentSurface = (entry['parentSurface'] as String?)?.trim();
+        final isRootParentRoute =
+            parentRoute == null ||
+            parentRoute.isEmpty ||
+            _isRootRouteLocation(parentRoute);
+        final isRootParentSurface =
+            parentSurface == null ||
+            parentSurface.isEmpty ||
+            parentSurface == _kCalendarParentSurfaceRoot;
+        if (isRootParentRoute && isRootParentSurface) {
+          return Map<String, dynamic>.from(entry);
+        }
+      }
     }
     return null;
   }
@@ -4222,7 +4237,8 @@ class CalendarPage extends StatefulWidget {
     return '${RestorationCoordinator.calendarOverlayStackSurface}|'
         '$kind|$parentRoute|$parentSurface|${overlay['updatedAtMs']}|'
         '${overlay['mode']}|${overlay['templateKey']}|'
-        '${overlay['initialFlowId']}|${overlay['editFlowId']}';
+        '${overlay['initialFlowId']}|${overlay['editFlowId']}|'
+        '${overlay['identityType']}|${overlay['identityValue']}';
   }
 
   static Future<void> waitForInitialCalendarRestorationToSettle({
@@ -6042,7 +6058,7 @@ class CalendarPage extends StatefulWidget {
         .readDayViewState();
     if (dayViewState != null && dayViewState.isOpen) {
       await AppRestorationService.instance.saveDayViewState(
-        dayViewState.copyWith(isOpen: false),
+        dayViewState.copyWith(isOpen: false, clearEventDetail: true),
       );
     }
   }
@@ -7079,6 +7095,125 @@ class _CalendarPageState extends State<CalendarPage>
     await AppRestorationService.instance.saveOverlayStack(next);
   }
 
+  Future<void> _saveCalendarEventDetailOverlayState(
+    EventDetailRestorationState state,
+  ) async {
+    final payload = state
+        .copyWith(
+          parentSurface: _kCalendarParentSurfaceRoot,
+          clearUpdatedAtMs: true,
+        )
+        .toJson();
+    await _saveCalendarOverlayState(_kCalendarOverlayKindEventDetail, payload);
+  }
+
+  Future<void> _saveCalendarEventDetailOverlayForTarget(
+    DayViewSheetEventTarget target,
+  ) async {
+    final state = eventDetailRestorationStateForTarget(
+      target,
+      parentSurface: _kCalendarParentSurfaceRoot,
+    );
+    if (state == null) {
+      await _clearCalendarEventDetailOverlayState();
+      return;
+    }
+    await _saveCalendarEventDetailOverlayState(state);
+  }
+
+  void _handleCalendarEventDetailRestorationChanged(
+    EventDetailRestorationState? state,
+  ) {
+    if (state == null) {
+      unawaited(_clearCalendarEventDetailOverlayState());
+      return;
+    }
+    unawaited(_saveCalendarEventDetailOverlayState(state));
+  }
+
+  Future<void> _clearCalendarEventDetailOverlayState() {
+    return _clearCalendarOverlayState(_kCalendarOverlayKindEventDetail);
+  }
+
+  DayViewSheetEventTarget? _calendarEventDetailTargetFromState(
+    EventDetailRestorationState state,
+  ) {
+    return eventDetailTargetFromRestorationState(
+      state: state,
+      events: _calendarSheetEventsForDay(state.kYear, state.kMonth, state.kDay),
+    );
+  }
+
+  Future<void> _openCalendarEventDetailSheet(
+    DayViewSheetEventTarget initialTarget,
+  ) async {
+    if (!mounted) return;
+    if (!CalendarEventDetailSheetCoordinator.tryMarkOpenOrOpening()) {
+      return;
+    }
+
+    try {
+      await _saveCalendarEventDetailOverlayForTarget(initialTarget);
+      if (!mounted) return;
+
+      await showModalBottomSheet(
+        context: context,
+        backgroundColor: const Color(0xFF000000),
+        isScrollControlled: true,
+        builder: (_) => _MainCalendarEventDetailSheet(
+          hostContext: context,
+          initialTarget: initialTarget,
+          flowResolver: _calendarChromeFlowDataForId,
+          activeLedgerFlowIds: _buildActiveLedgerFlowIds(),
+          resolveCurrentEventTarget: _resolveCalendarCurrentEventTarget,
+          resolveAdjacentEventTarget: _resolveCalendarAdjacentEventTarget,
+          onTargetChanged: (target) {
+            unawaited(_saveCalendarEventDetailOverlayForTarget(target));
+          },
+          onManageFlows: _getMyFlowsCallback(),
+          onEditNote: _editNoteByEvent,
+          onDeleteNote: _deleteNoteByEvent,
+          onShareNote: (event) async => _shareNoteSimple(event),
+          onEditReminder: _editReminderById,
+          onEndReminder: _endReminderRule,
+          onShareReminder: (event) async => _shareNoteSimple(event),
+          onEndFlow: (id) => unawaited(_endFlow(id)),
+          onAppendToJournal: _journalInitialized
+              ? (text) => _journalController.appendToToday(text)
+              : null,
+        ),
+      );
+    } finally {
+      CalendarEventDetailSheetCoordinator.markClosed();
+      await _clearCalendarEventDetailOverlayState();
+    }
+  }
+
+  Future<bool> _restoreCalendarEventDetailOverlay(
+    Map<String, dynamic> overlay,
+  ) async {
+    if (!_restored || !_initialViewportSettled) return false;
+    final startupFlight = _startupFlight;
+    if (startupFlight != null && !startupFlight.isCompleted) {
+      return false;
+    }
+
+    final state = EventDetailRestorationState.fromJson(overlay);
+    if (state == null) {
+      await _clearCalendarEventDetailOverlayState();
+      return true;
+    }
+
+    final target = _calendarEventDetailTargetFromState(state);
+    if (target == null) {
+      await _clearCalendarEventDetailOverlayState();
+      return true;
+    }
+
+    await _openCalendarEventDetailSheet(target);
+    return true;
+  }
+
   void _schedulePersistentOverlayRestore({required String reason}) {
     if (_calendarOverlayRestoreAttempted || _calendarOverlayRestoreInFlight) {
       return;
@@ -7173,7 +7308,8 @@ class _CalendarPageState extends State<CalendarPage>
       final overlay = stack.lastWhere(
         (entry) =>
             entry['kind'] == _kCalendarOverlayKindSharedCalendars ||
-            entry['kind'] == _kCalendarOverlayKindFlowStudio,
+            entry['kind'] == _kCalendarOverlayKindFlowStudio ||
+            entry['kind'] == _kCalendarOverlayKindEventDetail,
         orElse: () => const <String, dynamic>{},
       );
       if (overlay.isEmpty) return false;
@@ -7191,6 +7327,26 @@ class _CalendarPageState extends State<CalendarPage>
           savedDayView.isOpen &&
           !_persistentDayViewRestoreAttempted) {
         return false;
+      }
+
+      if (overlay['kind'] == _kCalendarOverlayKindEventDetail) {
+        if (savedDayView != null && savedDayView.isOpen) {
+          await _clearCalendarEventDetailOverlayState();
+          return true;
+        }
+        final parentSurface = (overlay['parentSurface'] as String?)?.trim();
+        if (parentSurface != null &&
+            parentSurface.isNotEmpty &&
+            parentSurface != _kCalendarParentSurfaceRoot) {
+          await _clearCalendarEventDetailOverlayState();
+          return true;
+        }
+        final startupFlight = _startupFlight;
+        if (!_restored ||
+            !_initialViewportSettled ||
+            (startupFlight != null && !startupFlight.isCompleted)) {
+          return false;
+        }
       }
 
       final restoreKey = CalendarPage._calendarOverlayRestoreSurfaceKey(
@@ -7212,6 +7368,10 @@ class _CalendarPageState extends State<CalendarPage>
       if (overlay['kind'] == _kCalendarOverlayKindFlowStudio) {
         await _restoreFlowStudioOverlay(overlay);
         return true;
+      }
+
+      if (overlay['kind'] == _kCalendarOverlayKindEventDetail) {
+        return _restoreCalendarEventDetailOverlay(overlay);
       }
       return false;
     } finally {
@@ -10979,7 +11139,10 @@ class _CalendarPageState extends State<CalendarPage>
     _calendarOverlayRestoreAttempted = true;
     final dayViewState = _activeDayViewRestorationState;
     if (dayViewState != null && dayViewState.isOpen) {
-      final closedState = dayViewState.copyWith(isOpen: false);
+      final closedState = dayViewState.copyWith(
+        isOpen: false,
+        clearEventDetail: true,
+      );
       _activeDayViewRestorationState = closedState;
       unawaited(_persistDayViewState(closedState, reason: 'today_command'));
     }
@@ -11063,14 +11226,30 @@ class _CalendarPageState extends State<CalendarPage>
       _pendingPersistentDayViewState = null;
       return;
     }
+    final detail = state.eventDetail;
+    final openKy = detail?.kYear ?? state.kYear;
+    final openKm = detail?.kMonth ?? state.kMonth;
+    final openKd = detail?.kDay ?? state.kDay;
+    final restoreScrollForOpenDay =
+        detail == null ||
+        (detail.kYear == state.kYear &&
+            detail.kMonth == state.kMonth &&
+            detail.kDay == state.kDay);
+    if (detail != null) {
+      await _clearCalendarEventDetailOverlayState();
+      if (!mounted) return;
+    }
     _openDayView(
       context,
-      state.kYear,
-      state.kMonth,
-      state.kDay,
-      initialFirstVisibleMinute: state.firstVisibleMinute,
-      initialScrollOffset: state.scrollOffset,
+      openKy,
+      openKm,
+      openKd,
+      initialFirstVisibleMinute: restoreScrollForOpenDay
+          ? state.firstVisibleMinute
+          : null,
+      initialScrollOffset: restoreScrollForOpenDay ? state.scrollOffset : null,
       initialShowGregorian: state.showGregorian,
+      initialEventDetailRestorationState: detail,
     );
   }
 
@@ -18098,6 +18277,7 @@ class _CalendarPageState extends State<CalendarPage>
     int? initialFirstVisibleMinute,
     double? initialScrollOffset,
     bool? initialShowGregorian,
+    EventDetailRestorationState? initialEventDetailRestorationState,
   }) {
     _restorationInteractedSinceBoot = true;
     final shouldShowDayCardRevealCoachmark =
@@ -18114,6 +18294,7 @@ class _CalendarPageState extends State<CalendarPage>
       showGregorian: resolvedShowGregorian,
       firstVisibleMinute: resolvedInitialFirstVisibleMinute,
       scrollOffset: initialScrollOffset,
+      eventDetail: initialEventDetailRestorationState,
     );
     _activeDayViewRestorationState = initialDayViewState;
     unawaited(_saveCalendarRestorationNow(reason: 'before_day_view_open'));
@@ -18222,6 +18403,8 @@ class _CalendarPageState extends State<CalendarPage>
           focusStartMin: focusEvent?.startMin,
           focusFlowId: focusEvent?.flowId,
           focusTitle: focusEvent?.title,
+          initialEventDetailRestorationState:
+              initialEventDetailRestorationState,
           onClose: () => Navigator.of(context).pop(),
           onManageFlows: (flowId) => _getMyFlowsCallback()(flowId),
           onOpenQuickAdd: (_) => _openQuickAddSheet(),
@@ -18275,6 +18458,10 @@ class _CalendarPageState extends State<CalendarPage>
                   _handleDayCardRevealCoachmarkCompletedFromOnboarding(),
                 )
               : null,
+          shouldPreserveEventDetailRestorationOnClose: () =>
+              RestorationCoordinator
+                  .instance
+                  .shouldPreserveOverlayForLifecycleClose,
           onSaveFlow: _saveFlowById,
           loadCompletedClientEventIds: _loadCompletedClientEventIds,
           onRecordCompletion:
@@ -18296,6 +18483,7 @@ class _CalendarPageState extends State<CalendarPage>
                 required bool showGregorian,
                 int? firstVisibleMinute,
                 double? scrollOffset,
+                EventDetailRestorationState? eventDetail,
               }) {
                 final state = DayViewRestorationState(
                   isOpen: true,
@@ -18305,6 +18493,7 @@ class _CalendarPageState extends State<CalendarPage>
                   showGregorian: showGregorian,
                   firstVisibleMinute: firstVisibleMinute,
                   scrollOffset: scrollOffset,
+                  eventDetail: eventDetail,
                 );
                 _activeDayViewRestorationState = state;
                 unawaited(
@@ -18323,6 +18512,7 @@ class _CalendarPageState extends State<CalendarPage>
         final closedState =
             (_activeDayViewRestorationState ?? initialDayViewState).copyWith(
               isOpen: false,
+              clearEventDetail: true,
             );
         _activeDayViewRestorationState = closedState;
         unawaited(_persistDayViewState(closedState, reason: 'day_view_closed'));
@@ -24238,6 +24428,12 @@ class _CalendarPageState extends State<CalendarPage>
               : null,
           onEndFlow: (id) => _endFlow(id),
           onSaveFlow: _saveFlowById,
+          onEventDetailRestorationChanged:
+              _handleCalendarEventDetailRestorationChanged,
+          shouldPreserveEventDetailRestorationOnClose: () =>
+              RestorationCoordinator
+                  .instance
+                  .shouldPreserveOverlayForLifecycleClose,
         ),
       );
     }

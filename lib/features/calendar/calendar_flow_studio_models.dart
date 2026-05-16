@@ -53,6 +53,7 @@ class _AlertOption {
 const int _alertNoneMinutes = -1;
 const String _kCalendarOverlayKindSharedCalendars = 'calendar.sharedCalendars';
 const String _kCalendarOverlayKindFlowStudio = 'calendar.flowStudio';
+const String _kCalendarOverlayKindEventDetail = 'calendar.eventDetail';
 const String _kCalendarParentSurfaceRoot = 'calendar.root';
 const String _kCalendarParentSurfaceDayView = 'calendar.dayView';
 const String _kProfileParentSurface = 'profile.page';

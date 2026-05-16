@@ -13,6 +13,7 @@ import 'package:flutter/rendering.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mobile/core/touch_targets.dart';
 import '../../services/app_haptics.dart';
+import '../../services/app_restoration_service.dart';
 import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart' show CalendarPage, KemeticMath;
 import '../journal/journal_event_badge.dart';
@@ -636,6 +637,10 @@ class LandscapeMonthView extends StatelessWidget {
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final Future<void> Function(int flowId)? onSaveFlow;
+  final EventDetailRestorationState? initialEventDetailRestorationState;
+  final ValueChanged<EventDetailRestorationState?>?
+  onEventDetailRestorationChanged;
+  final bool Function()? shouldPreserveEventDetailRestorationOnClose;
   final bool embeddedInCalendarScaffold;
 
   const LandscapeMonthView({
@@ -664,6 +669,9 @@ class LandscapeMonthView extends StatelessWidget {
     this.onShareNote,
     this.onAppendToJournal,
     this.onSaveFlow,
+    this.initialEventDetailRestorationState,
+    this.onEventDetailRestorationChanged,
+    this.shouldPreserveEventDetailRestorationOnClose,
     this.embeddedInCalendarScaffold = false,
   });
 
@@ -694,6 +702,10 @@ class LandscapeMonthView extends StatelessWidget {
       onShareNote: onShareNote,
       onAppendToJournal: onAppendToJournal,
       onSaveFlow: onSaveFlow,
+      initialEventDetailRestorationState: initialEventDetailRestorationState,
+      onEventDetailRestorationChanged: onEventDetailRestorationChanged,
+      shouldPreserveEventDetailRestorationOnClose:
+          shouldPreserveEventDetailRestorationOnClose,
       embeddedInCalendarScaffold: embeddedInCalendarScaffold,
     );
   }
@@ -738,6 +750,10 @@ class LandscapeMonthPager extends StatefulWidget {
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final Future<void> Function(int flowId)? onSaveFlow;
+  final EventDetailRestorationState? initialEventDetailRestorationState;
+  final ValueChanged<EventDetailRestorationState?>?
+  onEventDetailRestorationChanged;
+  final bool Function()? shouldPreserveEventDetailRestorationOnClose;
   final bool embeddedInCalendarScaffold;
 
   const LandscapeMonthPager({
@@ -766,6 +782,9 @@ class LandscapeMonthPager extends StatefulWidget {
     this.onShareNote,
     this.onAppendToJournal,
     this.onSaveFlow,
+    this.initialEventDetailRestorationState,
+    this.onEventDetailRestorationChanged,
+    this.shouldPreserveEventDetailRestorationOnClose,
     this.embeddedInCalendarScaffold = false,
   });
 
@@ -1216,6 +1235,12 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           onShareNote: widget.onShareNote,
           onAppendToJournal: widget.onAppendToJournal,
           onSaveFlow: widget.onSaveFlow,
+          initialEventDetailRestorationState:
+              widget.initialEventDetailRestorationState,
+          onEventDetailRestorationChanged:
+              widget.onEventDetailRestorationChanged,
+          shouldPreserveEventDetailRestorationOnClose:
+              widget.shouldPreserveEventDetailRestorationOnClose,
         );
       },
     );
@@ -1258,6 +1283,10 @@ class LandscapeMonthGridBody extends StatefulWidget {
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final Future<void> Function(int flowId)? onSaveFlow;
+  final EventDetailRestorationState? initialEventDetailRestorationState;
+  final ValueChanged<EventDetailRestorationState?>?
+  onEventDetailRestorationChanged;
+  final bool Function()? shouldPreserveEventDetailRestorationOnClose;
 
   const LandscapeMonthGridBody({
     super.key,
@@ -1282,6 +1311,9 @@ class LandscapeMonthGridBody extends StatefulWidget {
     this.onShareNote,
     this.onAppendToJournal,
     this.onSaveFlow,
+    this.initialEventDetailRestorationState,
+    this.onEventDetailRestorationChanged,
+    this.shouldPreserveEventDetailRestorationOnClose,
   });
 
   @override
@@ -1314,6 +1346,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   // 🔍 NEW: Debug tracking
   final int _buttonTapCount = 0;
   bool _isDisposed = false;
+  String? _initialEventDetailRestoreKey;
+  bool _initialEventDetailRestoreInFlight = false;
 
   bool _syncingH = false;
   bool _syncingV = false;
@@ -1378,6 +1412,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         _scrollToDay(widget.initialDay!);
       });
     }
+    _scheduleInitialEventDetailRestore();
   }
 
   @override
@@ -1387,6 +1422,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _scrollToDay(widget.initialDay!),
       );
+    }
+    if (_eventDetailRestoreKey(old.initialEventDetailRestorationState) !=
+        _eventDetailRestoreKey(widget.initialEventDetailRestorationState)) {
+      _scheduleInitialEventDetailRestore();
     }
   }
 
@@ -1418,6 +1457,97 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
     );
+  }
+
+  String? _eventDetailRestoreKey(EventDetailRestorationState? state) {
+    if (state == null) return null;
+    return '${state.kYear}:${state.kMonth}:${state.kDay}:'
+        '${state.identityType}:${state.identityValue}';
+  }
+
+  bool _eventDetailStateTargetsThisMonth(EventDetailRestorationState state) {
+    return state.kYear == widget.kYear && state.kMonth == widget.kMonth;
+  }
+
+  EventDetailRestorationState? _detailRestorationStateForTarget(
+    DayViewSheetEventTarget target,
+  ) {
+    return eventDetailRestorationStateForTarget(target);
+  }
+
+  void _publishEventDetailRestorationTarget(DayViewSheetEventTarget target) {
+    final state = _detailRestorationStateForTarget(target);
+    final key = _eventDetailRestoreKey(state);
+    if (key != null) {
+      _initialEventDetailRestoreKey = key;
+      _initialEventDetailRestoreInFlight = false;
+    }
+    widget.onEventDetailRestorationChanged?.call(state);
+  }
+
+  void _clearEventDetailRestorationIfAllowed() {
+    if (widget.shouldPreserveEventDetailRestorationOnClose?.call() ?? false) {
+      return;
+    }
+    widget.onEventDetailRestorationChanged?.call(null);
+  }
+
+  void _scheduleInitialEventDetailRestore() {
+    final state = widget.initialEventDetailRestorationState;
+    final key = _eventDetailRestoreKey(state);
+    if (state == null ||
+        key == null ||
+        key == _initialEventDetailRestoreKey ||
+        !_eventDetailStateTargetsThisMonth(state) ||
+        _initialEventDetailRestoreInFlight) {
+      return;
+    }
+    _initialEventDetailRestoreInFlight = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_restoreInitialEventDetailIfNeeded(state, key));
+    });
+  }
+
+  Future<void> _restoreInitialEventDetailIfNeeded(
+    EventDetailRestorationState state,
+    String key, [
+    int attempt = 0,
+  ]) async {
+    if (!mounted) return;
+    if (_eventDetailRestoreKey(widget.initialEventDetailRestorationState) !=
+        key) {
+      _initialEventDetailRestoreInFlight = false;
+      _scheduleInitialEventDetailRestore();
+      return;
+    }
+    if (_initialEventDetailRestoreKey == key) {
+      _initialEventDetailRestoreInFlight = false;
+      return;
+    }
+    if (!_eventDetailStateTargetsThisMonth(state)) {
+      _initialEventDetailRestoreInFlight = false;
+      return;
+    }
+
+    final target = eventDetailTargetFromRestorationState(
+      state: state,
+      events: _eventsForKemeticDay(state.kYear, state.kMonth, state.kDay),
+    );
+    if (target == null) {
+      if (attempt < 20) {
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        return _restoreInitialEventDetailIfNeeded(state, key, attempt + 1);
+      }
+      _initialEventDetailRestoreKey = key;
+      _initialEventDetailRestoreInFlight = false;
+      widget.onEventDetailRestorationChanged?.call(null);
+      return;
+    }
+
+    _initialEventDetailRestoreKey = key;
+    _initialEventDetailRestoreInFlight = false;
+    _scrollToDay(state.kDay);
+    _showEventDetail(target.event, state.kDay, initialTarget: target);
   }
 
   @override
@@ -3029,17 +3159,26 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     );
   }
 
-  void _showEventDetail(EventItem event, int day) {
+  void _showEventDetail(
+    EventItem event,
+    int day, {
+    DayViewSheetEventTarget? initialTarget,
+  }) {
+    if (!CalendarEventDetailSheetCoordinator.tryMarkOpenOrOpening()) {
+      return;
+    }
     final rootContext = context;
     final sheetDataListenable = widget.dataVersion ?? _kLandscapeZeroListenable;
     final currentTarget = ValueNotifier<DayViewSheetEventTarget>(
-      DayViewSheetEventTarget(
-        ky: widget.kYear,
-        km: widget.kMonth,
-        kd: day,
-        event: event,
-      ),
+      initialTarget ??
+          DayViewSheetEventTarget(
+            ky: widget.kYear,
+            km: widget.kMonth,
+            kd: day,
+            event: event,
+          ),
     );
+    _publishEventDetailRestorationTarget(currentTarget.value);
     final measuredHeights = ValueNotifier<Map<String, double>>({});
     final initialPages = _detailSheetPagesForTarget(currentTarget.value);
     PageController sheetPageController = PageController(
@@ -3066,137 +3205,154 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     void moveToTarget(DayViewSheetEventTarget nextTarget) {
       final previousTarget = currentTarget.value;
       currentTarget.value = nextTarget;
+      _publishEventDetailRestorationTarget(nextTarget);
       if (mounted && nextTarget.kd != previousTarget.kd) {
         _scrollToDay(nextTarget.kd);
       }
       unawaited(AppHaptics.selection());
     }
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: _bg,
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        return ValueListenableBuilder<int>(
-          valueListenable: sheetDataListenable,
-          builder: (context, _, _) {
-            return ValueListenableBuilder<DayViewSheetEventTarget>(
-              valueListenable: currentTarget,
-              builder: (context, rawTarget, _) {
-                final target = _resolveCurrentEventTarget(rawTarget);
-                final pages = _detailSheetPagesForTarget(target);
-                final currentKey = _detailSheetTargetKey(target);
-                final pageViewKey = ValueKey<String>(
-                  '$currentKey:${pages.currentIndex}:${pages.pages.length}',
-                );
-
-                return ValueListenableBuilder<Map<String, double>>(
-                  valueListenable: measuredHeights,
-                  builder: (context, heights, _) {
-                    final maxSheetHeight = math.min(
-                      MediaQuery.sizeOf(context).height * 0.72,
-                      560.0,
-                    );
-                    final sheetHeight = (heights[currentKey] ?? 200.0)
-                        .clamp(0.0, math.max(180.0, maxSheetHeight - 112.0))
-                        .toDouble();
-
-                    return SafeArea(
-                      top: false,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Offstage(
-                            child: Column(
-                              children: [
-                                for (final pageTarget in pages.pages)
-                                  _MeasureSize(
-                                    key: ValueKey<String>(
-                                      _detailSheetTargetKey(pageTarget),
-                                    ),
-                                    onChange: (size) {
-                                      updateMeasuredHeight(
-                                        _detailSheetTargetKey(pageTarget),
-                                        size.height,
-                                      );
-                                    },
-                                    child: SizedBox(
-                                      width: MediaQuery.sizeOf(context).width,
-                                      child: _buildEventDetailSheetPage(
-                                        target: pageTarget,
-                                        scrollable: false,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _buildEventDetailTopActionRow(
-                                  sheetContext: sheetContext,
-                                  target: target,
-                                ),
-                                const SizedBox(height: 10),
-                                AnimatedSize(
-                                  duration: const Duration(milliseconds: 180),
-                                  curve: Curves.easeOutCubic,
-                                  alignment: Alignment.bottomCenter,
-                                  child: SizedBox(
-                                    height: sheetHeight,
-                                    child: PageView.builder(
-                                      key: pageViewKey,
-                                      controller: sheetPageController,
-                                      physics: const BouncingScrollPhysics(),
-                                      itemCount: pages.pages.length,
-                                      onPageChanged: (index) {
-                                        if (index == pages.currentIndex) return;
-                                        final nextTarget = pages.pages[index];
-                                        final nextPages =
-                                            _detailSheetPagesForTarget(
-                                              nextTarget,
-                                            );
-                                        resetSheetPageController(
-                                          nextPages.currentIndex,
-                                        );
-                                        moveToTarget(nextTarget);
-                                      },
-                                      itemBuilder: (context, index) {
-                                        return _buildEventDetailSheetPage(
-                                          target: pages.pages[index],
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                _buildEventDetailBottomActionRow(
-                                  rootContext: rootContext,
-                                  sheetContext: sheetContext,
-                                  target: target,
-                                  onTargetChanged: moveToTarget,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            );
-          },
-        );
-      },
-    ).whenComplete(() {
+    void releaseSheet() {
       currentTarget.dispose();
       measuredHeights.dispose();
       sheetPageController.dispose();
-    });
+      _clearEventDetailRestorationIfAllowed();
+      CalendarEventDetailSheetCoordinator.markClosed();
+    }
+
+    try {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: _bg,
+        isScrollControlled: true,
+        builder: (sheetContext) {
+          return ValueListenableBuilder<int>(
+            valueListenable: sheetDataListenable,
+            builder: (context, _, _) {
+              return ValueListenableBuilder<DayViewSheetEventTarget>(
+                valueListenable: currentTarget,
+                builder: (context, rawTarget, _) {
+                  final target = _resolveCurrentEventTarget(rawTarget);
+                  final pages = _detailSheetPagesForTarget(target);
+                  final currentKey = _detailSheetTargetKey(target);
+                  final pageViewKey = ValueKey<String>(
+                    '$currentKey:${pages.currentIndex}:${pages.pages.length}',
+                  );
+
+                  return ValueListenableBuilder<Map<String, double>>(
+                    valueListenable: measuredHeights,
+                    builder: (context, heights, _) {
+                      final maxSheetHeight = math.min(
+                        MediaQuery.sizeOf(context).height * 0.72,
+                        560.0,
+                      );
+                      final sheetHeight = (heights[currentKey] ?? 200.0)
+                          .clamp(0.0, math.max(180.0, maxSheetHeight - 112.0))
+                          .toDouble();
+
+                      return SafeArea(
+                        top: false,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Offstage(
+                              child: Column(
+                                children: [
+                                  for (final pageTarget in pages.pages)
+                                    _MeasureSize(
+                                      key: ValueKey<String>(
+                                        _detailSheetTargetKey(pageTarget),
+                                      ),
+                                      onChange: (size) {
+                                        updateMeasuredHeight(
+                                          _detailSheetTargetKey(pageTarget),
+                                          size.height,
+                                        );
+                                      },
+                                      child: SizedBox(
+                                        width: MediaQuery.sizeOf(context).width,
+                                        child: _buildEventDetailSheetPage(
+                                          target: pageTarget,
+                                          scrollable: false,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                12,
+                                12,
+                                12,
+                                18,
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _buildEventDetailTopActionRow(
+                                    sheetContext: sheetContext,
+                                    target: target,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  AnimatedSize(
+                                    duration: const Duration(milliseconds: 180),
+                                    curve: Curves.easeOutCubic,
+                                    alignment: Alignment.bottomCenter,
+                                    child: SizedBox(
+                                      height: sheetHeight,
+                                      child: PageView.builder(
+                                        key: pageViewKey,
+                                        controller: sheetPageController,
+                                        physics: const BouncingScrollPhysics(),
+                                        itemCount: pages.pages.length,
+                                        onPageChanged: (index) {
+                                          if (index == pages.currentIndex) {
+                                            return;
+                                          }
+                                          final nextTarget = pages.pages[index];
+                                          final nextPages =
+                                              _detailSheetPagesForTarget(
+                                                nextTarget,
+                                              );
+                                          resetSheetPageController(
+                                            nextPages.currentIndex,
+                                          );
+                                          moveToTarget(nextTarget);
+                                        },
+                                        itemBuilder: (context, index) {
+                                          return _buildEventDetailSheetPage(
+                                            target: pages.pages[index],
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  _buildEventDetailBottomActionRow(
+                                    rootContext: rootContext,
+                                    sheetContext: sheetContext,
+                                    target: target,
+                                    onTargetChanged: moveToTarget,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          );
+        },
+      ).whenComplete(releaseSheet);
+    } catch (_) {
+      releaseSheet();
+      rethrow;
+    }
   }
 
   Map<EventItem, int> _assignColumns(List<EventItem> events) {

@@ -1,14 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/navigation_fallback.dart';
 import '../../shared/glossy_text.dart';
+import '../../widgets/kemetic_app_bar_action.dart';
 import 'kemetic_node_library.dart';
 import 'kemetic_node_model.dart';
+import 'kemetic_node_search_delegate.dart';
 import 'widgets.dart';
 
-class KemeticNodeListPage extends StatelessWidget {
+class KemeticNodeListPage extends StatefulWidget {
   const KemeticNodeListPage({super.key});
 
+  @override
+  State<KemeticNodeListPage> createState() => _KemeticNodeListPageState();
+}
+
+class _KemeticNodeListPageState extends State<KemeticNodeListPage> {
   String _snippet(KemeticNode node) {
     final collapsed = node.body
         .replaceAll('\n', ' ')
@@ -16,6 +25,12 @@ class KemeticNodeListPage extends StatelessWidget {
         .trim();
     if (collapsed.length <= 140) return collapsed;
     return '${collapsed.substring(0, 140).trimRight()}…';
+  }
+
+  Future<void> _openSearch() async {
+    final selectedNodeId = await showKemeticNodeSearch(context);
+    if (!mounted || selectedNodeId == null) return;
+    context.go('/nodes/${Uri.encodeComponent(selectedNodeId)}');
   }
 
   @override
@@ -37,6 +52,18 @@ class KemeticNodeListPage extends StatelessWidget {
           onTap: () => popOrGo(context, '/'),
         ),
         titleSpacing: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 22),
+            child: KemeticAppBarAction(
+              tooltip: 'Search library',
+              icon: const KemeticAppBarSearchIcon(),
+              onPressed: () {
+                unawaited(_openSearch());
+              },
+            ),
+          ),
+        ],
         title: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,

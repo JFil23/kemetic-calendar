@@ -1534,6 +1534,9 @@ class _DayChip extends StatelessWidget {
   }
 
   void _showEventDetailFromNote(BuildContext context, _Note note) {
+    if (!CalendarEventDetailSheetCoordinator.tryMarkOpenOrOpening()) {
+      return;
+    }
     final state = CalendarPage.globalKey.currentState;
     final initialTarget = DayViewSheetEventTarget(
       ky: kYear,
@@ -1541,30 +1544,49 @@ class _DayChip extends StatelessWidget {
       kd: kDay,
       event: _noteToEventItem(note),
     );
+    unawaited(state?._saveCalendarEventDetailOverlayForTarget(initialTarget));
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF000000),
-      isScrollControlled: true,
-      builder: (_) => _MainCalendarEventDetailSheet(
-        hostContext: context,
-        initialTarget: initialTarget,
-        flowResolver: state?._calendarChromeFlowDataForId,
-        activeLedgerFlowIds:
-            state?._buildActiveLedgerFlowIds() ?? const <int>{},
-        resolveCurrentEventTarget: state?._resolveCalendarCurrentEventTarget,
-        resolveAdjacentEventTarget: state?._resolveCalendarAdjacentEventTarget,
-        onManageFlows: onManageFlows,
-        onEditNote: onEditNote,
-        onDeleteNote: onDeleteNote,
-        onShareNote: onShareNote,
-        onEditReminder: onEditReminder,
-        onEndReminder: onEndReminder,
-        onShareReminder: onShareReminder,
-        onEndFlow: onEndFlow,
-        onAppendToJournal: onAppendToJournal,
-      ),
-    );
+    void releaseSheet() {
+      final currentState = CalendarPage.globalKey.currentState;
+      unawaited(currentState?._clearCalendarEventDetailOverlayState());
+      CalendarEventDetailSheetCoordinator.markClosed();
+    }
+
+    try {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: const Color(0xFF000000),
+        isScrollControlled: true,
+        builder: (_) => _MainCalendarEventDetailSheet(
+          hostContext: context,
+          initialTarget: initialTarget,
+          flowResolver: state?._calendarChromeFlowDataForId,
+          activeLedgerFlowIds:
+              state?._buildActiveLedgerFlowIds() ?? const <int>{},
+          resolveCurrentEventTarget: state?._resolveCalendarCurrentEventTarget,
+          resolveAdjacentEventTarget:
+              state?._resolveCalendarAdjacentEventTarget,
+          onTargetChanged: (target) {
+            final currentState = CalendarPage.globalKey.currentState;
+            unawaited(
+              currentState?._saveCalendarEventDetailOverlayForTarget(target),
+            );
+          },
+          onManageFlows: onManageFlows,
+          onEditNote: onEditNote,
+          onDeleteNote: onDeleteNote,
+          onShareNote: onShareNote,
+          onEditReminder: onEditReminder,
+          onEndReminder: onEndReminder,
+          onShareReminder: onShareReminder,
+          onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
+        ),
+      ).whenComplete(releaseSheet);
+    } catch (_) {
+      releaseSheet();
+      rethrow;
+    }
   }
 }
 
@@ -1576,6 +1598,7 @@ class _MainCalendarEventDetailSheet extends StatefulWidget {
     this.activeLedgerFlowIds = const <int>{},
     this.resolveCurrentEventTarget,
     this.resolveAdjacentEventTarget,
+    this.onTargetChanged,
     this.onManageFlows,
     this.onEditNote,
     this.onDeleteNote,
@@ -1601,6 +1624,7 @@ class _MainCalendarEventDetailSheet extends StatefulWidget {
     required bool forward,
   })?
   resolveAdjacentEventTarget;
+  final ValueChanged<DayViewSheetEventTarget>? onTargetChanged;
   final void Function(int?)? onManageFlows;
   final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
   onEditNote;
@@ -1680,6 +1704,10 @@ class _MainCalendarEventDetailSheetState
         widget.initialTarget;
     final initialPages = _detailSheetPagesForTarget(_currentTarget);
     _pageController = PageController(initialPage: initialPages.currentIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.onTargetChanged?.call(_currentTarget);
+    });
   }
 
   @override
@@ -1765,6 +1793,7 @@ class _MainCalendarEventDetailSheetState
     setState(() {
       _currentTarget = nextTarget;
     });
+    widget.onTargetChanged?.call(nextTarget);
   }
 
   String _cleanDetail(String? raw) {

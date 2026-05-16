@@ -117,6 +117,14 @@ void main() {
         showGregorian: false,
         firstVisibleMinute: 680,
         scrollOffset: 680.0,
+        eventDetail: EventDetailRestorationState(
+          kYear: 6267,
+          kMonth: 4,
+          kDay: 12,
+          identityType: eventDetailIdentityClientEventId,
+          identityValue: 'event-client-1',
+          parentSurface: 'calendar.dayView',
+        ),
       ),
     );
     await AppRestorationService.instance.saveDaySheetState({
@@ -149,6 +157,9 @@ void main() {
     expect(dayView!.isOpen, isTrue);
     expect(dayView.firstVisibleMinute, 680);
     expect(dayView.scrollOffset, 680.0);
+    expect(dayView.eventDetail?.identityType, eventDetailIdentityClientEventId);
+    expect(dayView.eventDetail?.identityValue, 'event-client-1');
+    expect(dayView.eventDetail?.parentSurface, 'calendar.dayView');
 
     final daySheet = await AppRestorationService.instance.readDaySheetState();
     expect(daySheet, isNotNull);
@@ -250,6 +261,44 @@ void main() {
       expect(snapshot!.routeLocation, '/inbox');
       expect(snapshot.calendar, isNull);
       expect(snapshot.dayView, isNull);
+    },
+  );
+
+  test(
+    'drops invalid event detail payloads without losing day view route state',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _snapshotKey(),
+        jsonEncode({
+          'schemaVersion': AppRestorationService.schemaVersion,
+          'userId': 'user-1',
+          'windowId': 'window-1',
+          'updatedAtMs': 1234,
+          'dayView': {
+            'isOpen': true,
+            'kYear': 6267,
+            'kMonth': 4,
+            'kDay': 12,
+            'showGregorian': false,
+            'firstVisibleMinute': 680,
+            'eventDetail': {
+              'kYear': 6267,
+              'kMonth': 4,
+              'kDay': 12,
+              'identityType': 'titleFallback',
+              'identityValue': 'too-loose',
+            },
+          },
+        }),
+      );
+
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+      expect(snapshot, isNotNull);
+      expect(snapshot!.dayView, isNotNull);
+      expect(snapshot.dayView!.isOpen, isTrue);
+      expect(snapshot.dayView!.firstVisibleMinute, 680);
+      expect(snapshot.dayView!.eventDetail, isNull);
     },
   );
 

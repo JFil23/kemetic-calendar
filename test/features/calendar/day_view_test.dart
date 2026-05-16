@@ -3,9 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
 void main() {
+  setUp(CalendarEventDetailSheetCoordinator.debugResetForTests);
+  tearDown(CalendarEventDetailSheetCoordinator.debugResetForTests);
+
   group('DayViewGrid overlapping event gestures', () {
     testWidgets(
       'saved initial scroll offset is clamped to the current extent',
@@ -229,6 +233,66 @@ void main() {
   });
 
   group('DayViewGrid detail sheet refresh', () {
+    testWidgets(
+      'tap consumes echoed detail restoration state without opening a second sheet',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        CalendarEventDetailSheetCoordinator.debugResetForTests();
+
+        final restoration = ValueNotifier<EventDetailRestorationState?>(null);
+        var disposed = false;
+        addTearDown(() {
+          disposed = true;
+          restoration.dispose();
+          CalendarEventDetailSheetCoordinator.debugResetForTests();
+        });
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ValueListenableBuilder<EventDetailRestorationState?>(
+                valueListenable: restoration,
+                builder: (context, eventDetail, _) {
+                  return DayViewGrid(
+                    ky: 1,
+                    km: 1,
+                    kd: 1,
+                    notes: [
+                      _timedNote(
+                        clientEventId: 'cid-focus',
+                        title: 'Focus Block',
+                        startHour: 10,
+                        startMinute: 0,
+                        endHour: 11,
+                        endMinute: 0,
+                      ),
+                    ],
+                    showGregorian: false,
+                    flowIndex: const {},
+                    initialScrollOffset: 9 * 60,
+                    initialEventDetailRestorationState: eventDetail,
+                    onEventDetailRestorationChanged: (state) {
+                      if (!disposed) {
+                        restoration.value = state;
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Focus Block'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(find.text('10:00 AM – 11:00 AM'), findsOneWidget);
+        expect(find.text('Make to-do'), findsOneWidget);
+      },
+    );
+
     testWidgets(
       'detail sheet refreshes stale event data before showing time and share actions',
       (tester) async {
