@@ -488,10 +488,14 @@ class ProfileRepo {
       if (currentUserId == null) return false;
       if (currentUserId == targetUserId) return false;
 
+      final wasFollowing = await isFollowing(targetUserId);
       await _client.from('follows').upsert({
         'follower_id': currentUserId,
         'followee_id': targetUserId,
       });
+      if (!wasFollowing) {
+        unawaited(sendFollowPush(targetUserId: targetUserId));
+      }
       return true;
     } catch (e) {
       _log('[ProfileRepo] Error following user: $e');
@@ -1696,6 +1700,39 @@ class ProfileRepo {
       );
     } catch (e) {
       _log('[ProfileRepo] sendFlowPostPush failed: $e');
+    }
+  }
+
+  Future<void> sendFollowPush({required String targetUserId}) async {
+    final followerId = _client.auth.currentUser?.id;
+    if (followerId == null) return;
+    if (followerId == targetUserId) return;
+
+    try {
+      final followerProfile = await _client
+          .from('profiles')
+          .select('display_name, handle')
+          .eq('id', followerId)
+          .maybeSingle();
+      final displayName = (followerProfile?['display_name'] as String?)?.trim();
+      final handle = (followerProfile?['handle'] as String?)?.trim();
+      final followerLabel = displayName?.isNotEmpty == true
+          ? displayName!
+          : (handle?.isNotEmpty == true ? '@$handle' : 'Someone');
+
+      await _client.functions.invoke(
+        'send_push',
+        body: {
+          'userIds': [targetUserId],
+          'notification': {
+            'title': '$followerLabel followed you',
+            'body': 'Tap to open your House activity.',
+          },
+          'data': {'type': 'follow', 'kind': 'follow', 'sender_id': followerId},
+        },
+      );
+    } catch (e) {
+      _log('[ProfileRepo] sendFollowPush failed: $e');
     }
   }
 }

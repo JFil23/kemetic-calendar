@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/share_repo.dart';
 
@@ -70,4 +72,41 @@ void main() {
       });
     });
   });
+
+  group('inbox unread guardrails', () {
+    test('global unread count includes event invite rows', () async {
+      final source = await File('lib/data/share_repo.dart').readAsString();
+      final unreadCountSource = _sourceBetween(
+        source,
+        'Future<int> getUnreadCount() async {',
+        '/// Mark a share as viewed',
+      );
+
+      expect(unreadCountSource, contains("filter('viewed_at', 'is', null)"));
+      expect(unreadCountSource, isNot(contains(".neq('kind', 'event')")));
+      expect(unreadCountSource, isNot(contains('.neq("kind", "event")')));
+    });
+
+    test('activity unread state initializes missing seen baselines', () async {
+      final source = await File('lib/data/share_repo.dart').readAsString();
+      final unreadActivitySource = _sourceBetween(
+        source,
+        'Future<InboxActivityUnreadState> getUnreadActivityState({',
+        'Future<InboxUnreadState> getUnreadState() async {',
+      );
+
+      expect(unreadActivitySource, contains('_ensureActivitySeenAt'));
+      expect(unreadActivitySource, isNot(contains('movementSeenAt == null')));
+      expect(unreadActivitySource, isNot(contains('communitySeenAt == null')));
+    });
+  });
+}
+
+String _sourceBetween(String source, String start, String end) {
+  final startIndex = source.indexOf(start);
+  final endIndex = source.indexOf(end, startIndex + start.length);
+  if (startIndex < 0 || endIndex < 0) {
+    fail('Could not find source range between "$start" and "$end".');
+  }
+  return source.substring(startIndex, endIndex);
 }

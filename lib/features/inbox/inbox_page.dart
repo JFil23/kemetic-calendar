@@ -1104,9 +1104,9 @@ class _InboxPageState extends State<InboxPage> {
         ? 'Followers and profile activity'
         : '${a.actorName ?? a.actorHandle ?? 'Someone'} started following you';
     return ListTile(
-      leading: _buildSummaryGlyphAvatar(glyph: '𓉐', fontSize: 21),
+      leading: _buildSummaryGlyphAvatar(glyph: '𓀀𓁐', fontSize: 14),
       title: const Text(
-        'House',
+        'People',
         style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
       ),
       subtitle: Text(

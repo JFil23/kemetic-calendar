@@ -4750,18 +4750,26 @@ class CalendarPage extends StatefulWidget {
 
     return [
       _CalendarAction(
-        glyph: MeduNeterGlyphs.journal,
-        gradient: goldGloss,
-        label: 'Journal',
-        dispatchBeforeClose: true,
-        onSelected: () => navigate('/journal'),
-      ),
-      _CalendarAction(
         glyph: MeduNeterGlyphs.planner,
         gradient: goldGloss,
         label: 'Planner',
         dispatchBeforeClose: true,
         onSelected: () => navigate('/rhythm/today'),
+      ),
+      _CalendarAction(
+        glyph: MeduNeterGlyphs.flowStudio,
+        glyphSize: 20,
+        gradient: goldGloss,
+        label: 'Flow Studio',
+        onSelected:
+            onOpenFlowStudio ?? () => openFlowStudioFromAnyContext(context),
+      ),
+      _CalendarAction(
+        glyph: MeduNeterGlyphs.journal,
+        gradient: goldGloss,
+        label: 'Journal',
+        dispatchBeforeClose: true,
+        onSelected: () => navigate('/journal'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.inbox,
@@ -4779,14 +4787,6 @@ class CalendarPage extends StatefulWidget {
             onOpenCalendars ?? () => openSharedCalendarsFromAnyContext(context),
       ),
       _CalendarAction(
-        glyph: MeduNeterGlyphs.reflections,
-        glyphSize: 18,
-        gradient: goldGloss,
-        label: 'Reflections',
-        dispatchBeforeClose: true,
-        onSelected: () => navigate('/reflections'),
-      ),
-      _CalendarAction(
         glyph: MeduNeterGlyphs.library,
         glyphSize: 20,
         gradient: goldGloss,
@@ -4795,11 +4795,12 @@ class CalendarPage extends StatefulWidget {
         onSelected: () => navigate('/nodes'),
       ),
       _CalendarAction(
-        glyph: MeduNeterGlyphs.settings,
+        glyph: MeduNeterGlyphs.reflections,
+        glyphSize: 18,
         gradient: goldGloss,
-        label: 'Settings',
+        label: 'Reflections',
         dispatchBeforeClose: true,
-        onSelected: () => navigate('/settings'),
+        onSelected: () => navigate('/reflections'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.home,
@@ -4809,12 +4810,11 @@ class CalendarPage extends StatefulWidget {
         onSelected: () => navigate('/'),
       ),
       _CalendarAction(
-        glyph: MeduNeterGlyphs.flowStudio,
-        glyphSize: 20,
+        glyph: MeduNeterGlyphs.settings,
         gradient: goldGloss,
-        label: 'Flow Studio',
-        onSelected:
-            onOpenFlowStudio ?? () => openFlowStudioFromAnyContext(context),
+        label: 'Settings',
+        dispatchBeforeClose: true,
+        onSelected: () => navigate('/settings'),
       ),
       if (includeNewNote)
         _CalendarAction(
@@ -16335,16 +16335,23 @@ class _CalendarPageState extends State<CalendarPage>
   }) {
     return [
       _CalendarAction(
-        glyph: MeduNeterGlyphs.journal,
-        gradient: goldGloss,
-        label: 'Journal',
-        onSelected: _openJournalFromAppBar,
-      ),
-      _CalendarAction(
         glyph: MeduNeterGlyphs.planner,
         gradient: goldGloss,
         label: 'Planner',
         onSelected: () => _openPlannerPage(navigationContext: context),
+      ),
+      _CalendarAction(
+        glyph: MeduNeterGlyphs.flowStudio,
+        glyphSize: 20,
+        gradient: goldGloss,
+        label: 'Flow Studio',
+        onSelected: () => _getFlowStudioCallback()(null),
+      ),
+      _CalendarAction(
+        glyph: MeduNeterGlyphs.journal,
+        gradient: goldGloss,
+        label: 'Journal',
+        onSelected: _openJournalFromAppBar,
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.inbox,
@@ -16360,13 +16367,6 @@ class _CalendarPageState extends State<CalendarPage>
         onSelected: _openSharedCalendarsSheet,
       ),
       _CalendarAction(
-        glyph: MeduNeterGlyphs.reflections,
-        glyphSize: 18,
-        gradient: goldGloss,
-        label: 'Reflections',
-        onSelected: _openReflectionsFromMenu,
-      ),
-      _CalendarAction(
         glyph: MeduNeterGlyphs.library,
         glyphSize: 20,
         gradient: goldGloss,
@@ -16374,10 +16374,11 @@ class _CalendarPageState extends State<CalendarPage>
         onSelected: () => _openKemeticNodes(context),
       ),
       _CalendarAction(
-        glyph: MeduNeterGlyphs.settings,
+        glyph: MeduNeterGlyphs.reflections,
+        glyphSize: 18,
         gradient: goldGloss,
-        label: 'Settings',
-        onSelected: _openSettingsFromMenu,
+        label: 'Reflections',
+        onSelected: _openReflectionsFromMenu,
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.home,
@@ -16386,11 +16387,10 @@ class _CalendarPageState extends State<CalendarPage>
         onSelected: () => context.go('/'),
       ),
       _CalendarAction(
-        glyph: MeduNeterGlyphs.flowStudio,
-        glyphSize: 20,
+        glyph: MeduNeterGlyphs.settings,
         gradient: goldGloss,
-        label: 'Flow Studio',
-        onSelected: () => _getFlowStudioCallback()(null),
+        label: 'Settings',
+        onSelected: _openSettingsFromMenu,
       ),
       if (includeNewNote)
         _CalendarAction(

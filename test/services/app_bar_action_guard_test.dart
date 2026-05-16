@@ -446,6 +446,10 @@ void main() {
       expect(summaries, contains('_buildCommunitySummaryTile()'));
       expect(summaries, contains('_buildMovementSummaryTile()'));
       expect(summaries, contains("'Followers and profile activity'"));
+      expect(summaries, contains("glyph: '𓀀𓁐'"));
+      expect(summaries, contains("'People'"));
+      expect(summaries, isNot(contains("glyph: '𓉐'")));
+      expect(summaries, isNot(contains("'House'")));
       expect(summaries, contains("'Flow comments and likes'"));
       expect(summaries, isNot(contains('if (_latestFollow != null)')));
       expect(summaries, isNot(contains('if (_latestEngagement != null)')));

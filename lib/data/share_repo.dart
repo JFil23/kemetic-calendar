@@ -485,19 +485,32 @@ class ShareRepo {
     }
   }
 
+  Future<DateTime> _ensureActivitySeenAt(
+    InboxActivityBucket bucket, {
+    DateTime? baseline,
+  }) async {
+    final existing = await getActivitySeenAt(bucket);
+    if (existing != null) return existing;
+
+    final effectiveSeenAt = (baseline ?? DateTime.now()).toUtc();
+    await markActivitySeen(bucket, seenAt: effectiveSeenAt);
+    return effectiveSeenAt;
+  }
+
   Future<int> getUnreadActivityCount({
     InboxActivityBucket? bucket,
     int limit = 200,
   }) async {
     final activity = await getRecentActivity(limit: limit);
-    if (activity.isEmpty) return 0;
 
     if (bucket != null) {
-      final seenAt = await getActivitySeenAt(bucket);
+      final seenAt = await _ensureActivitySeenAt(bucket);
+      if (activity.isEmpty) return 0;
       final bucketItems = activity.where((item) => item.bucket == bucket);
-      if (seenAt == null) return bucketItems.length;
       return bucketItems.where((item) => item.createdAt.isAfter(seenAt)).length;
     }
+
+    if (activity.isEmpty) return 0;
 
     final unreadState = await getUnreadActivityState(limit: limit);
     return unreadState.totalUnread;
@@ -507,16 +520,19 @@ class ShareRepo {
     int limit = 200,
   }) async {
     final activity = await getRecentActivity(limit: limit);
+    final baseline = DateTime.now().toUtc();
+    final movementSeenAt = await _ensureActivitySeenAt(
+      InboxActivityBucket.movement,
+      baseline: baseline,
+    );
+    final communitySeenAt = await _ensureActivitySeenAt(
+      InboxActivityBucket.community,
+      baseline: baseline,
+    );
+
     if (activity.isEmpty) {
       return const InboxActivityUnreadState();
     }
-
-    final movementSeenAt = await getActivitySeenAt(
-      InboxActivityBucket.movement,
-    );
-    final communitySeenAt = await getActivitySeenAt(
-      InboxActivityBucket.community,
-    );
 
     var unreadMovement = 0;
     var unreadCommunity = 0;
@@ -524,14 +540,12 @@ class ShareRepo {
     for (final item in activity) {
       switch (item.bucket) {
         case InboxActivityBucket.movement:
-          if (movementSeenAt == null ||
-              item.createdAt.isAfter(movementSeenAt)) {
+          if (item.createdAt.isAfter(movementSeenAt)) {
             unreadMovement++;
           }
           break;
         case InboxActivityBucket.community:
-          if (communitySeenAt == null ||
-              item.createdAt.isAfter(communitySeenAt)) {
+          if (item.createdAt.isAfter(communitySeenAt)) {
             unreadCommunity++;
           }
           break;
@@ -946,8 +960,8 @@ class ShareRepo {
             'body': body,
           },
           'data': {
-            'type': 'dm',
-            'kind': 'dm',
+            'type': 'flow_share',
+            'kind': 'flow_share',
             'sender_id': senderId,
             'share_id': shareId,
             'share_kind': 'flow',
@@ -2589,7 +2603,6 @@ class ShareRepo {
             .from(viewName)
             .select('share_id')
             .eq('recipient_id', uid)
-            .neq('kind', 'event')
             .filter('viewed_at', 'is', null)
             .filter('deleted_at', 'is', null);
 

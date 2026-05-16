@@ -1574,6 +1574,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
   Future<bool> _handlePushNavigation(Map<String, dynamic> data) async {
     final kind = _trimmedValue(data['kind'] ?? data['type']);
     if (kind == null) return false;
+    final shareKind = _trimmedValue(data['share_kind'] ?? data['shareKind']);
 
     final reflectionId = _trimmedValue(
       data['reflectionId'] ?? data['reflection_id'],
@@ -1585,6 +1586,16 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       return true;
     }
 
+    if (kind == 'flow_share' || (kind == 'dm' && shareKind == 'flow')) {
+      final shareId = _trimmedValue(data['share_id'] ?? data['shareId']);
+      if (shareId != null) {
+        _openSharedFlow(shareId);
+      } else {
+        _router.go('/inbox');
+      }
+      return true;
+    }
+
     if (kind == 'dm') {
       final senderId = _trimmedValue(data['sender_id'] ?? data['senderId']);
       if (senderId != null) {
@@ -1592,6 +1603,11 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       } else {
         _router.go('/inbox');
       }
+      return true;
+    }
+
+    if (kind == 'follow') {
+      _router.go('/inbox');
       return true;
     }
 
@@ -1652,6 +1668,10 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     }
 
     return false;
+  }
+
+  void _openSharedFlow(String shareId) {
+    _router.go('/shared-flow/${Uri.encodeComponent(shareId)}');
   }
 
   Future<void> _openDmConversation(String senderId) async {
