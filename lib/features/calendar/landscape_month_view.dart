@@ -2843,6 +2843,95 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         }
       },
       itemBuilder: (context) => [
+        if (widget.onAppendToJournal != null && !promoteJournalAction)
+          PopupMenuItem(
+            value: 'journal',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.library_add_check),
+                const SizedBox(width: 12),
+                const Text(
+                  'Add to journal',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (flow != null ||
+            (isReminder && widget.onShareReminder != null) ||
+            (flow == null && !isReminder && widget.onShareNote != null))
+          PopupMenuItem(
+            value: 'share',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.share_outlined),
+                const SizedBox(width: 12),
+                Text(
+                  flow != null
+                      ? 'Share Flow'
+                      : isReminder
+                      ? 'Share Reminder'
+                      : 'Share Note',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (flow != null &&
+            actionableFlow &&
+            !isReminder &&
+            widget.onSaveFlow != null)
+          PopupMenuItem(
+            value: 'save',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.bookmark_add),
+                const SizedBox(width: 12),
+                const Text('Save Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (flow != null &&
+            actionableFlow &&
+            !isReminder &&
+            widget.onManageFlows != null)
+          PopupMenuItem(
+            value: 'edit',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text('Edit Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (isReminder &&
+            widget.onEditReminder != null &&
+            currentEvent.reminderId != null)
+          PopupMenuItem(
+            value: 'edit_reminder',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text(
+                  'Edit Reminder',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (flow == null && !isReminder && widget.onEditNote != null)
+          PopupMenuItem(
+            value: 'edit_note',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text('Edit Note', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
         if (promoteJournalAction &&
             endAction == _DetailSheetEndAction.flow &&
             widget.onEndFlow != null)
@@ -2883,95 +2972,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                 KemeticGold.icon(Icons.delete_outline),
                 const SizedBox(width: 12),
                 const Text('End Note', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if (widget.onAppendToJournal != null && !promoteJournalAction)
-          PopupMenuItem(
-            value: 'journal',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.library_add_check),
-                const SizedBox(width: 12),
-                const Text(
-                  'Add to journal',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        if (flow != null ||
-            (isReminder && widget.onShareReminder != null) ||
-            (flow == null && !isReminder && widget.onShareNote != null))
-          PopupMenuItem(
-            value: 'share',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.share_outlined),
-                const SizedBox(width: 12),
-                Text(
-                  flow != null
-                      ? 'Share Flow'
-                      : isReminder
-                      ? 'Share Reminder'
-                      : 'Share Note',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        if (flow != null &&
-            actionableFlow &&
-            !isReminder &&
-            widget.onManageFlows != null)
-          PopupMenuItem(
-            value: 'edit',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.edit),
-                const SizedBox(width: 12),
-                const Text('Edit Flow', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if (flow != null &&
-            actionableFlow &&
-            !isReminder &&
-            widget.onSaveFlow != null)
-          PopupMenuItem(
-            value: 'save',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.bookmark_add),
-                const SizedBox(width: 12),
-                const Text('Save Flow', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if (isReminder &&
-            widget.onEditReminder != null &&
-            currentEvent.reminderId != null)
-          PopupMenuItem(
-            value: 'edit_reminder',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.edit),
-                const SizedBox(width: 12),
-                const Text(
-                  'Edit Reminder',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        if (flow == null && !isReminder && widget.onEditNote != null)
-          PopupMenuItem(
-            value: 'edit_note',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.edit),
-                const SizedBox(width: 12),
-                const Text('Edit Note', style: TextStyle(color: Colors.white)),
               ],
             ),
           ),
