@@ -50,6 +50,7 @@ import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/widgets/month_name_text.dart';
 import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/core/day_key.dart';
+import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:mobile/core/global_menu_routes.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:flutter/gestures.dart';
@@ -3675,6 +3676,32 @@ const double _kActionTileHeight = 96.0;
 const double _kActionGridSpacing = 12.0;
 const double _kActionGridHPadding = 12.0;
 const double _kActionGridVPadding = 12.0;
+const Key _kCalendarActionsMenuPanelKey = ValueKey(
+  'calendar-actions-menu-panel',
+);
+const Key _kCalendarActionsGridKey = ValueKey('calendar-actions-grid');
+
+bool _isLandscapeMenu(BuildContext context) =>
+    MediaQuery.orientationOf(context) == Orientation.landscape;
+
+double _landscapeMenuPanelWidth(BuildContext context) {
+  const double defaultGridWidth =
+      _kActionGridHPadding * 2 +
+      _kActionGridColumns * _kActionTileWidth +
+      (_kActionGridColumns - 1) * _kActionGridSpacing;
+  final screenWidth = MediaQuery.sizeOf(context).width;
+  return math.min(defaultGridWidth, screenWidth * 0.82);
+}
+
+double _landscapeMenuMaxGridHeight(
+  BuildContext context, {
+  required double bottomInset,
+}) {
+  final media = MediaQuery.of(context);
+  const handleChrome = 10.0 + 3.0 + 8.0;
+  final targetPanelHeight = media.size.height * 0.80;
+  return math.max(96.0, targetPanelHeight - handleChrome - bottomInset);
+}
 
 class _CalendarAction {
   final IconData? icon;
@@ -3739,8 +3766,13 @@ class _NotificationDotOverlay extends StatelessWidget {
 class _CalendarActionsGrid extends StatelessWidget {
   final List<_CalendarAction> actions;
   final void Function(_CalendarAction action) onSelected;
+  final double? maxHeight;
 
-  const _CalendarActionsGrid({required this.actions, required this.onSelected});
+  const _CalendarActionsGrid({
+    required this.actions,
+    required this.onSelected,
+    this.maxHeight,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -3769,76 +3801,83 @@ class _CalendarActionsGrid extends StatelessWidget {
               _kActionGridColumns,
         );
 
+        final grid = GridView.builder(
+          key: _kCalendarActionsGridKey,
+          physics: maxHeight == null
+              ? const NeverScrollableScrollPhysics()
+              : const ClampingScrollPhysics(),
+          padding: EdgeInsets.zero,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: _kActionGridColumns,
+            mainAxisSpacing: _kActionGridSpacing,
+            crossAxisSpacing: _kActionGridSpacing,
+            childAspectRatio: tileWidth / _kActionTileHeight,
+          ),
+          itemCount: actions.length,
+          itemBuilder: (ctx, index) {
+            final action = actions[index];
+            final actionIcon = action.glyph != null
+                ? GlossyGlyph(
+                    glyph: action.glyph!,
+                    gradient: action.gradient,
+                    size: action.glyphSize,
+                  )
+                : _GlossyIcon(action.icon!, gradient: action.gradient);
+            return InkWell(
+              onTap: () => onSelected(action),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                height: _kActionTileHeight,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111111),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      height: 30,
+                      child: Center(
+                        child: _NotificationDotOverlay(
+                          show: action.showNotificationDot,
+                          top: -4,
+                          right: -6,
+                          child: actionIcon,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      action.label,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        height: 1.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+
+        final gridBody = Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: _kActionGridHPadding,
+            vertical: _kActionGridVPadding,
+          ),
+          child: grid,
+        );
+
         return SizedBox(
           width: width,
-          height: height,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: _kActionGridHPadding,
-              vertical: _kActionGridVPadding,
-            ),
-            child: GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.zero,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: _kActionGridColumns,
-                mainAxisSpacing: _kActionGridSpacing,
-                crossAxisSpacing: _kActionGridSpacing,
-                childAspectRatio: tileWidth / _kActionTileHeight,
-              ),
-              itemCount: actions.length,
-              itemBuilder: (ctx, index) {
-                final action = actions[index];
-                final actionIcon = action.glyph != null
-                    ? GlossyGlyph(
-                        glyph: action.glyph!,
-                        gradient: action.gradient,
-                        size: action.glyphSize,
-                      )
-                    : _GlossyIcon(action.icon!, gradient: action.gradient);
-                return InkWell(
-                  onTap: () => onSelected(action),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    height: _kActionTileHeight,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF111111),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          height: 30,
-                          child: Center(
-                            child: _NotificationDotOverlay(
-                              show: action.showNotificationDot,
-                              top: -4,
-                              right: -6,
-                              child: actionIcon,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          action.label,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            height: 1.2,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+          height: maxHeight == null ? height : math.min(height, maxHeight!),
+          child: gridBody,
         );
       },
     );
@@ -3883,6 +3922,16 @@ class _CalendarActionsMenuPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final isLandscape = _isLandscapeMenu(context);
+    final panelWidth = isLandscape
+        ? _landscapeMenuPanelWidth(context)
+        : double.infinity;
+    final bottomInset = isLandscape
+        ? globalBottomMenuHeight(context)
+        : media.padding.bottom + 62;
+    final maxGridHeight = isLandscape
+        ? _landscapeMenuMaxGridHeight(context, bottomInset: bottomInset)
+        : null;
     final shareRepo = ShareRepo(Supabase.instance.client);
 
     return Align(
@@ -3892,10 +3941,14 @@ class _CalendarActionsMenuPanel extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: Container(
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            color: Color(0xF6000000),
-            boxShadow: [
+          key: _kCalendarActionsMenuPanelKey,
+          width: panelWidth,
+          decoration: BoxDecoration(
+            color: const Color(0xF6000000),
+            borderRadius: isLandscape
+                ? const BorderRadius.vertical(top: Radius.circular(16))
+                : BorderRadius.zero,
+            boxShadow: const [
               BoxShadow(
                 color: Color(0xB3000000),
                 blurRadius: 18,
@@ -3924,13 +3977,14 @@ class _CalendarActionsMenuPanel extends StatelessWidget {
                       (snapshot.data ?? const InboxUnreadState()).hasUnread;
                   return _CalendarActionsGrid(
                     actions: actionsBuilder(hasUnreadInbox),
+                    maxHeight: maxGridHeight,
                     onSelected: (action) {
                       unawaited(onSelected(action));
                     },
                   );
                 },
               ),
-              SizedBox(height: media.padding.bottom + 62),
+              SizedBox(height: bottomInset),
             ],
           ),
         ),
@@ -6307,6 +6361,59 @@ class CalendarPage extends StatefulWidget {
       }
     }
     return null;
+  }
+
+  static Future<int?> importGeneratedFlowFromAnyContext(
+    BuildContext context, {
+    required AIFlowGenerationResponse response,
+    required DateTime baseStart,
+  }) async {
+    final data = _importDataFromAiGenerationResponse(response, baseStart);
+    if (data == null) return null;
+    return importFlowFromShare(context, data);
+  }
+
+  static ImportFlowData? _importDataFromAiGenerationResponse(
+    AIFlowGenerationResponse response,
+    DateTime baseStart,
+  ) {
+    try {
+      final events = buildAiFlowImportEvents(response);
+      if (events.isEmpty) return null;
+
+      final now = DateTime.now();
+      final share = InboxShareItem(
+        shareId: 'ai-local-${now.millisecondsSinceEpoch}',
+        kind: InboxShareKind.flow,
+        recipientId: '',
+        senderId: '',
+        payloadId: 'ai-local',
+        title: response.flowName ?? 'AI Flow',
+        createdAt: now,
+        payloadJson: {'events': events},
+      );
+
+      final cleaned = (response.flowColor ?? '#4dd0e1').replaceFirst('#', '');
+      final rgb = int.tryParse(cleaned, radix: 16) ?? 0x4dd0e1;
+
+      return ImportFlowData(
+        share: share,
+        name: response.flowName ?? 'AI Flow',
+        color: 0xFF000000 | rgb,
+        notes: response.notes,
+        rules: const [],
+        suggestedStartDate: baseStart,
+        suggestedEndDate: response.requestedEndDate,
+        overview: response.overviewSummary ?? response.overviewTitle ?? '',
+        generationId: response.generationId,
+        originType: 'ai',
+        originFlowId: response.flowId,
+        rootFlowId: response.flowId,
+        aiMetadata: response.aiMetadata,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   @override

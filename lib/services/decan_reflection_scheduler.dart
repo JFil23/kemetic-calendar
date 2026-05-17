@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/day_key.dart';
 import '../features/calendar/decan_metadata.dart';
 import '../features/calendar/kemetic_month_metadata.dart';
+import '../widgets/kemetic_day_info.dart';
 import '../widgets/kemetic_date_picker.dart' show KemeticMath;
 
 class DecanWindow {
@@ -142,6 +145,67 @@ class DecanReflectionScheduler {
     );
   }
 
+  Map<String, dynamic>? _dayCardPayloadFor(DateTime date) {
+    final kemetic = KemeticMath.fromGregorian(date);
+    if (kemetic.kMonth < 1 || kemetic.kMonth > 13) return null;
+    final dayKey = kemeticDayKey(kemetic.kMonth, kemetic.kDay);
+    final info = KemeticDayData.getInfoForDay(dayKey);
+    if (info == null) return null;
+
+    final dayInDecan = kemetic.kMonth == 13
+        ? kemetic.kDay
+        : ((kemetic.kDay - 1) % 10) + 1;
+    DecanDayInfo? decanDay;
+    for (final row in info.decanFlow) {
+      if (row.day == dayInDecan) {
+        decanDay = row;
+        break;
+      }
+    }
+
+    final local = DateTime(date.year, date.month, date.day);
+    final yyyy = local.year.toString().padLeft(4, '0');
+    final mm = local.month.toString().padLeft(2, '0');
+    final dd = local.day.toString().padLeft(2, '0');
+    return <String, dynamic>{
+      'date': '$yyyy-$mm-$dd',
+      'maatPrinciple': info.maatPrinciple,
+      'cosmicContext': info.cosmicContext,
+      if (decanDay != null) ...{
+        'decanDayTheme': decanDay.theme,
+        'decanDayAction': decanDay.action,
+        'decanDayReflection': decanDay.reflection,
+      },
+    };
+  }
+
+  Future<void> _ensureMaatGuidance(DecanWindow window) async {
+    if (window.decanContextKey == null) return;
+    final timezone = _detectTimeZone();
+    try {
+      await _client.functions.invoke(
+        'cron_maat_decan_opening',
+        body: {
+          'decan_start': window.start.toIso8601String().split('T').first,
+          'decan_end': window.end.toIso8601String().split('T').first,
+          'decan_name': window.decanName,
+          'decan_theme': window.decanTheme,
+          'decan_context_key': window.decanContextKey,
+          'timezone': timezone,
+          'day_card': _dayCardPayloadFor(DateTime.now()),
+        },
+      );
+      await _client.functions.invoke(
+        'evaluate_maat_guidance',
+        body: <String, dynamic>{'timezone': timezone},
+      );
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('[DecanReflectionScheduler] guidance skipped: $error');
+      }
+    }
+  }
+
   Future<void> ensureCurrentAndNextScheduled({bool force = false}) {
     final inFlight = _ensureInFlight;
     if (inFlight != null) {
@@ -168,6 +232,7 @@ class DecanReflectionScheduler {
     final now = DateTime.now();
     final current = _windowFor(now);
     await _scheduleWindow(current);
+    await _ensureMaatGuidance(current);
 
     final nextStart = current.end.add(const Duration(days: 1));
     final next = _windowFor(nextStart);

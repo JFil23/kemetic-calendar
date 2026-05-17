@@ -26,6 +26,7 @@ import 'data/profile_model.dart';
 import 'data/profile_repo.dart';
 import 'data/flow_post_model.dart';
 import 'data/insight_post_model.dart';
+import 'data/maat_guidance_repo.dart';
 import 'data/profile_avatar_glyphs.dart';
 import 'data/share_models.dart';
 import 'utils/event_cid_util.dart';
@@ -47,6 +48,9 @@ import 'services/decan_reflection_scheduler.dart';
 import 'features/journal/journal_controller.dart';
 import 'features/journal/journal_entry_detail_page.dart';
 import 'features/journal/journal_page.dart';
+import 'features/maat_guidance/maat_guidance_controller.dart';
+import 'features/maat_guidance/maat_guidance_detail_page.dart';
+import 'features/maat_guidance/maat_guidance_floating_card.dart';
 import 'features/nodes/kemetic_node_library.dart';
 import 'features/nodes/kemetic_node_list_page.dart';
 import 'features/nodes/kemetic_node_reader_page.dart';
@@ -552,6 +556,7 @@ bool _isContinuityRouteLocation(String location) {
       path.startsWith('/insight-post/') ||
       path.startsWith('/flow-post/') ||
       path.startsWith('/journal/entry/') ||
+      path.startsWith('/maat-guidance/') ||
       path.startsWith('/nodes/') ||
       path.startsWith('/reflections/') ||
       path.startsWith('/share/') ||
@@ -827,6 +832,18 @@ final _router = GoRouter(
       },
     ),
     GoRoute(
+      path: '/maat-guidance/:deliveryId',
+      builder: (context, state) {
+        final deliveryId = Uri.decodeComponent(
+          state.pathParameters['deliveryId']!,
+        );
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: MaatGuidanceDetailPage(deliveryId: deliveryId),
+        );
+      },
+    ),
+    GoRoute(
       path: '/settings',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
@@ -990,11 +1007,14 @@ class _GlobalFloatingMenuShell extends StatefulWidget {
 
 class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     with WidgetsBindingObserver {
+  late final MaatGuidanceController _maatGuidanceController =
+      MaatGuidanceController(MaatGuidanceRepo(supabase));
   Uri _currentUri = Uri(path: '/');
   StreamSubscription<AuthState>? _authSub;
   bool _menuMounted = false;
   bool _menuOpen = false;
   bool _rebuildScheduled = false;
+  bool? _lastGuidanceSuppressed;
 
   @override
   void initState() {
@@ -1005,7 +1025,20 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     widget.router.routeInformationProvider.addListener(_handleRouteChanged);
     _floatingMenuModalDepth.addListener(_handleMenuVisibilityChanged);
     _launchOverlayDismissed.addListener(_handleMenuVisibilityChanged);
+    _maatGuidanceController.addListener(_scheduleRebuild);
     _authSub = supabase.auth.onAuthStateChange.listen((_) {
+      if (supabase.auth.currentSession == null) {
+        _maatGuidanceController.clearForSignedOut();
+      } else {
+        unawaited(_maatGuidanceController.refresh(force: true));
+        unawaited(
+          Future<void>.delayed(const Duration(seconds: 2)).then((_) {
+            if (mounted) {
+              return _maatGuidanceController.refresh(force: true);
+            }
+          }),
+        );
+      }
       _scheduleRebuild();
     });
   }
@@ -1030,12 +1063,21 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     widget.router.routeInformationProvider.removeListener(_handleRouteChanged);
     _floatingMenuModalDepth.removeListener(_handleMenuVisibilityChanged);
     _launchOverlayDismissed.removeListener(_handleMenuVisibilityChanged);
+    _maatGuidanceController.removeListener(_scheduleRebuild);
+    _maatGuidanceController.dispose();
     unawaited(_authSub?.cancel());
     super.dispose();
   }
 
   @override
   Future<bool> didPopRoute() => _handleBackButton();
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    if (supabase.auth.currentSession == null) return;
+    unawaited(_maatGuidanceController.evaluateAndRefresh());
+  }
 
   Uri _readRouterUri() {
     final delegateUri = widget.router.routerDelegate.currentConfiguration.uri;
@@ -1051,6 +1093,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       _menuMounted = false;
       _menuOpen = false;
     }
+    unawaited(_maatGuidanceController.refresh());
     _scheduleRebuild();
   }
 
@@ -1084,6 +1127,28 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
 
   bool get _shouldActivateFloatingMenu =>
       _shouldMountFloatingMenu && _floatingMenuModalDepth.value == 0;
+
+  bool _shouldSuppressMaatGuidance(BuildContext context) {
+    if (!_launchOverlayDismissed.value) return true;
+    if (supabase.auth.currentSession == null) return true;
+    if (_floatingMenuModalDepth.value > 0) return true;
+    if (_menuMounted || _menuOpen) return true;
+    if (MediaQuery.viewInsetsOf(context).bottom > 0) return true;
+
+    final path = _currentUri.path;
+    if (path.startsWith('/maat-guidance/')) return true;
+    if (path.startsWith('/rhythm/editor/')) return true;
+    return false;
+  }
+
+  void _syncMaatGuidanceSuppression(bool suppressed) {
+    if (_lastGuidanceSuppressed == suppressed) return;
+    _lastGuidanceSuppressed = suppressed;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _maatGuidanceController.updateSuppression(suppressed);
+    });
+  }
 
   void _handleFloatingMenuPressed() {
     if (_menuOpen) {
@@ -1143,50 +1208,83 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   Widget build(BuildContext context) {
     final shouldMountFloatingMenu = _shouldMountFloatingMenu;
     final shouldActivateFloatingMenu = _shouldActivateFloatingMenu;
+    final suppressGuidance = _shouldSuppressMaatGuidance(context);
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+    _syncMaatGuidanceSuppression(suppressGuidance);
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        widget.child,
-        if (shouldMountFloatingMenu && _menuMounted) ...[
-          Positioned.fill(
-            child: _GlobalMenuBarrier(
-              visible: _menuOpen,
-              onDismiss: _closeFloatingMenu,
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onVerticalDragEnd: _handleMenuDragEnd,
-              child: AnimatedSlide(
-                offset: _menuOpen ? Offset.zero : const Offset(0, 1),
-                duration: _globalBottomMenuBarTransitionDuration,
-                curve: _globalBottomMenuBarTransitionCurve,
-                child: AnimatedOpacity(
-                  opacity: _menuOpen ? 1 : 0,
-                  duration: _globalBottomMenuBarTransitionDuration,
-                  curve: _globalBottomMenuBarTransitionCurve,
-                  child: _buildFloatingActionsPanel(context),
-                ),
+    Widget buildAnimatedFloatingPanel() {
+      return AnimatedSlide(
+        offset: _menuOpen ? Offset.zero : const Offset(0, 1),
+        duration: _globalBottomMenuBarTransitionDuration,
+        curve: _globalBottomMenuBarTransitionCurve,
+        child: AnimatedOpacity(
+          opacity: _menuOpen ? 1 : 0,
+          duration: _globalBottomMenuBarTransitionDuration,
+          curve: _globalBottomMenuBarTransitionCurve,
+          child: _buildFloatingActionsPanel(context),
+        ),
+      );
+    }
+
+    return MaatGuidanceScope(
+      controller: _maatGuidanceController,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          widget.child,
+          if (shouldMountFloatingMenu && _menuMounted) ...[
+            Positioned.fill(
+              child: _GlobalMenuBarrier(
+                visible: _menuOpen,
+                onDismiss: _closeFloatingMenu,
               ),
             ),
+            if (isLandscape)
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => unawaited(_closeFloatingMenu()),
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {},
+                      onVerticalDragEnd: _handleMenuDragEnd,
+                      child: buildAnimatedFloatingPanel(),
+                    ),
+                  ),
+                ),
+              )
+            else
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onVerticalDragEnd: _handleMenuDragEnd,
+                  child: buildAnimatedFloatingPanel(),
+                ),
+              ),
+          ],
+          if (shouldMountFloatingMenu)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _GlobalBottomMenuBar(
+                visible: shouldActivateFloatingMenu,
+                onPressed: _handleFloatingMenuPressed,
+              ),
+            ),
+          MaatGuidanceOverlayHost(
+            controller: _maatGuidanceController,
+            visible:
+                _maatGuidanceController.hasVisibleDelivery && !suppressGuidance,
           ),
         ],
-        if (shouldMountFloatingMenu)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _GlobalBottomMenuBar(
-              visible: shouldActivateFloatingMenu,
-              onPressed: _handleFloatingMenuPressed,
-            ),
-          ),
-      ],
+      ),
     );
   }
 }

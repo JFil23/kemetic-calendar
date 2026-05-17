@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -100,9 +101,95 @@ void main() {
       expect(launchedSheets, sheetActions);
     });
 
+    testWidgets('landscape detached menu is bounded and scrollable', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(2532, 1170);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final navigations = <String>[];
+      var closeCount = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => CalendarPage.buildDetachedActionsMenuPanel(
+                context,
+                includeNewNote: true,
+                onNavigate: navigations.add,
+                closeMenu: () async {
+                  closeCount += 1;
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      const panelKey = ValueKey<String>('calendar-actions-menu-panel');
+      const gridKey = ValueKey<String>('calendar-actions-grid');
+      final logicalWidth =
+          tester.view.physicalSize.width / tester.view.devicePixelRatio;
+      final logicalHeight =
+          tester.view.physicalSize.height / tester.view.devicePixelRatio;
+
+      final panelSize = tester.getSize(find.byKey(panelKey));
+      expect(panelSize.width, lessThan(logicalWidth * 0.9));
+      expect(panelSize.height, greaterThan(logicalHeight * 0.75));
+      expect(panelSize.height, lessThan(logicalHeight * 0.85));
+
+      final grid = tester.widget<GridView>(find.byKey(gridKey));
+      expect(grid.physics, isA<ClampingScrollPhysics>());
+
+      await tester.drag(find.byKey(gridKey), const Offset(0, -180));
+      await tester.pump();
+      await tester.tap(find.text('Settings'));
+      await tester.pump();
+
+      expect(navigations, <String>['/settings']);
+      expect(closeCount, 1);
+    });
+
+    testWidgets('global bottom menu height is shorter only in landscape', (
+      tester,
+    ) async {
+      Future<double> pumpWithSize(Size physicalSize) async {
+        tester.view.physicalSize = physicalSize;
+        tester.view.devicePixelRatio = 3;
+        double? height;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) {
+                height = globalBottomMenuHeight(context);
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        );
+
+        return height!;
+      }
+
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      expect(await pumpWithSize(const Size(1170, 2532)), 50);
+      expect(await pumpWithSize(const Size(2532, 1170)), 25);
+    });
+
     testWidgets('detached Home dispatches before close animation completes', (
       tester,
     ) async {
+      tester.view.physicalSize = const Size(1170, 2532);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final navigations = <String>[];
       var closeStarted = false;
       final closeCompleter = Completer<void>();
@@ -138,6 +225,11 @@ void main() {
     testWidgets('detached sheet actions close before dispatching sheets', (
       tester,
     ) async {
+      tester.view.physicalSize = const Size(1170, 2532);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final launchedSheets = <String>[];
       var closeFinished = false;
 
@@ -299,6 +391,23 @@ void main() {
         expect(shell, isNot(contains("segments.first == 'profile'")));
       },
     );
+
+    test('global menu uses landscape side-tap dismiss layer', () async {
+      final source = await File('lib/main.dart').readAsString();
+      final shell = _sourceBetween(
+        source,
+        'class _GlobalFloatingMenuShellState',
+        'class _GlobalMenuBarrier',
+      );
+
+      expect(
+        shell,
+        contains('MediaQuery.orientationOf(context) == Orientation.landscape'),
+      );
+      expect(shell, contains('if (isLandscape)'));
+      expect(shell, contains('Positioned.fill'));
+      expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
+    });
 
     test('global bottom menu hit area matches the visible bar', () async {
       final source = await File('lib/main.dart').readAsString();

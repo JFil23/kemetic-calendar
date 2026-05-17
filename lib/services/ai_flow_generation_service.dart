@@ -37,6 +37,8 @@ class AIFlowGenerationService {
     String? flowColor, // hex like "#4dd0e1"
     String? timezone, // IANA string (e.g., "America/Los_Angeles")
     String? sourceText,
+    String? maatDeliveryId,
+    String? maatBriefId,
     bool forceRefresh = false,
   }) async {
     // 1) Session precheck
@@ -73,6 +75,10 @@ class AIFlowGenerationService {
       if (timezone != null) 'timezone': timezone,
       if (sanitizedSourceText != null && sanitizedSourceText.isNotEmpty)
         'source_text': sanitizedSourceText,
+      if (maatDeliveryId != null && maatDeliveryId.trim().isNotEmpty)
+        'maat_delivery_id': maatDeliveryId.trim(),
+      if (maatBriefId != null && maatBriefId.trim().isNotEmpty)
+        'maat_brief_id': maatBriefId.trim(),
       if (forceRefresh) 'force_refresh': true,
       // ⚠️ Do NOT send useKemetic; function doesn't accept it
     };
